@@ -81,9 +81,9 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 			}
 		}
 		// Exists but stopped — start it
-		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
+		startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
 		if startErr != nil || (startCode != 204 && startCode != 304) {
-			logger.Error("[Ollama Managed] Failed to start existing container", "code", startCode, "error", startErr)
+			logger.Error("[Ollama Managed] Failed to start existing container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
 			return
 		}
 		logger.Info("[Ollama Managed] Container started")
@@ -136,7 +136,7 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 		payload["Env"] = gpu.Env
 	}
 	body, _ := json.Marshal(payload)
-	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
+	createData, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
 	if createCode == 404 {
 		// Image not present locally — pull it, then retry the create once.
 		logger.Info("[Ollama Managed] Image not found locally, pulling...", "image", image)
@@ -145,16 +145,16 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 			return
 		}
 		logger.Info("[Ollama Managed] Image pulled successfully", "image", image)
-		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
+		createData, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+ollamaManagedContainerName, string(body))
 	}
 	if createErr != nil || createCode != 201 {
-		logger.Error("[Ollama Managed] Failed to create container", "code", createCode, "error", createErr)
+		logger.Error("[Ollama Managed] Failed to create container", "code", createCode, "error", createErr, "docker_error", dockerBodyMessage(createCode, createData))
 		return
 	}
 
-	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
+	startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
 	if startErr != nil || (startCode != 204 && startCode != 304) {
-		logger.Error("[Ollama Managed] Failed to start new container", "code", startCode, "error", startErr)
+		logger.Error("[Ollama Managed] Failed to start new container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
 		return
 	}
 	logger.Info("[Ollama Managed] Container created and started", "image", image, "port", port, "gpu", gpu.Backend)

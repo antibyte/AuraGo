@@ -167,6 +167,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	}
 
 	s := initAgentLoopState(req, runCfg, broker)
+	req = s.req
 
 	cfg := s.runCfg.Config
 	logger := s.runCfg.Logger

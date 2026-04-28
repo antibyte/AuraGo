@@ -175,6 +175,68 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 	}
 }
 
+func TestExecuteKoofrListRetriesSlashPathFallback(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	var attempted []string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/api/v2/mounts/primary/files/list":
+			attempted = append(attempted, r.URL.Query().Get("path"))
+			if r.URL.Query().Get("path") == "/aurgo/" {
+				_, _ = w.Write([]byte(`{"files":[]}`))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "list", "/aurgo", "", "", "", t.TempDir())
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "success" {
+		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
+	}
+	if strings.Join(attempted, ",") != "/aurgo,/aurgo/" {
+		t.Fatalf("attempted paths = %v, want [/aurgo /aurgo/]", attempted)
+	}
+}
+
+func TestExecuteKoofrMkdirUsesSlashPathSemantics(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	var parent string
+	var folderName string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/api/v2/mounts/primary/files/folder":
+			parent = r.URL.Query().Get("path")
+			var payload map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&payload)
+			folderName = payload["name"]
+			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "mkdir", "/aurgo/pictures", "", "", "", t.TempDir())
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "success" {
+		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
+	}
+	if parent != "/aurgo" || folderName != "pictures" {
+		t.Fatalf("parent/name = %q/%q, want /aurgo/pictures", parent, folderName)
+	}
+}
+
 func parseKoofrToolJSON(t *testing.T, result string) map[string]interface{} {
 	t.Helper()
 	const prefix = "Tool Output: "

@@ -1,12 +1,20 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
+	"io"
+	"log/slog"
+	"path/filepath"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/sqlconnections"
+	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestBuildToolingPolicyAutoEnablesNativeFunctionsForDeepSeek(t *testing.T) {
@@ -103,6 +111,51 @@ func TestReconcilePromptToolModeWithRequestDowngradesNativeWhenRequestHasNoTools
 	}
 	if policy.UseNativeFunctions {
 		t.Fatal("expected policy to be downgraded for this request")
+	}
+}
+
+func TestExecuteAgentLoopUsesInitializedNativeSchemas(t *testing.T) {
+	promptsDir, err := filepath.Abs("../../prompts")
+	if err != nil {
+		t.Fatalf("resolve prompts dir: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.LLM.Model = "gpt-4o-mini"
+	cfg.LLM.UseNativeFunctions = true
+	cfg.Agent.SystemLanguage = "English"
+	cfg.Server.UILanguage = "en"
+	cfg.Directories.PromptsDir = promptsDir
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Agent.ContextWindow = 32768
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.WebScraper.Enabled = true
+
+	client := &mockChatClient{response: "Done. <done/>"}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	req := openai.ChatCompletionRequest{
+		Model: cfg.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleUser, Content: "hi"},
+		},
+	}
+	_, err = ExecuteAgentLoop(context.Background(), req, RunConfig{
+		Config:       cfg,
+		Logger:       logger,
+		LLMClient:    client,
+		ShortTermMem: stm,
+		Registry:     tools.NewProcessRegistry(logger),
+		SessionID:    "native-schema-test",
+	}, false, NoopBroker{})
+	if err != nil {
+		t.Fatalf("ExecuteAgentLoop: %v", err)
+	}
+	if len(client.lastReq.Tools) == 0 {
+		t.Fatal("expected initialized native tool schemas to be attached to the LLM request")
 	}
 }
 

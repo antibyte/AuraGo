@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,6 +28,18 @@ type KoofrConfig struct {
 type mountInfo struct {
 	ID        string `json:"id"`
 	IsPrimary bool   `json:"isPrimary"`
+}
+
+type koofrAPIError struct {
+	statusCode int
+	body       string
+}
+
+func (e *koofrAPIError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("API returns status %d: %s", e.statusCode, e.body)
 }
 
 var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
@@ -56,8 +69,15 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 	switch action {
 	case "list":
-		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/list?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "application/json", nil)
+		respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", safePath), cfg.Username, cfg.AppPassword, "application/json", nil)
+		if isKoofrStatus(err, http.StatusNotFound) {
+			for _, fallbackPath := range koofrPathFallbacks(safePath) {
+				respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", fallbackPath), cfg.Username, cfg.AppPassword, "application/json", nil)
+				if err == nil || !isKoofrStatus(err, http.StatusNotFound) {
+					break
+				}
+			}
+		}
 
 	case "read":
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
@@ -143,13 +163,11 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		if clean == "" {
 			clean = "/"
 		}
-		parentDir := filepath.Dir(clean) // On linux/slash paths, this gives string
-		// fix path separators for Windows environments affecting parentDir logic
-		parentDir = strings.ReplaceAll(parentDir, "\\", "/")
+		parentDir := pathpkg.Dir(clean)
 		if parentDir == "" || parentDir == clean {
 			parentDir = "/"
 		}
-		newName := filepath.Base(clean)
+		newName := pathpkg.Base(clean)
 
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/folder?path=%s", baseURL, mountID, url.QueryEscape(parentDir))
 
@@ -157,6 +175,15 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		payloadBytes, _ := json.Marshal(payload)
 
 		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		if isKoofrStatus(err, http.StatusNotFound) {
+			for _, fallbackParent := range koofrPathFallbacks(parentDir) {
+				reqURL = fmt.Sprintf("%s/api/v2/mounts/%s/files/folder?path=%s", baseURL, mountID, url.QueryEscape(fallbackParent))
+				respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+				if err == nil || !isKoofrStatus(err, http.StatusNotFound) {
+					break
+				}
+			}
+		}
 
 	case "delete":
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/remove?path=%s", baseURL, mountID, url.QueryEscape(safePath))
@@ -212,6 +239,29 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 	}
 
 	return marshalPrefixedToolJSON(map[string]interface{}{"status": "success"})
+}
+
+func koofrFilesURL(baseURL, mountID, operation, safePath string) string {
+	return fmt.Sprintf("%s/api/v2/mounts/%s/files/%s?path=%s", baseURL, mountID, operation, url.QueryEscape(safePath))
+}
+
+func koofrPathFallbacks(safePath string) []string {
+	if safePath == "" || safePath == "/" {
+		return nil
+	}
+	var fallbacks []string
+	if !strings.HasSuffix(safePath, "/") {
+		fallbacks = append(fallbacks, safePath+"/")
+	}
+	if strings.HasPrefix(safePath, "/") {
+		fallbacks = append(fallbacks, strings.TrimPrefix(safePath, "/"))
+	}
+	return fallbacks
+}
+
+func isKoofrStatus(err error, status int) bool {
+	apiErr, ok := err.(*koofrAPIError)
+	return ok && apiErr.statusCode == status
 }
 
 func koofrSuccessContentResponse(content []byte) string {
@@ -408,7 +458,7 @@ func doKoofrRequest(method, reqURL, username, password, contentType string, body
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("API returns status %d: %s", resp.StatusCode, string(respBytes))
+		return nil, &koofrAPIError{statusCode: resp.StatusCode, body: string(respBytes)}
 	}
 
 	return respBytes, nil

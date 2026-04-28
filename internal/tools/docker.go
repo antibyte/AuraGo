@@ -226,13 +226,28 @@ func errJSON(msg string, args ...interface{}) string {
 // (which wraps errors as {"message":"..."}) and returns a safe JSON error string.
 // Falls back to a generic message if the body cannot be parsed.
 func dockerBodyErr(code int, body []byte) string {
+	msg := dockerBodyMessage(code, body)
+	if msg != "" {
+		return errJSON("Docker error (HTTP %d): %s", code, msg)
+	}
+	return errJSON("Docker error (HTTP %d)", code)
+}
+
+func dockerBodyMessage(code int, body []byte) string {
 	var dockerMsg struct {
 		Message string `json:"message"`
 	}
 	if json.Unmarshal(body, &dockerMsg) == nil && dockerMsg.Message != "" {
-		return errJSON("Docker error (HTTP %d): %s", code, dockerMsg.Message)
+		return dockerMsg.Message
 	}
-	return errJSON("Docker error (HTTP %d)", code)
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed != "" {
+		if len(trimmed) > 500 {
+			trimmed = trimmed[:500] + "..."
+		}
+		return trimmed
+	}
+	return ""
 }
 
 // ---------- Operations ----------

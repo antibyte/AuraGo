@@ -13,6 +13,8 @@ const (
 	defaultGuardianMaxScanBytes  = 16 * 1024
 	defaultGuardianScanEdgeBytes = 6 * 1024
 	guardianScanOmittedMark      = "\n[... guardian scan truncated ...]\n"
+	missionAdvisoryStartMarker   = "<!-- aurago:mission-advisory:v1:start -->"
+	missionAdvisoryEndMarker     = "<!-- aurago:mission-advisory:v1:end -->"
 )
 
 // ThreatLevel indicates the severity of a detected injection attempt.
@@ -327,12 +329,35 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 // Logs the result but does NOT block — the user is the operator.
 // Returns the scan result for upstream decision-making.
 func (g *Guardian) ScanUserInput(text string) ScanResult {
-	scan := g.ScanForInjection(text)
+	scanText := StripInternalMissionAdvisoryForScan(text)
+	scan := g.ScanForInjection(scanText)
 	if scan.Level >= ThreatHigh && g.logger != nil {
 		g.logger.Warn("[Guardian] Suspicious user input detected",
-			"threat", scan.Level.String(), "patterns", scan.Patterns, "preview", truncateForLog(text, 200))
+			"threat", scan.Level.String(), "patterns", scan.Patterns, "preview", truncateForLog(scanText, 200))
 	}
 	return scan
+}
+
+// StripInternalMissionAdvisoryForScan removes scheduler-generated advisory
+// blocks before user-input injection scanning. These blocks are internal
+// context, not user-authored instructions, and contain planning language that
+// can resemble instruction-override attacks.
+func StripInternalMissionAdvisoryForScan(text string) string {
+	if !strings.Contains(text, missionAdvisoryStartMarker) {
+		return text
+	}
+	for {
+		start := strings.Index(text, missionAdvisoryStartMarker)
+		if start < 0 {
+			return text
+		}
+		endRel := strings.Index(text[start:], missionAdvisoryEndMarker)
+		if endRel < 0 {
+			return strings.TrimSpace(text[:start])
+		}
+		end := start + endRel + len(missionAdvisoryEndMarker)
+		text = strings.TrimSpace(text[:start]) + "\n" + strings.TrimSpace(text[end:])
+	}
 }
 
 // ScanExternalContent scans content from external sources (web, API, files) for injection.
