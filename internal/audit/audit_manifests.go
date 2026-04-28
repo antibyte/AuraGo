@@ -399,7 +399,13 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 			Name:         "revoked-device-authentication",
 			Subsystem:    "internal/remote",
 			Scenario:     "revoked devices are rejected during reconnect and unregister on revoke",
-			TestCoverage: "internal/remote/hub.go source guard; dedicated websocket fixture still pending",
+			TestCoverage: "internal/remote/hub.go source guard and internal/remote/hub_ws_test.go revoked reconnect fixture",
+		},
+		{
+			Name:         "revoked-device-websocket-reconnect",
+			Subsystem:    "internal/remote",
+			Scenario:     "a revoked device reconnecting over WebSocket receives a rejected auth_response and is not registered as connected",
+			TestCoverage: "internal/remote/hub_ws_test.go:TestHandleEnrollmentRejectsRevokedDeviceReconnectOverWebSocket",
 		},
 	}
 }

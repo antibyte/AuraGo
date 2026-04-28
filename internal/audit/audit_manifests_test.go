@@ -295,6 +295,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		"remote-file-allowed-paths",
 		"invasion-artifact-integrity",
 		"revoked-device-authentication",
+		"revoked-device-websocket-reconnect",
 	}
 	byName := map[string]RemoteLifecycleBoundary{}
 	for _, entry := range RemoteLifecycleManifest() {
@@ -318,6 +319,10 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		if !strings.Contains(hubSource, needle) {
 			t.Fatalf("remote hub source is missing revoked-device lifecycle guard %q", needle)
 		}
+	}
+	hubTests := readRepoFile(t, "internal/remote/hub_ws_test.go")
+	if !strings.Contains(hubTests, "TestHandleEnrollmentRejectsRevokedDeviceReconnectOverWebSocket") {
+		t.Fatal("remote hub websocket tests must cover revoked-device reconnect rejection")
 	}
 	artifactTests := readRepoFile(t, "internal/invasion/artifacts_test.go")
 	for _, needle := range []string{"TestClaimArtifactUploadTokenIsSingleUse", "TestArtifactStorageRejectsHashMismatchAndRemovesPartialFile", "RecordEggMessage duplicate"} {
