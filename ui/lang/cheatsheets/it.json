@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Creato dall'agente",
   "cheatsheets.created_by_user": "Creato dall'utente",
   "cheatsheets.group_agent": "Agente",
-  "cheatsheets.empty_agent": "Nessun foglietto agente ancora."
+  "cheatsheets.empty_agent": "Nessun foglietto agente ancora.",
+  "cheatsheets.char_limit_exceeded": "Limite di caratteri superato"
 }

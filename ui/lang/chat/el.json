@@ -175,5 +175,6 @@
   "chat.theme_ocean": "Ωκεανός",
   "chat.theme_sandstorm": "Αμμοθύελλα",
   "chat.theme_papyrus": "Papyrus",
-  "chat.theme_black_matrix": "Μαύρο Matrix"
+  "chat.theme_black_matrix": "Μαύρο Matrix",
+  "chat.voice_error": "Σφάλμα φωνής"
 }

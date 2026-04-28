@@ -165,5 +165,6 @@
   "skills.vault_none": "Žádná tajemství přiřazena",
   "skills.vault_save_success": "Tajemství aktualizována",
   "skills.vault_section_creds": "Přihlašovací údaje",
-  "skills.vault_section_secrets": "Tajemství vaultu"
+  "skills.vault_section_secrets": "Tajemství vaultu",
+  "skills.internal_tools_modal_save": "Uložit"
 }

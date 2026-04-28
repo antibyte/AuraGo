@@ -165,5 +165,6 @@
   "skills.vault_none": "Nessun segreto assegnato",
   "skills.vault_save_success": "Segreti aggiornati",
   "skills.vault_section_creds": "Credenziali",
-  "skills.vault_section_secrets": "Segreti vault"
+  "skills.vault_section_secrets": "Segreti vault",
+  "skills.internal_tools_modal_save": "Salva"
 }

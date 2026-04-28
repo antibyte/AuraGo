@@ -165,5 +165,6 @@
   "skills.vault_none": "Geen geheimen toegewezen",
   "skills.vault_save_success": "Geheimen bijgewerkt",
   "skills.vault_section_creds": "Inloggegevens",
-  "skills.vault_section_secrets": "Vault-geheimen"
+  "skills.vault_section_secrets": "Vault-geheimen",
+  "skills.internal_tools_modal_save": "Opslaan"
 }

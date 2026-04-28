@@ -175,5 +175,6 @@
   "chat.theme_ocean": "オーシャン",
   "chat.theme_sandstorm": "砂嵐",
   "chat.theme_papyrus": "Papyrus",
-  "chat.theme_black_matrix": "ブラックマトリックス"
+  "chat.theme_black_matrix": "ブラックマトリックス",
+  "chat.voice_error": "音声エラー"
 }

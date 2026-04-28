@@ -52,5 +52,7 @@
   "common.pagination_previous": "Forrige",
   "common.pagination_next": "Næste",
   "common.view_list": "Listevisning",
-  "common.view_grid": "Gittervisning"
+  "common.view_grid": "Gittervisning",
+  "common.btn_remove": "Fjern",
+  "common.warning": "Advarsel"
 }

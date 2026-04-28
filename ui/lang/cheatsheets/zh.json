@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "由代理创建",
   "cheatsheets.created_by_user": "由用户创建",
   "cheatsheets.group_agent": "代理",
-  "cheatsheets.empty_agent": "还没有代理备忘单。"
+  "cheatsheets.empty_agent": "还没有代理备忘单。",
+  "cheatsheets.char_limit_exceeded": "超出字符限制"
 }

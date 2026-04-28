@@ -165,5 +165,6 @@
   "skills.vault_none": "Ingen hemmeligheder tildelt",
   "skills.vault_save_success": "Hemmeligheder opdateret",
   "skills.vault_section_creds": "Legitimationsoplysninger",
-  "skills.vault_section_secrets": "Vault-hemmeligheder"
+  "skills.vault_section_secrets": "Vault-hemmeligheder",
+  "skills.internal_tools_modal_save": "Gem"
 }

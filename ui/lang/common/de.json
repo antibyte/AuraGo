@@ -52,5 +52,7 @@
   "common.pagination_previous": "Zurück",
   "common.pagination_next": "Weiter",
   "common.view_list": "Listenansicht",
-  "common.view_grid": "Rasteransicht"
+  "common.view_grid": "Rasteransicht",
+  "common.btn_remove": "Entfernen",
+  "common.warning": "Warnung"
 }

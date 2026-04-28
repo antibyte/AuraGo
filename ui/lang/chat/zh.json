@@ -175,5 +175,6 @@
   "chat.theme_ocean": "海洋",
   "chat.theme_sandstorm": "沙暴",
   "chat.theme_papyrus": "Papyrus",
-  "chat.theme_black_matrix": "黑色矩阵"
+  "chat.theme_black_matrix": "黑色矩阵",
+  "chat.voice_error": "语音错误"
 }

@@ -175,5 +175,6 @@
   "chat.theme_ocean": "Océan",
   "chat.theme_sandstorm": "Tempête de Sable",
   "chat.theme_papyrus": "Papyrus",
-  "chat.theme_black_matrix": "Matrix Noire"
+  "chat.theme_black_matrix": "Matrix Noire",
+  "chat.voice_error": "Erreur vocale"
 }

@@ -165,5 +165,6 @@
   "skills.vault_none": "Keine Secrets zugewiesen",
   "skills.vault_save_success": "Geheimnisse aktualisiert",
   "skills.vault_section_creds": "Zugangsdaten",
-  "skills.vault_section_secrets": "Vault-Geheimnisse"
+  "skills.vault_section_secrets": "Vault-Geheimnisse",
+  "skills.internal_tools_modal_save": "Speichern"
 }

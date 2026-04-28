@@ -165,5 +165,6 @@
   "skills.vault_none": "Aucun secret assigné",
   "skills.vault_save_success": "Secrets mis à jour",
   "skills.vault_section_creds": "Identifiants",
-  "skills.vault_section_secrets": "Secrets du vault"
+  "skills.vault_section_secrets": "Secrets du vault",
+  "skills.internal_tools_modal_save": "Enregistrer"
 }

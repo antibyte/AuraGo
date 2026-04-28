@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Vytvořil agent",
   "cheatsheets.created_by_user": "Vytvořil uživatel",
   "cheatsheets.group_agent": "Agent",
-  "cheatsheets.empty_agent": "Zatím žádné agentní cheaty."
+  "cheatsheets.empty_agent": "Zatím žádné agentní cheaty.",
+  "cheatsheets.char_limit_exceeded": "Překročen limit znaků"
 }

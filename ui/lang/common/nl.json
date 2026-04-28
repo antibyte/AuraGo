@@ -52,5 +52,7 @@
   "common.pagination_previous": "Vorige",
   "common.pagination_next": "Volgende",
   "common.view_list": "Lijstweergave",
-  "common.view_grid": "Rasterweergave"
+  "common.view_grid": "Rasterweergave",
+  "common.btn_remove": "Verwijderen",
+  "common.warning": "Waarschuwing"
 }

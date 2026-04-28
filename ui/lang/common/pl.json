@@ -52,5 +52,7 @@
   "common.pagination_previous": "Poprzedni",
   "common.pagination_next": "Następny",
   "common.view_list": "Widok listy",
-  "common.view_grid": "Widok siatki"
+  "common.view_grid": "Widok siatki",
+  "common.btn_remove": "Usuń",
+  "common.warning": "Ostrzeżenie"
 }

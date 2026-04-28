@@ -165,5 +165,6 @@
   "skills.vault_none": "シークレット未割り当て",
   "skills.vault_save_success": "シークレットを更新しました",
   "skills.vault_section_creds": "認証情報",
-  "skills.vault_section_secrets": "Vaultシークレット"
+  "skills.vault_section_secrets": "Vaultシークレット",
+  "skills.internal_tools_modal_save": "保存"
 }

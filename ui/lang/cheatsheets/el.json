@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Δημιουργήθηκε από τον πράκτορα",
   "cheatsheets.created_by_user": "Δημιουργήθηκε από τον χρήστη",
   "cheatsheets.group_agent": "Πράκτορας",
-  "cheatsheets.empty_agent": "Δεν υπάρχουν ακόμα φύλλα εξαπάτησης πράκτορα."
+  "cheatsheets.empty_agent": "Δεν υπάρχουν ακόμα φύλλα εξαπάτησης πράκτορα.",
+  "cheatsheets.char_limit_exceeded": "Υπέρβαση ορίου χαρακτήρων"
 }

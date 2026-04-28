@@ -165,5 +165,6 @@
   "skills.vault_none": "Δεν έχουν ανατεθεί μυστικά",
   "skills.vault_save_success": "Μυστικά ενημερώθηκαν",
   "skills.vault_section_creds": "Πιστοποιητικά",
-  "skills.vault_section_secrets": "Μυστικά vault"
+  "skills.vault_section_secrets": "Μυστικά vault",
+  "skills.internal_tools_modal_save": "Αποθήκευση"
 }

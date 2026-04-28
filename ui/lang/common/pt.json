@@ -52,5 +52,7 @@
   "common.pagination_previous": "Anterior",
   "common.pagination_next": "Seguinte",
   "common.view_list": "Vista em lista",
-  "common.view_grid": "Vista em grelha"
+  "common.view_grid": "Vista em grelha",
+  "common.btn_remove": "Remover",
+  "common.warning": "Aviso"
 }

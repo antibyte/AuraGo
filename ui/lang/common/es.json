@@ -52,5 +52,7 @@
   "common.pagination_previous": "Anterior",
   "common.pagination_next": "Siguiente",
   "common.view_list": "Vista de lista",
-  "common.view_grid": "Vista de cuadrícula"
+  "common.view_grid": "Vista de cuadrícula",
+  "common.btn_remove": "Eliminar",
+  "common.warning": "Advertencia"
 }

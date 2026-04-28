@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Skapad av agenten",
   "cheatsheets.created_by_user": "Skapad av användaren",
   "cheatsheets.group_agent": "Agent",
-  "cheatsheets.empty_agent": "Inga agent-fuskblad ännu."
+  "cheatsheets.empty_agent": "Inga agent-fuskblad ännu.",
+  "cheatsheets.char_limit_exceeded": "Teckengränsen har överskridits"
 }

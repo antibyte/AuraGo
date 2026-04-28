@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Oprettet af agenten",
   "cheatsheets.created_by_user": "Oprettet af brugeren",
   "cheatsheets.group_agent": "Agent",
-  "cheatsheets.empty_agent": "Ingen agent-snydeark endnu."
+  "cheatsheets.empty_agent": "Ingen agent-snydeark endnu.",
+  "cheatsheets.char_limit_exceeded": "Tegngrænse overskredet"
 }

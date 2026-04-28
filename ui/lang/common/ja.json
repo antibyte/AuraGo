@@ -52,5 +52,7 @@
   "common.pagination_previous": "前へ",
   "common.pagination_next": "次へ",
   "common.view_list": "リスト表示",
-  "common.view_grid": "グリッド表示"
+  "common.view_grid": "グリッド表示",
+  "common.btn_remove": "削除",
+  "common.warning": "警告"
 }

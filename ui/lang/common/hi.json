@@ -52,5 +52,7 @@
   "common.pagination_previous": "पिछला",
   "common.pagination_next": "अगला",
   "common.view_list": "सूची दृश्य",
-  "common.view_grid": "ग्रिड दृश्य"
+  "common.view_grid": "ग्रिड दृश्य",
+  "common.btn_remove": "हटाएँ",
+  "common.warning": "चेतावनी"
 }

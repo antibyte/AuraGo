@@ -175,5 +175,6 @@
   "chat.sessions_just_now": "Gerade eben",
   "chat.sessions_minutes_ago": "vor {n} Min.",
   "chat.sessions_hours_ago": "vor {n} Std.",
-  "chat.sessions_days_ago": "vor {n} Tagen"
+  "chat.sessions_days_ago": "vor {n} Tagen",
+  "chat.voice_error": "Sprachfehler"
 }

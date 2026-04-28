@@ -165,5 +165,6 @@
   "skills.vault_none": "未分配密钥",
   "skills.vault_save_success": "密钥已更新",
   "skills.vault_section_creds": "凭据",
-  "skills.vault_section_secrets": "Vault密钥"
+  "skills.vault_section_secrets": "Vault密钥",
+  "skills.internal_tools_modal_save": "保存"
 }

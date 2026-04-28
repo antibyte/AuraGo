@@ -52,5 +52,7 @@
   "common.pagination_previous": "Föregående",
   "common.pagination_next": "Nästa",
   "common.view_list": "Listvy",
-  "common.view_grid": "Rutnätsvy"
+  "common.view_grid": "Rutnätsvy",
+  "common.btn_remove": "Ta bort",
+  "common.warning": "Varning"
 }

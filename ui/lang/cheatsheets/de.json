@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "Vom Agent erstellt",
   "cheatsheets.created_by_user": "Vom Benutzer erstellt",
   "cheatsheets.group_agent": "Agent",
-  "cheatsheets.empty_agent": "Noch keine Agent-Spickzettel."
+  "cheatsheets.empty_agent": "Noch keine Agent-Spickzettel.",
+  "cheatsheets.char_limit_exceeded": "Zeichenlimit überschritten"
 }

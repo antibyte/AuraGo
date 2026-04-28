@@ -165,5 +165,6 @@
   "skills.vault_none": "Brak przypisanych sekretów",
   "skills.vault_save_success": "Sekrety zaktualizowane",
   "skills.vault_section_creds": "Dane uwierzytelniające",
-  "skills.vault_section_secrets": "Sekrety vault"
+  "skills.vault_section_secrets": "Sekrety vault",
+  "skills.internal_tools_modal_save": "Zapisz"
 }

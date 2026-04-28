@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "エージェントが作成",
   "cheatsheets.created_by_user": "ユーザーが作成",
   "cheatsheets.group_agent": "エージェント",
-  "cheatsheets.empty_agent": "まだエージェントのチートシートはありません。"
+  "cheatsheets.empty_agent": "まだエージェントのチートシートはありません。",
+  "cheatsheets.char_limit_exceeded": "文字数制限を超えました"
 }

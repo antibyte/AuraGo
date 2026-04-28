@@ -165,5 +165,6 @@
   "skills.vault_none": "Inga hemligheter tilldelade",
   "skills.vault_save_success": "Hemligheter uppdaterade",
   "skills.vault_section_creds": "Autentiseringsuppgifter",
-  "skills.vault_section_secrets": "Vault-hemligheter"
+  "skills.vault_section_secrets": "Vault-hemligheter",
+  "skills.internal_tools_modal_save": "Spara"
 }

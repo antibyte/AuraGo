@@ -46,5 +46,6 @@
   "cheatsheets.created_by_agent": "एजेंट द्वारा बनाया गया",
   "cheatsheets.created_by_user": "उपयोगकर्ता द्वारा बनाया गया",
   "cheatsheets.group_agent": "एजेंट",
-  "cheatsheets.empty_agent": "अभी तक कोई एजेंट चीट शीट नहीं।"
+  "cheatsheets.empty_agent": "अभी तक कोई एजेंट चीट शीट नहीं।",
+  "cheatsheets.char_limit_exceeded": "वर्ण सीमा पार हो गई"
 }

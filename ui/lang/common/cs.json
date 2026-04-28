@@ -52,5 +52,7 @@
   "common.pagination_previous": "Předchozí",
   "common.pagination_next": "Další",
   "common.view_list": "Zobrazení seznamu",
-  "common.view_grid": "Zobrazení mřížky"
+  "common.view_grid": "Zobrazení mřížky",
+  "common.btn_remove": "Odebrat",
+  "common.warning": "Varování"
 }

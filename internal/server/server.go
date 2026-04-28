@@ -344,8 +344,10 @@ func Start(opts StartOptions) error {
 				logger.Warn("Failed to sync skills from disk", "error", err)
 			}
 			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
-			// Seed bundled example skills on first start (idempotent)
-			tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
+			if shouldSeedWelcomeContent(s.IsFirstStart) {
+				// Seed bundled example skills only during first-start setup.
+				tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
+			}
 		}
 	}
 
@@ -684,14 +686,14 @@ func Start(opts StartOptions) error {
 
 	if err := s.MissionManagerV2.Start(); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
-	} else if shouldSeedWelcomeMissions(s.IsFirstStart) {
+	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example missions only during first-start setup.
 		// Deleted examples must stay deleted on later restarts.
 		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
 	}
 
-	// Seed bundled example cheat sheets on first start (idempotent)
-	if cheatsheetDB != nil {
+	if cheatsheetDB != nil && shouldSeedWelcomeContent(s.IsFirstStart) {
+		// Seed bundled example cheat sheets only during first-start setup.
 		tools.SeedWelcomeCheatsheets(cheatsheetDB, installDir, logger)
 	}
 
@@ -999,7 +1001,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	}
 }
 
-func shouldSeedWelcomeMissions(isFirstStart bool) bool {
+func shouldSeedWelcomeContent(isFirstStart bool) bool {
 	return isFirstStart
 }
 

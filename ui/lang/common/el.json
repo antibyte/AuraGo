@@ -52,5 +52,7 @@
   "common.pagination_previous": "Προηγούμενο",
   "common.pagination_next": "Επόμενο",
   "common.view_list": "Προβολή λίστας",
-  "common.view_grid": "Προβολή πλέγματος"
+  "common.view_grid": "Προβολή πλέγματος",
+  "common.btn_remove": "Αφαίρεση",
+  "common.warning": "Προειδοποίηση"
 }

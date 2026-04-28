@@ -165,5 +165,6 @@
   "skills.vault_none": "कोई रहस्य असाइन नहीं",
   "skills.vault_save_success": "रहस्य अपडेट किए गए",
   "skills.vault_section_creds": "क्रेडेंशियल",
-  "skills.vault_section_secrets": "Vault रहस्य"
+  "skills.vault_section_secrets": "Vault रहस्य",
+  "skills.internal_tools_modal_save": "सहेजें"
 }

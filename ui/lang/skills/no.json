@@ -165,5 +165,6 @@
   "skills.vault_none": "Ingen hemmeligheter tildelt",
   "skills.vault_save_success": "Hemmeligheter oppdatert",
   "skills.vault_section_creds": "Legitimasjon",
-  "skills.vault_section_secrets": "Vault-hemmeligheter"
+  "skills.vault_section_secrets": "Vault-hemmeligheter",
+  "skills.internal_tools_modal_save": "Lagre"
 }

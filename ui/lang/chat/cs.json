@@ -175,5 +175,6 @@
   "chat.theme_ocean": "Oceán",
   "chat.theme_sandstorm": "Písečná bouře",
   "chat.theme_papyrus": "Papyrus",
-  "chat.theme_black_matrix": "Černá Matrix"
+  "chat.theme_black_matrix": "Černá Matrix",
+  "chat.voice_error": "Chyba hlasu"
 }
