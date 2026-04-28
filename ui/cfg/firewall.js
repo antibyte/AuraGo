@@ -41,7 +41,7 @@ window.renderFirewallSection = function (sectionParam) {
         sensitive: false
     });
 
-    html += '<div class="fw-field-help fw-field-help-spaced">' + t('help.config.firewall.mode') + '</div>';
+    html += '<div class="field-help fw-field-help-in-card">' + t('help.config.firewall.mode') + '</div>';
 
     // Poll Interval
     html += renderField('firewall.poll_interval_seconds', 'poll_interval_seconds', fwConfig.poll_interval_seconds || 60, 'firewall', {
@@ -49,7 +49,7 @@ window.renderFirewallSection = function (sectionParam) {
         sensitive: false
     });
 
-    html += '<div class="fw-field-help">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
+    html += '<div class="field-help fw-field-help-in-card">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
 
     html += '</div>'; // End wrapper
     if (fwBlocked) html += '</div>'; // End feature-unavailable-fields

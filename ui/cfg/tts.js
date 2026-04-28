@@ -101,7 +101,7 @@ function renderTTSSection(section) {
     html += '<div style="font-weight:600;font-size:0.92rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin:1.5rem 0 0.8rem;">🗣️ Piper TTS (Local Docker)</div>';
 
     // Status banner
-    html += '<div id="piper-status-banner" style="margin-bottom:1rem;padding:0.8rem 1rem;border-radius:10px;font-size:0.84rem;background:var(--bg-tertiary);color:var(--text-secondary);">' + t('config.tts.piper_checking') + '</div>';
+    html += '<div id="piper-status-banner" style="margin-bottom:1rem;margin-top:0.5rem;padding:0.8rem 1rem;border-radius:10px;font-size:0.84rem;background:var(--bg-tertiary);color:var(--text-secondary);">' + t('config.tts.piper_checking') + '</div>';
 
     // Enabled toggle
     html += '<div class="field-group">';
@@ -164,7 +164,7 @@ function renderTTSSection(section) {
     } else {
         const banner = document.getElementById('piper-status-banner');
         if (banner) {
-            banner.textContent = '⚪ ' + t('config.tts.piper_status_disabled');
+            banner.textContent = t('config.tts.piper_status_disabled');
             banner.style.background = 'var(--bg-tertiary)';
         }
     }
@@ -238,10 +238,10 @@ function piperCheckStatus() {
         .then(r => r.json())
         .then(res => {
             if (res.status === 'disabled') {
-                banner.textContent = '⚪ ' + t('config.tts.piper_status_disabled');
-                banner.style.background = 'var(--bg-tertiary)';
-            } else if (res.status === 'running') {
-                banner.textContent = '🟢 ' + t('config.tts.piper_status_running');
+            banner.textContent = t('config.tts.piper_status_disabled');
+            banner.style.background = 'var(--bg-tertiary)';
+        } else if (res.status === 'running') {
+            banner.textContent = t('config.tts.piper_status_running');
                 banner.style.background = 'rgba(72,199,142,0.1)';
                 banner.style.color = '#48c78e';
                 if (res.voice) banner.textContent += ' — ' + res.voice;
