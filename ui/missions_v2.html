@@ -241,6 +241,7 @@
                             <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" data-i18n="missions.trigger_nest_cleared">Nest cleared</button>
                             <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" data-i18n="missions.trigger_mqtt_message">MQTT message</button>
                             <button type="button" class="trigger-type-btn" data-trigger="system_startup" data-i18n="missions.trigger_system_startup">System startup</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="home_assistant_state" data-i18n="missions.trigger_home_assistant_state">Home Assistant state</button>
                             <button type="button" class="trigger-type-btn" data-trigger="device_connected" data-i18n="missions.trigger_device_connected">Device connected</button>
                             <button type="button" class="trigger-type-btn" data-trigger="device_disconnected" data-i18n="missions.trigger_device_disconnected">Device disconnected</button>
                             <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call" data-i18n="missions.trigger_fritzbox_call">Fritz!Box call</button>
@@ -342,6 +343,21 @@
                                 <label for="mqtt-payload-contains" data-i18n="missions.trigger_mqtt_payload_label">Payload Contains</label>
                                 <input type="text" id="mqtt-payload-contains" data-i18n-placeholder="missions.trigger_mqtt_payload_placeholder">
                                 <div class="form-hint" data-i18n="missions.trigger_mqtt_payload_hint">Leave empty to match any payload.</div>
+                            </div>
+                        </div>
+
+                        <!-- Home Assistant State Trigger -->
+                        <div id="trigger-home_assistant_state" class="trigger-fields">
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_home_assistant_state_hint">Triggers when a Home Assistant entity changes its state.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="ha-entity-id" data-i18n="missions.trigger_ha_entity_id_label">Entity ID (empty = any entity)</label>
+                                    <input type="text" id="ha-entity-id" data-i18n-placeholder="missions.trigger_ha_entity_id_placeholder">
+                                </div>
+                                <div class="form-group">
+                                    <label for="ha-state-equals" data-i18n="missions.trigger_ha_state_equals_label">Trigger when state equals (optional)</label>
+                                    <input type="text" id="ha-state-equals" data-i18n-placeholder="missions.trigger_ha_state_equals_placeholder">
+                                </div>
                             </div>
                         </div>
 

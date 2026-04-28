@@ -306,6 +306,7 @@ type MissionManagerV2 struct {
 	activeRunID       map[string]string                        // missionID → history run ID for in-progress tracking
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
 	missionGuards     map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
+	remoteRunGuards   map[string]context.CancelFunc            // remote mission result timeout cancel functions
 	remoteClient      RemoteMissionClient
 }
 
@@ -328,14 +329,15 @@ type MQTTManagerInterface interface {
 func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2 {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MissionManagerV2{
-		file:          filepath.Join(dataDir, "missions_v2.json"),
-		missions:      make(map[string]*MissionV2),
-		queue:         NewMissionQueue(),
-		cron:          cronMgr,
-		ctx:           ctx,
-		cancel:        cancel,
-		activeRunID:   make(map[string]string),
-		missionGuards: make(map[string]context.CancelFunc),
+		file:            filepath.Join(dataDir, "missions_v2.json"),
+		missions:        make(map[string]*MissionV2),
+		queue:           NewMissionQueue(),
+		cron:            cronMgr,
+		ctx:             ctx,
+		cancel:          cancel,
+		activeRunID:     make(map[string]string),
+		missionGuards:   make(map[string]context.CancelFunc),
+		remoteRunGuards: make(map[string]context.CancelFunc),
 	}
 }
 
@@ -498,6 +500,8 @@ func (m *MissionManagerV2) Start() error {
 		}
 	}
 
+	m.notifySystemStartupLocked()
+
 	// Start queue processor
 	go m.processQueue()
 
@@ -564,27 +568,45 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 	case TriggerEmailReceived:
 		if m.emailWatcher != nil {
 			cfg := mission.TriggerConfig
+			missionID := mission.ID
+			folder := cfg.EmailFolder
+			subjectContains := cfg.EmailSubjectContains
+			fromContains := cfg.EmailFromContains
 			m.emailWatcher.RegisterMissionTrigger(
-				cfg.EmailFolder,
-				cfg.EmailSubjectContains,
-				cfg.EmailFromContains,
+				folder,
+				subjectContains,
+				fromContains,
 				func(subject, from, body string) {
+					if !m.triggerRegistrationIsCurrent(missionID, TriggerEmailReceived, func(current *TriggerConfig) bool {
+						return current.EmailFolder == folder &&
+							current.EmailSubjectContains == subjectContains &&
+							current.EmailFromContains == fromContains
+					}) {
+						return
+					}
 					triggerData, _ := json.Marshal(map[string]string{
 						"subject": subject,
 						"from":    from,
 						"body":    body,
 					})
-					m.TriggerMission(mission.ID, "email", string(triggerData))
+					m.TriggerMission(missionID, "email", string(triggerData))
 				},
 			)
 		}
 
 	case TriggerWebhook:
 		if m.webhookMgr != nil && mission.TriggerConfig.WebhookID != "" {
+			missionID := mission.ID
+			webhookID := mission.TriggerConfig.WebhookID
 			m.webhookMgr.RegisterMissionTrigger(
-				mission.TriggerConfig.WebhookID,
+				webhookID,
 				func(payload []byte) {
-					m.TriggerMission(mission.ID, "webhook", string(payload))
+					if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, func(current *TriggerConfig) bool {
+						return current.WebhookID == webhookID
+					}) {
+						return
+					}
+					m.TriggerMission(missionID, "webhook", string(payload))
 				},
 			)
 		}
@@ -592,20 +614,42 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 	case TriggerMQTTMessage:
 		if m.mqttMgr != nil && mission.TriggerConfig.MQTTTopic != "" {
 			cfg := mission.TriggerConfig
+			missionID := mission.ID
+			topicFilter := cfg.MQTTTopic
+			payloadContains := cfg.MQTTPayloadContains
 			m.mqttMgr.RegisterMissionTrigger(
-				cfg.MQTTTopic,
-				cfg.MQTTPayloadContains,
+				topicFilter,
+				payloadContains,
 				func(topic, payload string) {
+					if !m.triggerRegistrationIsCurrent(missionID, TriggerMQTTMessage, func(current *TriggerConfig) bool {
+						return current.MQTTTopic == topicFilter &&
+							current.MQTTPayloadContains == payloadContains
+					}) {
+						return
+					}
 					triggerData, _ := json.Marshal(map[string]string{
 						"topic":   topic,
 						"payload": payload,
 					})
-					m.TriggerMission(mission.ID, "mqtt", string(triggerData))
+					m.TriggerMission(missionID, "mqtt", string(triggerData))
 				},
 			)
 		}
 	}
 	// TriggerMissionCompleted is handled via OnMissionComplete callback
+}
+
+func (m *MissionManagerV2) triggerRegistrationIsCurrent(missionID string, triggerType TriggerType, match func(*TriggerConfig) bool) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mission, ok := m.missions[missionID]
+	if !ok || !mission.Enabled || isRemoteMission(mission) || mission.ExecutionType != ExecutionTriggered || mission.TriggerType != triggerType || mission.TriggerConfig == nil {
+		return false
+	}
+	if match == nil {
+		return true
+	}
+	return match(mission.TriggerConfig)
 }
 
 // processQueue runs the main queue processing loop
@@ -851,6 +895,7 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 		mission.Status = MissionStatusQueued
 		mission.RemoteSyncStatus = RemoteSyncSynced
 		mission.RemoteSyncError = ""
+		m.startRemoteRunGuardLocked(mission.ID)
 		m.save()
 		return nil
 	}
@@ -905,7 +950,11 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 func (m *MissionManagerV2) NotifySystemStartup() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.notifySystemStartupLocked()
+}
 
+func (m *MissionManagerV2) notifySystemStartupLocked() {
+	queued := false
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -920,8 +969,11 @@ func (m *MissionManagerV2) NotifySystemStartup() {
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerSystemStartup), string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
+	if queued {
+		m.save()
+	}
 }
 
 // NotifyDeviceEvent fires mission triggers for remote device events (device_connected, device_disconnected).
@@ -1136,13 +1188,73 @@ func (m *MissionManagerV2) SyncRemoteMissionsForNest(nestID string) (int, error)
 	return synced, firstErr
 }
 
+func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
+	if cancel, ok := m.remoteRunGuards[missionID]; ok {
+		cancel()
+		delete(m.remoteRunGuards, missionID)
+	}
+	guardCtx, cancel := context.WithCancel(context.Background())
+	m.remoteRunGuards[missionID] = cancel
+	timeout := remoteMissionResultTimeout
+	go func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			m.completeRemoteMissionTimeout(missionID)
+		case <-guardCtx.Done():
+		case <-m.ctx.Done():
+		}
+	}()
+}
+
+func (m *MissionManagerV2) completeRemoteMissionTimeout(missionID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if cancel, ok := m.remoteRunGuards[missionID]; ok {
+		cancel()
+		delete(m.remoteRunGuards, missionID)
+	}
+	mission, ok := m.missions[missionID]
+	if !ok {
+		return
+	}
+	if mission.Status != MissionStatusQueued || !isRemoteMission(mission) {
+		return
+	}
+	mission.Status = MissionStatusIdle
+	mission.LastRun = time.Now()
+	mission.LastResult = MissionResultError
+	mission.LastOutput = "remote mission result timeout exceeded"
+	mission.RunCount++
+	mission.RemoteSyncStatus = RemoteSyncError
+	mission.RemoteSyncError = "remote mission result timeout exceeded"
+	m.save()
+}
+
 // SetRemoteResult records a result reported by an egg for a master-side mission.
 func (m *MissionManagerV2) SetRemoteResult(id, result, output string) {
+	_ = m.SetRemoteResultFromNest("", id, result, output)
+}
+
+// SetRemoteResultFromNest records a remote result only when it belongs to the
+// mission's configured nest. Empty nestID is accepted for legacy in-process callers.
+func (m *MissionManagerV2) SetRemoteResultFromNest(nestID, id, result, output string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	mission, ok := m.missions[id]
 	if !ok {
-		return
+		return fmt.Errorf("mission not found")
+	}
+	if !isRemoteMission(mission) {
+		return fmt.Errorf("mission is not remote")
+	}
+	if nestID != "" && mission.RemoteNestID != nestID {
+		return fmt.Errorf("remote result nest mismatch: mission %s belongs to %s, got %s", id, mission.RemoteNestID, nestID)
+	}
+	if cancel, ok := m.remoteRunGuards[id]; ok {
+		cancel()
+		delete(m.remoteRunGuards, id)
 	}
 	mission.Status = MissionStatusIdle
 	mission.LastRun = time.Now()
@@ -1151,7 +1263,7 @@ func (m *MissionManagerV2) SetRemoteResult(id, result, output string) {
 	mission.RunCount++
 	mission.RemoteSyncStatus = RemoteSyncSynced
 	mission.RemoteSyncError = ""
-	m.save()
+	return m.save()
 }
 
 // RunNow triggers a mission immediately (bypasses queue for manual execution)
@@ -1181,6 +1293,7 @@ func (m *MissionManagerV2) RunNow(id string) error {
 		mission.Status = MissionStatusQueued
 		mission.RemoteSyncStatus = RemoteSyncSynced
 		mission.RemoteSyncError = ""
+		m.startRemoteRunGuardLocked(mission.ID)
 		m.save()
 		return nil
 	}

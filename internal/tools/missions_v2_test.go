@@ -495,6 +495,155 @@ func TestTriggeredMissionIsolatesTriggerDataInPrompt(t *testing.T) {
 	}
 }
 
+type fakeWebhookTriggerManager struct {
+	callbacks map[string][]func([]byte)
+}
+
+func (f *fakeWebhookTriggerManager) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
+	if f.callbacks == nil {
+		f.callbacks = make(map[string][]func([]byte))
+	}
+	f.callbacks[webhookID] = append(f.callbacks[webhookID], callback)
+}
+
+func (f *fakeWebhookTriggerManager) Fire(webhookID string, payload []byte) {
+	for _, cb := range f.callbacks[webhookID] {
+		cb(payload)
+	}
+}
+
+func TestUpdatedWebhookTriggerIgnoresStaleRegistration(t *testing.T) {
+	tmpDir := t.TempDir()
+	webhooks := &fakeWebhookTriggerManager{}
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.SetWebhookManager(webhooks)
+
+	if err := mm.Create(&MissionV2{
+		ID:            "webhook-mission",
+		Name:          "Webhook mission",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerWebhook,
+		TriggerConfig: &TriggerConfig{WebhookID: "old-hook"},
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	updated, _ := mm.Get("webhook-mission")
+	updated.TriggerConfig = &TriggerConfig{WebhookID: "new-hook"}
+	if err := mm.Update("webhook-mission", updated); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	webhooks.Fire("old-hook", []byte(`{"stale":true}`))
+	queue, _ := mm.GetQueue()
+	if got := len(queue.List()); got != 0 {
+		t.Fatalf("stale webhook queued %d missions, want 0", got)
+	}
+
+	webhooks.Fire("new-hook", []byte(`{"fresh":true}`))
+	if got := len(queue.List()); got != 1 {
+		t.Fatalf("fresh webhook queued %d missions, want 1", got)
+	}
+}
+
+func TestSystemStartupMissionQueuesOnStart(t *testing.T) {
+	tmpDir := t.TempDir()
+	writer := NewMissionManagerV2(tmpDir, nil)
+	if err := writer.Create(&MissionV2{
+		ID:            "startup-mission",
+		Name:          "Startup",
+		Prompt:        "run at startup",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerSystemStartup,
+		TriggerConfig: &TriggerConfig{},
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	mm := NewMissionManagerV2(tmpDir, nil)
+	if err := mm.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer mm.Stop()
+
+	queue, _ := mm.GetQueue()
+	if got := len(queue.List()); got != 1 {
+		t.Fatalf("startup queue length = %d, want 1", got)
+	}
+}
+
+func TestRemoteMissionResultRequiresMatchingNest(t *testing.T) {
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	client := &fakeRemoteMissionClient{}
+	mm.SetRemoteMissionClient(client)
+	if err := mm.Create(&MissionV2{
+		ID:            "remote-result",
+		Name:          "Remote",
+		Prompt:        "run",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := mm.SetRemoteResultFromNest("other-nest", "remote-result", MissionResultSuccess, "wrong"); err == nil {
+		t.Fatal("expected wrong-nest remote result to be rejected")
+	}
+	got, _ := mm.Get("remote-result")
+	if got.LastResult != "" || got.RunCount != 0 {
+		t.Fatalf("wrong-nest result mutated mission: %+v", got)
+	}
+
+	if err := mm.SetRemoteResultFromNest("nest-1", "remote-result", MissionResultSuccess, "ok"); err != nil {
+		t.Fatalf("SetRemoteResultFromNest: %v", err)
+	}
+	got, _ = mm.Get("remote-result")
+	if got.LastResult != MissionResultSuccess || got.RunCount != 1 {
+		t.Fatalf("matching remote result not recorded: %+v", got)
+	}
+}
+
+func TestRemoteMissionRunTimeoutReleasesQueuedState(t *testing.T) {
+	oldTimeout := remoteMissionResultTimeout
+	remoteMissionResultTimeout = 20 * time.Millisecond
+	defer func() { remoteMissionResultTimeout = oldTimeout }()
+
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm.SetRemoteMissionClient(&fakeRemoteMissionClient{})
+	if err := mm.Create(&MissionV2{
+		ID:            "remote-timeout",
+		Name:          "Remote timeout",
+		Prompt:        "run",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mm.RunNow("remote-timeout"); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got, _ := mm.Get("remote-timeout")
+		if got.Status == MissionStatusIdle && got.LastResult == MissionResultError {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("remote mission did not time out: %+v", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestCreateMissionStripsPreparedContextFromStoredPrompt(t *testing.T) {
 	tmpDir := t.TempDir()
 	mm := NewMissionManagerV2(tmpDir, nil)

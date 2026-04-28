@@ -21,6 +21,8 @@ const (
 	RemoteSyncError   = "error"
 )
 
+var remoteMissionResultTimeout = 40 * time.Minute
+
 // RemoteMissionClient delivers mission definitions and commands to remote eggs.
 type RemoteMissionClient interface {
 	SyncMission(ctx context.Context, mission MissionV2, promptSnapshot string) error

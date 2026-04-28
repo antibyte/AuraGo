@@ -89,8 +89,11 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 					}
 					output += "Artifacts: " + strings.Join(result.ArtifactIDs, ", ")
 				}
-				s.MissionManagerV2.SetRemoteResult(result.MissionID, result.Result, output)
-				broadcastMissionState(s)
+				if err := s.MissionManagerV2.SetRemoteResultFromNest(nestID, result.MissionID, result.Result, output); err != nil {
+					s.Logger.Warn("Rejected remote mission result", "nest_id", nestID, "mission_id", result.MissionID, "error", err)
+				} else {
+					broadcastMissionState(s)
+				}
 			}
 		}
 		s.EggHub.OnConnect = func(nestID, eggID string) {

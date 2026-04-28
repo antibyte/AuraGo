@@ -16,7 +16,7 @@ let expandedCards = new Set(); // Track expanded card IDs in grid view
 let lastRenderedDataHash = ''; // Used to skip re-renders when nothing changed
 let remoteTargets = [];
 
-const remoteAllowedTriggers = new Set(['system_startup', 'mqtt_message']);
+const remoteAllowedTriggers = new Set(['system_startup', 'mqtt_message', 'home_assistant_state']);
 
 // Extract displayable text from mission last_output.
 // Handles legacy entries where the raw OpenAI-format JSON was stored.
@@ -523,6 +523,12 @@ function renderTriggerInfo(mission) {
         case 'system_startup':
             triggerText = `${t('missions.trigger_system_startup_badge')}`;
             break;
+        case 'home_assistant_state': {
+            const parts = [`${t('missions.trigger_info_ha_entity_prefix')} ${escapeHtml(cfg.ha_entity_id || t('missions.trigger_info_ha_any_entity'))}`];
+            if (cfg.ha_state_equals) parts.push(`${t('missions.trigger_info_ha_state_prefix')} "${escapeHtml(cfg.ha_state_equals)}"`);
+            triggerText = `🏠 ${parts.join(' | ')}`;
+            break;
+        }
         case 'device_connected': {
             const devName = cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device');
             triggerText = `🔌 ${t('missions.trigger_info_device_connected_prefix')} ${escapeHtml(devName)}`;
@@ -813,6 +819,10 @@ function fillTriggerConfig(cfg, type) {
             document.getElementById('mqtt-topic').value = cfg.mqtt_topic || '';
             document.getElementById('mqtt-payload-contains').value = cfg.mqtt_payload_contains || '';
             break;
+        case 'home_assistant_state':
+            document.getElementById('ha-entity-id').value = cfg.ha_entity_id || '';
+            document.getElementById('ha-state-equals').value = cfg.ha_state_equals || '';
+            break;
         case 'device_connected':
             document.getElementById('device-connected-id').value = cfg.device_id || '';
             document.getElementById('device-connected-name').value = cfg.device_name || '';
@@ -984,6 +994,10 @@ function buildTriggerConfig(type) {
             config.mqtt_payload_contains = document.getElementById('mqtt-payload-contains').value.trim();
             break;
         }
+        case 'home_assistant_state':
+            config.ha_entity_id = document.getElementById('ha-entity-id').value.trim();
+            config.ha_state_equals = document.getElementById('ha-state-equals').value.trim();
+            break;
         case 'device_connected':
             config.device_id = document.getElementById('device-connected-id').value.trim();
             config.device_name = document.getElementById('device-connected-name').value.trim();
