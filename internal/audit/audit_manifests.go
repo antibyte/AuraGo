@@ -194,3 +194,163 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "truenas-registry", PackagePath: "internal/truenas", SchemaVersioned: false, OwnsRuntimeData: true},
 	}
 }
+
+type SecurityBoundary struct {
+	Name         string
+	Boundary     string
+	Enforcement  string
+	TestCoverage string
+}
+
+func SecurityBoundaryManifest() []SecurityBoundary {
+	return []SecurityBoundary{
+		{
+			Name:         "registered-secret-scrub",
+			Boundary:     "security.RegisterSensitive -> security.Scrub -> chat/tool-visible output",
+			Enforcement:  "registered literals plus fragmented, hex, and base64 variants are replaced with a visible placeholder",
+			TestCoverage: "internal/security/scrubber_test.go and internal/audit cross-package sentinel",
+		},
+		{
+			Name:         "sandbox-env-filter",
+			Boundary:     "parent process environment -> sandbox helper and child process environment",
+			Enforcement:  "sandbox.FilterEnv removes AuraGo, provider, token, password, secret, and credential env vars",
+			TestCoverage: "internal/sandbox/sandbox_test.go and internal/audit cross-package sentinel",
+		},
+		{
+			Name:         "python-vault-key-denylist",
+			Boundary:     "vault secret key request -> Python execution secret injection",
+			Enforcement:  "tools.IsPythonAccessibleSecret blocks system/integration-managed exact keys and prefixes",
+			TestCoverage: "internal/tools/python_secrets_test.go and internal/audit cross-package sentinel",
+		},
+		{
+			Name:         "skill-test-secret-denylist",
+			Boundary:     "skill registry vault_keys -> /api/skills/{id}/test execution secrets",
+			Enforcement:  "server.loadPlainSkillSecrets delegates to tools.IsPythonAccessibleSecret before reading vault values",
+			TestCoverage: "internal/server/skills_handlers_execution_test.go",
+		},
+		{
+			Name:         "vault-api-values-hidden",
+			Boundary:     "vault storage -> REST/UI configuration and secret listing responses",
+			Enforcement:  "vault list endpoints return keys/metadata or masked indicators, never raw secret values",
+			TestCoverage: "internal/server/vault_handlers_test.go, provider_handlers_test.go, webhook_handlers_test.go",
+		},
+		{
+			Name:         "external-data-wrapper",
+			Boundary:     "untrusted external messages/content -> LLM prompt input",
+			Enforcement:  "security.IsolateExternalData wraps content and escapes nested external_data tags",
+			TestCoverage: "internal/security/guardian_test.go and internal/audit messaging ingress manifest",
+		},
+		{
+			Name:         "tool-output-scrub",
+			Boundary:     "tool stdout/stderr/errors -> agent response stream",
+			Enforcement:  "dispatch paths call security.Scrub before composing user-visible tool output",
+			TestCoverage: "internal/agent dispatch tests and internal/audit cross-package sentinel",
+		},
+	}
+}
+
+type HostIsolationBoundary struct {
+	Name         string
+	Enforcement  string
+	ConfigGate   string
+	PlatformGate string
+	TestCoverage string
+	HostEffect   bool
+}
+
+func HostIsolationBoundaryManifest() []HostIsolationBoundary {
+	return []HostIsolationBoundary{
+		{
+			Name:         "filesystem-workspace-resolver",
+			Enforcement:  "tools.secureResolve resolves user paths under the workspace and rejects traversal outside the project root",
+			ConfigGate:   "agent.allow_filesystem_write for mutating operations",
+			TestCoverage: "internal/tools/filesystem_test.go",
+			HostEffect:   true,
+		},
+		{
+			Name:         "file-editor-workspace-resolver",
+			Enforcement:  "file/json/yaml/xml/toml editors use tools.secureResolve before reading or writing files",
+			ConfigGate:   "agent.allow_filesystem_write",
+			TestCoverage: "internal/tools/*_editor_test.go and internal/agent/dispatch_filesystem.go permission tests",
+			HostEffect:   true,
+		},
+		{
+			Name:         "python-working-directory",
+			Enforcement:  "Python execution writes temporary files and runs inside cfg.Directories.WorkspaceDir",
+			ConfigGate:   "agent.allow_python",
+			TestCoverage: "internal/tools/python_secrets_test.go and internal/agent/dispatch_python tests",
+			HostEffect:   true,
+		},
+		{
+			Name:         "shell-privilege-wrapper-block",
+			Enforcement:  "tools.ValidateShellCommandPolicy rejects privilege wrappers and high-risk host operations before shell start",
+			ConfigGate:   "agent.allow_shell",
+			TestCoverage: "internal/tools/shell_test.go",
+			HostEffect:   true,
+		},
+		{
+			Name:         "sudo-feature-gate",
+			Enforcement:  "agent dispatch requires sudo_enabled, no-new-privileges availability, and ProtectSystem compatibility before ExecuteSudo",
+			ConfigGate:   "agent.sudo_enabled and agent.sudo_unrestricted",
+			PlatformGate: "not Windows, not Docker/no_new_privileges, ProtectSystem-aware",
+			TestCoverage: "internal/agent/dispatch_shell.go static guard and internal/tools/shell_test.go",
+			HostEffect:   true,
+		},
+		{
+			Name:         "remote-file-allowed-dirs",
+			Enforcement:  "cmd/remote executor validates resolved artifact paths against allowed directories",
+			ConfigGate:   "agent.allow_remote_shell",
+			TestCoverage: "cmd/remote/executor_test.go",
+			HostEffect:   true,
+		},
+		{
+			Name:         "sandbox-helper-env-filter",
+			Enforcement:  "sandbox helper receives a minimal filtered environment and Landlock path rules on Linux",
+			PlatformGate: "Linux Landlock when available; fallback is explicitly marked unavailable",
+			TestCoverage: "internal/sandbox/sandbox_test.go",
+			HostEffect:   true,
+		},
+		{
+			Name:         "system-service-operations",
+			Enforcement:  "service_manager is routed through shell access and remains disabled when allow_shell is false",
+			ConfigGate:   "agent.allow_shell",
+			TestCoverage: "internal/agent/dispatch_shell.go static guard",
+			HostEffect:   true,
+		},
+	}
+}
+
+type MessagingIngressBoundary struct {
+	Channel                     string
+	SourcePath                  string
+	WrapsExternalData           bool
+	RequiresPromptInjectionScan bool
+}
+
+func MessagingIngressManifest() []MessagingIngressBoundary {
+	return []MessagingIngressBoundary{
+		{
+			Channel:                     "telegram",
+			SourcePath:                  "internal/telegram/bot.go",
+			WrapsExternalData:           true,
+			RequiresPromptInjectionScan: true,
+		},
+		{
+			Channel:                     "discord",
+			SourcePath:                  "internal/discord/bot.go",
+			WrapsExternalData:           true,
+			RequiresPromptInjectionScan: true,
+		},
+		{
+			Channel:                     "rocketchat",
+			SourcePath:                  "internal/rocketchat/bot.go",
+			WrapsExternalData:           true,
+			RequiresPromptInjectionScan: true,
+		},
+		{
+			Channel:           "telnyx",
+			SourcePath:        "internal/telnyx/broker.go",
+			WrapsExternalData: true,
+		},
+	}
+}
