@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Nieuw feit toevoegen...",
   "dashboard.core_facts_modal_cancel": "Annuleren",
   "dashboard.core_facts_modal_confirm_delete": "Kernfeit #{{id}} echt verwijderen?",
+  "dashboard.core_facts_modal_delete_all": "Alles verwijderen",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Alle kernfeiten verwijderen?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Wil je echt alle {{count}} kernfeiten verwijderen? Dit kan niet ongedaan worden gemaakt.",
+  "dashboard.core_facts_modal_error_delete_all": "Fout bij alles verwijderen",
   "dashboard.core_facts_modal_delete": "Verwijderen",
   "dashboard.core_facts_modal_edit": "Bewerken",
   "dashboard.core_facts_modal_empty": "Geen kernfeiten",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Taken",
   "dashboard.quickstatus_plans": "Plannen"
 }
+
+
+

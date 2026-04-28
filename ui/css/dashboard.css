@@ -2084,9 +2084,16 @@
         .cf-add-bar {
             display: flex;
             gap: 0.5rem;
+            align-items: stretch;
             padding: 0.6rem 0;
             border-bottom: 1px solid var(--border-subtle);
             margin-bottom: 0.3rem;
+        }
+        .cf-add-wrap {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 0;
         }
         .cf-add-input {
             flex: 1;
@@ -2128,6 +2135,23 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
         }
+        .cf-add-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+            transform: none;
+            box-shadow: none;
+        }
+        .cf-delete-all-btn {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: rgba(239, 68, 68, 0.08);
+            color: var(--danger);
+            white-space: nowrap;
+        }
+        .cf-delete-all-btn:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.18);
+            color: var(--danger);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.18);
+        }
         .cf-add-btn::before {
             content: '';
             position: absolute;
@@ -2138,6 +2162,15 @@
         }
         .cf-add-btn:hover::before {
             left: 100%;
+        }
+        @media (max-width: 640px) {
+            .cf-add-bar,
+            .cf-add-wrap {
+                flex-direction: column;
+            }
+            .cf-delete-all-btn {
+                width: 100%;
+            }
         }
 
         /* ── Cron Edit Form ──────────────────────────────── */

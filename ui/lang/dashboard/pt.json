@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Adicionar novo fato principal…",
   "dashboard.core_facts_modal_cancel": "Cancel",
   "dashboard.core_facts_modal_confirm_delete": "Excluir realmente o fato principal #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Eliminar tudo",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Eliminar todos os factos principais?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Eliminar realmente todos os {{count}} factos principais? Esta ação não pode ser desfeita.",
+  "dashboard.core_facts_modal_error_delete_all": "Erro ao eliminar tudo",
   "dashboard.core_facts_modal_delete": "Excluir",
   "dashboard.core_facts_modal_edit": "Editar",
   "dashboard.core_facts_modal_empty": "Nenhum fato principal armazenado.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Tarefas",
   "dashboard.quickstatus_plans": "Planos"
 }
+
+
+

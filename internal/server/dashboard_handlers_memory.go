@@ -262,9 +262,30 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 
 		case http.MethodDelete:
 			var req struct {
-				ID int64 `json:"id"`
+				ID      int64  `json:"id"`
+				All     bool   `json:"all"`
+				Confirm string `json:"confirm"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				jsonError(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+				return
+			}
+			if req.All {
+				if req.Confirm != "DELETE_ALL_CORE_MEMORY" {
+					jsonError(w, `{"error":"confirmation token is required"}`, http.StatusBadRequest)
+					return
+				}
+				deleted, err := s.ShortTermMem.DeleteAllCoreMemoryFacts()
+				if err != nil {
+					jsonError(w, `{"error":"Failed to delete all core memory facts"}`, http.StatusInternalServerError)
+					return
+				}
+				go pushMemoryStats()
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "deleted": deleted})
+				return
+			}
+			if req.ID == 0 {
 				jsonError(w, `{"error":"id is required"}`, http.StatusBadRequest)
 				return
 			}
@@ -316,4 +337,3 @@ func handleDashboardNotes(s *Server) http.HandlerFunc {
 		})
 	}
 }
-

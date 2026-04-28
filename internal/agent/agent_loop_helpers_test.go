@@ -727,6 +727,22 @@ func TestShouldReloadCoreMemory_VersionChanged(t *testing.T) {
 	}
 }
 
+func TestShouldReloadCoreMemory_DBEmptied(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base }
+
+	loadedAt := base
+	dbUpdatedAt := time.Time{}
+	cachedUpdatedAt := base
+
+	if !ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected reload when core memory was externally emptied")
+	}
+}
+
 func TestShouldReloadCoreMemory_DirtyFlag(t *testing.T) {
 	orig := nowFunc
 	defer func() { nowFunc = orig }()

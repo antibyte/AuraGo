@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Tilføj ny kernefakt...",
   "dashboard.core_facts_modal_cancel": "Annuller",
   "dashboard.core_facts_modal_confirm_delete": "Slet virkelig kernefakt #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Slet alle",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Slet alle kernefakta?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Vil du virkelig slette alle {{count}} kernefakta? Handlingen kan ikke fortrydes.",
+  "dashboard.core_facts_modal_error_delete_all": "Fejl ved sletning af alle",
   "dashboard.core_facts_modal_delete": "Slet",
   "dashboard.core_facts_modal_edit": "Rediger",
   "dashboard.core_facts_modal_empty": "Ingen kernefakta gemt.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Opgaver",
   "dashboard.quickstatus_plans": "Planer"
 }
+
+
+

@@ -26,6 +26,9 @@ func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedU
 	if loadedAt.IsZero() {
 		return false
 	}
+	if dbUpdatedAt.IsZero() && !cachedUpdatedAt.IsZero() {
+		return true
+	}
 	if !dbUpdatedAt.IsZero() && !cachedUpdatedAt.IsZero() && !dbUpdatedAt.Equal(cachedUpdatedAt) {
 		return true
 	}

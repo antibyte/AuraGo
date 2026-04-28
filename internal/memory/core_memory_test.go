@@ -93,6 +93,33 @@ func TestCoreMemory_DeleteNonExistent(t *testing.T) {
 	}
 }
 
+func TestCoreMemory_DeleteAll(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	if _, err := stm.AddCoreMemoryFact("first fact"); err != nil {
+		t.Fatalf("AddCoreMemoryFact first: %v", err)
+	}
+	if _, err := stm.AddCoreMemoryFact("second fact"); err != nil {
+		t.Fatalf("AddCoreMemoryFact second: %v", err)
+	}
+
+	deleted, err := stm.DeleteAllCoreMemoryFacts()
+	if err != nil {
+		t.Fatalf("DeleteAllCoreMemoryFacts: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("deleted = %d, want 2", deleted)
+	}
+
+	count, err := stm.GetCoreMemoryCount()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryCount: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("count after delete all = %d, want 0", count)
+	}
+}
+
 func TestCoreMemory_FactExists(t *testing.T) {
 	stm := newTestProfileDB(t)
 

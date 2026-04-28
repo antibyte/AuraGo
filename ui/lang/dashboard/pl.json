@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Dodaj nowy podstawowy fakt…",
   "dashboard.core_facts_modal_cancel": "Anuluj",
   "dashboard.core_facts_modal_confirm_delete": "Czy na pewno usunąć podstawowy fakt #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Usuń wszystko",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Usunąć wszystkie fakty główne?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Naprawdę usunąć wszystkie {{count}} fakty główne? Tej operacji nie można cofnąć.",
+  "dashboard.core_facts_modal_error_delete_all": "Błąd podczas usuwania wszystkiego",
   "dashboard.core_facts_modal_delete": "Usuń",
   "dashboard.core_facts_modal_edit": "Edytuj",
   "dashboard.core_facts_modal_empty": "Nie zapisano podstawowych faktów.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Zadania",
   "dashboard.quickstatus_plans": "Plany"
 }
+
+
+

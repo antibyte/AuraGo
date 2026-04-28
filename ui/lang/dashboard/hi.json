@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "नया कोर तथ्य जोड़ें…",
   "dashboard.core_facts_modal_cancel": "रद्द करें",
   "dashboard.core_facts_modal_confirm_delete": "क्या आप वाकई कोर तथ्य #{{id}} हटाना चाहते हैं?",
+  "dashboard.core_facts_modal_delete_all": "सभी हटाएँ",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "सभी कोर तथ्य हटाएँ?",
+  "dashboard.core_facts_modal_confirm_delete_all": "क्या वाकई सभी {{count}} कोर तथ्य हटाने हैं? इसे वापस नहीं किया जा सकता।",
+  "dashboard.core_facts_modal_error_delete_all": "सभी प्रविष्टियाँ हटाने में त्रुटि",
   "dashboard.core_facts_modal_delete": "हटाएं",
   "dashboard.core_facts_modal_edit": "संपादित करें",
   "dashboard.core_facts_modal_empty": "कोई कोर तथ्य संग्रहीत नहीं।",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "कार्य",
   "dashboard.quickstatus_plans": "योजनाएँ"
 }
+
+
+

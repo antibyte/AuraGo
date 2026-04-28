@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Add new core fact…",
   "dashboard.core_facts_modal_cancel": "Cancel",
   "dashboard.core_facts_modal_confirm_delete": "Really delete core fact #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Delete all",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Delete all core facts?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Really delete all {{count}} core facts? This cannot be undone.",
+  "dashboard.core_facts_modal_error_delete_all": "Error deleting all entries",
   "dashboard.core_facts_modal_delete": "Delete",
   "dashboard.core_facts_modal_edit": "Edit",
   "dashboard.core_facts_modal_empty": "No core facts stored.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "To-Dos",
   "dashboard.quickstatus_plans": "Plans"
 }
+
+
+

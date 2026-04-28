@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Legg til ny kjernefaktum…",
   "dashboard.core_facts_modal_cancel": "Avbryt",
   "dashboard.core_facts_modal_confirm_delete": "Vil du virkelig slette kjernefaktum #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Slett alle",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Slette alle kjernefakta?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Vil du virkelig slette alle {{count}} kjernefakta? Dette kan ikke angres.",
+  "dashboard.core_facts_modal_error_delete_all": "Feil ved sletting av alle",
   "dashboard.core_facts_modal_delete": "Slett",
   "dashboard.core_facts_modal_edit": "Rediger",
   "dashboard.core_facts_modal_empty": "Ingen kjernefaktum lagret.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Oppgaver",
   "dashboard.quickstatus_plans": "Planer"
 }
+
+
+

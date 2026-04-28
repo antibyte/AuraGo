@@ -235,8 +235,11 @@
                 const facts = data.facts || [];
 
                 let html = `<div class="cf-add-bar">
-                    <input type="text" class="cf-add-input" id="cfAddInput" placeholder="${t('dashboard.core_facts_modal_add_placeholder')}" onkeydown="if(event.key==='Enter')cfAddFact()">
-                    <button class="cf-add-btn" onclick="cfAddFact()">＋</button>
+                    <div class="cf-add-wrap">
+                        <input type="text" class="cf-add-input" id="cfAddInput" placeholder="${t('dashboard.core_facts_modal_add_placeholder')}" onkeydown="if(event.key==='Enter')cfAddFact()">
+                        <button class="cf-add-btn" onclick="cfAddFact()">＋</button>
+                    </div>
+                    <button class="cf-add-btn cf-delete-all-btn" onclick="cfDeleteAllFacts()" ${facts.length === 0 ? 'disabled' : ''}>${t('dashboard.core_facts_modal_delete_all')}</button>
                 </div>`;
 
                 if (facts.length === 0) {
@@ -325,6 +328,29 @@
                     body: JSON.stringify({ id })
                 });
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete'));
+                await openCoreFactsModal(); // reload
+            } catch (e) {
+                await showAlert('Error', '❌ ' + e.message);
+            }
+        }
+
+        async function cfDeleteAllFacts() {
+            const data = await fetch('/api/dashboard/core-memory', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({ facts: [] }));
+            const count = Array.isArray(data.facts) ? data.facts.length : 0;
+            if (count === 0) return;
+            const confirmed = await showConfirm(
+                t('dashboard.core_facts_modal_confirm_delete_all_title'),
+                t('dashboard.core_facts_modal_confirm_delete_all', { count })
+            );
+            if (!confirmed) return;
+            try {
+                const resp = await fetch('/api/dashboard/core-memory/mutate', {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ all: true, confirm: 'DELETE_ALL_CORE_MEMORY' })
+                });
+                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete_all'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
                 await showAlert('Error', '❌ ' + e.message);

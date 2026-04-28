@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Προσθήκη νέου βασικού γεγονότος…",
   "dashboard.core_facts_modal_cancel": "Ακύρωση",
   "dashboard.core_facts_modal_confirm_delete": "Πραγματικά διαγραφή του βασικού γεγονότος #{{id}};",
+  "dashboard.core_facts_modal_delete_all": "Διαγραφή όλων",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Διαγραφή όλων των βασικών γεγονότων;",
+  "dashboard.core_facts_modal_confirm_delete_all": "Σίγουρα διαγραφή και των {{count}} βασικών γεγονότων; Αυτή η ενέργεια δεν αναιρείται.",
+  "dashboard.core_facts_modal_error_delete_all": "Σφάλμα κατά τη διαγραφή όλων",
   "dashboard.core_facts_modal_delete": "Διαγραφή",
   "dashboard.core_facts_modal_edit": "Επεξεργασία",
   "dashboard.core_facts_modal_empty": "Δεν υπάρχουν αποθηκευμένα βασικά γεγονότα.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Εργασίες",
   "dashboard.quickstatus_plans": "Πλάνα"
 }
+
+
+

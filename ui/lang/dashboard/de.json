@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Neuen Kernfakt hinzufügen…",
   "dashboard.core_facts_modal_cancel": "Abbrechen",
   "dashboard.core_facts_modal_confirm_delete": "Kernfakt #{{id}} wirklich löschen?",
+  "dashboard.core_facts_modal_delete_all": "Alles löschen",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Alle Kernfakten löschen?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Wirklich alle {{count}} Kernfakten löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "dashboard.core_facts_modal_error_delete_all": "Fehler beim Löschen aller Einträge",
   "dashboard.core_facts_modal_delete": "Löschen",
   "dashboard.core_facts_modal_edit": "Bearbeiten",
   "dashboard.core_facts_modal_empty": "Keine Kernfakten gespeichert.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Aufgaben",
   "dashboard.quickstatus_plans": "Pläne"
 }
+
+
+

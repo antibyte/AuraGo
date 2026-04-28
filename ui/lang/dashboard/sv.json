@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Lägg till ny kärnfakt...",
   "dashboard.core_facts_modal_cancel": "Avbryt",
   "dashboard.core_facts_modal_confirm_delete": "Vill du verkligen ta bort kärnfakt #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Ta bort alla",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Ta bort alla kärnfakta?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Vill du verkligen ta bort alla {{count}} kärnfakta? Detta kan inte ångras.",
+  "dashboard.core_facts_modal_error_delete_all": "Fel när alla togs bort",
   "dashboard.core_facts_modal_delete": "Ta bort",
   "dashboard.core_facts_modal_edit": "Redigera",
   "dashboard.core_facts_modal_empty": "Inga kärnfakta lagrade.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Att göra",
   "dashboard.quickstatus_plans": "Planer"
 }
+
+
+

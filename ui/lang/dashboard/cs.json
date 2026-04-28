@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Přidat nový fakt...",
   "dashboard.core_facts_modal_cancel": "Zrušit",
   "dashboard.core_facts_modal_confirm_delete": "Opravdu smazat klíčový fakt #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Smazat vše",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Smazat všechny hlavní fakty?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Opravdu smazat všech {{count}} hlavních faktů? Tuto akci nelze vrátit zpět.",
+  "dashboard.core_facts_modal_error_delete_all": "Chyba při mazání všech",
   "dashboard.core_facts_modal_delete": "Smazat",
   "dashboard.core_facts_modal_edit": "Upravit",
   "dashboard.core_facts_modal_empty": "Žádné klíčové fakty",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Úkoly",
   "dashboard.quickstatus_plans": "Plány"
 }
+
+
+

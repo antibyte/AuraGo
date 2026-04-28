@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -139,6 +140,56 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	}
 	if _, ok := health["effectiveness"]; !ok {
 		t.Fatal("memory_health missing key \"effectiveness\"")
+	}
+}
+
+func TestHandleDashboardCoreMemoryMutateDeleteAllRequiresConfirmation(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { stm.Close() })
+
+	if _, err := stm.AddCoreMemoryFact("first"); err != nil {
+		t.Fatalf("AddCoreMemoryFact first: %v", err)
+	}
+	if _, err := stm.AddCoreMemoryFact("second"); err != nil {
+		t.Fatalf("AddCoreMemoryFact second: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm, Logger: logger}
+	handler := handleDashboardCoreMemoryMutate(s, NewSSEBroadcaster())
+
+	missingConfirm := httptest.NewRequest(http.MethodDelete, "/api/dashboard/core-memory/mutate", bytes.NewReader([]byte(`{"all":true}`)))
+	missingConfirm.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, missingConfirm)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("delete all without confirmation status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/dashboard/core-memory/mutate", bytes.NewReader([]byte(`{"all":true,"confirm":"DELETE_ALL_CORE_MEMORY"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete all status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode delete all response: %v", err)
+	}
+	if got := int(body["deleted"].(float64)); got != 2 {
+		t.Fatalf("deleted = %d, want 2", got)
+	}
+	count, err := stm.GetCoreMemoryCount()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryCount: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("core memory count after delete all = %d, want 0", count)
 	}
 }
 

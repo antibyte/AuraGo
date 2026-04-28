@@ -180,6 +180,17 @@ func (s *SQLiteMemory) DeleteCoreMemoryFact(id int64) error {
 	return nil
 }
 
+// DeleteAllCoreMemoryFacts removes all core memory entries and returns the
+// number of deleted rows.
+func (s *SQLiteMemory) DeleteAllCoreMemoryFacts() (int64, error) {
+	res, err := s.db.Exec("DELETE FROM core_memory")
+	if err != nil {
+		return 0, err
+	}
+	affected, _ := res.RowsAffected()
+	return affected, nil
+}
+
 // FindCoreMemoryIDByFact returns the ID of the first entry whose fact text
 // matches exactly (used for backwards-compatible text-based deletion).
 func (s *SQLiteMemory) FindCoreMemoryIDByFact(fact string) (int64, error) {

@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "添加新核心事实...",
   "dashboard.core_facts_modal_cancel": "取消",
   "dashboard.core_facts_modal_confirm_delete": "确定要删除核心事实 #{{id}} 吗？",
+  "dashboard.core_facts_modal_delete_all": "全部删除",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "删除所有核心事实？",
+  "dashboard.core_facts_modal_confirm_delete_all": "确定要删除全部 {{count}} 条核心事实吗？此操作无法撤销。",
+  "dashboard.core_facts_modal_error_delete_all": "删除全部条目时出错",
   "dashboard.core_facts_modal_delete": "删除",
   "dashboard.core_facts_modal_edit": "编辑",
   "dashboard.core_facts_modal_empty": "无存储的核心事实。",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "待办事项",
   "dashboard.quickstatus_plans": "计划"
 }
+
+
+

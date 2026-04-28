@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "新しいコアファクトを追加…",
   "dashboard.core_facts_modal_cancel": "キャンセル",
   "dashboard.core_facts_modal_confirm_delete": "コアファクト #{{id}}を削除しますか？",
+  "dashboard.core_facts_modal_delete_all": "すべて削除",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "すべてのコア事実を削除しますか？",
+  "dashboard.core_facts_modal_confirm_delete_all": "{{count}}件のコア事実をすべて削除しますか？この操作は元に戻せません。",
+  "dashboard.core_facts_modal_error_delete_all": "すべての削除でエラーが発生しました",
   "dashboard.core_facts_modal_delete": "削除",
   "dashboard.core_facts_modal_edit": "編集",
   "dashboard.core_facts_modal_empty": "コアファクトが保存されていません。",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "To-Do",
   "dashboard.quickstatus_plans": "プラン"
 }
+
+
+

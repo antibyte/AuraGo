@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Aggiungi nuovo fatto…",
   "dashboard.core_facts_modal_cancel": "Annulla",
   "dashboard.core_facts_modal_confirm_delete": "Eliminare davvero il fatto #{{id}}?",
+  "dashboard.core_facts_modal_delete_all": "Elimina tutto",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Eliminare tutti i fatti principali?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Eliminare davvero tutti i {{count}} fatti principali? L'azione non può essere annullata.",
+  "dashboard.core_facts_modal_error_delete_all": "Errore durante l'eliminazione di tutto",
   "dashboard.core_facts_modal_delete": "Elimina",
   "dashboard.core_facts_modal_edit": "Modifica",
   "dashboard.core_facts_modal_empty": "Nessun fatto memorizzato.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Attività",
   "dashboard.quickstatus_plans": "Piani"
 }
+
+
+

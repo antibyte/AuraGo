@@ -87,6 +87,10 @@
   "dashboard.core_facts_modal_add_placeholder": "Ajouter un nouveau fait principal…",
   "dashboard.core_facts_modal_cancel": "Annuler",
   "dashboard.core_facts_modal_confirm_delete": "Vraiment supprimer le fait principal #{{id}} ?",
+  "dashboard.core_facts_modal_delete_all": "Tout supprimer",
+  "dashboard.core_facts_modal_confirm_delete_all_title": "Supprimer tous les faits principaux ?",
+  "dashboard.core_facts_modal_confirm_delete_all": "Voulez-vous vraiment supprimer les {{count}} faits principaux ? Cette action est irréversible.",
+  "dashboard.core_facts_modal_error_delete_all": "Erreur lors de la suppression totale",
   "dashboard.core_facts_modal_delete": "Supprimer",
   "dashboard.core_facts_modal_edit": "Modifier",
   "dashboard.core_facts_modal_empty": "Aucun fait principal stocké.",
@@ -591,3 +595,6 @@
   "dashboard.quickstatus_todos": "Tâches",
   "dashboard.quickstatus_plans": "Plans"
 }
+
+
+
