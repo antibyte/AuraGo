@@ -107,6 +107,21 @@ func TestKoofrUploadURLIncludesFilenameAndInfoQuery(t *testing.T) {
 	}
 }
 
+func TestKoofrDirectoryPrefixesBuildsParentsInOrder(t *testing.T) {
+	got := koofrDirectoryPrefixes("/aurgo/pictures")
+	want := []string{"/aurgo", "/aurgo/pictures"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("prefixes = %v, want %v", got, want)
+	}
+}
+
+func TestKoofrJoinPathBuildsFileInfoPath(t *testing.T) {
+	got := koofrJoinPath("/aurgo/pictures", "cat.jpeg")
+	if got != "/aurgo/pictures/cat.jpeg" {
+		t.Fatalf("joined = %q, want /aurgo/pictures/cat.jpeg", got)
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
@@ -197,10 +212,18 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"name":"funny_cat_car.jpeg"}`))
 		case "/api/v2/mounts/primary/files/list":
-			if got := r.URL.Query().Get("path"); got != "/aurago/pictures" {
-				t.Errorf("list path = %q, want /aurago/pictures", got)
+			switch got := r.URL.Query().Get("path"); got {
+			case "/aurago", "/aurago/pictures":
+				_, _ = w.Write([]byte(`{"files":[{"name":"funny_cat_car.jpeg"}]}`))
+			default:
+				t.Errorf("list path = %q, want /aurago or /aurago/pictures", got)
+				w.WriteHeader(http.StatusNotFound)
 			}
-			_, _ = w.Write([]byte(`{"files":[{"name":"funny_cat_car.jpeg"}]}`))
+		case "/api/v2/mounts/primary/files/info":
+			if got := r.URL.Query().Get("path"); got != "/aurago/pictures/funny_cat_car.jpeg" {
+				t.Errorf("info path = %q, want /aurago/pictures/funny_cat_car.jpeg", got)
+			}
+			_, _ = w.Write([]byte(`{"name":"funny_cat_car.jpeg"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -264,6 +287,11 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 			_, _ = w.Write([]byte(`{}`))
 		case "/api/v2/mounts/primary/files/list":
 			_, _ = w.Write([]byte(`{"files":[{"name":"robot_spaghetti.jpeg"}]}`))
+		case "/api/v2/mounts/primary/files/info":
+			if got := r.URL.Query().Get("path"); got != "/aurgo/pictures/robot_spaghetti.jpeg" {
+				t.Errorf("info path = %q, want /aurgo/pictures/robot_spaghetti.jpeg", got)
+			}
+			_, _ = w.Write([]byte(`{"name":"robot_spaghetti.jpeg"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -304,10 +332,17 @@ func TestExecuteKoofrUploadErrorsWhenUploadedFileIsNotListed(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{}`))
 		case "/api/v2/mounts/primary/files/list":
-			if got := r.URL.Query().Get("path"); got != "/aurgo/pictures" {
-				t.Errorf("list path = %q, want /aurgo/pictures", got)
+			switch got := r.URL.Query().Get("path"); got {
+			case "/aurgo":
+				_, _ = w.Write([]byte(`{"files":[{"name":"pictures"}]}`))
+			case "/aurgo/pictures":
+				_, _ = w.Write([]byte(`{"files":[]}`))
+			default:
+				t.Errorf("list path = %q, want /aurgo or /aurgo/pictures", got)
+				w.WriteHeader(http.StatusNotFound)
 			}
-			_, _ = w.Write([]byte(`{"files":[]}`))
+		case "/api/v2/mounts/primary/files/info":
+			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

@@ -143,13 +143,16 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		}
 		defer source.Close()
 		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, filepath.Base(localPath))
+		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword); err != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to prepare Koofr target directory: %v", err), "remote_directory": uploadDir})
+		}
 		reqURL := koofrUploadURL(baseURL, mountID, uploadDir, filename)
 		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, source)
 		if uploadErr != nil {
 			err = uploadErr
 			break
 		}
-		listBytes, verifyErr := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", uploadDir), cfg.Username, cfg.AppPassword, "application/json", nil)
+		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword)
 		if verifyErr != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{
 				"status":           "error",
@@ -161,7 +164,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 				"filename":         filename,
 			})
 		}
-		if !koofrListContainsFilename(listBytes, filename) {
+		if !visible {
 			return marshalPrefixedToolJSON(map[string]interface{}{
 				"status":           "error",
 				"message":          "File upload was accepted by Koofr, but the uploaded file is not visible in the target directory",
@@ -276,6 +279,75 @@ func koofrUploadURL(baseURL, mountID, safePath, filename string) string {
 	q.Set("autorename", "false")
 	q.Set("overwriteIgnoreNonexisting", "")
 	return fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?%s", baseURL, mountID, q.Encode())
+}
+
+func koofrJoinPath(dir, filename string) string {
+	cleanDir := strings.TrimRight(dir, "/")
+	if cleanDir == "" {
+		cleanDir = "/"
+	}
+	if cleanDir == "/" {
+		return "/" + strings.TrimLeft(filename, "/")
+	}
+	return cleanDir + "/" + strings.TrimLeft(filename, "/")
+}
+
+func koofrDirectoryPrefixes(dir string) []string {
+	clean := strings.Trim(strings.TrimSpace(dir), "/")
+	if clean == "" {
+		return nil
+	}
+	parts := strings.Split(clean, "/")
+	prefixes := make([]string, 0, len(parts))
+	current := ""
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		current += "/" + part
+		prefixes = append(prefixes, current)
+	}
+	return prefixes
+}
+
+func ensureKoofrDirectory(baseURL, mountID, dir, username, password string) error {
+	for _, current := range koofrDirectoryPrefixes(dir) {
+		_, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", current), username, password, "application/json", nil)
+		if err == nil {
+			continue
+		}
+		if !isKoofrStatus(err, http.StatusNotFound) {
+			return err
+		}
+
+		parentDir := pathpkg.Dir(current)
+		if parentDir == "." || parentDir == "" {
+			parentDir = "/"
+		}
+		payloadBytes, _ := json.Marshal(map[string]string{"name": pathpkg.Base(current)})
+		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/folder?path=%s", baseURL, mountID, url.QueryEscape(parentDir))
+		_, err = doKoofrRequest("POST", reqURL, username, password, "application/json", bytes.NewReader(payloadBytes))
+		if err != nil && !isKoofrStatus(err, http.StatusConflict) {
+			return err
+		}
+	}
+	return nil
+}
+
+func verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, username, password string) (bool, error) {
+	filePath := koofrJoinPath(uploadDir, filename)
+	infoURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/info?path=%s", baseURL, mountID, url.QueryEscape(filePath))
+	if _, err := doKoofrRequest("GET", infoURL, username, password, "application/json", nil); err == nil {
+		return true, nil
+	} else if !isKoofrStatus(err, http.StatusNotFound) {
+		return false, err
+	}
+
+	listBytes, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", uploadDir), username, password, "application/json", nil)
+	if err != nil {
+		return false, err
+	}
+	return koofrListContainsFilename(listBytes, filename), nil
 }
 
 func koofrPathFallbacks(safePath string) []string {
