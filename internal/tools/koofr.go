@@ -32,11 +32,12 @@ type mountInfo struct {
 var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // ExecuteKoofr performs operations on the Koofr API.
-// Valid actions: list, read, download, write, mkdir, delete, rename, copy.
-func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, workspaceDir string) string {
+// Valid actions: list, read, download, write, upload, mkdir, delete, rename, copy.
+func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, workspaceDir string) string {
 	if cfg.Username == "" || cfg.AppPassword == "" {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr credentials are not configured"})
 	}
+	action = strings.TrimSpace(strings.ToLower(action))
 
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
@@ -100,29 +101,42 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, workspaceDir str
 		}
 
 	case "write":
+		if content == "" {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":  "error",
+				"message": "Koofr write requires non-empty content. To upload an existing local file such as a generated image, use operation 'upload' with local_path, path as the Koofr target directory, and destination as the remote filename.",
+			})
+		}
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-
-		var filename string
-		if dest != "" {
-			filename = filepath.Base(dest)
-		} else {
-			filename = "file.txt"
+		filename := koofrUploadFilename(dest, "file.txt")
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, filename, strings.NewReader(content))
+		if uploadErr != nil {
+			err = uploadErr
+			break
 		}
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "File written successfully", "bytes": written})
 
-		part, errWriter := writer.CreateFormFile("content", filename)
-		if errWriter != nil {
-			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to create multipart writer: %v", errWriter)})
+	case "upload":
+		source, size, err := openKoofrUploadSource(workspaceDir, localPath)
+		if err != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 		}
-		part.Write([]byte(content))
-		writer.Close()
-
-		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, writer.FormDataContentType(), body)
-		if err == nil {
-			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "File written successfully"})
+		defer source.Close()
+		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(safePath))
+		filename := koofrUploadFilename(dest, filepath.Base(localPath))
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, filename, source)
+		if uploadErr != nil {
+			err = uploadErr
+			break
 		}
+		return marshalPrefixedToolJSON(map[string]interface{}{
+			"status":           "success",
+			"message":          "File uploaded successfully",
+			"bytes":            written,
+			"expected_bytes":   size,
+			"remote_directory": safePath,
+			"filename":         filename,
+		})
 
 	case "mkdir":
 		clean := strings.TrimRight(safePath, "/")
@@ -210,6 +224,61 @@ func koofrSuccessContentResponse(content []byte) string {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Failed to encode Koofr response"})
 	}
 	return "Tool Output: " + string(data)
+}
+
+func uploadKoofrMultipart(reqURL, username, password, filename string, r io.Reader) ([]byte, int64, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("content", filename)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create multipart writer: %w", err)
+	}
+	written, err := io.Copy(part, r)
+	if err != nil {
+		return nil, written, fmt.Errorf("failed to stream upload content: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, written, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+	respBytes, err := doKoofrRequest("POST", reqURL, username, password, writer.FormDataContentType(), body)
+	return respBytes, written, err
+}
+
+func openKoofrUploadSource(workspaceDir, localPath string) (*os.File, int64, error) {
+	if strings.TrimSpace(localPath) == "" {
+		return nil, 0, fmt.Errorf("local_path is required for Koofr upload")
+	}
+	resolved, err := secureResolve(workspaceDir, localPath)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid upload source: %w", err)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to stat upload source: %w", err)
+	}
+	if info.IsDir() {
+		return nil, 0, fmt.Errorf("upload source is a directory")
+	}
+	if info.Size() == 0 {
+		return nil, 0, fmt.Errorf("upload source is empty; refusing to create a 0-byte Koofr file")
+	}
+	file, err := os.Open(resolved)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to open upload source: %w", err)
+	}
+	return file, info.Size(), nil
+}
+
+func koofrUploadFilename(dest, fallback string) string {
+	filename := strings.TrimSpace(dest)
+	if filename == "" {
+		filename = fallback
+	}
+	filename = filepath.Base(filepath.FromSlash(filename))
+	if filename == "." || filename == string(filepath.Separator) || filename == "" {
+		return "file.bin"
+	}
+	return filename
 }
 
 func normalizeKoofrPath(raw string) string {

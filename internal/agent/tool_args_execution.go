@@ -257,6 +257,7 @@ type cloudStorageArgs struct {
 	FilePath    string
 	Destination string
 	Content     string
+	LocalPath   string
 	MaxResults  int
 }
 
@@ -853,6 +854,7 @@ func decodeCloudStorageArgs(tc ToolCall) cloudStorageArgs {
 		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
 		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
 		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		LocalPath:   firstNonEmptyToolString(tc.LocalPath, tc.Source, toolArgString(tc.Params, "local_path", "source")),
 		MaxResults:  firstNonEmptyInt(tc.MaxResults, toolArgInt(tc.Params, 0, "max_results")),
 	}
 }

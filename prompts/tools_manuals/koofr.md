@@ -9,7 +9,8 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 | `list` | List files in a directory |
 | `read` | Read text file content |
 | `download` | Download a file into the local workspace |
-| `write` | Upload a text file |
+| `write` | Upload a non-empty text file from the `content` parameter |
+| `upload` | Upload an existing local file, including binary files such as generated images |
 | `mkdir` | Create a new folder |
 | `delete` | Delete a file or folder |
 | `rename` | Rename a file or folder |
@@ -21,8 +22,9 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 |-----------|------|----------|-------------|
 | `operation` | string | yes | One of the operations above |
 | `path` | string | yes | Absolute path inside Koofr (e.g., `/Documents/notes.txt`) |
-| `destination` | string | for rename, copy, write, download | Target path or filename |
-| `content` | string | for write | Text content to upload |
+| `destination` | string | for rename, copy, write, upload, download | Target path or filename |
+| `content` | string | for write | Non-empty text content to upload |
+| `local_path` | string | for upload | Existing local file path to upload |
 
 ## Examples
 
@@ -34,6 +36,11 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 **Upload a file:**
 ```json
 {"action": "koofr", "operation": "write", "path": "/Backup", "destination": "report.txt", "content": "This is a backup report."}
+```
+
+**Upload an existing generated image or other local binary file:**
+```json
+{"action": "koofr", "operation": "upload", "path": "/Backup", "destination": "funny_cat_car.jpeg", "local_path": "workdir/funny_cat_car.jpeg"}
 ```
 
 **Read a file:**
@@ -60,7 +67,8 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 
 - **Paths**: All paths must start with `/`. Root is `/`
 - **mkdir**: The `path` should be the full path of the new directory
-- **write**: `destination` is the filename, `path` is the target directory
+- **write**: `destination` is the filename, `path` is the target directory, and `content` must be non-empty. Use `upload` for existing local files.
+- **upload**: `local_path` is the existing local source file, `path` is the Koofr target directory, and `destination` is the remote filename. The source file must exist and must not be 0 bytes.
 - **read**: Only for text files. For audio, images, PDFs, or other binary files use `download`
 - **download**: `destination` is a local workspace path such as `workdir/song.mp3`
 - **rename/copy**: `path` is source, `destination` is a target path inside Koofr

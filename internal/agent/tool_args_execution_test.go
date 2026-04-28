@@ -432,11 +432,12 @@ func TestDecodeCloudStorageArgsUsesParamsFallback(t *testing.T) {
 			"path":        "report.txt",
 			"destination": "/docs/report.txt",
 			"content":     "hello",
+			"local_path":  "workdir/report.txt",
 			"max_results": float64(25),
 		},
 	})
 
-	if req.Operation != "upload" || req.FilePath != "report.txt" || req.Destination != "/docs/report.txt" || req.Content != "hello" {
+	if req.Operation != "upload" || req.FilePath != "report.txt" || req.Destination != "/docs/report.txt" || req.Content != "hello" || req.LocalPath != "workdir/report.txt" {
 		t.Fatalf("unexpected cloud storage decode: %+v", req)
 	}
 	if req.MaxResults != 25 {

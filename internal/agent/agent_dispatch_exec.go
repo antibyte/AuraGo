@@ -1034,7 +1034,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
 			}
-			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, cfg.Directories.WorkspaceDir)
+			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir)
 
 		case "google_workspace", "gworkspace":
 			if !cfg.GoogleWorkspace.Enabled {
@@ -1265,17 +1265,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				budgetTracker.RecordCostForCategory("image_generation", result.CostEstimate)
 			}
 
-			resultJSON, _ := json.Marshal(map[string]interface{}{
-				"status":          "success",
-				"web_path":        result.WebPath,
-				"markdown":        result.Markdown,
-				"prompt":          result.Prompt,
-				"enhanced_prompt": result.EnhancedPrompt,
-				"model":           result.Model,
-				"provider":        result.Provider,
-				"size":            result.Size,
-				"duration_ms":     result.DurationMs,
-			})
+			resultJSON, _ := json.Marshal(imageGenerationToolResultPayload(cfg, result, result.Prompt, result.EnhancedPrompt))
 			return "Tool Output: " + string(resultJSON)
 
 		case "query_inventory":

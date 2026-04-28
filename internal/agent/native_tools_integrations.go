@@ -789,16 +789,17 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.KoofrEnabled {
 		tools = append(tools, tool("koofr",
 			"Manage files in Koofr cloud storage: list directory contents, read text files, download files to the workspace, "+
-				"write/upload files, create directories, delete files/directories, rename/move, and copy files inside Koofr.",
+				"write text files, upload existing local files, create directories, delete files/directories, rename/move, and copy files inside Koofr.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "File operation to perform",
-					"enum":        []string{"list", "read", "download", "write", "mkdir", "delete", "rename", "copy"},
+					"enum":        []string{"list", "read", "download", "write", "upload", "mkdir", "delete", "rename", "copy"},
 				},
 				"path":        prop("string", "File or directory path in Koofr (e.g. '/My Files/documents/'). Required for all operations."),
 				"destination": prop("string", "Destination path for rename/copy operations, or a local workspace path for download (for example 'workdir/song.mp3')."),
-				"content":     prop("string", "File content to write (for 'write' operation)."),
+				"content":     prop("string", "Non-empty text content to write (for 'write' operation only)."),
+				"local_path":  prop("string", "Existing local file path to upload (for 'upload' operation), e.g. a generated image path. Must resolve inside the AuraGo project/workspace and must not be empty."),
 			}, "operation", "path"),
 		))
 	}
