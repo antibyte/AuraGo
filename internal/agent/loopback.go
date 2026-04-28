@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"aurago/internal/i18n"
+	"aurago/internal/memory"
 	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
@@ -25,6 +26,30 @@ func isAutonomousLoopback(runCfg RunConfig, sessionID string) bool {
 		return true
 	}
 	return sessionID == "heartbeat"
+}
+
+func buildLoopbackConversationMessages(base []openai.ChatCompletionMessage, historyManager *memory.HistoryManager, safeMessage string, includeGlobalHistory bool) []openai.ChatCompletionMessage {
+	finalMessages := append([]openai.ChatCompletionMessage(nil), base...)
+	currentMsg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage}
+	if !includeGlobalHistory || historyManager == nil {
+		return append(finalMessages, currentMsg)
+	}
+
+	if summary := historyManager.GetSummary(); summary != "" {
+		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + summary,
+		})
+	}
+
+	history := historyManager.Get()
+	finalMessages = append(finalMessages, history...)
+	for _, msg := range history {
+		if msg.Role == currentMsg.Role && msg.Content == currentMsg.Content {
+			return finalMessages
+		}
+	}
+	return append(finalMessages, currentMsg)
 }
 
 // Loopback injects an external message into the agent loop synchronously.
@@ -86,13 +111,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 	finalMessages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 	}
-	if summary := historyManager.GetSummary(); summary != "" {
-		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + summary,
-		})
-	}
-	finalMessages = append(finalMessages, historyManager.Get()...)
+	finalMessages = buildLoopbackConversationMessages(finalMessages, historyManager, safeMessage, shouldPersistLoopbackHistory(sessionID) && !isInternalMessage)
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,
