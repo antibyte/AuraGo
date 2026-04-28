@@ -262,6 +262,22 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 			"nodes", len(nodes),
 			"edges", len(edges))
 	} else {
+		deletedEdges, err := s.kg.DeleteEdgesBySourceFile(path)
+		if err != nil {
+			s.logger.Error("[FileKGSync] Failed to replace stale file edges before reindex", "path", path, "error", err)
+			result.Errors = append(result.Errors, fmt.Sprintf("replace stale edges %s: %v", path, err))
+			return result
+		}
+		deletedNodes, err := s.kg.DeleteNodesBySourceFile(path)
+		if err != nil {
+			s.logger.Error("[FileKGSync] Failed to replace stale file nodes before reindex", "path", path, "error", err)
+			result.Errors = append(result.Errors, fmt.Sprintf("replace stale nodes %s: %v", path, err))
+			return result
+		}
+		if deletedNodes > 0 || deletedEdges > 0 {
+			s.logger.Info("[FileKGSync] Replacing stale file entities before reindex",
+				"path", path, "deleted_nodes", deletedNodes, "deleted_edges", deletedEdges)
+		}
 		if err := s.kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
 			s.logger.Error("[FileKGSync] Failed to bulk-merge entities", "path", path, "error", err)
 			result.Errors = append(result.Errors, fmt.Sprintf("bulk merge %s: %v", path, err))
