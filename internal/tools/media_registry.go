@@ -490,6 +490,9 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 func DispatchMediaRegistry(db *sql.DB, workspaceDir, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
 	switch operation {
 	case "register":
+		if strings.TrimSpace(filename) == "" && strings.TrimSpace(filePath) == "" && strings.TrimSpace(webPath) == "" {
+			return `{"status":"error","message":"filename, file_path, or web_path is required for register operation."}`
+		}
 		// Security: validate file_path stays inside the workspace
 		if filePath != "" && workspaceDir != "" {
 			resolved, err := secureResolve(workspaceDir, filePath)

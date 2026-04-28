@@ -127,9 +127,9 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 				"message": "Koofr write requires non-empty content. To upload an existing local file such as a generated image, use operation 'upload' with local_path, path as the Koofr target directory, and destination as the remote filename.",
 			})
 		}
-		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 		filename := koofrUploadFilename(dest, "file.txt")
-		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, filename, strings.NewReader(content))
+		reqURL := koofrUploadURL(baseURL, mountID, safePath, filename)
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, strings.NewReader(content))
 		if uploadErr != nil {
 			err = uploadErr
 			break
@@ -143,8 +143,8 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		}
 		defer source.Close()
 		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, filepath.Base(localPath))
-		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(uploadDir))
-		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, filename, source)
+		reqURL := koofrUploadURL(baseURL, mountID, uploadDir, filename)
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, source)
 		if uploadErr != nil {
 			err = uploadErr
 			break
@@ -267,6 +267,17 @@ func koofrFilesURL(baseURL, mountID, operation, safePath string) string {
 	return fmt.Sprintf("%s/api/v2/mounts/%s/files/%s?path=%s", baseURL, mountID, operation, url.QueryEscape(safePath))
 }
 
+func koofrUploadURL(baseURL, mountID, safePath, filename string) string {
+	q := url.Values{}
+	q.Set("path", safePath)
+	q.Set("filename", filename)
+	q.Set("info", "true")
+	q.Set("overwrite", "true")
+	q.Set("autorename", "false")
+	q.Set("overwriteIgnoreNonexisting", "")
+	return fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?%s", baseURL, mountID, q.Encode())
+}
+
 func koofrPathFallbacks(safePath string) []string {
 	if safePath == "" || safePath == "/" {
 		return nil
@@ -298,10 +309,10 @@ func koofrSuccessContentResponse(content []byte) string {
 	return "Tool Output: " + string(data)
 }
 
-func uploadKoofrMultipart(reqURL, username, password, filename string, r io.Reader) ([]byte, int64, error) {
+func uploadKoofrMultipart(reqURL, username, password string, r io.Reader) ([]byte, int64, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("content", filename)
+	part, err := writer.CreateFormFile("file", "dummy")
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create multipart writer: %w", err)
 	}

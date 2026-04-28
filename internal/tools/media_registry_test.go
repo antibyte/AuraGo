@@ -186,6 +186,22 @@ func TestInferMediaType(t *testing.T) {
 	}
 }
 
+func TestDispatchMediaRegistryRejectsEmptyRegister(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	resp := DispatchMediaRegistry(db, t.TempDir(), "register", "", "", "", nil, "", 0, 10, 0, "", "", "")
+	if !strings.Contains(resp, `"status":"error"`) {
+		t.Fatalf("empty register should fail, got %s", resp)
+	}
+	if !strings.Contains(resp, "filename") {
+		t.Fatalf("error should mention required media identity, got %s", resp)
+	}
+}
+
 func TestInitMediaRegistryDBRepairsLegacyDocumentType(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 

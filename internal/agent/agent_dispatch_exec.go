@@ -35,6 +35,22 @@ func stringValueFromMap(m map[string]interface{}, keys ...string) string {
 	return ""
 }
 
+func koofrUploadResultMissingVerification(result string) bool {
+	payload := strings.TrimSpace(strings.TrimPrefix(result, "Tool Output:"))
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
+		return false
+	}
+	status, _ := parsed["status"].(string)
+	if !strings.EqualFold(status, "success") {
+		return false
+	}
+	_, hasFilename := parsed["filename"]
+	_, hasRemoteDir := parsed["remote_directory"]
+	_, hasBytes := parsed["bytes"]
+	return !hasFilename || !hasRemoteDir || !hasBytes
+}
+
 // resolveFilePath returns tc.FilePath if non-empty, falling back to tc.Path.
 func resolveFilePath(tc ToolCall) string {
 	if tc.FilePath != "" {
@@ -1034,7 +1050,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
 			}
-			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir)
+			result := tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir)
+			if strings.EqualFold(req.Operation, "upload") && koofrUploadResultMissingVerification(result) {
+				logger.Warn("Koofr upload returned legacy/unverified success payload", "path", req.FilePath, "dest", req.Destination, "local_path", req.LocalPath, "result", result)
+				return `Tool Output: {"status":"error","message":"Koofr upload returned an unverified success payload. Rebuild/redeploy AuraGo so the Koofr upload verification code is active."}`
+			}
+			return result
 
 		case "google_workspace", "gworkspace":
 			if !cfg.GoogleWorkspace.Enabled {
@@ -1245,6 +1266,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					Provider:         result.Provider,
 					Model:            result.Model,
 					Prompt:           result.Prompt,
+					Description:      result.Prompt,
 					Quality:          result.Quality,
 					Style:            result.Style,
 					Size:             result.Size,

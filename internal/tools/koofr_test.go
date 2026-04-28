@@ -94,6 +94,19 @@ func TestKoofrListContainsFilenameDetectsVisibleUpload(t *testing.T) {
 	}
 }
 
+func TestKoofrUploadURLIncludesFilenameAndInfoQuery(t *testing.T) {
+	got := koofrUploadURL("https://app.koofr.net", "primary", "/aurgo/pictures", "cat.jpeg")
+	if !strings.Contains(got, "path=%2Faurgo%2Fpictures") {
+		t.Fatalf("upload URL missing encoded path: %s", got)
+	}
+	if !strings.Contains(got, "filename=cat.jpeg") {
+		t.Fatalf("upload URL missing filename query: %s", got)
+	}
+	if !strings.Contains(got, "info=true") {
+		t.Fatalf("upload URL missing info query: %s", got)
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
@@ -148,6 +161,12 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 			if got := r.URL.Query().Get("path"); got != "/aurago/pictures" {
 				t.Errorf("upload path = %q, want /aurago/pictures", got)
 			}
+			if got := r.URL.Query().Get("filename"); got != "funny_cat_car.jpeg" {
+				t.Errorf("upload filename query = %q, want funny_cat_car.jpeg", got)
+			}
+			if got := r.URL.Query().Get("info"); got != "true" {
+				t.Errorf("upload info query = %q, want true", got)
+			}
 			reader, err := r.MultipartReader()
 			if err != nil {
 				t.Errorf("MultipartReader: %v", err)
@@ -164,7 +183,7 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
-				if part.FormName() != "content" {
+				if part.FormName() != "file" {
 					continue
 				}
 				uploadedName = part.FileName()
@@ -176,7 +195,7 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 				}
 			}
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{}`))
+			_, _ = w.Write([]byte(`{"name":"funny_cat_car.jpeg"}`))
 		case "/api/v2/mounts/primary/files/list":
 			if got := r.URL.Query().Get("path"); got != "/aurago/pictures" {
 				t.Errorf("list path = %q, want /aurago/pictures", got)
@@ -193,8 +212,8 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
 	}
-	if uploadedName != "funny_cat_car.jpeg" {
-		t.Fatalf("uploaded filename = %q, want funny_cat_car.jpeg", uploadedName)
+	if uploadedName != "dummy" {
+		t.Fatalf("uploaded multipart filename = %q, want dummy", uploadedName)
 	}
 	if !bytes.Equal(uploadedBytes, sourceBytes) {
 		t.Fatalf("uploaded bytes = %v, want %v", uploadedBytes, sourceBytes)
@@ -225,6 +244,9 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
 		case "/content/api/v2/mounts/primary/files/put":
 			uploadDir = r.URL.Query().Get("path")
+			if got := r.URL.Query().Get("filename"); got != "robot_spaghetti.jpeg" {
+				t.Errorf("upload filename query = %q, want robot_spaghetti.jpeg", got)
+			}
 			reader, err := r.MultipartReader()
 			if err != nil {
 				t.Errorf("MultipartReader: %v", err)
@@ -256,8 +278,8 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 	if uploadDir != "/aurgo/pictures" {
 		t.Fatalf("upload path = %q, want /aurgo/pictures", uploadDir)
 	}
-	if uploadedName != "robot_spaghetti.jpeg" {
-		t.Fatalf("uploaded filename = %q, want robot_spaghetti.jpeg", uploadedName)
+	if uploadedName != "dummy" {
+		t.Fatalf("uploaded multipart filename = %q, want dummy", uploadedName)
 	}
 }
 
