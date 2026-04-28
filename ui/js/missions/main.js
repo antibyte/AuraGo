@@ -1056,7 +1056,7 @@ async function deleteMission(id) {
     const mission = missions.find(m => m.id === id);
     if (!mission) return;
 
-    const confirmed = await showConfirm(t('common.confirm'), t('missions.confirm_delete', { name: mission.name }));
+    const confirmed = await showConfirm(t('common.confirm_title'), t('missions.confirm_delete', { name: mission.name }));
     if (!confirmed) {
         return;
     }
@@ -1072,7 +1072,7 @@ async function deleteMission(id) {
         const canForceDelete = isRemoteMission && /not connected|remote nest|timed out/i.test(detail);
         if (canForceDelete) {
             const forceConfirmed = await showConfirm(
-                t('common.confirm'),
+                t('common.confirm_title'),
                 t('missions.confirm_force_delete_remote', { name: mission.name })
             );
             if (!forceConfirmed) {

@@ -910,6 +910,24 @@ func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
 	}
 }
 
+func TestMissionsFrontend_DeleteDialogUsesExistingConfirmTitleKey(t *testing.T) {
+	t.Parallel()
+
+	missionsJSPath := filepath.Join("js", "missions", "main.js")
+	missionsJS, err := os.ReadFile(missionsJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", missionsJSPath, err)
+	}
+	content := string(missionsJS)
+
+	if !strings.Contains(content, `showConfirm(t('common.confirm_title'), t('missions.confirm_delete'`) {
+		t.Fatalf("%s should use the existing confirm title translation key for mission delete", missionsJSPath)
+	}
+	if strings.Contains(content, `t('common.confirm')`) {
+		t.Fatalf("%s still references missing translation key common.confirm", missionsJSPath)
+	}
+}
+
 func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
 	t.Parallel()
 
