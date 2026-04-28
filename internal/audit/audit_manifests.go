@@ -354,3 +354,45 @@ func MessagingIngressManifest() []MessagingIngressBoundary {
 		},
 	}
 }
+
+type RemoteLifecycleBoundary struct {
+	Name         string
+	Subsystem    string
+	Scenario     string
+	TestCoverage string
+}
+
+func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
+	return []RemoteLifecycleBoundary{
+		{
+			Name:         "supervisor-nonce-replay-cache",
+			Subsystem:    "internal/remote",
+			Scenario:     "captured signed messages with the same nonce are rejected within the replay window",
+			TestCoverage: "internal/remote/replay_cache_test.go",
+		},
+		{
+			Name:         "remote-agent-duplicate-command-id",
+			Subsystem:    "cmd/remote",
+			Scenario:     "a replayed command id returns the cached first result and does not execute side effects twice",
+			TestCoverage: "cmd/remote/executor_test.go:TestExecutorDoesNotReplayDuplicateCommandID",
+		},
+		{
+			Name:         "remote-file-allowed-paths",
+			Subsystem:    "cmd/remote",
+			Scenario:     "remote file operations reject missing allowed paths and symlink escapes",
+			TestCoverage: "cmd/remote/executor_test.go",
+		},
+		{
+			Name:         "invasion-artifact-integrity",
+			Subsystem:    "internal/invasion",
+			Scenario:     "artifact uploads reserve a slot, validate expected size/hash, and reject token reuse",
+			TestCoverage: "internal/invasion/artifacts_test.go",
+		},
+		{
+			Name:         "revoked-device-authentication",
+			Subsystem:    "internal/remote",
+			Scenario:     "revoked devices are rejected during reconnect and unregister on revoke",
+			TestCoverage: "internal/remote/hub.go source guard; dedicated websocket fixture still pending",
+		},
+	}
+}

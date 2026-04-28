@@ -281,6 +281,53 @@ func TestMessagingIngressManifestRequiresExternalDataIsolation(t *testing.T) {
 	}
 }
 
+func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
+	t.Parallel()
+
+	required := []string{
+		"supervisor-nonce-replay-cache",
+		"remote-agent-duplicate-command-id",
+		"remote-file-allowed-paths",
+		"invasion-artifact-integrity",
+		"revoked-device-authentication",
+	}
+	byName := map[string]RemoteLifecycleBoundary{}
+	for _, entry := range RemoteLifecycleManifest() {
+		if entry.Name == "" || entry.Subsystem == "" || entry.Scenario == "" || entry.TestCoverage == "" {
+			t.Fatalf("invalid remote lifecycle entry: %+v", entry)
+		}
+		byName[entry.Name] = entry
+	}
+	for _, name := range required {
+		if _, ok := byName[name]; !ok {
+			t.Fatalf("remote lifecycle boundary %q is missing from RemoteLifecycleManifest", name)
+		}
+	}
+
+	executorTests := readRepoFile(t, "cmd/remote/executor_test.go")
+	if !strings.Contains(executorTests, "TestExecutorDoesNotReplayDuplicateCommandID") {
+		t.Fatal("cmd/remote executor tests must cover duplicate command id replay")
+	}
+	hubSource := readRepoFile(t, "internal/remote/hub.go")
+	for _, needle := range []string{`device.Status == "revoked"`, "MsgRevoke", "UpdateDeviceStatus(h.db, deviceID, \"revoked\")"} {
+		if !strings.Contains(hubSource, needle) {
+			t.Fatalf("remote hub source is missing revoked-device lifecycle guard %q", needle)
+		}
+	}
+	artifactTests := readRepoFile(t, "internal/invasion/artifacts_test.go")
+	for _, needle := range []string{"TestClaimArtifactUploadTokenIsSingleUse", "TestArtifactStorageRejectsHashMismatchAndRemovesPartialFile", "RecordEggMessage duplicate"} {
+		if !strings.Contains(artifactTests, needle) {
+			t.Fatalf("invasion artifact tests are missing lifecycle assertion %q", needle)
+		}
+	}
+	artifactSource := readRepoFile(t, "internal/invasion/artifacts.go")
+	for _, needle := range []string{"already used", "artifact sha256 mismatch"} {
+		if !strings.Contains(artifactSource, needle) {
+			t.Fatalf("invasion artifact source is missing lifecycle guard %q", needle)
+		}
+	}
+}
+
 func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 	t.Parallel()
 

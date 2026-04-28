@@ -121,3 +121,43 @@ func TestExecutorFileWriteRejectsOversizedPayload(t *testing.T) {
 		t.Fatalf("status=%q error=%q, want max_file_size_mb error", result.Status, result.Error)
 	}
 }
+
+func TestExecutorDoesNotReplayDuplicateCommandID(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	target := filepath.Join(root, "data.txt")
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+
+	first := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-replay",
+		Operation: remote.OpFileWrite,
+		Args: map[string]interface{}{
+			"path":    target,
+			"content": base64.StdEncoding.EncodeToString([]byte("first")),
+		},
+	}, false, []string{root})
+	if first.Status != "ok" {
+		t.Fatalf("first status=%q error=%q", first.Status, first.Error)
+	}
+
+	second := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-replay",
+		Operation: remote.OpFileWrite,
+		Args: map[string]interface{}{
+			"path":    target,
+			"content": base64.StdEncoding.EncodeToString([]byte("second")),
+		},
+	}, false, []string{root})
+	if second.Status != first.Status || second.Output != first.Output {
+		t.Fatalf("duplicate result = %#v, want cached first result %#v", second, first)
+	}
+
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(got) != "first" {
+		t.Fatalf("duplicate command replay changed file to %q, want first", got)
+	}
+}

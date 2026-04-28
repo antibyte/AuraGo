@@ -29,17 +29,92 @@ type Executor struct {
 	logger           *slog.Logger
 	mu               sync.RWMutex
 	maxFileSizeBytes int64
+	commandResults   map[string]*commandExecutionRecord
+	commandOrder     []string
+}
+
+const maxCachedCommandResults = 1024
+
+type commandExecutionRecord struct {
+	done   chan struct{}
+	result remote.ResultPayload
 }
 
 // NewExecutor creates a new command executor.
 func NewExecutor(logger *slog.Logger, maxFileSizeMB int) *Executor {
-	e := &Executor{logger: logger}
+	e := &Executor{
+		logger:         logger,
+		commandResults: make(map[string]*commandExecutionRecord),
+	}
 	e.SetMaxFileSizeMB(maxFileSizeMB)
 	return e
 }
 
 // Execute runs a command and returns the result.
 func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
+	commandID := strings.TrimSpace(cmd.CommandID)
+	if commandID == "" {
+		return e.executeOnce(cmd, readOnly, allowedPaths)
+	}
+
+	record, owner := e.claimCommandExecution(commandID)
+	if !owner {
+		<-record.done
+		return record.result
+	}
+
+	result := e.executeOnce(cmd, readOnly, allowedPaths)
+	e.finishCommandExecution(commandID, record, result)
+	return result
+}
+
+func (e *Executor) claimCommandExecution(commandID string) (*commandExecutionRecord, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.commandResults == nil {
+		e.commandResults = make(map[string]*commandExecutionRecord)
+	}
+	if record, ok := e.commandResults[commandID]; ok {
+		return record, false
+	}
+	record := &commandExecutionRecord{done: make(chan struct{})}
+	e.commandResults[commandID] = record
+	e.commandOrder = append(e.commandOrder, commandID)
+	return record, true
+}
+
+func (e *Executor) finishCommandExecution(commandID string, record *commandExecutionRecord, result remote.ResultPayload) {
+	e.mu.Lock()
+	record.result = result
+	close(record.done)
+	e.trimCommandResultCacheLocked(commandID)
+	e.mu.Unlock()
+}
+
+func (e *Executor) trimCommandResultCacheLocked(currentID string) {
+	for len(e.commandOrder) > maxCachedCommandResults {
+		oldest := e.commandOrder[0]
+		e.commandOrder = e.commandOrder[1:]
+		if oldest == currentID {
+			e.commandOrder = append(e.commandOrder, oldest)
+			return
+		}
+		record := e.commandResults[oldest]
+		if record == nil {
+			continue
+		}
+		select {
+		case <-record.done:
+			delete(e.commandResults, oldest)
+		default:
+			e.commandOrder = append(e.commandOrder, oldest)
+			return
+		}
+	}
+}
+
+func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
 	result := remote.ResultPayload{
 		CommandID: cmd.CommandID,
 		Status:    "ok",
