@@ -408,6 +408,7 @@ var authBypassPrefixes = []string{
 	"/js/setup/",
 	"/js/login/",
 	"/js/vendor/",
+	"/cfg/",
 	// Static media files (audio, images, documents) require authentication.
 	// They are served as sub-resources in authenticated pages and must not be
 	// accessible without a valid session (could expose user-generated content).
@@ -470,6 +471,7 @@ var noPasswordPrefixes = []string{
 	"/js/setup/",
 	"/js/login/",
 	"/js/vendor/",
+	"/cfg/",
 	"/site.webmanifest",
 	"/sw.js",
 }
