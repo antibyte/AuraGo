@@ -224,6 +224,7 @@ func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 		"remote-file-allowed-dirs",
 		"sandbox-helper-env-filter",
 		"system-service-operations",
+		"agent-filesystem-host-effect-canary",
 	}
 	byName := map[string]HostIsolationBoundary{}
 	for _, entry := range HostIsolationBoundaryManifest() {
@@ -250,6 +251,10 @@ func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	shellTool := readRepoFile(t, "internal/tools/shell.go")
 	if !strings.Contains(shellTool, "ValidateShellCommandPolicy") {
 		t.Fatal("shell tool must validate privilege wrappers before execution")
+	}
+	agentFilesystemTests := readRepoFile(t, "internal/agent/dispatch_filesystem_test.go")
+	if !strings.Contains(agentFilesystemTests, "TestDispatchFilesystemRejectsOutsideHostWriteCanary") {
+		t.Fatal("agent filesystem dispatch tests must include an outside-host write canary")
 	}
 }
 

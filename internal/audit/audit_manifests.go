@@ -275,6 +275,13 @@ func HostIsolationBoundaryManifest() []HostIsolationBoundary {
 			HostEffect:   true,
 		},
 		{
+			Name:         "agent-filesystem-host-effect-canary",
+			Enforcement:  "agent dispatch routes filesystem and file_editor requests through workspace/project resolvers and rejects absolute outside-host writes before touching the target",
+			ConfigGate:   "agent.allow_filesystem_write",
+			TestCoverage: "internal/agent/dispatch_filesystem_test.go:TestDispatchFilesystemRejectsOutsideHostWriteCanary",
+			HostEffect:   true,
+		},
+		{
 			Name:         "python-working-directory",
 			Enforcement:  "Python execution writes temporary files and runs inside cfg.Directories.WorkspaceDir",
 			ConfigGate:   "agent.allow_python",
