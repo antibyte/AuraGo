@@ -263,11 +263,26 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "response": jsonRawOrString(respBytes)})
 	}
 
+	if koofrActionRequiresExplicitResult(action) {
+		return marshalPrefixedToolJSON(map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("Koofr %s reached an unexpected empty success path; no verified result was produced", action),
+		})
+	}
 	return marshalPrefixedToolJSON(map[string]interface{}{"status": "success"})
 }
 
 func koofrFilesURL(baseURL, mountID, operation, safePath string) string {
 	return fmt.Sprintf("%s/api/v2/mounts/%s/files/%s?path=%s", baseURL, mountID, operation, url.QueryEscape(safePath))
+}
+
+func koofrActionRequiresExplicitResult(action string) bool {
+	switch action {
+	case "write", "upload", "mkdir", "delete", "rename", "move", "copy":
+		return true
+	default:
+		return false
+	}
 }
 
 func koofrUploadURL(baseURL, mountID, safePath, filename string) string {

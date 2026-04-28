@@ -122,6 +122,12 @@ func TestKoofrJoinPathBuildsFileInfoPath(t *testing.T) {
 	}
 }
 
+func TestKoofrActionRequiresExplicitResultForUpload(t *testing.T) {
+	if !koofrActionRequiresExplicitResult("upload") {
+		t.Fatal("upload must never fall through to generic empty success")
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
