@@ -173,9 +173,17 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 	if len(todos) == 0 {
 		return ""
 	}
+	const maxPromptOperationalIssues = 2
 	var b strings.Builder
 	b.WriteString("Unresolved operational issues detected in background contexts:\n")
-	for _, todo := range todos {
+	for i, todo := range todos {
+		if i >= maxPromptOperationalIssues {
+			remaining := len(todos) - maxPromptOperationalIssues
+			if remaining > 0 {
+				b.WriteString(fmt.Sprintf("- ... %d more unresolved background issue(s) omitted from this prompt\n", remaining))
+			}
+			break
+		}
 		b.WriteString("- ")
 		b.WriteString(strings.TrimSpace(todo.Title))
 		if lastSeen := operationalIssueField(todo.Description, "Last seen"); lastSeen != "" {
@@ -185,11 +193,24 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 		}
 		if detail := operationalIssueField(todo.Description, "Latest detail"); detail != "" {
 			b.WriteString("\n  Detail: ")
-			b.WriteString(detail)
+			b.WriteString(compactOperationalIssuePromptDetail(detail))
 		}
 		b.WriteString("\n")
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func compactOperationalIssuePromptDetail(detail string) string {
+	const maxDetailRunes = 180
+	detail = strings.Join(strings.Fields(strings.TrimSpace(detail)), " ")
+	if detail == "" {
+		return ""
+	}
+	runes := []rune(detail)
+	if len(runes) <= maxDetailRunes {
+		return detail
+	}
+	return string(runes[:maxDetailRunes]) + "... [truncated]"
 }
 
 func getOperationalIssueRecord(db *sql.DB, fingerprint string) (operationalIssueRecord, bool, error) {

@@ -86,6 +86,26 @@ func TestReconcileToolPromptModeKeepsNativeWhenSchemasExist(t *testing.T) {
 	}
 }
 
+func TestReconcilePromptToolModeWithRequestDowngradesNativeWhenRequestHasNoTools(t *testing.T) {
+	flags := prompts.ContextFlags{
+		NativeToolsEnabled: true,
+		IsTextModeModel:    false,
+	}
+	policy := ToolingPolicy{UseNativeFunctions: true}
+
+	reconcilePromptToolModeWithRequest(&flags, &policy, nil, nil)
+
+	if flags.NativeToolsEnabled {
+		t.Fatal("expected prompt flags to stop advertising native tool calls when request has no tools")
+	}
+	if !flags.IsTextModeModel {
+		t.Fatal("expected text JSON mode when no native tools are attached to the request")
+	}
+	if policy.UseNativeFunctions {
+		t.Fatal("expected policy to be downgraded for this request")
+	}
+}
+
 func TestBuildToolingPolicyDisablesStructuredOutputsAndParallelForOllama(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.ProviderType = "ollama"

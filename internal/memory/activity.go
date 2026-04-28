@@ -393,6 +393,9 @@ func (s *SQLiteMemory) GenerateDailyActivityRollup(date string) (DailyActivityRo
 		if note.Done {
 			continue
 		}
+		if !noteRelevantToActivityDate(note, date) {
+			continue
+		}
 		pending = append(pending, note.Title)
 	}
 
@@ -412,6 +415,39 @@ func (s *SQLiteMemory) GenerateDailyActivityRollup(date string) (DailyActivityRo
 		return DailyActivityRollup{}, err
 	}
 	return rollup, nil
+}
+
+func noteRelevantToActivityDate(note Note, date string) bool {
+	date = strings.TrimSpace(date)
+	if date == "" {
+		return false
+	}
+	for _, value := range []string{note.CreatedAt, note.UpdatedAt, note.DueDate} {
+		if noteDateString(value) == date {
+			return true
+		}
+	}
+	return false
+}
+
+func noteDateString(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if ts, err := time.Parse(time.RFC3339, value); err == nil {
+		return ts.Format("2006-01-02")
+	}
+	if ts, err := time.Parse("2006-01-02", value); err == nil {
+		return ts.Format("2006-01-02")
+	}
+	if len(value) >= len("2006-01-02") {
+		prefix := value[:len("2006-01-02")]
+		if _, err := time.Parse("2006-01-02", prefix); err == nil {
+			return prefix
+		}
+	}
+	return ""
 }
 
 // BuildRecentActivityOverview assembles a recent multi-day overview.

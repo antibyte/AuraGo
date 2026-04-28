@@ -107,3 +107,47 @@ func TestBuildRecentActivityPromptOverviewIncludesSummaryAndOpenItems(t *testing
 		t.Fatalf("prompt overview = %q", promptView)
 	}
 }
+
+func TestBuildRecentActivityPromptOverviewSkipsStaleOpenNotes(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+
+	id, err := stm.AddNote("todo", "Old WebGL follow-up", "", 2, "")
+	if err != nil {
+		t.Fatalf("AddNote: %v", err)
+	}
+	old := time.Now().AddDate(0, 0, -14).UTC().Format(time.RFC3339)
+	if _, err := stm.db.Exec(`UPDATE notes SET created_at=?, updated_at=? WHERE id=?`, old, old, id); err != nil {
+		t.Fatalf("age note: %v", err)
+	}
+	if _, err := stm.InsertActivityTurn(ActivityTurn{
+		Date:         time.Now().Format("2006-01-02"),
+		SessionID:    "default",
+		UserRelevant: true,
+		Intent:       "Check current status",
+		UserRequest:  "gibts was neues?",
+		UserGoal:     "Get current status",
+		Outcomes:     []string{"Current status checked"},
+		Source:       "runtime",
+	}); err != nil {
+		t.Fatalf("InsertActivityTurn: %v", err)
+	}
+
+	promptView, err := stm.BuildRecentActivityPromptOverview(3)
+	if err != nil {
+		t.Fatalf("BuildRecentActivityPromptOverview: %v", err)
+	}
+	if strings.Contains(promptView, "Old WebGL follow-up") {
+		t.Fatalf("stale note leaked into recent activity prompt: %q", promptView)
+	}
+}

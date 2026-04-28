@@ -437,6 +437,30 @@ func TestBuildSystemPromptCompactsOversizedCoreMemory(t *testing.T) {
 	}
 }
 
+func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing.T) {
+	coreMemory := strings.Join([]string{
+		"[1] [preference:user_preferences] User prefers German",
+		"[2] [recent_operational_details] WebGL demo updated two weeks ago source:memory_analysis session:default",
+		"[3] [user_goal] User wanted to debug a temporary homepage issue source:memory_analysis session:default",
+		"[4] [infrastructure] Proxmox cluster is reachable via API",
+	}, "\n")
+
+	got := compactCoreMemoryForPrompt(coreMemory)
+
+	if strings.Contains(got, "WebGL demo") {
+		t.Fatalf("transient operational detail leaked into prompt core memory: %q", got)
+	}
+	if strings.Contains(got, "[user_goal]") {
+		t.Fatalf("transient user goal leaked into prompt core memory: %q", got)
+	}
+	if !strings.Contains(got, "User prefers German") || !strings.Contains(got, "Proxmox cluster") {
+		t.Fatalf("durable facts missing from core memory prompt: %q", got)
+	}
+	if !strings.Contains(got, "[CORE MEMORY FILTERED:") {
+		t.Fatalf("expected filter marker in prompt core memory: %q", got)
+	}
+}
+
 func TestBuildSystemPromptKeepsIntegrationOverviewOutOfStablePrefix(t *testing.T) {
 	flagsA := ContextFlags{
 		Tier:                 "full",

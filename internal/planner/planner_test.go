@@ -1397,6 +1397,27 @@ func TestBuildPromptSnapshotSortsOverdueAndLimitsResults(t *testing.T) {
 	}
 }
 
+func TestBuildOperationalIssueReminderTextCompactsDetailsAndLimitsItems(t *testing.T) {
+	longDetail := strings.Repeat("x", 500)
+	todos := []Todo{
+		{Title: "System issue: first", Description: "Last seen: 2026-04-28T18:00:00Z\nLatest detail: " + longDetail},
+		{Title: "System issue: second", Description: "Last seen: 2026-04-28T18:01:00Z\nLatest detail: detail two"},
+		{Title: "System issue: third", Description: "Last seen: 2026-04-28T18:02:00Z\nLatest detail: detail three"},
+	}
+
+	got := BuildOperationalIssueReminderText(todos)
+
+	if strings.Count(got, "System issue:") > 2 {
+		t.Fatalf("expected reminder to limit issue count, got: %q", got)
+	}
+	if strings.Contains(got, strings.Repeat("x", 300)) {
+		t.Fatalf("expected long detail to be compacted, got: %q", got)
+	}
+	if !strings.Contains(got, "truncated") {
+		t.Fatalf("expected truncation marker, got: %q", got)
+	}
+}
+
 func TestListTodosEmpty(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()

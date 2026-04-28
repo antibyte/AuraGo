@@ -888,6 +888,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
+		reconcilePromptToolModeWithRequest(&flags, &toolingPolicy, req.Tools, s.currentLogger)
 
 		// Skip integrations that already have native schemas in the overview
 		skipIntegrationTools := make([]string, 0, len(req.Tools))

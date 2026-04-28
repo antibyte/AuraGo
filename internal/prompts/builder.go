@@ -939,8 +939,10 @@ func compactCoreMemoryForPrompt(coreMemory string) string {
 	if len(lines) == 0 {
 		return ""
 	}
+	var filteredCount int
+	lines, filteredCount = filterCoreMemoryPromptLines(lines)
 	if len(coreMemory) <= maxCoreMemoryPromptChars && len(lines) <= maxCoreMemoryPromptEntries {
-		return strings.Join(lines, "\n")
+		return strings.Join(appendCoreMemoryFilterMarker(lines, filteredCount), "\n")
 	}
 
 	headCount := coreMemoryHeadEntries
@@ -964,12 +966,60 @@ func compactCoreMemoryForPrompt(coreMemory string) string {
 	if tailCount > 0 {
 		compacted = append(compacted, lines[len(lines)-tailCount:]...)
 	}
+	compacted = appendCoreMemoryFilterMarker(compacted, filteredCount)
 
 	result := strings.Join(compacted, "\n")
 	if len(result) <= maxCoreMemoryPromptChars {
 		return result
 	}
 	return hardTruncateText(result, maxCoreMemoryPromptChars)
+}
+
+func filterCoreMemoryPromptLines(lines []string) ([]string, int) {
+	filtered := make([]string, 0, len(lines))
+	omitted := 0
+	for _, line := range lines {
+		if isTransientCoreMemoryPromptLine(line) {
+			omitted++
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	return filtered, omitted
+}
+
+func appendCoreMemoryFilterMarker(lines []string, filteredCount int) []string {
+	if filteredCount <= 0 {
+		return lines
+	}
+	out := make([]string, 0, len(lines)+1)
+	out = append(out, lines...)
+	out = append(out, fmt.Sprintf("[CORE MEMORY FILTERED: %d transient operational entries omitted from this prompt; use manage_memory list if needed]", filteredCount))
+	return out
+}
+
+func isTransientCoreMemoryPromptLine(line string) bool {
+	lower := strings.ToLower(strings.TrimSpace(line))
+	if lower == "" {
+		return false
+	}
+	transientMarkers := []string{
+		"[recent_operational_details]",
+		"[user_goal]",
+		"[activity_entity]",
+		"[operation]",
+		"[tool]",
+		"[project]",
+		"[docker_image]",
+		"[required_docker_image]",
+		"[playwright_version]",
+	}
+	for _, marker := range transientMarkers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func nonEmptyLines(text string) []string {

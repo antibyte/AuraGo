@@ -36,6 +36,14 @@ func reconcileToolPromptModeWithSchemas(flags *prompts.ContextFlags, policy *Too
 	}
 }
 
+func reconcilePromptToolModeWithRequest(flags *prompts.ContextFlags, policy *ToolingPolicy, reqTools []openai.Tool, logger *slog.Logger) {
+	if flags == nil || !flags.NativeToolsEnabled || len(reqTools) > 0 {
+		return
+	}
+	useNativeFunctions := true
+	reconcileToolPromptModeWithSchemas(flags, policy, &useNativeFunctions, 0, logger)
+}
+
 // initAgentLoopState sets up all mutable state before the main agent loop begins.
 func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker) *agentLoopState {
 	s := &agentLoopState{
