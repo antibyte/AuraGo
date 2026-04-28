@@ -243,12 +243,15 @@ function closeInspectModal() {
 // ── Delete Modal ────────────────────────────────────────────────────────────
 
 let deleteTarget = '';
+let deleteInFlight = false;
 
 // eslint-disable-next-line no-unused-vars
 function showDeleteModal(id, name) {
     deleteTarget = id;
+    deleteInFlight = false;
     document.getElementById('delete-container-name').textContent = name;
     document.getElementById('delete-force').checked = false;
+    setDeleteConfirmBusy(false);
     document.getElementById('delete-modal').classList.add('active');
 }
 
@@ -256,11 +259,15 @@ function showDeleteModal(id, name) {
 function closeDeleteModal() {
     document.getElementById('delete-modal').classList.remove('active');
     deleteTarget = '';
+    deleteInFlight = false;
+    setDeleteConfirmBusy(false);
 }
 
 // eslint-disable-next-line no-unused-vars
 async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleteInFlight) return;
+    deleteInFlight = true;
+    setDeleteConfirmBusy(true);
     const force = document.getElementById('delete-force').checked;
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(deleteTarget)}?force=${force}`, { method: 'DELETE' });
@@ -275,6 +282,18 @@ async function confirmDelete() {
         }
     } catch (e) {
         showToast(t('common.error') || 'Error', 'error');
+    } finally {
+        if (deleteTarget) {
+            deleteInFlight = false;
+            setDeleteConfirmBusy(false);
+        }
+    }
+}
+
+function setDeleteConfirmBusy(busy) {
+    const confirmBtn = document.getElementById('delete-confirm-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = busy;
     }
 }
 
