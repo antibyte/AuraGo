@@ -63,6 +63,11 @@ type Manager struct {
 	loginURLSeen bool
 }
 
+const (
+	tsnetTLSFallbackTimeout = 15 * time.Second
+	tsnetTLSStrictTimeout   = 2 * time.Minute
+)
+
 // NewManager creates a new tsnet manager.
 func NewManager(cfg *config.Config, logger *slog.Logger) *Manager {
 	return &Manager{cfg: cfg, logger: logger}
@@ -461,7 +466,11 @@ func (m *Manager) startMainListener(srv *tsnet.Server, handler http.Handler) err
 	}
 
 	if ln == nil {
-		ln, err = listenTLSWithTimeout(srv, ":443", 15*time.Second)
+		tlsTimeout := tsnetTLSStrictTimeout
+		if m.cfg.Tailscale.TsNet.AllowHTTPFallback {
+			tlsTimeout = tsnetTLSFallbackTimeout
+		}
+		ln, err = listenTLSWithTimeout(srv, ":443", tlsTimeout)
 		if err != nil {
 			if !m.cfg.Tailscale.TsNet.AllowHTTPFallback {
 				return fmt.Errorf("[tsnet] HTTPS not available and allow_http_fallback is disabled: %w", err)
@@ -569,7 +578,7 @@ func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
 		return fmt.Errorf("invalid homepage proxy target: %w", err)
 	}
 
-	ln, err := listenTLSWithTimeout(srv, ":8443", 15*time.Second)
+	ln, err := listenTLSWithTimeout(srv, ":8443", tsnetTLSStrictTimeout)
 	if err != nil {
 		return fmt.Errorf("homepage exposure requires Tailscale HTTPS on :8443: %w", err)
 	}
