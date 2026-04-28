@@ -53,6 +53,27 @@ func lockSessionRequest(sessionID string) func() {
 	}
 }
 
+func cloneChatCompletionMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	return append([]openai.ChatCompletionMessage(nil), messages...)
+}
+
+func recentMessagesForRequest(sessionID, missionID string, requestMessages, defaultMessages []openai.ChatCompletionMessage, sessionMessages []memory.HistoryMessage) []openai.ChatCompletionMessage {
+	if missionID != "" {
+		return cloneChatCompletionMessages(requestMessages)
+	}
+	if sessionID == "default" {
+		return cloneChatCompletionMessages(defaultMessages)
+	}
+
+	recentMessages := make([]openai.ChatCompletionMessage, 0, len(sessionMessages))
+	for _, m := range sessionMessages {
+		if !m.IsInternal {
+			recentMessages = append(recentMessages, m.ChatCompletionMessage)
+		}
+	}
+	return recentMessages
+}
+
 // sanitizeFilename sanitizes a filename to prevent path traversal and ensure safe names.
 func sanitizeFilename(filename string) string {
 	// Get base name only
@@ -192,6 +213,12 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		unlockSession := lockSessionRequest(sessionID)
 		defer unlockSession()
 
+		if missionID != "" && s.ShortTermMem != nil {
+			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
+				s.Logger.Warn("Failed to clear stale mission session context", "session_id", sessionID, "mission_id", missionID, "error", err)
+			}
+		}
+
 		// Guardian: Scan user input for injection patterns (log only, never block)
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
 			s.Guardian.ScanUserInput(lastUserMsg.Content)
@@ -262,18 +289,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// 2. Rebuild the Context
 		// For non-default chat sessions, build context from SQLite instead of HistoryManager
 		var recentMessages []openai.ChatCompletionMessage
-		if sessionID == "default" {
-			recentMessages = s.HistoryManager.GetForLLM()
+		if missionID != "" {
+			recentMessages = recentMessagesForRequest(sessionID, missionID, req.Messages, nil, nil)
+		} else if sessionID == "default" {
+			recentMessages = recentMessagesForRequest(sessionID, missionID, req.Messages, s.HistoryManager.GetForLLM(), nil)
 		} else {
 			sessionMsgs, err := s.ShortTermMem.GetSessionMessages(sessionID)
 			if err != nil {
 				s.Logger.Error("Failed to load session messages for context", "session_id", sessionID, "error", err)
 			} else {
-				for _, m := range sessionMsgs {
-					if !m.IsInternal {
-						recentMessages = append(recentMessages, m.ChatCompletionMessage)
-					}
-				}
+				recentMessages = recentMessagesForRequest(sessionID, missionID, req.Messages, nil, sessionMsgs)
 			}
 			// Non-default sessions load raw messages from SQLite without the
 			// dangling-tool-result filtering that GetForLLM() provides.

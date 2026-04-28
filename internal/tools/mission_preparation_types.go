@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -77,6 +78,47 @@ type PreloadSuggestion struct {
 	Resource string `json:"resource"`
 	Reason   string `json:"reason"`
 	Tool     string `json:"tool,omitempty"`
+}
+
+const missionExecutionPlanHeading = "## Mission Execution Plan (Advisory)"
+
+// StripMissionExecutionPlanAdvisory removes previously appended mission
+// preparation blocks from a prompt. Mission prompts are the canonical user
+// instruction; advisory plans are regenerated separately and must not become
+// part of the next preparation or execution input.
+func StripMissionExecutionPlanAdvisory(prompt string) string {
+	if !strings.Contains(prompt, missionExecutionPlanHeading) {
+		return prompt
+	}
+
+	normalized := strings.ReplaceAll(prompt, "\r\n", "\n")
+	lines := strings.Split(normalized, "\n")
+	cleaned := make([]string, 0, len(lines))
+
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != missionExecutionPlanHeading {
+			cleaned = append(cleaned, lines[i])
+			continue
+		}
+
+		// Remove the separator line that RenderPreparedContext adds directly
+		// before the heading.
+		for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
+			cleaned = cleaned[:len(cleaned)-1]
+		}
+		if len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "---" {
+			cleaned = cleaned[:len(cleaned)-1]
+		}
+
+		for i+1 < len(lines) {
+			i++
+			if strings.TrimSpace(lines[i]) == "---" {
+				break
+			}
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
 }
 
 // RenderPreparedContext formats the preparation analysis as an advisory markdown block

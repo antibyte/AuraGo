@@ -461,6 +461,7 @@ func (m *MissionManagerV2) Start() error {
 		}
 		for _, mission := range missions {
 			mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
+			mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
 			m.missions[mission.ID] = mission
 			if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
 				mission.Status = MissionStatusIdle // Reset on startup
@@ -649,7 +650,7 @@ func (m *MissionManagerV2) processNext() {
 	m.save()
 
 	callback := m.callback
-	prompt := mission.Prompt
+	prompt := StripMissionExecutionPlanAdvisory(mission.Prompt)
 	missionID := mission.ID
 	missionName := mission.Name
 	cheatsheetIDs := mission.CheatsheetIDs
@@ -1073,7 +1074,7 @@ func (m *MissionManagerV2) buildRemotePromptSnapshotLocked(mission *MissionV2) s
 	if mission == nil {
 		return ""
 	}
-	prompt := mission.Prompt
+	prompt := StripMissionExecutionPlanAdvisory(mission.Prompt)
 	if len(mission.CheatsheetIDs) > 0 && m.cheatsheetDB != nil {
 		if extra := CheatsheetGetMultiple(m.cheatsheetDB, mission.CheatsheetIDs); extra != "" {
 			prompt += extra
@@ -1206,6 +1207,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	defer m.mu.Unlock()
 
 	mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
+	mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
 	if mission.ID == "" {
 		mission.ID = fmt.Sprintf("mission_%d", time.Now().UnixNano())
 	}
@@ -1277,6 +1279,7 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 	}
 
 	mission.RunnerType = MissionRunnerLocal
+	mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
 	mission.RemoteNestID = ""
 	mission.RemoteNestName = ""
 	mission.RemoteEggID = ""
@@ -1314,6 +1317,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		return fmt.Errorf("mission not found")
 	}
 	updated.RunnerType = normalizeMissionRunner(updated.RunnerType)
+	updated.Prompt = StripMissionExecutionPlanAdvisory(updated.Prompt)
 	if err := validateRemoteMission(*updated); err != nil {
 		return err
 	}

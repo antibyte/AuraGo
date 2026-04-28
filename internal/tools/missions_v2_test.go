@@ -422,6 +422,30 @@ func TestTriggeredMissionIsolatesTriggerDataInPrompt(t *testing.T) {
 	}
 }
 
+func TestCreateMissionStripsPreparedContextFromStoredPrompt(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+
+	mission := &MissionV2{
+		ID:            "prepared-prompt",
+		Name:          "Prepared prompt",
+		Prompt:        "base prompt\n\n---\n## Mission Execution Plan (Advisory)\nstale plan\n---",
+		ExecutionType: ExecutionManual,
+		Enabled:       true,
+	}
+	if err := mm.Create(mission); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	stored, ok := mm.Get("prepared-prompt")
+	if !ok {
+		t.Fatal("created mission not found")
+	}
+	if stored.Prompt != "base prompt" {
+		t.Fatalf("stored prompt = %q, want clean base prompt", stored.Prompt)
+	}
+}
+
 func TestScheduledMissionSurvivesRestart(t *testing.T) {
 	tmpDir := t.TempDir()
 	cronMgr := NewCronManager(tmpDir)

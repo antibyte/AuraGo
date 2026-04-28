@@ -93,6 +93,7 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		mission.Prompt = tools.StripMissionExecutionPlanAdvisory(mission.Prompt)
 
 		if mission.Name == "" || mission.Prompt == "" {
 			jsonError(w, "name and prompt are required", http.StatusBadRequest)
@@ -222,6 +223,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+	updated.Prompt = tools.StripMissionExecutionPlanAdvisory(updated.Prompt)
 
 	if len(updated.Name) > maxMissionNameLen {
 		jsonError(w, "name exceeds maximum length", http.StatusBadRequest)

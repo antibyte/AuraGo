@@ -369,7 +369,7 @@ func (s *MissionPreparationService) GetPreparedContext(missionID string) *tools.
 // computeChecksum returns a SHA256 hex digest of the mission prompt + cheatsheet IDs.
 func (s *MissionPreparationService) computeChecksum(mission *tools.MissionV2) string {
 	h := sha256.New()
-	h.Write([]byte(mission.Prompt))
+	h.Write([]byte(tools.StripMissionExecutionPlanAdvisory(mission.Prompt)))
 	cheatsheetDB := s.missionMgr.GetCheatsheetDB()
 	for _, id := range mission.CheatsheetIDs {
 		if cheatsheetDB != nil {
@@ -401,7 +401,7 @@ func (s *MissionPreparationService) buildUserPrompt(mission *tools.MissionV2) st
 	var sb strings.Builder
 
 	sb.WriteString("## Mission Prompt\n")
-	sb.WriteString(mission.Prompt)
+	sb.WriteString(tools.StripMissionExecutionPlanAdvisory(mission.Prompt))
 	sb.WriteString("\n\n")
 
 	// Attach cheatsheet content if available
