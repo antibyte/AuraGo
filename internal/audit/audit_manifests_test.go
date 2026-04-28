@@ -328,6 +328,119 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	}
 }
 
+func TestExternalDataSyncContractHandlesPartialFailureRetryDuplicatesAndRevokedToken(t *testing.T) {
+	t.Parallel()
+
+	seen := map[string]string{}
+	status := RunExternalDataSyncContract(ExternalDataSyncContract[string]{
+		MaxItems: 10,
+		FetchPage: scriptedExternalPages([]externalPageScript[string]{
+			{Items: []ExternalDataItem[string]{{ID: "a", Value: "alpha"}, {ID: "b", Value: "bravo"}}, NextCursor: "p2"},
+			{Err: ErrExternalDataTemporary},
+		}),
+		Upsert: func(item ExternalDataItem[string]) error {
+			seen[item.ID] = item.Value
+			return nil
+		},
+	})
+	if status.Status != ExternalSyncPartial || status.Committed != 2 || status.NextCursor != "p2" || status.Retryable != true {
+		t.Fatalf("partial status = %#v, seen=%#v", status, seen)
+	}
+	if len(seen) != 2 || seen["a"] != "alpha" || seen["b"] != "bravo" {
+		t.Fatalf("partial sync committed wrong items: %#v", seen)
+	}
+
+	status = RunExternalDataSyncContract(ExternalDataSyncContract[string]{
+		MaxItems: 10,
+		SeenIDs:  map[string]bool{"a": true, "b": true},
+		FetchPage: scriptedExternalPages([]externalPageScript[string]{
+			{Items: []ExternalDataItem[string]{{ID: "a", Value: "alpha-duplicate"}, {ID: "b", Value: "bravo-duplicate"}}, NextCursor: "p2"},
+			{Items: []ExternalDataItem[string]{{ID: "c", Value: "charlie"}}},
+		}),
+		Upsert: func(item ExternalDataItem[string]) error {
+			seen[item.ID] = item.Value
+			return nil
+		},
+	})
+	if status.Status != ExternalSyncComplete || status.Committed != 1 || status.DuplicatesSkipped != 2 {
+		t.Fatalf("retry status = %#v, seen=%#v", status, seen)
+	}
+	if len(seen) != 3 || seen["a"] != "alpha" || seen["b"] != "bravo" || seen["c"] != "charlie" {
+		t.Fatalf("retry sync should skip duplicates and add c, got %#v", seen)
+	}
+
+	status = RunExternalDataSyncContract(ExternalDataSyncContract[string]{
+		MaxItems: 10,
+		FetchPage: scriptedExternalPages([]externalPageScript[string]{
+			{Err: ErrExternalDataRevokedToken},
+		}),
+		Upsert: func(item ExternalDataItem[string]) error {
+			t.Fatalf("revoked token should not upsert item %#v", item)
+			return nil
+		},
+	})
+	if status.Status != ExternalSyncRevoked || status.Retryable || status.Committed != 0 {
+		t.Fatalf("revoked status = %#v", status)
+	}
+
+	status = RunExternalDataSyncContract(ExternalDataSyncContract[string]{
+		MaxItems: 1,
+		FetchPage: scriptedExternalPages([]externalPageScript[string]{
+			{Items: []ExternalDataItem[string]{{ID: "x", Value: "xray"}, {ID: "y", Value: "yankee"}}},
+		}),
+		Upsert: func(item ExternalDataItem[string]) error {
+			return nil
+		},
+	})
+	if status.Status != ExternalSyncOversized || status.Committed != 1 || !strings.Contains(status.Message, "max_items") {
+		t.Fatalf("oversized status = %#v", status)
+	}
+}
+
+func TestExternalDataSyncContractManifestCoversRequiredScenarios(t *testing.T) {
+	t.Parallel()
+
+	required := []string{
+		"page-one-success-page-two-failure",
+		"retry-skips-duplicates",
+		"revoked-token-stops-without-commit",
+		"oversized-result-stops-with-status",
+	}
+	byName := map[string]ExternalDataSyncBoundary{}
+	for _, entry := range ExternalDataSyncContractManifest() {
+		if entry.Name == "" || entry.Scenario == "" || entry.TestCoverage == "" {
+			t.Fatalf("invalid external sync contract entry: %+v", entry)
+		}
+		byName[entry.Name] = entry
+	}
+	for _, name := range required {
+		if _, ok := byName[name]; !ok {
+			t.Fatalf("external data sync scenario %q is missing from manifest", name)
+		}
+	}
+}
+
+type externalPageScript[T any] struct {
+	Items      []ExternalDataItem[T]
+	NextCursor string
+	Err        error
+}
+
+func scriptedExternalPages[T any](scripts []externalPageScript[T]) func(string) (ExternalDataPage[T], error) {
+	index := 0
+	return func(_ string) (ExternalDataPage[T], error) {
+		if index >= len(scripts) {
+			return ExternalDataPage[T]{}, nil
+		}
+		script := scripts[index]
+		index++
+		return ExternalDataPage[T]{
+			Items:      script.Items,
+			NextCursor: script.NextCursor,
+		}, script.Err
+	}
+}
+
 func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 	t.Parallel()
 
