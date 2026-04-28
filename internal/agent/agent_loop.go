@@ -180,6 +180,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	manifest := s.runCfg.Manifest
 	budgetTracker := s.runCfg.BudgetTracker
 	sessionID := s.runCfg.SessionID
+	isAutonomousRun := isAutonomousAgentRun(runCfg, sessionID)
 
 	// Mutable state aliases from init
 	personalityEnabled := s.personalityEnabled
@@ -244,7 +245,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		emotionPolicy := emotionBehaviorPolicy{}
-		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer)
 		}
 		// Per-iteration flag: set when the XML fallback block has already appended an
@@ -332,7 +333,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		flags.ReuseContext = ""
-		if !runCfg.IsMission && !runCfg.IsCoAgent {
+		if !runCfg.IsMission && !runCfg.IsCoAgent && !isAutonomousRun {
 			trimmedReuseQuery := strings.TrimSpace(lastUserMsg)
 			if trimmedReuseQuery != "" {
 				if trimmedReuseQuery != lastReuseLookupMsg {
@@ -439,7 +440,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.PredictedMemories = ""
 		retrievalPromptTokens := 0
 		var topMemories []string
-		if !runCfg.IsMission && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
+		if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
 			ragQuery := lastUserMsg
@@ -677,7 +678,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// For capability/availability queries, RAG was intentionally skipped.
 		// Inject a live-state policy note so the agent knows not to rely on any
 		// stale memory it may have encountered in the conversation history.
-		if !runCfg.IsMission && lastUserMsg != "" && isCapabilityQuery(lastUserMsg) && flags.RetrievedMemories == "" {
+		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && isCapabilityQuery(lastUserMsg) && flags.RetrievedMemories == "" {
 			flags.RetrievedMemories = "[Memory Policy] This query concerns agent capabilities or tool/integration availability. " +
 				"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
 				"Memory about tool availability is always considered potentially stale. " +
@@ -687,7 +688,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject lightweight recent-day anchors and episodic cards, even when
 		// long-term memory retrieval is unavailable/disabled.
-		if !runCfg.IsMission && lastUserMsg != "" && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
 			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 2)
 			if pErr == nil && len(pendingActions) > 0 {
 				turnPendingActions = append(turnPendingActions, pendingActions...)
@@ -726,14 +727,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if !runCfg.IsMission && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
 			}
 		}
 
 		// Knowledge Graph context injection: search for relevant entities
-		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
+		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
 			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
 			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
 			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
@@ -745,7 +746,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Retrieval Fusion: cross-reference RAG↔KG for bidirectional enrichment.
 		// When both RAG and KG produced results, enrich each with the other's findings.
-		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
+		if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
 			flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
 			longTermMem != nil && kg != nil {
 			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, kg, s.currentLogger)
@@ -797,7 +798,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Phase D: Inject personality line before building system prompt
-		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
 				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger)
@@ -823,7 +824,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// User Profiling: inject behavioral instruction + collected profile data
-		if !runCfg.IsMission && cfg.Personality.UserProfiling {
+		if !runCfg.IsMission && !isAutonomousRun && cfg.Personality.UserProfiling {
 			flags.UserProfilingEnabled = true
 			if cfg.Personality.EngineV2 && shortTermMem != nil {
 				flags.UserProfileSummary = shortTermMem.GetUserProfileSummary(cfg.Personality.UserProfilingThreshold)
@@ -1442,11 +1443,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
-		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent && !flags.IsMission
+		runTurnSideEffects := shouldRunTurnSideEffects(runCfg, sessionID, flags)
+		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && runTurnSideEffects
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
 
 		// Phase D: Final mood + trait update + milestone check at session end
-		if personalityEnabled && shortTermMem != nil {
+		if personalityEnabled && shortTermMem != nil && !isAutonomousRun {
 			if cfg.Personality.EngineV2 {
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(
@@ -1486,7 +1488,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if memAnalysis.EffectivenessTracking && !isEmpty && shortTermMem != nil && len(turnMemoryCandidates) > 0 {
+		if memAnalysis.EffectivenessTracking && !isEmpty && runTurnSideEffects && shortTermMem != nil && len(turnMemoryCandidates) > 0 {
 			usefulIDs, uselessIDs := assessMemoryEffectiveness(content, turnMemoryCandidates)
 			for _, memoryID := range usefulIDs {
 				if err := shortTermMem.RecordMemoryEffectiveness(memoryID, true); err != nil {
@@ -1503,7 +1505,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				RecordRetrievalEventForScope(telemetryScope, "memory_effectiveness_useless")
 			}
 		}
-		if !isEmpty && shortTermMem != nil && len(turnPendingActions) > 0 {
+		if !isEmpty && runTurnSideEffects && shortTermMem != nil && len(turnPendingActions) > 0 {
 			resolveCompletedPendingActions(shortTermMem, lastUserMsg, content, turnPendingActions)
 		}
 
@@ -1654,7 +1656,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}(lastUserMsg, content, sessionID, activityToolNames, activityToolSummaries, turnPersonalityInput, append([]openai.ChatCompletionMessage(nil), req.Messages...))
 		} else {
 			// Real-time memory analysis: async post-response extraction of memory-worthy content
-			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsMission && !flags.IsCoAgent {
+			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && runTurnSideEffects && shortTermMem != nil {
 				go func(userMsg, aResp, sid string) {
 					analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 					defer cancel()
@@ -1662,7 +1664,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}(lastUserMsg, content, sessionID)
 			}
 
-			if !isEmpty && shortTermMem != nil && !flags.IsCoAgent {
+			if !isEmpty && runTurnSideEffects && shortTermMem != nil {
 				activityToolNames := append([]string(nil), turnToolNames...)
 				activityToolSummaries := append([]string(nil), turnToolSummaries...)
 				go captureActivityTurn(
@@ -1683,9 +1685,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Journal auto-trigger: create entries for significant tool chains
-		JournalAutoTrigger(cfg, shortTermMem, s.currentLogger, sessionID, recentTools, lastUserMsg)
+		if runTurnSideEffects {
+			JournalAutoTrigger(cfg, shortTermMem, s.currentLogger, sessionID, recentTools, lastUserMsg)
+		}
 
-		if !isEmpty && !runCfg.IsMission && !runCfg.IsCoAgent {
+		if !isEmpty && runTurnSideEffects {
 			rf := cfg.Agent.ReuseFirst
 			if !rf.AutoMaterialize {
 				s.currentLogger.Debug("[ReuseFirst] Auto-materialisation disabled by config", "session_id", sessionID)
@@ -1714,7 +1718,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.
-		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
+		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && runTurnSideEffects && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
 			today := time.Now().Format("2006-01-02")
 			existing, _ := shortTermMem.GetJournalEntries(today, today, []string{"reflection"}, 1)
 			if len(existing) == 0 {
