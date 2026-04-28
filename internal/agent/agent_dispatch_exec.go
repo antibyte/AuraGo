@@ -1028,7 +1028,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return `Tool Output: {"status":"error","message":"Koofr is in read-only mode. Disable koofr.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested koofr operation", "op", req.Operation, "path", req.FilePath, "dest", req.Destination)
+			logger.Info("LLM requested koofr operation", "op", req.Operation, "path", req.FilePath, "dest", req.Destination, "local_path", req.LocalPath)
 			koofrCfg := tools.KoofrConfig{
 				BaseURL:     cfg.Koofr.BaseURL,
 				Username:    cfg.Koofr.Username,

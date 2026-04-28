@@ -80,6 +80,20 @@ func TestResolveKoofrUploadTargetSplitsFilenameFromPathWhenDestinationMissing(t 
 	}
 }
 
+func TestKoofrListContainsFilenameDetectsMissingUpload(t *testing.T) {
+	listResponse := []byte(`{"files":[{"name":"other.jpeg"}]}`)
+	if koofrListContainsFilename(listResponse, "missing_after_upload.jpeg") {
+		t.Fatal("missing_after_upload.jpeg should not be considered visible")
+	}
+}
+
+func TestKoofrListContainsFilenameDetectsVisibleUpload(t *testing.T) {
+	listResponse := []byte(`{"files":[{"name":"funny_cat_car.jpeg"}]}`)
+	if !koofrListContainsFilename(listResponse, "funny_cat_car.jpeg") {
+		t.Fatal("funny_cat_car.jpeg should be considered visible")
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
@@ -163,6 +177,11 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{}`))
+		case "/api/v2/mounts/primary/files/list":
+			if got := r.URL.Query().Get("path"); got != "/aurago/pictures" {
+				t.Errorf("list path = %q, want /aurago/pictures", got)
+			}
+			_, _ = w.Write([]byte(`{"files":[{"name":"funny_cat_car.jpeg"}]}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -221,6 +240,8 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 			uploadedName = part.FileName()
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{}`))
+		case "/api/v2/mounts/primary/files/list":
+			_, _ = w.Write([]byte(`{"files":[{"name":"robot_spaghetti.jpeg"}]}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -237,6 +258,47 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 	}
 	if uploadedName != "robot_spaghetti.jpeg" {
 		t.Fatalf("uploaded filename = %q, want robot_spaghetti.jpeg", uploadedName)
+	}
+}
+
+func TestExecuteKoofrUploadErrorsWhenUploadedFileIsNotListed(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tmp := t.TempDir()
+	workspaceDir := filepath.Join(tmp, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	sourcePath := filepath.Join(workspaceDir, "missing_after_upload.jpeg")
+	if err := os.WriteFile(sourcePath, []byte{0xff, 0xd8, 0xff, 0xdb}, 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/content/api/v2/mounts/primary/files/put":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		case "/api/v2/mounts/primary/files/list":
+			if got := r.URL.Query().Get("path"); got != "/aurgo/pictures" {
+				t.Errorf("list path = %q, want /aurgo/pictures", got)
+			}
+			_, _ = w.Write([]byte(`{"files":[]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures", "missing_after_upload.jpeg", "", sourcePath, workspaceDir)
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "error" {
+		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
+	}
+	if !strings.Contains(parsed["message"].(string), "not visible") {
+		t.Fatalf("message = %v, want visibility verification error", parsed["message"])
 	}
 }
 

@@ -149,6 +149,28 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			err = uploadErr
 			break
 		}
+		listBytes, verifyErr := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", uploadDir), cfg.Username, cfg.AppPassword, "application/json", nil)
+		if verifyErr != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":           "error",
+				"message":          "File upload was accepted by Koofr, but AuraGo could not verify the file in the target directory",
+				"details":          fmt.Sprintf("%v", verifyErr),
+				"bytes":            written,
+				"expected_bytes":   size,
+				"remote_directory": uploadDir,
+				"filename":         filename,
+			})
+		}
+		if !koofrListContainsFilename(listBytes, filename) {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":           "error",
+				"message":          "File upload was accepted by Koofr, but the uploaded file is not visible in the target directory",
+				"bytes":            written,
+				"expected_bytes":   size,
+				"remote_directory": uploadDir,
+				"filename":         filename,
+			})
+		}
 		return marshalPrefixedToolJSON(map[string]interface{}{
 			"status":           "success",
 			"message":          "File uploaded successfully",
@@ -345,6 +367,33 @@ func resolveKoofrUploadTarget(safePath, dest, fallbackFilename string) (string, 
 		}
 	}
 	return uploadDir, filename
+}
+
+func koofrListContainsFilename(respBytes []byte, filename string) bool {
+	type koofrListedFile struct {
+		Name string `json:"name"`
+	}
+	var wrapped struct {
+		Files []koofrListedFile `json:"files"`
+	}
+	if err := json.Unmarshal(respBytes, &wrapped); err == nil {
+		for _, file := range wrapped.Files {
+			if file.Name == filename {
+				return true
+			}
+		}
+	}
+
+	var files []koofrListedFile
+	if err := json.Unmarshal(respBytes, &files); err != nil {
+		return false
+	}
+	for _, file := range files {
+		if file.Name == filename {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeKoofrPath(raw string) string {
