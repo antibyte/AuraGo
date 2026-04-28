@@ -372,5 +372,5 @@
   "config.section.video_generation.desc": "使用 AI 从文本和图像提示生成短视频"
 ,
   "config.section.yepapi.label": "YepAPI",
-  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
+  "config.section.yepapi.desc": "适用于 SEO、SERP、抓取、YouTube、TikTok、Instagram 和 Amazon 的统一 API"
 }

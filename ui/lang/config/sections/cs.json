@@ -372,5 +372,5 @@
   "config.section.video_generation.desc": "Generujte kratka videa z textovych a obrazovych promptu pomoci AI"
 ,
   "config.section.yepapi.label": "YepAPI",
-  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
+  "config.section.yepapi.desc": "Jednotné API pro SEO, SERP, scraping, YouTube, TikTok, Instagram a Amazon"
 }

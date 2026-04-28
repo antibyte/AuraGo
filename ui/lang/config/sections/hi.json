@@ -372,5 +372,5 @@
   "config.section.video_generation.desc": "AI से टेक्स्ट और इमेज प्रॉम्प्ट से छोटे वीडियो बनाएं"
 ,
   "config.section.yepapi.label": "YepAPI",
-  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
+  "config.section.yepapi.desc": "SEO, SERP, स्क्रैपिंग, YouTube, TikTok, Instagram और Amazon के लिए एकीकृत API"
 }

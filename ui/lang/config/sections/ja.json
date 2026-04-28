@@ -372,5 +372,5 @@
   "config.section.video_generation.desc": "AIでテキストや画像プロンプトから短い動画を生成"
 ,
   "config.section.yepapi.label": "YepAPI",
-  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
+  "config.section.yepapi.desc": "SEO、SERP、スクレイピング、YouTube、TikTok、Instagram、Amazon の統合 API"
 }
