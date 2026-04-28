@@ -44,6 +44,7 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 	}
 
 	var localPath string
+	servedWebPath := ""
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
 		saved, err := media.SaveURLToDir(req.Path, audioDir)
@@ -63,26 +64,40 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 			localPath = saved
 		}
 	} else {
-		candidate := resolveAgentFilePath(req.Path, cfg)
-		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "audio file not found: " + req.Path})
-		}
-		localPath = candidate
-		// Copy into audio dir if not already there
-		rel, relErr := filepath.Rel(audioDir, localPath)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
-			ext := filepath.Ext(localPath)
-			filename := fmt.Sprintf("audio_%d%s", time.Now().UnixMilli(), ext)
-			destPath := filepath.Join(audioDir, filename)
-			if err := copyFileLocal(localPath, destPath); err != nil {
-				return encode(map[string]interface{}{"status": "error", "message": "failed to copy audio to data dir: " + err.Error()})
+		if servedPath, webPath, matched, err := resolveServedFilePath(req.Path, cfg); matched {
+			if err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "invalid served audio path: " + err.Error()})
 			}
-			localPath = destPath
+			if _, err := os.Stat(servedPath); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "audio file not found: " + req.Path})
+			}
+			localPath = servedPath
+			servedWebPath = webPath
+		} else {
+			candidate := resolveAgentFilePath(req.Path, cfg)
+			if _, err := os.Stat(candidate); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "audio file not found: " + req.Path})
+			}
+			localPath = candidate
+			// Copy into audio dir if not already there
+			rel, relErr := filepath.Rel(audioDir, localPath)
+			if relErr != nil || strings.HasPrefix(rel, "..") {
+				ext := filepath.Ext(localPath)
+				filename := fmt.Sprintf("audio_%d%s", time.Now().UnixMilli(), ext)
+				destPath := filepath.Join(audioDir, filename)
+				if err := copyFileLocal(localPath, destPath); err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": "failed to copy audio to data dir: " + err.Error()})
+				}
+				localPath = destPath
+			}
 		}
 	}
 
 	filename := filepath.Base(localPath)
-	webPath := "/files/audio/" + filename
+	webPath := servedWebPath
+	if webPath == "" {
+		webPath = "/files/audio/" + filename
+	}
 	mimeType := audioMIMEType(filename)
 
 	if title == "" {

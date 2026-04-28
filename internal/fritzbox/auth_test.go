@@ -3,8 +3,9 @@ package fritzbox
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"aurago/internal/testutil"
 )
 
 // ─── Digest Auth helper tests ───
@@ -68,7 +69,7 @@ func TestNewCnonceReturnsErrorWhenRandomFails(t *testing.T) {
 
 func TestDigestTransport_NonDigestChallenge(t *testing.T) {
 	// Server returns 401 with Basic auth — DigestTransport should return the response as-is.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("WWW-Authenticate", `Basic realm="test"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -87,7 +88,7 @@ func TestDigestTransport_NonDigestChallenge(t *testing.T) {
 
 func TestDigestTransport_SuccessNoAuth(t *testing.T) {
 	// Server returns 200 — no auth needed.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
@@ -106,7 +107,7 @@ func TestDigestTransport_SuccessNoAuth(t *testing.T) {
 func TestDigestTransport_DigestChallenge(t *testing.T) {
 	// Server returns 401 with Digest, then accepts on retry.
 	call := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		call++
 		if call == 1 {
 			w.Header().Set("WWW-Authenticate",

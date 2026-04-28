@@ -60,6 +60,49 @@ func TestHandleSendVideoCopiesLocalVideoForChat(t *testing.T) {
 	}
 }
 
+func TestHandleSendVideoAcceptsGeneratedVideoWebPath(t *testing.T) {
+	tmp := t.TempDir()
+	dataDir := filepath.Join(tmp, "data")
+	workspaceDir := filepath.Join(tmp, "workspace")
+	videoDir := filepath.Join(dataDir, "generated_videos")
+	if err := os.MkdirAll(videoDir, 0755); err != nil {
+		t.Fatalf("mkdir generated video dir: %v", err)
+	}
+	videoPath := filepath.Join(videoDir, "video_test.mp4")
+	if err := os.WriteFile(videoPath, []byte("fake mp4"), 0644); err != nil {
+		t.Fatalf("write generated video: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = dataDir
+	cfg.Directories.WorkspaceDir = workspaceDir
+
+	raw := handleSendVideo(sendMediaArgs{Path: "/files/generated_videos/video_test.mp4", Title: "Generated clip"}, cfg, slog.Default(), nil)
+	raw = stringsTrimToolOutput(raw)
+
+	var result struct {
+		Status    string `json:"status"`
+		WebPath   string `json:"web_path"`
+		LocalPath string `json:"local_path"`
+		Title     string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v\n%s", err, raw)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success; raw=%s", result.Status, raw)
+	}
+	if result.WebPath != "/files/generated_videos/video_test.mp4" {
+		t.Fatalf("web_path = %q, want generated video web path", result.WebPath)
+	}
+	if result.LocalPath != videoPath {
+		t.Fatalf("local_path = %q, want %q", result.LocalPath, videoPath)
+	}
+	if result.Title != "Generated clip" {
+		t.Fatalf("title = %q, want Generated clip", result.Title)
+	}
+}
+
 func TestEmitMediaSSEEventsSendsGeneratedVideoEvent(t *testing.T) {
 	broker := &captureBroker{}
 	emitMediaSSEEvents(broker, "generate_video", `Tool Output: {"status":"ok","web_path":"/files/generated_videos/video_123.mp4","filename":"video_123.mp4","format":"mp4","provider":"minimax","model":"MiniMax-Hailuo-2.3"}`, t.TempDir())

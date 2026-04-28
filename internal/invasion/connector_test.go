@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"aurago/internal/testutil"
 )
 
 func TestGetConnector_Docker(t *testing.T) {
@@ -233,7 +235,7 @@ func TestDockerEggCreateBodyUsesEggPortHealthcheck(t *testing.T) {
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.
 func mockDockerAPI(t *testing.T, handlers map[string]http.HandlerFunc) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Strip API version prefix
 		path := r.URL.Path
 		parts := strings.SplitN(path, "/", 3)

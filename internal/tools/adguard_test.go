@@ -1,10 +1,10 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -62,10 +62,10 @@ func TestGetAdGuardClientInitializesOnce(t *testing.T) {
 }
 
 func TestAdGuardRequestRejectsOversizeResponse(t *testing.T) {
-	adguardClient = nil                                  // reset so getAdGuardClient() re-initializes
-	adguardClientOnce = sync.Once{}                      // reset Once so the next call actually runs the init
+	adguardClient = nil             // reset so getAdGuardClient() re-initializes
+	adguardClientOnce = sync.Once{} // reset Once so the next call actually runs the init
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
 	}))

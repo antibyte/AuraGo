@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/testutil"
 )
 
 func testConfig(serverURL string) config.JellyfinConfig {
@@ -92,7 +92,7 @@ func TestNewClientMissingAPIKey(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/System/Ping" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -118,7 +118,7 @@ func TestPing(t *testing.T) {
 }
 
 func TestGetSystemInfo(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/System/Info" {
 			http.NotFound(w, r)
 			return
@@ -150,7 +150,7 @@ func TestGetSystemInfo(t *testing.T) {
 }
 
 func TestGetLibraries(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/Library/VirtualFolders" {
 			http.NotFound(w, r)
 			return
@@ -180,7 +180,7 @@ func TestGetLibraries(t *testing.T) {
 }
 
 func TestSearchItems(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/Items" {
 			http.NotFound(w, r)
 			return
@@ -216,7 +216,7 @@ func TestSearchItems(t *testing.T) {
 }
 
 func TestGetSessions(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/Sessions" {
 			http.NotFound(w, r)
 			return

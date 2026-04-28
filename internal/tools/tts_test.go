@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"crypto/md5"
 	"fmt"
 	"net/http"
@@ -93,7 +94,7 @@ func TestCleanupTTSCachePrunesOldestFilesBeyondLimit(t *testing.T) {
 }
 
 func TestTTSGoogleRejectsOversizedResponseBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("a", int(maxHTTPResponseSize)+1)))
 	}))
@@ -108,7 +109,7 @@ func TestTTSGoogleRejectsOversizedResponseBody(t *testing.T) {
 }
 
 func TestTTSElevenLabsRejectsOversizedErrorBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(strings.Repeat("b", int(maxHTTPResponseSize)+1)))
 	}))

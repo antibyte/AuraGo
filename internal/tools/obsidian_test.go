@@ -1,12 +1,12 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -55,7 +55,7 @@ func decodeToolResult(t *testing.T, raw string) map[string]interface{} {
 func TestObsidianUpdateNoteVerifiesWrittenContent(t *testing.T) {
 	noteContent := "before"
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Fatalf("authorization header = %q", got)
 		}
@@ -101,7 +101,7 @@ func TestObsidianUpdateNoteVerifiesWrittenContent(t *testing.T) {
 func TestObsidianPatchNoteRejectsSilentNoOp(t *testing.T) {
 	noteContent := "before"
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Fatalf("authorization header = %q", got)
 		}

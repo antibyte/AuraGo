@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,7 @@ import (
 // newTestPaperlessServer creates a mock Paperless-ngx API server for testing.
 func newTestPaperlessServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, PaperlessConfig) {
 	t.Helper()
-	srv := httptest.NewServer(handler)
+	srv := testutil.NewHTTPServer(t, handler)
 	return srv, PaperlessConfig{URL: srv.URL, APIToken: "test-token"}
 }
 

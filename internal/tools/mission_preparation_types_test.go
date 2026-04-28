@@ -55,18 +55,56 @@ func TestStripMissionExecutionPlanAdvisoryRemovesStalePlan(t *testing.T) {
 	}
 }
 
+func TestStripMissionExecutionPlanAdvisoryKeepsUserAuthoredHeading(t *testing.T) {
+	prompt := strings.Join([]string{
+		"Document this section.",
+		"",
+		"## Mission Execution Plan (Advisory)",
+		"This is a user-authored heading in a document, not an AuraGo advisory block.",
+		"",
+		"Keep this text.",
+	}, "\n")
+
+	cleaned := StripMissionExecutionPlanAdvisory(prompt)
+
+	if cleaned != prompt {
+		t.Fatalf("user-authored advisory heading was stripped:\n%s", cleaned)
+	}
+}
+
+func TestRenderPreparedContextUsesStripMarkers(t *testing.T) {
+	pm := &PreparedMission{
+		Status:     PrepStatusPrepared,
+		PreparedAt: time.Now(),
+		Analysis: &PreparationAnalysis{
+			Summary: "Use the current state.",
+		},
+	}
+
+	rendered := pm.RenderPreparedContext()
+	if !strings.Contains(rendered, missionExecutionPlanStartMarker) || !strings.Contains(rendered, missionExecutionPlanEndMarker) {
+		t.Fatalf("rendered advisory lacks strip markers:\n%s", rendered)
+	}
+	cleaned := StripMissionExecutionPlanAdvisory("Original prompt" + rendered)
+	if cleaned != "Original prompt" {
+		t.Fatalf("marked advisory was not stripped cleanly:\n%s", cleaned)
+	}
+}
+
 func TestStripMissionExecutionPlanAdvisoryRemovesMultipleStalePlans(t *testing.T) {
 	prompt := strings.Join([]string{
 		"Check world news.",
 		"",
 		"---",
 		"## Mission Execution Plan (Advisory)",
+		"Scheduler-generated guidance for organizing this mission.",
 		"old plan one",
 		"",
 		"---",
 		"",
 		"---",
 		"## Mission Execution Plan (Advisory)",
+		"Scheduler-generated guidance for organizing this mission.",
 		"old plan two",
 		"",
 		"---",

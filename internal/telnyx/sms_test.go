@@ -1,10 +1,10 @@
 package telnyx
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -38,7 +38,7 @@ func TestValidateE164(t *testing.T) {
 }
 
 func TestClient_SendSMS(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
@@ -109,7 +109,7 @@ func TestClient_SendSMS_InvalidNumbers(t *testing.T) {
 }
 
 func TestClient_SendMMS(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req SendMessageRequest
 		json.NewDecoder(r.Body).Decode(&req)
 		if req.Type != "MMS" {
@@ -161,7 +161,7 @@ func TestClient_SendMMS_Validation(t *testing.T) {
 }
 
 func TestClient_GetMessage(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/messages/msg_abc123" {
 			t.Errorf("expected path /messages/msg_abc123, got %s", r.URL.Path)
 		}

@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +15,7 @@ func TestAnalyzeImageWithPromptTrimsAuthorizationKey(t *testing.T) {
 	originalClient := visionHTTPClient
 	defer func() { visionHTTPClient = originalClient }()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Fatalf("Authorization = %q, want %q", got, "Bearer test-key")
 		}

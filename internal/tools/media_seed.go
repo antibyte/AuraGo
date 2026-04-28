@@ -33,6 +33,16 @@ type seedEntry struct {
 // SeedWelcomeMedia copies bundled sample files into dataDir and registers them in the
 // media registry on the first start. All errors are non-fatal and only logged as warnings.
 func SeedWelcomeMedia(db *sql.DB, dataDir, installDir string, logger *slog.Logger) {
+	if dbSeedMarkerExists(db, seedDomainWelcomeMedia) {
+		logger.Debug("SeedWelcomeMedia: seed marker exists, skipping")
+		return
+	}
+	if count, err := tableRowCount(db, "media_items"); err == nil && count > 0 {
+		logger.Debug("SeedWelcomeMedia: existing media found, marking seeded and skipping", "count", count)
+		markDBSeeded(db, seedDomainWelcomeMedia, logger)
+		return
+	}
+
 	// Look for assets in installDir first; if binary lives inside a 'bin/' subdirectory
 	// the actual install root (where assets/ is extracted) is one level up.
 	candidates := []string{
@@ -68,6 +78,7 @@ func SeedWelcomeMedia(db *sql.DB, dataDir, installDir string, logger *slog.Logge
 			logger.Warn("SeedWelcomeMedia: failed to seed file", "filename", e.Filename, "error", err)
 		}
 	}
+	markDBSeeded(db, seedDomainWelcomeMedia, logger)
 }
 
 func seedOneFile(db *sql.DB, srcDir, dataDir string, e seedEntry, logger *slog.Logger) error {

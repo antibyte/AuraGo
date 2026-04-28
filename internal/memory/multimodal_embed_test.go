@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/testutil"
 )
 
 func TestDetectFormat(t *testing.T) {
@@ -157,7 +158,7 @@ func TestNewMultimodalEmbedder_TrailingSlash(t *testing.T) {
 
 func TestEmbedFile_OpenAI(t *testing.T) {
 	embedding := []float32{0.1, 0.2, 0.3}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
@@ -207,7 +208,7 @@ func TestEmbedFile_OpenAI(t *testing.T) {
 
 func TestEmbedFile_Vertex(t *testing.T) {
 	embedding := []float32{0.5, 0.5}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
@@ -250,7 +251,7 @@ func TestEmbedFile_Vertex(t *testing.T) {
 }
 
 func TestEmbedFile_APIError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"error": "bad request"}`))
 	}))
@@ -275,7 +276,7 @@ func TestEmbedFile_FileNotFound(t *testing.T) {
 }
 
 func TestEmbedFile_EmptyResponse(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]interface{}{},
 		})

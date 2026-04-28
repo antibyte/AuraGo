@@ -17,9 +17,9 @@ func slogDiscard() *slog.Logger {
 
 func TestIsValidHomepageURL_Valid(t *testing.T) {
 	valid := []string{
-		"https://example.com",
-		"https://example.com/page?q=1",
-		"HTTP://EXAMPLE.COM",
+		"https://8.8.8.8",
+		"https://8.8.8.8/page?q=1",
+		"HTTP://8.8.8.8",
 	}
 	for _, u := range valid {
 		if !isValidHomepageURL(u) {
@@ -295,13 +295,13 @@ func TestHomepageScreenshotFallsBackToWebCaptureWhenPlaywrightIsMissing(t *testi
 		if operation != "screenshot" {
 			t.Fatalf("operation = %q, want screenshot", operation)
 		}
-		if rawURL != "https://example.com" {
-			t.Fatalf("url = %q, want https://example.com", rawURL)
+		if rawURL != "https://8.8.8.8" {
+			t.Fatalf("url = %q, want https://8.8.8.8", rawURL)
 		}
 		return `{"status":"success","operation":"screenshot","file":"agent_workspace/workdir/fallback.png"}`
 	}
 
-	got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", "", nil)
+	got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://8.8.8.8", "", nil)
 	if !strings.Contains(got, `"status":"success"`) {
 		t.Fatalf("expected web_capture fallback result, got: %s", got)
 	}
@@ -566,7 +566,7 @@ func TestHomepageScreenshot_ViewportInjection(t *testing.T) {
 	// Valid viewports should pass (not return error)
 	valid := []string{"1280x720", "1920x1080", "320x480"}
 	for _, v := range valid {
-		got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", v, nil)
+		got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://8.8.8.8", v, nil)
 		if strings.Contains(got, "invalid viewport") {
 			t.Errorf("expected valid viewport %q to pass, got: %s", v, got)
 		}
@@ -601,7 +601,7 @@ func TestHomepageCheckJS_PlaywrightMissing(t *testing.T) {
 		return `{"exit_code":1,"output":"Error: Cannot find module 'playwright'"}`
 	}
 
-	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "https://example.com", nil)
+	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "https://8.8.8.8", nil)
 	if !strings.Contains(got, "Playwright not available") {
 		t.Errorf("expected Playwright not available error, got: %s", got)
 	}

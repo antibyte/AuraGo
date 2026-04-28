@@ -58,9 +58,6 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return webPerfJSON(webPerfResult{Status: "error", Message: "url must be a valid http or https URL"})
 	}
-	if err := security.ValidateSSRF(rawURL); err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF validation failed: %v", err)})
-	}
 
 	// Parse viewport
 	vpWidth, vpHeight := 1280, 720
@@ -71,6 +68,9 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 		if vpWidth < 320 || vpWidth > 3840 || vpHeight < 240 || vpHeight > 2160 {
 			return webPerfJSON(webPerfResult{Status: "error", Message: "viewport dimensions must be between 320x240 and 3840x2160"})
 		}
+	}
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF validation failed: %v", err)})
 	}
 
 	// Get shared headless browser

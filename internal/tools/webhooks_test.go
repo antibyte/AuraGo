@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -65,7 +65,7 @@ webhooks:
 }
 
 func TestExecuteOutgoingWebhookRejectsOversizedResponseBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("w", int(maxHTTPResponseSize)+1)))
 	}))

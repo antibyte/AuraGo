@@ -13,7 +13,7 @@ import (
 func TestForegroundRunner_BasicExecution(t *testing.T) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Write-Output 'hello from runner'")
+		cmd = exec.Command("cmd.exe", "/C", "echo hello from runner")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "echo 'hello from runner'")
 	}
@@ -36,7 +36,7 @@ func TestForegroundRunner_BasicExecution(t *testing.T) {
 func TestForegroundRunner_TimeoutKillsProcess(t *testing.T) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 10")
+		cmd = exec.Command("cmd.exe", "/C", "ping -n 10 127.0.0.1 >NUL")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "sleep 10")
 	}
@@ -82,7 +82,7 @@ func TestForegroundRunner_DefaultTimeout(t *testing.T) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Write-Output 'test'")
+		cmd = exec.Command("cmd.exe", "/C", "echo test")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "echo 'test'")
 	}
@@ -99,7 +99,7 @@ func TestForegroundRunner_DefaultTimeout(t *testing.T) {
 func TestForegroundRunner_DefaultKillWait(t *testing.T) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "echo test")
+		cmd = exec.Command("cmd.exe", "/C", "echo test")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "echo test")
 	}
@@ -117,7 +117,7 @@ func TestForegroundRunner_DefaultKillWait(t *testing.T) {
 func TestForegroundRunner_CustomErrMsg(t *testing.T) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 10")
+		cmd = exec.Command("cmd.exe", "/C", "ping -n 10 127.0.0.1 >NUL")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "sleep 10")
 	}
@@ -143,7 +143,7 @@ func TestBackgroundRunner_BasicExecution(t *testing.T) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Milliseconds 100; Write-Output 'done'")
+		cmd = exec.Command("cmd.exe", "/C", "echo done")
 	} else {
 		cmd = exec.Command("/bin/sh", "-c", "sleep 0.1; echo 'done'")
 	}

@@ -38,6 +38,7 @@ func handleSendVideo(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 
 	title := firstNonEmptyToolString(req.Title, req.Caption)
 	var localPath string
+	servedWebPath := ""
 	copiedOrDownloaded := false
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
@@ -48,21 +49,32 @@ func handleSendVideo(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 		localPath = saved
 		copiedOrDownloaded = true
 	} else {
-		candidate := resolveAgentFilePath(req.Path, cfg)
-		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "video file not found: " + req.Path})
-		}
-		localPath = candidate
-		rel, relErr := filepath.Rel(videoDir, localPath)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
-			ext := filepath.Ext(localPath)
-			filename := fmt.Sprintf("video_%d%s", time.Now().UnixMilli(), ext)
-			destPath := filepath.Join(videoDir, filename)
-			if err := copyFileLocal(localPath, destPath); err != nil {
-				return encode(map[string]interface{}{"status": "error", "message": "failed to copy video to data dir: " + err.Error()})
+		if servedPath, webPath, matched, err := resolveServedFilePath(req.Path, cfg); matched {
+			if err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "invalid served video path: " + err.Error()})
 			}
-			localPath = destPath
-			copiedOrDownloaded = true
+			if _, err := os.Stat(servedPath); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "video file not found: " + req.Path})
+			}
+			localPath = servedPath
+			servedWebPath = webPath
+		} else {
+			candidate := resolveAgentFilePath(req.Path, cfg)
+			if _, err := os.Stat(candidate); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "video file not found: " + req.Path})
+			}
+			localPath = candidate
+			rel, relErr := filepath.Rel(videoDir, localPath)
+			if relErr != nil || strings.HasPrefix(rel, "..") {
+				ext := filepath.Ext(localPath)
+				filename := fmt.Sprintf("video_%d%s", time.Now().UnixMilli(), ext)
+				destPath := filepath.Join(videoDir, filename)
+				if err := copyFileLocal(localPath, destPath); err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": "failed to copy video to data dir: " + err.Error()})
+				}
+				localPath = destPath
+				copiedOrDownloaded = true
+			}
 		}
 	}
 
@@ -75,7 +87,10 @@ func handleSendVideo(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 		return encode(map[string]interface{}{"status": "error", "message": "unsupported video format: " + format})
 	}
 
-	webPath := "/files/generated_videos/" + filename
+	webPath := servedWebPath
+	if webPath == "" {
+		webPath = "/files/generated_videos/" + filename
+	}
 	mimeType := videoMIMEType(filename)
 	if title == "" {
 		title = strings.TrimSuffix(filename, filepath.Ext(filename))

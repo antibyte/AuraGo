@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"aurago/internal/testutil"
 )
 
 func anthropicSystemTextForTest(t *testing.T, system any) string {
@@ -759,7 +760,7 @@ func TestAnthropicStreamThinking(t *testing.T) {
 
 func TestAnthropicE2E_Chat(t *testing.T) {
 	// Mock Anthropic API server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request format
 		if r.URL.Path != "/v1/messages" {
 			t.Errorf("path = %q, want /v1/messages", r.URL.Path)
@@ -842,7 +843,7 @@ func TestAnthropicE2E_Chat(t *testing.T) {
 
 func TestAnthropicE2E_ToolCycle(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		body, _ := io.ReadAll(r.Body)
 		var antReq anthropicRequest
@@ -930,7 +931,7 @@ func TestAnthropicE2E_ToolCycle(t *testing.T) {
 }
 
 func TestAnthropicErrorTranslation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(400)
 		json.NewEncoder(w).Encode(map[string]interface{}{

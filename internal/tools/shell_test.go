@@ -3,6 +3,7 @@ package tools
 import (
 	"log/slog"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
@@ -25,6 +26,8 @@ func TestNormalizeSudoStderrLeavesRegularErrors(t *testing.T) {
 }
 
 func TestExecuteShell(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+
 	workspaceDir, err := os.MkdirTemp("", "shell_test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -45,6 +48,17 @@ func TestExecuteShell(t *testing.T) {
 
 	if !strings.Contains(stdout, "hello world") {
 		t.Errorf("expected stdout to contain 'hello world', got: %s", stdout)
+	}
+}
+
+func skipIfWindowsPowerShellUnavailable(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		return
+	}
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Write-Output ok")
+	if err := cmd.Run(); err != nil {
+		t.Skipf("powershell.exe is unavailable in this test environment: %v", err)
 	}
 }
 

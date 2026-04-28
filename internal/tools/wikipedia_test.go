@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -11,7 +11,7 @@ import (
 func TestExecuteWikipediaSearchFallsBackToSearchResult(t *testing.T) {
 	summaryRequests := 0
 	requests := make([]string, 0, 3)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests = append(requests, r.URL.Path+"?"+r.URL.RawQuery)
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/api/rest_v1/page/summary/"):
@@ -53,7 +53,7 @@ func TestExecuteWikipediaSearchFallsBackToSearchResult(t *testing.T) {
 }
 
 func TestExecuteWikipediaSearchNormalizesLanguage(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"title":"Artificial intelligence","extract":"Summary","content_urls":{"desktop":{"page":"https://en.wikipedia.org/wiki/Artificial_intelligence"}}}`))
 	}))

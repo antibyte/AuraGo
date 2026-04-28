@@ -1,11 +1,11 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -47,7 +47,7 @@ func TestProxmoxRequest_RejectsHTTPSWithoutHost(t *testing.T) {
 func TestProxmoxRequestRejectsOversizeResponse(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
 	}))
@@ -74,7 +74,7 @@ func TestProxmoxRequestRejectsOversizeResponse(t *testing.T) {
 func TestProxmoxGetStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api2/json/nodes/pve/qemu/101/status/current":
 			w.WriteHeader(http.StatusForbidden)
@@ -123,7 +123,7 @@ func TestProxmoxGetStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 func TestProxmoxNodeStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api2/json/nodes/pve/status":
 			w.WriteHeader(http.StatusForbidden)
@@ -172,7 +172,7 @@ func TestProxmoxNodeStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 func TestProxmoxListVMs_IncludesMonitoringSummary(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api2/json/nodes/pve/qemu":
 			w.Header().Set("Content-Type", "application/json")
@@ -233,7 +233,7 @@ func TestProxmoxListVMs_IncludesMonitoringSummary(t *testing.T) {
 func TestProxmoxOverview_ReturnsCombinedMonitoringData(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api2/json/cluster/resources" {
 			t.Fatalf("unexpected request path: %s", r.URL.Path)
 		}

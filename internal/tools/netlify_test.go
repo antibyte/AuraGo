@@ -1,8 +1,8 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -10,7 +10,7 @@ import (
 func TestNetlifyDeleteSiteAcceptsHTTP200And204(t *testing.T) {
 	for _, statusCode := range []int{http.StatusOK, http.StatusNoContent} {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodDelete {
 					t.Fatalf("method = %s, want DELETE", r.Method)
 				}
@@ -39,7 +39,7 @@ func TestNetlifyDeleteSiteAcceptsHTTP200And204(t *testing.T) {
 }
 
 func TestNetlifyRequestRejectsOversizedResponseBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("n", int(maxHTTPResponseSize)+1)))
 	}))

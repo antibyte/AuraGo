@@ -6,11 +6,12 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/testutil"
 
 	"github.com/gorilla/websocket"
 )
@@ -27,7 +28,7 @@ func wsPair(t *testing.T) (*websocket.Conn, *websocket.Conn, func()) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	serverConn := make(chan *websocket.Conn, 1)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade: %v", err)

@@ -1,17 +1,17 @@
 package telnyx
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"aurago/internal/config"
 )
 
 func TestInitiateCall(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
@@ -77,7 +77,7 @@ func TestInitiateCall_MissingConnectionID(t *testing.T) {
 }
 
 func TestSpeakText(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v2/calls/ctrl-abc/actions/speak" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -113,7 +113,7 @@ func TestSpeakText_MissingParams(t *testing.T) {
 }
 
 func TestGatherDTMF(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v2/calls/ctrl-abc/actions/gather_using_speak" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -139,7 +139,7 @@ func TestGatherDTMF(t *testing.T) {
 }
 
 func TestTransferCall(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v2/calls/ctrl-abc/actions/transfer" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -170,7 +170,7 @@ func TestTransferCall_InvalidNumber(t *testing.T) {
 }
 
 func TestHangUp(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v2/calls/ctrl-abc/actions/hangup" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -188,7 +188,7 @@ func TestHangUp(t *testing.T) {
 }
 
 func TestRecordStartStop(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()

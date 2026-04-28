@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -20,7 +21,7 @@ func TestGenerateVideoMiniMaxFlow(t *testing.T) {
 	var createPayload map[string]interface{}
 
 	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server = testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/video_generation":
 			if r.Method != http.MethodPost {
@@ -133,7 +134,7 @@ func TestGenerateVideoGoogleFlow(t *testing.T) {
 	videoBytes := []byte("fake google mp4 data")
 	encoded := base64.StdEncoding.EncodeToString(videoBytes)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1beta/models/veo-test:predictLongRunning":
 			if r.Header.Get("x-goog-api-key") != "test-key" {

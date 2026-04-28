@@ -1,10 +1,10 @@
 package telnyx
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -19,7 +19,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClient_AuthHeader(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if auth != "Bearer test-api-key" {
 			t.Errorf("expected Authorization 'Bearer test-api-key', got %q", auth)
@@ -44,7 +44,7 @@ func TestClient_AuthHeader(t *testing.T) {
 
 func TestClient_RetryOn429(t *testing.T) {
 	attempts := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts++
 		if attempts <= 2 {
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -75,7 +75,7 @@ func TestClient_RetryOn429(t *testing.T) {
 }
 
 func TestClient_ErrorParsing(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		json.NewEncoder(w).Encode(ErrorResponse{
 			Errors: []APIError{{Code: "40001", Title: "Validation Error", Detail: "phone number invalid"}},
@@ -96,7 +96,7 @@ func TestClient_ErrorParsing(t *testing.T) {
 }
 
 func TestClient_GetBalance(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/balance" {
 			t.Errorf("expected path /balance, got %s", r.URL.Path)
 		}

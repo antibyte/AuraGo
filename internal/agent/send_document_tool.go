@@ -42,6 +42,7 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 	}
 
 	var localPath string
+	servedWebPath := ""
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
 		saved, err := media.SaveURLToDir(req.Path, docDir)
@@ -50,26 +51,40 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 		}
 		localPath = saved
 	} else {
-		candidate := resolveAgentFilePath(req.Path, cfg)
-		if _, err := os.Stat(candidate); err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "document file not found: " + req.Path})
-		}
-		localPath = candidate
-		// Copy into documents dir if not already there
-		rel, relErr := filepath.Rel(docDir, localPath)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
-			ext := filepath.Ext(localPath)
-			filename := fmt.Sprintf("doc_%d%s", time.Now().UnixMilli(), ext)
-			destPath := filepath.Join(docDir, filename)
-			if err := copyFileLocal(localPath, destPath); err != nil {
-				return encode(map[string]interface{}{"status": "error", "message": "failed to copy document to data dir: " + err.Error()})
+		if servedPath, webPath, matched, err := resolveServedFilePath(req.Path, cfg); matched {
+			if err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "invalid served document path: " + err.Error()})
 			}
-			localPath = destPath
+			if _, err := os.Stat(servedPath); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "document file not found: " + req.Path})
+			}
+			localPath = servedPath
+			servedWebPath = webPath
+		} else {
+			candidate := resolveAgentFilePath(req.Path, cfg)
+			if _, err := os.Stat(candidate); err != nil {
+				return encode(map[string]interface{}{"status": "error", "message": "document file not found: " + req.Path})
+			}
+			localPath = candidate
+			// Copy into documents dir if not already there
+			rel, relErr := filepath.Rel(docDir, localPath)
+			if relErr != nil || strings.HasPrefix(rel, "..") {
+				ext := filepath.Ext(localPath)
+				filename := fmt.Sprintf("doc_%d%s", time.Now().UnixMilli(), ext)
+				destPath := filepath.Join(docDir, filename)
+				if err := copyFileLocal(localPath, destPath); err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": "failed to copy document to data dir: " + err.Error()})
+				}
+				localPath = destPath
+			}
 		}
 	}
 
 	filename := filepath.Base(localPath)
-	webPath := "/files/documents/" + filename
+	webPath := servedWebPath
+	if webPath == "" {
+		webPath = "/files/documents/" + filename
+	}
 	mimeType := documentMIMEType(filename)
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
 	inline := isInlineDocument(ext)

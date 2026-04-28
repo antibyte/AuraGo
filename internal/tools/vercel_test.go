@@ -1,14 +1,14 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
 func TestVercelListProjectsIncludesScopeAndAuthorization(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s, want GET", r.Method)
 		}
@@ -51,7 +51,7 @@ func TestVercelListProjectsIncludesScopeAndAuthorization(t *testing.T) {
 }
 
 func TestVercelAssignAliasUsesDeploymentEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", r.Method)
 		}
@@ -81,7 +81,7 @@ func TestVercelAssignAliasUsesDeploymentEndpoint(t *testing.T) {
 }
 
 func TestVercelDeleteProjectSuccess(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			t.Fatalf("method = %s, want DELETE", r.Method)
 		}
@@ -111,7 +111,7 @@ func TestVercelDeleteProjectSuccess(t *testing.T) {
 }
 
 func TestVercelRollbackSuccess(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", r.Method)
 		}
@@ -141,7 +141,7 @@ func TestVercelRollbackSuccess(t *testing.T) {
 }
 
 func TestVercelCancelDeploySuccess(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Fatalf("method = %s, want PATCH", r.Method)
 		}
@@ -171,7 +171,7 @@ func TestVercelCancelDeploySuccess(t *testing.T) {
 }
 
 func TestVercelGetEnvSuccess(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s, want GET", r.Method)
 		}

@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -13,7 +13,7 @@ func TestOneDriveRequestRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := odHTTPClient
 	t.Cleanup(func() { odHTTPClient = oldClient })
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("z", int(maxHTTPResponseSize)+1)))
 	}))
@@ -32,7 +32,7 @@ func TestOneDriveUploadRejectsOversizedErrorBody(t *testing.T) {
 	oldClient := odHTTPClient
 	t.Cleanup(func() { odHTTPClient = oldClient })
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(strings.Repeat("q", int(maxHTTPResponseSize)+1)))
 	}))

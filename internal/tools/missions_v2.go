@@ -673,16 +673,7 @@ func (m *MissionManagerV2) processNext() {
 	}
 
 	if callback == nil {
-		// No callback set — mark mission as error and release queue
-		m.mu.Lock()
-		if ms, ok := m.missions[missionID]; ok {
-			ms.Status = MissionStatusIdle
-			ms.LastResult = MissionResultError
-			ms.LastOutput = "no callback registered"
-			m.save()
-		}
-		m.mu.Unlock()
-		m.queue.Done()
+		m.OnMissionComplete(missionID, MissionResultError, "no callback registered")
 		return
 	}
 

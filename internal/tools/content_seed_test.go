@@ -47,6 +47,26 @@ func TestSeedWelcomeMissions(t *testing.T) {
 	}
 }
 
+func TestSeedWelcomeMissionsDoesNotRecreateAfterPersistedStoreExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, NewCronManager(tmpDir))
+	_ = mm.Start()
+	defer mm.Stop()
+
+	assetsDir := filepath.Join(tmpDir, "assets", "mission_samples")
+	os.MkdirAll(assetsDir, 0o755)
+	manifest := `[
+		{"id": "test-mission-deleted", "name": "Deleted Sample", "prompt": "Do something", "execution_type": "manual", "priority": "high", "enabled": true}
+	]`
+	os.WriteFile(filepath.Join(assetsDir, "metadata.json"), []byte(manifest), 0o644)
+	os.WriteFile(filepath.Join(tmpDir, "missions_v2.json"), []byte("[]"), 0o644)
+
+	SeedWelcomeMissions(mm, tmpDir, testLogger())
+	if _, ok := mm.Get("test-mission-deleted"); ok {
+		t.Fatal("deleted sample mission was recreated from an existing mission store")
+	}
+}
+
 func TestSeedWelcomeCheatsheets(t *testing.T) {
 	db, err := InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
 	if err != nil {
@@ -79,6 +99,31 @@ func TestSeedWelcomeCheatsheets(t *testing.T) {
 	}
 	if cs2.CreatedAt != cs.CreatedAt {
 		t.Fatal("cheatsheet was overwritten on second seed")
+	}
+}
+
+func TestSeedWelcomeCheatsheetsDoesNotRecreateDeletedSeed(t *testing.T) {
+	db, err := InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("failed to init cheatsheet db: %v", err)
+	}
+	defer db.Close()
+
+	installDir := t.TempDir()
+	assetsDir := filepath.Join(installDir, "assets", "cheatsheet_samples")
+	os.MkdirAll(assetsDir, 0o755)
+	manifest := `[
+		{"id": "test-cs-deleted", "name": "Deleted CS", "content": "Hello", "active": true, "created_by": "system"}
+	]`
+	os.WriteFile(filepath.Join(assetsDir, "metadata.json"), []byte(manifest), 0o644)
+
+	SeedWelcomeCheatsheets(db, installDir, testLogger())
+	if err := CheatsheetDelete(db, "test-cs-deleted"); err != nil {
+		t.Fatalf("delete seeded cheatsheet: %v", err)
+	}
+	SeedWelcomeCheatsheets(db, installDir, testLogger())
+	if _, err := CheatsheetGet(db, "test-cs-deleted"); err == nil {
+		t.Fatal("deleted seeded cheatsheet was recreated")
 	}
 }
 
@@ -157,6 +202,42 @@ func TestSeedWelcomeSkillsWithExistingJSON(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(skillsDir, "test_skill2.json")); os.IsNotExist(err) {
 		t.Fatal("expected skill manifest to be copied")
 	}
+}
+
+func TestSeedWelcomeSkillsSyncsWhenExecutableCopiedButJSONAlreadyExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	skillsDir := filepath.Join(tmpDir, "skills")
+	os.MkdirAll(skillsDir, 0o755)
+
+	db, err := InitSkillsDB(filepath.Join(tmpDir, "skills.db"))
+	if err != nil {
+		t.Fatalf("failed to init skills db: %v", err)
+	}
+	defer db.Close()
+
+	mgr := NewSkillManager(db, skillsDir, testLogger())
+
+	assetsDir := filepath.Join(tmpDir, "assets", "skill_samples")
+	os.MkdirAll(assetsDir, 0o755)
+	manifest := `[
+		{"name": "Existing JSON Skill", "description": "A test skill", "executable": "existing_json.py", "category": "test"}
+	]`
+	os.WriteFile(filepath.Join(assetsDir, "metadata.json"), []byte(manifest), 0o644)
+	os.WriteFile(filepath.Join(assetsDir, "existing_json.py"), []byte("print('hello')"), 0o644)
+	os.WriteFile(filepath.Join(skillsDir, "existing_json.json"), []byte(`{"name":"Existing JSON Skill","executable":"existing_json.py"}`), 0o644)
+
+	SeedWelcomeSkills(mgr, skillsDir, tmpDir, testLogger())
+
+	skills, err := mgr.ListSkillsFiltered("", "", "", nil)
+	if err != nil {
+		t.Fatalf("failed to list skills: %v", err)
+	}
+	for _, s := range skills {
+		if s.Name == "Existing JSON Skill" {
+			return
+		}
+	}
+	t.Fatal("expected copied executable with existing JSON to trigger registry sync")
 }
 
 func TestSeedWelcomeSkillsMissingManifest(t *testing.T) {

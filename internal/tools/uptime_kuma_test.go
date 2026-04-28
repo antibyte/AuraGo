@@ -1,10 +1,10 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,7 +42,7 @@ func TestParseUptimeKumaMetricsMapsSnapshots(t *testing.T) {
 }
 
 func TestFetchUptimeKumaSnapshotUsesAPIKeyBasicAuth(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
 		if !ok {
 			t.Fatal("expected basic auth header")
@@ -72,7 +72,7 @@ func TestFetchUptimeKumaSnapshotUsesAPIKeyBasicAuth(t *testing.T) {
 }
 
 func TestFetchUptimeKumaSnapshotInsecureTLS(t *testing.T) {
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, sampleUptimeKumaMetrics)
 	}))
 	defer srv.Close()

@@ -1,10 +1,10 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"bytes"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -27,7 +27,7 @@ func TestWebDAVURLEmptyPathKeepsTrailingSlash(t *testing.T) {
 func TestWebDAVRequestBasicAuth(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
 		if !ok {
 			t.Fatal("expected basic auth header")
@@ -57,7 +57,7 @@ func TestWebDAVRequestBasicAuth(t *testing.T) {
 func TestWebDAVRequestBearerAuth(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer token-123" {
 			t.Fatalf("unexpected Authorization header: %q", got)
 		}
@@ -82,7 +82,7 @@ func TestWebDAVRequestBearerAuth(t *testing.T) {
 func TestWebDAVReadRejectsOversizeResponse(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
 	}))
@@ -100,7 +100,7 @@ func TestWebDAVReadRejectsOversizeResponse(t *testing.T) {
 func TestWebDAVWriteRejectsOversizeErrorBody(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write(bytes.Repeat([]byte("y"), int(maxHTTPResponseSize+1)))
 	}))

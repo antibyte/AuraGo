@@ -1,10 +1,10 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -61,7 +61,7 @@ func TestFindChromecastDeviceByNameMatchesFriendlyName(t *testing.T) {
 }
 
 func TestValidateChromecastMediaURLRejectsHTTP404(t *testing.T) {
-	srv := httptest.NewServer(http.NotFoundHandler())
+	srv := testutil.NewHTTPServer(t, http.NotFoundHandler())
 	defer srv.Close()
 
 	if err := validateChromecastMediaURL(srv.URL + "/missing.mp3"); err == nil {

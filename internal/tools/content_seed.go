@@ -57,6 +57,74 @@ func copyFileIfNotExists(src, dst string) error {
 	return out.Sync()
 }
 
+const (
+	seedDomainWelcomeMissions    = "welcome_missions_v1"
+	seedDomainWelcomeCheatsheets = "welcome_cheatsheets_v1"
+	seedDomainWelcomeSkills      = "welcome_skills_v1"
+	seedDomainWelcomeMedia       = "welcome_media_v1"
+)
+
+func seedFileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func seedMarkerFilePath(dir, domain string) string {
+	return filepath.Join(dir, ".aurago_"+domain+".seeded")
+}
+
+func fileSeedMarkerExists(dir, domain string) bool {
+	return seedFileExists(seedMarkerFilePath(dir, domain))
+}
+
+func markFileSeeded(dir, domain string, logger *slog.Logger) {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		logger.Warn("failed to create seed marker directory", "domain", domain, "dir", dir, "error", err)
+		return
+	}
+	if err := os.WriteFile(seedMarkerFilePath(dir, domain), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o640); err != nil {
+		logger.Warn("failed to write seed marker", "domain", domain, "error", err)
+	}
+}
+
+func ensureDBSeedState(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS content_seed_state (
+		domain TEXT PRIMARY KEY,
+		seeded_at DATETIME NOT NULL
+	)`)
+	return err
+}
+
+func dbSeedMarkerExists(db *sql.DB, domain string) bool {
+	if db == nil {
+		return false
+	}
+	if err := ensureDBSeedState(db); err != nil {
+		return false
+	}
+	var found int
+	return db.QueryRow("SELECT 1 FROM content_seed_state WHERE domain = ?", domain).Scan(&found) == nil
+}
+
+func markDBSeeded(db *sql.DB, domain string, logger *slog.Logger) {
+	if db == nil {
+		return
+	}
+	if err := ensureDBSeedState(db); err != nil {
+		logger.Warn("failed to create DB seed marker table", "domain", domain, "error", err)
+		return
+	}
+	if _, err := db.Exec("INSERT OR IGNORE INTO content_seed_state (domain, seeded_at) VALUES (?, ?)", domain, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		logger.Warn("failed to write DB seed marker", "domain", domain, "error", err)
+	}
+}
+
+func tableRowCount(db *sql.DB, table string) (int, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count)
+	return count, err
+}
+
 // ── Mission seeding ─────────────────────────────────────────────────────────
 
 type missionSeedEntry struct {
@@ -77,6 +145,17 @@ type missionSeedEntry struct {
 // SeedWelcomeMissions imports bundled example missions on first start.
 // It is idempotent: missions whose ID already exists are skipped.
 func SeedWelcomeMissions(m *MissionManagerV2, installDir string, logger *slog.Logger) {
+	dataDir := filepath.Dir(m.file)
+	if fileSeedMarkerExists(dataDir, seedDomainWelcomeMissions) {
+		logger.Debug("SeedWelcomeMissions: seed marker exists, skipping")
+		return
+	}
+	if seedFileExists(m.file) {
+		logger.Debug("SeedWelcomeMissions: mission store already exists, marking seeded and skipping")
+		markFileSeeded(dataDir, seedDomainWelcomeMissions, logger)
+		return
+	}
+
 	manifestPath := findManifestPath(installDir, filepath.Join("assets", "mission_samples", "metadata.json"))
 	if manifestPath == "" {
 		logger.Warn("SeedWelcomeMissions: manifest not found, skipping", "searched", filepath.Join(installDir, "assets", "mission_samples", "metadata.json"))
@@ -127,6 +206,7 @@ func SeedWelcomeMissions(m *MissionManagerV2, installDir string, logger *slog.Lo
 			logger.Info("SeedWelcomeMissions: seeded mission", "id", e.ID, "name", e.Name)
 		}
 	}
+	markFileSeeded(dataDir, seedDomainWelcomeMissions, logger)
 }
 
 // ── Cheatsheet seeding ──────────────────────────────────────────────────────
@@ -142,6 +222,16 @@ type cheatsheetSeedEntry struct {
 // SeedWelcomeCheatsheets imports bundled example cheat sheets on first start.
 // It is idempotent: cheat sheets whose ID already exists are skipped.
 func SeedWelcomeCheatsheets(db *sql.DB, installDir string, logger *slog.Logger) {
+	if dbSeedMarkerExists(db, seedDomainWelcomeCheatsheets) {
+		logger.Debug("SeedWelcomeCheatsheets: seed marker exists, skipping")
+		return
+	}
+	if count, err := tableRowCount(db, "cheatsheets"); err == nil && count > 0 {
+		logger.Debug("SeedWelcomeCheatsheets: existing cheatsheets found, marking seeded and skipping", "count", count)
+		markDBSeeded(db, seedDomainWelcomeCheatsheets, logger)
+		return
+	}
+
 	manifestPath := findManifestPath(installDir, filepath.Join("assets", "cheatsheet_samples", "metadata.json"))
 	if manifestPath == "" {
 		logger.Warn("SeedWelcomeCheatsheets: manifest not found, skipping", "searched", filepath.Join(installDir, "assets", "cheatsheet_samples", "metadata.json"))
@@ -185,6 +275,7 @@ func SeedWelcomeCheatsheets(db *sql.DB, installDir string, logger *slog.Logger) 
 
 		logger.Info("SeedWelcomeCheatsheets: seeded cheatsheet", "id", e.ID, "name", e.Name)
 	}
+	markDBSeeded(db, seedDomainWelcomeCheatsheets, logger)
 }
 
 func seedInsertCheatsheet(db *sql.DB, id, name, content, createdBy string, active bool) error {
@@ -212,20 +303,32 @@ func seedInsertCheatsheet(db *sql.DB, id, name, content, createdBy string, activ
 // ── Skill seeding ───────────────────────────────────────────────────────────
 
 type skillSeedEntry struct {
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Executable   string            `json:"executable"`
-	Category     string            `json:"category,omitempty"`
-	Tags         []string          `json:"tags,omitempty"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
+	Executable   string                 `json:"executable"`
+	Category     string                 `json:"category,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
 	Parameters   map[string]interface{} `json:"parameters,omitempty"`
-	Returns      string            `json:"returns,omitempty"`
-	Dependencies []string          `json:"dependencies,omitempty"`
-	VaultKeys    []string          `json:"vault_keys,omitempty"`
+	Returns      string                 `json:"returns,omitempty"`
+	Dependencies []string               `json:"dependencies,omitempty"`
+	VaultKeys    []string               `json:"vault_keys,omitempty"`
 }
 
 // SeedWelcomeSkills copies bundled example skills into the skills directory.
 // It is idempotent: files that already exist are not overwritten.
 func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, logger *slog.Logger) {
+	if skillMgr != nil && dbSeedMarkerExists(skillMgr.db, seedDomainWelcomeSkills) {
+		logger.Debug("SeedWelcomeSkills: seed marker exists, skipping")
+		return
+	}
+	if skillMgr != nil {
+		if count, err := tableRowCount(skillMgr.db, "skills_registry"); err == nil && count > 0 {
+			logger.Debug("SeedWelcomeSkills: existing skills found, marking seeded and skipping", "count", count)
+			markDBSeeded(skillMgr.db, seedDomainWelcomeSkills, logger)
+			return
+		}
+	}
+
 	manifestPath := findManifestPath(installDir, filepath.Join("assets", "skill_samples", "metadata.json"))
 	if manifestPath == "" {
 		logger.Warn("SeedWelcomeSkills: manifest not found, skipping", "searched", filepath.Join(installDir, "assets", "skill_samples", "metadata.json"))
@@ -256,9 +359,13 @@ func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, log
 		// Copy the executable
 		srcExec := filepath.Join(srcDir, e.Executable)
 		dstExec := filepath.Join(skillsDir, e.Executable)
+		execExisted := seedFileExists(dstExec)
 		if err := copyFileIfNotExists(srcExec, dstExec); err != nil {
 			logger.Warn("SeedWelcomeSkills: failed to copy executable", "src", srcExec, "dst", dstExec, "error", err)
 			continue
+		}
+		if !execExisted {
+			copied = true
 		}
 
 		// Copy the manifest JSON (same base name as executable, .json extension)
@@ -283,21 +390,27 @@ func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, log
 				logger.Info("SeedWelcomeSkills: seeded skill manifest", "name", e.Name)
 			}
 		} else {
+			jsonExisted := seedFileExists(dstJSON)
 			if err := copyFileIfNotExists(srcJSON, dstJSON); err != nil {
 				logger.Warn("SeedWelcomeSkills: failed to copy manifest", "src", srcJSON, "dst", dstJSON, "error", err)
 				continue
 			}
-			copied = true
+			if !jsonExisted {
+				copied = true
+			}
 			logger.Info("SeedWelcomeSkills: seeded skill", "name", e.Name)
 		}
 	}
 
-	if copied {
+	if copied && skillMgr != nil {
 		InvalidateSkillsCache(skillsDir)
 		if err := skillMgr.SyncFromDisk(); err != nil {
 			logger.Warn("SeedWelcomeSkills: SyncFromDisk failed after seeding", "error", err)
 		} else {
 			logger.Info("SeedWelcomeSkills: skill registry synced")
 		}
+	}
+	if skillMgr != nil {
+		markDBSeeded(skillMgr.db, seedDomainWelcomeSkills, logger)
 	}
 }

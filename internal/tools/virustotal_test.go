@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -8,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,7 +77,7 @@ func TestExecuteVirusTotalScanWithOptionsAutoUploadsWhenHashUnknown(t *testing.T
 		lookupCount int
 		uploadCount int
 	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/files/"):
 			lookupCount++
@@ -139,7 +139,7 @@ func TestExecuteVirusTotalScanWithOptionsHashResourceUsesFileEndpoint(t *testing
 	hash := "44d88612fea8a8f36de82e1278abb02f"
 	var requestedPath string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestedPath = r.URL.Path
 		if r.Method != http.MethodGet {
 			http.Error(w, "unexpected method", http.StatusBadRequest)
@@ -180,7 +180,7 @@ func TestExecuteVirusTotalScanWithOptionsHashResourceUsesFileEndpoint(t *testing
 func TestExecuteVirusTotalScanWithOptionsDomainResourceUsesDomainEndpoint(t *testing.T) {
 	var requestedPath string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestedPath = r.URL.Path
 		if r.Method != http.MethodGet {
 			http.Error(w, "unexpected method", http.StatusBadRequest)
@@ -218,7 +218,7 @@ func TestExecuteVirusTotalScanWithOptionsDomainResourceUsesDomainEndpoint(t *tes
 func TestExecuteVirusTotalScanWithOptionsIPResourceUsesIPEndpoint(t *testing.T) {
 	var requestedPath string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestedPath = r.URL.Path
 		if r.Method != http.MethodGet {
 			http.Error(w, "unexpected method", http.StatusBadRequest)
@@ -262,7 +262,7 @@ func TestExecuteVirusTotalScanWithOptionsURLResourceFallsBackToSubmission(t *tes
 		getAnalysisCount int
 	)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/urls/"+urlID && getURLCount == 0:
 			getURLCount++
@@ -339,7 +339,7 @@ func TestExecuteVirusTotalScanWithOptionsHashModeDoesNotUpload(t *testing.T) {
 		lookupCount int
 		uploadCount int
 	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/files/"):
 			lookupCount++

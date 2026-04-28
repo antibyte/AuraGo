@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -38,7 +39,7 @@ func TestHandleUptimeKumaStatusDisabled(t *testing.T) {
 }
 
 func TestHandleUptimeKumaStatusReturnsSummary(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, pass, ok := r.BasicAuth()
 		if !ok || pass != "uk2_server_test" {
 			t.Fatalf("unexpected basic auth: ok=%v pass=%q", ok, pass)

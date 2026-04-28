@@ -55,6 +55,79 @@ func hasCronJob(cronMgr *CronManager, id string) bool {
 	return false
 }
 
+func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
+	tmpDir := t.TempDir()
+	mgr := NewMissionManagerV2(tmpDir, nil)
+	historyDB, err := InitMissionHistoryDB(filepath.Join(tmpDir, "history.db"))
+	if err != nil {
+		t.Fatalf("InitMissionHistoryDB: %v", err)
+	}
+	defer historyDB.Close()
+	mgr.SetHistoryDB(historyDB)
+
+	if err := mgr.Create(&MissionV2{
+		ID:            "mission_no_callback",
+		Name:          "No callback",
+		Prompt:        "Do work",
+		ExecutionType: ExecutionManual,
+		Priority:      "high",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mgr.TriggerMission("mission_no_callback", "manual", ""); err != nil {
+		t.Fatalf("TriggerMission: %v", err)
+	}
+
+	mgr.processNext()
+
+	var run MissionRun
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		page, err := QueryMissionHistory(historyDB, MissionHistoryFilter{MissionID: "mission_no_callback", Limit: 1})
+		if err != nil {
+			t.Fatalf("QueryMissionHistory: %v", err)
+		}
+		if len(page.Entries) == 1 && page.Entries[0].Status != "running" {
+			run = *page.Entries[0]
+			break
+		}
+		if time.Now().After(deadline) {
+			if len(page.Entries) == 1 {
+				t.Fatalf("mission history status stayed %q", page.Entries[0].Status)
+			}
+			t.Fatalf("mission history row was not created")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if run.Status != MissionResultError {
+		t.Fatalf("history status = %q, want error", run.Status)
+	}
+	if run.CompletedAt == nil {
+		t.Fatal("completed_at is nil")
+	}
+	if run.ErrorMsg != "no callback registered" {
+		t.Fatalf("error_msg = %q, want no callback registered", run.ErrorMsg)
+	}
+	got, ok := mgr.Get("mission_no_callback")
+	if !ok {
+		t.Fatal("mission disappeared")
+	}
+	if got.Status != MissionStatusIdle || got.LastResult != MissionResultError || got.RunCount != 1 {
+		t.Fatalf("mission state after no callback = %+v", got)
+	}
+	if mgr.queue.GetRunning() != "" {
+		t.Fatalf("queue running = %q, want empty", mgr.queue.GetRunning())
+	}
+	mgr.mu.RLock()
+	_, active := mgr.activeRunID["mission_no_callback"]
+	mgr.mu.RUnlock()
+	if active {
+		t.Fatal("active run ID was not cleared")
+	}
+}
+
 func TestApplySyncedMissionPreservesMetadata(t *testing.T) {
 	mgr := NewMissionManagerV2(t.TempDir(), nil)
 	createdAt := time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC)
@@ -429,7 +502,7 @@ func TestCreateMissionStripsPreparedContextFromStoredPrompt(t *testing.T) {
 	mission := &MissionV2{
 		ID:            "prepared-prompt",
 		Name:          "Prepared prompt",
-		Prompt:        "base prompt\n\n---\n## Mission Execution Plan (Advisory)\nstale plan\n---",
+		Prompt:        "base prompt\n\n---\n## Mission Execution Plan (Advisory)\nScheduler-generated guidance for organizing this mission.\nstale plan\n---",
 		ExecutionType: ExecutionManual,
 		Enabled:       true,
 	}

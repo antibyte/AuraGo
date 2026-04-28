@@ -1,12 +1,12 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -182,7 +182,7 @@ func TestExecuteBrowserAutomationValidatesOperationInputsBeforeSidecarRequest(t 
 }
 
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/automation" {
 			http.NotFound(w, r)
 			return
@@ -240,7 +240,7 @@ func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 }
 
 func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			http.NotFound(w, r)
 			return
@@ -265,7 +265,7 @@ func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 }
 
 func TestBrowserAutomationHealthReturnsErrorPayloadForNonSuccessStatus(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`{"status":"error","retryable":false,"message":"browser unavailable"}`))

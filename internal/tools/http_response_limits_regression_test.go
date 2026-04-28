@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"aurago/internal/testutil"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -11,7 +11,7 @@ import (
 )
 
 func TestAnsibleRequestRejectsOversizedResponseBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("a", int(maxHTTPResponseSize)+1)))
 	}))
@@ -27,7 +27,7 @@ func TestGoogleWorkspaceRequestRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := gwHTTPClient
 	t.Cleanup(func() { gwHTTPClient = oldClient })
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("g", int(maxHTTPResponseSize)+1)))
 	}))
@@ -45,7 +45,7 @@ func TestHARequestRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := haHTTPClient
 	t.Cleanup(func() { haHTTPClient = oldClient })
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("h", int(maxHTTPResponseSize)+1)))
 	}))
@@ -62,7 +62,7 @@ func TestVirusTotalDoRequestRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := virustotalHTTPClient
 	t.Cleanup(func() { virustotalHTTPClient = oldClient })
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("v", int(maxHTTPResponseSize)+1)))
 	}))
@@ -79,7 +79,7 @@ func TestGenerateOpenAIRejectsOversizedResponseBody(t *testing.T) {
 	oldClient := imageGenHTTPClient
 	t.Cleanup(func() { imageGenHTTPClient = oldClient })
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("i", int(maxHTTPResponseSize)+1)))
 	}))
@@ -93,7 +93,7 @@ func TestGenerateOpenAIRejectsOversizedResponseBody(t *testing.T) {
 }
 
 func TestGotenbergHealthRejectsOversizedResponseBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(strings.Repeat("j", int(maxHTTPResponseSize)+1)))
 	}))

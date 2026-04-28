@@ -80,14 +80,18 @@ type PreloadSuggestion struct {
 	Tool     string `json:"tool,omitempty"`
 }
 
-const missionExecutionPlanHeading = "## Mission Execution Plan (Advisory)"
+const (
+	missionExecutionPlanHeading     = "## Mission Execution Plan (Advisory)"
+	missionExecutionPlanStartMarker = "<!-- aurago:mission-advisory:v1:start -->"
+	missionExecutionPlanEndMarker   = "<!-- aurago:mission-advisory:v1:end -->"
+)
 
 // StripMissionExecutionPlanAdvisory removes previously appended mission
 // preparation blocks from a prompt. Mission prompts are the canonical user
 // instruction; advisory plans are regenerated separately and must not become
 // part of the next preparation or execution input.
 func StripMissionExecutionPlanAdvisory(prompt string) string {
-	if !strings.Contains(prompt, missionExecutionPlanHeading) {
+	if !strings.Contains(prompt, missionExecutionPlanHeading) && !strings.Contains(prompt, missionExecutionPlanStartMarker) {
 		return prompt
 	}
 
@@ -96,19 +100,27 @@ func StripMissionExecutionPlanAdvisory(prompt string) string {
 	cleaned := make([]string, 0, len(lines))
 
 	for i := 0; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) != missionExecutionPlanHeading {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == missionExecutionPlanStartMarker {
+			removePreviousAdvisorySeparator(&cleaned)
+			for i+1 < len(lines) {
+				i++
+				if strings.TrimSpace(lines[i]) == missionExecutionPlanEndMarker {
+					if i+1 < len(lines) && strings.TrimSpace(lines[i+1]) == "---" {
+						i++
+					}
+					break
+				}
+			}
+			continue
+		}
+
+		if trimmed != missionExecutionPlanHeading || !looksLikeLegacyMissionAdvisory(lines, i) {
 			cleaned = append(cleaned, lines[i])
 			continue
 		}
 
-		// Remove the separator line that RenderPreparedContext adds directly
-		// before the heading.
-		for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
-			cleaned = cleaned[:len(cleaned)-1]
-		}
-		if len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "---" {
-			cleaned = cleaned[:len(cleaned)-1]
-		}
+		removePreviousAdvisorySeparator(&cleaned)
 
 		for i+1 < len(lines) {
 			i++
@@ -121,6 +133,30 @@ func StripMissionExecutionPlanAdvisory(prompt string) string {
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
 }
 
+func removePreviousAdvisorySeparator(lines *[]string) {
+	for len(*lines) > 0 && strings.TrimSpace((*lines)[len(*lines)-1]) == "" {
+		*lines = (*lines)[:len(*lines)-1]
+	}
+	if len(*lines) > 0 && strings.TrimSpace((*lines)[len(*lines)-1]) == "---" {
+		*lines = (*lines)[:len(*lines)-1]
+	}
+}
+
+func looksLikeLegacyMissionAdvisory(lines []string, headingIndex int) bool {
+	for i := headingIndex + 1; i < len(lines) && i <= headingIndex+5; i++ {
+		text := strings.ToLower(strings.TrimSpace(lines[i]))
+		if text == "---" {
+			return false
+		}
+		if strings.Contains(text, "scheduler-generated guidance") ||
+			strings.Contains(text, "above is your original mission prompt") ||
+			strings.Contains(text, "pre-computed plan") {
+			return true
+		}
+	}
+	return false
+}
+
 // RenderPreparedContext formats the preparation analysis as an advisory markdown block
 // that can be appended to the mission prompt.
 func (pm *PreparedMission) RenderPreparedContext() string {
@@ -130,7 +166,9 @@ func (pm *PreparedMission) RenderPreparedContext() string {
 	a := pm.Analysis
 
 	var buf []byte
-	buf = append(buf, "\n\n---\n## Mission Execution Plan (Advisory)\n"...)
+	buf = append(buf, "\n\n---\n"...)
+	buf = append(buf, missionExecutionPlanStartMarker...)
+	buf = append(buf, "\n## Mission Execution Plan (Advisory)\n"...)
 	buf = append(buf, "Scheduler-generated guidance for organizing this mission. Base the final result on actual tool outputs, verified observations, or clearly reported limitations.\n\n"...)
 
 	if a.Summary != "" {
@@ -203,6 +241,7 @@ func (pm *PreparedMission) RenderPreparedContext() string {
 		buf = append(buf, '\n')
 	}
 
-	buf = append(buf, "---\n"...)
+	buf = append(buf, missionExecutionPlanEndMarker...)
+	buf = append(buf, "\n---\n"...)
 	return string(buf)
 }
