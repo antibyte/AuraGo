@@ -10,6 +10,7 @@ let currentTypeFilter = 'all';
 let currentSecFilter = 'all';
 let currentDetailId = '';
 let deleteTargetId = '';
+let skillDeleteInFlight = false;
 let selectedFile = null;
 let selectedImportFile = null;
 let codeEditorView = null;
@@ -1015,8 +1016,10 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     function showDeleteSkillModal(id, name) {
         deleteTargetId = id;
+        skillDeleteInFlight = false;
         document.getElementById('delete-skill-name').textContent = name;
         document.getElementById('delete-files-checkbox').checked = true;
+        setSkillDeleteBusy(false);
         document.getElementById('delete-skill-modal').classList.add('active');
     }
 
@@ -1024,11 +1027,15 @@ function showDisabledState() {
     function closeDeleteSkillModal() {
         document.getElementById('delete-skill-modal').classList.remove('active');
         deleteTargetId = '';
+        skillDeleteInFlight = false;
+        setSkillDeleteBusy(false);
     }
 
     // eslint-disable-next-line no-unused-vars
     async function confirmDeleteSkill() {
-        if (!deleteTargetId) return;
+        if (!deleteTargetId || skillDeleteInFlight) return;
+        skillDeleteInFlight = true;
+        setSkillDeleteBusy(true);
         const deleteFiles = document.getElementById('delete-files-checkbox').checked;
 
         try {
@@ -1044,6 +1051,18 @@ function showDisabledState() {
             }
         } catch (e) {
             showToast(t('common.error') || 'Error', 'error');
+        } finally {
+            if (deleteTargetId) {
+                skillDeleteInFlight = false;
+                setSkillDeleteBusy(false);
+            }
+        }
+    }
+
+    function setSkillDeleteBusy(busy) {
+        const confirmBtn = document.getElementById('skill-delete-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.disabled = busy;
         }
     }
 

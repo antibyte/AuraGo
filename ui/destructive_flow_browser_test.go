@@ -216,6 +216,44 @@ func TestGalleryDestructiveDeleteFlowContract(t *testing.T) {
 	}
 }
 
+func TestSkillsDestructiveDeleteFlowContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "skills.html"))
+	if err != nil {
+		t.Fatalf("read skills.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "skills", "main.js"))
+	if err != nil {
+		t.Fatalf("read skills main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="skill-delete-confirm-btn"`,
+		`onclick="confirmDeleteSkill()"`,
+		`id="delete-files-checkbox"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("skills delete flow is missing stable destructive-flow marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"let skillDeleteInFlight = false;",
+		"if (!deleteTargetId || skillDeleteInFlight) return;",
+		"skillDeleteInFlight = true;",
+		"setSkillDeleteBusy(true);",
+		"setSkillDeleteBusy(false);",
+		"function setSkillDeleteBusy(busy)",
+		"confirmBtn.disabled = busy;",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("skills delete flow is missing double-submit guard marker %q", marker)
+		}
+	}
+}
+
 func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page) {
 	t.Helper()
 
