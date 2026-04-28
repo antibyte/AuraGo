@@ -684,8 +684,9 @@ func Start(opts StartOptions) error {
 
 	if err := s.MissionManagerV2.Start(); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
-	} else {
-		// Seed bundled example missions on first start (idempotent)
+	} else if shouldSeedWelcomeMissions(s.IsFirstStart) {
+		// Seed bundled example missions only during first-start setup.
+		// Deleted examples must stay deleted on later restarts.
 		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
 	}
 
@@ -996,6 +997,10 @@ func newServerFromOptions(opts StartOptions) *Server {
 		EggHub:           bridge.NewEggHub(logger),
 		WarningsRegistry: opts.WarningsRegistry,
 	}
+}
+
+func shouldSeedWelcomeMissions(isFirstStart bool) bool {
+	return isFirstStart
 }
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)

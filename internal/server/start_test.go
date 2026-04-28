@@ -42,3 +42,14 @@ func TestNewServerFromOptionsWiresCoreDependencies(t *testing.T) {
 		t.Fatalf("expected StartedAt to be initialized")
 	}
 }
+
+func TestShouldSeedWelcomeMissionsOnlyOnFirstStart(t *testing.T) {
+	t.Parallel()
+
+	if !shouldSeedWelcomeMissions(true) {
+		t.Fatalf("expected welcome missions to seed on first start")
+	}
+	if shouldSeedWelcomeMissions(false) {
+		t.Fatalf("expected welcome missions not to seed after first start")
+	}
+}
