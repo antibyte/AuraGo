@@ -70,6 +70,16 @@ func TestResolveKoofrDownloadDestinationSupportsWorkdirAlias(t *testing.T) {
 	}
 }
 
+func TestResolveKoofrUploadTargetSplitsFilenameFromPathWhenDestinationMissing(t *testing.T) {
+	dir, filename := resolveKoofrUploadTarget("/aurgo/pictures/robot_spaghetti.jpeg", "", "img_20260428_220802_6d68e896a2d2.jpeg")
+	if dir != "/aurgo/pictures" {
+		t.Fatalf("dir = %q, want /aurgo/pictures", dir)
+	}
+	if filename != "robot_spaghetti.jpeg" {
+		t.Fatalf("filename = %q, want robot_spaghetti.jpeg", filename)
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
@@ -172,6 +182,61 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 	}
 	if parsed["bytes"].(float64) != float64(len(sourceBytes)) {
 		t.Fatalf("reported bytes = %v, want %d", parsed["bytes"], len(sourceBytes))
+	}
+}
+
+func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tmp := t.TempDir()
+	workspaceDir := filepath.Join(tmp, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	sourcePath := filepath.Join(workspaceDir, "img_20260428_220802_6d68e896a2d2.jpeg")
+	if err := os.WriteFile(sourcePath, []byte{0xff, 0xd8, 0xff, 0xdb}, 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	var uploadDir string
+	var uploadedName string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/content/api/v2/mounts/primary/files/put":
+			uploadDir = r.URL.Query().Get("path")
+			reader, err := r.MultipartReader()
+			if err != nil {
+				t.Errorf("MultipartReader: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			part, err := reader.NextPart()
+			if err != nil {
+				t.Errorf("NextPart: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			uploadedName = part.FileName()
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures/robot_spaghetti.jpeg", "", "", sourcePath, workspaceDir)
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "success" {
+		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
+	}
+	if uploadDir != "/aurgo/pictures" {
+		t.Fatalf("upload path = %q, want /aurgo/pictures", uploadDir)
+	}
+	if uploadedName != "robot_spaghetti.jpeg" {
+		t.Fatalf("uploaded filename = %q, want robot_spaghetti.jpeg", uploadedName)
 	}
 }
 

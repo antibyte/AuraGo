@@ -142,8 +142,8 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 		}
 		defer source.Close()
-		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-		filename := koofrUploadFilename(dest, filepath.Base(localPath))
+		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, filepath.Base(localPath))
+		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/put?path=%s", baseURL, mountID, url.QueryEscape(uploadDir))
 		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, filename, source)
 		if uploadErr != nil {
 			err = uploadErr
@@ -154,7 +154,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			"message":          "File uploaded successfully",
 			"bytes":            written,
 			"expected_bytes":   size,
-			"remote_directory": safePath,
+			"remote_directory": uploadDir,
 			"filename":         filename,
 		})
 
@@ -329,6 +329,22 @@ func koofrUploadFilename(dest, fallback string) string {
 		return "file.bin"
 	}
 	return filename
+}
+
+func resolveKoofrUploadTarget(safePath, dest, fallbackFilename string) (string, string) {
+	filename := koofrUploadFilename(dest, fallbackFilename)
+	uploadDir := safePath
+	if strings.TrimSpace(dest) == "" && !strings.HasSuffix(safePath, "/") {
+		base := pathpkg.Base(safePath)
+		if base != "." && base != "/" && pathpkg.Ext(base) != "" {
+			filename = koofrUploadFilename(base, fallbackFilename)
+			uploadDir = pathpkg.Dir(safePath)
+			if uploadDir == "." || uploadDir == "" {
+				uploadDir = "/"
+			}
+		}
+	}
+	return uploadDir, filename
 }
 
 func normalizeKoofrPath(raw string) string {
