@@ -116,7 +116,7 @@ func TestFrontend_JS_HardcodedUIToasts(t *testing.T) {
 
 			for _, check := range highConfidenceHardcodedJS {
 				if check.pattern.MatchString(line) {
-					relPath, _ := filepath.Rel("ui", path)
+					relPath := filepath.ToSlash(path)
 					failures = append(failures, fmt.Sprintf("%s:%d: %s (line: %s)", relPath, lineNum+1, check.desc, strings.TrimSpace(line)))
 				}
 			}
@@ -133,6 +133,95 @@ func TestFrontend_JS_HardcodedUIToasts(t *testing.T) {
 
 	if len(failures) > 0 {
 		t.Errorf("Found %d high-confidence hardcoded UI strings in %d JS files:\n%s", len(failures), checkedFiles, strings.Join(failures, "\n"))
+	}
+}
+
+// TestFrontend_JS_NoNewLiteralTranslationFallbacks catches new t('key') || 'literal'
+// fallback strings. Existing legacy fallbacks are tracked as a debt baseline so
+// this guard can run in normal CI without requiring a broad UI rewrite first.
+func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
+	t.Parallel()
+
+	fallbackPattern := regexp.MustCompile(`\bt\(\s*('[^']+'|"[^"]+")\s*\)\s*\|\|\s*('[^']+'|"[^"]+")`)
+	legacyFallbackBudget := map[string]int{
+		"cfg/auth.js":                       2,
+		"cfg/daemon_skills.js":              2,
+		"cfg/obsidian.js":                   2,
+		"cfg/providers.js":                  1,
+		"cfg/server.js":                     1,
+		"cfg/skill_manager.js":              21,
+		"cfg/tailscale.js":                  3,
+		"js/chat/main.js":                   1,
+		"js/cheatsheets/main.js":            17,
+		"js/config/main.js":                 2,
+		"js/containers/main.js":             6,
+		"js/dashboard/dashboard-events.js":  1,
+		"js/dashboard/dashboard-widgets.js": 8,
+		"js/dashboard/main.js":              1,
+		"js/knowledge/appointments.js":      3,
+		"js/knowledge/file_sync_status.js":  32,
+		"js/knowledge/main.js":              1,
+		"js/knowledge/todos.js":             2,
+		"js/setup/main.js":                  8,
+		"js/skills/main.js":                 140,
+	}
+	scanRoots := []string{"js", "cfg"}
+	skipDirs := map[string]bool{
+		"vendor":     true,
+		"codemirror": true,
+		"monaco":     true,
+	}
+
+	var failures []string
+	checkedFiles := 0
+	observed := map[string]int{}
+
+	for _, root := range scanRoots {
+		if _, err := os.Stat(root); err != nil {
+			continue
+		}
+
+		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if skipDirs[d.Name()] {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".js") {
+				return nil
+			}
+
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+
+			checkedFiles++
+			relPath := filepath.ToSlash(path)
+			for lineNum, line := range strings.Split(string(content), "\n") {
+				if fallbackPattern.MatchString(line) {
+					observed[relPath]++
+					if observed[relPath] > legacyFallbackBudget[relPath] {
+						failures = append(failures, fmt.Sprintf("%s:%d: new literal fallback after t() (line: %s)", relPath, lineNum+1, strings.TrimSpace(line)))
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("scan %s: %v", root, err)
+		}
+	}
+
+	if checkedFiles == 0 {
+		t.Skip("no frontend JS files found")
+	}
+	if len(failures) > 0 {
+		t.Errorf("Found %d new literal translation fallbacks in %d JS files:\n%s", len(failures), checkedFiles, strings.Join(failures, "\n"))
 	}
 }
 
