@@ -292,6 +292,53 @@ func TestKnowledgeDestructiveDeleteFlowContract(t *testing.T) {
 	}
 }
 
+func TestConfigEmbeddingsResetRestartFlowContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "config.html"))
+	if err != nil {
+		t.Fatalf("read config.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "config", "main.js"))
+	if err != nil {
+		t.Fatalf("read config main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="cfg-restart-btn"`,
+		`onclick="restartAuraGo()"`,
+		`id="btnSave"`,
+		`onclick="saveConfig()"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("config restart/save flow is missing stable action marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		`id="embeddings-reset-cancel"`,
+		`id="embeddings-reset-continue"`,
+		"let configSaveInFlight = false;",
+		"if (configSaveInFlight) return;",
+		"configSaveInFlight = true;",
+		"setConfigSaveBusy(true);",
+		"setConfigSaveBusy(false);",
+		"function setConfigSaveBusy(busy)",
+		"let restartInFlight = false;",
+		"if (restartInFlight) return;",
+		"restartInFlight = true;",
+		"setRestartBusy(true);",
+		"setRestartBusy(false);",
+		"function setRestartBusy(busy)",
+		"restartBtn.disabled = busy;",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("config embeddings reset/restart flow is missing in-flight guard marker %q", marker)
+		}
+	}
+}
+
 func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page) {
 	t.Helper()
 

@@ -220,6 +220,8 @@ const helpTexts = new Proxy({}, {
 let schema = [];
 let activeSection = localStorage.getItem('aurago-cfg-section') || 'server';
 let isDirty = false;
+let configSaveInFlight = false;
+let restartInFlight = false;
 let initialSnapshot = '';
 let vaultExists = false;
 const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'access_token', 'token', 'user_key', 'app_token', 'secret', 'master_key'];
@@ -1292,8 +1294,13 @@ function setDirty(dirty) {
     isDirty = dirty;
     const btn = document.getElementById('btnSave');
     const pill = document.getElementById('changesPill');
-    btn.disabled = !dirty;
+    btn.disabled = !dirty || configSaveInFlight;
     pill.classList.toggle('visible', dirty);
+}
+
+function setConfigSaveBusy(busy) {
+    const btn = document.getElementById('btnSave');
+    if (btn) btn.disabled = busy || !isDirty;
 }
 
 function attachChangeListeners() {
@@ -1305,36 +1312,35 @@ function attachChangeListeners() {
 
 // ── Save ────────────────────────────────────────────
 async function saveConfig() {
-    const btn = document.getElementById('btnSave');
+    if (configSaveInFlight) return;
+    configSaveInFlight = true;
     const status = document.getElementById('saveStatus');
-    btn.disabled = true;
+    setConfigSaveBusy(true);
     status.className = 'save-status';
     status.textContent = t('config.save_bar.saving');
 
-    const patch = buildConfigPatchFromForm();
-    const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
-    let scheduleResetAfterSave = false;
-
-    if (likelyEmbeddingsChange) {
-        const wantsReset = await showEmbeddingsResetModal();
-        if (!wantsReset) {
-            status.className = 'save-status warning';
-            status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
-            btn.disabled = false;
-            setTimeout(() => { status.textContent = ''; }, 5000);
-            return;
-        }
-        if (!await showConfirm(t('config.embeddings.reset_confirm_final'))) {
-            status.className = 'save-status warning';
-            status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
-            btn.disabled = false;
-            setTimeout(() => { status.textContent = ''; }, 5000);
-            return;
-        }
-        scheduleResetAfterSave = true;
-    }
-
     try {
+        const patch = buildConfigPatchFromForm();
+        const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
+        let scheduleResetAfterSave = false;
+
+        if (likelyEmbeddingsChange) {
+            const wantsReset = await showEmbeddingsResetModal();
+            if (!wantsReset) {
+                status.className = 'save-status warning';
+                status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
+                setTimeout(() => { status.textContent = ''; }, 5000);
+                return;
+            }
+            if (!await showConfirm(t('config.embeddings.reset_confirm_final'))) {
+                status.className = 'save-status warning';
+                status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
+                setTimeout(() => { status.textContent = ''; }, 5000);
+                return;
+            }
+            scheduleResetAfterSave = true;
+        }
+
         const resp = await fetch('/api/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -1357,7 +1363,6 @@ async function saveConfig() {
                 if (!resetResult.ok) {
                     status.className = 'save-status error';
                     status.textContent = '✗ ' + (resetResult.data.message || t('config.embeddings.reset_error'));
-                    btn.disabled = false;
                     setTimeout(() => { status.textContent = ''; }, 7000);
                     return;
                 }
@@ -1403,14 +1408,16 @@ async function saveConfig() {
         } else {
             status.className = 'save-status error';
             status.textContent = '✗ ' + (result.message || t('config.save_bar.error'));
-            btn.disabled = false;
         }
+        setTimeout(() => { status.textContent = ''; }, 5000);
     } catch (e) {
         status.className = 'save-status error';
         status.textContent = '✗ ' + e.message;
-        btn.disabled = false;
+        setTimeout(() => { status.textContent = ''; }, 5000);
+    } finally {
+        configSaveInFlight = false;
+        setConfigSaveBusy(false);
     }
-    setTimeout(() => { status.textContent = ''; }, 5000);
 }
 
 // ── Post-save security check ────────────────────────────────────────────────
@@ -1482,10 +1489,21 @@ function showSecurityModal(critFixable) {
     });
 }
 
+function setRestartBusy(busy) {
+    const restartBtn = document.getElementById('cfg-restart-btn');
+    if (restartBtn) restartBtn.disabled = busy;
+}
+
 async function restartAuraGo(skipConfirm = false) {
-    if (!skipConfirm && !await showConfirm(t('config.restart.confirm'))) return;
+    if (restartInFlight) return;
+    restartInFlight = true;
 
     try {
+        if (!skipConfirm && !await showConfirm(t('config.restart.confirm'))) {
+            restartInFlight = false;
+            return;
+        }
+        setRestartBusy(true);
         const resp = await fetch('/api/restart', { method: 'POST' });
         if (resp.ok) {
             const res = await resp.json();
@@ -1500,6 +1518,8 @@ async function restartAuraGo(skipConfirm = false) {
             scheduleReloadWithRetry(8000);
         } else {
             await showAlert(t('config.restart.error'));
+            restartInFlight = false;
+            setRestartBusy(false);
         }
     } catch (e) {
         // If the fetch fails immediately, it might be that the server died instantly.
