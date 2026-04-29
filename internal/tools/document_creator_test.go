@@ -23,6 +23,30 @@ func TestExecuteDocumentCreator_UnknownOperation(t *testing.T) {
 	}
 }
 
+func TestExecuteDocumentCreatorInWorkspaceRejectsSourceEscape(t *testing.T) {
+	projectRoot := t.TempDir()
+	workspaceDir := filepath.Join(projectRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workspace: %v", err)
+	}
+	outside := filepath.Join(filepath.Dir(projectRoot), "outside.docx")
+	if err := os.WriteFile(outside, []byte("secret"), 0o644); err != nil {
+		t.Fatalf("WriteFile outside: %v", err)
+	}
+	cfg := &config.DocumentCreatorConfig{
+		Enabled:   true,
+		Backend:   "gotenberg",
+		OutputDir: t.TempDir(),
+		Gotenberg: config.GotenbergConfig{URL: "http://127.0.0.1:1"},
+	}
+
+	result := ExecuteDocumentCreatorInWorkspace(context.Background(), cfg, workspaceDir, "convert_document", "", "", "", "", "", false, "", `["../../../outside.docx"]`)
+
+	if !strings.Contains(result, "escapes the project root") {
+		t.Fatalf("result = %s, want path escape rejection", result)
+	}
+}
+
 func TestExecuteDocumentCreator_CreatePDFMaroto_Simple(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.DocumentCreatorConfig{

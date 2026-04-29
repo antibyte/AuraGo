@@ -834,7 +834,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "detect_file_type":
 			req := decodeDetectFileTypeArgs(tc)
 			logger.Info("LLM requested file type detection", "path", req.FilePath)
-			return "Tool Output: " + tools.DetectFileType(req.FilePath, req.Recursive)
+			return "Tool Output: " + tools.DetectFileTypeInWorkspace(req.FilePath, req.Recursive, cfg)
 
 		case "dns_lookup":
 			req := decodeDNSLookupArgs(tc)

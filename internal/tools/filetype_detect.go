@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/config"
 )
 
 // fileTypeEntry represents the detected type of a single file.
@@ -130,4 +132,22 @@ func DetectFileType(path string, recursive bool) string {
 		Total:  len(entries),
 		Errors: errorCount,
 	})
+}
+
+// DetectFileTypeInWorkspace resolves the requested path through the shared tool
+// path guard before sniffing file content.
+func DetectFileTypeInWorkspace(path string, recursive bool, cfg *config.Config) string {
+	encode := func(r fileTypeResult) string {
+		b, _ := json.Marshal(r)
+		return string(b)
+	}
+	resolved, err := resolveToolPathForRead(path, cfg, true)
+	if err != nil {
+		return encode(fileTypeResult{
+			Status: "error",
+			Files:  []fileTypeEntry{{Path: path, Error: err.Error()}},
+			Errors: 1,
+		})
+	}
+	return DetectFileType(resolved, recursive)
 }

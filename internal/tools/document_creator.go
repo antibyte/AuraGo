@@ -112,6 +112,30 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 	}
 }
 
+// ExecuteDocumentCreatorInWorkspace validates user-provided local source files
+// before invoking document conversion operations.
+func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.DocumentCreatorConfig, workspaceDir, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string) string {
+	switch operation {
+	case "convert_document", "merge_pdfs":
+		paths := parseSourceFiles(sourceFilesJSON)
+		if len(paths) > 0 {
+			resolved := make([]string, 0, len(paths))
+			tmpCfg := &config.Config{}
+			tmpCfg.Directories.WorkspaceDir = workspaceDir
+			for _, p := range paths {
+				rp, err := resolveToolInputPath(p, tmpCfg)
+				if err != nil {
+					return fmt.Sprintf(`{"status":"error","message":"invalid source path %q: %v"}`, p, err)
+				}
+				resolved = append(resolved, rp)
+			}
+			data, _ := json.Marshal(resolved)
+			sourceFilesJSON = string(data)
+		}
+	}
+	return ExecuteDocumentCreator(ctx, cfg, operation, title, content, url, filename, paperSize, landscape, sectionsJSON, sourceFilesJSON)
+}
+
 // executeCreatePDF handles the create_pdf operation which supports both backends.
 func executeCreatePDF(ctx context.Context, cfg *config.DocumentCreatorConfig, backend, outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string) string {
 	switch backend {

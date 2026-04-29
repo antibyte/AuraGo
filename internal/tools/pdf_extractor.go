@@ -3,10 +3,9 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 
 	"github.com/ledongthuc/pdf"
@@ -20,7 +19,9 @@ func ExecutePDFExtract(workspaceDir, filePath string) string {
 		return pdfError("filepath is required")
 	}
 
-	resolved, err := securePDFPath(workspaceDir, filePath)
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	resolved, err := resolveToolInputPath(filePath, cfg)
 	if err != nil {
 		return pdfError(err.Error())
 	}
@@ -56,43 +57,6 @@ func ExecutePDFExtract(workspaceDir, filePath string) string {
 	}
 	b, _ := json.Marshal(result)
 	return string(b)
-}
-
-// securePDFPath resolves a file path relative to the workspace directory and
-// ensures the result stays within the project tree (2 levels up from workspace).
-func securePDFPath(workspaceDir, userPath string) (string, error) {
-	absWorkdir, err := filepath.EvalSymlinks(workspaceDir)
-	if err != nil {
-		absWorkdir, err = filepath.Abs(workspaceDir)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve workspace path: %w", err)
-		}
-	}
-
-	projectRoot := filepath.Dir(filepath.Dir(absWorkdir))
-
-	var resolved string
-	if filepath.IsAbs(userPath) {
-		resolved = filepath.Clean(userPath)
-	} else {
-		resolved = filepath.Clean(filepath.Join(absWorkdir, userPath))
-	}
-
-	absResolved, err := filepath.EvalSymlinks(resolved)
-	if err != nil {
-		// File may not exist yet — use the cleaned path for the check.
-		absResolved = resolved
-	}
-
-	if !strings.HasPrefix(absResolved, projectRoot+string(os.PathSeparator)) && absResolved != projectRoot {
-		return "", fmt.Errorf("path traversal not allowed")
-	}
-
-	if _, err := os.Stat(absResolved); os.IsNotExist(err) {
-		return "", fmt.Errorf("file not found: %s", userPath)
-	}
-
-	return absResolved, nil
 }
 
 func pdfError(msg string) string {
