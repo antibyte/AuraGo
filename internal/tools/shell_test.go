@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"aurago/internal/sandbox"
 )
 
 func TestNormalizeSudoStderrRemovesLocalizedPrompt(t *testing.T) {
@@ -116,5 +118,15 @@ func TestExecuteShellBackgroundRejectsPrivilegeWrapper(t *testing.T) {
 	workspaceDir := t.TempDir()
 	if _, err := ExecuteShellBackground("sudo ls", workspaceDir, registry); err == nil || !strings.Contains(err.Error(), "command blocked") {
 		t.Fatalf("ExecuteShellBackground() error = %v, want blocked", err)
+	}
+}
+
+func TestExecuteSudoBlockedWhenShellSandboxActive(t *testing.T) {
+	restore := sandbox.SetForTest(&sandbox.BlockingSandbox{})
+	t.Cleanup(restore)
+
+	_, _, err := ExecuteSudo("id", t.TempDir(), "password")
+	if err == nil || !strings.Contains(err.Error(), "execute_sudo is disabled while shell sandbox is active") {
+		t.Fatalf("ExecuteSudo() error = %v, want sandbox block", err)
 	}
 }

@@ -907,6 +907,14 @@ sandbox:
     timeout_seconds: 30
     network_enabled: false
     keep_alive: false
+shell_sandbox:
+    enabled: false
+    allow_unsafe_fallback: false
+    max_memory_mb: 1024
+    max_cpu_seconds: 30
+    max_processes: 50
+    max_file_size_mb: 100
+    allowed_paths: []
 ai_gateway:
     enabled: false
     account_id: ""

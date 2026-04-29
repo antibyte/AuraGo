@@ -1308,12 +1308,13 @@ type Config struct {
 		KeepAlive      bool   `yaml:"keep_alive"`      // keep sandbox MCP server running between calls
 	} `yaml:"sandbox"`
 	ShellSandbox struct {
-		Enabled       bool `yaml:"enabled"`          // enable Landlock-based shell sandbox (default: false)
-		MaxMemoryMB   int  `yaml:"max_memory_mb"`    // RLIMIT_AS in MiB (default: 1024)
-		MaxCPUSeconds int  `yaml:"max_cpu_seconds"`  // RLIMIT_CPU in seconds (default: 30)
-		MaxProcesses  int  `yaml:"max_processes"`    // RLIMIT_NPROC (default: 50)
-		MaxFileSizeMB int  `yaml:"max_file_size_mb"` // RLIMIT_FSIZE in MiB (default: 100)
-		AllowedPaths  []struct {
+		Enabled             bool `yaml:"enabled"`               // enable Landlock-based shell sandbox (default: false)
+		AllowUnsafeFallback bool `yaml:"allow_unsafe_fallback"` // allow unsandboxed shell execution when Landlock is unavailable (default: false)
+		MaxMemoryMB         int  `yaml:"max_memory_mb"`         // RLIMIT_AS in MiB (default: 1024)
+		MaxCPUSeconds       int  `yaml:"max_cpu_seconds"`       // RLIMIT_CPU in seconds (default: 30)
+		MaxProcesses        int  `yaml:"max_processes"`         // RLIMIT_NPROC (default: 50)
+		MaxFileSizeMB       int  `yaml:"max_file_size_mb"`      // RLIMIT_FSIZE in MiB (default: 100)
+		AllowedPaths        []struct {
 			Path     string `yaml:"path"`
 			ReadOnly bool   `yaml:"readonly"`
 		} `yaml:"allowed_paths"` // additional paths beyond defaults

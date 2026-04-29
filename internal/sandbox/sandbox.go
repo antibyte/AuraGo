@@ -1,7 +1,7 @@
 // Package sandbox provides sandboxed shell command execution using OS-level
 // isolation mechanisms. On Linux (Kernel 5.13+) it leverages Landlock LSM for
 // filesystem access control and prlimit for resource limits. On other platforms
-// it falls back to unsandboxed execution with a warning.
+// it blocks execution unless allow_unsafe_fallback is explicitly configured.
 //
 // Architecture: The sandbox uses a re-exec pattern — the AuraGo binary is
 // invoked with "--sandbox-exec" causing it to enter helper mode, apply
@@ -10,8 +10,10 @@
 package sandbox
 
 import (
+	"fmt"
 	"log/slog"
 	"os/exec"
+	"runtime"
 	"sync"
 )
 
@@ -38,6 +40,9 @@ type ShellSandboxConfig struct {
 	MaxFileSizeMB int
 	AllowedPaths  []PathRule
 	ExtraEnv      []string // Additional env vars passed into the sandboxed process (e.g. DOCKER_HOST)
+	// AllowUnsafeFallback permits direct host execution when the configured
+	// sandbox backend is unavailable. Keep false for security-sensitive setups.
+	AllowUnsafeFallback bool
 }
 
 // PathRule defines a filesystem path and its access mode for the sandbox.
@@ -79,21 +84,35 @@ func Init(cfg ShellSandboxConfig, workspaceDir string, logger *slog.Logger) {
 		return
 	}
 
+	instance = selectSandboxForCaps(cfg, caps, workspaceDir, logger)
+	logger.Info("Shell sandbox initialized", "backend", instance.Name())
+}
+
+func selectSandboxForCaps(cfg ShellSandboxConfig, caps Capabilities, workspaceDir string, logger *slog.Logger) ShellSandbox {
+	if !cfg.Enabled {
+		return &FallbackSandbox{}
+	}
+
 	if caps.InDocker {
-		logger.Warn("Shell sandbox disabled — running inside Docker container")
-		instance = &FallbackSandbox{}
-		return
+		logger.Warn("Shell sandbox unavailable — running inside Docker container")
+		if cfg.AllowUnsafeFallback {
+			logger.Warn("Shell sandbox allow_unsafe_fallback=true; using unsandboxed fallback")
+			return &FallbackSandbox{}
+		}
+		return &BlockingSandbox{reason: "shell sandbox unavailable inside Docker and allow_unsafe_fallback is false"}
 	}
 
 	sb := newPlatformSandbox(cfg, caps, workspaceDir, logger)
 	if sb == nil || !sb.Available() {
-		logger.Warn("Shell sandbox not available on this platform, using fallback")
-		instance = &FallbackSandbox{}
-		return
+		logger.Warn("Shell sandbox not available on this platform")
+		if cfg.AllowUnsafeFallback {
+			logger.Warn("Shell sandbox allow_unsafe_fallback=true; using unsandboxed fallback")
+			return &FallbackSandbox{}
+		}
+		return &BlockingSandbox{reason: "shell sandbox unavailable and allow_unsafe_fallback is false"}
 	}
 
-	instance = sb
-	logger.Info("Shell sandbox initialized", "backend", sb.Name())
+	return sb
 }
 
 // Get returns the current global ShellSandbox instance. Never nil.
@@ -125,4 +144,60 @@ func (f *FallbackSandbox) PrepareExecCommand(binary string, args []string, workD
 	cmd := exec.Command(binary, args...)
 	cmd.Dir = workDir
 	return cmd
+}
+
+// BlockingSandbox refuses execution when sandboxing was requested but no safe
+// backend is available.
+type BlockingSandbox struct {
+	reason string
+}
+
+func (b *BlockingSandbox) Available() bool { return false }
+func (b *BlockingSandbox) Name() string    { return "blocked" }
+func (b *BlockingSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
+	cmd := blockedCommand(b.reason)
+	cmd.Dir = workDir
+	return cmd
+}
+
+func (b *BlockingSandbox) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
+	cmd := blockedCommand(b.reason)
+	cmd.Dir = workDir
+	return cmd
+}
+
+func blockedCommand(reason string) *exec.Cmd {
+	if reason == "" {
+		reason = "shell sandbox unavailable and unsafe fallback is disabled"
+	}
+	msg := fmt.Sprintf("AuraGo refused unsandboxed shell execution: %s", reason)
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd.exe", "/C", "echo "+msg+" 1>&2 & exit /B 126")
+	}
+	return exec.Command("/bin/sh", "-c", "printf '%s\n' \"$1\" >&2; exit 126", "aurago-sandbox-block", msg)
+}
+
+// SetForTest temporarily replaces the global sandbox instance and returns a restore function.
+func SetForTest(sb ShellSandbox) func() {
+	mu.Lock()
+	prev := instance
+	instance = sb
+	mu.Unlock()
+	return func() {
+		mu.Lock()
+		instance = prev
+		mu.Unlock()
+	}
+}
+
+func IsBlocked() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return instance != nil && instance.Name() == "blocked"
+}
+
+func IsActive() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return instance != nil && instance.Name() != "fallback"
 }

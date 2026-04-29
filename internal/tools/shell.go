@@ -38,7 +38,7 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 // Shell execution should only be enabled in trusted home-lab environments.
 //
 // Residual risks:
-//   - On Windows and non-Landlock Linux: sandbox unavailable, full shell access.
+//   - If shell_sandbox.allow_unsafe_fallback is enabled, commands execute with host privileges.
 //   - Pattern matching may not catch all variations of dangerous commands.
 //   - Users must trust the LLM provider when shell is enabled.
 //
@@ -59,11 +59,15 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 
 	var cmd *exec.Cmd
 	absWorkDir := getAbsWorkspace(workspaceDir)
+	sb := sandbox.Get()
 
-	if runtime.GOOS == "windows" {
+	if sb.Name() == "blocked" {
+		cmd = sb.PrepareCommand(command, absWorkDir)
+		slog.Warn("[ExecuteShell] blocked because shell sandbox is unavailable and unsafe fallback is disabled")
+	} else if runtime.GOOS == "windows" {
 		slog.Warn("Shell execution is running WITHOUT sandbox protection on Windows. Commands execute with full user privileges.")
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
-	} else if sb := sandbox.Get(); sb.Available() {
+	} else if sb.Available() {
 		cmd = sb.PrepareCommand(command, absWorkDir)
 		slog.Debug("[ExecuteShell] using sandbox", "backend", sb.Name())
 	} else {
@@ -95,11 +99,15 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 
 	var cmd *exec.Cmd
 	absWorkDir := getAbsWorkspace(workspaceDir)
+	sb := sandbox.Get()
 
-	if runtime.GOOS == "windows" {
+	if sb.Name() == "blocked" {
+		cmd = sb.PrepareCommand(command, absWorkDir)
+		slog.Warn("[ExecuteShellBackground] blocked because shell sandbox is unavailable and unsafe fallback is disabled")
+	} else if runtime.GOOS == "windows" {
 		slog.Warn("Shell execution is running WITHOUT sandbox protection on Windows. Commands execute with full user privileges.")
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
-	} else if sb := sandbox.Get(); sb.Available() {
+	} else if sb.Available() {
 		cmd = sb.PrepareCommand(command, absWorkDir)
 		slog.Debug("[ExecuteShellBackground] using sandbox", "backend", sb.Name())
 	} else {
@@ -126,6 +134,9 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 // returning stdout, stderr, and any execution or timeout error.
 // On Windows this is a no-op and returns an unsupported error.
 func ExecuteSudo(command, workspaceDir, password string) (string, string, error) {
+	if sandbox.IsActive() {
+		return "", "", fmt.Errorf("execute_sudo is disabled while shell sandbox is active; run privileged maintenance outside the sandboxed shell path")
+	}
 	if runtime.GOOS == "windows" {
 		return "", "", fmt.Errorf("execute_sudo is not supported on Windows")
 	}

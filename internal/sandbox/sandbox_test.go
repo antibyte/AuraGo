@@ -152,6 +152,20 @@ func TestInitDisabled(t *testing.T) {
 	}
 }
 
+func TestSelectSandboxBlocksUnavailableBackendByDefault(t *testing.T) {
+	sb := selectSandboxForCaps(ShellSandboxConfig{Enabled: true}, Capabilities{LandlockABI: 0}, "/tmp", testLogger())
+	if sb.Name() != "blocked" {
+		t.Fatalf("sandbox enabled without backend = %q, want blocked", sb.Name())
+	}
+}
+
+func TestSelectSandboxAllowsExplicitUnsafeFallback(t *testing.T) {
+	sb := selectSandboxForCaps(ShellSandboxConfig{Enabled: true, AllowUnsafeFallback: true}, Capabilities{LandlockABI: 0}, "/tmp", testLogger())
+	if sb.Name() != "fallback" {
+		t.Fatalf("explicit unsafe fallback = %q, want fallback", sb.Name())
+	}
+}
+
 // testLogger returns a no-op logger for tests.
 func testLogger() *slog.Logger {
 	return slog.Default()

@@ -718,13 +718,14 @@ func main() {
 		}
 
 		sandbox.Init(sandbox.ShellSandboxConfig{
-			Enabled:       cfg.ShellSandbox.Enabled,
-			MaxMemoryMB:   cfg.ShellSandbox.MaxMemoryMB,
-			MaxCPUSeconds: cfg.ShellSandbox.MaxCPUSeconds,
-			MaxProcesses:  cfg.ShellSandbox.MaxProcesses,
-			MaxFileSizeMB: cfg.ShellSandbox.MaxFileSizeMB,
-			AllowedPaths:  allowedPaths,
-			ExtraEnv:      extraEnv,
+			Enabled:             cfg.ShellSandbox.Enabled,
+			AllowUnsafeFallback: cfg.ShellSandbox.AllowUnsafeFallback,
+			MaxMemoryMB:         cfg.ShellSandbox.MaxMemoryMB,
+			MaxCPUSeconds:       cfg.ShellSandbox.MaxCPUSeconds,
+			MaxProcesses:        cfg.ShellSandbox.MaxProcesses,
+			MaxFileSizeMB:       cfg.ShellSandbox.MaxFileSizeMB,
+			AllowedPaths:        allowedPaths,
+			ExtraEnv:            extraEnv,
 		}, cfg.Directories.WorkspaceDir, appLog)
 	}
 
