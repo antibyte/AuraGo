@@ -199,6 +199,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		Canary:        cfg.Guardian.PromptSec.Canary,
 	})
 	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
+	configureToolRuntimePermissions(cfg)
 
 	// LLM Guardian: AI-powered pre-execution tool call security
 	// Use the shared instance from RunConfig (so metrics are visible to the dashboard),

@@ -10,6 +10,7 @@ import (
 
 func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
+	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
 	vault := dc.Vault
 	registry := dc.Registry

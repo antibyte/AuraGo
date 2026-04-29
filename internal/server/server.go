@@ -988,6 +988,13 @@ func Start(opts StartOptions) error {
 func newServerFromOptions(opts StartOptions) *Server {
 	cfg := opts.Cfg
 	logger := opts.Logger
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
+		AllowShell:           cfg.Agent.AllowShell,
+		AllowPython:          cfg.Agent.AllowPython,
+		AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
+		AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
+		DockerEnabled:        cfg.Docker.Enabled,
+	})
 
 	s := &Server{
 		Cfg:                cfg,

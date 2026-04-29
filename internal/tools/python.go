@@ -315,6 +315,9 @@ func resolveToolPath(name, toolsDir string) (string, error) {
 // RunTool executes a saved tool from the tools directory with arguments (foreground, 30s timeout).
 // Path traversal is blocked — name must resolve within toolsDir.
 func RunTool(name string, args []string, workspaceDir, toolsDir string) (string, string, error) {
+	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return "", "", err
@@ -345,6 +348,9 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 // RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return "", "", err
@@ -374,6 +380,9 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 
 // RunToolBackground starts a saved tool in the background and registers it in the process registry.
 func RunToolBackground(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
+	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return 0, err
@@ -400,6 +409,9 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 // RunToolBackgroundWithSecrets is like RunToolBackground but injects vault secrets
 // and credential secrets as environment variables. Output scrubbing happens at read_process_logs time.
 func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
+	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
 		return 0, err
@@ -429,6 +441,9 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 // Uses KillProcessTree on timeout so any subprocesses spawned by the script
 // (e.g., via subprocess.Popen) are also terminated and the pipes are closed.
 func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) {
+	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
 	scriptPath, cleanup, err := writeScript(code, toolsDir)
 	if err != nil {
 		return "", "", err
@@ -453,6 +468,9 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 // ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
+	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
 	scriptPath, cleanup, err := writeScript(code, toolsDir)
 	if err != nil {
 		return "", "", err
@@ -480,6 +498,9 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 // ExecutePythonBackground starts a Python script in the background,
 // registers it in the process registry, and returns the PID immediately.
 func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
+	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
 	scriptPath, _, err := writeScript(code, toolsDir)
 	if err != nil {
 		return 0, err
@@ -508,6 +529,9 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 // ExecutePythonBackgroundWithSecrets is like ExecutePythonBackground but injects vault secrets
 // and credential secrets as environment variables. Output scrubbing happens via ReadOutput + security.Scrub at read time.
 func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
+	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
 	scriptPath, _, err := writeScript(code, toolsDir)
 	if err != nil {
 		return 0, err

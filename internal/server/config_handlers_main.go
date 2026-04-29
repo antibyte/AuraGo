@@ -514,6 +514,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
 			s.replaceConfigSnapshot(newCfg)
+			tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
+				AllowShell:           newCfg.Agent.AllowShell,
+				AllowPython:          newCfg.Agent.AllowPython,
+				AllowFilesystemWrite: newCfg.Agent.AllowFilesystemWrite,
+				AllowNetworkRequests: newCfg.Agent.AllowNetworkRequests,
+				DockerEnabled:        newCfg.Docker.Enabled,
+			})
 
 			// Sync the global debug-mode flag used by the agent.
 			if oldCfg.Agent.DebugMode != newCfg.Agent.DebugMode {

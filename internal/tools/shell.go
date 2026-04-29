@@ -51,6 +51,9 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 // avoiding the Windows issue where exec.CommandContext only kills the parent shell but not grandchildren
 // (e.g., an ssh process spawned by powershell that holds pipes open indefinitely).
 func ExecuteShell(command, workspaceDir string) (string, string, error) {
+	if err := requireShellPermission(); err != nil {
+		return "", "", err
+	}
 	// Security: Check for dangerous commands before execution
 	if err := ValidateShellCommandPolicy(command); err != nil {
 		slog.Warn("[ExecuteShell] blocked shell command", "reason", err.Error(), "command", command)
@@ -91,6 +94,9 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 
 // ExecuteShellBackground starts a command in the shell in the background and registers it.
 func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegistry) (int, error) {
+	if err := requireShellPermission(); err != nil {
+		return 0, err
+	}
 	// Security: Check for dangerous commands before execution
 	if err := ValidateShellCommandPolicy(command); err != nil {
 		slog.Warn("[ExecuteShellBackground] blocked shell command", "reason", err.Error(), "command", command)
@@ -134,6 +140,9 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 // returning stdout, stderr, and any execution or timeout error.
 // On Windows this is a no-op and returns an unsupported error.
 func ExecuteSudo(command, workspaceDir, password string) (string, string, error) {
+	if err := requireShellPermission(); err != nil {
+		return "", "", err
+	}
 	if sandbox.IsActive() {
 		return "", "", fmt.Errorf("execute_sudo is disabled while shell sandbox is active; run privileged maintenance outside the sandboxed shell path")
 	}

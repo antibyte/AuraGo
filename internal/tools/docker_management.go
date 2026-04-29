@@ -15,6 +15,9 @@ import (
 
 // DockerCreateContainer creates a new container from a configuration.
 func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string) string {
+	if err := requireDockerPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	if image == "" {
 		return errJSON("image is required")
 	}
@@ -556,6 +559,9 @@ func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 
 // runDockerCLIHelper is used for operations like cp and compose which are notoriously difficult strictly via REST API.
 func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
+	if err := requireDockerPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	cmdArgs := dockerCLIArgs(cfg, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	out, err := cmd.CombinedOutput()

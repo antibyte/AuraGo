@@ -9,6 +9,7 @@ import (
 
 func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
+	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
 
 	switch tc.Action {

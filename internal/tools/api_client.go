@@ -30,6 +30,9 @@ func ExecuteAPIRequest(method, url, body string, headers map[string]string) stri
 		return string(b)
 	}
 
+	if err := requireNetworkPermission(); err != nil {
+		return encode(APIResult{Status: "error", Message: err.Error()})
+	}
 	if url == "" {
 		return encode(APIResult{Status: "error", Message: "'url' is required"})
 	}

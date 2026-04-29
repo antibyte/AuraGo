@@ -98,6 +98,9 @@ func getPullDockerClient(cfg DockerConfig) *http.Client {
 // DockerPing checks if the Docker Engine is reachable at the given host.
 // Returns nil on success, or an error describing the failure.
 func DockerPing(host string) error {
+	if err := requireDockerPermission(); err != nil {
+		return err
+	}
 	cfg := DockerConfig{Host: host}
 	client := getDockerClient(cfg)
 	reqURL := "http://localhost/" + dockerAPIVersion + "/_ping"
@@ -146,6 +149,9 @@ func validateDockerName(name string) error {
 
 // dockerRequest performs a request against the Docker Engine API.
 func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
+	if err := requireDockerPermission(); err != nil {
+		return nil, 0, err
+	}
 	return dockerRequestWithRetry(cfg, method, endpoint, body, 3)
 }
 
@@ -254,6 +260,9 @@ func dockerBodyMessage(code int, body []byte) string {
 
 // DockerListContainers returns a list of containers (optionally all, not just running).
 func DockerListContainers(cfg DockerConfig, all bool) string {
+	if err := requireDockerPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	endpoint := "/containers/json"
 	if all {
 		endpoint += "?all=true"

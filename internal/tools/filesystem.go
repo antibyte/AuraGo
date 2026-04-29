@@ -483,6 +483,11 @@ func filesystemBatchResult(operation string, items []map[string]interface{}, wor
 func executeFilesystemResult(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) FSResult {
 	originalOperation := operation
 	operation = normalizeFilesystemOperation(operation)
+	if filesystemOperationWrites(operation) {
+		if err := requireFilesystemWritePermission(); err != nil {
+			return FSResult{Status: "error", Message: err.Error()}
+		}
+	}
 
 	switch operation {
 	case "list_dir":
@@ -738,6 +743,15 @@ func executeFilesystemResult(operation, path, destination, content string, items
 
 	default:
 		return FSResult{Status: "error", Message: filesystemUnknownOperationMessage(originalOperation)}
+	}
+}
+
+func filesystemOperationWrites(operation string) bool {
+	switch normalizeFilesystemOperation(operation) {
+	case "create_dir", "delete", "write_file", "copy", "move", "copy_batch", "move_batch", "delete_batch", "create_dir_batch":
+		return true
+	default:
+		return false
 	}
 }
 
