@@ -71,6 +71,34 @@ func TestProxmoxRequestRejectsOversizeResponse(t *testing.T) {
 	}
 }
 
+func TestProxmoxDirectActionsRespectReadOnly(t *testing.T) {
+	cfg := ProxmoxConfig{ReadOnly: true, AllowDestructive: true}
+
+	for name, got := range map[string]string{
+		"start":           ProxmoxVMAction(cfg, "pve", "qemu", "101", "start"),
+		"create_snapshot": ProxmoxCreateSnapshot(cfg, "pve", "qemu", "101", "before-update", "test"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, "read-only mode") {
+				t.Fatalf("response = %s, want read-only denial", got)
+			}
+		})
+	}
+}
+
+func TestProxmoxDirectActionsRespectDestructiveToggle(t *testing.T) {
+	cfg := ProxmoxConfig{ReadOnly: false, AllowDestructive: false}
+
+	for _, action := range []string{"stop", "shutdown", "reboot", "suspend", "reset"} {
+		t.Run(action, func(t *testing.T) {
+			got := ProxmoxVMAction(cfg, "pve", "qemu", "101", action)
+			if !strings.Contains(got, "allow_destructive") {
+				t.Fatalf("response = %s, want allow_destructive denial", got)
+			}
+		})
+	}
+}
+
 func TestProxmoxGetStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 	proxmoxClientCache = sync.Map{}
 

@@ -400,11 +400,13 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			pxCfg := tools.ProxmoxConfig{
-				URL:      cfg.Proxmox.URL,
-				TokenID:  cfg.Proxmox.TokenID,
-				Secret:   cfg.Proxmox.Secret,
-				Node:     cfg.Proxmox.Node,
-				Insecure: cfg.Proxmox.Insecure,
+				URL:              cfg.Proxmox.URL,
+				TokenID:          cfg.Proxmox.TokenID,
+				Secret:           cfg.Proxmox.Secret,
+				Node:             cfg.Proxmox.Node,
+				Insecure:         cfg.Proxmox.Insecure,
+				ReadOnly:         cfg.Proxmox.ReadOnly,
+				AllowDestructive: cfg.Proxmox.AllowDestructive,
 			}
 			node := req.node()
 			vmid := req.vmid()

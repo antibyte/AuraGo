@@ -18,11 +18,13 @@ import (
 
 // ProxmoxConfig holds the Proxmox VE connection parameters.
 type ProxmoxConfig struct {
-	URL      string // e.g. "https://pve.example.com:8006"
-	TokenID  string // e.g. "user@pam!tokenname"
-	Secret   string // API token secret
-	Node     string // default node name (e.g. "pve")
-	Insecure bool   // skip TLS verification
+	URL              string // e.g. "https://pve.example.com:8006"
+	TokenID          string // e.g. "user@pam!tokenname"
+	Secret           string // API token secret
+	Node             string // default node name (e.g. "pve")
+	Insecure         bool   // skip TLS verification
+	ReadOnly         bool   // block mutating operations when true
+	AllowDestructive bool   // allow stop/shutdown/reboot/suspend/reset actions
 }
 
 var proxmoxClientCache sync.Map
@@ -49,6 +51,23 @@ func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
 func proxmoxJSONStr(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+func proxmoxReadOnlyMutationError(cfg ProxmoxConfig) string {
+	if cfg.ReadOnly {
+		return `{"status":"error","message":"Proxmox is in read-only mode. Disable proxmox.readonly to allow changes."}`
+	}
+	return ""
+}
+
+func proxmoxDestructiveActionError(cfg ProxmoxConfig, action string) string {
+	switch action {
+	case "stop", "shutdown", "reboot", "suspend", "reset":
+		if !cfg.AllowDestructive {
+			return `{"status":"error","message":"Destructive Proxmox operations are disabled. Set proxmox.allow_destructive=true in config.yaml."}`
+		}
+	}
+	return ""
 }
 
 // proxmoxRequest performs a generic HTTP request against the Proxmox VE API.
@@ -443,6 +462,12 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 
 // ProxmoxVMAction performs start/stop/shutdown/reboot/suspend/resume on a VM or container.
 func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string, action string) string {
+	if denied := proxmoxReadOnlyMutationError(cfg); denied != "" {
+		return denied
+	}
+	if denied := proxmoxDestructiveActionError(cfg, action); denied != "" {
+		return denied
+	}
 	if node == "" {
 		node = cfg.Node
 	}
@@ -596,6 +621,9 @@ func ProxmoxGetTaskLog(cfg ProxmoxConfig, node string, upid string) string {
 
 // ProxmoxCreateSnapshot creates a snapshot of a VM or container.
 func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, description string) string {
+	if denied := proxmoxReadOnlyMutationError(cfg); denied != "" {
+		return denied
+	}
 	if node == "" {
 		node = cfg.Node
 	}
