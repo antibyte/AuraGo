@@ -187,6 +187,13 @@
         syncPlacement(false);
         setFrame(0, 0);
         tick();
+        // Re-sync after the first paint to correct any layout-timing issues on mobile
+        // (getBoundingClientRect may return stale values before the browser has painted)
+        window.requestAnimationFrame(() => {
+            if (robotState === 'greeting') {
+                syncPlacement(false);
+            }
+        });
     }
 
     if (typeof ResizeObserver !== 'undefined') {
