@@ -1259,9 +1259,42 @@ func (s *SQLiteMemory) UpdateFileIndex(path, collection string, modTime time.Tim
 	return err
 }
 
+// FileIndexState contains the persisted change-detection metadata for an indexed file.
+type FileIndexState struct {
+	LastModified     time.Time
+	ContentHash      string
+	IndexFingerprint string
+}
+
+// GetFileIndexState returns timestamp and content-fingerprint metadata for a file.
+func (s *SQLiteMemory) GetFileIndexState(path, collection string) (FileIndexState, error) {
+	var state FileIndexState
+	err := s.db.QueryRow(`
+		SELECT last_modified, COALESCE(content_hash, ''), COALESCE(index_fingerprint, '')
+		FROM file_indices
+		WHERE file_path = ? AND collection = ?
+	`, path, collection).Scan(&state.LastModified, &state.ContentHash, &state.IndexFingerprint)
+	if err == sql.ErrNoRows {
+		err = s.db.QueryRow(`
+			SELECT last_modified, COALESCE(content_hash, ''), COALESCE(index_fingerprint, '')
+			FROM file_indices
+			WHERE file_path = ? AND collection = ''
+		`, path).Scan(&state.LastModified, &state.ContentHash, &state.IndexFingerprint)
+		if err == sql.ErrNoRows {
+			return FileIndexState{}, nil
+		}
+	}
+	return state, err
+}
+
 // UpdateFileIndexWithDocs updates the last modified time for a given file path within a collection
 // and replaces the tracked VectorDB document IDs generated from that file.
 func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime time.Time, docIDs []string) error {
+	return s.UpdateFileIndexWithDocsAndState(path, collection, modTime, "", "", docIDs)
+}
+
+// UpdateFileIndexWithDocsAndState updates file index metadata and replaces tracked VectorDB document IDs.
+func (s *SQLiteMemory) UpdateFileIndexWithDocsAndState(path, collection string, modTime time.Time, contentHash, indexFingerprint string, docIDs []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -1269,11 +1302,13 @@ func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime 
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(`
-		INSERT INTO file_indices (file_path, collection, last_modified)
-		VALUES (?, ?, ?)
+		INSERT INTO file_indices (file_path, collection, last_modified, content_hash, index_fingerprint)
+		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(file_path, collection) DO UPDATE SET
-			last_modified = excluded.last_modified
-	`, path, collection, modTime); err != nil {
+			last_modified = excluded.last_modified,
+			content_hash = excluded.content_hash,
+			index_fingerprint = excluded.index_fingerprint
+	`, path, collection, modTime, contentHash, indexFingerprint); err != nil {
 		return err
 	}
 

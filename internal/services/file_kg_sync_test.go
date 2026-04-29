@@ -239,7 +239,7 @@ func TestPrepareContent_DOCX_CleansArtifacts(t *testing.T) {
 
 func TestPrepareContent_Truncation(t *testing.T) {
 	// Create content exceeding the limit.
-	longContent := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 400) // ~10,400 chars
+	longContent := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 1600) // ~41,600 chars
 	result := prepareContentForExtraction("/docs/large.txt", longContent)
 
 	if len(result) > maxContentBytes+100 { // allow for truncation notice
@@ -247,6 +247,18 @@ func TestPrepareContent_Truncation(t *testing.T) {
 	}
 	if !strings.Contains(result, "[... content truncated for extraction ...]") {
 		t.Error("expected truncation notice in output")
+	}
+}
+
+func TestPrepareContent_SkipsGenericMultimodalPlaceholders(t *testing.T) {
+	for _, input := range []string{
+		"Bild-Datei: photo.jpg (Pfad: photo.jpg)",
+		"Audio-Datei: clip.mp3 (Pfad: clip.mp3)",
+		"PDF (gescannt): scan.pdf (Pfad: scan.pdf)",
+	} {
+		if got := prepareContentForExtraction("/docs/file", input); got != "" {
+			t.Fatalf("prepareContentForExtraction(%q) = %q, want empty placeholder skipped", input, got)
+		}
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/kgextraction"
@@ -469,8 +470,9 @@ func (s *FileKGSyncer) resolveFileContent(path, collection string) (string, erro
 }
 
 // maxContentBytes limits the prepared content sent to the LLM for KG extraction.
-// Approximately 8000 characters ≈ 2000 tokens, leaving room for the prompt and response.
-const maxContentBytes = 8000
+// Approximately 32000 characters keeps broad document coverage while leaving
+// room for prompt context and response on common helper models.
+const maxContentBytes = 32000
 
 // headingRe matches Markdown ATX headings (# through ######).
 var headingRe = regexp.MustCompile(`(?m)^(#{1,6})\s+(.+)$`)
@@ -490,6 +492,11 @@ var formFeedRe = regexp.MustCompile(`[\x0b\x0c]`)
 //   - PDF / DOCX (.pdf, .docx): Clean extraction artifacts (form-feeds, excess whitespace).
 //   - All types: Normalize whitespace and truncate to maxContentBytes if needed.
 func prepareContentForExtraction(filePath, content string) string {
+	content = strings.TrimSpace(content)
+	if isGenericMultimodalPlaceholder(content) {
+		return ""
+	}
+
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch ext {
@@ -504,10 +511,26 @@ func prepareContentForExtraction(filePath, content string) string {
 
 	// Truncate if content exceeds the limit.
 	if len(content) > maxContentBytes {
-		content = content[:maxContentBytes] + "\n\n[... content truncated for extraction ...]"
+		content = truncateUTF8(content, maxContentBytes) + "\n\n[... content truncated for extraction ...]"
 	}
 
 	return strings.TrimSpace(content)
+}
+
+func isGenericMultimodalPlaceholder(content string) bool {
+	return strings.HasPrefix(content, "Bild-Datei: ") ||
+		strings.HasPrefix(content, "Audio-Datei: ") ||
+		strings.HasPrefix(content, "PDF (gescannt): ")
+}
+
+func truncateUTF8(content string, maxBytes int) string {
+	if len(content) <= maxBytes {
+		return content
+	}
+	for maxBytes > 0 && !utf8.ValidString(content[:maxBytes]) {
+		maxBytes--
+	}
+	return content[:maxBytes]
 }
 
 // prepareMarkdownContent extracts the heading outline from Markdown content and

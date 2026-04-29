@@ -34,6 +34,7 @@ func (kg *KnowledgeGraph) initTables() error {
 		properties TEXT NOT NULL DEFAULT '{}',
 		access_count INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		semantic_indexed_at DATETIME,
 		UNIQUE(source, target, relation)
 	);
@@ -52,6 +53,7 @@ func (kg *KnowledgeGraph) initTables() error {
 	colMigrations := []colMigration{
 		{"kg_nodes", "semantic_indexed_at", "DATETIME"},
 		{"kg_edges", "semantic_indexed_at", "DATETIME"},
+		{"kg_edges", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"},
 	}
 	for _, cm := range colMigrations {
 		if !validIdentifier(cm.table) || !validIdentifier(cm.column) {

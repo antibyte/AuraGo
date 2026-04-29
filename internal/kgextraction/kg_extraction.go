@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -93,7 +94,64 @@ Inputs:
 		return nil, nil, fmt.Errorf("JSON parse failed: %w", err)
 	}
 
-	return extracted.Nodes, extracted.Edges, nil
+	nodes, edges := normalizeExtractedKG(extracted.Nodes, extracted.Edges)
+	return nodes, edges, nil
+}
+
+var kgIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+var allowedKGNodeTypes = map[string]bool{
+	"person": true, "device": true, "service": true, "software": true,
+	"location": true, "project": true, "concept": true, "event": true,
+}
+
+var allowedKGRelations = map[string]bool{
+	"runs_on": true, "owns": true, "manages": true, "uses": true,
+	"depends_on": true, "connected_to": true, "related_to": true,
+	"part_of": true, "deployed_on": true, "located_in": true,
+}
+
+func normalizeExtractedKG(nodes []memory.Node, edges []memory.Edge) ([]memory.Node, []memory.Edge) {
+	validNodeIDs := make(map[string]bool, len(nodes))
+	cleanNodes := make([]memory.Node, 0, len(nodes))
+	for _, node := range nodes {
+		node.ID = strings.TrimSpace(node.ID)
+		node.Label = strings.TrimSpace(node.Label)
+		if !kgIDPattern.MatchString(node.ID) {
+			continue
+		}
+		if node.Label == "" {
+			node.Label = node.ID
+		}
+		if node.Properties == nil {
+			node.Properties = make(map[string]string)
+		}
+		nodeType := strings.ToLower(strings.TrimSpace(node.Properties["type"]))
+		if !allowedKGNodeTypes[nodeType] {
+			nodeType = "concept"
+		}
+		node.Properties["type"] = nodeType
+		validNodeIDs[node.ID] = true
+		cleanNodes = append(cleanNodes, node)
+	}
+
+	cleanEdges := make([]memory.Edge, 0, len(edges))
+	for _, edge := range edges {
+		edge.Source = strings.TrimSpace(edge.Source)
+		edge.Target = strings.TrimSpace(edge.Target)
+		edge.Relation = strings.ToLower(strings.TrimSpace(edge.Relation))
+		if !validNodeIDs[edge.Source] || !validNodeIDs[edge.Target] {
+			continue
+		}
+		if !allowedKGRelations[edge.Relation] {
+			continue
+		}
+		if edge.Properties == nil {
+			edge.Properties = make(map[string]string)
+		}
+		cleanEdges = append(cleanEdges, edge)
+	}
+	return cleanNodes, cleanEdges
 }
 
 func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, fallbackModel string) (llm.ChatClient, string) {

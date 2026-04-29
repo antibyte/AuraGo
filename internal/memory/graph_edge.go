@@ -37,10 +37,11 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	}
 	propsJSON, _ := json.Marshal(finalProps)
 	_, err = tx.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties)
-		VALUES (?, ?, ?, ?)
+		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(source, target, relation) DO UPDATE SET
-			properties = excluded.properties
+			properties = excluded.properties,
+			updated_at = CURRENT_TIMESTAMP
 	`, source, target, relation, string(propsJSON))
 	if err != nil {
 		return fmt.Errorf("add edge: %w", err)
@@ -108,10 +109,11 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties)
-		VALUES (?, ?, ?, ?)
+		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(source, target, relation) DO UPDATE SET
-			properties = excluded.properties
+			properties = excluded.properties,
+			updated_at = CURRENT_TIMESTAMP
 	`, source, target, newRelation, string(propsJSON)); err != nil {
 		return nil, fmt.Errorf("upsert updated edge: %w", err)
 	}
@@ -120,12 +122,19 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 		return nil, err
 	}
 
-	return &Edge{
+	updated := &Edge{
 		Source:     source,
 		Target:     target,
 		Relation:   newRelation,
 		Properties: finalProps,
-	}, nil
+	}
+	if relation != newRelation {
+		if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("UpdateEdge: failed to remove old semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
+		}
+	}
+	kg.upsertSemanticEdgeIndex(*updated)
+	return updated, nil
 }
 
 func (kg *KnowledgeGraph) GetAllEdges(limit int) ([]Edge, error) {
@@ -320,7 +329,7 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 		}
 		newPropsJSON, _ := json.Marshal(props)
 		_, err = tx.Exec(
-			"UPDATE kg_edges SET properties = ? WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
+			"UPDATE kg_edges SET properties = ?, updated_at = CURRENT_TIMESTAMP WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
 			string(newPropsJSON), a, b,
 		)
 		if err != nil {
@@ -333,10 +342,11 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 			"date":   date,
 		})
 		_, err = tx.Exec(`
-			INSERT INTO kg_edges (source, target, relation, properties)
-			VALUES (?, ?, 'co_mentioned_with', ?)
+			INSERT INTO kg_edges (source, target, relation, properties, updated_at)
+			VALUES (?, ?, 'co_mentioned_with', ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(source, target, relation) DO UPDATE SET
-				properties = excluded.properties
+				properties = excluded.properties,
+				updated_at = CURRENT_TIMESTAMP
 		`, a, b, string(initProps))
 		if err != nil {
 			return fmt.Errorf("insert co-occurrence: %w", err)

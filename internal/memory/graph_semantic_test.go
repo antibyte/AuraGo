@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	chromem "github.com/philippgille/chromem-go"
@@ -103,5 +104,70 @@ func TestKGDeleteBySourceFileRemovesSemanticIndexEntries(t *testing.T) {
 	}
 	if _, err := kg.semantic.collection.GetByID(context.Background(), "other-node"); err != nil {
 		t.Fatalf("expected unrelated node semantic document to remain: %v", err)
+	}
+}
+
+func TestKGSemanticNodeUpsertRefreshesCachedContent(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("service", "Old Service", map[string]string{"type": "service", "notes": "old details"}); err != nil {
+		t.Fatalf("AddNode old: %v", err)
+	}
+	if err := kg.AddNode("service", "New Service", map[string]string{"type": "service", "notes": "new details"}); err != nil {
+		t.Fatalf("AddNode new: %v", err)
+	}
+
+	doc, err := kg.semantic.collection.GetByID(context.Background(), "service")
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if !strings.Contains(doc.Content, "new details") {
+		t.Fatalf("semantic content = %q, want refreshed node properties", doc.Content)
+	}
+}
+
+func TestKGUpdateEdgeRefreshesSemanticIndex(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("app", "App", map[string]string{"type": "software"}); err != nil {
+		t.Fatalf("AddNode app: %v", err)
+	}
+	if err := kg.AddNode("server", "Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode server: %v", err)
+	}
+	if err := kg.AddEdge("app", "server", "runs_on", map[string]string{"notes": "old edge"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	if _, err := kg.UpdateEdge("app", "server", "runs_on", "depends_on", map[string]string{"notes": "new edge"}); err != nil {
+		t.Fatalf("UpdateEdge: %v", err)
+	}
+
+	oldID := "edge://app\x00server\x00runs_on"
+	if _, err := kg.semantic.collection.GetByID(context.Background(), oldID); err == nil {
+		t.Fatalf("expected old edge semantic document removed")
+	}
+	newID := "edge://app\x00server\x00depends_on"
+	doc, err := kg.semantic.collection.GetByID(context.Background(), newID)
+	if err != nil {
+		t.Fatalf("expected updated edge semantic document: %v", err)
+	}
+	if !strings.Contains(doc.Content, "depends_on") || !strings.Contains(doc.Content, "new edge") {
+		t.Fatalf("semantic edge content = %q, want updated relation and properties", doc.Content)
 	}
 }

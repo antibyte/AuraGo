@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,6 +21,8 @@ import (
 
 // IndexerCollection is the default collection name for file indexing.
 const IndexerCollection = "file_index"
+
+const fileIndexerFingerprint = "file-indexer-v2"
 
 // Retry constants for indexing operations (aligned with KnowledgeGraph retry pattern).
 const (
@@ -323,12 +327,6 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		totalFiles++
 		seenPaths[path] = struct{}{}
 
-		// Check if file needs re-indexing (change detection via SQLite)
-		lastIndexed, _ := fi.stm.GetFileIndex(path, collection)
-		if !info.ModTime().After(lastIndexed) {
-			return nil
-		}
-
 		// Build relative path for concept
 		relPath, _ := filepath.Rel(dir, path)
 		if relPath == "" {
@@ -447,6 +445,12 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
+		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
+		indexState, _ := fi.stm.GetFileIndexState(path, collection)
+		if !shouldReindexFile(info.ModTime(), contentHash, fileIndexerFingerprint, indexState) {
+			return nil
+		}
+
 		if err := fi.removeTrackedFile(path, collection); err != nil {
 			errors = append(errors, fmt.Sprintf("cleanup error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", err)
@@ -480,7 +484,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
-		if err := fi.stm.UpdateFileIndexWithDocs(path, collection, info.ModTime(), docIDs); err != nil {
+		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), contentHash, fileIndexerFingerprint, docIDs); err != nil {
 			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
 			return nil
@@ -498,6 +502,34 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
+}
+
+func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, state memory.FileIndexState) bool {
+	if state.LastModified.IsZero() {
+		return true
+	}
+	if state.ContentHash == "" || state.IndexFingerprint == "" {
+		return true
+	}
+	if state.ContentHash != contentHash {
+		return true
+	}
+	if state.IndexFingerprint != indexFingerprint {
+		return true
+	}
+	return modTime.After(state.LastModified)
+}
+
+func hashIndexedFileContent(content string, precomputedEmbedding []float32, path string) string {
+	h := sha256.New()
+	if precomputedEmbedding != nil {
+		if data, err := os.ReadFile(path); err == nil {
+			h.Write(data)
+			return hex.EncodeToString(h.Sum(nil))
+		}
+	}
+	h.Write([]byte(content))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (fi *FileIndexer) syncIndexedFileToKG(path, collection string) {

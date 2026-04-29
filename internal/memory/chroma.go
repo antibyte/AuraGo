@@ -82,15 +82,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 			}
 		}
 
-		// Fallback to first 200 chars if no description
-		if description == "" {
-			contentOnly := strings.TrimSpace(body)
-			if utf8.RuneCountInString(contentOnly) > 200 {
-				description = string([]rune(contentOnly)[:200])
-			} else {
-				description = contentOnly
-			}
-		}
+		content := buildToolGuideEmbeddingContent(description, body)
 
 		docID := fmt.Sprintf("tool_%s", strings.TrimSuffix(guide.Name, ".md"))
 		docs = append(docs, chromem.Document{
@@ -99,7 +91,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 				"path":      path,
 				"tool_name": strings.TrimSuffix(guide.Name, ".md"),
 			},
-			Content: description,
+			Content: content,
 		})
 	}
 
@@ -135,6 +127,27 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
+}
+
+func buildToolGuideEmbeddingContent(description, body string) string {
+	description = strings.TrimSpace(description)
+	body = strings.TrimSpace(body)
+	if utf8.RuneCountInString(body) > 4000 {
+		body = string([]rune(body)[:4000])
+	}
+	switch {
+	case description != "" && body != "":
+		return description + "\n\n" + body
+	case description != "":
+		return description
+	case body != "":
+		if utf8.RuneCountInString(body) > 4000 {
+			return string([]rune(body)[:4000])
+		}
+		return body
+	default:
+		return ""
+	}
 }
 
 // SearchToolGuides finds relevant tool guides based on a query.

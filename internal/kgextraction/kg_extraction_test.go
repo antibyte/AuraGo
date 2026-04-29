@@ -114,7 +114,7 @@ func TestExtractKGFromText_Success(t *testing.T) {
 	cfg.LLM.Model = "test-model"
 	logger := slog.Default()
 
-	jsonResp := `{"nodes":[{"id":"test_node","label":"Test Node","properties":{"type":"concept"}}],"edges":[{"source":"test_node","target":"other","relation":"related_to"}]}`
+	jsonResp := `{"nodes":[{"id":"test_node","label":"Test Node","properties":{"type":"concept"}},{"id":"other","label":"Other","properties":{"type":"concept"}}],"edges":[{"source":"test_node","target":"other","relation":"related_to"}]}`
 	client := &mockChatClient{
 		response: openai.ChatCompletionResponse{
 			Choices: []openai.ChatCompletionChoice{
@@ -132,8 +132,8 @@ func TestExtractKGFromText_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(nodes))
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 nodes, got %d", len(nodes))
 	}
 	if nodes[0].ID != "test_node" {
 		t.Errorf("node ID = %q, want %q", nodes[0].ID, "test_node")
@@ -143,6 +143,28 @@ func TestExtractKGFromText_Success(t *testing.T) {
 	}
 	if edges[0].Relation != "related_to" {
 		t.Errorf("edge relation = %q, want %q", edges[0].Relation, "related_to")
+	}
+}
+
+func TestNormalizeExtractedKGFiltersInvalidSchema(t *testing.T) {
+	nodes, edges := normalizeExtractedKG([]memory.Node{
+		{ID: "valid_service", Label: "Valid Service", Properties: map[string]string{"type": "service"}},
+		{ID: "Bad ID", Label: "Bad ID", Properties: map[string]string{"type": "service"}},
+		{ID: "unknown_type", Label: "Unknown Type", Properties: map[string]string{"type": "made_up"}},
+	}, []memory.Edge{
+		{Source: "valid_service", Target: "unknown_type", Relation: "uses"},
+		{Source: "valid_service", Target: "missing_node", Relation: "uses"},
+		{Source: "valid_service", Target: "unknown_type", Relation: "invented_relation"},
+	})
+
+	if len(nodes) != 2 {
+		t.Fatalf("nodes = %#v, want only valid IDs with allowed/defaulted types", nodes)
+	}
+	if nodes[1].Properties["type"] != "concept" {
+		t.Fatalf("unknown type normalized to %q, want concept", nodes[1].Properties["type"])
+	}
+	if len(edges) != 1 {
+		t.Fatalf("edges = %#v, want only valid edge with existing endpoints and allowed relation", edges)
 	}
 }
 

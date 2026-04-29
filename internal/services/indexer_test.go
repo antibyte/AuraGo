@@ -158,6 +158,59 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	}
 }
 
+func TestFileIndexerReindexesWhenContentChangesWithSameModTime(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.txt")
+	modTime := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Second)
+	if err := os.WriteFile(path, []byte("first version"), 0644); err != nil {
+		t.Fatalf("WriteFile first version: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes first version: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	if indexed != 1 {
+		t.Fatalf("first scan indexed = %d, want 1", indexed)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("first scan errors = %v", errs)
+	}
+
+	if err := os.WriteFile(path, []byte("second version with same timestamp"), 0644); err != nil {
+		t.Fatalf("WriteFile second version: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes second version: %v", err)
+	}
+
+	_, indexed, errs = fi.scanDirectory(dir, "file_index")
+	if indexed != 1 {
+		t.Fatalf("second scan indexed = %d, want 1", indexed)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("second scan errors = %v", errs)
+	}
+	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
+		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	}
+}
+
 func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

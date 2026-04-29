@@ -87,6 +87,8 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		file_path TEXT NOT NULL,
 		collection TEXT NOT NULL DEFAULT '',
 		last_modified DATETIME,
+		content_hash TEXT NOT NULL DEFAULT '',
+		index_fingerprint TEXT NOT NULL DEFAULT '',
 		PRIMARY KEY (file_path, collection)
 	);
 
@@ -214,6 +216,21 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
 	}
+	fileIndexMigrations := []struct {
+		column string
+		def    string
+	}{
+		{"content_hash", "TEXT NOT NULL DEFAULT ''"},
+		{"index_fingerprint", "TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, migration := range fileIndexMigrations {
+		var exists bool
+		if err := db.QueryRow("SELECT count(*)>0 FROM pragma_table_info('file_indices') WHERE name=?", migration.column).Scan(&exists); err == nil && !exists {
+			if _, execErr := db.Exec(fmt.Sprintf("ALTER TABLE file_indices ADD COLUMN %s %s", migration.column, migration.def)); execErr != nil {
+				logger.Warn("Failed to migrate file_indices", "column", migration.column, "error", execErr)
+			}
+		}
+	}
 
 	// Migration: add unique constraint on fact to prevent duplicates.
 	// First remove any existing duplicates, keeping the newest entry for each fact.
@@ -289,6 +306,8 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 			file_path TEXT NOT NULL,
 			collection TEXT NOT NULL DEFAULT '',
 			last_modified DATETIME,
+			content_hash TEXT NOT NULL DEFAULT '',
+			index_fingerprint TEXT NOT NULL DEFAULT '',
 			PRIMARY KEY (file_path, collection)
 		)`); err != nil {
 		return fmt.Errorf("create file_indices_new: %w", err)
@@ -306,8 +325,8 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO file_indices_new (file_path, collection, last_modified)
-		SELECT file_path, COALESCE(collection, ''), last_modified FROM file_indices`); err != nil {
+		INSERT INTO file_indices_new (file_path, collection, last_modified, content_hash, index_fingerprint)
+		SELECT file_path, COALESCE(collection, ''), last_modified, '', '' FROM file_indices`); err != nil {
 		return fmt.Errorf("copy file_indices data: %w", err)
 	}
 

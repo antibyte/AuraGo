@@ -67,6 +67,17 @@ func TestSplitFrontmatter_EmptyFrontmatter(t *testing.T) {
 	}
 }
 
+func TestBuildToolGuideEmbeddingContentIncludesDescriptionAndBody(t *testing.T) {
+	body := "# Koofr\n\nUse upload with local_path and an explicit destination filename."
+	got := buildToolGuideEmbeddingContent("short upload description", body)
+	if !strings.Contains(got, "short upload description") {
+		t.Fatalf("content = %q, want description included", got)
+	}
+	if !strings.Contains(got, "explicit destination filename") {
+		t.Fatalf("content = %q, want body details included", got)
+	}
+}
+
 // ── chunkText ─────────────────────────────────────────────────────────────────
 
 func TestChunkText_ShortText(t *testing.T) {

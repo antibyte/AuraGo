@@ -195,7 +195,9 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 			JOIN kg_nodes n ON n.id = e2.source OR n.id = e2.target
 			GROUP BY e2.source, e2.target, e2.relation
 		) node_updates ON e.source = node_updates.source AND e.target = node_updates.target AND e.relation = node_updates.relation
-		WHERE e.semantic_indexed_at IS NULL OR e.semantic_indexed_at < COALESCE(node_updates.max_updated_at, '1970-01-01')
+		WHERE e.semantic_indexed_at IS NULL
+		   OR e.semantic_indexed_at < COALESCE(e.updated_at, '1970-01-01')
+		   OR e.semantic_indexed_at < COALESCE(node_updates.max_updated_at, '1970-01-01')
 		LIMIT 5000
 	`)
 	var edges []Edge
@@ -246,23 +248,7 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 		return true
 	}
 
-	kg.semantic.mu.Lock()
-	cached, hasCached := kg.semantic.contentCache[node.ID]
-	kg.semantic.mu.Unlock()
-
-	var content string
-	if hasCached {
-		content = cached
-	} else {
-		content = buildKnowledgeGraphSemanticContent(node)
-		kg.semantic.mu.Lock()
-		kg.semantic.contentCache[node.ID] = content
-		if len(kg.semantic.contentCache) > 5000 {
-			kg.semantic.contentCache = make(map[string]string)
-		}
-		kg.semantic.mu.Unlock()
-	}
-
+	content := buildKnowledgeGraphSemanticContent(node)
 	if content == "" {
 		return true
 	}
@@ -285,6 +271,10 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 			kg.semantic.logger.Warn("KG semantic node index update failed", "node_id", node.ID, "error", err)
 		}
 		return false
+	}
+	kg.semantic.contentCache[node.ID] = content
+	if len(kg.semantic.contentCache) > 5000 {
+		kg.semantic.contentCache = make(map[string]string)
 	}
 	return true
 }
@@ -355,6 +345,22 @@ func buildKnowledgeGraphEdgeSemanticContent(edge Edge) string {
 	tgtLabel := strings.TrimSpace(edge.Target)
 	if srcLabel != "" && tgtLabel != "" {
 		parts = append(parts, srcLabel+" "+edge.Relation+" "+tgtLabel)
+	}
+	keys := make([]string, 0, len(edge.Properties))
+	for key := range edge.Properties {
+		switch key {
+		case "source", "extracted_at", "last_seen", "session_id", "date", "channel", "protected":
+			continue
+		default:
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := strings.TrimSpace(edge.Properties[key])
+		if value != "" {
+			parts = append(parts, key+": "+value)
+		}
 	}
 	return strings.TrimSpace(strings.Join(parts, ". "))
 }
