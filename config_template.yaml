@@ -271,9 +271,9 @@ brave_search:
     country: ""
     lang: ""
 koofr:
-    app_password: ""
     base_url: https://app.koofr.net
     enabled: false
+    readonly: false
     username: ""
 paperless_ngx:
     enabled: false

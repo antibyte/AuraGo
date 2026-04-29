@@ -210,11 +210,122 @@ func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	if parsed["status"] != "error" {
 		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
 	}
-	if !strings.Contains(parsed["message"].(string), "content is required") {
+	if !strings.Contains(parsed["message"].(string), "requires non-empty content") {
 		t.Fatalf("message = %v, want content-required guidance", parsed["message"])
 	}
 	if uploadCalled {
 		t.Fatal("empty write should be rejected before calling Koofr upload endpoint")
+	}
+}
+
+func TestExecuteKoofrWriteVerifiesVisibleFile(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	var uploadDir string
+	var uploadedBytes []byte
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/api/v2/mounts/primary/files/list":
+			switch got := r.URL.Query().Get("path"); got {
+			case "/aurago", "/aurago/notes":
+				_, _ = w.Write([]byte(`{"files":[{"name":"note.txt"}]}`))
+			default:
+				t.Errorf("list path = %q, want /aurago or /aurago/notes", got)
+				w.WriteHeader(http.StatusNotFound)
+			}
+		case "/content/api/v2/mounts/primary/files/put":
+			uploadDir = r.URL.Query().Get("path")
+			if got := r.URL.Query().Get("filename"); got != "note.txt" {
+				t.Errorf("upload filename query = %q, want note.txt", got)
+			}
+			reader, err := r.MultipartReader()
+			if err != nil {
+				t.Errorf("MultipartReader: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			part, err := reader.NextPart()
+			if err != nil {
+				t.Errorf("NextPart: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			uploadedBytes, err = io.ReadAll(part)
+			if err != nil {
+				t.Errorf("ReadAll: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"name":"note.txt"}`))
+		case "/api/v2/mounts/primary/files/info":
+			if got := r.URL.Query().Get("path"); got != "/aurago/notes/note.txt" {
+				t.Errorf("info path = %q, want /aurago/notes/note.txt", got)
+			}
+			_, _ = w.Write([]byte(`{"name":"note.txt"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	content := "hello koofr"
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "note.txt", content, "", t.TempDir())
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "success" {
+		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
+	}
+	if uploadDir != "/aurago/notes" {
+		t.Fatalf("upload path = %q, want /aurago/notes", uploadDir)
+	}
+	if string(uploadedBytes) != content {
+		t.Fatalf("uploaded bytes = %q, want %q", string(uploadedBytes), content)
+	}
+	if parsed["remote_directory"] != "/aurago/notes" || parsed["filename"] != "note.txt" {
+		t.Fatalf("remote target = %v/%v, want /aurago/notes/note.txt", parsed["remote_directory"], parsed["filename"])
+	}
+	if parsed["expected_bytes"].(float64) != float64(len(content)) {
+		t.Fatalf("expected bytes = %v, want %d", parsed["expected_bytes"], len(content))
+	}
+}
+
+func TestExecuteKoofrWriteErrorsWhenWrittenFileIsNotListed(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/mounts":
+			_, _ = w.Write([]byte(`{"mounts":[{"id":"primary","isPrimary":true}]}`))
+		case "/api/v2/mounts/primary/files/list":
+			switch got := r.URL.Query().Get("path"); got {
+			case "/aurago":
+				_, _ = w.Write([]byte(`{"files":[{"name":"notes"}]}`))
+			case "/aurago/notes":
+				_, _ = w.Write([]byte(`{"files":[]}`))
+			default:
+				t.Errorf("list path = %q, want /aurago or /aurago/notes", got)
+				w.WriteHeader(http.StatusNotFound)
+			}
+		case "/content/api/v2/mounts/primary/files/put":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		case "/api/v2/mounts/primary/files/info":
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "missing.txt", "content", "", t.TempDir())
+	parsed := parseKoofrToolJSON(t, result)
+	if parsed["status"] != "error" {
+		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
+	}
+	if !strings.Contains(parsed["message"].(string), "not visible") {
+		t.Fatalf("message = %v, want visibility verification error", parsed["message"])
 	}
 }
 

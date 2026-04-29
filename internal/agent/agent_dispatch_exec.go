@@ -1041,8 +1041,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			req := decodeCloudStorageArgs(tc)
 			if cfg.Koofr.ReadOnly {
 				switch req.Operation {
-				case "write", "put", "upload", "mkdir", "delete", "rm", "move", "rename", "mv":
-					return `Tool Output: {"status":"error","message":"Koofr is in read-only mode. Disable koofr.read_only to allow changes."}`
+				case "write", "put", "upload", "mkdir", "delete", "rm", "move", "rename", "mv", "copy":
+					return `Tool Output: {"status":"error","message":"Koofr is in read-only mode. Disable koofr.readonly to allow changes."}`
 				}
 			}
 			logger.Info("LLM requested koofr operation", "op", req.Operation, "path", req.FilePath, "dest", req.Destination, "local_path", req.LocalPath)

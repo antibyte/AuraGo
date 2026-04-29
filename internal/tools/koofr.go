@@ -141,7 +141,36 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			err = uploadErr
 			break
 		}
-		return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "File written successfully", "bytes": written})
+		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword)
+		if verifyErr != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":           "error",
+				"message":          "File write was accepted by Koofr, but AuraGo could not verify the file in the target directory",
+				"details":          fmt.Sprintf("%v", verifyErr),
+				"bytes":            written,
+				"expected_bytes":   int64(len(content)),
+				"remote_directory": uploadDir,
+				"filename":         filename,
+			})
+		}
+		if !visible {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":           "error",
+				"message":          "File write was accepted by Koofr, but the written file is not visible in the target directory",
+				"bytes":            written,
+				"expected_bytes":   int64(len(content)),
+				"remote_directory": uploadDir,
+				"filename":         filename,
+			})
+		}
+		return marshalPrefixedToolJSON(map[string]interface{}{
+			"status":           "success",
+			"message":          "File written successfully",
+			"bytes":            written,
+			"expected_bytes":   int64(len(content)),
+			"remote_directory": uploadDir,
+			"filename":         filename,
+		})
 
 	case "upload":
 		source, size, err := openKoofrUploadSource(workspaceDir, localPath)
