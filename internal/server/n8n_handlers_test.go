@@ -51,16 +51,19 @@ func TestN8nToolAvailableRequiresSQLRuntime(t *testing.T) {
 	t.Parallel()
 
 	s := newN8nToolTestServer(t)
-	if n8nToolAvailable(s, "sql_query", nil) {
+	if n8nToolAvailable(s, "sql_query", []string{"sql_query"}) {
 		t.Fatal("sql_query should not be available without runtime SQL dependencies")
+	}
+	if n8nToolAvailable(s, "sql_query", nil) {
+		t.Fatal("sql_query should not be available when n8n allowed_tools is empty")
 	}
 
 	s.SQLConnectionsDB = &sql.DB{}
 	s.SQLConnectionPool = &sqlconnections.ConnectionPool{}
-	if !n8nToolAvailable(s, "sql_query", nil) {
+	if !n8nToolAvailable(s, "sql_query", []string{"sql_query"}) {
 		t.Fatal("sql_query should be available when runtime SQL dependencies exist")
 	}
-	if n8nToolAvailable(s, "nonexistent_tool", nil) {
+	if n8nToolAvailable(s, "nonexistent_tool", []string{"nonexistent_tool"}) {
 		t.Fatal("unexpected availability for unknown tool")
 	}
 	if n8nToolAvailable(s, "sql_query", []string{"filesystem"}) {
@@ -135,7 +138,7 @@ func TestN8nEffectiveAllowedTools(t *testing.T) {
 		request []string
 		want    []string
 	}{
-		{name: "request only", request: []string{"shell"}, want: []string{"shell"}},
+		{name: "request only denied without global allowlist", request: []string{"shell"}, want: []string{}},
 		{name: "global only", global: []string{"shell"}, want: []string{"shell"}},
 		{name: "intersection", global: []string{"shell", "http_request"}, request: []string{"http_request", "python"}, want: []string{"http_request"}},
 		{name: "no overlap", global: []string{"shell"}, request: []string{"python"}, want: []string{}},

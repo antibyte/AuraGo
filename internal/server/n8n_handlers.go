@@ -1410,7 +1410,7 @@ func maskN8nToken(token string) string {
 
 func n8nEffectiveAllowedTools(globalAllowed, requestAllowed []string) []string {
 	if len(globalAllowed) == 0 {
-		return append([]string(nil), requestAllowed...)
+		return nil
 	}
 	if len(requestAllowed) == 0 {
 		return append([]string(nil), globalAllowed...)
@@ -1450,7 +1450,7 @@ func buildN8nToolSchemas(s *Server, allowedTools []string) []openai.Tool {
 	ff := buildFeatureFlags(s)
 	toolSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
 	if len(allowedTools) == 0 {
-		return toolSchemas
+		return nil
 	}
 
 	allowedSet := make(map[string]bool, len(allowedTools))
