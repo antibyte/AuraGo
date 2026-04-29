@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/providerutil"
@@ -233,7 +234,7 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 }
 
 func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
-	transport := http.RoundTripper(http.DefaultTransport)
+	transport := http.RoundTripper(defaultLLMHTTPTransport())
 	hasCustomTransport := false
 
 	if token := strings.TrimSpace(aiGatewayToken); token != "" {
@@ -268,7 +269,17 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		return nil
 	}
 
-	return &http.Client{Transport: transport}
+	return &http.Client{Transport: transport, Timeout: 3 * time.Minute}
+}
+
+func defaultLLMHTTPTransport() *http.Transport {
+	base, _ := http.DefaultTransport.(*http.Transport)
+	if base == nil {
+		base = &http.Transport{}
+	}
+	transport := base.Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	return transport
 }
 
 func shouldUseOpenAIPromptCacheKey(providerType, baseURL string) bool {

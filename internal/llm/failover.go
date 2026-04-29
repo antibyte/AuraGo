@@ -34,6 +34,14 @@ type FailoverManager struct {
 	logger *slog.Logger
 }
 
+type failoverProbeSnapshot struct {
+	generation    int
+	onFallback    bool
+	primaryClient *openai.Client
+	primaryType   string
+	primaryModel  string
+}
+
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
 	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
 		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
@@ -136,8 +144,8 @@ func (fm *FailoverManager) Stop() {
 }
 
 func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-	client, model := fm.active()
-	if fm.isOnFallback && !fm.fallbackSupportsFeatures(req) {
+	client, model, onFallback := fm.active()
+	if onFallback && !fm.fallbackSupportsFeatures(req) {
 		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
 		fm.mu.RLock()
 		client = fm.primary
@@ -157,8 +165,8 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 }
 
 func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
-	client, model := fm.active()
-	if fm.isOnFallback && !fm.fallbackSupportsFeatures(req) {
+	client, model, onFallback := fm.active()
+	if onFallback && !fm.fallbackSupportsFeatures(req) {
 		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
 		fm.mu.RLock()
 		client = fm.primary
@@ -171,17 +179,19 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 	stream, err := client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
 		fm.recordError(err)
+	} else {
+		fm.recordSuccess()
 	}
 	return stream, err
 }
 
-func (fm *FailoverManager) active() (*openai.Client, string) {
+func (fm *FailoverManager) active() (*openai.Client, string, bool) {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	if fm.isOnFallback && fm.fallback != nil {
-		return fm.fallback, fm.fallbackModel
+		return fm.fallback, fm.fallbackModel, true
 	}
-	return fm.primary, fm.primaryModel
+	return fm.primary, fm.primaryModel, false
 }
 
 func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
@@ -257,13 +267,15 @@ func (fm *FailoverManager) recordError(err error) {
 func (fm *FailoverManager) recordSuccess() {
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
-	if !fm.isOnFallback {
-		fm.errorCount = 0
-	}
+	fm.errorCount = 0
+	fm.fallbackErrorCount = 0
 }
 
 func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
-	ticker := time.NewTicker(fm.probeInterval)
+	fm.mu.RLock()
+	interval := fm.probeInterval
+	fm.mu.RUnlock()
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -272,21 +284,13 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			fm.logger.Debug("LLM failover: probe loop stopped")
 			return
 		case <-ticker.C:
-			fm.mu.RLock()
-			onFallback := fm.isOnFallback
-			fm.mu.RUnlock()
-
-			if !onFallback {
+			snapshot := fm.primaryProbeSnapshot()
+			if !snapshot.onFallback {
 				continue
 			}
 
 			fm.logger.Debug("LLM failover: probing primary endpoint...")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-			fm.mu.RLock()
-			primaryClient := fm.primary
-			primaryModel := fm.primaryModel
-			fm.mu.RUnlock()
 
 			// Safe: primaryClient is a pointer copy. Even if Reconfigure()
 			// replaces fm.primary after the unlock, the old pointer still
@@ -298,12 +302,12 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			// For providers that don't support it, we skip directly to the minimal
 			// completion probe to avoid wasting tokens on a failing ListModels call.
 			var err error
-			if fm.primaryType == "openai" || fm.primaryType == "openrouter" || fm.primaryType == "custom" {
-				_, err = primaryClient.ListModels(ctx)
+			if snapshot.primaryType == "openai" || snapshot.primaryType == "openrouter" || snapshot.primaryType == "custom" {
+				_, err = snapshot.primaryClient.ListModels(ctx)
 			}
 			if err != nil {
-				_, err = primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-					Model: primaryModel,
+				_, err = snapshot.primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+					Model: snapshot.primaryModel,
 					Messages: []openai.ChatCompletionMessage{
 						{Role: openai.ChatMessageRoleUser, Content: "ok"},
 					},
@@ -321,12 +325,33 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 				continue
 			}
 
-			fm.mu.Lock()
-			fm.isOnFallback = false
-			fm.errorCount = 0
-			fm.fallbackErrorCount = 0
-			fm.mu.Unlock()
-			fm.logger.Info("LLM failover: primary recovered - switched back", "model", fm.primaryModel)
+			fm.completePrimaryProbe(snapshot.generation, snapshot.primaryModel)
 		}
 	}
+}
+
+func (fm *FailoverManager) primaryProbeSnapshot() failoverProbeSnapshot {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	return failoverProbeSnapshot{
+		generation:    fm.generation,
+		onFallback:    fm.isOnFallback,
+		primaryClient: fm.primary,
+		primaryType:   fm.primaryType,
+		primaryModel:  fm.primaryModel,
+	}
+}
+
+func (fm *FailoverManager) completePrimaryProbe(generation int, model string) {
+	fm.mu.Lock()
+	if generation != fm.generation {
+		fm.mu.Unlock()
+		fm.logger.Debug("LLM failover: ignoring stale primary probe", "probe_generation", generation, "current_generation", fm.generation)
+		return
+	}
+	fm.isOnFallback = false
+	fm.errorCount = 0
+	fm.fallbackErrorCount = 0
+	fm.mu.Unlock()
+	fm.logger.Info("LLM failover: primary recovered - switched back", "model", model)
 }
