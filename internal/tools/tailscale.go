@@ -12,8 +12,9 @@ import (
 
 // TailscaleConfig holds the Tailscale API connection parameters.
 type TailscaleConfig struct {
-	APIKey  string // Tailscale API key (tskey-api-…)
-	Tailnet string // Tailnet name, e.g. "example.com" or "-" for default/implicit tailnet
+	APIKey   string // Tailscale API key (tskey-api-…)
+	Tailnet  string // Tailnet name, e.g. "example.com" or "-" for default/implicit tailnet
+	ReadOnly bool   // true = block route changes
 }
 
 var tailscaleHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -25,6 +26,13 @@ func tailscaleTailnet(cfg TailscaleConfig) string {
 		return "-"
 	}
 	return cfg.Tailnet
+}
+
+func tailscaleReadOnlyError(cfg TailscaleConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return errJSON("Tailscale is in read-only mode. Disable tailscale.readonly to allow changes.")
 }
 
 // tailscaleRequest executes an authenticated HTTP request against the Tailscale API v2.
@@ -198,6 +206,9 @@ func TailscaleGetRoutes(cfg TailscaleConfig, query string) string {
 // routes is a slice of CIDR prefixes (e.g. "192.168.1.0/24").
 // enable=true adds them to the approved set; enable=false removes them.
 func TailscaleSetRoutes(cfg TailscaleConfig, query string, routes []string, enable bool) string {
+	if msg := tailscaleReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if query == "" {
 		return errJSON("device query is required")
 	}

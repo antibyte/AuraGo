@@ -60,7 +60,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 					return `Tool Output: {"status":"error","message":"Tailscale is in read-only mode. Disable tailscale.read_only to allow changes."}`
 				}
 			}
-			tsCfg := tools.TailscaleConfig{APIKey: cfg.Tailscale.APIKey, Tailnet: cfg.Tailscale.Tailnet}
+			tsCfg := tools.TailscaleConfig{APIKey: cfg.Tailscale.APIKey, Tailnet: cfg.Tailscale.Tailnet, ReadOnly: cfg.Tailscale.ReadOnly}
 			// query is hostname, IP, or node ID for device-specific operations
 			query := req.deviceQuery()
 			switch req.Operation {
