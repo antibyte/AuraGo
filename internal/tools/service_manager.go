@@ -18,6 +18,9 @@ func NewServiceManager() *ServiceManager {
 
 // ManageService performs the requested operation on the service
 func (sm *ServiceManager) ManageService(operation, service string) (string, error) {
+	if err := requireShellPermission(); err != nil {
+		return "", err
+	}
 	if service == "" {
 		return "", fmt.Errorf("service name cannot be empty")
 	}

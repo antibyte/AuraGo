@@ -26,6 +26,10 @@ func TestHighRiskToolsDenyWithoutRuntimePolicy(t *testing.T) {
 	if got := DockerListContainers(DockerConfig{}, false); !strings.Contains(got, "docker is disabled") {
 		t.Fatalf("DockerListContainers = %s, want permission denial", got)
 	}
+	sm := NewServiceManager()
+	if _, err := sm.ManageService("status", "aurago"); err == nil || !strings.Contains(err.Error(), "shell execution is disabled") {
+		t.Fatalf("ManageService error = %v, want shell permission denial", err)
+	}
 	mgr := NewCronManager(t.TempDir())
 	t.Cleanup(func() { _ = mgr.Close() })
 	if got, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "prompt", "en"); err != nil || !strings.Contains(got, "scheduler is disabled") {
