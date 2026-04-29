@@ -297,6 +297,33 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	}
 }
 
+func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
+	t.Parallel()
+
+	compose := readRepoFile(t, "docker-compose.yml")
+	proxyStart := strings.Index(compose, "\n  docker-proxy:")
+	if proxyStart < 0 {
+		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+	}
+	proxyBlock := compose[proxyStart:]
+	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
+		proxyBlock = proxyBlock[:volumesStart]
+	}
+	for _, needle := range []string{
+		"security_opt:",
+		"no-new-privileges:true",
+		"cap_drop:",
+		"- ALL",
+		"resources:",
+		"limits:",
+		"logging:",
+	} {
+		if !strings.Contains(proxyBlock, needle) {
+			t.Fatalf("docker-proxy sidecar is missing compose hardening %q", needle)
+		}
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 
