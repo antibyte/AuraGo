@@ -102,6 +102,9 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		if err != nil || (hParsed.Scheme != "http" && hParsed.Scheme != "https") {
 			return
 		}
+		if err := security.ValidateSSRF(href); err != nil {
+			return
+		}
 		mu.Lock()
 		linkSet[href] = true
 		shouldVisit := pageCount < maxPages

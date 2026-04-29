@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -61,6 +63,9 @@ func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDi
 	parsed, err := url.ParseRequestURI(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return formJSON(formResult{Status: "error", Message: "url must be a valid http or https URL"})
+	}
+	if err := security.ValidateSSRF(rawURL); err != nil {
+		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("URL not allowed: %v", err)})
 	}
 
 	switch operation {

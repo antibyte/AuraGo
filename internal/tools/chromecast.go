@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/vishen/go-chromecast/application"
+
+	"aurago/internal/security"
 )
 
 // ChromecastConfig holds Chromecast integration settings.
@@ -27,7 +29,7 @@ type ChromecastDevice struct {
 }
 
 var chromecastMDNSQuery = mdnsQueryServices
-var chromecastURLHTTPClient = &http.Client{Timeout: 5 * time.Second}
+var chromecastURLHTTPClient = security.NewSSRFProtectedHTTPClient(5 * time.Second)
 
 // DiscoverChromecastDevices scans the local network for Chromecast devices via mDNS.
 func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) {
@@ -155,6 +157,9 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 }
 
 func validateChromecastMediaURL(mediaURL string) error {
+	if err := security.ValidateSSRF(mediaURL); err != nil {
+		return err
+	}
 	req, err := http.NewRequest(http.MethodHead, mediaURL, nil)
 	if err != nil {
 		return err
