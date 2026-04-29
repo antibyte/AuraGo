@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -369,6 +370,50 @@ func mergeKnowledgeGraphProperties(existing, incoming map[string]string) map[str
 		}
 	}
 	return out
+}
+
+func mergeKnowledgeGraphPropertiesForExtraction(existing, incoming map[string]string) map[string]string {
+	out := mergeKnowledgeGraphProperties(existing, incoming)
+	existingNorm := normalizeKnowledgeGraphProperties(existing)
+	incomingNorm := normalizeKnowledgeGraphProperties(incoming)
+	if strings.EqualFold(strings.TrimSpace(existingNorm["source"]), "manual") {
+		return out
+	}
+	existingConfidence := parseKnowledgeGraphConfidence(existingNorm["confidence"])
+	incomingConfidence := parseKnowledgeGraphConfidence(incomingNorm["confidence"])
+	if incomingConfidence <= existingConfidence {
+		return out
+	}
+	for key, value := range incomingNorm {
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		switch key {
+		case "source", "protected":
+			continue
+		default:
+			out[key] = value
+		}
+	}
+	return out
+}
+
+func parseKnowledgeGraphConfidence(value string) float64 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
+	}
+	if parsed < 0 {
+		return 0
+	}
+	if parsed > 1 {
+		return 1
+	}
+	return parsed
 }
 
 func mergeKnowledgeGraphPropertiesOverwrite(existing, incoming map[string]string) map[string]string {

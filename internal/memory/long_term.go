@@ -72,6 +72,7 @@ type ChromemVectorDB struct {
 	mu                     sync.RWMutex // Protects indexing operations; reads use RLock
 	storeDocMu             sync.Mutex   // Serialises the dedup-check+store sequence in StoreDocumentWithDomain
 	embeddingFunc          chromem.EmbeddingFunc
+	embeddingFingerprint   string
 	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
 	idCounter              atomic.Int64 // Monotonic counter for collision-free document IDs
 	queryCache             map[string]queryCacheEntry
@@ -158,6 +159,25 @@ func (cv *ChromemVectorDB) IsDisabled() bool {
 	return cv.disabled.Load()
 }
 
+func buildEmbeddingFingerprint(provider, baseURL, model string) string {
+	parts := []string{
+		strings.TrimSpace(provider),
+		strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		strings.TrimSpace(model),
+	}
+	return strings.Join(parts, "|")
+}
+
+func (cv *ChromemVectorDB) addEmbeddingMetadata(metadata map[string]string) map[string]string {
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+	if cv.embeddingFingerprint != "" {
+		metadata["embedding_fingerprint"] = cv.embeddingFingerprint
+	}
+	return metadata
+}
+
 // NewChromemVectorDB creates a new persistent Vector DB backed by chromem-go.
 // It selects the embedding function based on the config:
 //   - "internal": uses the main LLM provider's API (e.g., OpenRouter) for embeddings
@@ -171,6 +191,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 
 	// Dynamic embedding function factory using chromem-go's native constructors
 	var embeddingFunc chromem.EmbeddingFunc
+	embeddingFingerprint := ""
 	provider := cfg.Embeddings.Provider
 	localEmbeddingProvider := isLocalEmbeddingProvider(cfg)
 
@@ -212,6 +233,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		if embedModel == "" {
 			embedModel = "text-embedding-3-small"
 		}
+		embeddingFingerprint = buildEmbeddingFingerprint(provider, embedURL, embedModel)
 
 		// Warn early if the API key is empty — the 401 from the provider would
 		// otherwise be the only hint and doesn't clearly say "key missing".
@@ -242,6 +264,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		collection:             collection,
 		logger:                 logger,
 		embeddingFunc:          embeddingFunc,
+		embeddingFingerprint:   embeddingFingerprint,
 		queryCache:             make(map[string]queryCacheEntry),
 		queryCacheTTL:          5 * time.Minute,
 		dedupSem:               make(chan struct{}, 16),
@@ -376,7 +399,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 		docID := fmt.Sprintf("mem_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 		doc := chromem.Document{
 			ID:       docID,
-			Metadata: metadata,
+			Metadata: cv.addEmbeddingMetadata(metadata),
 			Content:  fullContent,
 		}
 		if err := cv.collection.AddDocument(ctx, doc); err != nil {
@@ -410,7 +433,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 		}
 		docs = append(docs, chromem.Document{
 			ID:       docID,
-			Metadata: chunkMeta,
+			Metadata: cv.addEmbeddingMetadata(chunkMeta),
 			Content:  buildContentString(concept, chunk),
 		})
 		storedIDs = append(storedIDs, docID)
@@ -480,7 +503,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		docID := fmt.Sprintf("file_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 		doc := chromem.Document{
 			ID:       docID,
-			Metadata: metadata,
+			Metadata: cv.addEmbeddingMetadata(metadata),
 			Content:  fullContent,
 		}
 		if err := col.AddDocument(ctx, doc); err != nil {
@@ -516,7 +539,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		}
 		docs = append(docs, chromem.Document{
 			ID:       docID,
-			Metadata: chunkMeta,
+			Metadata: cv.addEmbeddingMetadata(chunkMeta),
 			Content:  buildContentString(concept, chunk),
 		})
 		storedIDs = append(storedIDs, docID)
@@ -554,11 +577,11 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 	docID := fmt.Sprintf("mm_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 	doc := chromem.Document{
 		ID: docID,
-		Metadata: map[string]string{
+		Metadata: cv.addEmbeddingMetadata(map[string]string{
 			"concept":    concept,
 			"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
 			"multimodal": "true",
-		},
+		}),
 		Content:   content,
 		Embedding: embedding,
 	}
@@ -602,13 +625,13 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 	docID := fmt.Sprintf("mm_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 	doc := chromem.Document{
 		ID: docID,
-		Metadata: map[string]string{
+		Metadata: cv.addEmbeddingMetadata(map[string]string{
 			"concept":     concept,
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 			"multimodal":  "true",
 			"source_type": "file_indexer",
 			"collection":  collection,
-		},
+		}),
 		Content:   content,
 		Embedding: embedding,
 	}
@@ -666,7 +689,7 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 		docID := fmt.Sprintf("cs_%s", id)
 		doc := chromem.Document{
 			ID:       docID,
-			Metadata: metadata,
+			Metadata: cv.addEmbeddingMetadata(metadata),
 			Content:  fullContent,
 		}
 		if err := cv.collection.AddDocument(ctx, doc); err != nil {
@@ -697,7 +720,7 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 		}
 		docs = append(docs, chromem.Document{
 			ID:       docID,
-			Metadata: chunkMeta,
+			Metadata: cv.addEmbeddingMetadata(chunkMeta),
 			Content:  name + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
 		})
 	}

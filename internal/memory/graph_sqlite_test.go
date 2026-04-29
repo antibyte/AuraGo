@@ -599,6 +599,44 @@ func TestKGBulkMergeExtractedEntitiesPreservesExistingProperties(t *testing.T) {
 	}
 }
 
+func TestKGBulkMergeExtractedEntitiesPrefersHigherConfidenceAutoProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.BulkMergeExtractedEntities([]Node{{
+		ID:    "nas",
+		Label: "NAS",
+		Properties: map[string]string{
+			"type":       "device",
+			"notes":      "long but weak extracted description",
+			"source":     "file_sync",
+			"confidence": "0.35",
+		},
+	}}, nil); err != nil {
+		t.Fatalf("seed BulkMergeExtractedEntities: %v", err)
+	}
+
+	if err := kg.BulkMergeExtractedEntities([]Node{{
+		ID:    "nas",
+		Label: "NAS Storage",
+		Properties: map[string]string{
+			"type":       "device",
+			"notes":      "verified storage host",
+			"source":     "file_sync",
+			"confidence": "0.90",
+		},
+	}}, nil); err != nil {
+		t.Fatalf("update BulkMergeExtractedEntities: %v", err)
+	}
+
+	node, err := kg.GetNode("nas")
+	if err != nil {
+		t.Fatalf("GetNode: %v", err)
+	}
+	if node.Properties["notes"] != "verified storage host" {
+		t.Fatalf("notes = %q, want higher confidence incoming value", node.Properties["notes"])
+	}
+}
+
 func TestKGUpdateNodePreservesProtectionAndProperties(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -865,6 +903,8 @@ func TestKGSemanticQuerySkipsShortInputs(t *testing.T) {
 		{query: "", want: true},
 		{query: "*", want: true},
 		{query: "hi", want: true},
+		{query: "S3", want: false},
+		{query: "NAS", want: false},
 		{query: "status?", want: true},
 		{query: "tailscale", want: false},
 	}

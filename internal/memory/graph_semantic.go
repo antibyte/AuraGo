@@ -621,10 +621,34 @@ func shouldIndexKnowledgeGraphNode(node Node) bool {
 
 func shouldSkipKnowledgeGraphSemanticQuery(query string) bool {
 	query = strings.TrimSpace(query)
-	if query == "" || query == "*" || len([]rune(query)) < 8 {
+	if query == "" || query == "*" {
 		return true
 	}
-	return false
+	runeLen := len([]rune(query))
+	if runeLen >= 8 {
+		return false
+	}
+	if runeLen >= 2 && looksLikeCompactEntityQuery(query) {
+		return false
+	}
+	return true
+}
+
+func looksLikeCompactEntityQuery(query string) bool {
+	hasUpperOrDigit := false
+	for _, r := range query {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			hasUpperOrDigit = true
+		case r >= '0' && r <= '9':
+			hasUpperOrDigit = true
+		case r >= 'a' && r <= 'z':
+		case r == '-' || r == '_' || r == '.':
+		default:
+			return false
+		}
+	}
+	return hasUpperOrDigit
 }
 
 func shouldRetrySemanticEmbeddingErr(err error) bool {
@@ -699,20 +723,47 @@ func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
 	report.TotalIndexed = uint(kg.semantic.collection.Count())
 
 	rows, err := kg.db.Query(`
-		SELECT COUNT(*) FROM kg_nodes
-		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
+		SELECT id, semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at AS dirty
+		FROM kg_nodes
 	`)
 	if err == nil {
-		rows.Scan(&report.NodesMissingFromIndex)
+		for rows.Next() {
+			var id string
+			var dirty bool
+			if rows.Scan(&id, &dirty) != nil {
+				continue
+			}
+			if dirty {
+				report.NodesMissingFromIndex++
+				continue
+			}
+			if _, getErr := kg.semantic.collection.GetByID(context.Background(), id); getErr != nil {
+				report.NodesMissingFromIndex++
+			}
+		}
 		rows.Close()
 	}
 
 	edgeRows, err := kg.db.Query(`
-		SELECT COUNT(*) FROM kg_edges
-		WHERE semantic_indexed_at IS NULL
+		SELECT source, target, relation, semantic_indexed_at IS NULL AS dirty
+		FROM kg_edges
 	`)
 	if err == nil {
-		edgeRows.Scan(&report.EdgesMissingFromIndex)
+		for edgeRows.Next() {
+			var source, target, relation string
+			var dirty bool
+			if edgeRows.Scan(&source, &target, &relation, &dirty) != nil {
+				continue
+			}
+			if dirty {
+				report.EdgesMissingFromIndex++
+				continue
+			}
+			edgeDocID := "edge://" + source + "\x00" + target + "\x00" + relation
+			if _, getErr := kg.semantic.collection.GetByID(context.Background(), edgeDocID); getErr != nil {
+				report.EdgesMissingFromIndex++
+			}
+		}
 		edgeRows.Close()
 	}
 

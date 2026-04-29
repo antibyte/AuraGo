@@ -97,7 +97,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 
 		n.Properties = sanitizeKnowledgeGraphNodeProperties(n.Properties, strings.EqualFold(strings.TrimSpace(n.Properties["protected"]), "true"))
 		finalLabel := mergeKnowledgeGraphLabel(existingLabel, n.Label)
-		finalProps := mergeKnowledgeGraphProperties(existingProps, n.Properties)
+		finalProps := mergeKnowledgeGraphPropertiesForExtraction(existingProps, n.Properties)
 		isProtected := existingProtected
 		if finalProps["protected"] == "true" {
 			isProtected = 1
@@ -134,7 +134,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 			return fmt.Errorf("load existing edge %q->%q/%q: %w", e.Source, e.Target, e.Relation, err)
 		}
 		e.Properties = normalizeKnowledgeGraphProperties(e.Properties)
-		finalProps := mergeKnowledgeGraphProperties(existingProps, e.Properties)
+		finalProps := mergeKnowledgeGraphPropertiesForExtraction(existingProps, e.Properties)
 		propsJSON, _ := json.Marshal(finalProps)
 
 		if _, execErr := tx.Exec(`

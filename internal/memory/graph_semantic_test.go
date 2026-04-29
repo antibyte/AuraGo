@@ -171,3 +171,32 @@ func TestKGUpdateEdgeRefreshesSemanticIndex(t *testing.T) {
 		t.Fatalf("semantic edge content = %q, want updated relation and properties", doc.Content)
 	}
 }
+
+func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = CURRENT_TIMESTAMP WHERE id = 'nas'"); err != nil {
+		t.Fatalf("mark indexed: %v", err)
+	}
+	if err := kg.semantic.collection.Delete(context.Background(), nil, nil, "nas"); err != nil {
+		t.Fatalf("delete semantic doc: %v", err)
+	}
+
+	report, err := kg.ConsistencyCheck()
+	if err != nil {
+		t.Fatalf("ConsistencyCheck: %v", err)
+	}
+	if report.NodesMissingFromIndex != 1 {
+		t.Fatalf("NodesMissingFromIndex = %d, want 1", report.NodesMissingFromIndex)
+	}
+}

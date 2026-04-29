@@ -266,6 +266,7 @@ func TestStoreDocumentInCollectionPersistsCollectionMetadata(t *testing.T) {
 		db:                     db,
 		collection:             collection,
 		embeddingFunc:          embeddingFunc,
+		embeddingFingerprint:   "provider|model|dim",
 		fileIndexerCollections: make(map[string]struct{}),
 		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
@@ -293,6 +294,9 @@ func TestStoreDocumentInCollectionPersistsCollectionMetadata(t *testing.T) {
 	}
 	if got, want := doc.Metadata["source_type"], "file_indexer"; got != want {
 		t.Errorf("metadata source_type = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata["embedding_fingerprint"], "provider|model|dim"; got != want {
+		t.Errorf("metadata embedding_fingerprint = %q, want %q", got, want)
 	}
 }
 
