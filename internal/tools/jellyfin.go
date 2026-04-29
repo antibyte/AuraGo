@@ -23,6 +23,20 @@ func jellyfinRequestContext(cfg config.JellyfinConfig) (context.Context, context
 	return context.WithTimeout(context.Background(), timeout)
 }
 
+func jellyfinReadOnlyMutationError(cfg config.JellyfinConfig, operation string) string {
+	if cfg.ReadOnly {
+		return errJSON("Jellyfin is in read-only mode; %s is disabled", operation)
+	}
+	return ""
+}
+
+func jellyfinDestructiveMutationError(cfg config.JellyfinConfig, operation string) string {
+	if !cfg.AllowDestructive {
+		return errJSON("Destructive Jellyfin operations are disabled. Set jellyfin.allow_destructive=true in config.yaml. Operation: %s", operation)
+	}
+	return ""
+}
+
 // DispatchJellyfinTool routes Jellyfin tool calls by operation name.
 func DispatchJellyfinTool(operation string, params map[string]string, cfg *config.Config, vault *security.Vault, logger *slog.Logger) string {
 	if !cfg.Jellyfin.Enabled {
@@ -290,8 +304,8 @@ func JellyfinItemDetails(cfg config.JellyfinConfig, vault *security.Vault, itemI
 			streams := make([]map[string]interface{}, 0, len(src.Streams))
 			for _, s := range src.Streams {
 				stream := map[string]interface{}{
-					"type":    s.Type,
-					"codec":   s.Codec,
+					"type":     s.Type,
+					"codec":    s.Codec,
 					"language": s.Language,
 				}
 				if s.Type == "Video" {
@@ -412,6 +426,9 @@ func JellyfinPlaybackControl(cfg config.JellyfinConfig, vault *security.Vault, s
 	if command == "" {
 		return errJSON("command is required (Play, Pause, Unpause, Stop, NextTrack, PreviousTrack)")
 	}
+	if denied := jellyfinReadOnlyMutationError(cfg, "playback_control"); denied != "" {
+		return denied
+	}
 
 	// Normalize command
 	cmdMap := map[string]string{
@@ -453,6 +470,9 @@ func JellyfinLibraryRefresh(cfg config.JellyfinConfig, vault *security.Vault, li
 	if libraryID == "" {
 		return errJSON("library_id is required")
 	}
+	if denied := jellyfinReadOnlyMutationError(cfg, "library_refresh"); denied != "" {
+		return denied
+	}
 
 	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
@@ -478,6 +498,12 @@ func JellyfinLibraryRefresh(cfg config.JellyfinConfig, vault *security.Vault, li
 func JellyfinDeleteItem(cfg config.JellyfinConfig, vault *security.Vault, itemID string, logger *slog.Logger) string {
 	if itemID == "" {
 		return errJSON("item_id is required")
+	}
+	if denied := jellyfinReadOnlyMutationError(cfg, "delete_item"); denied != "" {
+		return denied
+	}
+	if denied := jellyfinDestructiveMutationError(cfg, "delete_item"); denied != "" {
+		return denied
 	}
 
 	client, err := jellyfin.NewClient(cfg, vault)
