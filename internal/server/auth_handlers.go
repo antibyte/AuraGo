@@ -556,9 +556,8 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr == nil {
 		newCfg.ApplyVaultSecrets(s.Vault)
-		savedPath := s.Cfg.ConfigPath
-		*s.Cfg = *newCfg
-		s.Cfg.ConfigPath = savedPath
+		newCfg.ConfigPath = configPath
+		s.replaceConfigSnapshot(newCfg)
 	}
 	s.CfgMu.Unlock()
 	return loadErr

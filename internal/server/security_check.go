@@ -646,9 +646,8 @@ func ApplyHardening(s *Server, ids []string) ([]string, error) {
 		newCfg.ResolveProviders()
 		newCfg.ApplyOAuthTokens(s.Vault)
 		newCfg.Runtime = s.Cfg.Runtime
-		savedPath := s.Cfg.ConfigPath
-		*s.Cfg = *newCfg
-		s.Cfg.ConfigPath = savedPath
+		newCfg.ConfigPath = configPath
+		s.replaceConfigSnapshot(newCfg)
 	}
 	s.CfgMu.Unlock()
 

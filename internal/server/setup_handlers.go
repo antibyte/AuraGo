@@ -315,29 +315,27 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				return
 			}
 
-			savedPath := s.Cfg.ConfigPath
-			*s.Cfg = *newCfg
-			s.Cfg.ConfigPath = savedPath
-
 			// Apply vault secrets (including the provider API keys just saved above)
 			// so the in-memory config reflects the full resolved configuration and
 			// needsSetup() returns false on the next request.
-			s.Cfg.ApplyVaultSecrets(s.Vault)
+			newCfg.ConfigPath = configPath
+			newCfg.ApplyVaultSecrets(s.Vault)
 			// Re-resolve providers so vault API keys propagate into cfg.LLM.APIKey etc.
 			// (same sequence as main.go: ApplyVaultSecrets → ResolveProviders)
-			s.Cfg.ResolveProviders()
+			newCfg.ResolveProviders()
+			s.replaceConfigSnapshot(newCfg)
 
 			// Re-create BudgetTracker and re-register MissionManagerV2 callback.
-			s.reinitBudgetTracker(s.Cfg)
+			s.reinitBudgetTracker(newCfg)
 
 			// Reconfigure the live LLM client with the new API key / base URL / model.
 			// Without this the old client (created at startup with an empty key from
 			// config_template.yaml) would be used for the first chat after setup.
 			if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-				fm.Reconfigure(s.Cfg)
+				fm.Reconfigure(newCfg)
 				s.Logger.Info("[Setup] LLM client reconfigured",
-					"provider", s.Cfg.LLM.ProviderType,
-					"base_url", s.Cfg.LLM.BaseURL)
+					"provider", newCfg.LLM.ProviderType,
+					"base_url", newCfg.LLM.BaseURL)
 			}
 
 			// Re-initialize the VectorDB (LTM / embeddings) if it was disabled at
@@ -345,14 +343,14 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			// has now configured one.  Without this, long-term memory stays broken
 			// until the next process restart.
 			if s.LongTermMem != nil && s.LongTermMem.IsDisabled() &&
-				s.Cfg.Embeddings.Provider != "" && s.Cfg.Embeddings.Provider != "disabled" {
-				if newVDB, vdbErr := memory.NewChromemVectorDB(s.Cfg, s.Logger); vdbErr == nil {
+				newCfg.Embeddings.Provider != "" && newCfg.Embeddings.Provider != "disabled" {
+				if newVDB, vdbErr := memory.NewChromemVectorDB(newCfg, s.Logger); vdbErr == nil {
 					if closeErr := s.LongTermMem.Close(); closeErr != nil {
 						s.Logger.Warn("[Setup] Failed to close previous disabled VectorDB during re-initialization", "error", closeErr)
 					}
 					s.LongTermMem = newVDB
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
-						"provider", s.Cfg.Embeddings.Provider)
+						"provider", newCfg.Embeddings.Provider)
 				} else {
 					s.Logger.Warn("[Setup] VectorDB re-initialization failed — embeddings unavailable until restart", "error", vdbErr)
 				}

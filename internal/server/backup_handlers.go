@@ -1005,11 +1005,11 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				// are reflected in the in-memory config immediately — without this the
 				// login handler would still see the old (empty) hash and reject logins.
 				s.CfgMu.Lock()
-				if newCfg, loadErr := config.Load(s.Cfg.ConfigPath); loadErr == nil {
+				configPath := s.Cfg.ConfigPath
+				if newCfg, loadErr := config.Load(configPath); loadErr == nil {
+					newCfg.ConfigPath = configPath
 					newCfg.ApplyVaultSecrets(s.Vault)
-					savedPath := s.Cfg.ConfigPath
-					*s.Cfg = *newCfg
-					s.Cfg.ConfigPath = savedPath
+					s.replaceConfigSnapshot(newCfg)
 				}
 				s.CfgMu.Unlock()
 			}

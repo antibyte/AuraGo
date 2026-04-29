@@ -103,14 +103,13 @@ func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) erro
 		s.CfgMu.Unlock()
 		return loadErr
 	}
-	savedPath := s.Cfg.ConfigPath
-	*s.Cfg = *newCfg
-	s.Cfg.ConfigPath = savedPath
-	s.Cfg.ApplyVaultSecrets(s.Vault)
-	s.Cfg.ApplyOAuthTokens(s.Vault)
-	runtimeMCPConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
+	newCfg.ConfigPath = configPath
+	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ApplyOAuthTokens(s.Vault)
+	s.replaceConfigSnapshot(newCfg)
+	runtimeMCPConfigs := buildRuntimeMCPConfigs(newCfg, s.Vault, s.Logger)
 	shutdownExternalMCPManager()
-	if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled && len(runtimeMCPConfigs) > 0 {
+	if newCfg.Agent.AllowMCP && newCfg.MCP.Enabled && len(runtimeMCPConfigs) > 0 {
 		initExternalMCPManager(runtimeMCPConfigs, s.Logger)
 	}
 	s.CfgMu.Unlock()

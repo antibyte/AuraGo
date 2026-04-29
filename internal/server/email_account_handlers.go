@@ -198,13 +198,12 @@ func handlePutEmailAccounts(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Saved but reload failed", http.StatusInternalServerError)
 		return
 	}
-	savedPath := s.Cfg.ConfigPath
-	*s.Cfg = *newCfg
-	s.Cfg.ConfigPath = savedPath
 	// Apply vault secrets and re-resolve after hot-reload
-	s.Cfg.ApplyVaultSecrets(s.Vault)
-	s.Cfg.ResolveProviders()
-	s.Cfg.ApplyOAuthTokens(s.Vault)
+	newCfg.ConfigPath = configPath
+	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ResolveProviders()
+	newCfg.ApplyOAuthTokens(s.Vault)
+	s.replaceConfigSnapshot(newCfg)
 	s.CfgMu.Unlock()
 
 	s.Logger.Info("[EmailAccounts] Updated", "count", len(entries))

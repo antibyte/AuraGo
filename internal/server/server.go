@@ -149,6 +149,7 @@ func getI18NMetaJSON() template.JS {
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
 	Cfg                *config.Config
+	cfgSnapshot        atomic.Pointer[config.Config]
 	CfgMu              sync.RWMutex // protects Cfg during hot-reload
 	CfgSaveMu          sync.Mutex   // serializes config file writes to prevent TOCTOU races
 	Logger             *slog.Logger
@@ -216,6 +217,32 @@ func (s *Server) accessLogger() *slog.Logger {
 		return s.AccessLogger
 	}
 	return s.Logger
+}
+
+func (s *Server) initConfigSnapshot() {
+	if s == nil || s.Cfg == nil {
+		return
+	}
+	s.cfgSnapshot.Store(s.Cfg)
+}
+
+// ConfigSnapshot returns the current immutable runtime config pointer.
+func (s *Server) ConfigSnapshot() *config.Config {
+	if s == nil {
+		return nil
+	}
+	if cfg := s.cfgSnapshot.Load(); cfg != nil {
+		return cfg
+	}
+	return s.Cfg
+}
+
+func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
+	if s == nil || cfg == nil {
+		return
+	}
+	s.Cfg = cfg
+	s.cfgSnapshot.Store(cfg)
 }
 
 // reinitBudgetTracker recreates the BudgetTracker from the current config and
@@ -959,7 +986,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	cfg := opts.Cfg
 	logger := opts.Logger
 
-	return &Server{
+	s := &Server{
 		Cfg:                cfg,
 		Logger:             logger,
 		AccessLogger:       opts.AccessLogger,
@@ -999,6 +1026,8 @@ func newServerFromOptions(opts StartOptions) *Server {
 		EggHub:           bridge.NewEggHub(logger),
 		WarningsRegistry: opts.WarningsRegistry,
 	}
+	s.initConfigSnapshot()
+	return s
 }
 
 func shouldSeedWelcomeContent(isFirstStart bool) bool {

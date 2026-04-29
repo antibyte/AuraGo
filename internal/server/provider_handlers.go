@@ -392,27 +392,26 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	savedPath := s.Cfg.ConfigPath
-	*s.Cfg = *newCfg
-	s.Cfg.ConfigPath = savedPath
 	// Apply vault secrets and re-resolve providers after hot-reload
-	s.Cfg.ApplyVaultSecrets(s.Vault)
-	s.Cfg.ResolveProviders()
-	s.Cfg.ApplyOAuthTokens(s.Vault)
+	newCfg.ConfigPath = configPath
+	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ResolveProviders()
+	newCfg.ApplyOAuthTokens(s.Vault)
+	s.replaceConfigSnapshot(newCfg)
 
 	// Reconfigure LLM client so model/key/URL changes take effect immediately.
 	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-		fm.Reconfigure(s.Cfg)
+		fm.Reconfigure(newCfg)
 		s.Logger.Info("[Providers] LLM client reconfigured",
-			"model", s.Cfg.LLM.Model,
-			"provider", s.Cfg.LLM.ProviderType)
+			"model", newCfg.LLM.Model,
+			"provider", newCfg.LLM.ProviderType)
 	}
 	// Recreate LLMGuardian so its client uses the updated API keys.
-	s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
+	s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
 
 	// Capture updated agent info before releasing the lock.
-	activeLLMModel := s.Cfg.LLM.Model
-	activeLLMProvider := s.Cfg.LLM.ProviderType
+	activeLLMModel := newCfg.LLM.Model
+	activeLLMProvider := newCfg.LLM.ProviderType
 	s.CfgMu.Unlock()
 
 	// Reset the global Helper-LLM singleton so its next request picks up the

@@ -481,17 +481,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Apply hot-reload: copy all new fields into the live config pointer
-			savedPath := s.Cfg.ConfigPath
-			*s.Cfg = *newCfg
-			s.Cfg.ConfigPath = savedPath
+			newCfg.ConfigPath = s.Cfg.ConfigPath
 
 			// Reconfigure the live LLM client when model, API key, base URL,
 			// provider or fallback settings have changed. This ensures that model
 			// name changes in the web UI take effect immediately without a restart.
 			if llmHotReloadChanged(oldCfg, *newCfg) || oldCfg.FallbackLLM != newCfg.FallbackLLM {
 				if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-					fm.Reconfigure(s.Cfg)
+					fm.Reconfigure(newCfg)
 					s.Logger.Info("[Config UI] LLM client reconfigured",
 						"model", newCfg.LLM.Model,
 						"provider", newCfg.LLM.ProviderType,
@@ -500,19 +497,23 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 				// Re-detect context window and recalculate budget when model
 				// changes and the user has budget set to automatic (0).
-				if s.Cfg.Agent.SystemPromptTokenBudgetAuto {
+				if newCfg.Agent.SystemPromptTokenBudgetAuto {
 					detected := llm.DetectContextWindow(
-						s.Cfg.LLM.BaseURL, s.Cfg.LLM.APIKey,
-						s.Cfg.LLM.Model, s.Cfg.LLM.ProviderType, s.Logger)
+						newCfg.LLM.BaseURL, newCfg.LLM.APIKey,
+						newCfg.LLM.Model, newCfg.LLM.ProviderType, s.Logger)
 					if detected > 0 {
-						s.Cfg.Agent.ContextWindow = detected
+						newCfg.Agent.ContextWindow = detected
 					}
-					if s.Cfg.Agent.ContextWindow > 0 {
-						s.Cfg.Agent.SystemPromptTokenBudget, s.Cfg.Agent.ContextWindow =
-							llm.AutoConfigureBudget(s.Cfg.Agent.ContextWindow, s.Cfg.Agent.SystemPromptTokenBudget, s.Logger)
+					if newCfg.Agent.ContextWindow > 0 {
+						newCfg.Agent.SystemPromptTokenBudget, newCfg.Agent.ContextWindow =
+							llm.AutoConfigureBudget(newCfg.Agent.ContextWindow, newCfg.Agent.SystemPromptTokenBudget, s.Logger)
 					}
 				}
 			}
+
+			// Apply hot-reload by publishing a new immutable config snapshot after
+			// all synchronous auto-detection adjustments are complete.
+			s.replaceConfigSnapshot(newCfg)
 
 			// Sync the global debug-mode flag used by the agent.
 			if oldCfg.Agent.DebugMode != newCfg.Agent.DebugMode {
