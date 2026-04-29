@@ -319,6 +319,7 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	for _, needle := range []string{
 		"actions/setup-go",
 		"go test ./...",
+		"go test -race ./internal/llm ./internal/server ./internal/memory",
 		"golang/govulncheck-action",
 	} {
 		if !strings.Contains(workflowText, needle) {
