@@ -945,13 +945,14 @@ type Config struct {
 		Outgoing       []OutgoingWebhook `yaml:"outgoing"`         // configured outgoing webhooks for the agent
 	} `yaml:"webhooks"`
 	Proxmox struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"`         // true = only list/status, block start/stop/reboot/suspend/snapshot
-		URL      string `yaml:"url"`              // e.g. "https://pve.example.com:8006"
-		TokenID  string `yaml:"token_id"`         // e.g. "user@pam!tokenname"
-		Secret   string `yaml:"-" vault:"secret"` // API token secret (from vault)
-		Node     string `yaml:"node"`             // default node name (e.g. "pve")
-		Insecure bool   `yaml:"insecure"`         // skip TLS verification for self-signed certs
+		Enabled          bool   `yaml:"enabled"`
+		ReadOnly         bool   `yaml:"readonly"`          // true = only list/status, block start/stop/reboot/suspend/snapshot
+		AllowDestructive bool   `yaml:"allow_destructive"` // allow stop/shutdown/reboot/suspend/reset actions
+		URL              string `yaml:"url"`               // e.g. "https://pve.example.com:8006"
+		TokenID          string `yaml:"token_id"`          // e.g. "user@pam!tokenname"
+		Secret           string `yaml:"-" vault:"secret"`  // API token secret (from vault)
+		Node             string `yaml:"node"`              // default node name (e.g. "pve")
+		Insecure         bool   `yaml:"insecure"`          // skip TLS verification for self-signed certs
 	} `yaml:"proxmox"`
 	Ollama struct {
 		Enabled         bool   `yaml:"enabled"`

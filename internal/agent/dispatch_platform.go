@@ -393,6 +393,12 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Proxmox is in read-only mode. Disable proxmox.read_only to allow changes."}`
 				}
 			}
+			if !cfg.Proxmox.AllowDestructive {
+				switch req.Operation {
+				case "stop", "shutdown", "reboot", "suspend", "reset":
+					return `Tool Output: {"status":"error","message":"Destructive Proxmox operations are disabled. Set proxmox.allow_destructive=true in config.yaml."}`
+				}
+			}
 			pxCfg := tools.ProxmoxConfig{
 				URL:      cfg.Proxmox.URL,
 				TokenID:  cfg.Proxmox.TokenID,

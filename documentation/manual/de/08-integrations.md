@@ -179,6 +179,7 @@ VM- und Container-Verwaltung.
 proxmox:
   enabled: true
   readonly: false
+  allow_destructive: false
   url: "https://proxmox.example.com:8006"
   node: "pve"
   token_id: "user@pam!tokenname"

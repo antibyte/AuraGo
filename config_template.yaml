@@ -702,6 +702,7 @@ webhooks:
 proxmox:
     enabled: false
     readonly: false
+    allow_destructive: false
     url: ""
     token_id: ""
     node: ""

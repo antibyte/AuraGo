@@ -175,6 +175,8 @@ Manage VMs and LXC containers on Proxmox VE.
 ```yaml
 proxmox:
     enabled: true
+    readonly: false
+    allow_destructive: false
     url: "https://proxmox.local:8006"
     token_id: "root@pam!aurago"
     node: "pve"
