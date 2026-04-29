@@ -5,13 +5,18 @@ import (
 	"testing"
 )
 
-func TestMain(m *testing.M) {
-	ConfigureRuntimePermissions(RuntimePermissions{
+func defaultRuntimePermissionsForTests() RuntimePermissions {
+	return RuntimePermissions{
 		AllowShell:           true,
 		AllowPython:          true,
 		AllowFilesystemWrite: true,
 		AllowNetworkRequests: true,
 		DockerEnabled:        true,
-	})
+		SchedulerEnabled:     true,
+	}
+}
+
+func TestMain(m *testing.M) {
+	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	os.Exit(m.Run())
 }

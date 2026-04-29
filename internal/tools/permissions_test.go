@@ -8,13 +8,7 @@ import (
 func TestHighRiskToolsDenyWithoutRuntimePolicy(t *testing.T) {
 	ClearRuntimePermissionsForTest()
 	t.Cleanup(func() {
-		ConfigureRuntimePermissions(RuntimePermissions{
-			AllowShell:           true,
-			AllowPython:          true,
-			AllowFilesystemWrite: true,
-			AllowNetworkRequests: true,
-			DockerEnabled:        true,
-		})
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
 	if _, _, err := ExecuteShell("echo no", t.TempDir()); err == nil || !strings.Contains(err.Error(), "shell execution is disabled") {
@@ -31,5 +25,10 @@ func TestHighRiskToolsDenyWithoutRuntimePolicy(t *testing.T) {
 	}
 	if got := DockerListContainers(DockerConfig{}, false); !strings.Contains(got, "docker is disabled") {
 		t.Fatalf("DockerListContainers = %s, want permission denial", got)
+	}
+	mgr := NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Close() })
+	if got, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "prompt", "en"); err != nil || !strings.Contains(got, "scheduler is disabled") {
+		t.Fatalf("ManageSchedule = %s, err=%v, want scheduler permission denial", got, err)
 	}
 }

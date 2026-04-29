@@ -12,6 +12,8 @@ type RuntimePermissions struct {
 	AllowFilesystemWrite bool
 	AllowNetworkRequests bool
 	DockerEnabled        bool
+	SchedulerEnabled     bool
+	SchedulerReadOnly    bool
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
@@ -69,6 +71,20 @@ func requireDockerPermission() error {
 		return requireRuntimePermission("docker", false)
 	}
 	return requireRuntimePermission("docker", perms.DockerEnabled)
+}
+
+func requireSchedulerPermission(operation string) error {
+	perms, configured := currentRuntimePermissions()
+	if !configured {
+		return requireRuntimePermission("scheduler", false)
+	}
+	if err := requireRuntimePermission("scheduler", perms.SchedulerEnabled); err != nil {
+		return err
+	}
+	if perms.SchedulerReadOnly && operation != "list" {
+		return fmt.Errorf("scheduler mutation is disabled by runtime permissions")
+	}
+	return nil
 }
 
 func requireFilesystemWritePermission() error {

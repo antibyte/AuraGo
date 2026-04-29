@@ -8,6 +8,50 @@ import (
 	"testing"
 )
 
+func TestCronManagerDeniesMutationWithoutRuntimePolicy(t *testing.T) {
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	result, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "run cleanup", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule add returned unexpected error: %v", err)
+	}
+	if !strings.Contains(result, "scheduler is disabled") {
+		t.Fatalf("ManageSchedule add = %s, want scheduler permission denial", result)
+	}
+}
+
+func TestCronManagerReadOnlyRuntimePolicyAllowsListOnly(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: true, SchedulerReadOnly: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	listResult, err := mgr.ManageSchedule("list", "", "", "", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule list returned unexpected error: %v", err)
+	}
+	if !strings.Contains(listResult, `"status": "success"`) {
+		t.Fatalf("ManageSchedule list = %s, want success", listResult)
+	}
+
+	addResult, err := mgr.ManageSchedule("add", "job-1", "0 * * * *", "run cleanup", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule add returned unexpected error: %v", err)
+	}
+	if !strings.Contains(addResult, "scheduler mutation is disabled") {
+		t.Fatalf("ManageSchedule add = %s, want readonly mutation denial", addResult)
+	}
+}
+
 func TestCronManagerPersistsToSQLiteStore(t *testing.T) {
 	dir := t.TempDir()
 	mgr := NewCronManager(dir)

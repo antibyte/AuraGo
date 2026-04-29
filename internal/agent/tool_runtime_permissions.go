@@ -15,5 +15,7 @@ func configureToolRuntimePermissions(cfg *config.Config) {
 		AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
 		AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:        cfg.Docker.Enabled,
+		SchedulerEnabled:     cfg.Tools.Scheduler.Enabled,
+		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
 	})
 }

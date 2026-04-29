@@ -189,6 +189,10 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang st
 
 // ManageScheduleWithSource is like ManageSchedule but allows setting a job source.
 func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt string, lang string, source string) (string, error) {
+	if err := requireSchedulerPermission(operation); err != nil {
+		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, err.Error()), nil
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
