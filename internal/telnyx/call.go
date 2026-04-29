@@ -190,6 +190,9 @@ func (c *Client) HangUp(ctx context.Context, callControlID string) error {
 
 // DispatchCall handles telnyx_call tool calls from the agent.
 func DispatchCall(ctx context.Context, operation, to, callControlID, text, audioURL string, maxDigits, timeoutSecs int, cfg *config.Config, logger *slog.Logger) string {
+	if cfg.Telnyx.ReadOnly && operation != "list_active" {
+		return encodeResult("error", "Telnyx is in read-only mode")
+	}
 	client := NewClient(cfg.Telnyx.APIKey, logger)
 	language := cfg.Telnyx.VoiceLanguage
 	voice := cfg.Telnyx.VoiceGender

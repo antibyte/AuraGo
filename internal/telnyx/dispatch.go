@@ -11,6 +11,9 @@ import (
 
 // DispatchSMS handles telnyx_sms tool calls from the agent.
 func DispatchSMS(ctx context.Context, operation, to, message, messageID string, mediaURLs []string, cfg *config.Config, logger *slog.Logger) string {
+	if cfg.Telnyx.ReadOnly && (operation == "send" || operation == "send_mms") {
+		return encodeResult("error", "Telnyx is in read-only mode")
+	}
 	client := NewClient(cfg.Telnyx.APIKey, logger)
 
 	switch operation {
