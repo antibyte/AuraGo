@@ -15,3 +15,11 @@ func TestTrueNASPoolScrubRequiresAllowDestructive(t *testing.T) {
 		t.Fatalf("TrueNASPoolScrub = %s, want allow_destructive denial", got)
 	}
 }
+
+func TestTrueNASSMBDeleteRequiresAllowDestructive(t *testing.T) {
+	cfg := config.TrueNASConfig{Enabled: true, ReadOnly: false, AllowDestructive: false}
+	got := TrueNASSMBDelete(cfg, 1, slog.Default())
+	if !strings.Contains(got, "allow_destructive: false") {
+		t.Fatalf("TrueNASSMBDelete = %s, want allow_destructive denial", got)
+	}
+}

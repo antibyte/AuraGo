@@ -467,6 +467,9 @@ func TrueNASSMBDelete(cfg config.TrueNASConfig, shareID int64, logger *slog.Logg
 	if cfg.ReadOnly {
 		return errJSON("SMB share deletion is disabled (readonly mode)")
 	}
+	if !cfg.AllowDestructive {
+		return errJSON("SMB share deletion is disabled (allow_destructive: false)")
+	}
 
 	client, err := truenas.NewClient(cfg, nil)
 	if err != nil {
