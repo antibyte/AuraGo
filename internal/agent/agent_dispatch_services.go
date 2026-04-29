@@ -727,6 +727,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				Username: cfg.WebDAV.Username,
 				Password: cfg.WebDAV.Password,
 				Token:    cfg.WebDAV.Token,
+				ReadOnly: cfg.WebDAV.ReadOnly,
 			}
 			path := req.Path
 			switch req.Operation {

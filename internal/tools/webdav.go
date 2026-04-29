@@ -20,6 +20,7 @@ type WebDAVConfig struct {
 	Username string
 	Password string
 	Token    string
+	ReadOnly bool
 }
 
 // webdavHTTPClient is a shared HTTP client for WebDAV calls.
@@ -90,6 +91,13 @@ func webdavRequest(cfg WebDAVConfig, method, url string, body io.Reader, extraHe
 func davEncode(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func webDAVReadOnlyMutationError(cfg WebDAVConfig, operation string) string {
+	if cfg.ReadOnly {
+		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("WebDAV is in read-only mode. Operation %s is disabled.", operation)})
+	}
+	return ""
 }
 
 // ── Public operations ────────────────────────────────────────────────
@@ -213,6 +221,9 @@ func WebDAVWrite(cfg WebDAVConfig, path, content string) string {
 	if path == "" || content == "" {
 		return davEncode(FSResult{Status: "error", Message: "'path' and 'content' are required for write"})
 	}
+	if denied := webDAVReadOnlyMutationError(cfg, "write"); denied != "" {
+		return denied
+	}
 
 	url := webdavURL(cfg, path)
 	resp, err := webdavRequest(cfg, "PUT", url, strings.NewReader(content), map[string]string{
@@ -238,6 +249,9 @@ func WebDAVWrite(cfg WebDAVConfig, path, content string) string {
 func WebDAVMkdir(cfg WebDAVConfig, path string) string {
 	if path == "" {
 		return davEncode(FSResult{Status: "error", Message: "'path' is required for mkdir"})
+	}
+	if denied := webDAVReadOnlyMutationError(cfg, "mkdir"); denied != "" {
+		return denied
 	}
 
 	url := webdavURL(cfg, path)
@@ -266,6 +280,9 @@ func WebDAVDelete(cfg WebDAVConfig, path string) string {
 	if path == "" {
 		return davEncode(FSResult{Status: "error", Message: "'path' is required for delete"})
 	}
+	if denied := webDAVReadOnlyMutationError(cfg, "delete"); denied != "" {
+		return denied
+	}
 
 	url := webdavURL(cfg, path)
 	resp, err := webdavRequest(cfg, "DELETE", url, nil, nil)
@@ -292,6 +309,9 @@ func WebDAVDelete(cfg WebDAVConfig, path string) string {
 func WebDAVMove(cfg WebDAVConfig, srcPath, dstPath string) string {
 	if srcPath == "" || dstPath == "" {
 		return davEncode(FSResult{Status: "error", Message: "'path' and 'destination' are required for move"})
+	}
+	if denied := webDAVReadOnlyMutationError(cfg, "move"); denied != "" {
+		return denied
 	}
 
 	srcURL := webdavURL(cfg, srcPath)

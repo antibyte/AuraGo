@@ -24,6 +24,23 @@ func TestWebDAVURLEmptyPathKeepsTrailingSlash(t *testing.T) {
 	}
 }
 
+func TestWebDAVReadOnlyBlocksDirectMutations(t *testing.T) {
+	cfg := WebDAVConfig{URL: "https://dav.example.test/root", ReadOnly: true}
+
+	for name, got := range map[string]string{
+		"write":  WebDAVWrite(cfg, "note.txt", "content"),
+		"mkdir":  WebDAVMkdir(cfg, "folder"),
+		"delete": WebDAVDelete(cfg, "note.txt"),
+		"move":   WebDAVMove(cfg, "old.txt", "new.txt"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, "read-only mode") {
+				t.Fatalf("response = %s, want read-only denial", got)
+			}
+		})
+	}
+}
+
 func TestWebDAVRequestBasicAuth(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
