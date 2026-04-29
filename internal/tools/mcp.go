@@ -38,6 +38,7 @@ type MCPServerConfig struct {
 	HostWorkdir        string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
 	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
 	AllowedTools       []string          `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
+	AllowDestructive   bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
 	Secrets            map[string]string `yaml:"-"                        json:"-"`
 }
 
@@ -900,7 +901,27 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 	if _, ok := allowed[toolName]; !ok {
 		return fmt.Errorf("MCP tool %q is not allowed for server %q", toolName, serverName)
 	}
+	if !cfg.AllowDestructive && isMCPToolNameDestructive(toolName) {
+		return fmt.Errorf("MCP tool %q is blocked for server %q because allow_destructive is false", toolName, serverName)
+	}
 	return nil
+}
+
+func isMCPToolNameDestructive(toolName string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(toolName))
+	if normalized == "" {
+		return false
+	}
+	parts := strings.FieldsFunc(normalized, func(r rune) bool {
+		return r == '_' || r == '-' || r == '.' || r == '/' || r == ' '
+	})
+	for _, part := range parts {
+		switch part {
+		case "delete", "destroy", "remove", "drop", "wipe", "purge", "truncate", "format":
+			return true
+		}
+	}
+	return false
 }
 
 // Close shuts down all MCP server connections.

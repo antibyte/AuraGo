@@ -892,6 +892,8 @@ mcp:
     #   allow_local_fallback: true
     #   host_workdir: agent_workspace/mcp/minimax
     #   container_workdir: /workspace
+    #   allowed_tools: []        # explicit external tool allowlist; empty = no tool calls
+    #   allow_destructive: false # allow external MCP tools with destructive names such as delete/remove/destroy
     preferred_capabilities:
         web_search:
             server: ""

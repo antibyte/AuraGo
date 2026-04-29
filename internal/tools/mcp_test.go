@@ -273,3 +273,17 @@ func TestMCPManagerCallToolEnforcesAllowedTools(t *testing.T) {
 		t.Fatalf("CallTool error = %v, want allowlist denial", err)
 	}
 }
+
+func TestMCPManagerCallToolBlocksDestructiveToolsWithoutToggle(t *testing.T) {
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", AllowedTools: []string{"delete_database"}},
+		},
+		conns:  map[string]*mcpConn{},
+		logger: slog.Default(),
+	}
+
+	if _, err := mgr.CallTool("safe", "delete_database", nil); err == nil || !strings.Contains(err.Error(), "allow_destructive") {
+		t.Fatalf("CallTool error = %v, want destructive toggle denial", err)
+	}
+}

@@ -485,6 +485,8 @@ mcp:
     - name: "fetch-server"
       command: "uvx"
       args: ["mcp-server-fetch"]
+      allowed_tools: ["fetch"]
+      allow_destructive: false
 ```
 
 ### MCP-Server

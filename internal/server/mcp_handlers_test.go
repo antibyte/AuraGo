@@ -334,6 +334,7 @@ func TestBuildRuntimeMCPConfigsResolvesSafeWorkdirAndSecrets(t *testing.T) {
 		ContainerWorkdir: "/workspace",
 		Env:              map[string]string{"API_KEY": "{{api-token}}"},
 		AllowedTools:     []string{"understand_image"},
+		AllowDestructive: true,
 	}}
 
 	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
@@ -359,5 +360,8 @@ func TestBuildRuntimeMCPConfigsResolvesSafeWorkdirAndSecrets(t *testing.T) {
 	}
 	if len(configs[0].AllowedTools) != 1 || configs[0].AllowedTools[0] != "understand_image" {
 		t.Fatalf("AllowedTools = %#v, want understand_image", configs[0].AllowedTools)
+	}
+	if !configs[0].AllowDestructive {
+		t.Fatal("AllowDestructive was not copied into runtime MCP config")
 	}
 }

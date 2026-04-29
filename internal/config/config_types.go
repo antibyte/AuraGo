@@ -1631,6 +1631,7 @@ type MCPServer struct {
 	HostWorkdir        string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
 	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
 	AllowedTools       []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // tool names this server may execute; empty = none
+	AllowDestructive   bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive"`
 }
 
 // MCPSecret stores a vault-backed MCP secret alias visible in the config UI.
