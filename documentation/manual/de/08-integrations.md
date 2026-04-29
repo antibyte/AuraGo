@@ -69,7 +69,7 @@ telegram:
 2. Aktiviere die Integration.
 3. Trage **Guild ID** und **Default Channel ID** ein.
 4. Speichere das **Bot-Token** im Vault.
-5. Optional: Eine **Allowed User ID** eintragen, um den Bot auf einen einzigen Nutzer zu beschränken.
+5. Trage eine **Allowed User ID** ein. Ohne diese ID blockiert AuraGo eingehende Discord-Nachrichten.
 
 ### YAML-Referenz
 ```yaml
@@ -77,6 +77,7 @@ discord:
   enabled: true
   bot_token: "DEIN-TOKEN"
   guild_id: "123456789012345678"
+  allowed_user_id: "987654321098765432"
   default_channel_id: "123456789012345678"
 ```
 

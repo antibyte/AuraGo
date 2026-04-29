@@ -74,6 +74,8 @@ Enable **Developer Mode** in Discord (User Settings → Advanced), then right-cl
 
 > 💡 **Tip:** Enable `readonly` for a monitoring-only bot.
 
+`allowed_user_id` is required for inbound Discord control. Leave it empty to block user messages until a specific Discord user ID is configured.
+
 ### YAML Reference
 ```yaml
 discord:

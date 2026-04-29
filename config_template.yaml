@@ -201,7 +201,7 @@ directories:
     vectordb_dir: ./data/vectordb
     workspace_dir: ./agent_workspace/workdir
 discord:
-    allowed_user_id: ""
+    allowed_user_id: ""                                 # required for inbound Discord control; empty blocks user messages
     bot_token: ""
     default_channel_id: ""
     enabled: false

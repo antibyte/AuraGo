@@ -95,7 +95,7 @@ discord:
   enabled: true
   bot_token: "your-discord-bot-token"
   guild_id: "your-server-id"           # Required for list_discord_channels
-  allowed_user_id: "your-discord-user-id"  # Leave empty to allow all users
+  allowed_user_id: "your-discord-user-id"  # Required for inbound control; empty blocks user messages
   default_channel_id: "channel-id"     # Fallback for send/fetch without explicit channel_id
 ```
 
@@ -109,6 +109,6 @@ discord:
 
 ## Behavior
 - The bot only responds when **@mentioned** in a server channel or messaged via **DM**
-- If `allowed_user_id` is set, only that Discord user can interact with the agent
+- `allowed_user_id` must be set for inbound Discord control; only that Discord user can interact with the agent
 - Messages from other users are silently ignored (logged as warnings)
 - Slash commands (`/help`, etc.) work the same as in Telegram and the Web UI

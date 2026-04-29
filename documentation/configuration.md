@@ -100,7 +100,7 @@ See [telegram_setup.md](telegram_setup.md) for full setup instructions.
 | `read_only` | `false` | When `true`, the agent can only read Discord messages but cannot send them. |
 | `bot_token` | `""` | Bot token from the [Discord Developer Portal](https://discord.com/developers/applications). |
 | `guild_id` | `""` | Server (guild) ID for channel listing commands. |
-| `allowed_user_id` | `""` | Restrict access to a specific Discord user ID. Leave empty to allow all users in the server. |
+| `allowed_user_id` | `""` | Required Discord user ID for inbound control. Leave empty to block user messages. |
 | `default_channel_id` | `""` | Default channel for outbound agent messages when no channel is specified. |
 
 ---
