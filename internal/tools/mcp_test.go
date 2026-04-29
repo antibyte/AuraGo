@@ -287,3 +287,50 @@ func TestMCPManagerCallToolBlocksDestructiveToolsWithoutToggle(t *testing.T) {
 		t.Fatalf("CallTool error = %v, want destructive toggle denial", err)
 	}
 }
+
+func TestMCPManagerListToolsOnlyExposesAllowedTools(t *testing.T) {
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", Enabled: true, Command: "uvx", AllowedTools: []string{"allowed_tool"}},
+		},
+		conns: map[string]*mcpConn{
+			"safe": {
+				name:  "safe",
+				ready: true,
+				tools: []MCPToolInfo{
+					{Server: "safe", Name: "allowed_tool"},
+					{Server: "safe", Name: "blocked_tool"},
+				},
+			},
+		},
+		logger: slog.Default(),
+	}
+
+	got := mgr.ListTools("safe")
+	if len(got) != 1 || got[0].Name != "allowed_tool" {
+		t.Fatalf("ListTools() = %+v, want only allowed_tool", got)
+	}
+}
+
+func TestMCPManagerListToolsHidesDestructiveToolsWithoutToggle(t *testing.T) {
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", Enabled: true, Command: "uvx", AllowedTools: []string{"delete_database"}},
+		},
+		conns: map[string]*mcpConn{
+			"safe": {
+				name:  "safe",
+				ready: true,
+				tools: []MCPToolInfo{
+					{Server: "safe", Name: "delete_database"},
+				},
+			},
+		},
+		logger: slog.Default(),
+	}
+
+	got := mgr.ListTools("safe")
+	if len(got) != 0 {
+		t.Fatalf("ListTools() = %+v, want destructive tool hidden", got)
+	}
+}

@@ -786,9 +786,17 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 		if serverName != "" && name != serverName {
 			continue
 		}
+		cfg, ok := m.configs[name]
+		if !ok {
+			continue
+		}
 		conn.mu.Lock()
 		if conn.ready {
-			result = append(result, conn.tools...)
+			for _, toolInfo := range conn.tools {
+				if mcpToolVisible(cfg, toolInfo.Name) {
+					result = append(result, toolInfo)
+				}
+			}
 		}
 		conn.mu.Unlock()
 	}
@@ -905,6 +913,22 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 		return fmt.Errorf("MCP tool %q is blocked for server %q because allow_destructive is false", toolName, serverName)
 	}
 	return nil
+}
+
+func mcpToolVisible(cfg MCPServerConfig, toolName string) bool {
+	allowed := make(map[string]struct{}, len(cfg.AllowedTools))
+	for _, name := range cfg.AllowedTools {
+		if trimmed := strings.TrimSpace(name); trimmed != "" {
+			allowed[trimmed] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return false
+	}
+	if _, ok := allowed[toolName]; !ok {
+		return false
+	}
+	return cfg.AllowDestructive || !isMCPToolNameDestructive(toolName)
 }
 
 func isMCPToolNameDestructive(toolName string) bool {
