@@ -26,6 +26,7 @@ type OneDriveClient struct {
 	ClientSecret string
 	TenantID     string
 	Vault        *security.Vault
+	ReadOnly     bool
 }
 
 var odHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -61,6 +62,7 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClien
 		ClientSecret: clientSecret,
 		TenantID:     tenantID,
 		Vault:        vault,
+		ReadOnly:     od.ReadOnly,
 	}, nil
 }
 
@@ -200,6 +202,10 @@ func odEscapePath(path string) string {
 
 // ExecuteOneDrive dispatches a OneDrive operation.
 func (c *OneDriveClient) ExecuteOneDrive(operation, path, destination, content string, maxResults int) string {
+	operation = strings.TrimSpace(strings.ToLower(operation))
+	if c.ReadOnly && oneDriveMutationOperation(operation) {
+		return odErrJSON("OneDrive is in read-only mode. Disable onedrive.readonly to allow changes.")
+	}
 	// Guard against path traversal
 	for _, p := range []string{path, destination} {
 		for _, part := range strings.Split(p, "/") {
@@ -233,6 +239,15 @@ func (c *OneDriveClient) ExecuteOneDrive(operation, path, destination, content s
 		return c.createShareLink(path)
 	default:
 		return odErrJSON("Unknown OneDrive operation: %s. Valid operations: list, info, read, download, search, quota, upload, write, mkdir, delete, move, copy, share", operation)
+	}
+}
+
+func oneDriveMutationOperation(operation string) bool {
+	switch operation {
+	case "upload", "write", "mkdir", "delete", "move", "copy", "share":
+		return true
+	default:
+		return false
 	}
 }
 
