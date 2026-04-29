@@ -75,17 +75,17 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 	mux.HandleFunc("/api/vault/status", handleVaultStatus(s))
 	mux.HandleFunc("/api/vault/secrets", handleVaultSecrets(s))
-	mux.HandleFunc("/api/vault", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/api/vault", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
 			handleVaultDelete(s)(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
 	// Backup & Restore (.ago archives)
 	mux.HandleFunc("/api/backup/create", handleBackupCreate(s))
-	mux.HandleFunc("/api/backup/import", handleBackupImport(s))
+	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
 
 	// Chromecast mDNS discovery
 	mux.HandleFunc("/api/chromecast/discover", handleChromecastDiscover(s))
@@ -370,7 +370,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/debug/file-sync-last-run", handleDebugFileSyncLastRun(s))
 	mux.HandleFunc("/api/debug/kg-file-entities", handleDebugKGFileEntities(s))
 	mux.HandleFunc("/api/debug/kg-node-sources", handleDebugKGNodeSources(s))
-	mux.HandleFunc("/api/debug/kg-file-sync-cleanup", handleDebugKGFileSyncCleanup(s))
+	mux.Handle("/api/debug/kg-file-sync-cleanup", requireAdmin(s, handleDebugKGFileSyncCleanup(s)))
 
 	// Mission Control API endpoints (enhanced with triggers and queue)
 	mux.HandleFunc("/api/missions", func(w http.ResponseWriter, r *http.Request) {

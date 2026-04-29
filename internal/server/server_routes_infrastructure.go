@@ -177,7 +177,7 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 	mux.HandleFunc("/api/proxy/status", handleProxyStatus(s))
 	mux.HandleFunc("/api/proxy/start", handleProxyStart(s))
 	mux.HandleFunc("/api/proxy/stop", handleProxyStop(s))
-	mux.HandleFunc("/api/proxy/destroy", handleProxyDestroy(s))
+	mux.Handle("/api/proxy/destroy", requireAdmin(s, handleProxyDestroy(s)))
 	mux.HandleFunc("/api/proxy/reload", handleProxyReload(s))
 	mux.HandleFunc("/api/proxy/logs", handleProxyLogs(s))
 	s.Logger.Info("Security Proxy API registered at /api/proxy/...")

@@ -207,6 +207,61 @@ func IsAuthenticated(r *http.Request, secret string) bool {
 	return validateSessionValue(secret, cookie.Value)
 }
 
+// requireAdmin protects destructive/admin endpoints. Browser sessions are the
+// built-in admin identity; API Bearer tokens must explicitly carry admin scope.
+func requireAdmin(s *Server, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+			if rawToken != "" && s != nil && s.TokenManager != nil {
+				if _, ok := s.TokenManager.Validate(rawToken, "admin"); ok {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"admin_required","message":"Admin scope is required for this endpoint."}`))
+			return
+		}
+
+		authEnabled := false
+		sessionSecret := ""
+		if s != nil && s.Cfg != nil {
+			s.CfgMu.RLock()
+			authEnabled = s.Cfg.Auth.Enabled
+			sessionSecret = s.Cfg.Auth.SessionSecret
+			s.CfgMu.RUnlock()
+		}
+		if !authEnabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if IsAuthenticated(r, sessionSecret) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))
+	})
+}
+
+func isAdminProtectedPath(path string) bool {
+	switch path {
+	case "/api/admin/stop",
+		"/api/backup/import",
+		"/api/debug/kg-file-sync-cleanup",
+		"/api/proxy/destroy",
+		"/api/vault":
+		return true
+	default:
+		return false
+	}
+}
+
 // ── Rate Limiting ────────────────────────────────────────────────────────────
 
 type loginRecord struct {
@@ -570,6 +625,11 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// token itself.
 		if (strings.HasPrefix(r.URL.Path, "/api/internal/tool-bridge/") ||
 			strings.HasPrefix(r.URL.Path, "/api/internal/missions/")) && isValidInternalLoopbackToken(r, s.internalToken) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") && isAdminProtectedPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

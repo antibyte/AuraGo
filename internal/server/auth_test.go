@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"bytes"
 	"encoding/json"
 	"io/fs"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -67,6 +69,124 @@ func TestIsAuthenticatedRejectsEmptySessionSecret(t *testing.T) {
 
 	if IsAuthenticated(req, "") {
 		t.Fatal("empty session secret must never authenticate a forged cookie")
+	}
+}
+
+func TestRequireAdminAllowsAuthenticatedSession(t *testing.T) {
+	t.Parallel()
+
+	secret := "admin-session-secret"
+	s := &Server{Cfg: &config.Config{}}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = secret
+
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/stop", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(secret, time.Now().Add(time.Hour))})
+	rec := httptest.NewRecorder()
+
+	requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("authenticated session status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+}
+
+func TestRequireAdminRejectsBearerTokenWithoutAdminScope(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(dir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	tokens, err := security.NewTokenManager(vault, filepath.Join(dir, "tokens.bin"))
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	rawToken, _, err := tokens.Create("readonly", []string{"read"}, nil)
+	if err != nil {
+		t.Fatalf("Create token: %v", err)
+	}
+	s := &Server{Cfg: &config.Config{}, TokenManager: tokens}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/stop", nil)
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	rec := httptest.NewRecorder()
+
+	requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("handler should not be called")
+	})).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("non-admin bearer status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestAuthMiddlewareLetsAdminProtectedBearerReachAdminGate(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vault, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(dir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	tokens, err := security.NewTokenManager(vault, filepath.Join(dir, "tokens.bin"))
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	rawToken, _, err := tokens.Create("readonly", []string{"read"}, nil)
+	if err != nil {
+		t.Fatalf("Create token: %v", err)
+	}
+	s := &Server{Cfg: &config.Config{}, TokenManager: tokens}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "session-secret"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	protected := requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("handler should not be called")
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/stop", nil)
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	rec := httptest.NewRecorder()
+
+	authMiddleware(s, protected).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("non-admin bearer through auth middleware status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestRequireAdminAllowsBearerTokenWithAdminScope(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vault, err := security.NewVault(strings.Repeat("b", 64), filepath.Join(dir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	tokens, err := security.NewTokenManager(vault, filepath.Join(dir, "tokens.bin"))
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	rawToken, _, err := tokens.Create("admin", []string{"admin"}, nil)
+	if err != nil {
+		t.Fatalf("Create token: %v", err)
+	}
+	s := &Server{Cfg: &config.Config{}, TokenManager: tokens}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/stop", nil)
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	rec := httptest.NewRecorder()
+
+	requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("admin bearer status = %d, want %d", rec.Code, http.StatusNoContent)
 	}
 }
 

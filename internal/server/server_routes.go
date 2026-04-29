@@ -671,7 +671,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	mux.HandleFunc("/api/admin/stop", handleInterrupt(s))
+	mux.Handle("/api/admin/stop", requireAdmin(s, handleInterrupt(s)))
 
 	ttsServer, err := s.registerUIRoutes(mux, shutdownCh)
 	if err != nil {
