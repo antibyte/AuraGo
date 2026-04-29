@@ -1098,9 +1098,34 @@ else
     [ -f "$DIR/bin/lifeboat_linux" ] && cp -p "$DIR/bin/lifeboat_linux" "$DIR/bin/lifeboat" 2>/dev/null || true
 fi
 
-# Ensure all binaries are executable. Try with sudo if needed.
-chmod +x "$DIR/bin/"* 2>/dev/null || $SUDO chmod +x "$DIR/bin/"* 2>/dev/null || true
-chmod +x "$DIR/"*.sh 2>/dev/null || $SUDO chmod +x "$DIR/"*.sh 2>/dev/null || true
+# Ensure known binaries and helper scripts are executable. Keep this list
+# explicit so updates never make arbitrary dropped files executable.
+mark_executable_if_present() {
+    local path="$1"
+    [ -f "$path" ] || return 0
+    chmod +x "$path" 2>/dev/null || $SUDO chmod +x "$path" 2>/dev/null || true
+}
+
+for _exe in \
+    "$DIR/bin/aurago_linux" \
+    "$DIR/bin/aurago_linux_amd64" \
+    "$DIR/bin/aurago_linux_arm64" \
+    "$DIR/bin/lifeboat" \
+    "$DIR/bin/lifeboat_linux" \
+    "$DIR/bin/lifeboat_linux_amd64" \
+    "$DIR/bin/lifeboat_linux_arm64" \
+    "$DIR/bin/config-merger_linux" \
+    "$DIR/bin/config-merger_linux_amd64" \
+    "$DIR/bin/config-merger_linux_arm64" \
+    "$DIR/bin/aurago-remote_linux" \
+    "$DIR/bin/aurago-remote_linux_amd64" \
+    "$DIR/bin/aurago-remote_linux_arm64" \
+    "$DIR/start.sh" \
+    "$DIR/update.sh" \
+    "$DIR/install_service_linux.sh" \
+    "$DIR/make_deploy.sh"; do
+    mark_executable_if_present "$_exe"
+done
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──
 SVC_FILE="/etc/systemd/system/aurago.service"

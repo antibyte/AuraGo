@@ -257,6 +257,13 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	if !regexp.MustCompile(`(?m)^NoNewPrivileges=true$`).Match(service) {
 		t.Fatal("install_service_linux.sh must enable NoNewPrivileges=true by default")
 	}
+
+	updateScript := readRepoFile(t, "update.sh")
+	for _, forbidden := range []string{`chmod +x "$DIR/bin/"*`, `chmod +x "$DIR/"*.sh`} {
+		if strings.Contains(updateScript, forbidden) {
+			t.Fatalf("update.sh must not apply executable permissions with broad globs: %s", forbidden)
+		}
+	}
 }
 
 func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
