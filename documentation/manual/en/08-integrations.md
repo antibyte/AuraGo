@@ -1184,6 +1184,8 @@ a2a:
     bearer_enabled: true
 ```
 
+The public agent card stays unauthenticated for discovery. All other A2A endpoints require at least one configured auth method; store the API key or bearer secret in the Vault before exposing the server.
+
 ## Music Generation Integration
 
 AI music generation via supported providers.

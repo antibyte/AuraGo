@@ -931,6 +931,8 @@ a2a:
     bearer_enabled: true
 ```
 
+Die öffentliche Agent Card bleibt für Discovery ohne Authentifizierung erreichbar. Alle anderen A2A-Endpunkte benötigen mindestens eine konfigurierte Auth-Methode; API-Key oder Bearer-Secret müssen vor dem Exponieren im Vault liegen.
+
 ## Music Generation
 
 KI-Musik-Generierung über unterstützte Provider.

@@ -95,11 +95,11 @@ func (s *Server) StartDedicatedServer(ctx context.Context) error {
 	}
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	// Warn when the A2A port is bound to all interfaces without authentication.
-	// In this state any internet client can reach the agent-to-agent API.
+	// Warn when the A2A port is bound to all interfaces without usable authentication.
+	// Protected endpoints will reject requests until one A2A auth method is configured.
 	if (host == "0.0.0.0" || host == "") &&
 		!s.cfg.A2A.Auth.APIKeyEnabled && !s.cfg.A2A.Auth.BearerEnabled {
-		s.logger.Warn("[A2A] Dedicated server is listening on all interfaces without authentication — "+
+		s.logger.Warn("[A2A] Dedicated server is listening on all interfaces but authentication is not configured — "+
 			"set a2a.auth.api_key_enabled or a2a.auth.bearer_enabled in config",
 			"addr", addr)
 	}

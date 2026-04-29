@@ -20,8 +20,7 @@ func AuthMiddleware(cfg *config.Config, next http.Handler) http.Handler {
 
 		auth := &cfg.A2A.Auth
 		if !auth.APIKeyEnabled && !auth.BearerEnabled {
-			// No authentication configured — allow all
-			next.ServeHTTP(w, r)
+			http.Error(w, "A2A authentication is not configured", http.StatusUnauthorized)
 			return
 		}
 

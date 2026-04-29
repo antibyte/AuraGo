@@ -15,7 +15,7 @@ func okHandler() http.Handler {
 	})
 }
 
-func TestAuthMiddleware_NoAuthConfigured(t *testing.T) {
+func TestAuthMiddleware_NoAuthConfiguredDeniesProtectedEndpoints(t *testing.T) {
 	cfg := &config.Config{}
 	handler := AuthMiddleware(cfg, okHandler())
 
@@ -23,8 +23,8 @@ func TestAuthMiddleware_NoAuthConfigured(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
 	}
 }
 
