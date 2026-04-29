@@ -20,5 +20,7 @@ func configureToolRuntimePermissions(cfg *config.Config) {
 		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
 		MissionsEnabled:      cfg.Tools.Missions.Enabled,
 		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
+		MQTTEnabled:          cfg.MQTT.Enabled,
+		MQTTReadOnly:         cfg.MQTT.ReadOnly,
 	})
 }

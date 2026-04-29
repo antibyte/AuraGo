@@ -46,6 +46,9 @@ func RegisterMQTTBridge(
 
 // MQTTPublish publishes a message to an MQTT topic via the registered bridge.
 func MQTTPublish(topic, payload string, qos int, retain bool, logger *slog.Logger) error {
+	if err := requireMQTTPublishPermission(); err != nil {
+		return err
+	}
 	mqttMu.RLock()
 	fn := mqttPublishFunc
 	mqttMu.RUnlock()
@@ -57,6 +60,9 @@ func MQTTPublish(topic, payload string, qos int, retain bool, logger *slog.Logge
 
 // MQTTSubscribe subscribes to an MQTT topic via the registered bridge.
 func MQTTSubscribe(topic string, qos int, logger *slog.Logger) error {
+	if err := requireMQTTPermission(); err != nil {
+		return err
+	}
 	mqttMu.RLock()
 	fn := mqttSubscribeFunc
 	mqttMu.RUnlock()
@@ -68,6 +74,9 @@ func MQTTSubscribe(topic string, qos int, logger *slog.Logger) error {
 
 // MQTTUnsubscribe unsubscribes from an MQTT topic via the registered bridge.
 func MQTTUnsubscribe(topic string, logger *slog.Logger) error {
+	if err := requireMQTTPermission(); err != nil {
+		return err
+	}
 	mqttMu.RLock()
 	fn := mqttUnsubFunc
 	mqttMu.RUnlock()
@@ -79,6 +88,9 @@ func MQTTUnsubscribe(topic string, logger *slog.Logger) error {
 
 // MQTTGetMessages retrieves recently received MQTT messages via the registered bridge.
 func MQTTGetMessages(topic string, limit int, logger *slog.Logger) ([]MQTTMessage, error) {
+	if err := requireMQTTPermission(); err != nil {
+		return nil, err
+	}
 	mqttMu.RLock()
 	fn := mqttMessagesFunc
 	mqttMu.RUnlock()

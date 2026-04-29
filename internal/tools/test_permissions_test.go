@@ -15,6 +15,7 @@ func defaultRuntimePermissionsForTests() RuntimePermissions {
 		DockerReadOnly:       false,
 		SchedulerEnabled:     true,
 		MissionsEnabled:      true,
+		MQTTEnabled:          true,
 	}
 }
 

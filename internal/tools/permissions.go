@@ -17,6 +17,8 @@ type RuntimePermissions struct {
 	SchedulerReadOnly    bool
 	MissionsEnabled      bool
 	MissionsReadOnly     bool
+	MQTTEnabled          bool
+	MQTTReadOnly         bool
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
@@ -111,6 +113,25 @@ func requireMissionMutationPermission() error {
 	}
 	if perms.MissionsReadOnly {
 		return fmt.Errorf("mission mutation is disabled by runtime permissions")
+	}
+	return nil
+}
+
+func requireMQTTPermission() error {
+	perms, configured := currentRuntimePermissions()
+	if !configured {
+		return requireRuntimePermission("mqtt", false)
+	}
+	return requireRuntimePermission("mqtt", perms.MQTTEnabled)
+}
+
+func requireMQTTPublishPermission() error {
+	if err := requireMQTTPermission(); err != nil {
+		return err
+	}
+	perms, _ := currentRuntimePermissions()
+	if perms.MQTTReadOnly {
+		return fmt.Errorf("mqtt publish is disabled by runtime permissions")
 	}
 	return nil
 }
