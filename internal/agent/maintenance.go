@@ -308,7 +308,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 func personalityMaintenance(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
 	// 1. Trait decay: nudge all traits toward 0.5, respecting the personality profile's decay rate
 	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
-	decayAmount := 0.002 * meta.TraitDecayRate
+	// Decay amount was previously 0.002 which is practically invisible (250 days to decay from 1.0 to 0.5).
+	// Raised to 0.02 so traits meaningfully return toward neutral over ~25 days while still preserving
+	// developed personality when interactions are frequent.
+	decayAmount := 0.02 * meta.TraitDecayRate
 	if err := stm.DecayAllTraitsWeighted(decayAmount, meta); err != nil {
 		logger.Error("[Personality] Trait decay failed", "error", err)
 	} else {

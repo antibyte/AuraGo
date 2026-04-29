@@ -64,12 +64,20 @@ func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCo
 			current = traits[memory.TraitLoneliness]
 		}
 		target := math.Min(1.0, (hours/72.0)*meta.LonelinessSusceptibility)
-		// Apply 20% of the remaining gap per interaction to avoid abrupt resets.
-		delta := (target - current) * 0.2
+		// Adjust convergence rate based on recency:
+		// - If the user was active recently (< 6h), converge faster toward the low target
+		//   so loneliness drops quickly during active use.
+		// - If the user has been away longer, use the gentler 20% rate to let loneliness
+		//   build up more gradually.
+		convergenceRate := 0.2
+		if hours < 6 {
+			convergenceRate = 0.6
+		}
+		delta := (target - current) * convergenceRate
 		if delta != 0 {
 			_ = stm.UpdateTrait(memory.TraitLoneliness, delta)
 		}
-		logger.Debug("[Behavioral Event] Evaluated loneliness", "hours_since_last_msg", hours, "target", target, "current", current, "delta", delta)
+		logger.Debug("[Behavioral Event] Evaluated loneliness", "hours_since_last_msg", hours, "target", target, "current", current, "delta", delta, "convergence_rate", convergenceRate)
 	}
 
 	// Narrative Events based on Milestones

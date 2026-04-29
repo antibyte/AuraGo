@@ -177,13 +177,17 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 		return 0, fmt.Errorf("failed to query last user message: %w", err)
 	}
 
-	// timestamp is stored as 'YYYY-MM-DD HH:MM:SS' by CURRENT_TIMESTAMP
-	// In SQLite CURRENT_TIMESTAMP is UTC, so parse as UTC
+	// timestamp is stored as 'YYYY-MM-DD HH:MM:SS' by CURRENT_TIMESTAMP.
+	// Some SQLite builds or drivers return ISO-8601 (e.g. 2026-04-29T17:08:38Z),
+	// so we try both formats.
 	lastInteraction, err := time.Parse("2006-01-02 15:04:05", timestampStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse timestamp '%s': %w", timestampStr, err)
+		lastInteraction, err = time.Parse(time.RFC3339, timestampStr)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse timestamp '%s': %w", timestampStr, err)
+		}
 	}
-	// Parse as UTC since that's how SQLite stores CURRENT_TIMESTAMP
+	// Ensure UTC comparison
 	lastInteraction = lastInteraction.UTC()
 
 	// time.Now().UTC() matches CURRENT_TIMESTAMP on the server

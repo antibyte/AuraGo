@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -165,6 +166,25 @@ func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logge
 	logger.Debug("[User Profiling] Profile updates applied", "count", count)
 }
 
+// dampenTraitDelta reduces the magnitude of a trait update as the trait approaches
+// the extremes (0.0 or 1.0). This prevents traits from saturating at 1.0 and staying
+// there indefinitely because the daily decay is too small to overcome repeated small
+// positive LLM deltas.
+//   distanceFromCenter = abs(current - 0.5)
+//   dampening          = 1.0 - distanceFromCenter*0.6
+// Examples:
+//   current=0.5  → dampening=1.0  (no reduction)
+//   current=0.9  → dampening=0.76 (24% reduction)
+//   current=0.99 → dampening=0.70 (30% reduction)
+func dampenTraitDelta(current, delta float64) float64 {
+	dist := math.Abs(current - 0.5)
+	dampening := 1.0 - dist*0.6
+	if dampening < 0.3 {
+		dampening = 0.3
+	}
+	return delta * dampening
+}
+
 func applyPersonalityV2AnalysisResult(
 	sessionID string,
 	cfg *config.Config,
@@ -186,9 +206,17 @@ func applyPersonalityV2AnalysisResult(
 	}
 
 	_ = stm.LogMood(result.Mood, triggerInfo)
+
+	// Fetch current traits so we can dampen deltas near the extremes.
+	currentTraits, _ := stm.GetTraits()
+	if currentTraits == nil {
+		currentTraits = memory.PersonalityTraits{}
+	}
+
 	for trait, delta := range result.TraitDeltas {
-		if err := stm.UpdateTrait(trait, delta); err != nil {
-			logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", delta, "error", err)
+		damped := dampenTraitDelta(currentTraits[trait], delta)
+		if err := stm.UpdateTrait(trait, damped); err != nil {
+			logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", damped, "error", err)
 		}
 	}
 	if err := stm.UpdateTrait(memory.TraitAffinity, result.AffinityDelta); err != nil {

@@ -7,6 +7,8 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func newTestPersonalityRuntimeMemory(t *testing.T) *memory.SQLiteMemory {
@@ -18,6 +20,9 @@ func newTestPersonalityRuntimeMemory(t *testing.T) *memory.SQLiteMemory {
 	}
 	if err := stm.InitEmotionTables(); err != nil {
 		t.Fatalf("InitEmotionTables: %v", err)
+	}
+	if err := stm.InitPersonalityTables(); err != nil {
+		t.Fatalf("InitPersonalityTables: %v", err)
 	}
 	t.Cleanup(func() { _ = stm.Close() })
 	return stm
@@ -75,6 +80,38 @@ func TestNormalizeHelperTurnPersonalityResultDefaultsMissingOptionalMoodFields(t
 	}
 	if got.AffinityDelta != 0 {
 		t.Fatalf("AffinityDelta = %v, want 0", got.AffinityDelta)
+	}
+}
+
+func TestDampenTraitDeltaReducesNearExtremes(t *testing.T) {
+	// At center (0.5) there should be no dampening.
+	if got := dampenTraitDelta(0.5, 0.1); got != 0.1 {
+		t.Errorf("dampenTraitDelta(0.5, 0.1) = %.4f, want 0.1", got)
+	}
+
+	// Near high extreme (0.9): dampening ≈ 1.0 - 0.4*0.6 = 0.76
+	// So a +0.1 delta becomes ~0.076.
+	got := dampenTraitDelta(0.9, 0.1)
+	if got < 0.07 || got > 0.08 {
+		t.Errorf("dampenTraitDelta(0.9, 0.1) = %.4f, want ~0.076", got)
+	}
+
+	// Near low extreme (0.1): same dampening factor for negative deltas.
+	got = dampenTraitDelta(0.1, -0.1)
+	if got < -0.08 || got > -0.07 {
+		t.Errorf("dampenTraitDelta(0.1, -0.1) = %.4f, want ~-0.076", got)
+	}
+
+	// Very close to ceiling (0.99): dampening ≈ 1.0 - 0.49*0.6 = 0.706
+	got = dampenTraitDelta(0.99, 0.1)
+	if got < 0.065 || got > 0.075 {
+		t.Errorf("dampenTraitDelta(0.99, 0.1) = %.4f, want ~0.0706", got)
+	}
+
+	// At 1.0: dist=0.5, dampening=1.0-0.5*0.6=0.7, so delta=0.07.
+	got = dampenTraitDelta(1.0, 0.1)
+	if got < 0.069 || got > 0.071 {
+		t.Errorf("dampenTraitDelta(1.0, 0.1) = %.4f, want ~0.07", got)
 	}
 }
 
@@ -136,5 +173,49 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	}
 	if len(entries) == 0 || entries[0].Key != "language" || entries[0].Value != "go" {
 		t.Fatalf("profile entries = %#v", entries)
+	}
+}
+
+func TestProcessBehavioralEventsLonelinessConvergesFasterWhenActive(t *testing.T) {
+	stm := newTestPersonalityRuntimeMemory(t)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	// Seed loneliness to a high value so we can observe the drop.
+	if err := stm.SetTrait(memory.TraitLoneliness, 0.8); err != nil {
+		t.Fatalf("SetTrait loneliness: %v", err)
+	}
+
+	// Simulate an active session with a very recent user message (< 6 hours).
+	_, err := stm.InsertMessage("test-session", "user", "hello", false, false)
+	if err != nil {
+		t.Fatalf("InsertMessage: %v", err)
+	}
+
+	// Verify the message is readable and hours are near zero.
+	hours, err := stm.GetHoursSinceLastUserMessage("test-session")
+	if err != nil {
+		t.Fatalf("GetHoursSinceLastUserMessage: %v", err)
+	}
+	if hours > 1 {
+		t.Fatalf("expected recent message (<1h), got %.2f hours", hours)
+	}
+
+	msgs := []openai.ChatCompletionMessage{}
+	meta := memory.PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0, LonelinessSusceptibility: 1.0}
+	processBehavioralEvents(stm, &msgs, "test-session", meta, logger)
+
+	traits, err := stm.GetTraits()
+	if err != nil {
+		t.Fatalf("GetTraits: %v", err)
+	}
+	loneliness := traits[memory.TraitLoneliness]
+
+	// With the faster convergence rate (0.6 instead of 0.2) for recent activity,
+	// loneliness should drop noticeably from 0.8 toward the target (~0.0 for recent activity).
+	// target = min(1.0, (0/72)*1.0) = 0.0
+	// delta = (0 - 0.8) * 0.6 = -0.48
+	// new value = 0.8 - 0.48 = 0.32
+	if loneliness > 0.5 {
+		t.Errorf("loneliness after recent activity = %.4f, expected significant drop below 0.5 due to faster convergence (target ~0, convergence 0.6)", loneliness)
 	}
 }
