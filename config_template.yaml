@@ -240,6 +240,8 @@ home_assistant:
     access_token: ""
     enabled: false
     url: ""
+    allowed_services: []                                  # explicit call_service allowlist; empty blocks service calls
+    blocked_services: []                                  # explicit denylist, evaluated before allowed_services
 homepage:
     enabled: false
     allow_deploy: false

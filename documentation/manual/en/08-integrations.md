@@ -135,7 +135,14 @@ home_assistant:
     enabled: true
     url: http://homeassistant.local:8123
     access_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+    allowed_services:
+      - "light.turn_on"
+      - "light.turn_off"
+    blocked_services:
+      - "lock.unlock"
 ```
+
+`allowed_services` is an explicit allowlist for `call_service`; leave it empty to block service calls while still allowing state reads.
 
 ---
 

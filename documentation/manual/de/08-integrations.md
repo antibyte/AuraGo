@@ -136,7 +136,14 @@ Steuere Smart-Home-Geräte über AuraGo.
 home_assistant:
   enabled: true
   url: "http://homeassistant.local:8123"
+  allowed_services:
+    - "light.turn_on"
+    - "light.turn_off"
+  blocked_services:
+    - "lock.unlock"
 ```
+
+`allowed_services` ist eine explizite Allowlist für `call_service`; leer blockiert Service-Aufrufe, während Statusabfragen weiter möglich sind.
 
 ## MQTT Integration
 

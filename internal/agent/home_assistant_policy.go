@@ -13,7 +13,7 @@ func homeAssistantServiceGate(domain, service string, allowedServices, blockedSe
 		}
 	}
 	if len(allowedServices) == 0 {
-		return ""
+		return "Home Assistant service " + full + " is not allowed because home_assistant.allowed_services is empty"
 	}
 	for _, allowed := range allowedServices {
 		if normalizeHomeAssistantService(allowed) == full {
