@@ -798,6 +798,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Home Assistant is in read-only mode. Disable home_assistant.read_only to allow changes."}`
 				}
 			}
+			if req.Operation == "call_service" || req.Operation == "service" {
+				if msg := homeAssistantServiceGate(req.Domain, req.Service, cfg.HomeAssistant.AllowedServices, cfg.HomeAssistant.BlockedServices); msg != "" {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, msg)
+				}
+			}
 			haCfg := tools.HAConfig{
 				URL:         cfg.HomeAssistant.URL,
 				AccessToken: cfg.HomeAssistant.AccessToken,

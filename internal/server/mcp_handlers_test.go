@@ -333,6 +333,7 @@ func TestBuildRuntimeMCPConfigsResolvesSafeWorkdirAndSecrets(t *testing.T) {
 		HostWorkdir:      "../unsafe",
 		ContainerWorkdir: "/workspace",
 		Env:              map[string]string{"API_KEY": "{{api-token}}"},
+		AllowedTools:     []string{"understand_image"},
 	}}
 
 	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
@@ -355,5 +356,8 @@ func TestBuildRuntimeMCPConfigsResolvesSafeWorkdirAndSecrets(t *testing.T) {
 	expectedRoot := filepath.Join(workspaceDir, "mcp", "minimax")
 	if configs[0].HostWorkdir != expectedRoot {
 		t.Fatalf("HostWorkdir = %q, want %q", configs[0].HostWorkdir, expectedRoot)
+	}
+	if len(configs[0].AllowedTools) != 1 || configs[0].AllowedTools[0] != "understand_image" {
+		t.Fatalf("AllowedTools = %#v, want understand_image", configs[0].AllowedTools)
 	}
 }

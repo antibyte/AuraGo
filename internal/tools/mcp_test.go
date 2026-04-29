@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -185,7 +186,7 @@ func TestMCPManagerListServersReconnectsConfiguredServer(t *testing.T) {
 	mgr := &MCPManager{
 		conns: map[string]*mcpConn{},
 		configs: map[string]MCPServerConfig{
-			"minimax": {Name: "minimax", Command: "uvx", Enabled: true},
+			"minimax": {Name: "minimax", Command: "uvx", Enabled: true, AllowedTools: []string{"tts"}},
 		},
 		logger: logger,
 	}
@@ -242,7 +243,7 @@ func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
 	mgr := &MCPManager{
 		conns: map[string]*mcpConn{},
 		configs: map[string]MCPServerConfig{
-			"minimax": {Name: "minimax", Command: "uvx", Enabled: true},
+			"minimax": {Name: "minimax", Command: "uvx", Enabled: true, AllowedTools: []string{"tts"}},
 		},
 		logger: logger,
 	}
@@ -256,5 +257,19 @@ func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
 	}
 	if startCalls != 2 {
 		t.Fatalf("startCalls = %d, want 2", startCalls)
+	}
+}
+
+func TestMCPManagerCallToolEnforcesAllowedTools(t *testing.T) {
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", AllowedTools: []string{"allowed_tool"}},
+		},
+		conns:  map[string]*mcpConn{},
+		logger: slog.Default(),
+	}
+
+	if _, err := mgr.CallTool("safe", "blocked_tool", nil); err == nil || !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("CallTool error = %v, want allowlist denial", err)
 	}
 }

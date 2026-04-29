@@ -596,10 +596,12 @@ type Config struct {
 		WatchFolder   string `yaml:"watch_folder"`
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
 	HomeAssistant struct {
-		Enabled     bool   `yaml:"enabled"`
-		ReadOnly    bool   `yaml:"readonly"` // true = only read states, block call_service
-		URL         string `yaml:"url"`
-		AccessToken string `yaml:"-" vault:"access_token"` // vault-only
+		Enabled         bool     `yaml:"enabled"`
+		ReadOnly        bool     `yaml:"readonly"`               // true = only read states, block call_service
+		URL             string   `yaml:"url"`                    // Home Assistant base URL
+		AllowedServices []string `yaml:"allowed_services"`       // optional allowlist for call_service, e.g. light.turn_on; empty = all except blocked_services
+		BlockedServices []string `yaml:"blocked_services"`       // explicit denylist for call_service, e.g. lock.unlock
+		AccessToken     string   `yaml:"-" vault:"access_token"` // vault-only
 	} `yaml:"home_assistant"`
 	FritzBox struct {
 		Enabled  bool   `yaml:"enabled"`
@@ -1627,6 +1629,7 @@ type MCPServer struct {
 	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
 	HostWorkdir        string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
 	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	AllowedTools       []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // tool names this server may execute; empty = none
 }
 
 // MCPSecret stores a vault-backed MCP secret alias visible in the config UI.

@@ -37,6 +37,7 @@ type MCPServerConfig struct {
 	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
 	HostWorkdir        string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
 	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	AllowedTools       []string          `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
 	Secrets            map[string]string `yaml:"-"                        json:"-"`
 }
 
@@ -834,6 +835,9 @@ func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]
 		s   string
 		err error
 	}
+	if err := m.requireToolAllowed(serverName, toolName); err != nil {
+		return "", err
+	}
 
 	attempts := mcpMaxRetries + 1
 	for attempt := 0; attempt < attempts; attempt++ {
@@ -872,6 +876,31 @@ func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]
 		}
 	}
 	return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
+}
+
+func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
+	if m == nil {
+		return fmt.Errorf("MCP manager not initialized")
+	}
+	m.mu.Lock()
+	cfg, ok := m.configs[serverName]
+	m.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("MCP server %q not configured", serverName)
+	}
+	allowed := make(map[string]struct{}, len(cfg.AllowedTools))
+	for _, name := range cfg.AllowedTools {
+		if trimmed := strings.TrimSpace(name); trimmed != "" {
+			allowed[trimmed] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return fmt.Errorf("MCP tool calls are disabled for server %q because allowed_tools is empty", serverName)
+	}
+	if _, ok := allowed[toolName]; !ok {
+		return fmt.Errorf("MCP tool %q is not allowed for server %q", toolName, serverName)
+	}
+	return nil
 }
 
 // Close shuts down all MCP server connections.

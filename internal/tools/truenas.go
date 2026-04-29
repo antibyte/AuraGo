@@ -132,6 +132,9 @@ func TrueNASPoolScrub(cfg config.TrueNASConfig, poolID int64, logger *slog.Logge
 	if cfg.ReadOnly {
 		return errJSON("Pool scrubbing is disabled (readonly mode)")
 	}
+	if !cfg.AllowDestructive {
+		return errJSON("Pool scrubbing is disabled (allow_destructive: false)")
+	}
 
 	client, err := truenas.NewClient(cfg, nil)
 	if err != nil {

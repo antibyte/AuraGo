@@ -99,6 +99,7 @@ func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logge
 			AllowLocalFallback: srv.AllowLocalFallback,
 			HostWorkdir:        resolveMCPHostWorkdir(cfg, srv, logger),
 			ContainerWorkdir:   strings.TrimSpace(srv.ContainerWorkdir),
+			AllowedTools:       append([]string(nil), srv.AllowedTools...),
 			Secrets:            mapsCloneStringString(secretValues),
 		})
 	}
