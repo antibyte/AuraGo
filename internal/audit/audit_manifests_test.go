@@ -259,6 +259,37 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 }
 
+func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
+	t.Parallel()
+
+	var combined strings.Builder
+	entries, err := os.ReadDir(repoPath(".github", "workflows"))
+	if err != nil {
+		t.Fatalf("read workflows: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yml" && ext != ".yaml" {
+			continue
+		}
+		combined.WriteString(readRepoFile(t, filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))))
+		combined.WriteByte('\n')
+	}
+	workflowText := combined.String()
+	for _, needle := range []string{
+		"actions/setup-go",
+		"go test ./...",
+		"golang/govulncheck-action",
+	} {
+		if !strings.Contains(workflowText, needle) {
+			t.Fatalf("CI workflows must include %q", needle)
+		}
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 
