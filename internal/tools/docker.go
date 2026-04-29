@@ -149,10 +149,23 @@ func validateDockerName(name string) error {
 
 // dockerRequest performs a request against the Docker Engine API.
 func dockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
-	if err := requireDockerPermission(); err != nil {
+	if dockerMethodMutates(method) {
+		if err := requireDockerMutationPermission(); err != nil {
+			return nil, 0, err
+		}
+	} else if err := requireDockerPermission(); err != nil {
 		return nil, 0, err
 	}
 	return dockerRequestWithRetry(cfg, method, endpoint, body, 3)
+}
+
+func dockerMethodMutates(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case http.MethodGet, http.MethodHead, "":
+		return false
+	default:
+		return true
+	}
 }
 
 // dockerRequestWithRetry performs a request against the Docker Engine API with retry logic.

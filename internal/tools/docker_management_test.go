@@ -8,6 +8,32 @@ import (
 	"testing"
 )
 
+func TestDockerMutationsDenyWhenRuntimeReadOnly(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true, DockerReadOnly: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	result := DockerCreateContainer(DockerConfig{}, "test", "alpine:latest", nil, nil, nil, nil, "")
+	if !strings.Contains(result, "docker mutation is disabled") {
+		t.Fatalf("DockerCreateContainer = %s, want docker readonly denial", result)
+	}
+
+	if _, _, err := DockerRequest(DockerConfig{}, "POST", "/containers/test/start", ""); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
+		t.Fatalf("DockerRequest mutation error = %v, want docker readonly denial", err)
+	}
+
+	copyResult := DockerCopy(DockerConfig{WorkspaceDir: t.TempDir()}, "container-1", "src.txt", "dest.txt", "to_container")
+	if !strings.Contains(copyResult, "docker mutation is disabled") {
+		t.Fatalf("DockerCopy = %s, want docker readonly denial", copyResult)
+	}
+
+	composeResult := DockerCompose(DockerConfig{}, "docker-compose.yml", "up -d")
+	if !strings.Contains(composeResult, "docker mutation is disabled") {
+		t.Fatalf("DockerCompose = %s, want docker readonly denial", composeResult)
+	}
+}
+
 func TestValidateDockerCopyContainerPathRejectsTraversal(t *testing.T) {
 	_, err := validateDockerCopyContainerPath("../../etc/shadow")
 	if err == nil {

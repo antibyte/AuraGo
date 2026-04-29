@@ -12,6 +12,7 @@ func defaultRuntimePermissionsForTests() RuntimePermissions {
 		AllowFilesystemWrite: true,
 		AllowNetworkRequests: true,
 		DockerEnabled:        true,
+		DockerReadOnly:       false,
 		SchedulerEnabled:     true,
 	}
 }

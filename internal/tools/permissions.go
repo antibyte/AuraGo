@@ -12,6 +12,7 @@ type RuntimePermissions struct {
 	AllowFilesystemWrite bool
 	AllowNetworkRequests bool
 	DockerEnabled        bool
+	DockerReadOnly       bool
 	SchedulerEnabled     bool
 	SchedulerReadOnly    bool
 }
@@ -71,6 +72,17 @@ func requireDockerPermission() error {
 		return requireRuntimePermission("docker", false)
 	}
 	return requireRuntimePermission("docker", perms.DockerEnabled)
+}
+
+func requireDockerMutationPermission() error {
+	if err := requireDockerPermission(); err != nil {
+		return err
+	}
+	perms, _ := currentRuntimePermissions()
+	if perms.DockerReadOnly {
+		return fmt.Errorf("docker mutation is disabled by runtime permissions")
+	}
+	return nil
 }
 
 func requireSchedulerPermission(operation string) error {

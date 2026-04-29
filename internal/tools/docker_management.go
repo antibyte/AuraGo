@@ -589,6 +589,9 @@ func dockerCLIArgs(cfg DockerConfig, args ...string) []string {
 
 // DockerCopy uses CLI to copy files to/from container.
 func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) string {
+	if err := requireDockerMutationPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}
@@ -676,9 +679,23 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if err != nil {
 		return errJSON("%v", err)
 	}
+	if !dockerComposeReadOnlySubcommand(parts[0]) {
+		if err := requireDockerMutationPermission(); err != nil {
+			return errJSON("%v", err)
+		}
+	}
 	args := []string{"compose", "-f", file}
 	args = append(args, parts...)
 	return runDockerCLIHelper(cfg, args...)
+}
+
+func dockerComposeReadOnlySubcommand(subcommand string) bool {
+	switch subcommand {
+	case "ps", "logs", "config", "images", "version", "events", "port", "ls", "top":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateDockerBindMount(cfg DockerConfig, bind string) error {
