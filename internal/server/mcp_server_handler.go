@@ -213,6 +213,9 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 	cfg := s.Cfg
 	allowed := mcpEffectiveAllowedTools(cfg)
 	s.CfgMu.RUnlock()
+	if len(allowed) == 0 {
+		return nil
+	}
 
 	allowSet := make(map[string]bool, len(allowed))
 	for _, name := range allowed {
@@ -222,8 +225,7 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 	var result []mcpToolSchema
 	for _, t := range mcpBuildToolCatalog(s) {
 		name := t.Name
-		// Filter by allowlist (empty = allow all)
-		if len(allowSet) > 0 && !allowSet[name] {
+		if !allowSet[name] {
 			continue
 		}
 		result = append(result, t)

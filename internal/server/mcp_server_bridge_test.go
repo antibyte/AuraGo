@@ -24,6 +24,22 @@ func TestMCPEffectiveAllowedToolsUsesVSCodePreset(t *testing.T) {
 	}
 }
 
+func TestMCPBuildToolListRequiresExplicitAllowedTools(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.MCPServer.Enabled = true
+
+	s := &Server{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	if tools := mcpBuildToolList(s); len(tools) != 0 {
+		t.Fatalf("mcpBuildToolList with empty allowlist returned %d tools, want none", len(tools))
+	}
+}
+
 func TestBuildVSCodeBridgeConfigSnippet(t *testing.T) {
 	snippet, err := buildVSCodeBridgeConfigSnippet("https://aurago.example/mcp")
 	if err != nil {

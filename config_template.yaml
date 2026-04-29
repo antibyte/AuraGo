@@ -925,7 +925,7 @@ ai_gateway:
     gateway_id: ""
 mcp_server:
     enabled: false
-    allowed_tools: []
+    allowed_tools: []                              # explicit server-side tool allowlist; empty = no exposed tools
     require_auth: true
     vscode_debug_bridge: false
 ldap:

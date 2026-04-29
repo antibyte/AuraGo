@@ -506,6 +506,8 @@ mcp_server:
         - "filesystem"
 ```
 
+`allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
+
 ---
 
 ## Jellyfin Integration

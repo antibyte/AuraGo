@@ -505,6 +505,8 @@ mcp_server:
     - "filesystem"
 ```
 
+`allowed_tools` ist eine explizite serverseitige Allowlist. Leer veröffentlicht keine AuraGo-Tools; `vscode_debug_bridge` nutzt ein eigenes begrenztes Debugging-Preset.
+
 ## SQL Connections – Externe Datenbanken
 
 Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
