@@ -1033,7 +1033,7 @@ type Config struct {
 		DiscoveryPort      int      `yaml:"discovery_port"`        // UDP broadcast discovery port (default: 8092)
 		MaxFileSizeMB      int      `yaml:"max_file_size_mb"`      // max file read/write size in MB (default: 50)
 		AutoApprove        bool     `yaml:"auto_approve"`          // auto-approve new devices (NOT recommended)
-		AllowedPaths       []string `yaml:"allowed_paths"`         // global path whitelist (empty = all)
+		AllowedPaths       []string `yaml:"allowed_paths"`         // global path whitelist for remote file operations; empty = block file paths
 		AuditLog           bool     `yaml:"audit_log"`             // log all operations (default: true)
 		SSHInsecureHostKey bool     `yaml:"ssh_insecure_host_key"` // skip SSH host key verification (disables MITM protection)
 	} `yaml:"remote_control"`

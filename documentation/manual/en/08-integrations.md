@@ -660,7 +660,11 @@ Receive commands from other AuraGo instances.
 remote_control:
     enabled: true
     discovery_port: 8092
+    allowed_paths:
+      - "/home/aurago"
 ```
+
+`allowed_paths` is an explicit allowlist for remote file operations. Leave it empty to block remote file reads, writes, and directory listings.
 
 ---
 

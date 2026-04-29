@@ -558,7 +558,7 @@ remote_control:
     discovery_port: 8092
     max_file_size_mb: 50
     auto_approve: false
-    allowed_paths: []
+    allowed_paths: []                                      # remote file-operation whitelist; empty blocks file reads/writes/lists
     audit_log: true
 browser_automation:
     enabled: false

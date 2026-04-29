@@ -724,7 +724,11 @@ Empfange Fernsteuerungs-Befehle von anderen AuraGo-Instanzen.
 remote_control:
   enabled: true
   discovery_port: 8092
+  allowed_paths:
+    - "/home/aurago"
 ```
+
+`allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen. Leer blockiert Remote-Dateilesen, -schreiben und Verzeichnislisten.
 
 ## Sandbox
 
