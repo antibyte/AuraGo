@@ -264,6 +264,17 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 			t.Fatalf("update.sh must not apply executable permissions with broad globs: %s", forbidden)
 		}
 	}
+	for _, required := range []string{
+		"backup_current_aurago_binary()",
+		"restore_previous_aurago_binary()",
+		"apply_aurago_setcap_if_available()",
+		"restore_previous_aurago_binary",
+		"systemd start failed health check",
+	} {
+		if !strings.Contains(updateScript, required) {
+			t.Fatalf("update.sh must include restart rollback/setcap guard %q", required)
+		}
+	}
 }
 
 func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {

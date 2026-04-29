@@ -579,6 +579,36 @@ section "Backing up user data"
 BACKUP_DIR="$(mktemp -d /tmp/aurago-backup-XXXXXX)"
 info "Backup location: $BACKUP_DIR"
 
+backup_current_aurago_binary() {
+    mkdir -p "$BACKUP_DIR/bin"
+    for _bin in aurago_linux aurago; do
+        if [ -f "$DIR/bin/$_bin" ]; then
+            cp -p "$DIR/bin/$_bin" "$BACKUP_DIR/bin/$_bin"
+            ok "Backed up binary: bin/$_bin"
+        fi
+    done
+}
+
+restore_previous_aurago_binary() {
+    local restored=false
+    for _bin in aurago_linux aurago; do
+        if [ -f "$BACKUP_DIR/bin/$_bin" ]; then
+            cp -p "$BACKUP_DIR/bin/$_bin" "$DIR/bin/$_bin"
+            mark_executable_if_present "$DIR/bin/$_bin"
+            restored=true
+        fi
+    done
+    if $restored; then
+        apply_aurago_setcap_if_available
+        warn "Restored previous AuraGo binary after failed restart."
+        return 0
+    fi
+    warn "No previous AuraGo binary was available for rollback."
+    return 1
+}
+
+backup_current_aurago_binary
+
 for f in "${PROTECTED_FILES[@]}"; do
     if [ -f "$DIR/$f" ]; then
         cp -p "$DIR/$f" "$BACKUP_DIR/$(basename "$f")"
@@ -1106,6 +1136,16 @@ mark_executable_if_present() {
     chmod +x "$path" 2>/dev/null || $SUDO chmod +x "$path" 2>/dev/null || true
 }
 
+apply_aurago_setcap_if_available() {
+    local binary="$DIR/bin/aurago_linux"
+    [ -f "$binary" ] || binary="$DIR/bin/aurago"
+    [ -f "$binary" ] || return 0
+    command -v setcap >/dev/null 2>&1 || return 0
+    setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
+        $SUDO setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
+        warn "setcap failed on ${binary} — run manually if you need HTTPS on privileged ports."
+}
+
 for _exe in \
     "$DIR/bin/aurago_linux" \
     "$DIR/bin/aurago_linux_amd64" \
@@ -1126,6 +1166,7 @@ for _exe in \
     "$DIR/make_deploy.sh"; do
     mark_executable_if_present "$_exe"
 done
+apply_aurago_setcap_if_available
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──
 SVC_FILE="/etc/systemd/system/aurago.service"
@@ -1168,7 +1209,15 @@ elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.se
         if systemctl is-active --quiet aurago 2>/dev/null; then
             ok "Service started successfully via systemd."
         else
-            warn "systemd start reported OK but service not active — check: sudo journalctl -u aurago -n 50"
+            warn "systemd start failed health check — rolling back to previous binary."
+            if restore_previous_aurago_binary; then
+                $SUDO systemctl start aurago 2>/dev/null || true
+            fi
+            if systemctl is-active --quiet aurago 2>/dev/null; then
+                ok "Service recovered successfully after rollback."
+            else
+                warn "Rollback did not recover the service — check: sudo journalctl -u aurago -n 50"
+            fi
         fi
     else
         warn "sudo not available — starting aurago directly (systemd will adopt on next boot)"
@@ -1188,7 +1237,13 @@ elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.se
             if kill -0 "$LAUNCH_PID" 2>/dev/null; then
                 ok "AuraGo running (PID=$LAUNCH_PID). Logs: ${DIR}/log/aurago.log"
             else
-                warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
+                warn "direct start failed health check — rolling back to previous binary."
+                if restore_previous_aurago_binary; then
+                    nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
+                    ok "Started previous AuraGo binary after rollback (PID=$!)."
+                else
+                    warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
+                fi
             fi
         else
             warn "No aurago binary found — start manually with: ./start.sh"
@@ -1213,7 +1268,13 @@ else
         if kill -0 "$LAUNCH_PID" 2>/dev/null; then
             ok "AuraGo running (PID=$LAUNCH_PID). Logs: ${DIR}/log/aurago.log"
         else
-            warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
+            warn "direct start failed health check — rolling back to previous binary."
+            if restore_previous_aurago_binary; then
+                nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
+                ok "Started previous AuraGo binary after rollback (PID=$!)."
+            else
+                warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
+            fi
         fi
     fi
 fi
