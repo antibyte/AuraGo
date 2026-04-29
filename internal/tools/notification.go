@@ -82,10 +82,18 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 		case ChannelTelegram:
 			err = sendTelegramNotification(cfg, title, message)
 		case ChannelDiscord:
+			if cfg.Discord.ReadOnly {
+				err = fmt.Errorf("discord is in read-only mode")
+				break
+			}
 			err = sendDiscordNotification(cfg, discordSend, title, message)
 		case ChannelPush:
 			err = sendPushNotification(title, message, priority)
 		case ChannelTelnyx:
+			if cfg.Telnyx.ReadOnly {
+				err = fmt.Errorf("telnyx is in read-only mode")
+				break
+			}
 			err = sendTelnyxNotification(cfg, title, message, telnyxSend...)
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
