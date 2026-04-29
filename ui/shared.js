@@ -224,7 +224,7 @@ function _applySharedI18nBase() {
     });
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
         const translated = dict[el.getAttribute('data-i18n-html')];
-        if (translated) el.innerHTML = translated.replace(/\n/g, '<br>');
+        if (translated) renderI18nMultilineText(el, translated);
     });
     // Also handle data-i18n-placeholder, data-i18n-title, data-i18n-aria-label.
     // Keep data-i18n-ph as a temporary compatibility alias during refactors.
@@ -243,6 +243,14 @@ function _applySharedI18nBase() {
     document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
         const v = dict[el.getAttribute('data-i18n-aria-label')];
         if (v) el.setAttribute('aria-label', v);
+    });
+}
+
+function renderI18nMultilineText(el, text) {
+    el.replaceChildren();
+    String(text).split('\n').forEach((part, index) => {
+        if (index > 0) el.appendChild(document.createElement('br'));
+        el.appendChild(document.createTextNode(part));
     });
 }
 

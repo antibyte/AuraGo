@@ -56,6 +56,15 @@ func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {
 	}
 }
 
+func TestI18NHTMLUsesSafeTextNodeRendering(t *testing.T) {
+	t.Parallel()
+
+	content := readUITestFile(t, "shared.js")
+	if strings.Contains(content, "innerHTML = translated.replace") {
+		t.Fatal("data-i18n-html translations must be rendered as text nodes plus <br>, not assigned as raw HTML")
+	}
+}
+
 func readUITestFile(t *testing.T, rel string) string {
 	t.Helper()
 	content, err := os.ReadFile(rel)
