@@ -993,6 +993,10 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 // extraCheatsheetIDs are appended to the mission prompt in addition to the mission's own cheatsheets.
 // extraPromptSuffix is appended verbatim after cheatsheet expansion.
 func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1412,6 +1416,10 @@ func (m *MissionManagerV2) SetRemoteResultFromNest(nestID, id, result, output st
 
 // RunNow triggers a mission immediately (bypasses queue for manual execution)
 func (m *MissionManagerV2) RunNow(id string) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1454,6 +1462,10 @@ func (m *MissionManagerV2) RunNow(id string) error {
 
 // Create adds a new mission
 func (m *MissionManagerV2) Create(mission *MissionV2) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1560,6 +1572,10 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 
 // Update modifies a mission
 func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1678,6 +1694,10 @@ type DeleteMissionOptions struct {
 
 // DeleteWithOptions removes a mission with optional remote cleanup behavior.
 func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOptions) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

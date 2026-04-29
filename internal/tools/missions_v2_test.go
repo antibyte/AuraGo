@@ -55,6 +55,106 @@ func hasCronJob(cronMgr *CronManager, id string) bool {
 	return false
 }
 
+func TestMissionManagerDeniesMutationsWithoutRuntimePolicy(t *testing.T) {
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.missions["mission_existing"] = &MissionV2{
+		ID:            "mission_existing",
+		Name:          "Existing mission",
+		Prompt:        "do work",
+		ExecutionType: ExecutionManual,
+		Priority:      "medium",
+		Enabled:       true,
+		Status:        MissionStatusIdle,
+	}
+
+	mutatingCalls := map[string]func() error{
+		"create": func() error {
+			return mgr.Create(&MissionV2{Name: "New mission", Prompt: "do work"})
+		},
+		"update": func() error {
+			return mgr.Update("mission_existing", &MissionV2{Name: "Updated mission", Prompt: "do new work", Enabled: true})
+		},
+		"delete": func() error {
+			return mgr.Delete("mission_existing")
+		},
+		"run_now": func() error {
+			return mgr.RunNow("mission_existing")
+		},
+		"trigger": func() error {
+			return mgr.TriggerMission("mission_existing", "manual", "")
+		},
+	}
+
+	for name, call := range mutatingCalls {
+		t.Run(name, func(t *testing.T) {
+			err := call()
+			if err == nil || !strings.Contains(err.Error(), "missions is disabled by runtime permissions") {
+				t.Fatalf("mutation error = %v, want runtime permissions denial", err)
+			}
+		})
+	}
+}
+
+func TestMissionManagerReadOnlyRuntimePolicyAllowsReadsOnly(t *testing.T) {
+	perms := defaultRuntimePermissionsForTests()
+	perms.MissionsEnabled = true
+	perms.MissionsReadOnly = true
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.missions["mission_existing"] = &MissionV2{
+		ID:            "mission_existing",
+		Name:          "Existing mission",
+		Prompt:        "do work",
+		ExecutionType: ExecutionManual,
+		Priority:      "medium",
+		Enabled:       true,
+		Status:        MissionStatusIdle,
+	}
+
+	if _, ok := mgr.Get("mission_existing"); !ok {
+		t.Fatal("read-only runtime policy should allow Get")
+	}
+	if got := mgr.List(); len(got) != 1 {
+		t.Fatalf("read-only runtime policy should allow List, got %d missions", len(got))
+	}
+
+	mutatingCalls := map[string]func() error{
+		"create": func() error {
+			return mgr.Create(&MissionV2{Name: "New mission", Prompt: "do work"})
+		},
+		"update": func() error {
+			return mgr.Update("mission_existing", &MissionV2{Name: "Updated mission", Prompt: "do new work", Enabled: true})
+		},
+		"delete": func() error {
+			return mgr.Delete("mission_existing")
+		},
+		"run_now": func() error {
+			return mgr.RunNow("mission_existing")
+		},
+		"trigger": func() error {
+			return mgr.TriggerMission("mission_existing", "manual", "")
+		},
+	}
+
+	for name, call := range mutatingCalls {
+		t.Run(name, func(t *testing.T) {
+			err := call()
+			if err == nil || !strings.Contains(err.Error(), "mission mutation is disabled by runtime permissions") {
+				t.Fatalf("mutation error = %v, want read-only runtime permissions denial", err)
+			}
+		})
+	}
+}
+
 func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := NewMissionManagerV2(tmpDir, nil)

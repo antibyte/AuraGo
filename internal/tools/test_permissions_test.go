@@ -14,6 +14,7 @@ func defaultRuntimePermissionsForTests() RuntimePermissions {
 		DockerEnabled:        true,
 		DockerReadOnly:       false,
 		SchedulerEnabled:     true,
+		MissionsEnabled:      true,
 	}
 }
 

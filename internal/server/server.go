@@ -994,6 +994,11 @@ func newServerFromOptions(opts StartOptions) *Server {
 		AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
 		AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:        cfg.Docker.Enabled,
+		DockerReadOnly:       cfg.Docker.ReadOnly,
+		SchedulerEnabled:     cfg.Tools.Scheduler.Enabled,
+		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
+		MissionsEnabled:      cfg.Tools.Missions.Enabled,
+		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
 	})
 
 	s := &Server{

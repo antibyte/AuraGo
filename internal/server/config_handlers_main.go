@@ -520,6 +520,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				AllowFilesystemWrite: newCfg.Agent.AllowFilesystemWrite,
 				AllowNetworkRequests: newCfg.Agent.AllowNetworkRequests,
 				DockerEnabled:        newCfg.Docker.Enabled,
+				DockerReadOnly:       newCfg.Docker.ReadOnly,
+				SchedulerEnabled:     newCfg.Tools.Scheduler.Enabled,
+				SchedulerReadOnly:    newCfg.Tools.Scheduler.ReadOnly,
+				MissionsEnabled:      newCfg.Tools.Missions.Enabled,
+				MissionsReadOnly:     newCfg.Tools.Missions.ReadOnly,
 			})
 
 			// Sync the global debug-mode flag used by the agent.

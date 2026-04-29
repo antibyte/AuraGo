@@ -18,5 +18,7 @@ func configureToolRuntimePermissions(cfg *config.Config) {
 		DockerReadOnly:       cfg.Docker.ReadOnly,
 		SchedulerEnabled:     cfg.Tools.Scheduler.Enabled,
 		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
+		MissionsEnabled:      cfg.Tools.Missions.Enabled,
+		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
 	})
 }

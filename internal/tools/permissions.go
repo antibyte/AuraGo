@@ -15,6 +15,8 @@ type RuntimePermissions struct {
 	DockerReadOnly       bool
 	SchedulerEnabled     bool
 	SchedulerReadOnly    bool
+	MissionsEnabled      bool
+	MissionsReadOnly     bool
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
@@ -95,6 +97,20 @@ func requireSchedulerPermission(operation string) error {
 	}
 	if perms.SchedulerReadOnly && operation != "list" {
 		return fmt.Errorf("scheduler mutation is disabled by runtime permissions")
+	}
+	return nil
+}
+
+func requireMissionMutationPermission() error {
+	perms, configured := currentRuntimePermissions()
+	if !configured {
+		return requireRuntimePermission("missions", false)
+	}
+	if err := requireRuntimePermission("missions", perms.MissionsEnabled); err != nil {
+		return err
+	}
+	if perms.MissionsReadOnly {
+		return fmt.Errorf("mission mutation is disabled by runtime permissions")
 	}
 	return nil
 }

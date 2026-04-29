@@ -27,7 +27,22 @@ func (f *fakeHandlerRemoteMissionClient) RunMission(ctx context.Context, mission
 	return nil
 }
 
+func allowMissionMutationsForTest(t *testing.T) {
+	t.Helper()
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
+		AllowShell:           true,
+		AllowPython:          true,
+		AllowFilesystemWrite: true,
+		AllowNetworkRequests: true,
+		DockerEnabled:        true,
+		SchedulerEnabled:     true,
+		MissionsEnabled:      true,
+	})
+}
+
 func TestHandleMissionDeleteV2UsesMissionErrorStatus(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
 	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
 	client := &fakeHandlerRemoteMissionClient{deleteErr: errors.New("remote nest nest-1 is not connected")}
 	mgr.SetRemoteMissionClient(client)
@@ -58,6 +73,8 @@ func TestHandleMissionDeleteV2UsesMissionErrorStatus(t *testing.T) {
 }
 
 func TestHandleMissionDeleteV2ForceDeletesRemoteMission(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
 	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
 	client := &fakeHandlerRemoteMissionClient{deleteErr: errors.New("remote nest nest-1 is not connected")}
 	mgr.SetRemoteMissionClient(client)
