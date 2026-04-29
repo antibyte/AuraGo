@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -665,10 +666,73 @@ type ToolCall struct {
 	DockerTemplate   string `json:"docker_template,omitempty"`   // docker template: postgres, mysql, mariadb
 }
 
+// coerceToolCallStringFields rewrites top-level fields of a ToolCall JSON
+// object that the schema expects as strings but some LLMs occasionally emit as
+// numbers or booleans (e.g. MiniMax sending "id": 5). The raw values remain
+// accessible through the flat Params map populated by UnmarshalJSON.
+var toolCallStringFields = map[string]struct{}{
+	"id":          {},
+	"message_id":  {},
+	"task_id":     {},
+	"artifact_id": {},
+	"file_id":     {},
+	"device_id":   {},
+	"nest_id":     {},
+	"egg_id":      {},
+	"skill_id":    {},
+	"thread_id":   {},
+	"contact_id":  {},
+}
+
+func coerceToolCallStringFields(data []byte) []byte {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return data
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return data
+	}
+	changed := false
+	for key, val := range raw {
+		if _, ok := toolCallStringFields[key]; !ok {
+			continue
+		}
+		v := bytes.TrimSpace(val)
+		if len(v) == 0 || v[0] == '"' || bytes.Equal(v, []byte("null")) {
+			continue
+		}
+		first := v[0]
+		if (first >= '0' && first <= '9') || first == '-' || first == 't' || first == 'f' {
+			coerced, err := json.Marshal(string(v))
+			if err != nil {
+				continue
+			}
+			raw[key] = coerced
+			changed = true
+		}
+	}
+	if !changed {
+		return data
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return data
+	}
+	return out
+}
+
 func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	// Preserve existing field-based decoding but also build a robust flat args map
 	// so tool-specific decoders can read from `tc.Params` only.
 	type toolCallAlias ToolCall
+
+	// Some LLMs (e.g. MiniMax) occasionally emit numeric values for fields that the
+	// schema declares as strings (most notably "id"). Coerce common scalar-string
+	// fields to strings before typed decoding so a single mistyped value does not
+	// reject the entire tool call. The flat Params map below preserves the raw
+	// values for any tool-specific decoder that cares about the original type.
+	data = coerceToolCallStringFields(data)
 
 	// Start from the current state so absent JSON fields do not zero-out values that
 	// were set programmatically (e.g. native-tool shortcut prefill).
