@@ -347,6 +347,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			if s.LongTermMem != nil && s.LongTermMem.IsDisabled() &&
 				s.Cfg.Embeddings.Provider != "" && s.Cfg.Embeddings.Provider != "disabled" {
 				if newVDB, vdbErr := memory.NewChromemVectorDB(s.Cfg, s.Logger); vdbErr == nil {
+					if closeErr := s.LongTermMem.Close(); closeErr != nil {
+						s.Logger.Warn("[Setup] Failed to close previous disabled VectorDB during re-initialization", "error", closeErr)
+					}
 					s.LongTermMem = newVDB
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
 						"provider", s.Cfg.Embeddings.Provider)

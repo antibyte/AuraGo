@@ -167,6 +167,11 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	if err != nil {
 		return fmt.Errorf("LTM init failed: %w", err)
 	}
+	defer func() {
+		if err := longTermMem.Close(); err != nil {
+			l.Warn("Failed to close LTM", "error", err)
+		}
+	}()
 
 	masterKey := os.Getenv("AURAGO_MASTER_KEY")
 	if masterKey == "" || len(masterKey) != 64 {
@@ -231,24 +236,24 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	broker := &CLIBroker{logger: l}
 
 	runCfg := agent.RunConfig{
-		Config:          cfg,
-		Logger:          l,
-		LLMClient:       llmClient,
-		ShortTermMem:    shortTermMem,
-		HistoryManager:  historyManager,
-		LongTermMem:     longTermMem,
-		KG:              kg,
-		InventoryDB:     inventoryDB,
-		Vault:           vault,
-		Registry:        registry,
-		Manifest:        manifest,
-		CronManager:     cronManager,
+		Config:             cfg,
+		Logger:             l,
+		LLMClient:          llmClient,
+		ShortTermMem:       shortTermMem,
+		HistoryManager:     historyManager,
+		LongTermMem:        longTermMem,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		Vault:              vault,
+		Registry:           registry,
+		Manifest:           manifest,
+		CronManager:        cronManager,
 		CoAgentRegistry:    nil,
 		BudgetTracker:      nil,
 		PreparationService: nil,
 		SessionID:          "lifeboat",
-		IsMaintenance:   true,
-		SurgeryPlan:     string(planContent),
+		IsMaintenance:      true,
+		SurgeryPlan:        string(planContent),
 	}
 
 	_, err = agent.ExecuteAgentLoop(context.Background(), req, runCfg, false, broker)

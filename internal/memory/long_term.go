@@ -79,6 +79,7 @@ type ChromemVectorDB struct {
 	queryCacheMu           sync.RWMutex
 	queryCacheTTL          time.Duration
 	indexing               atomic.Int32       // Counter: >0 while async indexing is in progress
+	indexingWg             sync.WaitGroup     // Tracks in-flight async indexing goroutines
 	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
 	batchWg                sync.WaitGroup     // Tracks in-flight StoreBatch goroutines
 	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
@@ -87,17 +88,24 @@ type ChromemVectorDB struct {
 }
 
 func (cv *ChromemVectorDB) Close() error {
-	cv.logger.Debug("Closing VectorDB, waiting for in-flight batch operations...")
+	if cv.logger != nil {
+		cv.logger.Debug("Closing VectorDB, waiting for in-flight indexing and batch operations...")
+	}
 	done := make(chan struct{})
 	go func() {
+		cv.indexingWg.Wait()
 		cv.batchWg.Wait()
 		close(done)
 	}()
 	select {
 	case <-done:
-		cv.logger.Debug("All in-flight batch operations completed")
+		if cv.logger != nil {
+			cv.logger.Debug("All in-flight VectorDB operations completed")
+		}
 	case <-time.After(10 * time.Second):
-		cv.logger.Warn("Close timed out waiting for in-flight StoreBatch goroutines")
+		if cv.logger != nil {
+			cv.logger.Warn("Close timed out waiting for in-flight VectorDB operations")
+		}
 	}
 	return nil
 }

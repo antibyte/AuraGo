@@ -407,8 +407,10 @@ func splitFrontmatter(raw string) (string, string) {
 // Returns immediately. Use IsIndexing() to check progress.
 func (cv *ChromemVectorDB) IndexToolGuidesAsync(toolsDir string, force bool) {
 	cv.indexing.Add(1)
+	cv.indexingWg.Add(1)
 	go func() {
 		defer cv.indexing.Add(-1)
+		defer cv.indexingWg.Done()
 		if err := cv.IndexToolGuides(toolsDir, force); err != nil {
 			cv.logger.Error("Async tool guide indexing failed", "error", err)
 		}
@@ -419,8 +421,10 @@ func (cv *ChromemVectorDB) IndexToolGuidesAsync(toolsDir string, force bool) {
 // Returns immediately. Use IsIndexing() to check progress.
 func (cv *ChromemVectorDB) IndexDirectoryAsync(dir, collectionName string, stm *SQLiteMemory, force bool) {
 	cv.indexing.Add(1)
+	cv.indexingWg.Add(1)
 	go func() {
 		defer cv.indexing.Add(-1)
+		defer cv.indexingWg.Done()
 		if err := cv.IndexDirectory(dir, collectionName, stm, force); err != nil {
 			cv.logger.Error("Async directory indexing failed", "dir", dir, "error", err)
 		}

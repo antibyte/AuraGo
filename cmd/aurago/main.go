@@ -560,6 +560,11 @@ func main() {
 		appLog.Error("Failed to initialize Long-Term memory (VectorDB)", "error", err)
 		os.Exit(1)
 	}
+	defer func() {
+		if err := longTermMem.Close(); err != nil {
+			appLog.Warn("Failed to close Long-Term memory (VectorDB)", "error", err)
+		}
+	}()
 
 	// Tool guide indexing (async at startup for faster boot)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
