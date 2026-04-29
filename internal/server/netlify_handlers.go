@@ -35,9 +35,13 @@ func handleNetlifyStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.NetlifyConfig{
-			Token:         token,
-			DefaultSiteID: s.Cfg.Netlify.DefaultSiteID,
-			TeamSlug:      s.Cfg.Netlify.TeamSlug,
+			Token:               token,
+			DefaultSiteID:       s.Cfg.Netlify.DefaultSiteID,
+			TeamSlug:            s.Cfg.Netlify.TeamSlug,
+			ReadOnly:            s.Cfg.Netlify.ReadOnly,
+			AllowDeploy:         s.Cfg.Netlify.AllowDeploy,
+			AllowSiteManagement: s.Cfg.Netlify.AllowSiteManagement,
+			AllowEnvManagement:  s.Cfg.Netlify.AllowEnvManagement,
 		}
 
 		result := tools.NetlifyGetAccount(cfg)
@@ -74,9 +78,13 @@ func handleNetlifyTestConnection(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.NetlifyConfig{
-			Token:         token,
-			DefaultSiteID: s.Cfg.Netlify.DefaultSiteID,
-			TeamSlug:      s.Cfg.Netlify.TeamSlug,
+			Token:               token,
+			DefaultSiteID:       s.Cfg.Netlify.DefaultSiteID,
+			TeamSlug:            s.Cfg.Netlify.TeamSlug,
+			ReadOnly:            s.Cfg.Netlify.ReadOnly,
+			AllowDeploy:         s.Cfg.Netlify.AllowDeploy,
+			AllowSiteManagement: s.Cfg.Netlify.AllowSiteManagement,
+			AllowEnvManagement:  s.Cfg.Netlify.AllowEnvManagement,
 		}
 
 		diagResult := tools.NetlifyTestConnection(cfg)

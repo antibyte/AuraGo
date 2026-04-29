@@ -178,9 +178,13 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
 			}
 			nfCfg := tools.NetlifyConfig{
-				Token:         token,
-				DefaultSiteID: cfg.Netlify.DefaultSiteID,
-				TeamSlug:      cfg.Netlify.TeamSlug,
+				Token:               token,
+				DefaultSiteID:       cfg.Netlify.DefaultSiteID,
+				TeamSlug:            cfg.Netlify.TeamSlug,
+				ReadOnly:            cfg.Netlify.ReadOnly,
+				AllowDeploy:         cfg.Netlify.AllowDeploy,
+				AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
+				AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
 			}
 			// Read-only mode: block all mutating operations
 			if cfg.Netlify.ReadOnly {
@@ -302,10 +306,15 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
 			}
 			vcfg := tools.VercelConfig{
-				Token:            token,
-				DefaultProjectID: cfg.Vercel.DefaultProjectID,
-				TeamID:           cfg.Vercel.TeamID,
-				TeamSlug:         cfg.Vercel.TeamSlug,
+				Token:                  token,
+				DefaultProjectID:       cfg.Vercel.DefaultProjectID,
+				TeamID:                 cfg.Vercel.TeamID,
+				TeamSlug:               cfg.Vercel.TeamSlug,
+				ReadOnly:               cfg.Vercel.ReadOnly,
+				AllowDeploy:            cfg.Vercel.AllowDeploy,
+				AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
+				AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
+				AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
 			}
 			if cfg.Vercel.ReadOnly {
 				switch req.Operation {

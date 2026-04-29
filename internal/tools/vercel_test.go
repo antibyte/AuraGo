@@ -71,7 +71,7 @@ func TestVercelAssignAliasUsesDeploymentEndpoint(t *testing.T) {
 		vercelHTTPClient = prevClient
 	}()
 
-	result := VercelAssignAlias(VercelConfig{Token: "test-token"}, "dpl_123", "www.example.com")
+	result := VercelAssignAlias(VercelConfig{Token: "test-token", AllowDomainManagement: true}, "dpl_123", "www.example.com")
 	if !strings.Contains(result, `"status":"ok"`) {
 		t.Fatalf("expected ok result, got %s", result)
 	}
@@ -101,7 +101,7 @@ func TestVercelDeleteProjectSuccess(t *testing.T) {
 		vercelHTTPClient = prevClient
 	}()
 
-	result := VercelDeleteProject(VercelConfig{Token: "test-token"}, "my-project")
+	result := VercelDeleteProject(VercelConfig{Token: "test-token", AllowProjectManagement: true}, "my-project")
 	if !strings.Contains(result, `"status":"ok"`) {
 		t.Fatalf("expected ok result, got %s", result)
 	}
@@ -131,7 +131,7 @@ func TestVercelRollbackSuccess(t *testing.T) {
 		vercelHTTPClient = prevClient
 	}()
 
-	result := VercelRollback(VercelConfig{Token: "test-token"}, "my-project", "dpl_123")
+	result := VercelRollback(VercelConfig{Token: "test-token", AllowDeploy: true}, "my-project", "dpl_123")
 	if !strings.Contains(result, `"status":"ok"`) {
 		t.Fatalf("expected ok result, got %s", result)
 	}
@@ -161,7 +161,7 @@ func TestVercelCancelDeploySuccess(t *testing.T) {
 		vercelHTTPClient = prevClient
 	}()
 
-	result := VercelCancelDeploy(VercelConfig{Token: "test-token"}, "dpl_456")
+	result := VercelCancelDeploy(VercelConfig{Token: "test-token", AllowDeploy: true}, "dpl_456")
 	if !strings.Contains(result, `"status":"ok"`) {
 		t.Fatalf("expected ok result, got %s", result)
 	}
@@ -197,5 +197,57 @@ func TestVercelGetEnvSuccess(t *testing.T) {
 	}
 	if !strings.Contains(result, `"key":"API_URL"`) {
 		t.Fatalf("expected key in response, got %s", result)
+	}
+}
+
+func TestVercelDirectMutationsRespectReadOnly(t *testing.T) {
+	cfg := VercelConfig{
+		Token:                  "token",
+		DefaultProjectID:       "project",
+		ReadOnly:               true,
+		AllowDeploy:            true,
+		AllowProjectManagement: true,
+		AllowEnvManagement:     true,
+		AllowDomainManagement:  true,
+	}
+
+	tests := map[string]string{
+		"create project": VercelCreateProject(cfg, "project", "vite", "", ""),
+		"update project": VercelUpdateProject(cfg, "project", "new-name", "", "", ""),
+		"delete project": VercelDeleteProject(cfg, "project"),
+		"set env":        VercelSetEnv(cfg, "project", "KEY", "value", ""),
+		"delete env":     VercelDeleteEnv(cfg, "project", "KEY"),
+		"add domain":     VercelAddDomain(cfg, "project", "example.com"),
+		"verify domain":  VercelVerifyDomain(cfg, "project", "example.com"),
+		"assign alias":   VercelAssignAlias(cfg, "dpl_123", "www.example.com"),
+		"rollback":       VercelRollback(cfg, "project", "dpl_123"),
+		"cancel deploy":  VercelCancelDeploy(cfg, "dpl_123"),
+	}
+
+	for name, got := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, `"status":"error"`) || !strings.Contains(strings.ToLower(got), "read-only") {
+				t.Fatalf("expected read-only error, got %s", got)
+			}
+		})
+	}
+}
+
+func TestVercelDirectMutationsRequireGranularAllows(t *testing.T) {
+	cfg := VercelConfig{Token: "token", DefaultProjectID: "project"}
+
+	tests := map[string]string{
+		"project management": VercelCreateProject(cfg, "project", "vite", "", ""),
+		"env management":     VercelSetEnv(cfg, "project", "KEY", "value", ""),
+		"deploy":             VercelRollback(cfg, "project", "dpl_123"),
+		"domain management":  VercelAddDomain(cfg, "project", "example.com"),
+	}
+
+	for name, got := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, `"status":"error"`) || !strings.Contains(strings.ToLower(got), "not allowed") {
+				t.Fatalf("expected permission error, got %s", got)
+			}
+		})
 	}
 }

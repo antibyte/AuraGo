@@ -15,10 +15,15 @@ import (
 
 // VercelConfig holds the Vercel API connection parameters.
 type VercelConfig struct {
-	Token            string // Personal Access Token
-	DefaultProjectID string // Default project ID or name for operations
-	TeamID           string // Team identifier for scoped API calls
-	TeamSlug         string // Team slug for scoped API calls
+	Token                  string // Personal Access Token
+	DefaultProjectID       string // Default project ID or name for operations
+	TeamID                 string // Team identifier for scoped API calls
+	TeamSlug               string // Team slug for scoped API calls
+	ReadOnly               bool
+	AllowDeploy            bool
+	AllowProjectManagement bool
+	AllowEnvManagement     bool
+	AllowDomainManagement  bool
 }
 
 var vercelBaseURL = "https://api.vercel.com"
@@ -114,6 +119,53 @@ func vercelResolveProjectID(cfg VercelConfig, projectID string) string {
 	return strings.TrimSpace(cfg.DefaultProjectID)
 }
 
+func vercelReadOnlyError(cfg VercelConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return errJSON("Vercel is in read-only mode. Disable vercel.readonly to allow changes.")
+}
+
+func vercelProjectManagementError(cfg VercelConfig) string {
+	if msg := vercelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowProjectManagement {
+		return ""
+	}
+	return errJSON("Vercel project management is not allowed. Set vercel.allow_project_management=true in config.yaml.")
+}
+
+func vercelEnvManagementError(cfg VercelConfig) string {
+	if msg := vercelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowEnvManagement {
+		return ""
+	}
+	return errJSON("Vercel environment variable management is not allowed. Set vercel.allow_env_management=true in config.yaml.")
+}
+
+func vercelDeployError(cfg VercelConfig) string {
+	if msg := vercelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowDeploy {
+		return ""
+	}
+	return errJSON("Vercel deploy operations are not allowed. Set vercel.allow_deploy=true in config.yaml.")
+}
+
+func vercelDomainManagementError(cfg VercelConfig) string {
+	if msg := vercelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowDomainManagement {
+		return ""
+	}
+	return errJSON("Vercel domain and alias management is not allowed. Set vercel.allow_domain_management=true in config.yaml.")
+}
+
 func vercelFrameworkSlug(framework string) string {
 	switch strings.ToLower(strings.TrimSpace(framework)) {
 	case "next", "nextjs":
@@ -195,17 +247,17 @@ func compactVercelProject(project map[string]interface{}) map[string]interface{}
 		}
 	}
 	return map[string]interface{}{
-		"id":              strVal(project, "id"),
-		"name":            strVal(project, "name"),
-		"framework":       strVal(project, "framework"),
-		"root_directory":  strVal(project, "rootDirectory"),
+		"id":               strVal(project, "id"),
+		"name":             strVal(project, "name"),
+		"framework":        strVal(project, "framework"),
+		"root_directory":   strVal(project, "rootDirectory"),
 		"output_directory": strVal(project, "outputDirectory"),
-		"build_command":   strVal(project, "buildCommand"),
-		"dev_command":     strVal(project, "devCommand"),
-		"install_command": strVal(project, "installCommand"),
-		"created_at":      project["createdAt"],
-		"updated_at":      project["updatedAt"],
-		"latest_aliases":  latestAliases,
+		"build_command":    strVal(project, "buildCommand"),
+		"dev_command":      strVal(project, "devCommand"),
+		"install_command":  strVal(project, "installCommand"),
+		"created_at":       project["createdAt"],
+		"updated_at":       project["updatedAt"],
+		"latest_aliases":   latestAliases,
 	}
 }
 
@@ -352,6 +404,9 @@ func VercelGetProject(cfg VercelConfig, projectID string) string {
 }
 
 func VercelCreateProject(cfg VercelConfig, name, framework, rootDirectory, outputDirectory string) string {
+	if msg := vercelProjectManagementError(cfg); msg != "" {
+		return msg
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return errJSON("project_name is required")
@@ -388,6 +443,9 @@ func VercelCreateProject(cfg VercelConfig, name, framework, rootDirectory, outpu
 }
 
 func VercelUpdateProject(cfg VercelConfig, projectID, name, framework, rootDirectory, outputDirectory string) string {
+	if msg := vercelProjectManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -540,6 +598,9 @@ func VercelListEnv(cfg VercelConfig, projectID string) string {
 }
 
 func VercelSetEnv(cfg VercelConfig, projectID, key, value, target string) string {
+	if msg := vercelEnvManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -582,6 +643,9 @@ func VercelSetEnv(cfg VercelConfig, projectID, key, value, target string) string
 }
 
 func VercelDeleteEnv(cfg VercelConfig, projectID, key string) string {
+	if msg := vercelEnvManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -671,6 +735,9 @@ func VercelListDomains(cfg VercelConfig, projectID string) string {
 }
 
 func VercelAddDomain(cfg VercelConfig, projectID, domain string) string {
+	if msg := vercelDomainManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -705,6 +772,9 @@ func VercelAddDomain(cfg VercelConfig, projectID, domain string) string {
 }
 
 func VercelVerifyDomain(cfg VercelConfig, projectID, domain string) string {
+	if msg := vercelDomainManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -782,6 +852,9 @@ func VercelListAliases(cfg VercelConfig, projectID, deploymentID string) string 
 }
 
 func VercelAssignAlias(cfg VercelConfig, deploymentID, alias string) string {
+	if msg := vercelDomainManagementError(cfg); msg != "" {
+		return msg
+	}
 	deploymentID = strings.TrimSpace(deploymentID)
 	if deploymentID == "" {
 		return errJSON("deployment_id is required")
@@ -818,6 +891,9 @@ func VercelAssignAlias(cfg VercelConfig, deploymentID, alias string) string {
 }
 
 func VercelDeleteProject(cfg VercelConfig, projectID string) string {
+	if msg := vercelProjectManagementError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -830,14 +906,17 @@ func VercelDeleteProject(cfg VercelConfig, projectID string) string {
 		return vercelErrorResponse(code, data, "Failed to delete Vercel project")
 	}
 	out, _ := json.Marshal(map[string]interface{}{
-		"status":  "ok",
-		"message": "Vercel project deleted",
+		"status":     "ok",
+		"message":    "Vercel project deleted",
 		"project_id": projectID,
 	})
 	return string(out)
 }
 
 func VercelRollback(cfg VercelConfig, projectID, deploymentID string) string {
+	if msg := vercelDeployError(cfg); msg != "" {
+		return msg
+	}
 	projectID = vercelResolveProjectID(cfg, projectID)
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
@@ -859,16 +938,19 @@ func VercelRollback(cfg VercelConfig, projectID, deploymentID string) string {
 		return errJSON("Failed to parse Vercel rollback response: %v", err)
 	}
 	out, _ := json.Marshal(map[string]interface{}{
-		"status":       "ok",
-		"message":      "Rolled back to deployment " + deploymentID,
+		"status":        "ok",
+		"message":       "Rolled back to deployment " + deploymentID,
 		"deployment_id": deploymentID,
-		"project_id":   projectID,
-		"url":          strVal(resp, "url"),
+		"project_id":    projectID,
+		"url":           strVal(resp, "url"),
 	})
 	return string(out)
 }
 
 func VercelCancelDeploy(cfg VercelConfig, deploymentID string) string {
+	if msg := vercelDeployError(cfg); msg != "" {
+		return msg
+	}
 	deploymentID = strings.TrimSpace(deploymentID)
 	if deploymentID == "" {
 		return errJSON("deployment_id is required")
@@ -886,10 +968,10 @@ func VercelCancelDeploy(cfg VercelConfig, deploymentID string) string {
 		return errJSON("Failed to parse Vercel cancel deploy response: %v", err)
 	}
 	out, _ := json.Marshal(map[string]interface{}{
-		"status":       "ok",
-		"message":      "Deployment cancelled",
+		"status":        "ok",
+		"message":       "Deployment cancelled",
 		"deployment_id": deploymentID,
-		"state":        strVal(resp, "state"),
+		"state":         strVal(resp, "state"),
 	})
 	return string(out)
 }

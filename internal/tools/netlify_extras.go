@@ -10,6 +10,9 @@ import (
 
 // NetlifyRollback restores a previous deploy for a site.
 func NetlifyRollback(cfg NetlifyConfig, siteID, deployID string) string {
+	if msg := netlifyDeployError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required")
@@ -39,6 +42,9 @@ func NetlifyRollback(cfg NetlifyConfig, siteID, deployID string) string {
 
 // NetlifyCancelDeploy cancels a pending or in-progress deploy.
 func NetlifyCancelDeploy(cfg NetlifyConfig, deployID string) string {
+	if msg := netlifyDeployError(cfg); msg != "" {
+		return msg
+	}
 	if deployID == "" {
 		return errJSON("deploy_id is required")
 	}
@@ -135,6 +141,9 @@ func NetlifyGetEnvVar(cfg NetlifyConfig, siteID, key string) string {
 
 // NetlifySetEnvVar creates or updates an environment variable.
 func NetlifySetEnvVar(cfg NetlifyConfig, siteID, key, value, envContext string) string {
+	if msg := netlifyEnvManagementError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" || key == "" {
 		return errJSON("site_id and key are required")
@@ -189,6 +198,9 @@ func NetlifySetEnvVar(cfg NetlifyConfig, siteID, key, value, envContext string) 
 
 // NetlifyDeleteEnvVar deletes an environment variable.
 func NetlifyDeleteEnvVar(cfg NetlifyConfig, siteID, key string) string {
+	if msg := netlifyEnvManagementError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" || key == "" {
 		return errJSON("site_id and key are required")
@@ -400,6 +412,9 @@ func NetlifyListHooks(cfg NetlifyConfig, siteID string) string {
 
 // NetlifyCreateHook creates a new notification hook for a site.
 func NetlifyCreateHook(cfg NetlifyConfig, siteID, hookType, event string, hookData map[string]interface{}) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required")
@@ -440,6 +455,9 @@ func NetlifyCreateHook(cfg NetlifyConfig, siteID, hookType, event string, hookDa
 
 // NetlifyDeleteHook deletes a notification hook.
 func NetlifyDeleteHook(cfg NetlifyConfig, hookID string) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if hookID == "" {
 		return errJSON("hook_id is required")
 	}
@@ -460,6 +478,9 @@ func NetlifyDeleteHook(cfg NetlifyConfig, hookID string) string {
 
 // NetlifyProvisionSSL provisions a Let's Encrypt certificate for the site.
 func NetlifyProvisionSSL(cfg NetlifyConfig, siteID string) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required")

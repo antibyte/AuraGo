@@ -35,10 +35,15 @@ func handleVercelStatus(s *Server) http.HandlerFunc {
 		}
 
 		vcfg := tools.VercelConfig{
-			Token:            token,
-			DefaultProjectID: s.Cfg.Vercel.DefaultProjectID,
-			TeamID:           s.Cfg.Vercel.TeamID,
-			TeamSlug:         s.Cfg.Vercel.TeamSlug,
+			Token:                  token,
+			DefaultProjectID:       s.Cfg.Vercel.DefaultProjectID,
+			TeamID:                 s.Cfg.Vercel.TeamID,
+			TeamSlug:               s.Cfg.Vercel.TeamSlug,
+			ReadOnly:               s.Cfg.Vercel.ReadOnly,
+			AllowDeploy:            s.Cfg.Vercel.AllowDeploy,
+			AllowProjectManagement: s.Cfg.Vercel.AllowProjectManagement,
+			AllowEnvManagement:     s.Cfg.Vercel.AllowEnvManagement,
+			AllowDomainManagement:  s.Cfg.Vercel.AllowDomainManagement,
 		}
 
 		result := tools.VercelCheckConnection(vcfg)
@@ -85,10 +90,15 @@ func handleVercelTestConnection(s *Server) http.HandlerFunc {
 		}
 
 		vcfg := tools.VercelConfig{
-			Token:            token,
-			DefaultProjectID: s.Cfg.Vercel.DefaultProjectID,
-			TeamID:           s.Cfg.Vercel.TeamID,
-			TeamSlug:         s.Cfg.Vercel.TeamSlug,
+			Token:                  token,
+			DefaultProjectID:       s.Cfg.Vercel.DefaultProjectID,
+			TeamID:                 s.Cfg.Vercel.TeamID,
+			TeamSlug:               s.Cfg.Vercel.TeamSlug,
+			ReadOnly:               s.Cfg.Vercel.ReadOnly,
+			AllowDeploy:            s.Cfg.Vercel.AllowDeploy,
+			AllowProjectManagement: s.Cfg.Vercel.AllowProjectManagement,
+			AllowEnvManagement:     s.Cfg.Vercel.AllowEnvManagement,
+			AllowDomainManagement:  s.Cfg.Vercel.AllowDomainManagement,
 		}
 
 		diagResult := tools.VercelCheckConnection(vcfg)

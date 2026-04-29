@@ -583,9 +583,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
 				}
 				nfCfg := tools.NetlifyConfig{
-					Token:         nfToken,
-					DefaultSiteID: cfg.Netlify.DefaultSiteID,
-					TeamSlug:      cfg.Netlify.TeamSlug,
+					Token:               nfToken,
+					DefaultSiteID:       cfg.Netlify.DefaultSiteID,
+					TeamSlug:            cfg.Netlify.TeamSlug,
+					ReadOnly:            cfg.Netlify.ReadOnly,
+					AllowDeploy:         cfg.Netlify.AllowDeploy,
+					AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
+					AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
 				}
 				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
 				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
@@ -617,10 +621,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
 				}
 				vcfg := tools.VercelConfig{
-					Token:            vcToken,
-					DefaultProjectID: cfg.Vercel.DefaultProjectID,
-					TeamID:           cfg.Vercel.TeamID,
-					TeamSlug:         cfg.Vercel.TeamSlug,
+					Token:                  vcToken,
+					DefaultProjectID:       cfg.Vercel.DefaultProjectID,
+					TeamID:                 cfg.Vercel.TeamID,
+					TeamSlug:               cfg.Vercel.TeamSlug,
+					ReadOnly:               cfg.Vercel.ReadOnly,
+					AllowDeploy:            cfg.Vercel.AllowDeploy,
+					AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
+					AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
+					AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
 				}
 				logger.Info("LLM requested homepage deploy_vercel", "project", req.ProjectDir, "build_dir", req.BuildDir, "project_id", req.ProjectID, "target", req.Target)
 				result := tools.HomepageDeployVercel(

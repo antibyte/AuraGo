@@ -14,9 +14,13 @@ import (
 
 // NetlifyConfig holds the Netlify API connection parameters.
 type NetlifyConfig struct {
-	Token         string // Personal Access Token
-	DefaultSiteID string // Default site ID for operations
-	TeamSlug      string // Netlify team/account slug
+	Token               string // Personal Access Token
+	DefaultSiteID       string // Default site ID for operations
+	TeamSlug            string // Netlify team/account slug
+	ReadOnly            bool
+	AllowDeploy         bool
+	AllowSiteManagement bool
+	AllowEnvManagement  bool
 }
 
 var netlifyBaseURL = "https://api.netlify.com/api/v1"
@@ -124,6 +128,43 @@ func netlifyResolveSiteID(cfg NetlifyConfig, siteID string) string {
 		return siteID
 	}
 	return cfg.DefaultSiteID
+}
+
+func netlifyReadOnlyError(cfg NetlifyConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return errJSON("Netlify is in read-only mode. Disable netlify.readonly to allow changes.")
+}
+
+func netlifySiteManagementError(cfg NetlifyConfig) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowSiteManagement {
+		return ""
+	}
+	return errJSON("Netlify site management is not allowed. Set netlify.allow_site_management=true in config.yaml.")
+}
+
+func netlifyDeployError(cfg NetlifyConfig) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowDeploy {
+		return ""
+	}
+	return errJSON("Netlify deploy is not allowed. Set netlify.allow_deploy=true in config.yaml.")
+}
+
+func netlifyEnvManagementError(cfg NetlifyConfig) string {
+	if msg := netlifyReadOnlyError(cfg); msg != "" {
+		return msg
+	}
+	if cfg.AllowEnvManagement {
+		return ""
+	}
+	return errJSON("Netlify env var management is not allowed. Set netlify.allow_env_management=true in config.yaml.")
 }
 
 // netlifyResolveNameToID looks up a site by name and returns its UUID.
@@ -248,6 +289,9 @@ func NetlifyGetSite(cfg NetlifyConfig, siteID string) string {
 
 // NetlifyCreateSite creates a new Netlify site.
 func NetlifyCreateSite(cfg NetlifyConfig, name, customDomain string) string {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
+		return msg
+	}
 	body := map[string]interface{}{}
 	if name != "" {
 		body["name"] = name // subdomain: name.netlify.app
@@ -289,6 +333,9 @@ func NetlifyCreateSite(cfg NetlifyConfig, name, customDomain string) string {
 
 // NetlifyUpdateSite updates an existing site's configuration.
 func NetlifyUpdateSite(cfg NetlifyConfig, siteID, name, customDomain string) string {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required")
@@ -327,6 +374,9 @@ func NetlifyUpdateSite(cfg NetlifyConfig, siteID, name, customDomain string) str
 
 // NetlifyDeleteSite permanently deletes a site.
 func NetlifyDeleteSite(cfg NetlifyConfig, siteID string) string {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required")
@@ -517,6 +567,9 @@ func NetlifyTestConnection(cfg NetlifyConfig) string {
 }
 
 func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipData []byte) string {
+	if msg := netlifyDeployError(cfg); msg != "" {
+		return msg
+	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
 	if siteID == "" {
 		return errJSON("site_id is required. Use 'netlify check_connection' to verify API access, then 'netlify list_sites' to find your site ID, or set default_site_id in the Netlify config.")
