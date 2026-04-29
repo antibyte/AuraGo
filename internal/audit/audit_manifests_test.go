@@ -259,7 +259,7 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 
 	updateScript := readRepoFile(t, "update.sh")
-	for _, forbidden := range []string{`chmod +x "$DIR/bin/"*`, `chmod +x "$DIR/"*.sh`} {
+	for _, forbidden := range []string{`chmod +x "$DIR/bin/"*`, `chmod +x "$DIR/"*.sh`, `chmod +x "$DIR/deploy/aurago-remote_linux"*`} {
 		if strings.Contains(updateScript, forbidden) {
 			t.Fatalf("update.sh must not apply executable permissions with broad globs: %s", forbidden)
 		}

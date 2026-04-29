@@ -1149,7 +1149,9 @@ else
             warn "  Could not download deploy/${_rname} — skipping."
         fi
     done
-    chmod +x "$DIR/deploy/aurago-remote_linux"* 2>/dev/null || true
+    mark_executable_if_present "$DIR/deploy/aurago-remote_linux_amd64"
+    mark_executable_if_present "$DIR/deploy/aurago-remote_linux_arm64"
+    mark_executable_if_present "$DIR/deploy/aurago-remote_linux"
 
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
 
