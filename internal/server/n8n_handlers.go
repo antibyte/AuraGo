@@ -1294,10 +1294,10 @@ func n8nAuthenticate(s *Server, r *http.Request, requiredScope string) bool {
 }
 
 // n8nScopeAllowed reports whether requiredScope is permitted by the configured scope list.
-// An empty list permits all scopes (backwards-compatible default).
+// An empty list permits no scopes; n8n integrations must opt in explicitly.
 func n8nScopeAllowed(scopes []string, required string) bool {
 	if len(scopes) == 0 {
-		return true
+		return false
 	}
 	for _, s := range scopes {
 		if s == required || s == N8nScopeAdmin {

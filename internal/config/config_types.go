@@ -1343,7 +1343,7 @@ type Config struct {
 		RequireToken   bool     `yaml:"require_token"`    // require Bearer token auth (default: true)
 		AllowedTools   []string `yaml:"allowed_tools"`    // tools n8n can execute; empty = none (explicit whitelist required)
 		RateLimitRPS   int      `yaml:"rate_limit_rps"`   // requests per second limit (0 = unlimited)
-		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = all (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
+		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = none (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
 	} `yaml:"n8n"`
 	SQLConnections struct {
 		Enabled              bool `yaml:"enabled"`

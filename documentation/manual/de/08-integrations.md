@@ -397,7 +397,7 @@ Verbindung mit der n8n Workflow-Automatisierungsplattform. AuraGo kann n8n gezie
 | `n8n:missions` | Mission-Control-Aufgaben erstellen, aktualisieren, auslösen oder prüfen |
 | `n8n:admin` | Administrative Operationen; nur aktivieren, wenn wirklich nötig |
 
-Nutze `readonly: true` für Workflows, die nur lesen dürfen. `allowed_tools` ist eine explizite Allowlist; leer deaktiviert n8n-Tool-Ausführung.
+Nutze `readonly: true` für Workflows, die nur lesen dürfen. `scopes` und `allowed_tools` sind explizite Allowlists; leer deaktiviert die jeweilige Fähigkeit.
 
 ### YAML-Referenz
 ```yaml

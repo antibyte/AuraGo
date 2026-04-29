@@ -390,7 +390,7 @@ AuraGo also provides an official n8n community node: `@antibyte/n8n-nodes-aurago
 | `n8n:missions` | Create, update, trigger, or inspect Mission Control tasks |
 | `n8n:admin` | Administrative operations; keep disabled unless required |
 
-Use `readonly: true` for workflows that should only read state. `allowed_tools` is an explicit whitelist; leave it empty to disable n8n tool execution.
+Use `readonly: true` for workflows that should only read state. `scopes` and `allowed_tools` are explicit allowlists; leave either empty to disable that capability.
 
 ### YAML Reference
 ```yaml
