@@ -64,6 +64,39 @@ webhooks:
 	}
 }
 
+func TestManageOutgoingWebhooksReadOnlyBlocksMutations(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Webhooks.Enabled = true
+	cfg.Webhooks.ReadOnly = true
+	cfg.Webhooks.Outgoing = []config.OutgoingWebhook{{
+		ID:     "hook_test",
+		Name:   "Deploy",
+		Method: "POST",
+		URL:    "https://example.test/deploy",
+	}}
+
+	result := ManageOutgoingWebhooks(
+		"delete",
+		"hook_test",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		nil,
+		nil,
+		cfg,
+	)
+
+	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "Read-Only") {
+		t.Fatalf("expected read-only error, got: %s", result)
+	}
+	if len(cfg.Webhooks.Outgoing) != 1 {
+		t.Fatalf("webhook count = %d, want unchanged 1", len(cfg.Webhooks.Outgoing))
+	}
+}
+
 func TestExecuteOutgoingWebhookRejectsOversizedResponseBody(t *testing.T) {
 	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
