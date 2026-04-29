@@ -155,7 +155,7 @@ func TestExecuteKoofrReadOnlyBlocksDirectMutations(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ExecuteKoofr(cfg, tc.action, tc.path, tc.dest, tc.content, tc.localPath, workspaceDir)
+			result := ExecuteKoofr(cfg, tc.action, tc.path, tc.dest, tc.content, tc.localPath, workspaceDir, "")
 			parsed := parseKoofrToolJSON(t, result)
 			if parsed["status"] != "error" {
 				t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
@@ -205,7 +205,7 @@ func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/pictures", "empty.txt", "", "", t.TempDir())
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/pictures", "empty.txt", "", "", "", t.TempDir())
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "error" {
 		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
@@ -272,7 +272,7 @@ func TestExecuteKoofrWriteVerifiesVisibleFile(t *testing.T) {
 	defer srv.Close()
 
 	content := "hello koofr"
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "note.txt", content, "", t.TempDir())
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "note.txt", content, "", "", t.TempDir())
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
@@ -319,7 +319,7 @@ func TestExecuteKoofrWriteErrorsWhenWrittenFileIsNotListed(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "missing.txt", "content", "", t.TempDir())
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "write", "/aurago/notes", "missing.txt", "content", "", "", t.TempDir())
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "error" {
 		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
@@ -407,7 +407,7 @@ func TestExecuteKoofrUploadSendsLocalFileBytes(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurago/pictures", "funny_cat_car.jpeg", "", sourcePath, workspaceDir)
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurago/pictures", "funny_cat_car.jpeg", "", sourcePath, workspaceDir, "")
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
@@ -475,7 +475,7 @@ func TestExecuteKoofrUploadSplitsFilenameFromPathWhenDestinationMissing(t *testi
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures/robot_spaghetti.jpeg", "", "", sourcePath, workspaceDir)
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures/robot_spaghetti.jpeg", "", "", sourcePath, workspaceDir, "")
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
@@ -526,7 +526,7 @@ func TestExecuteKoofrUploadErrorsWhenUploadedFileIsNotListed(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures", "missing_after_upload.jpeg", "", sourcePath, workspaceDir)
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "upload", "/aurgo/pictures", "missing_after_upload.jpeg", "", sourcePath, workspaceDir, "")
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "error" {
 		t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
@@ -557,7 +557,7 @@ func TestExecuteKoofrListRetriesSlashPathFallback(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "list", "/aurgo", "", "", "", t.TempDir())
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "list", "/aurgo", "", "", "", "", t.TempDir())
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)
@@ -588,7 +588,7 @@ func TestExecuteKoofrMkdirUsesSlashPathSemantics(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "mkdir", "/aurgo/pictures", "", "", "", t.TempDir())
+	result := ExecuteKoofr(KoofrConfig{BaseURL: srv.URL, Username: "user", AppPassword: "pass"}, "mkdir", "/aurgo/pictures", "", "", "", "", t.TempDir())
 	parsed := parseKoofrToolJSON(t, result)
 	if parsed["status"] != "success" {
 		t.Fatalf("status = %v, want success; result=%s", parsed["status"], result)

@@ -1052,7 +1052,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				AppPassword: cfg.Koofr.AppPassword,
 				ReadOnly:    cfg.Koofr.ReadOnly,
 			}
-			result := tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir)
+			result := tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir)
 			if strings.EqualFold(req.Operation, "upload") && koofrUploadResultMissingVerification(result) {
 				logger.Warn("Koofr upload returned legacy/unverified success payload", "path", req.FilePath, "dest", req.Destination, "local_path", req.LocalPath, "result", result)
 				return `Tool Output: {"status":"error","message":"Koofr upload returned an unverified success payload. Rebuild/redeploy AuraGo so the Koofr upload verification code is active."}`

@@ -47,7 +47,7 @@ var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // ExecuteKoofr performs operations on the Koofr API.
 // Valid actions: list, read, download, write, upload, mkdir, delete, rename, copy.
-func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, workspaceDir string) string {
+func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, workspaceDir, dataDir string) string {
 	action = strings.TrimSpace(strings.ToLower(action))
 	if cfg.ReadOnly && koofrMutationAction(action) {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr is in read-only mode. Disable koofr.readonly to allow changes."})
@@ -173,7 +173,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		})
 
 	case "upload":
-		source, size, err := openKoofrUploadSource(workspaceDir, localPath)
+		source, size, err := openKoofrUploadSource(workspaceDir, dataDir, localPath)
 		if err != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 		}
@@ -467,13 +467,19 @@ func uploadKoofrMultipart(reqURL, username, password string, r io.Reader) ([]byt
 	return respBytes, written, err
 }
 
-func openKoofrUploadSource(workspaceDir, localPath string) (*os.File, int64, error) {
+func openKoofrUploadSource(workspaceDir, dataDir, localPath string) (*os.File, int64, error) {
 	if strings.TrimSpace(localPath) == "" {
 		return nil, 0, fmt.Errorf("local_path is required for Koofr upload")
 	}
 	resolved, err := secureResolve(workspaceDir, localPath)
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid upload source: %w", err)
+	if err != nil || resolved == "" {
+		// Fallback to dataDir if workspaceDir resolve fails
+		if dataDir != "" {
+			resolved, _ = secureResolve(dataDir, localPath)
+		}
+		if resolved == "" {
+			return nil, 0, fmt.Errorf("invalid upload source: path not found in workspace or data directory")
+		}
 	}
 	info, err := os.Stat(resolved)
 	if err != nil {
