@@ -40,12 +40,12 @@
             <a href="/" class="logo">
                 <div class="logo-icon">⚡</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle"><script>document.write(t('config.logo_subtitle'))</script></span>
+                <span class="logo-subtitle" data-i18n="config.logo_subtitle"></span>
             </a>
         </div>
         <div class="header-actions">
             <button id="cfg-restart-btn" class="btn-header cfg-restart-btn cfg-restart-danger" onclick="restartAuraGo()">
-                <span class="cfg-restart-full"><script>document.write(t('config.header.restart_full'))</script></span>
+                <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
                 <span class="cfg-restart-short">↻</span>
             </button>
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
@@ -66,16 +66,16 @@
         <div class="cfg-content" id="content">
             <div class="cfg-loading-state">
                 <div class="cfg-loading-icon">⚙️</div>
-                <div class="cfg-loading-text"><script>document.write(t('config.loading'))</script></div>
+                <div class="cfg-loading-text" data-i18n="config.loading"></div>
             </div>
         </div>
     </div>
 
     <!-- Save bar -->
     <div class="save-bar">
-        <span class="changes-pill" id="changesPill"><script>document.write(t('config.save_bar.unsaved_changes'))</script></span>
+        <span class="changes-pill" id="changesPill" data-i18n="config.save_bar.unsaved_changes"></span>
         <span class="save-status" id="saveStatus"></span>
-        <button class="btn-save" id="btnSave" onclick="saveConfig()" disabled><script>document.write(t('config.save_bar.save_button'))</script></button>
+        <button class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
     <script src="/js/config/main.js?v=11"></script>

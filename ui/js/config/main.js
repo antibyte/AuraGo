@@ -289,7 +289,7 @@ async function init() {
             if (rtResp.ok) runtimeData = await rtResp.json();
         } catch (_) { }
     } catch (e) {
-        document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-lg">❌ ' + t('config.loading_error') + '<br><small>' + e.message + '</small></div>';
+        document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-lg">❌ ' + escapeHtml(t('config.loading_error')) + '<br><small>' + escapeHtml(e && e.message ? e.message : String(e)) + '</small></div>';
         return;
     }
     if (!hasVisibleSection(activeSection)) {
@@ -542,7 +542,7 @@ async function renderSection(key) {
     const modInfo = SECTION_MODULES[key];
     if (modInfo) {
         try { await loadModule(modInfo.m); } catch (e) {
-            document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-md">\u274c Module load error: ' + e.message + '</div>';
+            document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-md">\u274c Module load error: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
             return;
         }
         const fn = window[modInfo.fn];

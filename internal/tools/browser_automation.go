@@ -20,6 +20,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/dockerutil"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 )
 
@@ -816,7 +817,7 @@ func buildBrowserAutomationImage(image, dockerfileDir string, logger interface {
 	)
 	dockerCfgDir := filepath.Join(dockerfileDir, "data", ".docker")
 	_ = os.MkdirAll(dockerCfgDir, 0o700)
-	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+dockerCfgDir)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker build: %w\n%s", err, strings.TrimSpace(string(out)))

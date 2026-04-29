@@ -20,6 +20,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
@@ -1547,7 +1548,7 @@ func runGitCommand(dir string, args ...string) ([]byte, error) {
 	if home == "" {
 		home = "/root" // Default for root-run services
 	}
-	cmd.Env = append(os.Environ(), "HOME="+home)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "HOME="+home)
 
 	return cmd.CombinedOutput()
 }

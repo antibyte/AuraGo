@@ -1110,7 +1110,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             if (!resp.ok) { showToast(await resp.text(), 'error'); return; }
                         const result = await resp.json();
                         if (result.auth_url) {
-                            window.open(result.auth_url, '_blank', 'width=600,height=700');
+                            window.open(result.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
                         }
                         } catch (e) { showToast(e.message || t('config.common.error'), 'error'); }
                 };

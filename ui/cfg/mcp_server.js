@@ -334,6 +334,6 @@ function mcpOpenClientInstallLink() {
     const linkBtn = document.getElementById('mcp-client-link-btn');
     const href = linkBtn?.dataset?.href;
     if (href) {
-        window.open(href, '_blank');
+        window.open(href, '_blank', 'noopener,noreferrer');
     }
 }

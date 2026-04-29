@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 // daemonLogMaxBytes is the maximum size of a per-daemon log file before truncation.
@@ -199,7 +201,7 @@ func (r *DaemonRunner) startLocked() error {
 	cmd.Dir = r.workspaceDir
 
 	// Inject daemon-specific environment variables
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()),
 		"AURAGO_DAEMON=1",
 		fmt.Sprintf("AURAGO_SKILL_ID=%s", r.skillID),
 		fmt.Sprintf("AURAGO_SKILL_NAME=%s", r.skillName),

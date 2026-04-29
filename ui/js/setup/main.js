@@ -648,7 +648,7 @@ async function openOpenRouterBrowser(onSelect) {
             _orModelsCacheTime = now;
         }
     } catch (e) {
-        loadingDiv.innerHTML = '<span class="or-loading-error">❌ ' + t('setup.or_browser_connection_error') + e.message + '</span>';
+        loadingDiv.innerHTML = '<span class="or-loading-error">❌ ' + escapeHtml(t('setup.or_browser_connection_error')) + escapeHtml(e && e.message ? e.message : String(e)) + '</span>';
         return;
     }
     setupSetHidden(loadingDiv, true);

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"aurago/internal/dockerutil"
+	"aurago/internal/sandbox"
 )
 
 // AnsibleConfig holds the connection parameters for the Ansible sidecar API.
@@ -411,7 +412,7 @@ func buildAnsibleImage(image, dockerfileDir string, logger interface {
 	// Use a path inside the working directory which is in ReadWritePaths.
 	dockerCfgDir := filepath.Join(dockerfileDir, "data", ".docker")
 	os.MkdirAll(dockerCfgDir, 0o700)
-	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+dockerCfgDir)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

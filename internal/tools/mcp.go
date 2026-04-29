@@ -15,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 // ── MCP (Model Context Protocol) Client ─────────────────────────────────────
@@ -110,8 +112,8 @@ type mcpConn struct {
 	nextID    int64
 	tools     []MCPToolInfo
 	ready     bool
-	closeOnce sync.Once     // ensures close() is idempotent
-	stderrBuf *safeBuffer   // captures MCP server stderr for diagnostics
+	closeOnce sync.Once   // ensures close() is idempotent
+	stderrBuf *safeBuffer // captures MCP server stderr for diagnostics
 	runtime   string
 	hostDir   string
 	contDir   string
@@ -265,14 +267,14 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 
 	cmd := exec.Command(command, args...)
 
-	// Build environment
+	// Build environment from a scrubbed base; MCP servers must not inherit host secrets.
+	cmdEnv := sandbox.FilterEnv(os.Environ())
 	if len(env) > 0 {
-		cmdEnv := cmd.Environ()
 		for k, v := range env {
 			cmdEnv = append(cmdEnv, k+"="+v)
 		}
-		cmd.Env = cmdEnv
 	}
+	cmd.Env = cmdEnv
 
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
@@ -296,10 +298,10 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	}
 
 	conn := &mcpConn{
-		name:      name,
-		cmd:       cmd,
-		stdin:     stdinPipe,
-		stdout:    bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
+		name:   name,
+		cmd:    cmd,
+		stdin:  stdinPipe,
+		stdout: bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
 
 		stderrBuf: stderrBuf,
 		runtime:   runtimeName,

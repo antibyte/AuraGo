@@ -1160,7 +1160,7 @@ func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken stri
 	cmd := exec.Command(lifeboatPath, "--state", statePath, "--plan", planPath, "--sidecar")
 	// Pass the bridge authentication token via environment variable so lifeboat
 	// can authenticate itself when sending commands over the TCP bridge.
-	cmd.Env = append(os.Environ(), "AURAGO_BRIDGE_TOKEN="+bridgeToken)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "AURAGO_BRIDGE_TOKEN="+bridgeToken)
 
 	// Platform specific detachment
 	attachDetachedAttributes(cmd)

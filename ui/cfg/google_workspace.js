@@ -174,7 +174,7 @@ async function gwOAuthConnect() {
         const resp = await fetch('/api/oauth/start?provider=google_workspace');
         const data = await resp.json();
         if (data.auth_url) {
-            window.open(data.auth_url, '_blank', 'width=600,height=700');
+            window.open(data.auth_url, '_blank', 'width=600,height=700,noopener,noreferrer');
             statusEl.style.color = 'var(--accent)';
             statusEl.textContent = t('config.google_workspace.oauth_waiting');
             const manualSection = document.getElementById('gw-manual-section');

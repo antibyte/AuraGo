@@ -158,7 +158,7 @@ EOF
     fi
     
     normalize_file "$CONFIG_FILE"
-    chmod 644 "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
     echo "[Entrypoint] Initial config created successfully"
 fi
 

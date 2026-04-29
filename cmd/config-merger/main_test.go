@@ -100,6 +100,23 @@ agent:
 	}
 }
 
+func TestSplitTopLevelSections_HyphenatedKeys(t *testing.T) {
+	content := `remote-control:
+    enabled: true
+cloudflare-tunnel:
+    enabled: true
+server:
+    port: 8088`
+
+	sections := splitTopLevelSections(content)
+
+	for _, name := range []string{"remote-control", "cloudflare-tunnel", "server"} {
+		if _, ok := sections[name]; !ok {
+			t.Errorf("section %q not found in %v", name, keys(sections))
+		}
+	}
+}
+
 func TestSalvageSections_PartialCorruption(t *testing.T) {
 	// budget section is corrupted, server and agent are valid
 	content := `server:

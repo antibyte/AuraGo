@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aurago/internal/dockerutil"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"bytes"
 	"context"
@@ -840,8 +841,9 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 	}
 	cmd.Stdout = info
 	cmd.Stderr = info
+	cmd.Env = sandbox.FilterEnv(os.Environ())
 	if len(extraEnv) > 0 {
-		cmd.Env = append(os.Environ(), extraEnv...)
+		cmd.Env = append(cmd.Env, extraEnv...)
 	}
 
 	if err := cmd.Start(); err != nil {

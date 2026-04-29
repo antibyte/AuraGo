@@ -258,8 +258,8 @@ func salvageSections(content string) map[string]interface{} {
 	return result
 }
 
-// topKeyRe matches a top-level YAML key (word at column 0 followed by colon).
-var topKeyRe = regexp.MustCompile(`^([a-zA-Z_]\w*)\s*:`)
+// topKeyRe matches a top-level YAML key at column 0, including common dashed keys.
+var topKeyRe = regexp.MustCompile(`^([a-zA-Z_][\w-]*)\s*:`)
 
 // splitTopLevelSections splits YAML content into chunks by top-level key.
 // Each chunk includes the key line and all following indented/blank/comment lines.

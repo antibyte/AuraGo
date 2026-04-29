@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 // UpdateCheckResult is the payload returned by /api/updates/check.
@@ -182,7 +184,7 @@ func runCmd(dir string, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	if home, _ := os.UserHomeDir(); home != "" {
-		cmd.Env = append(os.Environ(), "HOME="+home)
+		cmd.Env = append(sandbox.FilterEnv(os.Environ()), "HOME="+home)
 	}
 	return cmd.CombinedOutput()
 }
@@ -235,7 +237,7 @@ func handleUpdateInstall(s *Server) http.HandlerFunc {
 		cmd := exec.Command("/bin/bash", "-c", wrapper)
 		cmd.Dir = dir
 		if home, _ := os.UserHomeDir(); home != "" {
-			cmd.Env = append(os.Environ(), "HOME="+home)
+			cmd.Env = append(sandbox.FilterEnv(os.Environ()), "HOME="+home)
 		}
 
 		if err := cmd.Start(); err != nil {

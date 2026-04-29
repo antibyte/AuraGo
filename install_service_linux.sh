@@ -185,7 +185,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 # NOTE: NoNewPrivileges=true blocks sudo. If you enable agent.sudo_enabled in
 # config.yaml (Danger Zone), comment out this line in the service file and run:
 #   sudo systemctl daemon-reload && sudo systemctl restart aurago
-# NoNewPrivileges=true
+NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
 ProtectHome=read-only
