@@ -839,6 +839,59 @@ func TestCronManagerLoadsFromFile(t *testing.T) {
 	}
 }
 
+func TestMissionQueuePersistsAndRehydrates(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.missions["mission_a"] = &MissionV2{ID: "mission_a", Name: "A", Priority: "low", Enabled: true, Status: MissionStatusQueued}
+	mm.missions["mission_b"] = &MissionV2{ID: "mission_b", Name: "B", Priority: "high", Enabled: true, Status: MissionStatusQueued}
+	mm.queue.Enqueue("mission_a", "low", "manual", `{"n":1}`)
+	mm.queue.Enqueue("mission_b", "high", "webhook", `{"n":2}`)
+	if err := mm.saveQueueLocked(); err != nil {
+		t.Fatalf("saveQueueLocked: %v", err)
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	restarted.missions["mission_a"] = &MissionV2{ID: "mission_a", Name: "A", Priority: "low", Enabled: true}
+	restarted.missions["mission_b"] = &MissionV2{ID: "mission_b", Name: "B", Priority: "high", Enabled: true}
+	if err := restarted.loadQueueLocked(); err != nil {
+		t.Fatalf("loadQueueLocked: %v", err)
+	}
+
+	items := restarted.queue.List()
+	if len(items) != 2 {
+		t.Fatalf("queue len = %d, want 2: %+v", len(items), items)
+	}
+	if items[0].MissionID != "mission_b" || items[1].MissionID != "mission_a" {
+		t.Fatalf("queue priority order = %+v, want mission_b then mission_a", items)
+	}
+	if restarted.missions["mission_a"].Status != MissionStatusQueued || restarted.missions["mission_b"].Status != MissionStatusQueued {
+		t.Fatalf("missions not marked queued after rehydrate: %+v %+v", restarted.missions["mission_a"], restarted.missions["mission_b"])
+	}
+}
+
+func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.missions["mission_running"] = &MissionV2{ID: "mission_running", Name: "Running", Priority: "medium", Enabled: true}
+	mm.queue.Restore(nil, "mission_running")
+	if err := mm.saveQueueLocked(); err != nil {
+		t.Fatalf("saveQueueLocked: %v", err)
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	restarted.missions["mission_running"] = &MissionV2{ID: "mission_running", Name: "Running", Priority: "medium", Enabled: true}
+	if err := restarted.loadQueueLocked(); err != nil {
+		t.Fatalf("loadQueueLocked: %v", err)
+	}
+	items := restarted.queue.List()
+	if len(items) != 1 || items[0].MissionID != "mission_running" {
+		t.Fatalf("running mission was not requeued: %+v", items)
+	}
+	if restarted.queue.GetRunning() != "" {
+		t.Fatalf("running marker should be cleared on restart, got %q", restarted.queue.GetRunning())
+	}
+}
+
 func TestScheduledMissionNotRegisteredWhenDisabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	cronMgr := NewCronManager(tmpDir)
