@@ -793,17 +793,20 @@ fi
 CONFIG_FILE="$INSTALL_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+    INITIAL_PASSWORD_FILE="$(mktemp "${INSTALL_DIR}/.initial-password.XXXXXX")"
+    trap 'rm -f "${INITIAL_PASSWORD_FILE:-}"' EXIT
+    write_secret_text_file "$INITIAL_PASSWORD_FILE" "$INFO_PASSWORD" || die "Failed to write temporary initial password securely."
 
     # Save first-use password (owner-readable only)
     write_secret_text_file "$INSTALL_DIR/firstpassword.txt" "$INFO_PASSWORD" || die "Failed to write firstpassword.txt securely."
 
     if [ "$HTTPS_ENABLED" = "true" ]; then
-        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"; then
+        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password-file "$INITIAL_PASSWORD_FILE" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"; then
             die "Initial password and HTTPS setup failed. Check config.yaml and AURAGO_MASTER_KEY."
         fi
         ok "config.yaml → HTTPS enabled for $HTTPS_DOMAIN"
     else
-        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD"; then
+        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password-file "$INITIAL_PASSWORD_FILE"; then
             die "Initial password setup failed. Check config.yaml and AURAGO_MASTER_KEY."
         fi
         awk -v host="$SERVER_HOST" '

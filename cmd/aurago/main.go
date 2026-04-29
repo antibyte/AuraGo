@@ -51,6 +51,20 @@ import (
 // cronHTTPClient is used for cron loopback requests with a bounded timeout.
 var cronHTTPClient = &http.Client{Timeout: 2 * time.Minute}
 
+func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
+	if passwordFlag != "" && passwordFile != "" {
+		return "", fmt.Errorf("-password and -password-file cannot be used together")
+	}
+	if passwordFile == "" {
+		return passwordFlag, nil
+	}
+	raw, err := os.ReadFile(passwordFile)
+	if err != nil {
+		return "", fmt.Errorf("read password file: %w", err)
+	}
+	return strings.TrimRight(string(raw), "\r\n"), nil
+}
+
 func main() {
 	// â”€â”€ Sandbox helper mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	// When invoked with --sandbox-exec, this process applies Landlock + rlimits
@@ -74,9 +88,10 @@ func main() {
 	var httpsDomain string
 	var httpsEmail string
 	var initialPassword string
+	var initialPasswordFile string
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&runSetup, "setup", false, "Extract resources.dat, install service, and exit")
-	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-https flags to config/vault, then exit immediately (used by installer)")
+	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-password-file/-https flags to config/vault, then exit immediately (used by installer)")
 	flag.BoolVar(&checkConfig, "check-config", false, "Validate config file syntax and exit (used by Docker entrypoint)")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file (default: config.yaml)")
 	flag.StringVar(&recoveryContext, "recovery-context", "", "Recovery context after maintenance (Base64)")
@@ -84,6 +99,7 @@ func main() {
 	flag.StringVar(&httpsDomain, "domain", "", "Domain for Let's Encrypt")
 	flag.StringVar(&httpsEmail, "email", "", "Email for Let's Encrypt")
 	flag.StringVar(&initialPassword, "password", "", "Set initial login password (hashes and stores in vault)")
+	flag.StringVar(&initialPasswordFile, "password-file", "", "Read initial login password from a 0600 file")
 	flag.Parse()
 
 	appLog := logger.Setup(debug)
@@ -100,6 +116,13 @@ func main() {
 	loadDockerSecret("/run/secrets/aurago_master_key", "AURAGO_MASTER_KEY", appLog)
 	loadDotEnv("/etc/aurago/master.key", appLog)
 	loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
+
+	if resolved, err := resolveInitialPassword(initialPassword, initialPasswordFile); err != nil {
+		appLog.Error("Invalid initial password arguments", "error", err)
+		os.Exit(1)
+	} else {
+		initialPassword = resolved
+	}
 
 	// â”€â”€ Config-check mode: validate YAML and exit (used by Docker entrypoint) â”€
 	if checkConfig {

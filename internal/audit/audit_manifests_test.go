@@ -275,6 +275,14 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 			t.Fatalf("update.sh must include restart rollback/setcap guard %q", required)
 		}
 	}
+
+	installScript := readRepoFile(t, "install.sh")
+	if strings.Contains(installScript, `-password "$INFO_PASSWORD"`) {
+		t.Fatal("install.sh must not pass the initial password via process arguments")
+	}
+	if !strings.Contains(installScript, "-password-file") {
+		t.Fatal("install.sh must pass the initial password through a protected temporary file")
+	}
 }
 
 func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
