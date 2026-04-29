@@ -19,8 +19,11 @@ var haHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // HAConfig holds the Home Assistant connection parameters.
 type HAConfig struct {
-	URL         string
-	AccessToken string
+	URL             string
+	AccessToken     string
+	ReadOnly        bool
+	AllowedServices []string
+	BlockedServices []string
 }
 
 func haEntityStateEndpoint(entityID string) string {
@@ -161,6 +164,12 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 	if domain == "" || service == "" {
 		return errJSON("'domain' and 'service' are required (e.g. domain='light', service='turn_on')")
 	}
+	if cfg.ReadOnly {
+		return errJSON("Home Assistant is in read-only mode. Disable home_assistant.readonly to allow changes.")
+	}
+	if msg := homeAssistantServiceGate(domain, service, cfg.AllowedServices, cfg.BlockedServices); msg != "" {
+		return errJSON("%s", msg)
+	}
 
 	// Build request body
 	payload := make(map[string]interface{})
@@ -206,6 +215,31 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 		"count":             len(affected),
 	})
 	return string(out)
+}
+
+func homeAssistantServiceGate(domain, service string, allowedServices, blockedServices []string) string {
+	full := strings.ToLower(strings.TrimSpace(domain) + "." + strings.TrimSpace(service))
+	if strings.Trim(full, ".") == "" {
+		return ""
+	}
+	for _, blocked := range blockedServices {
+		if normalizeHomeAssistantService(blocked) == full {
+			return "Home Assistant service " + full + " is blocked by home_assistant.blocked_services"
+		}
+	}
+	if len(allowedServices) == 0 {
+		return "Home Assistant service " + full + " is not allowed because home_assistant.allowed_services is empty"
+	}
+	for _, allowed := range allowedServices {
+		if normalizeHomeAssistantService(allowed) == full {
+			return ""
+		}
+	}
+	return "Home Assistant service " + full + " is not allowed by home_assistant.allowed_services"
+}
+
+func normalizeHomeAssistantService(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 // HAListServices lists all available services, optionally filtered by domain.

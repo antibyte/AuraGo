@@ -803,8 +803,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			haCfg := tools.HAConfig{
-				URL:         cfg.HomeAssistant.URL,
-				AccessToken: cfg.HomeAssistant.AccessToken,
+				URL:             cfg.HomeAssistant.URL,
+				AccessToken:     cfg.HomeAssistant.AccessToken,
+				ReadOnly:        cfg.HomeAssistant.ReadOnly,
+				AllowedServices: cfg.HomeAssistant.AllowedServices,
+				BlockedServices: cfg.HomeAssistant.BlockedServices,
 			}
 			switch req.Operation {
 			case "get_states", "list_states", "states":
