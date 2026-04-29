@@ -66,6 +66,30 @@ func TestExecuteSkillWithSecrets_RejectsOversizedArgs(t *testing.T) {
 	}
 }
 
+func TestExecuteSkillRequiresPythonPermission(t *testing.T) {
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	_, err := ExecuteSkill(context.Background(), setupDummySkill(t), t.TempDir(), "big_args_test", nil)
+	if err == nil || !strings.Contains(err.Error(), "python execution is disabled") {
+		t.Fatalf("ExecuteSkill error = %v, want python permission denial", err)
+	}
+}
+
+func TestExecuteSkillWithSecretsRequiresPythonPermission(t *testing.T) {
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	_, err := ExecuteSkillWithSecrets(context.Background(), setupDummySkill(t), t.TempDir(), "big_args_test", nil, nil, nil, "", "", nil)
+	if err == nil || !strings.Contains(err.Error(), "python execution is disabled") {
+		t.Fatalf("ExecuteSkillWithSecrets error = %v, want python permission denial", err)
+	}
+}
+
 func TestBuildSandboxSkillExecCodeUsesBase64Args(t *testing.T) {
 	skillCode := "def test_skill(**kwargs):\n    return kwargs\n\nif __name__ == \"__main__\":\n    pass\n"
 	argsBytes := []byte(`{"name":"x' ); import os; #"}`)

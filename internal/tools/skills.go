@@ -287,6 +287,14 @@ func buildSkillCommand(ctx context.Context, workspaceDir string, manifest SkillM
 	return exec.CommandContext(ctx, absExecPath)
 }
 
+func requireSkillExecutionPermission(manifest SkillManifest) error {
+	executable := strings.ToLower(manifest.Executable)
+	if strings.HasSuffix(executable, ".py") {
+		return requirePythonPermission()
+	}
+	return requireShellPermission()
+}
+
 // limitWriter captures stdout/stderr up to a byte limit.
 type limitWriter struct {
 	buf      bytes.Buffer
@@ -307,6 +315,9 @@ func (w *limitWriter) Write(p []byte) (int, error) {
 }
 
 func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
+	if err := requireSkillExecutionPermission(manifest); err != nil {
+		return "", err
+	}
 	if opts.logInput {
 		slog.Debug(
 			"[ExecuteSkill] Prepared JSON input",
