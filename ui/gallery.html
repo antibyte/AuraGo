@@ -34,7 +34,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -69,7 +69,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 data-i18n="common.confirm_title">Confirm</h3>
-                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <div class="modal-body">
                 <p id="delete-confirm-text"></p>
@@ -86,7 +86,7 @@
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
         <div class="lightbox-content" onclick="event.stopPropagation()">
-            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <button type="button" class="lightbox-close" data-i18n-aria-label="common.close" onclick="closeLightbox()">&times;</button>
             <img id="lightbox-img" src="" alt="">
             <div class="lightbox-meta" id="lightbox-meta"></div>
             <div class="lightbox-actions">

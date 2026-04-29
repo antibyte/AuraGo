@@ -54,5 +54,21 @@
   "common.view_list": "Zobrazení seznamu",
   "common.view_grid": "Zobrazení mřížky",
   "common.btn_remove": "Odebrat",
-  "common.warning": "Varování"
+  "common.warning": "Varování",
+  "common.close": "Zavřít",
+  "chat.aria_chat_theme": "Témata chatu",
+  "chat.aria_cheatsheet": "Poslat tahák",
+  "chat.aria_clear": "Vymazat",
+  "chat.aria_conversations": "Konverzace",
+  "chat.aria_feedback": "Zpětná vazba",
+  "chat.aria_logout": "Odhlásit se",
+  "chat.aria_mood_settings": "Nastavení nálady",
+  "chat.aria_more_options": "Další možnosti",
+  "chat.aria_notifications": "Oznámení",
+  "chat.aria_send": "Odeslat zprávu",
+  "chat.aria_stop": "Zastavit",
+  "chat.aria_system_warnings": "Systémová varování",
+  "chat.aria_toggle_speaker": "Přepnout reproduktor",
+  "chat.aria_upload": "Nahrát soubor",
+  "chat.aria_voice_input": "Hlasový vstup"
 }

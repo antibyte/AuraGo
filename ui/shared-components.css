@@ -1346,7 +1346,7 @@ div.toggle.toggle-sm.on::before {
     display: none;
     align-items: flex-start;
     justify-content: center;
-    z-index: 200;
+    z-index: 10000;
     opacity: 0;
     transition: opacity 0.3s ease;
     overflow-y: auto;
@@ -2586,6 +2586,11 @@ div.toggle.toggle-sm.on::before {
 
     .radial-item:nth-child(13) {
         top: 650px;
+    }
+    .radial-items {
+        max-height: calc(100dvh - 60px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 

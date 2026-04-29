@@ -35,7 +35,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -124,7 +124,7 @@
     <!-- Image lightbox -->
     <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
         <div class="lightbox-content" onclick="event.stopPropagation()">
-            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <button type="button" class="lightbox-close" data-i18n-aria-label="common.close" onclick="closeLightbox()">&times;</button>
             <img id="lightbox-img" src="" alt="">
             <div class="lightbox-meta" id="lightbox-meta"></div>
             <div class="lightbox-actions">
@@ -137,7 +137,7 @@
     <!-- Audio lightbox overlay with full player -->
     <div id="audio-modal" class="media-modal is-hidden" onclick="closeAudioModal(event)">
         <div class="media-modal-content" onclick="event.stopPropagation()">
-            <button class="lightbox-close" onclick="closeAudioModal()">&times;</button>
+            <button type="button" class="lightbox-close" data-i18n-aria-label="common.close" onclick="closeAudioModal()">&times;</button>
             <div id="audio-modal-body"></div>
             <div class="lightbox-actions">
                 <a id="audio-modal-download" href="" download class="btn-gallery-action" data-i18n="gallery.download">⬇ Download</a>

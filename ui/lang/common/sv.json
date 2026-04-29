@@ -54,5 +54,21 @@
   "common.view_list": "Listvy",
   "common.view_grid": "Rutnätsvy",
   "common.btn_remove": "Ta bort",
-  "common.warning": "Varning"
+  "common.warning": "Varning",
+  "common.close": "Stäng",
+  "chat.aria_chat_theme": "Chatt-tema",
+  "chat.aria_cheatsheet": "Skicka fusklapp",
+  "chat.aria_clear": "Rensa",
+  "chat.aria_conversations": "Konversationer",
+  "chat.aria_feedback": "Feedback",
+  "chat.aria_logout": "Logga ut",
+  "chat.aria_mood_settings": "Inställningar för humör",
+  "chat.aria_more_options": "Fler alternativ",
+  "chat.aria_notifications": "Aviseringar",
+  "chat.aria_send": "Skicka meddelande",
+  "chat.aria_stop": "Stopp",
+  "chat.aria_system_warnings": "Systemvarningar",
+  "chat.aria_toggle_speaker": "Växla högtalare",
+  "chat.aria_upload": "Ladda upp fil",
+  "chat.aria_voice_input": "Röstindata"
 }

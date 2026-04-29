@@ -54,5 +54,21 @@
   "common.view_list": "Listevisning",
   "common.view_grid": "Gittervisning",
   "common.btn_remove": "Fjern",
-  "common.warning": "Advarsel"
+  "common.warning": "Advarsel",
+  "common.close": "Luk",
+  "chat.aria_chat_theme": "Chat-tema",
+  "chat.aria_cheatsheet": "Send snydeark",
+  "chat.aria_clear": "Ryd",
+  "chat.aria_conversations": "Samtaler",
+  "chat.aria_feedback": "Feedback",
+  "chat.aria_logout": "Log ud",
+  "chat.aria_mood_settings": "Humørindstillinger",
+  "chat.aria_more_options": "Flere muligheder",
+  "chat.aria_notifications": "Meddelelser",
+  "chat.aria_send": "Send besked",
+  "chat.aria_stop": "Stop",
+  "chat.aria_system_warnings": "Systemadvarsler",
+  "chat.aria_toggle_speaker": "Slå højttaler til/fra",
+  "chat.aria_upload": "Upload fil",
+  "chat.aria_voice_input": "Stemmeinput"
 }

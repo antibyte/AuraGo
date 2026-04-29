@@ -95,7 +95,7 @@ function showModal(title, message, isConfirm = false, options = {}) {
         function onOverlay(e) { if (e.target === overlay) cleanup(false); }
         function onKey(e) {
             if (e.key === 'Escape') cleanup(false);
-            if (e.key === 'Enter') cleanup(true);
+            if (e.key === 'Enter' && overlay.contains(document.activeElement)) cleanup(true);
         }
         
         if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
@@ -720,11 +720,19 @@ function initModals() {
     });
 
     document.addEventListener('keydown', (e) => {
+        if (e.defaultPrevented) return;
         if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.active, .modal-overlay.open').forEach(modal => {
-                modal.classList.remove('active', 'open');
-            });
-            document.body.style.overflow = '';
+            // Only close the topmost (last) active modal
+            const modals = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
+            if (modals.length > 0) {
+                const topmost = modals[modals.length - 1];
+                topmost.classList.remove('active', 'open');
+                // Only restore body scroll if no other modals remain open
+                const remaining = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
+                if (remaining.length === 0) {
+                    document.body.style.overflow = '';
+                }
+            }
         }
     });
 }

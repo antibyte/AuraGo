@@ -35,7 +35,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -113,7 +113,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="detail-modal-title" data-i18n="skills.detail_title">Skill Details</h2>
-                <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDetailModal()">&times;</button>
             </div>
             <div class="modal-body" id="detail-modal-body">
                 <!-- Populated by JS -->
@@ -133,7 +133,7 @@
             <div class="modal-header">
                 <h2 id="code-modal-title" data-i18n="skills.code_title">Skill Code</h2>
                 <button class="btn btn-secondary btn-sm sk-code-fullscreen-btn" type="button" onclick="toggleCodeFullscreen()" data-i18n="skills.btn_fullscreen">Fullscreen</button>
-                <button class="modal-close" onclick="closeCodeModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeCodeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="code-draft-meta" class="sk-code-meta" style="display:none;">
@@ -175,7 +175,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="skills.upload_title">Upload Skill</h2>
-                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUploadModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-upload-warning">
@@ -227,7 +227,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="skills.template_title">Create from Template</h2>
-                <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTemplateModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
@@ -281,7 +281,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="skills.delete_title">Delete Skill</h2>
-                <button class="modal-close" onclick="closeDeleteSkillModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteSkillModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p data-i18n="skills.delete_confirm">Are you sure you want to delete this skill?</p>
@@ -302,7 +302,7 @@
         <div class="modal modal--sm">
             <div class="modal-header">
                 <h2 data-i18n="skills.vault_modal_title">Assign Secrets</h2>
-                <button class="modal-close" onclick="closeVaultKeyModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeVaultKeyModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="sk-vault-modal-desc" data-i18n="skills.vault_modal_desc">Select the vault secrets this skill will receive as environment variables at runtime.</p>
@@ -323,7 +323,7 @@
         <div class="modal modal--sm">
             <div class="modal-header">
                 <h2 data-i18n="skills.internal_tools_modal_title">Assign Internal Tools</h2>
-                <button class="modal-close" onclick="closeInternalToolsModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInternalToolsModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="sk-vault-modal-desc" data-i18n="skills.internal_tools_modal_desc">Select the AuraGo native tools this skill may call via the tool bridge at runtime.</p>
@@ -344,7 +344,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 data-i18n="skills.test_title">Test Skill</h2>
-                <button class="modal-close" onclick="closeTestModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTestModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
@@ -371,7 +371,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="skills.import_title">Import Skill Bundle</h2>
-                <button class="modal-close" onclick="closeImportModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeImportModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">
@@ -392,7 +392,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 data-i18n="skills.generate_title">Generate Skill Draft</h2>
-                <button class="modal-close" onclick="closeGenerateModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeGenerateModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="sk-form-group">

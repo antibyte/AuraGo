@@ -114,6 +114,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px 12px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 .session-empty {

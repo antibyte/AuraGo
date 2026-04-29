@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="AuraGo" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title id="page-title">AuraGo – Quick Setup</title>
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/tailwind-compat.css">
@@ -42,7 +42,7 @@
             <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()" data-i18n="setup.nav_next">Next →</button>
         </nav>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
             <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()" data-i18n="setup.skip_button">Skip ✕</button>
         </div>
     </header>

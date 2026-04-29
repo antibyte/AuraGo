@@ -34,7 +34,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -84,7 +84,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="nest-modal-title" data-i18n="invasion.create_nest">Create Nest</h2>
-                <button class="modal-close" type="button" data-modal-close="nest-modal">&times;</button>
+                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="nest-modal">&times;</button>
             </div>
             <input type="hidden" id="nest-id">
             <div class="form-group">
@@ -184,7 +184,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="egg-modal-title" data-i18n="invasion.create_egg">Create Egg</h2>
-                <button class="modal-close" type="button" data-modal-close="egg-modal">&times;</button>
+                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="egg-modal">&times;</button>
             </div>
             <input type="hidden" id="egg-id">
             <div class="form-group">
@@ -271,7 +271,7 @@
         <div class="modal modal-lg">
             <div class="modal-header">
                 <h2 id="reconfigure-modal-title" data-i18n="invasion.reconfigure_title">Safe Reconfigure</h2>
-                <button class="modal-close" type="button" data-modal-close="reconfigure-modal">&times;</button>
+                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="reconfigure-modal">&times;</button>
             </div>
             <input type="hidden" id="reconfigure-nest-id">
             <div class="reconfigure-warning" data-i18n="invasion.reconfigure_warning">⚠️ The egg will be restarted after applying changes.</div>
@@ -340,7 +340,7 @@
         <div class="modal modal-lg">
             <div class="modal-header">
                 <h2 id="config-history-title" data-i18n="invasion.config_history_title">Config History</h2>
-                <button class="modal-close" type="button" data-modal-close="config-history-modal">&times;</button>
+                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="config-history-modal">&times;</button>
             </div>
             <input type="hidden" id="history-nest-id">
             <div id="config-history-list" class="config-history-list">
@@ -356,7 +356,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 class="delete-modal-title">⚠️ <span data-i18n="invasion.confirm_delete">Confirm Delete</span></h2>
-                <button class="modal-close" type="button" data-modal-close="delete-modal">&times;</button>
+                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="delete-modal">&times;</button>
             </div>
             <p id="delete-message" class="delete-message"></p>
             <p class="delete-modal-hint" data-i18n="invasion.type_name_confirm">Type the exact name to confirm deletion.</p>

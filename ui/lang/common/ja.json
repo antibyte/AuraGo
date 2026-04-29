@@ -54,5 +54,21 @@
   "common.view_list": "リスト表示",
   "common.view_grid": "グリッド表示",
   "common.btn_remove": "削除",
-  "common.warning": "警告"
+  "common.warning": "警告",
+  "common.close": "閉じる",
+  "chat.aria_chat_theme": "チャットテーマ",
+  "chat.aria_cheatsheet": "チートシートを送信",
+  "chat.aria_clear": "クリア",
+  "chat.aria_conversations": "会話",
+  "chat.aria_feedback": "フィードバック",
+  "chat.aria_logout": "ログアウト",
+  "chat.aria_mood_settings": "ムード設定",
+  "chat.aria_more_options": "その他のオプション",
+  "chat.aria_notifications": "通知",
+  "chat.aria_send": "メッセージ送信",
+  "chat.aria_stop": "停止",
+  "chat.aria_system_warnings": "システム警告",
+  "chat.aria_toggle_speaker": "スピーカー切り替え",
+  "chat.aria_upload": "ファイルアップロード",
+  "chat.aria_voice_input": "音声入力"
 }

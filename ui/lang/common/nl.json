@@ -54,5 +54,21 @@
   "common.view_list": "Lijstweergave",
   "common.view_grid": "Rasterweergave",
   "common.btn_remove": "Verwijderen",
-  "common.warning": "Waarschuwing"
+  "common.warning": "Waarschuwing",
+  "common.close": "Sluiten",
+  "chat.aria_chat_theme": "Chatthema",
+  "chat.aria_cheatsheet": "Spiekbriefje sturen",
+  "chat.aria_clear": "Wissen",
+  "chat.aria_conversations": "Gesprekken",
+  "chat.aria_feedback": "Feedback",
+  "chat.aria_logout": "Uitloggen",
+  "chat.aria_mood_settings": "Stemming-instellingen",
+  "chat.aria_more_options": "Meer opties",
+  "chat.aria_notifications": "Meldingen",
+  "chat.aria_send": "Bericht versturen",
+  "chat.aria_stop": "Stoppen",
+  "chat.aria_system_warnings": "Systeemwaarschuwingen",
+  "chat.aria_toggle_speaker": "Luidspreker in-/uitschakelen",
+  "chat.aria_upload": "Bestand upload",
+  "chat.aria_voice_input": "Spraakinvoer"
 }

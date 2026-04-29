@@ -54,5 +54,21 @@
   "common.view_list": "列表视图",
   "common.view_grid": "网格视图",
   "common.btn_remove": "移除",
-  "common.warning": "警告"
+  "common.warning": "警告",
+  "common.close": "关闭",
+  "chat.aria_chat_theme": "聊天主题",
+  "chat.aria_cheatsheet": "发送速查表",
+  "chat.aria_clear": "清除",
+  "chat.aria_conversations": "对话",
+  "chat.aria_feedback": "反馈",
+  "chat.aria_logout": "登出",
+  "chat.aria_mood_settings": "情绪设置",
+  "chat.aria_more_options": "更多选项",
+  "chat.aria_notifications": "通知",
+  "chat.aria_send": "发送消息",
+  "chat.aria_stop": "停止",
+  "chat.aria_system_warnings": "系统警告",
+  "chat.aria_toggle_speaker": "切换扬声器",
+  "chat.aria_upload": "上传文件",
+  "chat.aria_voice_input": "语音输入"
 }

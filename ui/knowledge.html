@@ -36,7 +36,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -264,7 +264,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="device-modal-title" data-i18n="knowledge.devices_add">Add Device</h2>
-                <button class="modal-close" onclick="closeModal('device-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('device-modal')">&times;</button>
             </div>
             <input type="hidden" id="device-id">
             <div class="form-group">
@@ -330,7 +330,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="contact-modal-title" data-i18n="knowledge.contacts_add">Add Contact</h2>
-                <button class="modal-close" onclick="closeModal('contact-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('contact-modal')">&times;</button>
             </div>
             <input type="hidden" id="contact-id">
             <div class="form-group">
@@ -378,7 +378,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="credential-modal-title" data-i18n="knowledge.credentials_add">Add Access Credential</h2>
-                <button class="modal-close" onclick="closeModal('credential-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('credential-modal')">&times;</button>
             </div>
             <input type="hidden" id="credential-id">
             <div class="form-group">
@@ -468,7 +468,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="appointment-modal-title" data-i18n="knowledge.appointments_add">New Appointment</h2>
-                <button class="modal-close" onclick="closeModal('appointment-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('appointment-modal')">&times;</button>
             </div>
             <input type="hidden" id="appointment-id">
             <div class="form-group">
@@ -529,7 +529,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="todo-modal-title" data-i18n="knowledge.todos_add">New To-Do</h2>
-                <button class="modal-close" onclick="closeModal('todo-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('todo-modal')">&times;</button>
             </div>
             <input type="hidden" id="todo-id">
             <div class="form-group">
@@ -589,7 +589,7 @@
         <div class="modal modal-small">
             <div class="modal-header">
                 <h2 data-i18n="knowledge.delete_confirm_title">Confirm Delete</h2>
-                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-confirm-text" data-i18n="knowledge.delete_confirm_text">Are you sure you want to delete this item?</p>
             <input type="hidden" id="delete-target-id">
@@ -609,7 +609,7 @@
                     <h2 id="file-preview-title">Document Preview</h2>
                     <div class="kc-preview-subtitle" id="file-preview-subtitle"></div>
                 </div>
-                <button class="modal-close" onclick="closeFilePreview()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeFilePreview()">&times;</button>
             </div>
             <div class="kc-preview-body">
                 <iframe id="file-preview-frame" class="kc-preview-frame is-hidden" title="Document preview"></iframe>

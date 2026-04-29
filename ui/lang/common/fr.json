@@ -54,5 +54,21 @@
   "common.view_list": "Vue en liste",
   "common.view_grid": "Vue en grille",
   "common.btn_remove": "Supprimer",
-  "common.warning": "Avertissement"
+  "common.warning": "Avertissement",
+  "common.close": "Fermer",
+  "chat.aria_chat_theme": "Thème du chat",
+  "chat.aria_cheatsheet": "Envoyer l'aide-mémoire",
+  "chat.aria_clear": "Effacer",
+  "chat.aria_conversations": "Conversations",
+  "chat.aria_feedback": "Commentaires",
+  "chat.aria_logout": "Déconnexion",
+  "chat.aria_mood_settings": "Paramètres d'humeur",
+  "chat.aria_more_options": "Plus d'options",
+  "chat.aria_notifications": "Notifications",
+  "chat.aria_send": "Envoyer le message",
+  "chat.aria_stop": "Arrêter",
+  "chat.aria_system_warnings": "Avertissements système",
+  "chat.aria_toggle_speaker": "Activer le haut-parleur",
+  "chat.aria_upload": "Télécharger un fichier",
+  "chat.aria_voice_input": "Entrée vocale"
 }

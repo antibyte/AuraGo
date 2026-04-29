@@ -21,15 +21,6 @@
 .cfg-password-input  { flex:1; min-width:0; }
 .cfg-status-text     { margin-top:0.4rem; font-size:0.78rem; }
 
-/* LAY-04: Unified card grid */
-.cfg-grid,
-.config-grid,
-.card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px; /* D-18: consistent 20px gap */
-}
-
 /* Homepage */
 .hp-grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
 .hp-lock-icon { font-size:0.65rem; color:var(--warning); }
@@ -357,7 +348,6 @@ body {
 .cfg-section.active {
     display: block;
 }
-
 
 .section-header {
     font-size: 1.3rem;

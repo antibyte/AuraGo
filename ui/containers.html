@@ -34,7 +34,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -92,7 +92,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="log-modal-title" data-i18n="containers.logs_title">Container Logs</h2>
-                <button class="modal-close" onclick="closeLogModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeLogModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <pre class="ct-log-output" id="log-output"></pre>
@@ -109,7 +109,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="inspect-modal-title" data-i18n="containers.inspect_title">Container Details</h2>
-                <button class="modal-close" onclick="closeInspectModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInspectModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <pre class="ct-inspect-output" id="inspect-output"></pre>
@@ -125,7 +125,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="containers.delete_title">Remove Container</h2>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p data-i18n="containers.delete_confirm">Are you sure you want to remove this container?</p>

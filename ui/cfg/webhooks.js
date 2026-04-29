@@ -455,8 +455,39 @@ function whRenderTokenList() {
     return html;
 }
 
+async function _whPromptTokenName() {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:var(--modal-bg,rgba(0,0,0,0.6));z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+        const titleText = (typeof t === 'function') ? t('config.tokens.name_prompt') : 'Token Name';
+        const cancelText = (typeof t === 'function') ? t('common.btn_cancel') : 'Cancel';
+        const okText = (typeof t === 'function') ? t('common.btn_ok') : 'OK';
+        overlay.innerHTML = '<div class="modal-card" style="max-width:400px;width:90%;">' +
+            '<div class="modal-title" style="font-size:1.1rem;font-weight:600;margin-bottom:16px;color:var(--text-primary);">' + titleText + '</div>' +
+            '<input type="text" id="wh-token-name-input" class="field-input" style="width:100%;margin-bottom:16px;" autofocus>' +
+            '<div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button class="btn btn-secondary" id="wh-token-cancel">' + cancelText + '</button>' +
+            '<button class="btn btn-primary" id="wh-token-ok">' + okText + '</button>' +
+            '</div></div>';
+        document.body.appendChild(overlay);
+        var input = document.getElementById('wh-token-name-input');
+        var okBtn = document.getElementById('wh-token-ok');
+        var cancelBtn = document.getElementById('wh-token-cancel');
+        if (input) input.focus();
+        function cleanup(value) { overlay.remove(); resolve(value); }
+        okBtn.addEventListener('click', function() { cleanup(input ? input.value.trim() : ''); });
+        cancelBtn.addEventListener('click', function() { cleanup(''); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) cleanup(''); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { cleanup(''); document.removeEventListener('keydown', handler); }
+            if (e.key === 'Enter' && overlay.contains(document.activeElement)) { cleanup(input ? input.value.trim() : ''); document.removeEventListener('keydown', handler); }
+        });
+    });
+}
+
 async function whCreateToken() {
-    const name = prompt(t('config.tokens.name_prompt'));
+    const name = await _whPromptTokenName();
     if (!name) return;
     try {
         const resp = await fetch('/api/tokens', {

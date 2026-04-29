@@ -54,5 +54,21 @@
   "common.view_list": "List view",
   "common.view_grid": "Grid view",
   "common.btn_remove": "Remove",
-  "common.warning": "Warning"
+  "common.warning": "Warning",
+  "common.close": "Close",
+  "chat.aria_chat_theme": "Chat theme",
+  "chat.aria_cheatsheet": "Send cheatsheet",
+  "chat.aria_clear": "Clear",
+  "chat.aria_conversations": "Conversations",
+  "chat.aria_feedback": "Feedback",
+  "chat.aria_logout": "Logout",
+  "chat.aria_mood_settings": "Mood settings",
+  "chat.aria_more_options": "More options",
+  "chat.aria_notifications": "Notifications",
+  "chat.aria_send": "Send message",
+  "chat.aria_stop": "Stop",
+  "chat.aria_system_warnings": "System warnings",
+  "chat.aria_toggle_speaker": "Toggle speaker",
+  "chat.aria_upload": "Upload file",
+  "chat.aria_voice_input": "Voice input"
 }

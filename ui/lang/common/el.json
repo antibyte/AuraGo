@@ -54,5 +54,21 @@
   "common.view_list": "Προβολή λίστας",
   "common.view_grid": "Προβολή πλέγματος",
   "common.btn_remove": "Αφαίρεση",
-  "common.warning": "Προειδοποίηση"
+  "common.warning": "Προειδοποίηση",
+  "common.close": "Κλείσιμο",
+  "chat.aria_chat_theme": "Θέμα συνομιλίας",
+  "chat.aria_cheatsheet": "Αποστολή cheat sheet",
+  "chat.aria_clear": "Καθαρισμός",
+  "chat.aria_conversations": "Συζητήσεις",
+  "chat.aria_feedback": "Σχόλια",
+  "chat.aria_logout": "Αποσύνδεση",
+  "chat.aria_mood_settings": "Ρυθμίσεις διάθεσης",
+  "chat.aria_more_options": "Περισσότερες επιλογές",
+  "chat.aria_notifications": "Ειδοποιήσεις",
+  "chat.aria_send": "Αποστολή μηνύματος",
+  "chat.aria_stop": "Στοπ",
+  "chat.aria_system_warnings": "Προειδοποιήσεις συστήματος",
+  "chat.aria_toggle_speaker": "Εναλλαγή ηχείου",
+  "chat.aria_upload": "Μεταφόρτωση αρχείου",
+  "chat.aria_voice_input": "Φωνητική είσοδος"
 }

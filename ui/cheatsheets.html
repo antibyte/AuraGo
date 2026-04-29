@@ -34,7 +34,7 @@
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -95,7 +95,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="modal-title" data-i18n="cheatsheets.create_new">New Cheat Sheet</h2>
-                <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('edit-modal')">&times;</button>
             </div>
             <input type="hidden" id="sheet-id">
             <div class="form-group">
@@ -154,7 +154,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 data-i18n="cheatsheets.select_knowledge_file">Select Knowledge File</h2>
-                <button class="modal-close" onclick="closeModal('knowledge-picker-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('knowledge-picker-modal')">&times;</button>
             </div>
             <div class="knowledge-picker-list" id="knowledge-picker-list">
                 <div class="knowledge-picker-loading" data-i18n="cheatsheets.loading">Loading...</div>
@@ -171,7 +171,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete">Confirm Deletion</span></h2>
-                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-message"></p>
             <div class="modal-actions">

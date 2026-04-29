@@ -54,5 +54,21 @@
   "common.view_list": "सूची दृश्य",
   "common.view_grid": "ग्रिड दृश्य",
   "common.btn_remove": "हटाएँ",
-  "common.warning": "चेतावनी"
+  "common.warning": "चेतावनी",
+  "common.close": "बंद करें",
+  "chat.aria_chat_theme": "चैट थीम",
+  "chat.aria_cheatsheet": "चीटशीट भेजें",
+  "chat.aria_clear": "साफ़",
+  "chat.aria_conversations": "वार्तालाप",
+  "chat.aria_feedback": "प्रतिक्रिया",
+  "chat.aria_logout": "लॉग आउट",
+  "chat.aria_mood_settings": "मूड सेटिंग्स",
+  "chat.aria_more_options": "और विकल्प",
+  "chat.aria_notifications": "सूचनाएं",
+  "chat.aria_send": "संदेश भेजें",
+  "chat.aria_stop": "रुकें",
+  "chat.aria_system_warnings": "सिस्टम चेतावनी",
+  "chat.aria_toggle_speaker": "स्पीकर टॉगल",
+  "chat.aria_upload": "फ़ाइल अपलोड",
+  "chat.aria_voice_input": "ध्वनि इनपुट"
 }
