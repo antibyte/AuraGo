@@ -232,11 +232,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Docker integration is not enabled. Set docker.enabled=true in config.yaml."}`
 			}
 			req := decodeDockerArgs(tc)
-			if cfg.Docker.ReadOnly {
-				switch req.Operation {
-				case "start", "stop", "restart", "pause", "unpause", "remove", "rm", "create", "create_container", "run", "pull_image", "pull", "remove_image", "rmi":
-					return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
-				}
+			if cfg.Docker.ReadOnly && dockerOperationMutates(req.Operation) {
+				return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
@@ -909,4 +906,20 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 		}
 	}()
 	return result, handled
+}
+
+func dockerOperationMutates(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "start", "stop", "restart", "pause", "unpause",
+		"remove", "rm",
+		"create", "create_container", "run",
+		"pull_image", "pull", "remove_image", "rmi",
+		"exec",
+		"cp", "copy",
+		"create_network", "remove_network", "connect", "disconnect",
+		"create_volume", "remove_volume":
+		return true
+	default:
+		return false
+	}
 }
