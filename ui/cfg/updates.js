@@ -105,7 +105,7 @@ async function updatesCheck() {
             </div>`;
         }
     } catch (e) {
-        resultDiv.innerHTML = `<div class="updates-inline-error">❌ ${e.message}</div>`;
+        resultDiv.innerHTML = `<div class="updates-inline-error">❌ ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
     } finally {
         btn.disabled = false;
         btn.textContent = t('config.updates.check_button');

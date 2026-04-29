@@ -1565,11 +1565,11 @@ function applyI18N() {
         if (val !== key) el.textContent = val;
     });
 
-    // Generic: data-i18n-html → innerHTML (with \n → <br>)
+    // Generic: data-i18n-html → safe text nodes (with \n → <br>)
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
         const key = el.getAttribute('data-i18n-html');
         const val = t(key);
-        if (val !== key) el.innerHTML = val.replace(/\n/g, '<br>');
+        if (val !== key) renderSetupI18nMultilineText(el, val);
     });
 
     // Generic: data-i18n-placeholder → placeholder
@@ -1592,6 +1592,14 @@ function applyI18N() {
         const star = lblPw.querySelector('.required-star');
         if (star) star.style.display = setupPasswordRequired ? '' : 'none';
     }
+}
+
+function renderSetupI18nMultilineText(el, text) {
+    el.replaceChildren();
+    String(text).split('\n').forEach((part, index) => {
+        if (index > 0) el.appendChild(document.createElement('br'));
+        el.appendChild(document.createTextNode(part));
+    });
 }
 
 // ── Init ─────────────────────────────────────

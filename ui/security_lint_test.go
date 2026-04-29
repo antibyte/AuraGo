@@ -41,6 +41,9 @@ func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {
 	t.Parallel()
 
 	files := []string{
+		filepath.Join("cfg", "providers.js"),
+		filepath.Join("cfg", "remote_control.js"),
+		filepath.Join("cfg", "updates.js"),
 		filepath.Join("js", "config", "main.js"),
 		filepath.Join("js", "setup", "main.js"),
 	}
@@ -49,7 +52,10 @@ func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {
 		content := readUITestFile(t, file)
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if rawErrorInnerHTML.MatchString(line) && !strings.Contains(line, "escapeHtml") {
+			if rawErrorInnerHTML.MatchString(line) &&
+				!strings.Contains(line, "escapeHtml") &&
+				!strings.Contains(line, "escapeAttr") &&
+				!strings.Contains(line, "esc(") {
 				t.Fatalf("%s:%d raw error text must not be assigned to innerHTML", filepath.ToSlash(file), i+1)
 			}
 		}
@@ -59,9 +65,17 @@ func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {
 func TestI18NHTMLUsesSafeTextNodeRendering(t *testing.T) {
 	t.Parallel()
 
-	content := readUITestFile(t, "shared.js")
-	if strings.Contains(content, "innerHTML = translated.replace") {
-		t.Fatal("data-i18n-html translations must be rendered as text nodes plus <br>, not assigned as raw HTML")
+	files := []string{
+		"shared.js",
+		filepath.Join("js", "setup", "main.js"),
+	}
+	for _, file := range files {
+		content := readUITestFile(t, file)
+		for _, forbidden := range []string{"innerHTML = translated.replace", "innerHTML = val.replace"} {
+			if strings.Contains(content, forbidden) {
+				t.Fatalf("%s data-i18n-html translations must be rendered as text nodes plus <br>, not assigned as raw HTML", filepath.ToSlash(file))
+			}
+		}
 	}
 }
 

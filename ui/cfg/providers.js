@@ -141,7 +141,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     _orModelsCacheTime = now;
                 }
             } catch (e) {
-                loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.openrouter.connection_error') + e.message + '</span>';
+                loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + escapeHtml(t('config.openrouter.connection_error') + (e && e.message ? e.message : String(e))) + '</span>';
                 return;
             }
             setHidden(loadingDiv, true);
