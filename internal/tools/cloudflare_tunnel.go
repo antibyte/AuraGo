@@ -80,12 +80,22 @@ var (
 
 var cloudflareRandRead = rand.Read
 
+func cloudflareTunnelReadOnlyError(cfg CloudflareTunnelConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return errJSON("Cloudflare Tunnel is in read-only mode. Disable cloudflare_tunnel.readonly to allow changes.")
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Lifecycle
 // ──────────────────────────────────────────────────────────────────────────
 
 // CloudflareTunnelStart starts the cloudflared tunnel.
 func CloudflareTunnelStart(cfg CloudflareTunnelConfig, vault *security.Vault, registry *ProcessRegistry, logger *slog.Logger) string {
+	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
 
@@ -108,6 +118,9 @@ func CloudflareTunnelStart(cfg CloudflareTunnelConfig, vault *security.Vault, re
 
 // CloudflareTunnelStop stops the running tunnel.
 func CloudflareTunnelStop(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
+	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
 
@@ -131,6 +144,9 @@ func CloudflareTunnelStop(cfg CloudflareTunnelConfig, registry *ProcessRegistry,
 
 // CloudflareTunnelRestart stops and restarts the tunnel.
 func CloudflareTunnelRestart(cfg CloudflareTunnelConfig, vault *security.Vault, registry *ProcessRegistry, logger *slog.Logger) string {
+	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	stopResult := CloudflareTunnelStop(cfg, registry, logger)
 	// Allow a moment for cleanup
 	time.Sleep(time.Second)
@@ -190,6 +206,9 @@ func CloudflareTunnelStatus(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 // CloudflareTunnelQuickTunnel starts a temporary quick tunnel for a specific port.
 // Quick tunnels use TryCloudflare and don't require any Cloudflare account.
 func CloudflareTunnelQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger, port int) string {
+	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
 
@@ -256,6 +275,9 @@ func CloudflareTunnelListRoutes(cfg CloudflareTunnelConfig, logger *slog.Logger)
 
 // CloudflareTunnelInstall downloads the cloudflared binary for the current platform.
 func CloudflareTunnelInstall(cfg CloudflareTunnelConfig, logger *slog.Logger) string {
+	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	binPath := cfdBinaryPath(cfg.DataDir)
 	return installCloudflaredBinary(binPath, logger)
 }

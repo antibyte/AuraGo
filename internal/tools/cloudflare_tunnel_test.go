@@ -73,3 +73,23 @@ func TestCloudflareAPIClientHasTimeout(t *testing.T) {
 		t.Fatalf("cfHTTPClient.Timeout = %v, want explicit production timeout", cfHTTPClient.Timeout)
 	}
 }
+
+func TestCloudflareTunnelReadOnlyBlocksDirectMutations(t *testing.T) {
+	cfg := CloudflareTunnelConfig{ReadOnly: true}
+
+	tests := map[string]string{
+		"start":        CloudflareTunnelStart(cfg, nil, nil, nil),
+		"stop":         CloudflareTunnelStop(cfg, nil, nil),
+		"restart":      CloudflareTunnelRestart(cfg, nil, nil, nil),
+		"quick tunnel": CloudflareTunnelQuickTunnel(cfg, nil, nil, 8080),
+		"install":      CloudflareTunnelInstall(cfg, nil),
+	}
+
+	for name, got := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, `"status":"error"`) || !strings.Contains(strings.ToLower(got), "read-only") {
+				t.Fatalf("expected read-only error, got %s", got)
+			}
+		})
+	}
+}

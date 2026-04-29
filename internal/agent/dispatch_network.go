@@ -101,7 +101,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			req := decodeCloudflareTunnelArgs(tc)
 			if cfg.CloudflareTunnel.ReadOnly {
 				switch req.Operation {
-				case "start", "stop", "restart", "install":
+				case "start", "stop", "restart", "quick_tunnel", "install":
 					return `Tool Output: {"status":"error","message":"Cloudflare Tunnel is in read-only mode. Disable cloudflare_tunnel.readonly to allow changes."}`
 				}
 			}
