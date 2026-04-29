@@ -6,6 +6,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	_ "modernc.org/sqlite"
 )
 
 func TestEncryptAGOUsesVersionedArgon2idFormat(t *testing.T) {
@@ -296,6 +298,146 @@ func TestHandleBackupImportRejectsSymlinkEntries(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestHandleBackupImportRejectsCorruptSQLiteBeforeOverwrite(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(data): %v", err)
+	}
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	dbPath := filepath.Join(dataDir, "short_term.db")
+	if err := os.WriteFile(dbPath, []byte("original-db"), 0o600); err != nil {
+		t.Fatalf("WriteFile(existing db): %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	zipBuf := &bytes.Buffer{}
+	zw := zip.NewWriter(zipBuf)
+	w, err := zw.Create("data/short_term.db")
+	if err != nil {
+		t.Fatalf("Create zip entry: %v", err)
+	}
+	if _, err := w.Write([]byte("not a sqlite database")); err != nil {
+		t.Fatalf("Write zip entry: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("Close zip: %v", err)
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "backup.ago")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(zipBuf.Bytes()); err != nil {
+		t.Fatalf("Write upload: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close multipart: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	handleBackupImport(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	data, err := os.ReadFile(dbPath)
+	if err != nil {
+		t.Fatalf("ReadFile(existing db): %v", err)
+	}
+	if string(data) != "original-db" {
+		t.Fatalf("corrupt restore overwrote existing db: %q", string(data))
+	}
+}
+
+func TestHandleBackupImportSQLiteRestoreRequiresRestart(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(data): %v", err)
+	}
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	srcDB := filepath.Join(t.TempDir(), "valid.db")
+	db, err := sql.Open("sqlite", srcDB)
+	if err != nil {
+		t.Fatalf("Open sqlite: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE test_items (id INTEGER PRIMARY KEY, name TEXT)`); err != nil {
+		db.Close()
+		t.Fatalf("Create table: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close sqlite: %v", err)
+	}
+	dbBytes, err := os.ReadFile(srcDB)
+	if err != nil {
+		t.Fatalf("ReadFile(valid db): %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	zipBuf := &bytes.Buffer{}
+	zw := zip.NewWriter(zipBuf)
+	w, err := zw.Create("data/short_term.db")
+	if err != nil {
+		t.Fatalf("Create zip entry: %v", err)
+	}
+	if _, err := w.Write(dbBytes); err != nil {
+		t.Fatalf("Write zip entry: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("Close zip: %v", err)
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "backup.ago")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(zipBuf.Bytes()); err != nil {
+		t.Fatalf("Write upload: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close multipart: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	handleBackupImport(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if payload["restart_required"] != true {
+		t.Fatalf("restart_required = %#v, want true; payload=%v", payload["restart_required"], payload)
 	}
 }
 

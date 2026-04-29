@@ -18,6 +18,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ import (
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 	"golang.org/x/crypto/argon2"
+	_ "modernc.org/sqlite"
 )
 
 const agoMagic = "AGOE"
@@ -405,10 +407,51 @@ func agoAtomicCopyFile(src, dest string, perm os.FileMode) error {
 		tmp.Close()
 		return err
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, dest)
+	if err := os.Rename(tmpName, dest); err != nil {
+		return err
+	}
+	// Best-effort parent directory fsync for durability. Some platforms/filesystems
+	// reject syncing directories, so a failure here must not make a completed restore
+	// look failed after the file is already atomically renamed.
+	if dir, err := os.Open(filepath.Dir(dest)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
+	}
+	return nil
+}
+
+func agoIsSQLiteDBPath(clean string) bool {
+	name := strings.ToLower(filepath.Base(clean))
+	return strings.HasSuffix(name, ".db") && !strings.HasSuffix(name, ".db-wal") && !strings.HasSuffix(name, ".db-shm")
+}
+
+func agoIsSQLiteRelatedPath(clean string) bool {
+	name := strings.ToLower(filepath.Base(clean))
+	return strings.HasSuffix(name, ".db") || strings.HasSuffix(name, ".db-wal") || strings.HasSuffix(name, ".db-shm")
+}
+
+func agoValidateSQLiteDB(path string) error {
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro&immutable=1")
+	if err != nil {
+		return fmt.Errorf("open sqlite: %w", err)
+	}
+	defer db.Close()
+
+	var result string
+	if err := db.QueryRow("PRAGMA integrity_check(1)").Scan(&result); err != nil {
+		return fmt.Errorf("sqlite integrity check failed: %w", err)
+	}
+	if result != "ok" {
+		return fmt.Errorf("sqlite integrity check failed: %s", result)
+	}
+	return nil
 }
 
 // ── Create backup ────────────────────────────────────────────────────────────
@@ -772,6 +815,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		var backupManifest *agoManifest
 		var importEntries []agoImportEntry
 		var totalBytes int64
+		sqliteRestore := false
 
 		for _, f := range zr.File {
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
@@ -856,6 +900,9 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				mode:    f.Mode().Perm(),
 				zipPath: f.Name,
 			})
+			if agoIsSQLiteRelatedPath(clean) {
+				sqliteRestore = true
+			}
 		}
 
 		stagingRoot, err := os.MkdirTemp(configRoot, ".ago-import-*")
@@ -906,6 +953,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			if err := config.WriteFileAtomic(entry.stage, data, perm); err != nil {
 				s.Logger.Warn("[Backup] Failed to stage file", "path", entry.zipPath, "error", err)
 				jsonError(w, "Failed to stage restore files", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		for _, entry := range importEntries {
+			if entry.isDir || !agoIsSQLiteDBPath(entry.clean) {
+				continue
+			}
+			if err := agoValidateSQLiteDB(entry.stage); err != nil {
+				s.Logger.Warn("[Backup] SQLite integrity check failed", "path", entry.zipPath, "error", err)
+				jsonError(w, "Backup contains a corrupted SQLite database", http.StatusBadRequest)
 				return
 			}
 		}
@@ -980,16 +1038,21 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		if schemaWarning != "" {
 			msg += " " + schemaWarning
 		}
-		msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
+		if sqliteRestore {
+			msg += " Neustart erforderlich, damit wiederhergestellte Datenbanken sicher neu geöffnet werden."
+		} else {
+			msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":         "ok",
-			"restored":       restored,
-			"skipped":        skipped,
-			"vault_restored": vaultRestored,
-			"schema_warning": schemaWarning,
-			"message":        msg,
+			"status":           "ok",
+			"restored":         restored,
+			"skipped":          skipped,
+			"vault_restored":   vaultRestored,
+			"schema_warning":   schemaWarning,
+			"restart_required": sqliteRestore,
+			"message":          msg,
 		})
 	}
 }
