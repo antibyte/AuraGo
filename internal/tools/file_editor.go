@@ -39,6 +39,10 @@ func ExecuteFileEditor(operation, filePath, old, new_, marker, content string, s
 		return string(b)
 	}
 
+	if err := requireFilesystemWritePermission(); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
+
 	if filePath == "" {
 		return encode(FileEditorResult{Status: "error", Message: "'file_path' is required"})
 	}

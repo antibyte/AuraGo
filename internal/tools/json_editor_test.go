@@ -160,6 +160,29 @@ func TestJsonEditorValidateInvalid(t *testing.T) {
 	}
 }
 
+func TestJsonEditorWriteOperationsRequireFilesystemWritePermission(t *testing.T) {
+	wsDir, fname := setupJsonEditorTest(t, "test.json", `{"name":"Alice"}`)
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	res := decodeJsonEditorResult(t, ExecuteJsonEditor("set", fname, "name", "Bob", "", wsDir))
+	if res.Status != "error" {
+		t.Fatalf("expected error, got %s: %s", res.Status, res.Message)
+	}
+	if !strings.Contains(res.Message, "filesystem write is disabled") {
+		t.Fatalf("message = %q, want filesystem write permission denial", res.Message)
+	}
+	data, err := os.ReadFile(filepath.Join(wsDir, fname))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if string(data) != `{"name":"Alice"}` {
+		t.Fatalf("file content = %q, want unchanged", string(data))
+	}
+}
+
 func TestJsonEditorFormat(t *testing.T) {
 	wsDir, fname := setupJsonEditorTest(t, "test.json", `{"a":1,"b":2}`)
 

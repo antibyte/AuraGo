@@ -230,6 +230,29 @@ func TestFileEditorMissingFilePath(t *testing.T) {
 	}
 }
 
+func TestExecuteFileEditorRequiresFilesystemWritePermission(t *testing.T) {
+	wsDir, fname := setupEditorTest(t, "test.txt", "hello world")
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	res := decodeEditorResult(t, ExecuteFileEditor("str_replace", fname, "world", "friend", "", "", 0, 0, 0, wsDir))
+	if res.Status != "error" {
+		t.Fatalf("expected error, got %s: %s", res.Status, res.Message)
+	}
+	if !strings.Contains(res.Message, "filesystem write is disabled") {
+		t.Fatalf("message = %q, want filesystem write permission denial", res.Message)
+	}
+	data, err := os.ReadFile(filepath.Join(wsDir, fname))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if string(data) != "hello world" {
+		t.Fatalf("file content = %q, want unchanged", string(data))
+	}
+}
+
 func TestFileEditorUnknownOperation(t *testing.T) {
 	wsDir, fname := setupEditorTest(t, "test.txt", "content")
 	res := decodeEditorResult(t, ExecuteFileEditor("invalid_op", fname, "", "", "", "", 0, 0, 0, wsDir))

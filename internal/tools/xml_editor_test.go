@@ -185,6 +185,37 @@ func TestXmlEditorValidate(t *testing.T) {
 	}
 }
 
+func TestXmlEditorWriteOperationsRequireFilesystemWritePermission(t *testing.T) {
+	dir := t.TempDir()
+	fp := filepath.Join(dir, "test.xml")
+	if err := os.WriteFile(fp, []byte(`<root><name>Alice</name></root>`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	result := ExecuteXmlEditor("set_text", "test.xml", "//name", "Bob", dir)
+	var res XmlEditorResult
+	if err := json.Unmarshal([]byte(result), &res); err != nil {
+		t.Fatalf("failed to decode result: %v", err)
+	}
+	if res.Status != "error" {
+		t.Fatalf("expected error, got %s: %s", res.Status, res.Message)
+	}
+	if !strings.Contains(res.Message, "filesystem write is disabled") {
+		t.Fatalf("message = %q, want filesystem write permission denial", res.Message)
+	}
+	content, err := os.ReadFile(fp)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if string(content) != `<root><name>Alice</name></root>` {
+		t.Fatalf("file content = %q, want unchanged", string(content))
+	}
+}
+
 func TestXmlEditorFormat(t *testing.T) {
 	dir := t.TempDir()
 	fp := filepath.Join(dir, "test.xml")

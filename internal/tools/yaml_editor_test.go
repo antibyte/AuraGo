@@ -134,6 +134,29 @@ func TestYamlEditorValidate(t *testing.T) {
 	}
 }
 
+func TestYamlEditorWriteOperationsRequireFilesystemWritePermission(t *testing.T) {
+	wsDir, fname := setupYamlEditorTest(t, "test.yaml", "name: Alice\n")
+	ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	res := decodeYamlEditorResult(t, ExecuteYamlEditor("set", fname, "name", "Bob", wsDir))
+	if res.Status != "error" {
+		t.Fatalf("expected error, got %s: %s", res.Status, res.Message)
+	}
+	if !strings.Contains(res.Message, "filesystem write is disabled") {
+		t.Fatalf("message = %q, want filesystem write permission denial", res.Message)
+	}
+	data, err := os.ReadFile(filepath.Join(wsDir, fname))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	if string(data) != "name: Alice\n" {
+		t.Fatalf("file content = %q, want unchanged", string(data))
+	}
+}
+
 func TestYamlEditorUnknownOp(t *testing.T) {
 	wsDir, fname := setupYamlEditorTest(t, "test.yaml", "a: 1\n")
 	res := decodeYamlEditorResult(t, ExecuteYamlEditor("invalid", fname, "", nil, wsDir))

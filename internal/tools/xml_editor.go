@@ -24,6 +24,12 @@ func ExecuteXmlEditor(operation, filePath, xpath string, value interface{}, work
 		return string(b)
 	}
 
+	if xmlEditorOperationWrites(operation) {
+		if err := requireFilesystemWritePermission(); err != nil {
+			return encode(XmlEditorResult{Status: "error", Message: err.Error()})
+		}
+	}
+
 	if filePath == "" {
 		return encode(XmlEditorResult{Status: "error", Message: "'file_path' is required"})
 	}
@@ -50,6 +56,15 @@ func ExecuteXmlEditor(operation, filePath, xpath string, value interface{}, work
 		return xmlFormat(resolved, encode)
 	default:
 		return encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("Unknown xml_editor operation '%s'. Valid: get, set_text, set_attribute, add_element, delete, validate, format", operation)})
+	}
+}
+
+func xmlEditorOperationWrites(operation string) bool {
+	switch strings.TrimSpace(operation) {
+	case "set_text", "set_attribute", "add_element", "delete", "format":
+		return true
+	default:
+		return false
 	}
 }
 

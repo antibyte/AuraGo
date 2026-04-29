@@ -24,6 +24,12 @@ func ExecuteJsonEditor(operation, filePath, jsonPath string, value interface{}, 
 		return string(b)
 	}
 
+	if jsonEditorOperationWrites(operation) {
+		if err := requireFilesystemWritePermission(); err != nil {
+			return encode(JsonEditorResult{Status: "error", Message: err.Error()})
+		}
+	}
+
 	if filePath == "" {
 		return encode(JsonEditorResult{Status: "error", Message: "'file_path' is required"})
 	}
@@ -48,6 +54,15 @@ func ExecuteJsonEditor(operation, filePath, jsonPath string, value interface{}, 
 		return jsonFormat(resolved, encode)
 	default:
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Unknown json_editor operation '%s'. Valid: get, set, delete, keys, validate, format", operation)})
+	}
+}
+
+func jsonEditorOperationWrites(operation string) bool {
+	switch strings.TrimSpace(operation) {
+	case "set", "delete", "format":
+		return true
+	default:
+		return false
 	}
 }
 

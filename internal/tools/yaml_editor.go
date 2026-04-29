@@ -23,6 +23,12 @@ func ExecuteYamlEditor(operation, filePath, yamlPath string, value interface{}, 
 		return string(b)
 	}
 
+	if yamlEditorOperationWrites(operation) {
+		if err := requireFilesystemWritePermission(); err != nil {
+			return encode(YamlEditorResult{Status: "error", Message: err.Error()})
+		}
+	}
+
 	if filePath == "" {
 		return encode(YamlEditorResult{Status: "error", Message: "'file_path' is required"})
 	}
@@ -45,6 +51,15 @@ func ExecuteYamlEditor(operation, filePath, yamlPath string, value interface{}, 
 		return yamlValidate(resolved, encode)
 	default:
 		return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Unknown yaml_editor operation '%s'. Valid: get, set, delete, keys, validate", operation)})
+	}
+}
+
+func yamlEditorOperationWrites(operation string) bool {
+	switch strings.TrimSpace(operation) {
+	case "set", "delete":
+		return true
+	default:
+		return false
 	}
 }
 
