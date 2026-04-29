@@ -774,6 +774,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				SecretKey:    cfg.S3.SecretKey,
 				UsePathStyle: cfg.S3.UsePathStyle,
 				Insecure:     cfg.S3.Insecure,
+				ReadOnly:     cfg.S3.ReadOnly,
 			}
 			logger.Info("LLM requested S3 operation", "op", req.Operation, "bucket", req.Bucket, "key", req.Key)
 			return "Tool Output: " + tools.ExecuteS3(s3Cfg, req.Operation, req.Bucket, req.Key, req.LocalPath, req.Prefix, req.DestinationBucket, req.DestinationKey)

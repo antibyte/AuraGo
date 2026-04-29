@@ -24,6 +24,7 @@ type S3Config struct {
 	SecretKey    string
 	UsePathStyle bool
 	Insecure     bool
+	ReadOnly     bool
 }
 
 // s3Result is the JSON payload returned by S3 operations.
@@ -91,6 +92,14 @@ func newS3Client(cfg S3Config) (*minio.Client, error) {
 // ExecuteS3 dispatches S3 operations.
 // Operations: list_buckets, list_objects, upload, download, delete, copy, move.
 func ExecuteS3(cfg S3Config, operation, bucket, key, localPath, prefix, destBucket, destKey string) string {
+	operation = strings.ToLower(strings.TrimSpace(operation))
+	if cfg.ReadOnly {
+		switch operation {
+		case "upload", "delete", "copy", "move":
+			return s3Encode(s3Result{Status: "error", Message: "S3 is in read-only mode. Disable s3.readonly to allow changes."})
+		}
+	}
+
 	if cfg.AccessKey == "" || cfg.SecretKey == "" {
 		return s3Encode(s3Result{Status: "error", Message: "S3 credentials not configured. Store 's3_access_key' and 's3_secret_key' in the secrets vault."})
 	}
@@ -100,7 +109,6 @@ func ExecuteS3(cfg S3Config, operation, bucket, key, localPath, prefix, destBuck
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("S3 client init failed: %v", err)})
 	}
 
-	operation = strings.ToLower(strings.TrimSpace(operation))
 	switch operation {
 	case "list_buckets":
 		return s3ListBuckets(client)
