@@ -43,6 +43,9 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	case "event", "milestone", "journal":
 		return rememberAsJournal(content, tc, shortTermMem, sessionID, logger)
 	case "task", "todo", "note":
+		if err := requireRememberNotesWritePermission(cfg); err != nil {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+		}
 		return rememberAsNoteWithTitle(content, tc.Title, shortTermMem, logger)
 	case "relationship", "entity", "graph":
 		return rememberAsGraphEdge(content, tc, kg, logger)
@@ -52,6 +55,19 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 		// explicitly requests category=fact/core or the classifier is confident.
 		return rememberAsJournal(content, tc, shortTermMem, sessionID, logger)
 	}
+}
+
+func requireRememberNotesWritePermission(cfg *config.Config) error {
+	if cfg == nil {
+		return nil
+	}
+	if !cfg.Tools.Notes.Enabled {
+		return fmt.Errorf("Notes are disabled. Set tools.notes.enabled=true in config.yaml.")
+	}
+	if cfg.Tools.Notes.ReadOnly {
+		return fmt.Errorf("Notes are in read-only mode. Disable tools.notes.readonly to allow changes.")
+	}
+	return nil
 }
 
 func normalizeRememberCategory(category string) string {

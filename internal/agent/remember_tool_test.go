@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -123,5 +124,76 @@ func TestRememberTaskUsesExplicitTitleForNote(t *testing.T) {
 	}
 	if notes[0].Title != "Review backup retention" {
 		t.Fatalf("note title = %q, want explicit title", notes[0].Title)
+	}
+}
+
+func TestRememberTaskRespectsDisabledNotesConfig(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	cfg := &config.Config{}
+	cfg.Tools.Notes.Enabled = false
+
+	out := handleRemember(
+		ToolCall{Content: "Check the backup retention policy tomorrow", Title: "Review backup retention", Category: "task"},
+		cfg,
+		logger,
+		stm,
+		nil,
+		"session-test",
+	)
+
+	if !strings.Contains(out, "Notes are disabled") {
+		t.Fatalf("handleRemember output = %q, want disabled notes error", out)
+	}
+	notes, err := stm.SearchNotes("Review backup retention", 5)
+	if err != nil {
+		t.Fatalf("SearchNotes: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("remember created %d notes despite disabled notes config", len(notes))
+	}
+}
+
+func TestRememberTaskRespectsReadOnlyNotesConfig(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	cfg := &config.Config{}
+	cfg.Tools.Notes.Enabled = true
+	cfg.Tools.Notes.ReadOnly = true
+
+	out := handleRemember(
+		ToolCall{Content: "Check the backup retention policy tomorrow", Title: "Review backup retention", Category: "task"},
+		cfg,
+		logger,
+		stm,
+		nil,
+		"session-test",
+	)
+
+	if !strings.Contains(out, "Notes are in read-only mode") {
+		t.Fatalf("handleRemember output = %q, want read-only notes error", out)
+	}
+	notes, err := stm.SearchNotes("Review backup retention", 5)
+	if err != nil {
+		t.Fatalf("SearchNotes: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("remember created %d notes despite read-only notes config", len(notes))
 	}
 }
