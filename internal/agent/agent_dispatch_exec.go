@@ -1050,6 +1050,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				BaseURL:     cfg.Koofr.BaseURL,
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
+				ReadOnly:    cfg.Koofr.ReadOnly,
 			}
 			result := tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, req.LocalPath, cfg.Directories.WorkspaceDir)
 			if strings.EqualFold(req.Operation, "upload") && koofrUploadResultMissingVerification(result) {

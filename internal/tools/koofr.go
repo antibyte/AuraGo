@@ -23,6 +23,7 @@ type KoofrConfig struct {
 	BaseURL     string
 	Username    string
 	AppPassword string
+	ReadOnly    bool
 }
 
 type mountInfo struct {
@@ -47,10 +48,13 @@ var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 // ExecuteKoofr performs operations on the Koofr API.
 // Valid actions: list, read, download, write, upload, mkdir, delete, rename, copy.
 func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, workspaceDir string) string {
+	action = strings.TrimSpace(strings.ToLower(action))
+	if cfg.ReadOnly && koofrMutationAction(action) {
+		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr is in read-only mode. Disable koofr.readonly to allow changes."})
+	}
 	if cfg.Username == "" || cfg.AppPassword == "" {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr credentials are not configured"})
 	}
-	action = strings.TrimSpace(strings.ToLower(action))
 
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
@@ -281,8 +285,12 @@ func koofrFilesURL(baseURL, mountID, operation, safePath string) string {
 }
 
 func koofrActionRequiresExplicitResult(action string) bool {
+	return koofrMutationAction(action)
+}
+
+func koofrMutationAction(action string) bool {
 	switch action {
-	case "write", "upload", "mkdir", "delete", "rename", "move", "copy":
+	case "write", "put", "upload", "mkdir", "delete", "rm", "rename", "move", "mv", "copy":
 		return true
 	default:
 		return false

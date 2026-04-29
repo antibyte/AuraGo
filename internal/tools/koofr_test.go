@@ -128,6 +128,46 @@ func TestKoofrActionRequiresExplicitResultForUpload(t *testing.T) {
 	}
 }
 
+func TestExecuteKoofrReadOnlyBlocksDirectMutations(t *testing.T) {
+	workspaceDir := t.TempDir()
+	cfg := KoofrConfig{
+		Username:    "user",
+		AppPassword: "pass",
+		ReadOnly:    true,
+	}
+
+	cases := []struct {
+		name      string
+		action    string
+		path      string
+		dest      string
+		content   string
+		localPath string
+	}{
+		{name: "write", action: "write", path: "/aurgo/pictures/file.txt", content: "content"},
+		{name: "upload", action: "upload", path: "/aurgo/pictures", dest: "file.jpeg", localPath: "missing.jpeg"},
+		{name: "mkdir", action: "mkdir", path: "/aurgo/pictures"},
+		{name: "delete", action: "delete", path: "/aurgo/pictures/file.txt"},
+		{name: "rename", action: "rename", path: "/aurgo/pictures/file.txt", dest: "/aurgo/pictures/new.txt"},
+		{name: "move", action: "move", path: "/aurgo/pictures/file.txt", dest: "/aurgo/archive/file.txt"},
+		{name: "copy", action: "copy", path: "/aurgo/pictures/file.txt", dest: "/aurgo/archive/file.txt"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ExecuteKoofr(cfg, tc.action, tc.path, tc.dest, tc.content, tc.localPath, workspaceDir)
+			parsed := parseKoofrToolJSON(t, result)
+			if parsed["status"] != "error" {
+				t.Fatalf("status = %v, want error; result=%s", parsed["status"], result)
+			}
+			message, _ := parsed["message"].(string)
+			if !strings.Contains(message, "read-only mode") {
+				t.Fatalf("message = %q, want read-only mode guidance", message)
+			}
+		})
+	}
+}
+
 func TestKoofrMovePayloadUsesKoofrClientShape(t *testing.T) {
 	payloadBytes := koofrMovePayload("primary", "/aurgo/archive/cat.jpeg")
 	var payload map[string]interface{}
