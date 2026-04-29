@@ -465,7 +465,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"Ollama is in read-only mode. Disable ollama.read_only to allow changes."}`
 				}
 			}
-			olCfg := tools.OllamaConfig{URL: cfg.Ollama.URL}
+			olCfg := tools.OllamaConfig{URL: cfg.Ollama.URL, ReadOnly: cfg.Ollama.ReadOnly}
 			modelName := req.modelName()
 			switch req.Operation {
 			case "list", "list_models":

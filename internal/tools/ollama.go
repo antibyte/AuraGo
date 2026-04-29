@@ -12,12 +12,20 @@ import (
 
 // OllamaConfig holds the Ollama API connection parameters.
 type OllamaConfig struct {
-	URL string // e.g. "http://localhost:11434"
+	URL      string // e.g. "http://localhost:11434"
+	ReadOnly bool   // block pull/delete/copy/load/unload when true
 }
 
 // ollamaHTTPClient is a shared HTTP client for Ollama API calls.
 var ollamaHTTPClient = &http.Client{Timeout: 120 * time.Second}
 var ollamaPullHTTPClient = &http.Client{Timeout: 30 * time.Minute}
+
+func ollamaReadOnlyMutationError(cfg OllamaConfig, operation string) string {
+	if cfg.ReadOnly {
+		return errJSON("Ollama is in read-only mode; %s is disabled", operation)
+	}
+	return ""
+}
 
 // ollamaRequest performs a generic HTTP request against the Ollama REST API.
 func ollamaRequest(cfg OllamaConfig, method, endpoint string, body string) ([]byte, int, error) {
@@ -141,6 +149,9 @@ func OllamaPullModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
 	}
+	if denied := ollamaReadOnlyMutationError(cfg, "pull"); denied != "" {
+		return denied
+	}
 	body := fmt.Sprintf(`{"name":%q,"stream":false}`, modelName)
 	url := strings.TrimRight(cfg.URL, "/") + "/api/pull"
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
@@ -170,6 +181,9 @@ func OllamaDeleteModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
 	}
+	if denied := ollamaReadOnlyMutationError(cfg, "delete"); denied != "" {
+		return denied
+	}
 	body := fmt.Sprintf(`{"name":%q}`, modelName)
 	data, code, err := ollamaRequest(cfg, "DELETE", "/api/delete", body)
 	if err != nil {
@@ -185,6 +199,9 @@ func OllamaDeleteModel(cfg OllamaConfig, modelName string) string {
 func OllamaCopyModel(cfg OllamaConfig, source, destination string) string {
 	if source == "" || destination == "" {
 		return errJSON("source and destination model names are required.")
+	}
+	if denied := ollamaReadOnlyMutationError(cfg, "copy"); denied != "" {
+		return denied
 	}
 	body := fmt.Sprintf(`{"source":%q,"destination":%q}`, source, destination)
 	data, code, err := ollamaRequest(cfg, "POST", "/api/copy", body)
@@ -202,6 +219,9 @@ func OllamaLoadModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
 	}
+	if denied := ollamaReadOnlyMutationError(cfg, "load"); denied != "" {
+		return denied
+	}
 	body := fmt.Sprintf(`{"model":%q}`, modelName)
 	data, code, err := ollamaRequest(cfg, "POST", "/api/generate", body)
 	if err != nil {
@@ -217,6 +237,9 @@ func OllamaLoadModel(cfg OllamaConfig, modelName string) string {
 func OllamaUnloadModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
+	}
+	if denied := ollamaReadOnlyMutationError(cfg, "unload"); denied != "" {
+		return denied
 	}
 	body := fmt.Sprintf(`{"model":%q,"keep_alive":0}`, modelName)
 	data, code, err := ollamaRequest(cfg, "POST", "/api/generate", body)
