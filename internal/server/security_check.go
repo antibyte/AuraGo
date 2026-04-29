@@ -540,14 +540,14 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 25. telnyx_no_allowed_numbers — Telnyx accepts calls/SMS from any number
+	// 25. telnyx_no_allowed_numbers — Telnyx has no permitted inbound/outbound numbers
 	if cfg.Telnyx.Enabled && len(cfg.Telnyx.AllowedNumbers) == 0 {
 		hints = append(hints, SecurityHint{
 			ID: "telnyx_no_allowed_numbers", Severity: SevWarning,
 			Title: "Telnyx: no allowed numbers configured",
 			Description: "The Telnyx integration is enabled but telnyx.allowed_numbers is empty. " +
-				"The agent will accept inbound calls and SMS from any phone number. " +
-				"Add allowed number(s) to restrict access.",
+				"Inbound calls/SMS and outbound notifications are blocked until at least one " +
+				"E.164 number is explicitly allowed.",
 			AutoFixable: false,
 		})
 	}

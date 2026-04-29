@@ -697,7 +697,7 @@ type Config struct {
 		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
 		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls
 		WebhookPath         string   `yaml:"webhook_path"`                // default: /api/telnyx/webhook
-		AllowedNumbers      []string `yaml:"allowed_numbers"`             // E.164 whitelist (empty = allow all)
+		AllowedNumbers      []string `yaml:"allowed_numbers"`             // E.164 whitelist for inbound/outbound; empty = deny all
 		MaxConcurrentCalls  int      `yaml:"max_concurrent_calls"`        // default: 3
 		MaxSMSPerMinute     int      `yaml:"max_sms_per_minute"`          // rate limit, default: 10
 		VoiceLanguage       string   `yaml:"voice_language"`              // BCP-47, default: en

@@ -75,8 +75,8 @@ func TestIsAllowedNumber(t *testing.T) {
 		number   string
 		expected bool
 	}{
-		{"empty whitelist allows all", nil, "+14155551234", true},
-		{"empty whitelist allows all", []string{}, "+14155551234", true},
+		{"nil whitelist denies all", nil, "+14155551234", false},
+		{"empty whitelist denies all", []string{}, "+14155551234", false},
 		{"exact match", []string{"+14155551234"}, "+14155551234", true},
 		{"not in list", []string{"+14155551234"}, "+491511234567", false},
 		{"multiple entries", []string{"+14155551234", "+491511234567"}, "+491511234567", true},

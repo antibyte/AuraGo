@@ -146,7 +146,7 @@ telnyx:
     messaging_profile_id: ""      # From Telnyx portal
     connection_id: ""             # SIP connection ID for voice calls
     webhook_path: "/api/telnyx/webhook"
-    allowed_numbers: []           # Empty = allow all, or list E.164 numbers
+    allowed_numbers: []           # Empty = deny all, or list E.164 numbers
     max_concurrent_calls: 3
     max_sms_per_minute: 10
     voice_language: "en"
@@ -938,7 +938,7 @@ func TestWebhookSignatureVerification(t *testing.T) {
 func TestAllowedNumberFiltering(t *testing.T) {
     // Test whitelisted number passes
     // Test non-whitelisted number rejects
-    // Test empty whitelist allows all
+    // Test empty whitelist denies all
 }
 
 func TestCallSessionStateMachine(t *testing.T) {

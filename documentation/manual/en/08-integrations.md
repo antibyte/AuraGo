@@ -423,7 +423,11 @@ telnyx:
     enabled: true
     phone_number: "+1234567890"
     messaging_profile_id: "PROFILE_ID"
+    allowed_numbers:
+      - "+1234567890"
 ```
+
+`allowed_numbers` is an explicit E.164 allowlist for inbound calls/SMS and outbound notifications. Leave it empty to block Telnyx traffic until numbers are configured.
 
 ---
 

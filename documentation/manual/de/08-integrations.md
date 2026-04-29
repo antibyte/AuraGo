@@ -452,7 +452,11 @@ SMS senden/empfangen und Sprachanrufe über Telnyx.
 telnyx:
   enabled: true
   phone_number: "+491234567890"
+  allowed_numbers:
+    - "+491234567890"
 ```
+
+`allowed_numbers` ist eine explizite E.164-Allowlist für eingehende Anrufe/SMS und ausgehende Benachrichtigungen. Leer bedeutet: Telnyx-Verkehr bleibt blockiert, bis Nummern konfiguriert sind.
 
 ## VirusTotal Integration
 

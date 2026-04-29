@@ -295,7 +295,7 @@ func normalizePhone(number string) string {
 // isAllowedNumber checks if a phone number is in the allowed list.
 func (h *WebhookHandler) isAllowedNumber(number string) bool {
 	if len(h.cfg.Telnyx.AllowedNumbers) == 0 {
-		return true // empty list = allow all
+		return false
 	}
 	clean := normalizePhone(number)
 	for _, allowed := range h.cfg.Telnyx.AllowedNumbers {
