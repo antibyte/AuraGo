@@ -270,9 +270,20 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 		"apply_aurago_setcap_if_available()",
 		"restore_previous_aurago_binary",
 		"systemd start failed health check",
+		"ensure_private_update_runtime_dir()",
+		"remove_regular_file_if_present()",
 	} {
 		if !strings.Contains(updateScript, required) {
 			t.Fatalf("update.sh must include restart rollback/setcap guard %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		`_AU_LOCK="/tmp/.aurago-update-$(id -u).lock"`,
+		`rm -f "$lockfile"`,
+		`rm -f "$_AU_LOCK"`,
+	} {
+		if strings.Contains(updateScript, forbidden) {
+			t.Fatalf("update.sh must avoid symlink-prone lockfile pattern %q", forbidden)
 		}
 	}
 

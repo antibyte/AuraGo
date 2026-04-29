@@ -73,6 +73,32 @@ stat_owner() {
     fi
 }
 
+ensure_private_update_runtime_dir() {
+    local dir="/tmp/aurago-update-$(id -u)"
+    if [ -e "$dir" ] && [ ! -d "$dir" ]; then
+        die "Unsafe update runtime path exists and is not a directory: $dir"
+    fi
+    mkdir -p "$dir"
+    chmod 700 "$dir" 2>/dev/null || true
+    if [ -L "$dir" ]; then
+        die "Unsafe update runtime path is a symlink: $dir"
+    fi
+    printf '%s\n' "$dir"
+}
+
+remove_regular_file_if_present() {
+    local path="$1"
+    if [ -L "$path" ]; then
+        warn "Refusing to remove symlink lock file: $path"
+        return 1
+    fi
+    if [ -f "$path" ]; then
+        rm -f -- "$path"
+        return 0
+    fi
+    return 1
+}
+
 # ── Find installation directory ────────────────────────────────────────
 # _AU_ORIG_DIR is exported when re-execing from a temp copy (see below).
 # In that case BASH_SOURCE[0] points to /tmp/... so we must use the saved path.
@@ -92,13 +118,14 @@ fi
 #   • bash lazy re-reads of a script replaced on disk by git pull
 #   • git hooks or other subprocesses that inherit the environment
 # Any invocation that finds this lock and the owning process alive exits silently.
-_AU_LOCK="/tmp/.aurago-update-$(id -u).lock"
+_AU_RUNTIME_DIR="$(ensure_private_update_runtime_dir)"
+_AU_LOCK="${_AU_RUNTIME_DIR}/update.lock"
 if [ -f "$_AU_LOCK" ]; then
     _AU_LOCK_PID=$(cat "$_AU_LOCK" 2>/dev/null || echo 0)
     if [ "${_AU_LOCK_PID:-0}" -gt 0 ] && kill -0 "$_AU_LOCK_PID" 2>/dev/null; then
         exit 0  # Another update is already running — silently bail
     fi
-    rm -f "$_AU_LOCK"  # Stale lock from a dead process
+    remove_regular_file_if_present "$_AU_LOCK" >/dev/null || true  # Stale lock from a dead process
 fi
 
 # ── Architecture detection ─────────────────────────────────────────────
@@ -400,7 +427,7 @@ fi
 # in the new version, causing re-execution from near the top of the file.
 # Running from a temp copy ensures git pull cannot affect our execution.
 if [ -z "${_AU_TMPRUN:-}" ]; then
-    _TMPS=$(mktemp "/tmp/aurago-update.XXXXXX")
+    _TMPS=$(mktemp "${_AU_RUNTIME_DIR}/script.XXXXXX")
     cp -- "$0" "$_TMPS"
     chmod +x "$_TMPS"
     export _AU_TMPRUN=1
@@ -408,9 +435,10 @@ if [ -z "${_AU_TMPRUN:-}" ]; then
     exec /bin/bash "$_TMPS" "$@"
 fi
 # Running from temp copy: claim the single-instance lock and schedule cleanup.
-_AU_LOCK="/tmp/.aurago-update-$(id -u).lock"
+_AU_RUNTIME_DIR="$(ensure_private_update_runtime_dir)"
+_AU_LOCK="${_AU_RUNTIME_DIR}/update.lock"
 echo $$ > "$_AU_LOCK"
-trap 'rm -f "$_AU_LOCK" "${BASH_SOURCE[0]}" "${RELEASE_CHECKSUMS_FILE:-}"' EXIT
+trap 'remove_regular_file_if_present "$_AU_LOCK" >/dev/null || true; remove_regular_file_if_present "${BASH_SOURCE[0]}" >/dev/null || true; [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && remove_regular_file_if_present "$RELEASE_CHECKSUMS_FILE" >/dev/null || true' EXIT
 
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
@@ -567,8 +595,9 @@ for lockfile in \
     "$DIR/.git/index.lock"
 do
     if [ -f "$lockfile" ]; then
-        rm -f "$lockfile"
-        ok "Removed: $(basename "$lockfile")"
+        if remove_regular_file_if_present "$lockfile"; then
+            ok "Removed: $(basename "$lockfile")"
+        fi
     fi
 done
 
