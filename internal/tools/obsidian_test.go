@@ -52,6 +52,31 @@ func decodeToolResult(t *testing.T, raw string) map[string]interface{} {
 	return result
 }
 
+func TestObsidianReadOnlyBlocksMutations(t *testing.T) {
+	cfg := config.ObsidianConfig{ReadOnly: true}
+
+	tests := map[string]string{
+		"create_note":     ObsidianCreateNote(cfg, nil, "note.md", "content", slog.Default()),
+		"update_note":     ObsidianUpdateNote(cfg, nil, "note.md", "content", slog.Default()),
+		"patch_note":      ObsidianPatchNote(cfg, nil, "note.md", "content", "", "", "append", slog.Default()),
+		"delete_note":     ObsidianDeleteNote(cfg, nil, "note.md", slog.Default()),
+		"periodic_write":  ObsidianPeriodicNote(cfg, nil, "daily", "content", slog.Default()),
+		"execute_command": ObsidianExecuteCommand(cfg, nil, "workspace:save-file", slog.Default()),
+	}
+
+	for name, raw := range tests {
+		t.Run(name, func(t *testing.T) {
+			result := decodeToolResult(t, raw)
+			if result["status"] != "error" {
+				t.Fatalf("status = %v, raw=%s, want error", result["status"], raw)
+			}
+			if !strings.Contains(result["message"].(string), "read-only mode") {
+				t.Fatalf("message = %q, want read-only denial", result["message"])
+			}
+		})
+	}
+}
+
 func TestObsidianUpdateNoteVerifiesWrittenContent(t *testing.T) {
 	noteContent := "before"
 

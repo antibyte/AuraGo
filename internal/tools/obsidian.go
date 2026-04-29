@@ -36,6 +36,13 @@ func obsidianRequestContext(cfg config.ObsidianConfig) (context.Context, context
 	return context.WithTimeout(context.Background(), timeout)
 }
 
+func obsidianReadOnlyMutationError(cfg config.ObsidianConfig, operation string) string {
+	if cfg.ReadOnly {
+		return errJSON("Obsidian is in read-only mode; %s is disabled", operation)
+	}
+	return ""
+}
+
 // DispatchObsidianTool routes Obsidian tool calls by operation name.
 func DispatchObsidianTool(operation string, params map[string]string, cfg *config.Config, vault *security.Vault, logger *slog.Logger) string {
 	if !cfg.Obsidian.Enabled {
@@ -284,6 +291,9 @@ func ObsidianCreateNote(cfg config.ObsidianConfig, vault *security.Vault, path, 
 	if content == "" {
 		return errJSON("content is required")
 	}
+	if denied := obsidianReadOnlyMutationError(cfg, "create_note"); denied != "" {
+		return denied
+	}
 
 	client, err := newObsidianClient(cfg, vault)
 	if err != nil {
@@ -319,6 +329,9 @@ func ObsidianCreateNote(cfg config.ObsidianConfig, vault *security.Vault, path, 
 func ObsidianUpdateNote(cfg config.ObsidianConfig, vault *security.Vault, path, content string, logger *slog.Logger) string {
 	if path == "" {
 		return errJSON("path is required")
+	}
+	if denied := obsidianReadOnlyMutationError(cfg, "update_note"); denied != "" {
+		return denied
 	}
 
 	client, err := newObsidianClient(cfg, vault)
@@ -356,6 +369,9 @@ func ObsidianPatchNote(cfg config.ObsidianConfig, vault *security.Vault, path, c
 	}
 	if content == "" {
 		return errJSON("content is required")
+	}
+	if denied := obsidianReadOnlyMutationError(cfg, "patch_note"); denied != "" {
+		return denied
 	}
 
 	client, err := newObsidianClient(cfg, vault)
@@ -395,6 +411,9 @@ func ObsidianPatchNote(cfg config.ObsidianConfig, vault *security.Vault, path, c
 func ObsidianDeleteNote(cfg config.ObsidianConfig, vault *security.Vault, path string, logger *slog.Logger) string {
 	if path == "" {
 		return errJSON("path is required")
+	}
+	if denied := obsidianReadOnlyMutationError(cfg, "delete_note"); denied != "" {
+		return denied
 	}
 
 	client, err := newObsidianClient(cfg, vault)
@@ -523,6 +542,11 @@ func ObsidianPeriodicNote(cfg config.ObsidianConfig, vault *security.Vault, peri
 	if period == "" {
 		period = "daily"
 	}
+	if content != "" {
+		if denied := obsidianReadOnlyMutationError(cfg, "periodic_note write"); denied != "" {
+			return denied
+		}
+	}
 
 	client, err := newObsidianClient(cfg, vault)
 	if err != nil {
@@ -592,6 +616,9 @@ func ObsidianListCommands(cfg config.ObsidianConfig, vault *security.Vault, logg
 func ObsidianExecuteCommand(cfg config.ObsidianConfig, vault *security.Vault, commandID string, logger *slog.Logger) string {
 	if commandID == "" {
 		return errJSON("command_id is required")
+	}
+	if denied := obsidianReadOnlyMutationError(cfg, "execute_command"); denied != "" {
+		return denied
 	}
 
 	client, err := newObsidianClient(cfg, vault)
