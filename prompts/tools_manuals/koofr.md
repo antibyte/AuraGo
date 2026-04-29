@@ -1,6 +1,6 @@
 # Koofr (`koofr`)
 
-Interact with Koofr Cloud Storage. Read, write, and manage folders and files in the primary Koofr Vault.
+Interact with Koofr Cloud Storage. Read, write, and manage folders and files in the primary Koofr storage mount.
 
 ## Operations
 
@@ -14,6 +14,7 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 | `mkdir` | Create a new folder |
 | `delete` | Delete a file or folder |
 | `rename` | Rename a file or folder |
+| `move` | Move or rename a file or folder |
 | `copy` | Copy a file or folder inside Koofr |
 
 ## Parameters
@@ -21,8 +22,8 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `operation` | string | yes | One of the operations above |
-| `path` | string | yes | Absolute path inside Koofr (e.g., `/Documents/notes.txt`) |
-| `destination` | string | for rename, copy, write, upload, download | Target path or filename |
+| `path` | string | yes | Absolute path inside Koofr. For `upload` and `write`, prefer the target directory (e.g., `/Documents`) |
+| `destination` | string | for rename, move, copy, write, upload, download | Target path, local download path, or remote filename |
 | `content` | string | for write | Non-empty text content to upload |
 | `local_path` | string | for upload | Existing local file path to upload |
 
@@ -65,10 +66,11 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 
 ## Notes
 
-- **Paths**: All paths must start with `/`. Root is `/`
+- **Paths**: All paths must start with `/`. Root is `/`.
 - **mkdir**: The `path` should be the full path of the new directory
-- **write**: `destination` is the filename, `path` is the target directory, and `content` must be non-empty. Use `upload` for existing local files.
-- **upload**: `local_path` is the existing local source file, `path` is the Koofr target directory, and `destination` is the remote filename. The source file must exist and must not be 0 bytes.
+- **write**: `destination` is the filename, `path` is the target directory, and `content` must be non-empty. If the filename is accidentally included in `path`, AuraGo splits it into directory and filename. Use `upload` for existing local files.
+- **upload**: `local_path` is the existing local source file, `path` is the Koofr target directory, and `destination` is the remote filename. If the filename is accidentally included in `path`, AuraGo splits it into directory and filename. The source file must exist and must not be 0 bytes.
+- **upload verification**: AuraGo verifies uploads with Koofr `files/info` for the final remote path, with directory listing as fallback.
 - **read**: Only for text files. For audio, images, PDFs, or other binary files use `download`
 - **download**: `destination` is a local workspace path such as `workdir/song.mp3`
-- **rename/copy**: `path` is source, `destination` is a target path inside Koofr
+- **rename/move/copy**: `path` is source, `destination` is a target path inside Koofr

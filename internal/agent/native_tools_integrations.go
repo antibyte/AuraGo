@@ -794,11 +794,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "File operation to perform",
-					"enum":        []string{"list", "read", "download", "write", "upload", "mkdir", "delete", "rename", "copy"},
+					"enum":        []string{"list", "read", "download", "write", "upload", "mkdir", "delete", "rename", "move", "copy"},
 				},
-				"path":        prop("string", "File or directory path in Koofr. For upload, use the target directory (e.g. '/aurgo/pictures'); if a filename is included by mistake AuraGo will split it into directory and destination filename."),
-				"destination": prop("string", "Destination path for rename/copy operations, a remote filename for upload (for example 'robot_spaghetti.jpeg'), or a local workspace path for download (for example 'workdir/song.mp3')."),
-				"content":     prop("string", "Non-empty text content to write (for 'write' operation only)."),
+				"path":        prop("string", "File or directory path in Koofr. For upload/write, use the target directory (e.g. '/aurgo/pictures'); if a filename is included by mistake AuraGo will split it into directory and destination filename."),
+				"destination": prop("string", "Destination path for rename/move/copy operations, a remote filename for upload/write (for example 'robot_spaghetti.jpeg'), or a local workspace path for download (for example 'workdir/song.mp3')."),
+				"content":     prop("string", "Non-empty text content to write (for 'write' operation only). Use upload with local_path for existing files and binary content."),
 				"local_path":  prop("string", "Existing local file path to upload (for 'upload' operation), e.g. a generated image path. Must resolve inside the AuraGo project/workspace and must not be empty."),
 			}, "operation", "path"),
 		))

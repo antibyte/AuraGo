@@ -127,8 +127,11 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 				"message": "Koofr write requires non-empty content. To upload an existing local file such as a generated image, use operation 'upload' with local_path, path as the Koofr target directory, and destination as the remote filename.",
 			})
 		}
-		filename := koofrUploadFilename(dest, "file.txt")
-		reqURL := koofrUploadURL(baseURL, mountID, safePath, filename)
+		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, "file.txt")
+		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword); err != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to prepare Koofr target directory: %v", err), "remote_directory": uploadDir})
+		}
+		reqURL := koofrUploadURL(baseURL, mountID, uploadDir, filename)
 		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, strings.NewReader(content))
 		if uploadErr != nil {
 			err = uploadErr
@@ -209,6 +212,9 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 				}
 			}
 		}
+		if err == nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Folder created successfully"})
+		}
 
 	case "delete":
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/remove?path=%s", baseURL, mountID, url.QueryEscape(safePath))
@@ -223,10 +229,9 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		}
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/move?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 
-		payload := map[string]string{"to": safeDest}
-		payloadBytes, _ := json.Marshal(payload)
+		payloadBytes := koofrMovePayload(mountID, safeDest)
 
-		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
 		if err == nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Moved/Renamed successfully"})
 		}
@@ -243,10 +248,9 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		}
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/copy?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 
-		payload := map[string]string{"to": safeDest}
-		payloadBytes, _ := json.Marshal(payload)
+		payloadBytes := koofrCopyPayload(mountID, safeDest)
 
-		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
 		if err == nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Copied successfully"})
 		}
@@ -283,6 +287,18 @@ func koofrActionRequiresExplicitResult(action string) bool {
 	default:
 		return false
 	}
+}
+
+func koofrMovePayload(mountID, safeDest string) []byte {
+	payloadBytes, _ := json.Marshal(map[string]interface{}{
+		"toMountId": mountID,
+		"toPath":    safeDest,
+	})
+	return payloadBytes
+}
+
+func koofrCopyPayload(mountID, safeDest string) []byte {
+	return koofrMovePayload(mountID, safeDest)
 }
 
 func koofrUploadURL(baseURL, mountID, safePath, filename string) string {

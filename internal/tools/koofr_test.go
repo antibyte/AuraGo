@@ -128,6 +128,26 @@ func TestKoofrActionRequiresExplicitResultForUpload(t *testing.T) {
 	}
 }
 
+func TestKoofrMovePayloadUsesKoofrClientShape(t *testing.T) {
+	payloadBytes := koofrMovePayload("primary", "/aurgo/archive/cat.jpeg")
+	var payload map[string]interface{}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if payload["toMountId"] != "primary" {
+		t.Fatalf("toMountId = %v, want primary", payload["toMountId"])
+	}
+	if payload["toPath"] != "/aurgo/archive/cat.jpeg" {
+		t.Fatalf("toPath = %v, want /aurgo/archive/cat.jpeg", payload["toPath"])
+	}
+	if _, ok := payload["to"]; ok {
+		t.Fatalf("payload must not use legacy 'to' field: %v", payload)
+	}
+	if _, ok := payload["modified"]; ok {
+		t.Fatalf("move payload must not include copy-only modified field: %v", payload)
+	}
+}
+
 func TestExecuteKoofrWriteRejectsMissingContent(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
