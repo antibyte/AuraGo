@@ -19,6 +19,7 @@ import (
 type PaperlessConfig struct {
 	URL      string // Base URL, e.g. https://paperless.example.com
 	APIToken string // API authentication token
+	ReadOnly bool   // true = block upload/update/delete
 }
 
 // paperlessHTTPClient is a shared HTTP client for Paperless-ngx calls.
@@ -73,6 +74,13 @@ func paperlessJSON(cfg PaperlessConfig, endpoint string) (map[string]interface{}
 func paperlessEncode(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func paperlessReadOnlyError(cfg PaperlessConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return paperlessEncode(FSResult{Status: "error", Message: "Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."})
 }
 
 // wrapExternal wraps untrusted content in <external_data> tags to prevent prompt injection.
@@ -294,6 +302,9 @@ func PaperlessDownload(cfg PaperlessConfig, documentID string) string {
 
 // PaperlessUpload uploads a new document to Paperless-ngx.
 func PaperlessUpload(cfg PaperlessConfig, title, content, tags, correspondent, documentType string) string {
+	if msg := paperlessReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if content == "" {
 		return paperlessEncode(FSResult{Status: "error", Message: "'content' is required for upload"})
 	}
@@ -350,6 +361,9 @@ func PaperlessUpload(cfg PaperlessConfig, title, content, tags, correspondent, d
 // The Paperless-ngx API expects integer IDs for correspondent, document_type,
 // and tags. Names are resolved to IDs via the list endpoints automatically.
 func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent, documentType string) string {
+	if msg := paperlessReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if documentID == "" {
 		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for update"})
 	}
@@ -440,6 +454,9 @@ func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent
 
 // PaperlessDelete deletes a document by ID.
 func PaperlessDelete(cfg PaperlessConfig, documentID string) string {
+	if msg := paperlessReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if documentID == "" {
 		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for delete"})
 	}

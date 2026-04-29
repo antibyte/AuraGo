@@ -308,6 +308,28 @@ func TestPaperlessUpdate(t *testing.T) {
 	}
 }
 
+func TestPaperlessDirectMutationsRespectReadOnly(t *testing.T) {
+	cfg := PaperlessConfig{URL: "https://paperless.example", APIToken: "token", ReadOnly: true}
+
+	tests := map[string]string{
+		"upload": PaperlessUpload(cfg, "title", "content", "", "", ""),
+		"update": PaperlessUpdate(cfg, "7", "new title", "", "", ""),
+		"delete": PaperlessDelete(cfg, "7"),
+	}
+
+	for name, got := range tests {
+		t.Run(name, func(t *testing.T) {
+			var parsed FSResult
+			if err := json.Unmarshal([]byte(got), &parsed); err != nil {
+				t.Fatalf("parse result: %v, raw=%s", err, got)
+			}
+			if parsed.Status != "error" || !strings.Contains(strings.ToLower(parsed.Message), "read-only") {
+				t.Fatalf("expected read-only error, got %#v", parsed)
+			}
+		})
+	}
+}
+
 func TestSanitizeFilename(t *testing.T) {
 	tests := []struct {
 		input, expected string
