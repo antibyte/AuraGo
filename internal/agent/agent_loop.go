@@ -27,6 +27,37 @@ const maxConcurrentAgentLoops = 8
 
 var agentLoopLimiter = make(chan struct{}, maxConcurrentAgentLoops)
 
+func acquireAgentLoopSlot(ctx context.Context) (func(), error) {
+	select {
+	case agentLoopLimiter <- struct{}{}:
+		released := false
+		return func() {
+			if released {
+				return
+			}
+			released = true
+			<-agentLoopLimiter
+		}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func withAgentLoopSlot(ctx context.Context, fn func()) error {
+	release, err := acquireAgentLoopSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		release()
+		if rec := recover(); rec != nil {
+			panic(rec)
+		}
+	}()
+	fn()
+	return nil
+}
+
 // agentLoopState holds the mutable state for a single ExecuteAgentLoop invocation.
 type agentLoopState struct {
 	ctx    context.Context
@@ -159,12 +190,16 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (openai.ChatCompletionResponse, error) {
-	select {
-	case agentLoopLimiter <- struct{}{}:
-		defer func() { <-agentLoopLimiter }()
-	case <-ctx.Done():
-		return openai.ChatCompletionResponse{}, ctx.Err()
+	releaseAgentLoopSlot, err := acquireAgentLoopSlot(ctx)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
 	}
+	defer func() {
+		releaseAgentLoopSlot()
+		if rec := recover(); rec != nil {
+			panic(rec)
+		}
+	}()
 
 	s := initAgentLoopState(req, runCfg, broker)
 	req = s.req

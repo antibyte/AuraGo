@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -45,12 +46,17 @@ func (s *Server) StartTCPBridge(addr string) {
 		s.Logger.Error("TCP Bridge: Failed to listen", "addr", addr, "error", err)
 		return
 	}
+	s.setTCPBridgeListener(ln)
 	s.Logger.Info("TCP Bridge: Listening", "addr", addr)
-	defer ln.Close()
+	defer s.CloseTCPBridge()
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				s.Logger.Info("TCP Bridge: listener closed")
+				return
+			}
 			s.Logger.Error("TCP Bridge: Failed to accept connection", "error", err)
 			continue
 		}
@@ -61,6 +67,30 @@ func (s *Server) StartTCPBridge(addr string) {
 		}
 		go s.handleBridgeConnection(conn)
 	}
+}
+
+func (s *Server) setTCPBridgeListener(ln net.Listener) {
+	if s == nil {
+		return
+	}
+	s.bridgeMu.Lock()
+	s.bridgeListener = ln
+	s.bridgeMu.Unlock()
+}
+
+func (s *Server) CloseTCPBridge() {
+	if s == nil {
+		return
+	}
+	s.bridgeCloseOnce.Do(func() {
+		s.bridgeMu.Lock()
+		ln := s.bridgeListener
+		s.bridgeListener = nil
+		s.bridgeMu.Unlock()
+		if ln != nil {
+			_ = ln.Close()
+		}
+	})
 }
 
 func (s *Server) handleBridgeConnection(conn net.Conn) {
