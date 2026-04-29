@@ -48,6 +48,12 @@ func ShouldHideAutonomousMessage(sessionID, role, content string) bool {
 // CreateChatSession creates a new chat session and returns its ID.
 // It also runs rotation to ensure we don't exceed MaxChatSessions.
 func (s *SQLiteMemory) CreateChatSession() (*ChatSession, error) {
+	return s.CreateChatSessionWithLimit(MaxChatSessions)
+}
+
+// CreateChatSessionWithLimit creates a new chat session and rotates older
+// sessions using the supplied retention limit.
+func (s *SQLiteMemory) CreateChatSessionWithLimit(retainLimit int) (*ChatSession, error) {
 	id := "sess-" + uid.New()
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	_, err := s.db.Exec(
@@ -60,7 +66,7 @@ func (s *SQLiteMemory) CreateChatSession() (*ChatSession, error) {
 	s.logger.Info("Created new chat session", "id", id)
 
 	// Rotate old sessions
-	if err := s.RotateChatSessions(); err != nil {
+	if err := s.RotateChatSessionsWithLimit(retainLimit); err != nil {
 		s.logger.Warn("Failed to rotate chat sessions", "error", err)
 	}
 
@@ -75,12 +81,20 @@ func (s *SQLiteMemory) CreateChatSession() (*ChatSession, error) {
 
 // ListChatSessions returns the most recent chat sessions (newest first), up to MaxChatSessions.
 func (s *SQLiteMemory) ListChatSessions() ([]ChatSession, error) {
+	return s.ListChatSessionsWithLimit(MaxChatSessions)
+}
+
+// ListChatSessionsWithLimit returns the most recent chat sessions (newest first).
+func (s *SQLiteMemory) ListChatSessionsWithLimit(limit int) ([]ChatSession, error) {
+	if limit <= 0 {
+		limit = MaxChatSessions
+	}
 	rows, err := s.db.Query(
 		`SELECT id, COALESCE(preview, ''), created_at, last_active_at, message_count
 		 FROM chat_sessions
 		 WHERE id != 'heartbeat'
 		 ORDER BY last_active_at DESC
-		 LIMIT ?`, MaxChatSessions,
+		 LIMIT ?`, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list chat sessions: %w", err)
@@ -195,11 +209,22 @@ func (s *SQLiteMemory) TouchChatSession(sessionID string) error {
 // RotateChatSessions deletes the oldest sessions that exceed MaxChatSessions.
 // It keeps the most recently active sessions.
 func (s *SQLiteMemory) RotateChatSessions() error {
+	return s.RotateChatSessionsWithLimit(MaxChatSessions)
+}
+
+// RotateChatSessionsWithLimit deletes the oldest sessions that exceed limit.
+// It keeps the most recently active sessions and archives user/assistant messages
+// in the same transaction before deleting each rotated session.
+func (s *SQLiteMemory) RotateChatSessionsWithLimit(limit int) error {
+	if limit <= 0 {
+		return fmt.Errorf("chat session rotation limit must be positive, got %d", limit)
+	}
 	// Find sessions to delete (all except the newest MaxChatSessions)
 	rows, err := s.db.Query(
 		`SELECT id FROM chat_sessions
+		 WHERE id != 'heartbeat'
 		 ORDER BY last_active_at DESC
-		 LIMIT -1 OFFSET ?`, MaxChatSessions,
+		 LIMIT -1 OFFSET ?`, limit,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to find sessions to rotate: %w", err)
@@ -223,13 +248,9 @@ func (s *SQLiteMemory) RotateChatSessions() error {
 	}
 
 	for _, id := range ids {
-		// Delete messages for this session
-		if _, err := s.db.Exec(`DELETE FROM messages WHERE session_id = ?`, id); err != nil {
-			s.logger.Warn("Failed to delete messages for rotated session", "session_id", id, "error", err)
-		}
-		// Delete the session itself
-		if _, err := s.db.Exec(`DELETE FROM chat_sessions WHERE id = ?`, id); err != nil {
-			s.logger.Warn("Failed to delete rotated session", "session_id", id, "error", err)
+		if err := s.archiveAndDeleteChatSession(id); err != nil {
+			s.logger.Warn("Failed to rotate chat session", "session_id", id, "error", err)
+			return err
 		}
 		s.logger.Info("Rotated old chat session", "session_id", id)
 	}
@@ -285,13 +306,38 @@ func (s *SQLiteMemory) ClearSession(sessionID string) error {
 
 // DeleteChatSession removes a session and all its messages.
 func (s *SQLiteMemory) DeleteChatSession(sessionID string) error {
-	if _, err := s.db.Exec(`DELETE FROM messages WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete session messages: %w", err)
-	}
-	if _, err := s.db.Exec(`DELETE FROM chat_sessions WHERE id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete chat session: %w", err)
+	if err := s.archiveAndDeleteChatSession(sessionID); err != nil {
+		return err
 	}
 	s.logger.Info("Deleted chat session", "session_id", sessionID)
+	return nil
+}
+
+func (s *SQLiteMemory) archiveAndDeleteChatSession(sessionID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin chat session delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	archiveQuery := `
+	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
+	SELECT session_id, role, content, timestamp
+	FROM messages
+	WHERE session_id = ? AND role IN ('user', 'assistant')
+	ORDER BY timestamp ASC, id ASC`
+	if _, err := tx.Exec(archiveQuery, sessionID); err != nil {
+		return fmt.Errorf("failed to archive session messages: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM messages WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete session messages: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM chat_sessions WHERE id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete chat session: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit chat session delete transaction: %w", err)
+	}
 	return nil
 }
 

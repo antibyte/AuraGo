@@ -16,7 +16,8 @@ func handleListChatSessions(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		sessions, err := s.ShortTermMem.ListChatSessions()
+		retainLimit := s.Cfg.Consolidation.ChatSessionLimit
+		sessions, err := s.ShortTermMem.ListChatSessionsWithLimit(retainLimit)
 		if err != nil {
 			s.Logger.Error("Failed to list chat sessions", "error", err)
 			jsonError(w, "Internal server error", http.StatusInternalServerError)
@@ -41,7 +42,8 @@ func handleCreateChatSession(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		sess, err := s.ShortTermMem.CreateChatSession()
+		retainLimit := s.Cfg.Consolidation.ChatSessionLimit
+		sess, err := s.ShortTermMem.CreateChatSessionWithLimit(retainLimit)
 		if err != nil {
 			s.Logger.Error("Failed to create chat session", "error", err)
 			jsonError(w, "Internal server error", http.StatusInternalServerError)

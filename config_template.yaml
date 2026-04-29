@@ -454,6 +454,7 @@ consolidation:
     archive_retain_days: 30
     max_batch_messages: 200
     optimize_threshold: 1
+    chat_session_limit: 10                               # max chat sessions retained before archival rotation
     model: ""                                             # optional override; empty = use llm.model for nightly extraction
 memory_analysis:
     provider: ""                                          # deprecated compatibility field; helper-owned runtime now uses llm.helper_*

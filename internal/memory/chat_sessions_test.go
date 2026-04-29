@@ -283,6 +283,69 @@ func TestRotateChatSessions(t *testing.T) {
 	}
 }
 
+func TestRotateChatSessionsArchivesBeforeDelete(t *testing.T) {
+	stm := newTestSTM(t)
+
+	oldID := "old-session"
+	newID := "new-session"
+	_, err := stm.db.Exec(
+		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES
+		 (?, '', '2026-04-01 00:00:00', '2026-04-01 00:00:00', 1),
+		 (?, '', '2026-04-02 00:00:00', '2026-04-02 00:00:00', 1)`,
+		oldID, newID,
+	)
+	if err != nil {
+		t.Fatalf("insert sessions: %v", err)
+	}
+	if _, err := stm.InsertMessage(oldID, "user", "archive me", false, false); err != nil {
+		t.Fatalf("insert old message: %v", err)
+	}
+	if _, err := stm.InsertMessage(newID, "user", "keep me", false, false); err != nil {
+		t.Fatalf("insert new message: %v", err)
+	}
+
+	if err := stm.RotateChatSessionsWithLimit(2); err != nil {
+		t.Fatalf("RotateChatSessionsWithLimit: %v", err)
+	}
+
+	if got, _ := stm.GetChatSession(oldID); got != nil {
+		t.Fatalf("old session still exists: %+v", got)
+	}
+	var archived int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE session_id = ? AND content = ?`, oldID, "archive me").Scan(&archived); err != nil {
+		t.Fatalf("count archived: %v", err)
+	}
+	if archived != 1 {
+		t.Fatalf("archived old messages = %d, want 1", archived)
+	}
+	msgs, err := stm.GetSessionMessages(newID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages(new): %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "keep me" {
+		t.Fatalf("new session messages changed: %+v", msgs)
+	}
+}
+
+func TestDeleteChatSessionArchivesBeforeDelete(t *testing.T) {
+	stm := newTestSTM(t)
+
+	sess, _ := stm.CreateChatSession()
+	_, _ = stm.InsertMessage(sess.ID, "user", "remember this", false, false)
+	_, _ = stm.InsertMessage(sess.ID, "assistant", "also this", false, false)
+
+	if err := stm.DeleteChatSession(sess.ID); err != nil {
+		t.Fatalf("DeleteChatSession: %v", err)
+	}
+	var archived int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE session_id = ?`, sess.ID).Scan(&archived); err != nil {
+		t.Fatalf("count archived: %v", err)
+	}
+	if archived != 2 {
+		t.Fatalf("archived messages = %d, want 2", archived)
+	}
+}
+
 func TestGetSessionMessages(t *testing.T) {
 	stm := newTestSTM(t)
 
