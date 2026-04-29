@@ -114,6 +114,13 @@ func (cv *ChromemVectorDB) GetEmbeddingFunc() chromem.EmbeddingFunc {
 	return cv.embeddingFunc
 }
 
+// EmbeddingFingerprint identifies the embedding provider/model used for newly
+// stored documents. Callers can persist it to detect stale embeddings after
+// model or endpoint changes.
+func (cv *ChromemVectorDB) EmbeddingFingerprint() string {
+	return cv.embeddingFingerprint
+}
+
 // Count returns the total number of documents across all collections
 // (aurago_memories, tool_guides, documentation, and file_indexer collections).
 // Returns the persisted count even when the embedding pipeline is disabled,

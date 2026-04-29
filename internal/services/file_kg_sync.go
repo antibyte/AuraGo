@@ -191,7 +191,12 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	// Track original length before preparation for confidence scoring.
 	originalLength := len(content)
 	wasTruncated := originalLength > maxContentBytes
-	content = prepareContentForExtraction(path, content)
+	segments := prepareContentSegmentsForExtraction(path, content)
+	if len(segments) == 0 {
+		result.FilesSkipped++
+		s.logger.Debug("[FileKGSync] Skipping file: no extractable prepared content", "path", path)
+		return result
+	}
 
 	// 2. Build existing nodes context for the LLM (reuse IDs where possible).
 	existingNodesString := ""
@@ -206,10 +211,21 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	}
 
 	// 3. Extract entities and relationships via the reusable extraction package.
-	nodes, edges, err := kgextraction.ExtractKGFromText(s.cfg, s.logger, s.llmClient, content, existingNodesString)
-	if err != nil {
-		s.logger.Warn("[FileKGSync] KG extraction failed", "path", path, "error", err)
-		result.Errors = append(result.Errors, fmt.Sprintf("extraction %s: %v", path, err))
+	var nodes []memory.Node
+	var edges []memory.Edge
+	for i, segment := range segments {
+		segmentNodes, segmentEdges, err := kgextraction.ExtractKGFromText(s.cfg, s.logger, s.llmClient, segment, existingNodesString)
+		if err != nil {
+			s.logger.Warn("[FileKGSync] KG extraction failed", "path", path, "segment", i+1, "segments", len(segments), "error", err)
+			result.Errors = append(result.Errors, fmt.Sprintf("extraction %s segment %d/%d: %v", path, i+1, len(segments), err))
+			continue
+		}
+		nodes = append(nodes, segmentNodes...)
+		edges = append(edges, segmentEdges...)
+	}
+	nodes = mergeNodesByID(nodes)
+	edges = mergeEdgesByKey(edges)
+	if len(result.Errors) > 0 && len(nodes) == 0 && len(edges) == 0 {
 		return result
 	}
 	if len(nodes) == 0 && len(edges) == 0 {
@@ -492,9 +508,17 @@ var formFeedRe = regexp.MustCompile(`[\x0b\x0c]`)
 //   - PDF / DOCX (.pdf, .docx): Clean extraction artifacts (form-feeds, excess whitespace).
 //   - All types: Normalize whitespace and truncate to maxContentBytes if needed.
 func prepareContentForExtraction(filePath, content string) string {
+	segments := prepareContentSegmentsForExtraction(filePath, content)
+	if len(segments) == 0 {
+		return ""
+	}
+	return segments[0]
+}
+
+func prepareContentSegmentsForExtraction(filePath, content string) []string {
 	content = strings.TrimSpace(content)
 	if isGenericMultimodalPlaceholder(content) {
-		return ""
+		return nil
 	}
 
 	ext := strings.ToLower(filepath.Ext(filePath))
@@ -509,12 +533,32 @@ func prepareContentForExtraction(filePath, content string) string {
 	// Universal cleanup: collapse excessive blank lines.
 	content = multiBlankLineRe.ReplaceAllString(content, "\n\n")
 
-	// Truncate if content exceeds the limit.
-	if len(content) > maxContentBytes {
-		content = truncateUTF8(content, maxContentBytes) + "\n\n[... content truncated for extraction ...]"
+	if len(content) <= maxContentBytes {
+		if strings.TrimSpace(content) == "" {
+			return nil
+		}
+		return []string{strings.TrimSpace(content)}
 	}
 
-	return strings.TrimSpace(content)
+	return representativeExtractionSegments(content, maxContentBytes)
+}
+
+func representativeExtractionSegments(content string, segmentBytes int) []string {
+	if segmentBytes <= 0 || len(content) <= segmentBytes {
+		return []string{strings.TrimSpace(content)}
+	}
+	start := truncateUTF8(content, segmentBytes)
+	midStart := (len(content) - segmentBytes) / 2
+	midStart = adjustUTF8Boundary(content, midStart)
+	middle := truncateUTF8(content[midStart:], segmentBytes)
+	endStart := len(content) - segmentBytes
+	endStart = adjustUTF8Boundary(content, endStart)
+	end := content[endStart:]
+	return []string{
+		strings.TrimSpace(start) + "\n\n[... content truncated for extraction ...]\n[beginning segment]",
+		"[... middle segment ...]\n\n" + strings.TrimSpace(middle),
+		"[... ending segment ...]\n\n" + strings.TrimSpace(end),
+	}
 }
 
 func isGenericMultimodalPlaceholder(content string) bool {
@@ -531,6 +575,85 @@ func truncateUTF8(content string, maxBytes int) string {
 		maxBytes--
 	}
 	return content[:maxBytes]
+}
+
+func adjustUTF8Boundary(content string, index int) int {
+	if index <= 0 {
+		return 0
+	}
+	if index >= len(content) {
+		return len(content)
+	}
+	for index < len(content) && !utf8.RuneStart(content[index]) {
+		index++
+	}
+	return index
+}
+
+func mergeNodesByID(nodes []memory.Node) []memory.Node {
+	merged := make(map[string]memory.Node, len(nodes))
+	for _, node := range nodes {
+		if strings.TrimSpace(node.ID) == "" {
+			continue
+		}
+		existing, ok := merged[node.ID]
+		if !ok {
+			merged[node.ID] = node
+			continue
+		}
+		if strings.TrimSpace(existing.Label) == "" {
+			existing.Label = node.Label
+		}
+		if existing.Properties == nil {
+			existing.Properties = make(map[string]string)
+		}
+		for key, value := range node.Properties {
+			if strings.TrimSpace(existing.Properties[key]) == "" && strings.TrimSpace(value) != "" {
+				existing.Properties[key] = value
+			}
+		}
+		merged[node.ID] = existing
+	}
+	out := make([]memory.Node, 0, len(merged))
+	for _, node := range merged {
+		out = append(out, node)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func mergeEdgesByKey(edges []memory.Edge) []memory.Edge {
+	merged := make(map[string]memory.Edge, len(edges))
+	for _, edge := range edges {
+		if strings.TrimSpace(edge.Source) == "" || strings.TrimSpace(edge.Target) == "" || strings.TrimSpace(edge.Relation) == "" {
+			continue
+		}
+		key := edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
+		existing, ok := merged[key]
+		if !ok {
+			merged[key] = edge
+			continue
+		}
+		if existing.Properties == nil {
+			existing.Properties = make(map[string]string)
+		}
+		for propKey, value := range edge.Properties {
+			if strings.TrimSpace(existing.Properties[propKey]) == "" && strings.TrimSpace(value) != "" {
+				existing.Properties[propKey] = value
+			}
+		}
+		merged[key] = existing
+	}
+	out := make([]memory.Edge, 0, len(merged))
+	for _, edge := range merged {
+		out = append(out, edge)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left := out[i].Source + "\x00" + out[i].Target + "\x00" + out[i].Relation
+		right := out[j].Source + "\x00" + out[j].Target + "\x00" + out[j].Relation
+		return left < right
+	})
+	return out
 }
 
 // prepareMarkdownContent extracts the heading outline from Markdown content and

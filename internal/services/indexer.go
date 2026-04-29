@@ -446,8 +446,9 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		}
 
 		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
+		indexFingerprint := fi.indexFingerprint()
 		indexState, _ := fi.stm.GetFileIndexState(path, collection)
-		if !shouldReindexFile(info.ModTime(), contentHash, fileIndexerFingerprint, indexState) {
+		if !shouldReindexFile(info.ModTime(), contentHash, indexFingerprint, indexState) {
 			return nil
 		}
 
@@ -484,7 +485,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
-		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), contentHash, fileIndexerFingerprint, docIDs); err != nil {
+		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), contentHash, indexFingerprint, docIDs); err != nil {
 			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
 			return nil
@@ -502,6 +503,19 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
+}
+
+type embeddingFingerprinter interface {
+	EmbeddingFingerprint() string
+}
+
+func (fi *FileIndexer) indexFingerprint() string {
+	if fp, ok := fi.vectorDB.(embeddingFingerprinter); ok {
+		if embeddingFingerprint := strings.TrimSpace(fp.EmbeddingFingerprint()); embeddingFingerprint != "" {
+			return fileIndexerFingerprint + "|" + embeddingFingerprint
+		}
+	}
+	return fileIndexerFingerprint
 }
 
 func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, state memory.FileIndexState) bool {

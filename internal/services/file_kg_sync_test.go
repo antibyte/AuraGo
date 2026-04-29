@@ -250,6 +250,23 @@ func TestPrepareContent_Truncation(t *testing.T) {
 	}
 }
 
+func TestPrepareContentSegmentsCoverStartMiddleAndEnd(t *testing.T) {
+	input := "START " + strings.Repeat("a", maxContentBytes) +
+		" MIDDLE " + strings.Repeat("b", maxContentBytes) +
+		" END"
+
+	segments := prepareContentSegmentsForExtraction("/docs/large.txt", input)
+	if len(segments) < 3 {
+		t.Fatalf("segments = %d, want at least 3", len(segments))
+	}
+	joined := strings.Join(segments, "\n")
+	for _, want := range []string{"START", "MIDDLE", "END"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("segments do not contain %q", want)
+		}
+	}
+}
+
 func TestPrepareContent_SkipsGenericMultimodalPlaceholders(t *testing.T) {
 	for _, input := range []string{
 		"Bild-Datei: photo.jpg (Pfad: photo.jpg)",

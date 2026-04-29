@@ -18,10 +18,11 @@ import (
 )
 
 type fakeIndexerVectorDB struct {
-	mu       sync.Mutex
-	nextID   int
-	deleted  []string
-	disabled bool
+	mu          sync.Mutex
+	nextID      int
+	deleted     []string
+	disabled    bool
+	fingerprint string
 }
 
 func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -77,6 +78,9 @@ func (f *fakeIndexerVectorDB) DeleteDocumentFromCollection(id, collection string
 func (f *fakeIndexerVectorDB) Count() int       { return 0 }
 func (f *fakeIndexerVectorDB) IsDisabled() bool { return f.disabled }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }
+func (f *fakeIndexerVectorDB) EmbeddingFingerprint() string {
+	return f.fingerprint
+}
 
 func (f *fakeIndexerVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return nil
@@ -205,6 +209,47 @@ func TestFileIndexerReindexesWhenContentChangesWithSameModTime(t *testing.T) {
 	}
 	if len(errs) != 0 {
 		t.Fatalf("second scan errors = %v", errs)
+	}
+	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
+		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	}
+}
+
+func TestFileIndexerReindexesWhenEmbeddingFingerprintChanges(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.txt")
+	modTime := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Second)
+	if err := os.WriteFile(path, []byte("same content"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{fingerprint: "provider|old-model"}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("first scan indexed=%d errors=%v", indexed, errs)
+	}
+
+	vdb.fingerprint = "provider|new-model"
+	_, indexed, errs = fi.scanDirectory(dir, "file_index")
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("second scan indexed=%d errors=%v", indexed, errs)
 	}
 	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
 		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
