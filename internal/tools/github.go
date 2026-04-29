@@ -20,6 +20,8 @@ type GitHubConfig struct {
 	Owner          string // GitHub username or organisation
 	BaseURL        string // API base URL (default: https://api.github.com)
 	DefaultPrivate bool   // true = new repos are private by default
+	ReadOnly       bool   // true = block mutating operations
+	AllowedRepos   []string
 }
 
 var githubHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
@@ -102,6 +104,29 @@ func githubOwner(cfg GitHubConfig, owner string) string {
 	return cfg.Owner
 }
 
+func githubReadOnlyError(cfg GitHubConfig) string {
+	if !cfg.ReadOnly {
+		return ""
+	}
+	return errJSON("GitHub is in read-only mode. Disable github.readonly to allow changes.")
+}
+
+func githubRepoAccessError(cfg GitHubConfig, owner, repo string) string {
+	if repo == "" || len(cfg.AllowedRepos) == 0 {
+		return ""
+	}
+	for _, allowed := range cfg.AllowedRepos {
+		allowed = strings.TrimSpace(allowed)
+		if allowed == "" {
+			continue
+		}
+		if allowed == repo || allowed == owner+"/"+repo {
+			return ""
+		}
+	}
+	return errJSON("Repo '%s' is not in the allowed repos list. Add it in Settings → GitHub to grant access.", repo)
+}
+
 // ── Repository operations ───────────────────────────────────────────────────
 
 // GitHubListRepos lists repositories for the authenticated user or a specific owner.
@@ -167,6 +192,9 @@ func GitHubListRepos(cfg GitHubConfig, owner string) string {
 
 // GitHubCreateRepo creates a new repository.
 func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool) string {
+	if msg := githubReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	if name == "" {
 		return errJSON("Repository name is required")
 	}
@@ -210,9 +238,15 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 
 // GitHubDeleteRepo deletes a repository.
 func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
+	if msg := githubReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 
 	data, status, err := githubRequest(cfg, "DELETE", githubRepoEndpoint(o, repo), nil)
@@ -235,6 +269,9 @@ func GitHubGetRepo(cfg GitHubConfig, owner, repo string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 
 	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo), nil)
@@ -276,6 +313,9 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 	if state == "" {
 		state = "open"
@@ -341,9 +381,15 @@ func GitHubListIssues(cfg GitHubConfig, owner, repo, state string) string {
 
 // GitHubCreateIssue creates a new issue in a repository.
 func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels []string) string {
+	if msg := githubReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" || title == "" {
 		return errJSON("Owner, repo name, and title are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 
 	payload := map[string]interface{}{
@@ -379,9 +425,15 @@ func GitHubCreateIssue(cfg GitHubConfig, owner, repo, title, body string, labels
 
 // GitHubCloseIssue closes an issue.
 func GitHubCloseIssue(cfg GitHubConfig, owner, repo string, number int) string {
+	if msg := githubReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" || number <= 0 {
 		return errJSON("Owner, repo name, and issue number are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 
 	data, status, err := githubRequest(cfg, "PATCH",
@@ -408,6 +460,9 @@ func GitHubListPullRequests(cfg GitHubConfig, owner, repo, state string) string 
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 	if state == "" {
 		state = "open"
@@ -475,6 +530,9 @@ func GitHubListBranches(cfg GitHubConfig, owner, repo string) string {
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
 	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
+	}
 
 	branchQuery := url.Values{"per_page": []string{"100"}}
 	data, status, err := githubRequest(cfg, "GET", githubRepoEndpoint(o, repo, "branches")+"?"+branchQuery.Encode(), nil)
@@ -511,6 +569,9 @@ func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) st
 	if o == "" || repo == "" || path == "" {
 		return errJSON("Owner, repo, and file path are required")
 	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
+	}
 
 	endpoint := githubContentEndpoint(o, repo, path)
 	if branch != "" {
@@ -545,9 +606,15 @@ func GitHubGetFileContent(cfg GitHubConfig, owner, repo, path, branch string) st
 
 // GitHubCreateOrUpdateFile creates or updates a file in a repository.
 func GitHubCreateOrUpdateFile(cfg GitHubConfig, owner, repo, path, content, message, sha, branch string) string {
+	if msg := githubReadOnlyError(cfg); msg != "" {
+		return msg
+	}
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" || path == "" {
 		return errJSON("Owner, repo, and file path are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 	if message == "" {
 		message = "Update " + path
@@ -586,6 +653,9 @@ func GitHubListCommits(cfg GitHubConfig, owner, repo, branch string, limit int) 
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -649,6 +719,9 @@ func GitHubListWorkflowRuns(cfg GitHubConfig, owner, repo string, limit int) str
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
+	}
+	if msg := githubRepoAccessError(cfg, o, repo); msg != "" {
+		return msg
 	}
 	if limit <= 0 || limit > 50 {
 		limit = 10

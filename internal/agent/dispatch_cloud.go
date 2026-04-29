@@ -77,6 +77,8 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				Owner:          cfg.GitHub.Owner,
 				BaseURL:        cfg.GitHub.BaseURL,
 				DefaultPrivate: cfg.GitHub.DefaultPrivate,
+				ReadOnly:       cfg.GitHub.ReadOnly,
+				AllowedRepos:   cfg.GitHub.AllowedRepos,
 			}
 			owner := req.Owner
 			if owner == "" {

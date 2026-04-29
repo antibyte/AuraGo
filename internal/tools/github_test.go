@@ -39,3 +39,37 @@ func TestGitHubRequestRejectsOversizedResponseBody(t *testing.T) {
 		t.Fatalf("expected oversized response error, got %v", err)
 	}
 }
+
+func TestGitHubDirectMutationsRespectReadOnly(t *testing.T) {
+	cfg := GitHubConfig{Token: "token", Owner: "owner", ReadOnly: true}
+
+	tests := map[string]string{
+		"create repo":           GitHubCreateRepo(cfg, "repo", "", nil),
+		"delete repo":           GitHubDeleteRepo(cfg, "owner", "repo"),
+		"create issue":          GitHubCreateIssue(cfg, "owner", "repo", "title", "", nil),
+		"close issue":           GitHubCloseIssue(cfg, "owner", "repo", 1),
+		"create or update file": GitHubCreateOrUpdateFile(cfg, "owner", "repo", "README.md", "content", "message", "", "main"),
+	}
+
+	for name, got := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(got, `"status":"error"`) || !strings.Contains(strings.ToLower(got), "read-only") {
+				t.Fatalf("expected read-only error, got %s", got)
+			}
+		})
+	}
+}
+
+func TestGitHubDirectRepoAccessRespectsAllowedRepos(t *testing.T) {
+	cfg := GitHubConfig{Token: "token", Owner: "owner", AllowedRepos: []string{"allowed"}}
+
+	got := GitHubGetRepo(cfg, "owner", "blocked")
+	if !strings.Contains(got, `"status":"error"`) || !strings.Contains(got, "allowed repos") {
+		t.Fatalf("expected allowed repos error, got %s", got)
+	}
+
+	got = GitHubCreateIssue(cfg, "owner", "blocked", "title", "", nil)
+	if !strings.Contains(got, `"status":"error"`) || !strings.Contains(got, "allowed repos") {
+		t.Fatalf("expected allowed repos error for mutation, got %s", got)
+	}
+}

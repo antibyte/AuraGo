@@ -319,9 +319,11 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 		}
 
 		ghCfg := tools.GitHubConfig{
-			Token:   token,
-			Owner:   s.Cfg.GitHub.Owner,
-			BaseURL: s.Cfg.GitHub.BaseURL,
+			Token:        token,
+			Owner:        s.Cfg.GitHub.Owner,
+			BaseURL:      s.Cfg.GitHub.BaseURL,
+			ReadOnly:     s.Cfg.GitHub.ReadOnly,
+			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
 		}
 
 		raw := tools.GitHubListRepos(ghCfg, "")
@@ -429,9 +431,11 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 		}
 
 		ghCfg := tools.GitHubConfig{
-			Token:   token,
-			Owner:   s.Cfg.GitHub.Owner,
-			BaseURL: s.Cfg.GitHub.BaseURL,
+			Token:        token,
+			Owner:        s.Cfg.GitHub.Owner,
+			BaseURL:      s.Cfg.GitHub.BaseURL,
+			ReadOnly:     s.Cfg.GitHub.ReadOnly,
+			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
 		}
 
 		raw := tools.GitHubListRepos(ghCfg, "")
