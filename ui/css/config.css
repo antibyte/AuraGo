@@ -337,6 +337,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 2rem 2.5rem;
+    min-width: 0;
 }
 
 .cfg-section {
@@ -2935,6 +2936,8 @@ select.cfg-input option {
 
 .devices-table-wrap {
     overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
 }
 
 .devices-toolbar {
