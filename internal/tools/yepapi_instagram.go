@@ -70,10 +70,10 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 	case "search":
 		query := instagramSearchQueryArg(args)
 		if query == "" {
-			return yepAPIFormatError("search operation requires a 'query' string"), nil
+			return yepAPIFormatError("search operation requires a 'search_query' string"), nil
 		}
 		endpoint := "/v1/instagram/search"
-		payload := map[string]interface{}{"query": query}
+		payload := map[string]interface{}{"search_query": query}
 		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
 		if err != nil {
 			return "", err
@@ -176,10 +176,13 @@ func formatInstagramPayloadSuccess(data []byte, endpoint, operation string, payl
 
 func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
 	lookup := instagramUserLookupArg(args)
-	if lookup.username == "" {
+	if lookup.username == "" && lookup.usernameOrURL == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'username' or 'username_or_url' string", operation)), nil
 	}
-	payload := map[string]interface{}{"username": lookup.username}
+
+	// API actually requires username_or_url
+	payload := map[string]interface{}{"username_or_url": lookup.username}
+
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}

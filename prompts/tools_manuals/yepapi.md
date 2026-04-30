@@ -183,9 +183,8 @@ Instagram data access.
 - `media_id` — Resolve media ID by shortcode
 
 **Parameters:**
-- `query` — Search query (for search). YepAPI requires the field name `query`; AuraGo also accepts `search_query` as an input alias and normalizes it to `query` before calling the API.
-- `username` — Instagram username (for user and user_* operations)
-- `username_or_url` — Optional input alias accepted by AuraGo for convenience; profile URLs (e.g. `https://www.instagram.com/natgeo/`) are normalized to the bare `username` before calling YepAPI
+- `search_query` — Search query (for search operation).
+- `username_or_url` — Instagram username or profile URL (e.g. `https://www.instagram.com/natgeo/`) for user and user_* operations. Supported directly.
 - `shortcode` — Instagram post shortcode (for post, post_comments, post_likers, media_id)
 - `tag` — Hashtag without # (for hashtag)
 - `limit` — Max results (default: 10)
