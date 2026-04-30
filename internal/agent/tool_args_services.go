@@ -6,12 +6,13 @@ import (
 )
 
 type manageWebhooksArgs struct {
-	Operation string
-	ID        string
-	Name      string
-	Slug      string
-	Enabled   bool
-	TokenID   string
+	Operation  string
+	ID         string
+	Name       string
+	Slug       string
+	Enabled    bool
+	EnabledSet bool
+	TokenID    string
 }
 
 type imageAnalysisArgs struct {
@@ -223,6 +224,10 @@ func decodeManageWebhooksArgs(tc ToolCall) manageWebhooksArgs {
 	}
 	if enabled, ok := toolArgBool(tc.Params, "enabled"); ok {
 		req.Enabled = enabled
+		req.EnabledSet = true
+	} else if tc.Enabled {
+		req.Enabled = true
+		req.EnabledSet = true
 	}
 	return req
 }

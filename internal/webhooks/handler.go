@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 )
+
+const defaultWebhookDeliveryConcurrency = 32
 
 // SSEBroadcaster is an interface for pushing events to connected browsers.
 type SSEBroadcaster interface {
@@ -35,8 +38,10 @@ type Handler struct {
 	cfg            *config.Config
 	logger         *slog.Logger
 	serverPort     int
+	internalToken  string
 	maxPayloadSize int64
 	rateLimiter    *RateLimiter
+	deliverySlots  chan struct{}
 	sse            SSEBroadcaster
 }
 
@@ -53,6 +58,7 @@ func NewHandler(manager *Manager, tokenManager *security.TokenManager, vault *se
 		serverPort:     serverPort,
 		maxPayloadSize: maxPayloadSize,
 		rateLimiter:    NewRateLimiter(rateLimit),
+		deliverySlots:  make(chan struct{}, defaultWebhookDeliveryConcurrency),
 	}
 }
 
@@ -70,6 +76,20 @@ func (h *Handler) SetSSE(sse SSEBroadcaster) {
 	h.sse = sse
 }
 
+// SetInternalToken configures the loopback auth token used for internal delivery.
+func (h *Handler) SetInternalToken(token string) {
+	h.mu.Lock()
+	h.internalToken = token
+	h.mu.Unlock()
+}
+
+func (h *Handler) log() *slog.Logger {
+	if h.logger != nil {
+		return h.logger
+	}
+	return slog.Default()
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -80,6 +100,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	maxPayloadSize := h.maxPayloadSize
 	rateLimiter := h.rateLimiter
+	internalToken := h.internalToken
 	h.mu.RUnlock()
 
 	// Extract slug from path: /webhook/{slug}
@@ -125,6 +146,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
+	if strings.TrimSpace(wh.TokenID) == "" {
+		h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "webhook token not configured")
+		http.Error(w, `{"error":"webhook token not configured"}`, http.StatusForbidden)
+		return
+	}
+	if tokenMeta.ID != wh.TokenID {
+		h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "token not allowed for webhook")
+		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		return
+	}
 	h.tokenManager.TouchLastUsed(tokenMeta.ID)
 
 	// 3. Rate limiting
@@ -146,6 +177,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"payload too large"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
+	rawPayloadSize := len(body)
 
 	// 5. Content-Type validation
 	ct := r.Header.Get("Content-Type")
@@ -174,23 +206,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.guardian != nil {
 		scan := h.guardian.ScanForInjection(string(body))
 		if scan.Level >= security.ThreatHigh {
-			h.logger.Warn("[Webhook] High-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
+			h.log().Warn("[Webhook] Blocked high-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
+			h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "guardian blocked payload")
+			http.Error(w, `{"error":"payload blocked by guardian"}`, http.StatusForbidden)
+			return
 		} else if h.llmGuardian != nil && h.cfg != nil && h.cfg.LLMGuardian.ScanDocuments {
 			// LLM Guardian: deeper content scan if regex didn't flag HIGH
 			llmResult := h.llmGuardian.EvaluateContent(r.Context(), "document", string(body))
 			if llmResult.Decision == security.DecisionBlock {
-				h.logger.Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
+				h.log().Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
+				h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "llm guardian blocked payload")
+				http.Error(w, `{"error":"payload blocked by guardian"}`, http.StatusForbidden)
+				return
 			}
 		}
-		// Always wrap in isolation tags — webhook payloads are external content
-		body = []byte(security.IsolateExternalData(string(body)))
 	}
+	// Always wrap in isolation tags — webhook payloads are external content.
+	body = []byte(security.IsolateExternalData(string(body)))
 
 	// 9. Render prompt
 	prompt, err := renderPrompt(wh, string(body), fields, headers)
 	if err != nil {
-		h.logger.Error("Failed to render webhook prompt", "error", err, "webhook", wh.Name)
+		h.log().Error("Failed to render webhook prompt", "error", err, "webhook", wh.Name)
 		prompt = fmt.Sprintf("[Webhook: %s]\nPayload:\n%s", wh.Name, string(body))
+	}
+
+	releaseDelivery, ok := h.acquireDeliverySlot()
+	if !ok {
+		h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "delivery queue full")
+		http.Error(w, `{"error":"webhook delivery queue full"}`, http.StatusServiceUnavailable)
+		return
 	}
 
 	// 9. Respond immediately, deliver async
@@ -200,9 +245,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 10. Async delivery
 	go func() {
+		defer releaseDelivery()
 		defer func() {
 			if rec := recover(); rec != nil {
-				h.logger.Error("[Webhook] Delivery panic", "error", rec, "webhook", wh.Name)
+				h.log().Error("[Webhook] Delivery panic", "error", rec, "webhook", wh.Name)
 			}
 		}()
 
@@ -211,19 +257,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		switch wh.Delivery.Mode {
 		case DeliveryModeMessage:
-			if deliverErr := h.deliverMessage(prompt); deliverErr != nil {
+			if deliverErr := h.deliverMessage(prompt, internalToken); deliverErr != nil {
 				deliveryErr = deliverErr.Error()
-				h.logger.Error("Webhook message delivery failed", "error", deliverErr, "webhook", wh.Name)
+				h.log().Error("Webhook message delivery failed", "error", deliverErr, "webhook", wh.Name)
 			} else {
 				delivered = true
 			}
 			if h.sse != nil {
-				h.sse.Send("webhook_received", fmt.Sprintf(`{"name":%q,"slug":%q}`, wh.Name, wh.Slug))
+				sendSSEJSON(h.sse, "webhook_received", map[string]interface{}{"name": wh.Name, "slug": wh.Slug})
 			}
 
 		case DeliveryModeNotify:
 			if h.sse != nil {
-				h.sse.Send("webhook_received", fmt.Sprintf(`{"name":%q,"slug":%q,"payload":%s}`, wh.Name, wh.Slug, truncateJSON(string(body), 500)))
+				sendSSEJSON(h.sse, "webhook_received", map[string]interface{}{"name": wh.Name, "slug": wh.Slug, "payload": truncateStr(string(body), 500)})
 			}
 			delivered = true
 
@@ -233,12 +279,30 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		h.manager.RecordFire(wh.ID)
 		h.manager.NotifyWebhookFired(wh.ID, body)
-		h.logEvent(wh.ID, wh.Name, 200, sourceIP, len(body), delivered, deliveryErr)
+		h.logEvent(wh.ID, wh.Name, 200, sourceIP, rawPayloadSize, delivered, deliveryErr)
 	}()
+}
+
+func (h *Handler) acquireDeliverySlot() (func(), bool) {
+	if h.deliverySlots == nil {
+		return func() {}, true
+	}
+	select {
+	case h.deliverySlots <- struct{}{}:
+		return func() { <-h.deliverySlots }, true
+	default:
+		return nil, false
+	}
 }
 
 // internalAPIURL returns the base URL for internal loopback API calls, respecting HTTPS config.
 func (h *Handler) internalAPIURL() string {
+	if h.cfg == nil {
+		return fmt.Sprintf("http://127.0.0.1:%d", h.serverPort)
+	}
+	if port := dedicatedInternalLoopbackPort(h.cfg); port > 0 {
+		return fmt.Sprintf("http://127.0.0.1:%d", port)
+	}
 	scheme := "http"
 	port := h.serverPort
 	if h.cfg.Server.HTTPS.Enabled {
@@ -252,7 +316,38 @@ func (h *Handler) internalAPIURL() string {
 	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
 }
 
-func (h *Handler) deliverMessage(prompt string) error {
+func dedicatedInternalLoopbackPort(cfg *config.Config) int {
+	if cfg == nil {
+		return 0
+	}
+	if cfg.CloudflareTunnel.LoopbackPort > 0 {
+		return cfg.CloudflareTunnel.LoopbackPort
+	}
+	if !cfg.Server.HTTPS.Enabled {
+		return 0
+	}
+	port := cfg.Server.Port
+	if port <= 0 || port == cfg.Server.HTTPS.HTTPSPort {
+		return 0
+	}
+	if cfg.Server.HTTPS.HTTPPort > 0 && port == cfg.Server.HTTPS.HTTPPort {
+		return 0
+	}
+	return port
+}
+
+func newInternalWebhookHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // SECURE: only used for 127.0.0.1 loopback delivery
+			ForceAttemptHTTP2: false,
+			DisableKeepAlives: true,
+		},
+	}
+}
+
+func (h *Handler) deliverMessage(prompt string, internalToken string) error {
 	url := h.internalAPIURL() + "/v1/chat/completions"
 	payload := map[string]interface{}{
 		"model":  "aurago",
@@ -271,8 +366,12 @@ func (h *Handler) deliverMessage(prompt string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Internal-Webhook", "true")
+	if internalToken != "" {
+		req.Header.Set("X-Internal-FollowUp", "true")
+		req.Header.Set("X-Internal-Token", internalToken)
+	}
 
-	client := &http.Client{Timeout: 10 * time.Minute}
+	client := newInternalWebhookHTTPClient(2 * time.Minute)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -322,7 +421,7 @@ func verifySignature(body []byte, sigHeader, secret, algo string) bool {
 		expected := "sha1=" + hex.EncodeToString(mac.Sum(nil))
 		return hmac.Equal([]byte(expected), []byte(sigHeader))
 	case "plain":
-		return sigHeader == secret
+		return hmac.Equal([]byte(sigHeader), []byte(secret))
 	default:
 		return false
 	}
@@ -391,11 +490,12 @@ func truncateStr(s string, maxLen int) string {
 	return s[:maxLen] + "... (truncated)"
 }
 
-func truncateJSON(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
+func sendSSEJSON(sse SSEBroadcaster, event string, detail map[string]interface{}) {
+	data, err := json.Marshal(detail)
+	if err != nil {
+		return
 	}
-	return `"` + s[:maxLen] + `... (truncated)"`
+	sse.Send(event, string(data))
 }
 
 func (h *Handler) logEvent(webhookID, webhookName string, statusCode int, sourceIP string, payloadSize int, delivered bool, errMsg string) {

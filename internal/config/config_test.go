@@ -1006,6 +1006,35 @@ webhooks:
 	}
 }
 
+func TestLoadPreservesWebhookRateLimitZeroAsUnlimited(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+auth:
+  enabled: false
+personality:
+  core_personality: neutral
+webhooks:
+  enabled: true
+  rate_limit: 0
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Webhooks.RateLimit != 0 {
+		t.Fatalf("RateLimit = %d, want 0 for unlimited", cfg.Webhooks.RateLimit)
+	}
+}
+
 func TestLoadResolvesHelperLLMFromProvider(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

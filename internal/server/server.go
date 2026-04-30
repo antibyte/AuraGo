@@ -517,6 +517,7 @@ func Start(opts StartOptions) error {
 		} else {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
+			s.WebhookHandler.SetInternalToken(s.internalToken)
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}
 	}

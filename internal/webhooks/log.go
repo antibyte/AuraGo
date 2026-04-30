@@ -5,6 +5,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"aurago/internal/config"
 )
 
 // LogEntry records a single webhook invocation for debugging.
@@ -57,7 +59,7 @@ func (l *Log) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.filePath, data, 0600)
+	return config.WriteFileAtomic(l.filePath, data, 0600)
 }
 
 // Append adds an entry and trims to maxSize.

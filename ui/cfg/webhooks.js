@@ -8,6 +8,10 @@ let whEditingId = null; // null = new, string = editing
 let ogWebhooks = [];    // outgoing webhooks
 let ogEditingIdx = -1;  // -1 = new, >= 0 = editing index
 
+function whIsReadOnly() {
+    return !!(configData.webhooks && configData.webhooks.readonly);
+}
+
 async function whFetchAll() {
     try {
         const [wResp, tResp, pResp, ogResp] = await Promise.all([
@@ -70,7 +74,7 @@ async function renderWebhooksSection(section) {
     }
 
     // Outgoing webhooks — always visible, independent of incoming webhook server
-    html += `<div class="field-group">
+    html += `<div id="wh-panel-outgoing" class="field-group">
         <div class="field-group-title">${t('config.webhooks.tab_outgoing')}</div>`;
     html += ogRenderList();
     html += '</div>';
@@ -102,6 +106,14 @@ function whRenderConfigSettings() {
                     <div class="field-label">${t('config.webhooks.rate_limit_label')}</div>
                     <input class="field-input" type="number" step="1" data-path="webhooks.rate_limit" value="${wh.rate_limit || 0}" onchange="markDirty()">
                 </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.webhooks.readonly_label')}</div>
+                    <div class="toggle-wrap">
+                        <div class="toggle ${wh.readonly ? 'on' : ''}" data-path="webhooks.readonly" onclick="toggleBool(this);markDirty()"></div>
+                        <span class="toggle-label">${wh.readonly ? t('config.webhooks.toggle_active') : t('config.webhooks.toggle_inactive')}</span>
+                    </div>
+                    <small class="wh-field-hint">${t('config.webhooks.readonly_hint')}</small>
+                </div>
             </div>`;
 }
 
@@ -116,9 +128,10 @@ function whSwitchTab(btn, panelId) {
 
 /* ── Webhook List ── */
 function whRenderWebhookList() {
+    const readOnly = whIsReadOnly();
     let html = `<div class="wh-toolbar">
                 <span class="wh-count">${whWebhooks.length} / ${10} ${t('config.webhooks.count_webhooks')}</span>
-                ${whWebhooks.length < 10 ? `<button class="wh-btn wh-btn-primary" onclick="whShowEditor(null)">+ ${t('config.webhooks.new_webhook')}</button>` : ''}
+                ${!readOnly && whWebhooks.length < 10 ? `<button class="wh-btn wh-btn-primary" onclick="whShowEditor(null)">+ ${t('config.webhooks.new_webhook')}</button>` : ''}
             </div>`;
 
     if (whWebhooks.length === 0) {
@@ -136,8 +149,8 @@ function whRenderWebhookList() {
                             </div>
                             <div class="wh-card-actions">
                                 <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook('${escapeAttr(w.id)}')">🧪</button>
-                                <button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor('${escapeAttr(w.id)}')">✏️</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook('${escapeAttr(w.id)}','${escapeAttr(w.name)}')">🗑️</button>
+                                ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor('${escapeAttr(w.id)}')">✏️</button>
+                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook('${escapeAttr(w.id)}','${escapeAttr(w.name)}')">🗑️</button>` : ''}
                             </div>
                         </div>
                         <div class="wh-card-body">
@@ -409,7 +422,7 @@ async function whTestWebhook(id) {
         const resp = await fetch('/api/webhooks/' + id + '/test', { method: 'POST' });
         const r = await resp.json();
         if (resp.ok) {
-            showToast(t('config.webhooks.test_prefix') + (r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
+            showToast(t('config.webhooks.test_prefix') + (r.rendered_prompt || r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
         } else {
             showToast(r.error || t('config.webhooks.test_failed'), 'error');
         }
@@ -418,9 +431,10 @@ async function whTestWebhook(id) {
 
 /* ── Token Management ── */
 function whRenderTokenList() {
+    const readOnly = whIsReadOnly();
     let html = `<div class="wh-toolbar">
                 <span class="wh-count">${whTokens.length} ${t('config.webhooks.count_tokens')}</span>
-                <button class="wh-btn wh-btn-primary" onclick="whCreateToken()">+ ${t('config.tokens.new_token')}</button>
+                ${!readOnly ? `<button class="wh-btn wh-btn-primary" onclick="whCreateToken()">+ ${t('config.tokens.new_token')}</button>` : ''}
             </div>`;
     html += '<div id="wh-token-created" class="wh-token-reveal is-hidden"></div>';
 
@@ -439,8 +453,8 @@ function whRenderTokenList() {
                                 <code class="wh-token-prefix">${esc(tok.prefix)}…</code>
                             </div>
                             <div class="wh-card-actions">
-                                <button class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" onclick="whToggleToken('${tok.id}', ${!tok.enabled})">${tok.enabled ? '🔒' : '🔓'}</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken('${tok.id}','${esc(tok.name)}')">🗑️</button>
+                                ${!readOnly ? `<button class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" onclick="whToggleToken('${tok.id}', ${!tok.enabled})">${tok.enabled ? '🔒' : '🔓'}</button>
+                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken('${tok.id}','${esc(tok.name)}')">🗑️</button>` : ''}
                             </div>
                         </div>
                         <div class="wh-card-meta wh-card-meta-spaced">
@@ -613,9 +627,10 @@ function whCopy(el, text) {
    ══════════════════════════════════════ */
 
 function ogRenderList() {
+    const readOnly = whIsReadOnly();
     let html = `<div class="wh-toolbar">
         <span class="wh-count">${ogWebhooks.length} ${t('config.webhooks.tab_outgoing')}</span>
-        <button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new')}</button>
+        ${!readOnly ? `<button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new')}</button>` : ''}
     </div>`;
     if (!ogWebhooks || ogWebhooks.length === 0) {
         html += `<div class="wh-empty">${t('config.webhooks.og_empty')}</div>`;
@@ -629,8 +644,8 @@ function ogRenderList() {
                 <div class="wh-card-header">
                     <div class="wh-card-title">${methodBadge} <strong>${esc(w.name || t('config.webhooks.og_unnamed'))}</strong></div>
                     <div class="wh-card-actions">
-                        <button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="ogShowModal(${i})">\u270f\ufe0f</button>
-                        <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="ogDelete(${i})">\ud83d\uddd1\ufe0f</button>
+                        ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="ogShowModal(${i})">\u270f\ufe0f</button>
+                        <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="ogDelete(${i})">\ud83d\uddd1\ufe0f</button>` : ''}
                     </div>
                 </div>
                 <div class="wh-card-body">

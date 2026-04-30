@@ -1608,7 +1608,7 @@ func handleWebhookToolCall(req manageWebhooksArgs, mgr *webhooks.Manager, logger
 		if req.TokenID != "" {
 			patch.TokenID = req.TokenID
 		}
-		updated, err := mgr.Update(req.ID, patch)
+		updated, err := mgr.UpdateWithOptions(req.ID, patch, webhooks.UpdateOptions{EnabledSet: req.EnabledSet})
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}

@@ -253,6 +253,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 			case http.MethodGet:
 				handleListTokens(s.TokenManager)(w, r)
 			case http.MethodPost:
+				if rejectWebhookMutationIfReadOnly(w, s) {
+					return
+				}
 				handleCreateToken(s.TokenManager)(w, r)
 			default:
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -261,8 +264,14 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 		mux.HandleFunc("/api/tokens/", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodPut:
+				if rejectWebhookMutationIfReadOnly(w, s) {
+					return
+				}
 				handleUpdateToken(s.TokenManager)(w, r)
 			case http.MethodDelete:
+				if rejectWebhookMutationIfReadOnly(w, s) {
+					return
+				}
 				handleDeleteToken(s.TokenManager)(w, r)
 			default:
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

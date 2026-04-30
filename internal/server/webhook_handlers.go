@@ -163,6 +163,9 @@ func handleCreateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if rejectWebhookMutationIfReadOnly(w, s) {
+			return
+		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
 			jsonError(w, "Failed to read body", http.StatusBadRequest)
@@ -205,6 +208,9 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if rejectWebhookMutationIfReadOnly(w, s) {
+			return
+		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
 		// Strip trailing sub-paths like "/log"
 		if idx := strings.Index(id, "/"); idx >= 0 {
@@ -229,6 +235,7 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		updateOpts := webhookUpdateOptions(body)
 		signatureSecret := strings.TrimSpace(patch.Format.SignatureSecret)
 		keepExistingSecret := signatureSecret == maskedKey
 		if s.Vault != nil {
@@ -236,7 +243,7 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		} else if keepExistingSecret {
 			patch.Format.SignatureSecret = existing.Format.SignatureSecret
 		}
-		updated, err := mgr.Update(id, patch)
+		updated, err := mgr.UpdateWithOptions(id, patch, updateOpts)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "not found") {
 				jsonError(w, "Webhook not found", http.StatusNotFound)
@@ -249,7 +256,7 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Failed to update webhook", http.StatusBadRequest)
 			return
 		}
-		if s.Vault != nil {
+		if s.Vault != nil && updateOpts.SignatureSecretSet {
 			vaultKey := webhooks.SignatureSecretVaultKey(id)
 			switch {
 			case keepExistingSecret:
@@ -280,6 +287,9 @@ func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if rejectWebhookMutationIfReadOnly(w, s) {
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
@@ -391,7 +401,7 @@ func handleOutgoingWebhooks(s *Server) http.HandlerFunc {
 
 func handleGetOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
-	outgoing := s.Cfg.Webhooks.Outgoing
+	outgoing := append([]config.OutgoingWebhook(nil), s.Cfg.Webhooks.Outgoing...)
 	s.CfgMu.RUnlock()
 
 	if outgoing == nil {
@@ -399,10 +409,13 @@ func handleGetOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(outgoing)
+	json.NewEncoder(w).Encode(maskOutgoingWebhooksForDisplay(outgoing))
 }
 
 func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request) {
+	if rejectWebhookMutationIfReadOnly(w, s) {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	var incoming []config.OutgoingWebhook
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
@@ -412,6 +425,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 
 	s.CfgMu.RLock()
 	configPath := s.Cfg.ConfigPath
+	existingOutgoing := append([]config.OutgoingWebhook(nil), s.Cfg.Webhooks.Outgoing...)
 	s.CfgMu.RUnlock()
 
 	if configPath == "" {
@@ -419,7 +433,9 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Read raw YAML, update mcp.servers key, write back
+	incoming = restoreMaskedOutgoingWebhooks(incoming, existingOutgoing)
+
+	// Read raw YAML, update webhooks.outgoing key, write back
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		s.Logger.Error("Failed to read config for outgoing-webhooks update", "error", err)
@@ -470,8 +486,10 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 		return
 	}
 	newCfg.ConfigPath = configPath
-	newCfg.ApplyVaultSecrets(s.Vault)
-	newCfg.ApplyOAuthTokens(s.Vault)
+	if s.Vault != nil {
+		newCfg.ApplyVaultSecrets(s.Vault)
+		newCfg.ApplyOAuthTokens(s.Vault)
+	}
 	s.replaceConfigSnapshot(newCfg)
 	s.CfgMu.Unlock()
 

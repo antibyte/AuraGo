@@ -18,7 +18,7 @@ func Presets() []Preset {
 				AcceptedContentTypes: []string{"application/json"},
 				Description:          "Accept any JSON payload and forward it entirely.",
 			},
-			PromptHint: "[Webhook: {{.WebhookName}}]\nPayload:\n{{.Payload}}",
+			PromptHint: "[Webhook: {{webhook_name}}]\nPayload:\n{{payload}}",
 		},
 		{
 			Key:   "github",
@@ -34,7 +34,7 @@ func Presets() []Preset {
 				SignatureAlgo:   "sha256",
 				Description:     "GitHub webhook events (push, PR, issues, etc.)",
 			},
-			PromptHint: "[GitHub Event: {{.WebhookName}}]\nRepo: {{.Fields.repo}}\nAction: {{.Fields.action}}\nUser: {{.Fields.user}}\nFull payload: {{.Payload}}",
+			PromptHint: "[GitHub Event: {{webhook_name}}]\nRepo: {{field.repo}}\nAction: {{field.action}}\nUser: {{field.user}}\nFull payload: {{payload}}",
 		},
 		{
 			Key:   "gitlab",
@@ -50,7 +50,7 @@ func Presets() []Preset {
 				SignatureAlgo:   "plain",
 				Description:     "GitLab webhook events.",
 			},
-			PromptHint: "[GitLab Event: {{.WebhookName}}]\nProject: {{.Fields.project}}\nType: {{.Fields.event_type}}\nUser: {{.Fields.user}}",
+			PromptHint: "[GitLab Event: {{webhook_name}}]\nProject: {{field.project}}\nType: {{field.event_type}}\nUser: {{field.user}}",
 		},
 		{
 			Key:   "home_assistant",
@@ -64,7 +64,7 @@ func Presets() []Preset {
 				},
 				Description: "Home Assistant automation webhook events.",
 			},
-			PromptHint: "[Home Assistant: {{.WebhookName}}]\nEntity: {{.Fields.entity}}\nState: {{.Fields.old_state}} → {{.Fields.new_state}}",
+			PromptHint: "[Home Assistant: {{webhook_name}}]\nEntity: {{field.entity}}\nState: {{field.old_state}} -> {{field.new_state}}",
 		},
 		{
 			Key:   "uptime",
@@ -78,7 +78,7 @@ func Presets() []Preset {
 				},
 				Description: "Uptime monitoring alerts (Uptime Kuma, Hetrix, etc.)",
 			},
-			PromptHint: "[Alert: {{.WebhookName}}]\nMonitor: {{.Fields.monitor}}\nType: {{.Fields.alert_type}}\nMessage: {{.Fields.message}}",
+			PromptHint: "[Alert: {{webhook_name}}]\nMonitor: {{field.monitor}}\nType: {{field.alert_type}}\nMessage: {{field.message}}",
 		},
 		{
 			Key:   "plain_text",
@@ -87,7 +87,7 @@ func Presets() []Preset {
 				AcceptedContentTypes: []string{"text/plain", "application/json"},
 				Description:          "Accept plain text or JSON body and forward as-is.",
 			},
-			PromptHint: "[Webhook: {{.WebhookName}}]\n{{.Payload}}",
+			PromptHint: "[Webhook: {{webhook_name}}]\n{{payload}}",
 		},
 	}
 }

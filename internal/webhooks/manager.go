@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/uid"
 )
 
@@ -21,6 +22,14 @@ type Manager struct {
 	webhooks        []Webhook
 	log             *Log
 	missionTriggers map[string][]func(payload []byte) // webhookID → callbacks
+}
+
+// UpdateOptions records which zero-value fields were explicitly provided by the caller.
+type UpdateOptions struct {
+	EnabledSet         bool
+	SignatureHeaderSet bool
+	SignatureAlgoSet   bool
+	SignatureSecretSet bool
 }
 
 // NewManager creates a Manager and loads existing webhooks from disk.
@@ -60,7 +69,7 @@ func (m *Manager) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.filePath, data, 0600)
+	return config.WriteFileAtomic(m.filePath, data, 0600)
 }
 
 // List returns all webhooks.
@@ -146,6 +155,16 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 
 // Update modifies an existing webhook.
 func (m *Manager) Update(id string, patch Webhook) (Webhook, error) {
+	return m.UpdateWithOptions(id, patch, UpdateOptions{
+		EnabledSet:         true,
+		SignatureHeaderSet: true,
+		SignatureAlgoSet:   true,
+		SignatureSecretSet: true,
+	})
+}
+
+// UpdateWithOptions modifies an existing webhook while preserving omitted zero-value fields.
+func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions) (Webhook, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -156,8 +175,9 @@ func (m *Manager) Update(id string, patch Webhook) (Webhook, error) {
 		if patch.Name != "" {
 			m.webhooks[i].Name = patch.Name
 		}
-		// Allow toggling enabled
-		m.webhooks[i].Enabled = patch.Enabled
+		if opts.EnabledSet {
+			m.webhooks[i].Enabled = patch.Enabled
+		}
 
 		if patch.Slug != "" && patch.Slug != m.webhooks[i].Slug {
 			slug := strings.ToLower(strings.TrimSpace(patch.Slug))
@@ -185,9 +205,15 @@ func (m *Manager) Update(id string, patch Webhook) (Webhook, error) {
 		if patch.Format.Description != "" {
 			m.webhooks[i].Format.Description = patch.Format.Description
 		}
-		m.webhooks[i].Format.SignatureHeader = patch.Format.SignatureHeader
-		m.webhooks[i].Format.SignatureAlgo = patch.Format.SignatureAlgo
-		m.webhooks[i].Format.SignatureSecret = patch.Format.SignatureSecret
+		if opts.SignatureHeaderSet {
+			m.webhooks[i].Format.SignatureHeader = patch.Format.SignatureHeader
+		}
+		if opts.SignatureAlgoSet {
+			m.webhooks[i].Format.SignatureAlgo = patch.Format.SignatureAlgo
+		}
+		if opts.SignatureSecretSet {
+			m.webhooks[i].Format.SignatureSecret = patch.Format.SignatureSecret
+		}
 
 		// Update delivery
 		if patch.Delivery.Mode != "" {

@@ -22,38 +22,38 @@ Manage incoming webhook endpoints for AuraGo. Create, list, update, delete webho
 | `name` | string | for create/update | Human-readable webhook name |
 | `slug` | string | for create | URL slug for the webhook endpoint (e.g. `github-push`) |
 | `enabled` | boolean | for create/update | Enable/disable the webhook |
-| `token_id` | string | for create/update | Authentication token ID to associate |
+| `token_id` | string | for create/update | Webhook token ID to bind to this endpoint. Incoming calls must use this exact token. |
 
 ## Examples
 
 **List all webhooks:**
 ```json
-{"action": "manage_webhooks", "action": "list"}
+{"action": "manage_webhooks", "operation": "list"}
 ```
 
 **Get a specific webhook:**
 ```json
-{"action": "manage_webhooks", "action": "get", "id": "wh_12345"}
+{"action": "manage_webhooks", "operation": "get", "id": "wh_12345"}
 ```
 
 **Create a new webhook:**
 ```json
-{"action": "manage_webhooks", "action": "create", "name": "GitHub Push Receiver", "slug": "github-push", "enabled": true, "token_id": "github-main"}
+{"action": "manage_webhooks", "operation": "create", "name": "GitHub Push Receiver", "slug": "github-push", "enabled": true, "token_id": "tok_12345"}
 ```
 
 **Update a webhook:**
 ```json
-{"action": "manage_webhooks", "action": "update", "id": "wh_12345", "name": "Updated Name", "enabled": false}
+{"action": "manage_webhooks", "operation": "update", "id": "wh_12345", "name": "Updated Name", "enabled": false}
 ```
 
 **Delete a webhook:**
 ```json
-{"action": "manage_webhooks", "action": "delete", "id": "wh_12345"}
+{"action": "manage_webhooks", "operation": "delete", "id": "wh_12345"}
 ```
 
 **View webhook logs:**
 ```json
-{"action": "manage_webhooks", "action": "logs", "id": "wh_12345"}
+{"action": "manage_webhooks", "operation": "logs", "id": "wh_12345"}
 ```
 
 ## Configuration
@@ -71,7 +71,7 @@ webhooks:
 
 Incoming webhooks are accessible at:
 ```
-https://your-aurago-host/api/webhooks/{slug}
+https://your-aurago-host/webhook/{slug}
 ```
 
 The slug is the URL-friendly identifier you provide when creating the webhook.
@@ -80,15 +80,17 @@ The slug is the URL-friendly identifier you provide when creating the webhook.
 
 All incoming webhook requests are logged with:
 - Timestamp
-- HTTP method and headers
-- Request body
+- Webhook ID/name
 - Response status
+- Source IP
+- Payload size
+- Delivery success and error text, if any
 
 Logs can be retrieved using the `logs` operation.
 
 ## Notes
 
 - **URL slugs**: Must be unique and URL-safe (lowercase, alphanumeric with hyphens)
-- **Token authentication**: Webhooks can be associated with token IDs for authentication
+- **Token authentication**: Webhooks are bound to the configured `token_id`; other webhook-scoped tokens are rejected
 - **Read-only mode**: When `webhooks.readonly: true`, create/update/delete operations are blocked
 - **Data persistence**: Webhook configurations are stored in `data/webhooks.json`

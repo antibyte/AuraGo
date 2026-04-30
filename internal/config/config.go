@@ -970,8 +970,8 @@ func Load(path string) (*Config, error) {
 	if cfg.Webhooks.MaxPayloadSize <= 0 {
 		cfg.Webhooks.MaxPayloadSize = 65536 // 64 KB
 	}
-	if cfg.Webhooks.RateLimit <= 0 {
-		cfg.Webhooks.RateLimit = 60 // 60 requests per minute per token (0 = unlimited)
+	if cfg.Webhooks.RateLimit < 0 {
+		cfg.Webhooks.RateLimit = 0 // 0 means unlimited
 	}
 
 	// Ollama defaults

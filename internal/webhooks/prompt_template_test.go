@@ -52,3 +52,17 @@ func TestRenderPromptTemplateRejectsUnknownFieldPlaceholder(t *testing.T) {
 		t.Fatalf("renderPromptTemplate() error = %v, want missing field error", err)
 	}
 }
+
+func TestPresetPromptHintsValidate(t *testing.T) {
+	t.Parallel()
+
+	for _, preset := range Presets() {
+		preset := preset
+		t.Run(preset.Key, func(t *testing.T) {
+			t.Parallel()
+			if err := ValidatePromptTemplate(preset.PromptHint); err != nil {
+				t.Fatalf("ValidatePromptTemplate(%s) error = %v", preset.Key, err)
+			}
+		})
+	}
+}

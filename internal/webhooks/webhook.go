@@ -32,7 +32,7 @@ type WebhookFormat struct {
 
 	// HMAC signature validation (e.g. GitHub X-Hub-Signature-256)
 	SignatureHeader string `json:"signature_header,omitempty"`
-	SignatureAlgo   string `json:"signature_algo,omitempty"`   // "sha256", "sha1"
+	SignatureAlgo   string `json:"signature_algo,omitempty"`   // "sha256", "sha1", "plain"
 	SignatureSecret string `json:"signature_secret,omitempty"` // stored in vault if set
 }
 

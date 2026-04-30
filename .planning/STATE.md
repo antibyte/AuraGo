@@ -91,6 +91,12 @@ Plan: 0 of 3
 |---------|--------|
 | None | Follow-up phase is scoped and ready for execution planning |
 
+### Quick Tasks Completed
+
+| Date | Task | Outcome |
+|------|------|---------|
+| 2026-05-01 | Webhook audit remediation | Hardened incoming/outgoing webhook security, read-only enforcement, secret masking, UI contracts, docs, i18n, and regression coverage |
+
 ---
 
 ## Session Continuity
@@ -100,3 +106,4 @@ Plan: 0 of 3
 - All phases build on each other (Phase 1 enables Phase 2, Phase 2 enables Phase 3)
 - Phase 4 extends the completed UI overhaul into provider-backed web publishing
 - Vercel planning uses the existing homepage + Netlify patterns as the main architectural anchors
+- Last activity 2026-05-01: completed quick task `260501-23c` for webhook audit remediation; focused webhook tests and vet passed, with an unrelated `TestImageGalleryMonthlyCount` failure remaining in `internal/tools`.

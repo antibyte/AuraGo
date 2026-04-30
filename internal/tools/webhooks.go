@@ -16,6 +16,8 @@ import (
 
 var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
+const outgoingWebhookMaskedValue = "••••••••"
+
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {
 	// Resolve URL parameters — values are URL-encoded to prevent injection of
@@ -40,10 +42,12 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 			reqBody = b
 		}
 	case "form":
-		// Currently simple form-urlencoded support isn't implemented deeply, falling back to basic mapping or ignoring
 		contentType = "application/x-www-form-urlencoded"
-		// Not fully implementing x-www-form-urlencoded serialization here, but JSON is the main focus
-		reqBody = []byte("")
+		values := url.Values{}
+		for key, value := range params {
+			values.Set(key, fmt.Sprintf("%v", value))
+		}
+		reqBody = []byte(values.Encode())
 	case "custom":
 		// User has provided a template
 		contentType = "application/json" // default assumption unless overridden in headers
@@ -102,7 +106,7 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 		if len(cfg.Webhooks.Outgoing) == 0 {
 			return `Tool Output: {"status":"success", "message":"No outgoing webhooks configured."}`
 		}
-		b, err := json.MarshalIndent(cfg.Webhooks.Outgoing, "", "  ")
+		b, err := json.MarshalIndent(maskOutgoingWebhooksForTool(cfg.Webhooks.Outgoing), "", "  ")
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Failed to list webhooks: %v"}`, err)
 		}
@@ -195,4 +199,36 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 	}
 
 	return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd successfully.", "persisted": true}`, tcOperation)
+}
+
+func maskOutgoingWebhooksForTool(outgoing []config.OutgoingWebhook) []config.OutgoingWebhook {
+	masked := make([]config.OutgoingWebhook, len(outgoing))
+	for i, hook := range outgoing {
+		masked[i] = hook
+		if hook.Headers != nil {
+			masked[i].Headers = make(map[string]string, len(hook.Headers))
+			for key, value := range hook.Headers {
+				if value != "" && isSensitiveOutgoingWebhookHeader(key) {
+					masked[i].Headers[key] = outgoingWebhookMaskedValue
+					continue
+				}
+				masked[i].Headers[key] = value
+			}
+		}
+		if strings.TrimSpace(hook.BodyTemplate) != "" {
+			masked[i].BodyTemplate = outgoingWebhookMaskedValue
+		}
+	}
+	return masked
+}
+
+func isSensitiveOutgoingWebhookHeader(name string) bool {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	if lower == "" {
+		return false
+	}
+	if lower == "authorization" || lower == "proxy-authorization" || lower == "cookie" || lower == "set-cookie" {
+		return true
+	}
+	return strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "password") || strings.Contains(lower, "credential")
 }
