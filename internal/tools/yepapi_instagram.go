@@ -30,6 +30,19 @@ func instagramUserLookupArg(args map[string]interface{}) instagramUserLookup {
 	}
 }
 
+// instagramSearchQueryArg extracts the search query, accepting both the
+// canonical "query" key and the "search_query" alias commonly produced by
+// LLMs. The YepAPI /v1/instagram/search endpoint requires the "query" field.
+func instagramSearchQueryArg(args map[string]interface{}) string {
+	if v, ok := args["query"].(string); ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v)
+	}
+	if v, ok := args["search_query"].(string); ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
 func normalizeInstagramUsername(value string) string {
 	trimmed := strings.TrimSpace(value)
 	trimmed = strings.TrimPrefix(trimmed, "@")
@@ -56,17 +69,17 @@ func normalizeInstagramUsername(value string) string {
 func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
 	switch operation {
 	case "search":
-		query, _ := args["query"].(string)
+		query := instagramSearchQueryArg(args)
 		if query == "" {
 			return yepAPIFormatError("search operation requires a 'query' string"), nil
 		}
 		endpoint := "/v1/instagram/search"
 		payload := map[string]interface{}{"query": query}
-		data, finalPayload, err := postInstagramPayloadWithValidationFallback(ctx, client, endpoint, operation, payload, map[string]interface{}{"search_query": query}, "missing search query")
+		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
 		if err != nil {
 			return "", err
 		}
-		return formatInstagramPayloadSuccess(data, endpoint, operation, finalPayload), nil
+		return formatInstagramPayloadSuccess(data, endpoint, operation, payload), nil
 
 	case "user", "userinfo", "user_info", "profile", "user_profile":
 		return dispatchInstagramUsername(ctx, client, "/v1/instagram/user", operation, args, false)

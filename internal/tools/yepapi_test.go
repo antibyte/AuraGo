@@ -497,29 +497,25 @@ func TestDispatchYepAPIInstagramRetriesLiveValidationFallbacks(t *testing.T) {
 		requireYepAPIRequest(t, requests, "/v1/instagram/user", map[string]interface{}{"username_or_url": "natgeo"})
 	})
 
-	t.Run("search_retries_search_query_when_live_api_rejects_query", func(t *testing.T) {
-		requests := make(chan yepAPIRecordedRequest, 2)
+	t.Run("search_accepts_search_query_alias_and_sends_canonical_query", func(t *testing.T) {
+		requests := make(chan yepAPIRecordedRequest, 1)
 		client := newYepAPITestClient(func(r *http.Request) (int, string) {
 			var payload map[string]interface{}
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode request body: %v", err)
 			}
 			requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
-			if _, ok := payload["search_query"]; !ok {
-				return http.StatusOK, `{"ok":true,"data":{"error":"Invalid or missing search query"}}`
-			}
 			return http.StatusOK, `{"ok":true,"data":{"users":[]}}`
 		})
 
-		res, err := DispatchYepAPIInstagram(ctx, client, "search", map[string]interface{}{"query": "natgeo"})
+		res, err := DispatchYepAPIInstagram(ctx, client, "search", map[string]interface{}{"search_query": "natgeo"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !strings.Contains(res, `"status":"success"`) {
-			t.Fatalf("expected success after fallback, got %s", res)
+			t.Fatalf("expected success, got %s", res)
 		}
 		requireYepAPIRequest(t, requests, "/v1/instagram/search", map[string]interface{}{"query": "natgeo"})
-		requireYepAPIRequest(t, requests, "/v1/instagram/search", map[string]interface{}{"search_query": "natgeo"})
 	})
 }
 
