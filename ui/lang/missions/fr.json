@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "Cibles distantes indisponibles",
   "missions.toast_select_remote_target": "Sélectionnez un egg distant",
   "missions.trigger_remote_disabled_title": "Ce déclencheur n’est pas disponible pour les missions distantes",
-  "missions.card_remote_badge": "Distant"
+  "missions.card_remote_badge": "Distant",
+  "missions.trigger_mqtt_min_interval_label": "Intervalle minimal",
+  "missions.trigger_mqtt_min_interval_placeholder": "ex. 60",
+  "missions.trigger_mqtt_min_interval_hint": "Secondes à attendre avant que ce déclencheur MQTT puisse relancer la mission. 0 désactive la limite.",
+  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalle min. :"
 }

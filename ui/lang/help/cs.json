@@ -362,5 +362,14 @@
   "help.whisper.model": "Model pro whisper.",
   "help.whisper.provider": "Poskytovatel pro whisper.",
   "help.tools.knowledge_graph.auto_extraction": "Automaticky extrahuje entity a vztahy z nedavnych konverzaci do znalostniho grafu.",
-  "help.tools.knowledge_graph.prompt_injection": "Pridava relevantni kontext znalostniho grafu do systemoveho promptu."
+  "help.tools.knowledge_graph.prompt_injection": "Pridava relevantni kontext znalostniho grafu do systemoveho promptu.",
+  "help.mqtt.buffer_max_age_hours": "Maximální stáří zpráv v bufferu v hodinách. Starší zprávy se odstraňují při příchodu nové zprávy nebo při čtení bufferu. 0 vypne čištění podle stáří.",
+  "help.mqtt.buffer_max_payload_bytes": "Maximální velikost payloadu jedné MQTT zprávy. Větší příchozí payloady se zkrátí dříve, než se dostanou do bufferu, triggerů nebo relay do agenta.",
+  "help.mqtt.clean_session": "Pokud je zapnuto, broker pro tohoto klienta neuchovává perzistentní relaci. Vypněte pouze tehdy, pokud má broker frontovat QoS 1/2 zprávy, když je AuraGo offline.",
+  "help.mqtt.trigger_min_interval_seconds": "Výchozí minimální interval v sekundách mezi MQTT spuštěními misí. 0 vypne výchozí limit.",
+  "help.mqtt.availability_enabled": "Po připojení publikuje online stav a nastaví MQTT Last Will, aby jiné systémy poznaly, když AuraGo přejde offline.",
+  "help.mqtt.availability_topic": "Topic pro zprávy dostupnosti AuraGo. Výchozí: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloady používané pro online a offline stav dostupnosti.",
+  "help.mqtt.availability_qos": "Úroveň QoS pro zprávy dostupnosti.",
+  "help.mqtt.availability_retain": "Pokud je zapnuto, broker uchová poslední stav dostupnosti pro nové odběratele."
 }

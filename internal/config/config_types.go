@@ -208,8 +208,19 @@ type MQTTTLS struct {
 
 // MQTTBuffer holds message buffer configuration for MQTT.
 type MQTTBuffer struct {
-	MaxMessages int `yaml:"max_messages"`  // max messages to buffer (default: 500, 0 = use default)
-	MaxAgeHours int `yaml:"max_age_hours"` // max age of messages in hours before cleanup (0 = disabled)
+	MaxMessages     int `yaml:"max_messages"`      // max messages to buffer (default: 500, 0 = use default)
+	MaxAgeHours     int `yaml:"max_age_hours"`     // max age of messages in hours before cleanup (0 = disabled)
+	MaxPayloadBytes int `yaml:"max_payload_bytes"` // max payload bytes per message (default: 262144, 0 = use default)
+}
+
+// MQTTAvailability holds Last Will and Testament / availability settings.
+type MQTTAvailability struct {
+	Enabled        bool   `yaml:"enabled"`
+	Topic          string `yaml:"topic"`
+	OnlinePayload  string `yaml:"online_payload"`
+	OfflinePayload string `yaml:"offline_payload"`
+	QoS            int    `yaml:"qos"`
+	Retain         bool   `yaml:"retain"`
 }
 
 // HeartbeatTimeWindow defines a single time window with start/end time and interval.
@@ -1127,18 +1138,21 @@ type Config struct {
 	} `yaml:"adguard"`
 
 	MQTT struct {
-		Enabled        bool       `yaml:"enabled"`
-		ReadOnly       bool       `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
-		Broker         string     `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
-		ClientID       string     `yaml:"client_id"`
-		Username       string     `yaml:"username"`
-		Password       string     `yaml:"-" json:"-"`
-		Topics         []string   `yaml:"topics"`          // topics to subscribe to on connect
-		QoS            int        `yaml:"qos"`             // 0, 1, or 2
-		RelayToAgent   bool       `yaml:"relay_to_agent"`  // forward incoming messages to agent
-		ConnectTimeout int        `yaml:"connect_timeout"` // connection timeout in seconds (default: 15)
-		TLS            MQTTTLS    `yaml:"tls"`
-		Buffer         MQTTBuffer `yaml:"buffer"`
+		Enabled                   bool             `yaml:"enabled"`
+		ReadOnly                  bool             `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
+		Broker                    string           `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
+		ClientID                  string           `yaml:"client_id"`
+		Username                  string           `yaml:"username"`
+		Password                  string           `yaml:"-" json:"-"`
+		Topics                    []string         `yaml:"topics"`          // topics to subscribe to on connect
+		QoS                       int              `yaml:"qos"`             // 0, 1, or 2
+		RelayToAgent              bool             `yaml:"relay_to_agent"`  // forward incoming messages to agent
+		ConnectTimeout            int              `yaml:"connect_timeout"` // connection timeout in seconds (default: 15)
+		CleanSession              *bool            `yaml:"clean_session,omitempty"`
+		TriggerMinIntervalSeconds int              `yaml:"trigger_min_interval_seconds"` // minimum seconds between MQTT-triggered mission starts (0 = disabled)
+		TLS                       MQTTTLS          `yaml:"tls"`
+		Buffer                    MQTTBuffer       `yaml:"buffer"`
+		Availability              MQTTAvailability `yaml:"availability"`
 	} `yaml:"mqtt"`
 
 	MCP struct {

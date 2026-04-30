@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Introduce la contraseña…",
   "config.mqtt.password_save_failed": "Error al guardar la contraseña.",
   "config.mqtt.password_saved": "Contraseña guardada en la bóveda.",
-  "config.mqtt.qos_0": "0 – Como máximo una vez (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Como máximo una vez (fire & forget)",
   "config.mqtt.qos_1": "1 – Al menos una vez (entrega confirmada)",
   "config.mqtt.qos_2": "2 – Exactamente una vez (entrega garantizada)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Omitir la verificación del certificado TLS. ADVERTENCIA: Usar solo para pruebas con certificados autofirmados.",
   "help.mqtt.tls_key_file": "Ruta al archivo de clave de cliente para autenticación TLS mutua (opcional).",
   "help.mqtt.topics": "Lista de temas separada por comas a los que suscribirse al inicio (p.ej. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Nombre de usuario para la autenticación MQTT (opcional, dependiendo de la configuración del broker)."
+  "help.mqtt.username": "Nombre de usuario para la autenticación MQTT (opcional, dependiendo de la configuración del broker).",
+  "config.mqtt.clean_session_label": "Sesión limpia",
+  "config.mqtt.trigger_min_interval_label": "Límite de activación",
+  "config.mqtt.buffer_max_age_hours_label": "Edad máxima de mensajes",
+  "config.mqtt.buffer_max_payload_bytes_label": "Tamaño máximo de payload",
+  "config.mqtt.availability_title": "Disponibilidad",
+  "config.mqtt.availability_enabled_label": "Publicar disponibilidad",
+  "config.mqtt.availability_topic_label": "Topic de disponibilidad",
+  "config.mqtt.availability_online_payload_label": "Payload online",
+  "config.mqtt.availability_offline_payload_label": "Payload offline",
+  "config.mqtt.availability_qos_label": "QoS de disponibilidad",
+  "config.mqtt.availability_retain_label": "Retener estado de disponibilidad",
+  "config.mqtt.buffered_suffix": "en búfer",
+  "config.mqtt.payload_truncated": "(truncado)"
 }

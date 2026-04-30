@@ -14,11 +14,13 @@ import (
 
 // MQTTMessage represents a received MQTT message (cycle-safe DTO).
 type MQTTMessage struct {
-	Topic     string `json:"topic"`
-	Payload   string `json:"payload"`
-	QoS       int    `json:"qos"`
-	Retained  bool   `json:"retained"`
-	Timestamp string `json:"timestamp"`
+	Topic            string `json:"topic"`
+	Payload          string `json:"payload"`
+	QoS              int    `json:"qos"`
+	Retained         bool   `json:"retained"`
+	Timestamp        string `json:"timestamp"`
+	PayloadBytes     int    `json:"payload_bytes,omitempty"`
+	PayloadTruncated bool   `json:"payload_truncated,omitempty"`
 }
 
 var (

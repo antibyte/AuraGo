@@ -1054,6 +1054,21 @@ func Load(path string) (*Config, error) {
 	if cfg.MQTT.Buffer.MaxMessages <= 0 {
 		cfg.MQTT.Buffer.MaxMessages = 500
 	}
+	if cfg.MQTT.Buffer.MaxPayloadBytes <= 0 {
+		cfg.MQTT.Buffer.MaxPayloadBytes = 256 << 10
+	}
+	if cfg.MQTT.Availability.Topic == "" {
+		cfg.MQTT.Availability.Topic = "aurago/status"
+	}
+	if cfg.MQTT.Availability.OnlinePayload == "" {
+		cfg.MQTT.Availability.OnlinePayload = "online"
+	}
+	if cfg.MQTT.Availability.OfflinePayload == "" {
+		cfg.MQTT.Availability.OfflinePayload = "offline"
+	}
+	if cfg.MQTT.Availability.QoS < 0 || cfg.MQTT.Availability.QoS > 2 {
+		cfg.MQTT.Availability.QoS = 1
+	}
 	if cfg.MQTT.Password == "" {
 		if val := os.Getenv("MQTT_PASSWORD"); val != "" {
 			cfg.MQTT.Password = val

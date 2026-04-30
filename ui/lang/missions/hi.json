@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "रिमोट लक्ष्य उपलब्ध नहीं",
   "missions.toast_select_remote_target": "कृपया रिमोट egg चुनें",
   "missions.trigger_remote_disabled_title": "यह trigger रिमोट मिशनों के लिए उपलब्ध नहीं है",
-  "missions.card_remote_badge": "रिमोट"
+  "missions.card_remote_badge": "रिमोट",
+  "missions.trigger_mqtt_min_interval_label": "न्यूनतम अंतराल",
+  "missions.trigger_mqtt_min_interval_placeholder": "जैसे 60",
+  "missions.trigger_mqtt_min_interval_hint": "इस MQTT ट्रिगर द्वारा मिशन फिर से शुरू करने से पहले प्रतीक्षा सेकंड। 0 से सीमा बंद होती है।",
+  "missions.trigger_info_mqtt_min_interval_prefix": "न्यूनतम अंतराल:"
 }

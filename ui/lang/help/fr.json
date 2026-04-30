@@ -362,5 +362,14 @@
   "help.whisper.model": "Nom du modèle pour Whisper, par ex. 'chuchotement-1'.",
   "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale.",
   "help.tools.knowledge_graph.auto_extraction": "Extrait automatiquement les entites et relations des conversations recentes vers le graphe de connaissances.",
-  "help.tools.knowledge_graph.prompt_injection": "Injecte le contexte pertinent du graphe de connaissances dans le prompt systeme."
+  "help.tools.knowledge_graph.prompt_injection": "Injecte le contexte pertinent du graphe de connaissances dans le prompt systeme.",
+  "help.mqtt.buffer_max_age_hours": "Âge maximal des messages en tampon, en heures. Les messages plus anciens sont supprimés quand de nouveaux messages arrivent ou quand le tampon est lu. Utilisez 0 pour désactiver ce nettoyage.",
+  "help.mqtt.buffer_max_payload_bytes": "Taille maximale du payload par message MQTT. Les payloads entrants plus grands sont tronqués avant d’atteindre le tampon, les déclencheurs de mission ou le relais vers l’agent.",
+  "help.mqtt.clean_session": "Si activé, le broker ne garde pas de session persistante pour ce client. Désactivez uniquement si le broker doit mettre en file les messages QoS 1/2 pendant qu’AuraGo est hors ligne.",
+  "help.mqtt.trigger_min_interval_seconds": "Intervalle minimal par défaut en secondes entre les démarrages de missions déclenchées par MQTT. 0 désactive cette limite.",
+  "help.mqtt.availability_enabled": "Publie un état en ligne après connexion et configure MQTT Last Will pour détecter quand AuraGo passe hors ligne.",
+  "help.mqtt.availability_topic": "Topic utilisé pour les messages de disponibilité AuraGo. Par défaut : aurago/status.",
+  "help.mqtt.availability_payloads": "Payloads utilisés pour les messages de disponibilité en ligne et hors ligne.",
+  "help.mqtt.availability_qos": "Niveau QoS utilisé pour les messages de disponibilité.",
+  "help.mqtt.availability_retain": "Si activé, le broker conserve le dernier état de disponibilité pour les nouveaux abonnés."
 }

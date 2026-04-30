@@ -6,12 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
 
 // gitTimeout is the maximum duration for git operations
 const gitTimeout = 30 * time.Second
+
+var gitRefPattern = regexp.MustCompile(`^[A-Za-z0-9._/@{}~^:-]+$`)
 
 // GitBackupRequest outlines parameters for git tools
 type GitBackupRequest struct {
@@ -166,27 +169,46 @@ func isValidGitRef(ref string) bool {
 	if ref[0] == '-' {
 		return false
 	}
-	return true
+	if strings.ContainsAny(ref, "\x00\r\n\t ") {
+		return false
+	}
+	return gitRefPattern.MatchString(ref)
+}
+
+func resolveGitCommitRef(dir, ref string) (string, error) {
+	if !isValidGitRef(ref) {
+		return "", fmt.Errorf("invalid commit ref: %q", ref)
+	}
+	stdout, stderr, rc := runGitCmd(dir, "rev-parse", "--verify", ref+"^{commit}")
+	if rc != 0 {
+		return "", fmt.Errorf("git rev-parse failed: %s", strings.TrimSpace(stderr))
+	}
+	commit := strings.TrimSpace(stdout)
+	if commit == "" {
+		return "", fmt.Errorf("git rev-parse returned empty commit")
+	}
+	return commit, nil
 }
 
 func restoreGit(dir, hash, mode string) map[string]interface{} {
-	if !isValidGitRef(hash) {
-		return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid commit ref: %q", hash)}
+	commit, err := resolveGitCommitRef(dir, hash)
+	if err != nil {
+		return map[string]interface{}{"status": "error", "message": err.Error()}
 	}
 	if mode == "revert" {
-		_, stderr, rc := runGitCmd(dir, "revert", "--no-edit", "--", hash)
+		_, stderr, rc := runGitCmd(dir, "revert", "--no-edit", commit)
 		if rc != 0 {
 			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Git revert failed: %s", stderr)}
 		}
-		return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Reverted commit %s", hash)}
-	} else if mode == "checkout" {
-		_, stderr, rc := runGitCmd(dir, "reset", "--hard", "--", hash)
+		return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Reverted commit %s", commit)}
+	} else if mode == "hard" || mode == "checkout" {
+		_, stderr, rc := runGitCmd(dir, "reset", "--hard", commit)
 		if rc != 0 {
 			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Git reset failed: %s", stderr)}
 		}
-		return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Checked out commit %s (hard reset)", hash)}
+		return map[string]interface{}{"status": "success", "message": fmt.Sprintf("Checked out commit %s (hard reset)", commit)}
 	}
-	return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid mode: %s. Use 'revert' or 'checkout'.", mode)}
+	return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid mode: %s. Use 'revert' or 'hard'.", mode)}
 }
 
 func rollbackToPrevious(dir string) map[string]interface{} {
@@ -200,10 +222,11 @@ func rollbackToPrevious(dir string) map[string]interface{} {
 func showDiff(dir, hash string) map[string]interface{} {
 	var args []string
 	if hash != "" {
-		if !isValidGitRef(hash) {
-			return map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid commit ref: %q", hash)}
+		commit, err := resolveGitCommitRef(dir, hash)
+		if err != nil {
+			return map[string]interface{}{"status": "error", "message": err.Error()}
 		}
-		args = []string{"diff", hash, "HEAD"}
+		args = []string{"diff", commit, "HEAD"}
 	} else {
 		args = []string{"diff", "HEAD"}
 	}

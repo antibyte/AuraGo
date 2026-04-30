@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/mqtt"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
@@ -42,12 +43,16 @@ func (d *dummyEmailWatcher) RegisterMissionTrigger(folder, subjectContains, from
 // missionMQTTAdapter adapts mqtt package to tools.MQTTManagerInterface
 type missionMQTTAdapter struct {
 	logger *slog.Logger
+	cfg    *config.Config
 }
 
 // RegisterMissionTrigger registers a callback for MQTT-triggered missions
-func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadContains string, callback func(topic, payload string)) {
-	mqtt.RegisterMissionTrigger(topicFilter, payloadContains, callback)
-	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "topic_filter", topicFilter, "payload_contains", payloadContains)
+func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	if minIntervalSeconds <= 0 && a.cfg != nil && a.cfg.MQTT.TriggerMinIntervalSeconds > 0 {
+		minIntervalSeconds = a.cfg.MQTT.TriggerMinIntervalSeconds
+	}
+	mqtt.RegisterMissionTrigger(topicFilter, payloadContains, minIntervalSeconds, callback)
+	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval_seconds", minIntervalSeconds)
 }
 
 // extractAssistantContent parses an OpenAI-compatible chat completion JSON and

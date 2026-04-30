@@ -597,6 +597,7 @@ function renderTriggerText(mission) {
         case 'mqtt_message':
             const mqttParts = [`${t('missions.trigger_info_mqtt_topic_prefix')} ${cfg.mqtt_topic || '#'}`];
             if (cfg.mqtt_payload_contains) mqttParts.push(`${t('missions.trigger_info_mqtt_payload_prefix')} "${cfg.mqtt_payload_contains}"`);
+            if (cfg.mqtt_min_interval_seconds) mqttParts.push(`${t('missions.trigger_info_mqtt_min_interval_prefix')} ${cfg.mqtt_min_interval_seconds}s`);
             triggerText = `📡 ${mqttParts.join(' | ')}`;
             break;
         case 'system_startup':
@@ -901,6 +902,7 @@ function fillTriggerConfig(cfg, type) {
         case 'mqtt_message':
             document.getElementById('mqtt-topic').value = cfg.mqtt_topic || '';
             document.getElementById('mqtt-payload-contains').value = cfg.mqtt_payload_contains || '';
+            document.getElementById('mqtt-min-interval').value = cfg.mqtt_min_interval_seconds || 0;
             break;
         case 'home_assistant_state':
             document.getElementById('ha-entity-id').value = cfg.ha_entity_id || '';
@@ -1075,6 +1077,7 @@ function buildTriggerConfig(type) {
         case 'mqtt_message': {
             config.mqtt_topic = document.getElementById('mqtt-topic').value.trim();
             config.mqtt_payload_contains = document.getElementById('mqtt-payload-contains').value.trim();
+            config.mqtt_min_interval_seconds = parseInt(document.getElementById('mqtt-min-interval').value || '0', 10) || 0;
             break;
         }
         case 'home_assistant_state':

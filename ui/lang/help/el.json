@@ -362,5 +362,14 @@
   "help.whisper.model": "Όνομα μοντέλου για το Whisper, π.χ. 'whisper-1'.",
   "help.whisper.provider": "Επιλέξτε έναν πάροχο από τη διαχείριση παρόχων για μετατροπή ομιλίας σε κείμενο.",
   "help.tools.knowledge_graph.auto_extraction": "Εξάγει αυτόματα οντότητες και σχέσεις από πρόσφατες συνομιλίες στο γράφημα γνώσης.",
-  "help.tools.knowledge_graph.prompt_injection": "Προσθέτει σχετικό πλαίσιο του γραφήματος γνώσης στο system prompt."
+  "help.tools.knowledge_graph.prompt_injection": "Προσθέτει σχετικό πλαίσιο του γραφήματος γνώσης στο system prompt.",
+  "help.mqtt.buffer_max_age_hours": "Μέγιστη ηλικία buffered μηνυμάτων σε ώρες. Παλαιότερα μηνύματα αφαιρούνται όταν φτάνουν νέα μηνύματα ή όταν διαβάζεται το buffer. Χρησιμοποιήστε 0 για απενεργοποίηση.",
+  "help.mqtt.buffer_max_payload_bytes": "Μέγιστο μέγεθος payload ανά MQTT μήνυμα. Μεγαλύτερα εισερχόμενα payloads περικόπτονται πριν φτάσουν στο buffer, στα mission triggers ή στο relay του agent.",
+  "help.mqtt.clean_session": "Όταν είναι ενεργό, ο broker δεν κρατά persistent session για αυτόν τον client. Απενεργοποιήστε το μόνο αν ο broker πρέπει να κρατά QoS 1/2 μηνύματα όσο το AuraGo είναι offline.",
+  "help.mqtt.trigger_min_interval_seconds": "Προεπιλεγμένο ελάχιστο διάστημα σε δευτερόλεπτα μεταξύ MQTT-triggered mission starts. Το 0 απενεργοποιεί το όριο.",
+  "help.mqtt.availability_enabled": "Δημοσιεύει online κατάσταση μετά τη σύνδεση και ρυθμίζει MQTT Last Will ώστε άλλα συστήματα να εντοπίζουν όταν το AuraGo βγαίνει offline.",
+  "help.mqtt.availability_topic": "Topic για μηνύματα διαθεσιμότητας AuraGo. Προεπιλογή: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloads για online και offline μηνύματα διαθεσιμότητας.",
+  "help.mqtt.availability_qos": "Επίπεδο QoS για μηνύματα διαθεσιμότητας.",
+  "help.mqtt.availability_retain": "Όταν είναι ενεργό, ο broker κρατά την τελευταία κατάσταση διαθεσιμότητας για νέους subscribers."
 }

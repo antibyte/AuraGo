@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "Fjernmål ikke tilgjengelige",
   "missions.toast_select_remote_target": "Velg et fjern-egg",
   "missions.trigger_remote_disabled_title": "Denne triggeren er ikke tilgjengelig for fjernmissioner",
-  "missions.card_remote_badge": "Fjern"
+  "missions.card_remote_badge": "Fjern",
+  "missions.trigger_mqtt_min_interval_label": "Minimumsintervall",
+  "missions.trigger_mqtt_min_interval_placeholder": "f.eks. 60",
+  "missions.trigger_mqtt_min_interval_hint": "Sekunder før denne MQTT-triggeren kan starte missionen igjen. 0 deaktiverer grensen.",
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. intervall:"
 }

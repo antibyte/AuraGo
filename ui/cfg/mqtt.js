@@ -6,7 +6,9 @@ async function renderMQTTSection(section) {
     const enabled = data.enabled === true;
     const tls = data.tls || {};
     const buf = data.buffer || {};
+    const availability = data.availability || {};
     const tlsEnabled = tls.enabled === true;
+    const cleanSession = data.clean_session !== false;
     const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.mqtt.password_placeholder'));
 
     let html = `<div class="cfg-section active">
@@ -106,6 +108,21 @@ async function renderMQTTSection(section) {
         <input class="field-input" type="number" min="1" max="120" data-path="mqtt.connect_timeout" value="${escapeAttr(String(data.connect_timeout || 15))}" placeholder="15">
     </div>`;
 
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.clean_session_label')}</div>
+        <div class="field-help">${t('help.mqtt.clean_session')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${cleanSession ? ' on' : ''}" data-path="mqtt.clean_session" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${cleanSession ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.trigger_min_interval_label')}</div>
+        <div class="field-help">${t('help.mqtt.trigger_min_interval_seconds')}</div>
+        <input class="field-input" type="number" min="0" max="86400" data-path="mqtt.trigger_min_interval_seconds" value="${escapeAttr(String(data.trigger_min_interval_seconds || 0))}" placeholder="0">
+    </div>`;
+
     // TLS Section
     html += `<hr class="cfg-section-hr">`;
     html += `<div class="cfg-section-title">🔒 ${t('config.mqtt.tls_title')}</div>`;
@@ -158,6 +175,72 @@ async function renderMQTTSection(section) {
         <input class="field-input" type="number" min="0" max="10000" data-path="mqtt.buffer.max_messages" value="${escapeAttr(String(buf.max_messages || 500))}" placeholder="500">
     </div>`;
 
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.buffer_max_age_hours_label')}</div>
+        <div class="field-help">${t('help.mqtt.buffer_max_age_hours')}</div>
+        <input class="field-input" type="number" min="0" max="8760" data-path="mqtt.buffer.max_age_hours" value="${escapeAttr(String(buf.max_age_hours || 0))}" placeholder="0">
+    </div>`;
+
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.buffer_max_payload_bytes_label')}</div>
+        <div class="field-help">${t('help.mqtt.buffer_max_payload_bytes')}</div>
+        <input class="field-input" type="number" min="1024" max="10485760" data-path="mqtt.buffer.max_payload_bytes" value="${escapeAttr(String(buf.max_payload_bytes || 262144))}" placeholder="262144">
+    </div>`;
+
+    // Availability / LWT Section
+    html += `<hr class="cfg-section-hr">`;
+    html += `<div class="cfg-section-title">📶 ${t('config.mqtt.availability_title')}</div>`;
+
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.availability_enabled_label')}</div>
+        <div class="field-help">${t('help.mqtt.availability_enabled')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${availability.enabled ? ' on' : ''}" data-path="mqtt.availability.enabled" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${availability.enabled ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
+    if (availability.enabled) {
+        const availabilityQos = availability.qos || 1;
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.mqtt.availability_topic_label')}</div>
+            <div class="field-help">${t('help.mqtt.availability_topic')}</div>
+            <input class="field-input" type="text" data-path="mqtt.availability.topic" value="${escapeAttr(availability.topic || 'aurago/status')}" placeholder="aurago/status">
+        </div>`;
+
+        html += `<div class="form-row">
+            <div class="field-group">
+                <div class="field-label">${t('config.mqtt.availability_online_payload_label')}</div>
+                <div class="field-help">${t('help.mqtt.availability_payloads')}</div>
+                <input class="field-input" type="text" data-path="mqtt.availability.online_payload" value="${escapeAttr(availability.online_payload || 'online')}" placeholder="online">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.mqtt.availability_offline_payload_label')}</div>
+                <div class="field-help">${t('help.mqtt.availability_payloads')}</div>
+                <input class="field-input" type="text" data-path="mqtt.availability.offline_payload" value="${escapeAttr(availability.offline_payload || 'offline')}" placeholder="offline">
+            </div>
+        </div>`;
+
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.mqtt.availability_qos_label')}</div>
+            <div class="field-help">${t('help.mqtt.availability_qos')}</div>
+            <select class="field-input" data-path="mqtt.availability.qos">
+                <option value="0"${availabilityQos === 0 ? ' selected' : ''}>${t('config.mqtt.qos_0')}</option>
+                <option value="1"${availabilityQos === 1 ? ' selected' : ''}>${t('config.mqtt.qos_1')}</option>
+                <option value="2"${availabilityQos === 2 ? ' selected' : ''}>${t('config.mqtt.qos_2')}</option>
+            </select>
+        </div>`;
+
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.mqtt.availability_retain_label')}</div>
+            <div class="field-help">${t('help.mqtt.availability_retain')}</div>
+            <div class="toggle-wrap">
+                <div class="toggle${availability.retain !== false ? ' on' : ''}" data-path="mqtt.availability.retain" onclick="toggleBool(this)"></div>
+                <span class="toggle-label">${availability.retain !== false ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+            </div>
+        </div>`;
+    }
+
     // Test Connection button
     html += `<hr class="cfg-section-hr">`;
     html += `<div class="field-group">
@@ -209,10 +292,12 @@ function mqttCheckStatus() {
             if (res.connected) {
                 banner.className = 'cfg-status-banner cfg-status-success';
                 const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
-                banner.textContent = `🟢 ${t('config.mqtt.status_connected')} — ${escapeHtml(res.broker || '')}${tlsInfo}`;
+                const buffered = Number(res.buffer_len || 0);
+                banner.textContent = `🟢 ${t('config.mqtt.status_connected')} — ${escapeHtml(res.broker || '')}${tlsInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`;
             } else {
                 banner.className = 'cfg-status-banner cfg-status-error';
-                banner.textContent = '🔴 ' + t('config.mqtt.status_disconnected');
+                const lastError = res.stats && res.stats.last_error ? ` — ${escapeHtml(res.stats.last_error)}` : '';
+                banner.textContent = '🔴 ' + t('config.mqtt.status_disconnected') + lastError;
             }
         })
         .catch(() => {
@@ -265,13 +350,14 @@ function mqttRefreshMessages() {
                 return;
             }
             const html = res.messages.map(m => {
-                const time = m.timestamp ? new Date(m.timestamp * 1000).toLocaleTimeString() : '';
+                const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
                 const topic = escapeHtml(m.topic || '');
+                const truncated = m.payload_truncated ? ` ${t('config.mqtt.payload_truncated')}` : '';
                 const payload = escapeHtml(typeof m.payload === 'string' ? m.payload : JSON.stringify(m.payload));
                 return `<div class="cfg-message-item">
                     <span class="cfg-message-time">${time}</span>
                     <span class="cfg-message-topic">${topic}</span>
-                    <span class="cfg-message-payload">${payload}</span>
+                    <span class="cfg-message-payload">${payload}${truncated}</span>
                 </div>`;
             }).join('');
             list.innerHTML = html;

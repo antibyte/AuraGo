@@ -661,6 +661,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		if cfg.MQTT.Enabled {
 			mqttStatus["connected"] = mqtt.IsConnected()
 			mqttStatus["buffer"] = mqtt.BufferLen()
+			mqttStatus["stats"] = mqtt.RuntimeStats()
 		}
 
 		// ── Notes Summary ─────────────────────────────────────

@@ -362,5 +362,14 @@
   "help.whisper.model": "व्हिस्पर के लिए मॉडल नाम, उदा. 'कानाफूसी-1'.",
   "help.whisper.provider": "स्पीच-टू-टेक्स्ट के लिए प्रदाता प्रबंधन से एक प्रदाता का चयन करें।",
   "help.tools.knowledge_graph.auto_extraction": "हाल की बातचीत से इकाइयों और संबंधों को अपने आप नॉलेज ग्राफ में निकालता है।",
-  "help.tools.knowledge_graph.prompt_injection": "संबंधित नॉलेज ग्राफ संदर्भ को सिस्टम प्रॉम्प्ट में जोड़ता है।"
+  "help.tools.knowledge_graph.prompt_injection": "संबंधित नॉलेज ग्राफ संदर्भ को सिस्टम प्रॉम्प्ट में जोड़ता है।",
+  "help.mqtt.buffer_max_age_hours": "बफ़र किए गए संदेशों की अधिकतम आयु घंटों में। नए संदेश आने या बफ़र पढ़े जाने पर पुराने संदेश हटाए जाते हैं। आयु सफाई बंद करने के लिए 0 रखें।",
+  "help.mqtt.buffer_max_payload_bytes": "हर MQTT संदेश का अधिकतम पेलोड आकार। बड़े आने वाले पेलोड बफ़र, मिशन ट्रिगर या एजेंट relay तक पहुँचने से पहले छोटे किए जाते हैं।",
+  "help.mqtt.clean_session": "सक्षम होने पर broker इस client के लिए persistent session नहीं रखता। केवल तब बंद करें जब broker को AuraGo offline रहने पर QoS 1/2 संदेश queue करने हों।",
+  "help.mqtt.trigger_min_interval_seconds": "MQTT-triggered मिशन शुरू होने के बीच fallback न्यूनतम अंतराल सेकंड में। 0 से सीमा बंद होती है।",
+  "help.mqtt.availability_enabled": "कनेक्ट होने के बाद online payload प्रकाशित करता है और MQTT Last Will सेट करता है ताकि अन्य सिस्टम AuraGo offline होना पहचान सकें।",
+  "help.mqtt.availability_topic": "AuraGo उपलब्धता संदेशों का topic। डिफ़ॉल्ट: aurago/status।",
+  "help.mqtt.availability_payloads": "online और offline उपलब्धता संदेशों के payload।",
+  "help.mqtt.availability_qos": "उपलब्धता संदेशों के लिए QoS स्तर।",
+  "help.mqtt.availability_retain": "सक्षम होने पर broker नए subscribers के लिए नवीनतम उपलब्धता स्थिति रखता है।"
 }

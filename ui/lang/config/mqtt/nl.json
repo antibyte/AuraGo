@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Voer wachtwoord in…",
   "config.mqtt.password_save_failed": "Opslaan van wachtwoord mislukt.",
   "config.mqtt.password_saved": "Wachtwoord opgeslagen in kluis.",
-  "config.mqtt.qos_0": "0 – Hooguit één keer (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Hooguit één keer (fire & forget)",
   "config.mqtt.qos_1": "1 – Minstens één keer (bevestigde levering)",
   "config.mqtt.qos_2": "2 – Precies één keer (gegarandeerde levering)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "TLS-certificaatverificatie overslaan. WAARSCHUWING: Alleen gebruiken voor testen met self-signed certificaten.",
   "help.mqtt.tls_key_file": "Pad naar het client-sleutelbestand voor wederzijdse TLS-authenticatie (optioneel).",
   "help.mqtt.topics": "Komma-gescheiden lijst van onderwerpen om op te abonneren bij opstart (bijv. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Gebruikersnaam voor MQTT-authenticatie (optioneel, afhankelijk van brokerconfiguratie)."
+  "help.mqtt.username": "Gebruikersnaam voor MQTT-authenticatie (optioneel, afhankelijk van brokerconfiguratie).",
+  "config.mqtt.clean_session_label": "Schone sessie",
+  "config.mqtt.trigger_min_interval_label": "Triggerlimiet",
+  "config.mqtt.buffer_max_age_hours_label": "Maximale berichtleeftijd",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maximale payloadgrootte",
+  "config.mqtt.availability_title": "Beschikbaarheid",
+  "config.mqtt.availability_enabled_label": "Beschikbaarheid publiceren",
+  "config.mqtt.availability_topic_label": "Beschikbaarheidstopic",
+  "config.mqtt.availability_online_payload_label": "Online payload",
+  "config.mqtt.availability_offline_payload_label": "Offline payload",
+  "config.mqtt.availability_qos_label": "Beschikbaarheids-QoS",
+  "config.mqtt.availability_retain_label": "Beschikbaarheidsstatus bewaren",
+  "config.mqtt.buffered_suffix": "gebufferd",
+  "config.mqtt.payload_truncated": "(ingekort)"
 }

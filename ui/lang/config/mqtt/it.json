@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Inserisci la password…",
   "config.mqtt.password_save_failed": "Salvataggio password non riuscito.",
   "config.mqtt.password_saved": "Password salvata nel vault.",
-  "config.mqtt.qos_0": "0 – Al massimo una volta (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Al massimo una volta (fire & forget)",
   "config.mqtt.qos_1": "1 – Almeno una volta (conferma di recapito)",
   "config.mqtt.qos_2": "2 – Esattamente una volta (recapito garantito)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Ignora la verifica del certificato TLS. AVVISO: Usare solo per test con certificati autofirmati.",
   "help.mqtt.tls_key_file": "Percorso al file della chiave client per l'autenticazione TLS reciproca (facoltativo).",
   "help.mqtt.topics": "Elenco di argomenti separati da virgole a cui iscriversi all'avvio (es. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Nome utente per l'autenticazione MQTT (facoltativo, dipende dalla configurazione del broker)."
+  "help.mqtt.username": "Nome utente per l'autenticazione MQTT (facoltativo, dipende dalla configurazione del broker).",
+  "config.mqtt.clean_session_label": "Sessione pulita",
+  "config.mqtt.trigger_min_interval_label": "Limite trigger",
+  "config.mqtt.buffer_max_age_hours_label": "Età massima dei messaggi",
+  "config.mqtt.buffer_max_payload_bytes_label": "Dimensione massima payload",
+  "config.mqtt.availability_title": "Disponibilità",
+  "config.mqtt.availability_enabled_label": "Pubblica disponibilità",
+  "config.mqtt.availability_topic_label": "Topic disponibilità",
+  "config.mqtt.availability_online_payload_label": "Payload online",
+  "config.mqtt.availability_offline_payload_label": "Payload offline",
+  "config.mqtt.availability_qos_label": "QoS disponibilità",
+  "config.mqtt.availability_retain_label": "Mantieni stato disponibilità",
+  "config.mqtt.buffered_suffix": "nel buffer",
+  "config.mqtt.payload_truncated": "(troncato)"
 }

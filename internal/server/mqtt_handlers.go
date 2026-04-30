@@ -37,13 +37,16 @@ func handleMQTTStatus(s *Server) http.HandlerFunc {
 		bufferLen := mqtt.BufferLen()
 
 		response := map[string]interface{}{
-			"status":      "disabled",
-			"connected":   connected,
-			"broker":      s.Cfg.MQTT.Broker,
-			"client_id":   s.Cfg.MQTT.ClientID,
-			"buffer_len":  bufferLen,
-			"max_buffer":  s.Cfg.MQTT.Buffer.MaxMessages,
-			"tls_enabled": s.Cfg.MQTT.TLS.Enabled,
+			"status":            "disabled",
+			"connected":         connected,
+			"broker":            s.Cfg.MQTT.Broker,
+			"client_id":         s.Cfg.MQTT.ClientID,
+			"buffer_len":        bufferLen,
+			"max_buffer":        s.Cfg.MQTT.Buffer.MaxMessages,
+			"max_age_hours":     s.Cfg.MQTT.Buffer.MaxAgeHours,
+			"max_payload_bytes": s.Cfg.MQTT.Buffer.MaxPayloadBytes,
+			"tls_enabled":       s.Cfg.MQTT.TLS.Enabled,
+			"stats":             mqtt.RuntimeStats(),
 		}
 
 		if !s.Cfg.MQTT.Enabled {
@@ -84,19 +87,28 @@ func handleMQTTTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		connected := mqtt.IsConnected()
-
-		if connected {
+		if mqtt.IsConnected() {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "success",
 				"message": "MQTT broker connection is active",
+				"stats":   mqtt.RuntimeStats(),
 			})
-		} else {
+			return
+		}
+
+		if err := mqtt.TestConnection(s.Cfg, s.Logger); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "MQTT broker connection is not active",
+				"message": err.Error(),
+				"stats":   mqtt.RuntimeStats(),
 			})
+			return
 		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "success",
+			"message": "MQTT broker connection test succeeded",
+			"stats":   mqtt.RuntimeStats(),
+		})
 	}
 }
 

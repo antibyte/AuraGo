@@ -362,5 +362,14 @@
   "help.whisper.model": "Whisper のモデル名、例: 「ささやき-1」。",
   "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。",
   "help.tools.knowledge_graph.auto_extraction": "最近の会話からエンティティと関係を自動的にナレッジグラフへ抽出します。",
-  "help.tools.knowledge_graph.prompt_injection": "関連するナレッジグラフの文脈をシステムプロンプトに挿入します。"
+  "help.tools.knowledge_graph.prompt_injection": "関連するナレッジグラフの文脈をシステムプロンプトに挿入します。",
+  "help.mqtt.buffer_max_age_hours": "バッファされたメッセージの最大保持時間です。新しいメッセージの到着時またはバッファ読み取り時に古いメッセージが削除されます。0 で無効化します。",
+  "help.mqtt.buffer_max_payload_bytes": "MQTT メッセージごとの最大ペイロードサイズです。より大きい受信ペイロードは、バッファ、ミッショントリガー、エージェント relay に届く前に切り詰められます。",
+  "help.mqtt.clean_session": "有効にすると、broker はこの client の永続セッションを保持しません。AuraGo が offline の間に QoS 1/2 メッセージをキューする必要がある場合のみ無効にしてください。",
+  "help.mqtt.trigger_min_interval_seconds": "MQTT トリガーによるミッション開始間隔の fallback 最小秒数です。0 で無効化します。",
+  "help.mqtt.availability_enabled": "接続後に online payload を公開し、AuraGo が offline になったことを他システムが検知できるよう MQTT Last Will を設定します。",
+  "help.mqtt.availability_topic": "AuraGo 可用性メッセージに使用する topic。デフォルト: aurago/status。",
+  "help.mqtt.availability_payloads": "online/offline 可用性メッセージに使用する payload。",
+  "help.mqtt.availability_qos": "可用性メッセージに使用する QoS レベル。",
+  "help.mqtt.availability_retain": "有効にすると、broker は新しい subscriber 向けに最新の可用性状態を保持します。"
 }

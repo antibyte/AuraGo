@@ -38,4 +38,10 @@ func TestShouldRunTurnSideEffectsBlocksHeartbeatArtifacts(t *testing.T) {
 	if !shouldRunTurnSideEffects(RunConfig{MessageSource: "web_chat"}, "default", prompts.ContextFlags{}) {
 		t.Fatal("regular web chat should keep normal side effects")
 	}
+	if shouldRunTurnSideEffects(RunConfig{IsMaintenance: true, MessageSource: "maintenance"}, "maintenance", prompts.ContextFlags{}) {
+		t.Fatal("maintenance runs must not write normal chat side effects")
+	}
+	if shouldRunTurnSideEffects(RunConfig{MessageSource: "maintenance"}, "maintenance", prompts.ContextFlags{}) {
+		t.Fatal("maintenance runs must not write normal chat side effects")
+	}
 }

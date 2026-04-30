@@ -1,10 +1,10 @@
 import sys
 import json
 import os
-import glob
 import hashlib
 import tarfile
-import tempfile
+import shutil
+import fnmatch
 from datetime import datetime
 
 BACKUP_DIR = os.environ.get("AURAGO_BACKUP_DIR", os.path.join(os.getcwd(), "backups"))
@@ -22,11 +22,7 @@ def _create_backup(source, output, exclude_patterns=None):
     if not output:
         output = os.path.join(BACKUP_DIR, _generate_backup_name(source))
 
-    exclude_set = set()
-    if exclude_patterns:
-        for pat in [p.strip() for p in exclude_patterns.split(",") if p.strip()]:
-            for match in glob.glob(os.path.join(source, pat), recursive=True):
-                exclude_set.add(os.path.normpath(match))
+    exclude_list = [p.strip() for p in (exclude_patterns or "").split(",") if p.strip()]
 
     source = os.path.normpath(source)
     source_name = os.path.basename(source)
@@ -34,9 +30,16 @@ def _create_backup(source, output, exclude_patterns=None):
     total_size = 0
 
     def tar_filter(info):
-        norm = os.path.normpath(info.name)
-        for exc in exclude_set:
-            if norm.startswith(exc):
+        archive_name = info.name.replace("\\", "/")
+        rel_name = archive_name
+        prefix = source_name + "/"
+        if rel_name == source_name:
+            rel_name = ""
+        elif rel_name.startswith(prefix):
+            rel_name = rel_name[len(prefix):]
+        for pattern in exclude_list:
+            pattern = pattern.replace("\\", "/")
+            if fnmatch.fnmatch(rel_name, pattern) or fnmatch.fnmatch(archive_name, pattern):
                 return None
         return info
 
@@ -80,12 +83,26 @@ def _restore_backup(source, output):
     os.makedirs(output, exist_ok=True)
     abs_output = os.path.abspath(output)
     with tarfile.open(source, "r:gz") as tar:
-        # Zip-slip / path traversal protection
         for member in tar.getmembers():
             member_path = os.path.abspath(os.path.join(abs_output, member.name))
             if not member_path.startswith(abs_output + os.sep) and member_path != abs_output:
                 return {"status": "error", "message": f"Path traversal detected in archive member: {member.name}"}
-        tar.extractall(path=output)
+            if member.issym() or member.islnk() or member.isdev() or member.isfifo():
+                return {"status": "error", "message": f"Unsupported archive member type: {member.name}"}
+        for member in tar.getmembers():
+            target = os.path.abspath(os.path.join(abs_output, member.name))
+            if member.isdir():
+                os.makedirs(target, exist_ok=True)
+                continue
+            if not member.isfile():
+                return {"status": "error", "message": f"Unsupported archive member type: {member.name}"}
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            src = tar.extractfile(member)
+            if src is None:
+                return {"status": "error", "message": f"Failed to read archive member: {member.name}"}
+            with src, open(target, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+            os.chmod(target, member.mode & 0o777)
     return {"status": "success", "result": f"Restored to {output}"}
 
 def _cleanup_backups(keep):

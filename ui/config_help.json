@@ -687,9 +687,21 @@
       "title": "Buffer Max Messages",
       "description": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500."
     },
+    "buffer_max_age_hours": {
+      "title": "Buffer Max Age",
+      "description": "Maximum age for buffered messages in hours. Older messages are removed when new messages arrive or the buffer is read. Use 0 to disable age cleanup."
+    },
+    "buffer_max_payload_bytes": {
+      "title": "Max Payload Bytes",
+      "description": "Maximum payload size per MQTT message. Larger incoming payloads are truncated before they reach the buffer, mission triggers, or agent relay. Default: 262144 bytes."
+    },
     "client_id": {
       "title": "Client ID",
       "description": "Client ID for the broker connection. Default: 'aurago'. Must be unique per broker."
+    },
+    "clean_session": {
+      "title": "Clean Session",
+      "description": "When enabled, the broker does not keep a persistent session for this client. Disable only if your broker should queue QoS 1/2 messages while AuraGo is offline."
     },
     "connect_timeout": {
       "title": "Connect Timeout",
@@ -710,6 +722,30 @@
     "relay_to_agent": {
       "title": "Relay To Agent",
       "description": "When enabled, incoming MQTT messages are relayed as context to the agent."
+    },
+    "trigger_min_interval_seconds": {
+      "title": "Trigger Rate Limit",
+      "description": "Fallback minimum interval in seconds between MQTT-triggered mission starts. Use 0 to disable the fallback limit."
+    },
+    "availability_enabled": {
+      "title": "Availability Topic",
+      "description": "Publishes an online payload after connecting and configures an MQTT Last Will message so other systems can detect when AuraGo goes offline."
+    },
+    "availability_topic": {
+      "title": "Availability Topic",
+      "description": "Topic used for AuraGo availability messages. Default: aurago/status."
+    },
+    "availability_payloads": {
+      "title": "Availability Payloads",
+      "description": "Payloads used for online and offline availability messages."
+    },
+    "availability_qos": {
+      "title": "Availability QoS",
+      "description": "QoS level used for availability messages."
+    },
+    "availability_retain": {
+      "title": "Retain Availability",
+      "description": "When enabled, the broker retains the latest availability state for new subscribers."
     },
     "tls_ca_file": {
       "title": "TLS CA File",

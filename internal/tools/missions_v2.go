@@ -81,8 +81,9 @@ type TriggerConfig struct {
 	EggName  string `json:"egg_name,omitempty"`  // Egg name for display
 
 	// For TriggerMQTTMessage
-	MQTTTopic           string `json:"mqtt_topic,omitempty"`            // Topic filter (supports MQTT wildcards + and #)
-	MQTTPayloadContains string `json:"mqtt_payload_contains,omitempty"` // Optional: only trigger if payload contains this string
+	MQTTTopic              string `json:"mqtt_topic,omitempty"`                // Topic filter (supports MQTT wildcards + and #)
+	MQTTPayloadContains    string `json:"mqtt_payload_contains,omitempty"`     // Optional: only trigger if payload contains this string
+	MQTTMinIntervalSeconds int    `json:"mqtt_min_interval_seconds,omitempty"` // Minimum seconds between trigger fires (0 = disabled)
 
 	// For TriggerDeviceConnected / TriggerDeviceDisconnected
 	DeviceID   string `json:"device_id,omitempty"`   // Filter by device ID (empty = any)
@@ -357,7 +358,7 @@ type WebhookManagerInterface interface {
 
 // MQTTManagerInterface for MQTT trigger integration
 type MQTTManagerInterface interface {
-	RegisterMissionTrigger(topicFilter string, payloadContains string, callback func(topic, payload string))
+	RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string))
 }
 
 // NewMissionManagerV2 creates a new enhanced MissionManager
@@ -731,13 +732,16 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			missionID := mission.ID
 			topicFilter := cfg.MQTTTopic
 			payloadContains := cfg.MQTTPayloadContains
+			minIntervalSeconds := cfg.MQTTMinIntervalSeconds
 			m.mqttMgr.RegisterMissionTrigger(
 				topicFilter,
 				payloadContains,
+				minIntervalSeconds,
 				func(topic, payload string) {
 					if !m.triggerRegistrationIsCurrent(missionID, TriggerMQTTMessage, func(current *TriggerConfig) bool {
 						return current.MQTTTopic == topicFilter &&
-							current.MQTTPayloadContains == payloadContains
+							current.MQTTPayloadContains == payloadContains &&
+							current.MQTTMinIntervalSeconds == minIntervalSeconds
 					}) {
 						return
 					}

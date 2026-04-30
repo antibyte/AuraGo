@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "पासवर्ड दर्ज करें…",
   "config.mqtt.password_save_failed": "पासवर्ड सहेजने में विफल।",
   "config.mqtt.password_saved": "पासवर्ड वॉल्ट में सहेजा गया।",
-  "config.mqtt.qos_0": "0 – अधिकतम एक बार (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – अधिकतम एक बार (fire & forget)",
   "config.mqtt.qos_1": "1 – कम से कम एक बार (पुष्टि प्राप्त डिलीवरी)",
   "config.mqtt.qos_2": "2 – बिल्कुल एक बार (गारंटीड डिलीवरी)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "TLS प्रमाणपत्र सत्यापन छोड़ें। चेतावनी: केवल सेल्फ-साइनड प्रमाणपत्रों के साथ परीक्षण के लिए उपयोग करें।",
   "help.mqtt.tls_key_file": "म्यूचुअल TLS प्रमाणीकरण के लिए क्लाइंट कुंजी फ़ाइल का पथ (वैकल्पिक)।",
   "help.mqtt.topics": "स्टार्टअप पर सदस्यता लेने के लिए अल्पविराम से अलग किए गए विषयों की सूची (जैसे 'home/#, sensors/temperature')।",
-  "help.mqtt.username": "MQTT प्रमाणीकरण के लिए उपयोगकर्ता नाम (वैकल्पिक, ब्रोकर कॉन्फ़िगरेशन पर निर्भर)।"
+  "help.mqtt.username": "MQTT प्रमाणीकरण के लिए उपयोगकर्ता नाम (वैकल्पिक, ब्रोकर कॉन्फ़िगरेशन पर निर्भर)।",
+  "config.mqtt.clean_session_label": "क्लीन सेशन",
+  "config.mqtt.trigger_min_interval_label": "ट्रिगर दर सीमा",
+  "config.mqtt.buffer_max_age_hours_label": "संदेश की अधिकतम आयु",
+  "config.mqtt.buffer_max_payload_bytes_label": "अधिकतम पेलोड आकार",
+  "config.mqtt.availability_title": "उपलब्धता",
+  "config.mqtt.availability_enabled_label": "उपलब्धता प्रकाशित करें",
+  "config.mqtt.availability_topic_label": "उपलब्धता टॉपिक",
+  "config.mqtt.availability_online_payload_label": "ऑनलाइन पेलोड",
+  "config.mqtt.availability_offline_payload_label": "ऑफलाइन पेलोड",
+  "config.mqtt.availability_qos_label": "उपलब्धता QoS",
+  "config.mqtt.availability_retain_label": "उपलब्धता स्थिति रखें",
+  "config.mqtt.buffered_suffix": "बफ़र में",
+  "config.mqtt.payload_truncated": "(छोटा किया गया)"
 }

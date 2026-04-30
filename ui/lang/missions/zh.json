@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "远程目标不可用",
   "missions.toast_select_remote_target": "请选择一个远程 egg",
   "missions.trigger_remote_disabled_title": "此触发器不适用于远程任务",
-  "missions.card_remote_badge": "远程"
+  "missions.card_remote_badge": "远程",
+  "missions.trigger_mqtt_min_interval_label": "最小间隔",
+  "missions.trigger_mqtt_min_interval_placeholder": "例如 60",
+  "missions.trigger_mqtt_min_interval_hint": "此 MQTT 触发器再次启动任务前需要等待的秒数。0 表示禁用限制。",
+  "missions.trigger_info_mqtt_min_interval_prefix": "最小间隔："
 }

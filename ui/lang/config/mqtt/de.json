@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Passwort eingeben…",
   "config.mqtt.password_save_failed": "Passwort konnte nicht gespeichert werden.",
   "config.mqtt.password_saved": "Passwort im Tresor gespeichert.",
-  "config.mqtt.qos_0": "0 – Höchstens einmal (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Höchstens einmal (fire & forget)",
   "config.mqtt.qos_1": "1 – Mindestens einmal (bestätigte Zustellung)",
   "config.mqtt.qos_2": "2 – Genau einmal (garantierte Zustellung)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "TLS-Zertifikatsprüfung überspringen. WARNUNG: Nur zum Testen mit selbstsignierten Zertifikaten verwenden.",
   "help.mqtt.tls_key_file": "Pfad zur Client-Schlüsseldatei für gegenseitige TLS-Authentifizierung (optional).",
   "help.mqtt.topics": "Komma-getrennte Liste von Topics, die beim Start automatisch abonniert werden (z.B. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Benutzername für die MQTT-Authentifizierung (optional, je nach Broker-Konfiguration)."
+  "help.mqtt.username": "Benutzername für die MQTT-Authentifizierung (optional, je nach Broker-Konfiguration).",
+  "config.mqtt.clean_session_label": "Clean Session",
+  "config.mqtt.trigger_min_interval_label": "Trigger-Limit",
+  "config.mqtt.buffer_max_age_hours_label": "Maximales Nachrichtenalter",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maximale Payload-Größe",
+  "config.mqtt.availability_title": "Verfügbarkeit",
+  "config.mqtt.availability_enabled_label": "Verfügbarkeit veröffentlichen",
+  "config.mqtt.availability_topic_label": "Verfügbarkeits-Topic",
+  "config.mqtt.availability_online_payload_label": "Online-Payload",
+  "config.mqtt.availability_offline_payload_label": "Offline-Payload",
+  "config.mqtt.availability_qos_label": "Verfügbarkeits-QoS",
+  "config.mqtt.availability_retain_label": "Verfügbarkeitsstatus behalten",
+  "config.mqtt.buffered_suffix": "gepuffert",
+  "config.mqtt.payload_truncated": "(gekürzt)"
 }

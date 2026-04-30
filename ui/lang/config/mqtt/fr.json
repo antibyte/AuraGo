@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Entrez le mot de passe…",
   "config.mqtt.password_save_failed": "Échec de l'enregistrement du mot de passe.",
   "config.mqtt.password_saved": "Mot de passe enregistré dans le coffre.",
-  "config.mqtt.qos_0": "0 – Au plus une fois (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Au plus une fois (fire & forget)",
   "config.mqtt.qos_1": "1 – Au moins une fois (livraison confirmée)",
   "config.mqtt.qos_2": "2 – Exactement une fois (livraison garantie)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Ignorer la vérification du certificat TLS. AVERTISSEMENT : À utiliser uniquement pour les tests avec des certificats auto-signés.",
   "help.mqtt.tls_key_file": "Chemin vers le fichier de clé client pour l'authentification TLS mutuelle (facultatif).",
   "help.mqtt.topics": "Liste de sujets séparés par des virgules auxquels s'abonner au démarrage (ex. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Nom d'utilisateur pour l'authentification MQTT (facultatif, selon la configuration du courtier)."
+  "help.mqtt.username": "Nom d'utilisateur pour l'authentification MQTT (facultatif, selon la configuration du courtier).",
+  "config.mqtt.clean_session_label": "Session propre",
+  "config.mqtt.trigger_min_interval_label": "Limite de déclenchement",
+  "config.mqtt.buffer_max_age_hours_label": "Âge maximal des messages",
+  "config.mqtt.buffer_max_payload_bytes_label": "Taille maximale du payload",
+  "config.mqtt.availability_title": "Disponibilité",
+  "config.mqtt.availability_enabled_label": "Publier la disponibilité",
+  "config.mqtt.availability_topic_label": "Topic de disponibilité",
+  "config.mqtt.availability_online_payload_label": "Payload en ligne",
+  "config.mqtt.availability_offline_payload_label": "Payload hors ligne",
+  "config.mqtt.availability_qos_label": "QoS de disponibilité",
+  "config.mqtt.availability_retain_label": "Conserver l’état de disponibilité",
+  "config.mqtt.buffered_suffix": "en tampon",
+  "config.mqtt.payload_truncated": "(tronqué)"
 }

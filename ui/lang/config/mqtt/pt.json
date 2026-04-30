@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Introduza a palavra-passe…",
   "config.mqtt.password_save_failed": "Falha ao guardar a palavra-passe.",
   "config.mqtt.password_saved": "Palavra-passe guardada no cofre.",
-  "config.mqtt.qos_0": "0 – No máximo uma vez (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – No máximo uma vez (fire & forget)",
   "config.mqtt.qos_1": "1 – Pelo menos uma vez (entrega confirmada)",
   "config.mqtt.qos_2": "2 – Exatamente uma vez (entrega garantida)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Ignorar a verificação do certificado TLS. AVISO: Use apenas para testes com certificados auto-assinados.",
   "help.mqtt.tls_key_file": "Caminho para o ficheiro de chave do cliente para autenticação TLS mútua (opcional).",
   "help.mqtt.topics": "Comma-separated list of topics to subscribe to on startup (e.g. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Nome de utilizador para autenticação MQTT (opcional, dependendo da configuração do broker)."
+  "help.mqtt.username": "Nome de utilizador para autenticação MQTT (opcional, dependendo da configuração do broker).",
+  "config.mqtt.clean_session_label": "Sessão limpa",
+  "config.mqtt.trigger_min_interval_label": "Limite de acionamento",
+  "config.mqtt.buffer_max_age_hours_label": "Idade máxima das mensagens",
+  "config.mqtt.buffer_max_payload_bytes_label": "Tamanho máximo do payload",
+  "config.mqtt.availability_title": "Disponibilidade",
+  "config.mqtt.availability_enabled_label": "Publicar disponibilidade",
+  "config.mqtt.availability_topic_label": "Topic de disponibilidade",
+  "config.mqtt.availability_online_payload_label": "Payload online",
+  "config.mqtt.availability_offline_payload_label": "Payload offline",
+  "config.mqtt.availability_qos_label": "QoS de disponibilidade",
+  "config.mqtt.availability_retain_label": "Reter estado de disponibilidade",
+  "config.mqtt.buffered_suffix": "em buffer",
+  "config.mqtt.payload_truncated": "(truncado)"
 }

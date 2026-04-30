@@ -31,6 +31,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/mqtt"
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
@@ -655,7 +656,7 @@ func Start(opts StartOptions) error {
 
 	// Set MQTT manager for MQTT message triggers
 	if cfg.MQTT.Enabled {
-		s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger})
+		s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger, cfg: cfg})
 	}
 
 	// Set cheatsheet DB for mission prompt expansion
@@ -1128,6 +1129,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownSandboxManager()
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
+		// Shut down MQTT client
+		mqtt.StopClient()
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}

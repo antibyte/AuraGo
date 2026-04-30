@@ -614,6 +614,8 @@ mqtt:
     qos: 0
     relay_to_agent: false
     connect_timeout: 15             # connection timeout in seconds
+    clean_session: true             # true = broker does not keep a persistent session for this client
+    trigger_min_interval_seconds: 0  # minimum seconds between MQTT-triggered mission starts (0 = disabled)
     tls:
         enabled: false
         ca_file: ""                 # path to CA certificate file
@@ -622,7 +624,15 @@ mqtt:
         insecure_skip_verify: false  # skip TLS certificate verification (for testing only)
     buffer:
         max_messages: 500           # max messages to buffer (0 = use default 500)
-        max_age_hours: 0           # max age of messages before cleanup (0 = disabled)
+        max_age_hours: 0            # max age of messages before cleanup (0 = disabled)
+        max_payload_bytes: 262144   # max payload bytes per message (0 = use default 256 KiB)
+    availability:
+        enabled: false              # publish online/offline availability via MQTT LWT
+        topic: aurago/status
+        online_payload: online
+        offline_payload: offline
+        qos: 1
+        retain: true
 adguard:
     enabled: false
     readonly: false

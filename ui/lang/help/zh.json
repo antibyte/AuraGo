@@ -362,5 +362,14 @@
   "help.whisper.model": "Whisper 的型号名称，例如'耳语-1'。",
   "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。",
   "help.tools.knowledge_graph.auto_extraction": "自动从最近的对话中提取实体和关系并写入知识图谱。",
-  "help.tools.knowledge_graph.prompt_injection": "将相关的知识图谱上下文注入系统提示。"
+  "help.tools.knowledge_graph.prompt_injection": "将相关的知识图谱上下文注入系统提示。",
+  "help.mqtt.buffer_max_age_hours": "缓冲消息的最大保留时间（小时）。新消息到达或读取缓冲区时会移除更旧的消息。使用 0 禁用按时间清理。",
+  "help.mqtt.buffer_max_payload_bytes": "每条 MQTT 消息的最大 payload 大小。更大的传入 payload 会在进入缓冲区、任务触发器或代理转发前被截断。",
+  "help.mqtt.clean_session": "启用后，broker 不会为此客户端保留持久会话。仅当 broker 需要在 AuraGo 离线时排队 QoS 1/2 消息时才关闭。",
+  "help.mqtt.trigger_min_interval_seconds": "MQTT 触发任务启动之间的默认最小间隔（秒）。使用 0 禁用默认限制。",
+  "help.mqtt.availability_enabled": "连接后发布在线状态，并配置 MQTT Last Will，以便其他系统检测 AuraGo 离线。",
+  "help.mqtt.availability_topic": "AuraGo 可用性消息使用的 topic。默认：aurago/status。",
+  "help.mqtt.availability_payloads": "在线和离线可用性消息使用的 payload。",
+  "help.mqtt.availability_qos": "可用性消息使用的 QoS 级别。",
+  "help.mqtt.availability_retain": "启用后，broker 会为新订阅者保留最新的可用性状态。"
 }

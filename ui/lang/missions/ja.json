@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "リモートターゲットを利用できません",
   "missions.toast_select_remote_target": "リモート egg を選択してください",
   "missions.trigger_remote_disabled_title": "このトリガーはリモートミッションでは利用できません",
-  "missions.card_remote_badge": "リモート"
+  "missions.card_remote_badge": "リモート",
+  "missions.trigger_mqtt_min_interval_label": "最小間隔",
+  "missions.trigger_mqtt_min_interval_placeholder": "例: 60",
+  "missions.trigger_mqtt_min_interval_hint": "この MQTT トリガーが再度ミッションを開始できるまで待つ秒数です。0 で無効化します。",
+  "missions.trigger_info_mqtt_min_interval_prefix": "最小間隔:"
 }

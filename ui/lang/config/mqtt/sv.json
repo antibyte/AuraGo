@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Ange lösenord…",
   "config.mqtt.password_save_failed": "Kunde inte spara lösenord.",
   "config.mqtt.password_saved": "Lösenord sparat i valv.",
-  "config.mqtt.qos_0": "0 – Högst en gång (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Högst en gång (fire & forget)",
   "config.mqtt.qos_1": "1 – Minst en gång (bekräftad leverans)",
   "config.mqtt.qos_2": "2 – Exakt en gång (garanterad leverans)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Skip TLS certificate verification. WARNING: Use only for testing with self-signed certificates.",
   "help.mqtt.tls_key_file": "Sökväg till klientnyckelfilen för ömsesidig TLS-autentisering (valfritt).",
   "help.mqtt.topics": "Comma-separated list of topics to subscribe to on startup (e.g. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Användarnamn för MQTT-autentisering (valfritt, beroende på mäklarkonfiguration)."
+  "help.mqtt.username": "Användarnamn för MQTT-autentisering (valfritt, beroende på mäklarkonfiguration).",
+  "config.mqtt.clean_session_label": "Ren session",
+  "config.mqtt.trigger_min_interval_label": "Triggergräns",
+  "config.mqtt.buffer_max_age_hours_label": "Maximal meddelandeålder",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maximal payloadstorlek",
+  "config.mqtt.availability_title": "Tillgänglighet",
+  "config.mqtt.availability_enabled_label": "Publicera tillgänglighet",
+  "config.mqtt.availability_topic_label": "Tillgänglighets-topic",
+  "config.mqtt.availability_online_payload_label": "Online-payload",
+  "config.mqtt.availability_offline_payload_label": "Offline-payload",
+  "config.mqtt.availability_qos_label": "Tillgänglighets-QoS",
+  "config.mqtt.availability_retain_label": "Behåll tillgänglighetsstatus",
+  "config.mqtt.buffered_suffix": "buffrade",
+  "config.mqtt.payload_truncated": "(förkortat)"
 }

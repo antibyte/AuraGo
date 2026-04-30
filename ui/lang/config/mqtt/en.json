@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Enter password…",
   "config.mqtt.password_save_failed": "Failed to save password to vault.",
   "config.mqtt.password_saved": "Password saved to vault.",
-  "config.mqtt.qos_0": "0 – At most once (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – At most once (fire & forget)",
   "config.mqtt.qos_1": "1 – At least once (acknowledged delivery)",
   "config.mqtt.qos_2": "2 – Exactly once (assured delivery)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Skip TLS certificate verification. WARNING: Use only for testing with self-signed certificates.",
   "help.mqtt.tls_key_file": "Path to the client private key file for mutual TLS authentication (optional).",
   "help.mqtt.topics": "Comma-separated list of topics to subscribe to on startup (e.g. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Username for MQTT authentication (optional, depending on broker configuration)."
+  "help.mqtt.username": "Username for MQTT authentication (optional, depending on broker configuration).",
+  "config.mqtt.clean_session_label": "Clean Session",
+  "config.mqtt.trigger_min_interval_label": "Trigger Rate Limit",
+  "config.mqtt.buffer_max_age_hours_label": "Max Message Age",
+  "config.mqtt.buffer_max_payload_bytes_label": "Max Payload Size",
+  "config.mqtt.availability_title": "Availability",
+  "config.mqtt.availability_enabled_label": "Publish Availability",
+  "config.mqtt.availability_topic_label": "Availability Topic",
+  "config.mqtt.availability_online_payload_label": "Online Payload",
+  "config.mqtt.availability_offline_payload_label": "Offline Payload",
+  "config.mqtt.availability_qos_label": "Availability QoS",
+  "config.mqtt.availability_retain_label": "Retain Availability State",
+  "config.mqtt.buffered_suffix": "buffered",
+  "config.mqtt.payload_truncated": "(truncated)"
 }

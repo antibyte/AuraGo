@@ -10,5 +10,8 @@ func shouldRunTurnSideEffects(runCfg RunConfig, sessionID string, flags prompts.
 	if flags.IsMission || flags.IsCoAgent || runCfg.IsMission || runCfg.IsCoAgent {
 		return false
 	}
+	if runCfg.IsMaintenance || sessionID == "maintenance" {
+		return false
+	}
 	return !isAutonomousAgentRun(runCfg, sessionID)
 }

@@ -452,6 +452,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				// Clean up metadata keys that aren't real skill parameters
 				cleanArgs := make(map[string]interface{}, len(args))
 				metaKeys := map[string]bool{"skill_name": true, "skill": true, "name": true, "tool": true, "action": true}
+				if strings.EqualFold(cleanSkillName, "git_backup_restore") {
+					delete(metaKeys, "action")
+				}
 				for k, v := range args {
 					if !metaKeys[k] {
 						cleanArgs[k] = v

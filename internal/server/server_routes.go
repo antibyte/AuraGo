@@ -434,6 +434,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
 
 		// MQTT Client: connect to broker and register bridge
+		s.configureMQTTRelay()
 		mqtt.StartClient(s.Cfg, s.Logger)
 
 		// Telnyx: register webhook endpoint for incoming SMS/calls

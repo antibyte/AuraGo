@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "跳过TLS证书验证。警告：仅用于测试自签名证书。",
   "help.mqtt.tls_key_file": "双向TLS认证的客户端密钥文件路径（可选）。",
   "help.mqtt.topics": "启动时订阅的主题列表，用逗号分隔（例如'home/#, sensors/temperature'）。",
-  "help.mqtt.username": "MQTT认证的用户名（可选，取决于代理配置）。"
+  "help.mqtt.username": "MQTT认证的用户名（可选，取决于代理配置）。",
+  "config.mqtt.clean_session_label": "清理会话",
+  "config.mqtt.trigger_min_interval_label": "触发频率限制",
+  "config.mqtt.buffer_max_age_hours_label": "消息最大保留时间",
+  "config.mqtt.buffer_max_payload_bytes_label": "最大 Payload 大小",
+  "config.mqtt.availability_title": "可用性",
+  "config.mqtt.availability_enabled_label": "发布可用性",
+  "config.mqtt.availability_topic_label": "可用性 Topic",
+  "config.mqtt.availability_online_payload_label": "在线 Payload",
+  "config.mqtt.availability_offline_payload_label": "离线 Payload",
+  "config.mqtt.availability_qos_label": "可用性 QoS",
+  "config.mqtt.availability_retain_label": "保留可用性状态",
+  "config.mqtt.buffered_suffix": "已缓冲",
+  "config.mqtt.payload_truncated": "(已截断)"
 }

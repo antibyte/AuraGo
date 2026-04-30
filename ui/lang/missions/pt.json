@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "Destinos remotos indisponíveis",
   "missions.toast_select_remote_target": "Selecione um egg remoto",
   "missions.trigger_remote_disabled_title": "Este gatilho não está disponível para missões remotas",
-  "missions.card_remote_badge": "Remoto"
+  "missions.card_remote_badge": "Remoto",
+  "missions.trigger_mqtt_min_interval_label": "Intervalo mínimo",
+  "missions.trigger_mqtt_min_interval_placeholder": "ex.: 60",
+  "missions.trigger_mqtt_min_interval_hint": "Segundos a esperar antes que este gatilho MQTT possa iniciar a missão novamente. 0 desativa o limite.",
+  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalo mín.:"
 }

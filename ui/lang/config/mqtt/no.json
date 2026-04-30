@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Skriv inn passord…",
   "config.mqtt.password_save_failed": "Kunne ikke lagre passord.",
   "config.mqtt.password_saved": "Passord lagret i vault.",
-  "config.mqtt.qos_0": "0 – Høyst én gang (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Høyst én gang (fire & forget)",
   "config.mqtt.qos_1": "1 – Minst én gang (bekreftet levering)",
   "config.mqtt.qos_2": "2 – Nøyaktig én gang (garantert levering)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Hopp over TLS-sertifikatbekreftelse. ADVARSEL: Bruk bare for testing med selvsignerte sertifikater.",
   "help.mqtt.tls_key_file": "Sti til klientnøkkelfilen for gjensidig TLS-autentisering (valgfritt).",
   "help.mqtt.topics": "Kommaseparert liste over emner å abonnere på ved oppstart (f.eks. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Brukernavn for MQTT-autentisering (valgfritt, avhengig av meglerkonfigurasjon)."
+  "help.mqtt.username": "Brukernavn for MQTT-autentisering (valgfritt, avhengig av meglerkonfigurasjon).",
+  "config.mqtt.clean_session_label": "Ren økt",
+  "config.mqtt.trigger_min_interval_label": "Utløsergrense",
+  "config.mqtt.buffer_max_age_hours_label": "Maksimal meldingsalder",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maksimal payload-størrelse",
+  "config.mqtt.availability_title": "Tilgjengelighet",
+  "config.mqtt.availability_enabled_label": "Publiser tilgjengelighet",
+  "config.mqtt.availability_topic_label": "Tilgjengelighets-topic",
+  "config.mqtt.availability_online_payload_label": "Online-payload",
+  "config.mqtt.availability_offline_payload_label": "Offline-payload",
+  "config.mqtt.availability_qos_label": "Tilgjengelighets-QoS",
+  "config.mqtt.availability_retain_label": "Behold tilgjengelighetsstatus",
+  "config.mqtt.buffered_suffix": "bufret",
+  "config.mqtt.payload_truncated": "(forkortet)"
 }

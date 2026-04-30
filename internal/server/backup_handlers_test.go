@@ -19,8 +19,34 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
+
 	_ "modernc.org/sqlite"
 )
+
+func writeTestSQLiteDB(t *testing.T, path string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("Open sqlite %s: %v", path, err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS test_items (id INTEGER PRIMARY KEY, name TEXT)`); err != nil {
+		t.Fatalf("Create sqlite table %s: %v", path, err)
+	}
+	if _, err := db.Exec(`INSERT INTO test_items (name) VALUES ('backup-test')`); err != nil {
+		t.Fatalf("Insert sqlite row %s: %v", path, err)
+	}
+}
+
+func newTestVault(t *testing.T, path, keyByte string) *security.Vault {
+	t.Helper()
+	vault, err := security.NewVault(strings.Repeat(keyByte, 32), path)
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	return vault
+}
 
 func TestEncryptAGOUsesVersionedArgon2idFormat(t *testing.T) {
 	t.Parallel()
@@ -250,6 +276,58 @@ func TestHandleBackupImportRejectsPathTraversal(t *testing.T) {
 	}
 }
 
+func TestHandleBackupImportRejectsUnsupportedRestorePath(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	zipBuf := &bytes.Buffer{}
+	zw := zip.NewWriter(zipBuf)
+	w, err := zw.Create("start.bat")
+	if err != nil {
+		t.Fatalf("Create zip entry: %v", err)
+	}
+	if _, err := w.Write([]byte("echo owned")); err != nil {
+		t.Fatalf("Write zip entry: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("Close zip: %v", err)
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "backup.ago")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(zipBuf.Bytes()); err != nil {
+		t.Fatalf("Write upload: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close multipart: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	handleBackupImport(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(instanceRoot, "start.bat")); !os.IsNotExist(err) {
+		t.Fatalf("unsupported restore path was written: err=%v", err)
+	}
+}
+
 func TestHandleBackupImportRejectsSymlinkEntries(t *testing.T) {
 	t.Parallel()
 
@@ -441,7 +519,7 @@ func TestHandleBackupImportSQLiteRestoreRequiresRestart(t *testing.T) {
 	}
 }
 
-func TestHandleBackupCreateIncludesRuntimeFilesAndSQLiteSidecars(t *testing.T) {
+func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *testing.T) {
 	t.Parallel()
 
 	instanceRoot := t.TempDir()
@@ -466,20 +544,19 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndSQLiteSidecars(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dataDir, "missions_v2.json"), []byte(`[]`), 0o600); err != nil {
 		t.Fatalf("WriteFile(missions): %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(dataDir, "missions_v2_queue.json"), []byte(`[]`), 0o600); err != nil {
+		t.Fatalf("WriteFile(missions queue): %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(dataDir, "background_tasks.json"), []byte(`[]`), 0o600); err != nil {
 		t.Fatalf("WriteFile(background_tasks): %v", err)
 	}
 	shortTermPath := filepath.Join(dataDir, "short_term.db")
-	if err := os.WriteFile(shortTermPath, []byte("db"), 0o600); err != nil {
-		t.Fatalf("WriteFile(short_term.db): %v", err)
-	}
+	writeTestSQLiteDB(t, shortTermPath)
 	if err := os.WriteFile(shortTermPath+"-wal", []byte("wal"), 0o600); err != nil {
 		t.Fatalf("WriteFile(short_term.db-wal): %v", err)
 	}
 	missionHistoryPath := filepath.Join(dataDir, "mission_history.db")
-	if err := os.WriteFile(missionHistoryPath, []byte("mh"), 0o600); err != nil {
-		t.Fatalf("WriteFile(mission_history.db): %v", err)
-	}
+	writeTestSQLiteDB(t, missionHistoryPath)
 
 	cfg := &config.Config{
 		ConfigPath: configPath,
@@ -518,15 +595,18 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndSQLiteSidecars(t *testing.T) {
 		"config.yaml",
 		"data/tokens.json",
 		"data/missions_v2.json",
+		"data/missions_v2_queue.json",
 		"data/background_tasks.json",
 		"data/short_term.db",
-		"data/short_term.db-wal",
 		"data/mission_history.db",
 		"manifest.json",
 	} {
 		if !entries[want] {
 			t.Fatalf("backup missing %s; entries=%v", want, entries)
 		}
+	}
+	if entries["data/short_term.db-wal"] {
+		t.Fatal("backup should contain a consistent SQLite snapshot, not live WAL sidecars")
 	}
 
 	manifest, err := zr.Open("manifest.json")
@@ -538,7 +618,125 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndSQLiteSidecars(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll manifest: %v", err)
 	}
-	if !bytes.Contains(manifestData, []byte("sqlite/")) {
+	if !bytes.Contains(manifestData, []byte("consistent database snapshot")) {
 		t.Fatalf("manifest does not mention sqlite backup: %s", string(manifestData))
+	}
+}
+
+func TestHandleBackupCreateRequiresPasswordForPlaintextConfigSecrets(t *testing.T) {
+	t.Parallel()
+
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(data): %v", err)
+	}
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	configData := []byte("providers:\n  - id: main\n    api_key: plain-config-secret\n")
+	if err := os.WriteFile(configPath, configData, 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = dataDir
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleBackupCreate(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
+	t.Parallel()
+
+	sourceRoot := t.TempDir()
+	sourceData := filepath.Join(sourceRoot, "data")
+	if err := os.MkdirAll(sourceData, 0o755); err != nil {
+		t.Fatalf("MkdirAll(sourceData): %v", err)
+	}
+	sourceConfig := filepath.Join(sourceRoot, "config.yaml")
+	if err := os.WriteFile(sourceConfig, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(source config): %v", err)
+	}
+	sourceVault := newTestVault(t, filepath.Join(sourceData, "vault.bin"), "01")
+	sourceTM, err := security.NewTokenManager(sourceVault, filepath.Join(sourceData, "tokens.json"))
+	if err != nil {
+		t.Fatalf("NewTokenManager(source): %v", err)
+	}
+	if _, _, err := sourceTM.Create("admin token", []string{"admin"}, nil); err != nil {
+		t.Fatalf("Create token: %v", err)
+	}
+
+	sourceCfg := &config.Config{ConfigPath: sourceConfig}
+	sourceCfg.Directories.DataDir = sourceData
+	sourceCfg.Directories.PromptsDir = filepath.Join(sourceRoot, "prompts")
+	sourceCfg.Directories.SkillsDir = filepath.Join(sourceRoot, "agent_workspace", "skills")
+	sourceCfg.Directories.ToolsDir = filepath.Join(sourceRoot, "agent_workspace", "tools")
+	sourceCfg.Directories.WorkspaceDir = filepath.Join(sourceRoot, "agent_workspace", "workdir")
+	for _, dir := range []string{sourceCfg.Directories.PromptsDir, sourceCfg.Directories.SkillsDir, sourceCfg.Directories.ToolsDir, sourceCfg.Directories.WorkspaceDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+	sourceServer := &Server{Cfg: sourceCfg, Vault: sourceVault, Logger: slog.Default()}
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{"password":"portable"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	handleBackupCreate(sourceServer).ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("create status = %d, want %d; body=%s", createRec.Code, http.StatusOK, createRec.Body.String())
+	}
+
+	destRoot := t.TempDir()
+	destData := filepath.Join(destRoot, "data")
+	if err := os.MkdirAll(destData, 0o755); err != nil {
+		t.Fatalf("MkdirAll(destData): %v", err)
+	}
+	destConfig := filepath.Join(destRoot, "config.yaml")
+	if err := os.WriteFile(destConfig, []byte("server:\n  port: 4321\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(dest config): %v", err)
+	}
+	destVault := newTestVault(t, filepath.Join(destData, "vault.bin"), "02")
+	destCfg := &config.Config{ConfigPath: destConfig}
+	destCfg.Directories.DataDir = destData
+	destServer := &Server{Cfg: destCfg, Vault: destVault, Logger: slog.Default()}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "backup.ago")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(createRec.Body.Bytes()); err != nil {
+		t.Fatalf("Write upload: %v", err)
+	}
+	if err := writer.WriteField("password", "portable"); err != nil {
+		t.Fatalf("WriteField(password): %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close multipart: %v", err)
+	}
+
+	importReq := httptest.NewRequest(http.MethodPost, "/api/backup/import", body)
+	importReq.Header.Set("Content-Type", writer.FormDataContentType())
+	importRec := httptest.NewRecorder()
+	handleBackupImport(destServer).ServeHTTP(importRec, importReq)
+	if importRec.Code != http.StatusOK {
+		t.Fatalf("import status = %d, want %d; body=%s", importRec.Code, http.StatusOK, importRec.Body.String())
+	}
+
+	destTM, err := security.NewTokenManager(destVault, filepath.Join(destData, "tokens.json"))
+	if err != nil {
+		t.Fatalf("NewTokenManager(dest): %v", err)
+	}
+	if got := len(destTM.List()); got != 1 {
+		t.Fatalf("restored token count = %d, want 1", got)
 	}
 }

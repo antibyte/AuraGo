@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Zadejte heslo…",
   "config.mqtt.password_save_failed": "Heslo se nepodařilo uložit.",
   "config.mqtt.password_saved": "Heslo uloženo do trezoru.",
-  "config.mqtt.qos_0": "0 – Nejvýše jednou (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Nejvýše jednou (fire & forget)",
   "config.mqtt.qos_1": "1 – Alespoň jednou (potvrzené doručení)",
   "config.mqtt.qos_2": "2 – Právě jednou (zaručené doručení)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Přeskočit ověření TLS certifikátu. UPOZORNĚNÍ: Používejte pouze pro testování s self-signed certifikáty.",
   "help.mqtt.tls_key_file": "Cesta k souboru klientského klíče pro vzájemnou TLS autentifikaci (volitelné).",
   "help.mqtt.topics": "Seznam témat oddělených čárkami k odběru při spuštění (např. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Uživatelské jméno pro MQTT autentifikaci (volitelné, závisí na konfiguraci brokeru)."
+  "help.mqtt.username": "Uživatelské jméno pro MQTT autentifikaci (volitelné, závisí na konfiguraci brokeru).",
+  "config.mqtt.clean_session_label": "Čistá relace",
+  "config.mqtt.trigger_min_interval_label": "Limit spouštění",
+  "config.mqtt.buffer_max_age_hours_label": "Maximální stáří zpráv",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maximální velikost payloadu",
+  "config.mqtt.availability_title": "Dostupnost",
+  "config.mqtt.availability_enabled_label": "Publikovat dostupnost",
+  "config.mqtt.availability_topic_label": "Topic dostupnosti",
+  "config.mqtt.availability_online_payload_label": "Online payload",
+  "config.mqtt.availability_offline_payload_label": "Offline payload",
+  "config.mqtt.availability_qos_label": "QoS dostupnosti",
+  "config.mqtt.availability_retain_label": "Zachovat stav dostupnosti",
+  "config.mqtt.buffered_suffix": "v bufferu",
+  "config.mqtt.payload_truncated": "(zkráceno)"
 }

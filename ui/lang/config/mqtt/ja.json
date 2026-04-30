@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "パスワードを入力…",
   "config.mqtt.password_save_failed": "パスワードの保存に失敗しました。",
   "config.mqtt.password_saved": "パスワードがボールトに保存されました。",
-  "config.mqtt.qos_0": "0 – 最大1回（fire \u0026 forget）",
+  "config.mqtt.qos_0": "0 – 最大1回（fire & forget）",
   "config.mqtt.qos_1": "1 – 少なくとも1回（確認済み配信）",
   "config.mqtt.qos_2": "2 – 正確に1回（保証付き配信）",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "TLS証明書検証をスキップ。警告：自己署名証明書でのテストのみに使用してください。",
   "help.mqtt.tls_key_file": "双方向TLS認証用のクライアント鍵ファイルへのパス（オプション）。",
   "help.mqtt.topics": "起動時にサブスクライブするカンマ区切りのトピックリスト（例：'home/#, sensors/temperature'）。",
-  "help.mqtt.username": "MQTT認証のユーザー名（ブローカー設定によってはオプション）。"
+  "help.mqtt.username": "MQTT認証のユーザー名（ブローカー設定によってはオプション）。",
+  "config.mqtt.clean_session_label": "クリーンセッション",
+  "config.mqtt.trigger_min_interval_label": "トリガー制限",
+  "config.mqtt.buffer_max_age_hours_label": "メッセージ最大保持時間",
+  "config.mqtt.buffer_max_payload_bytes_label": "最大ペイロードサイズ",
+  "config.mqtt.availability_title": "可用性",
+  "config.mqtt.availability_enabled_label": "可用性を公開",
+  "config.mqtt.availability_topic_label": "可用性トピック",
+  "config.mqtt.availability_online_payload_label": "オンラインペイロード",
+  "config.mqtt.availability_offline_payload_label": "オフラインペイロード",
+  "config.mqtt.availability_qos_label": "可用性 QoS",
+  "config.mqtt.availability_retain_label": "可用性状態を保持",
+  "config.mqtt.buffered_suffix": "バッファ済み",
+  "config.mqtt.payload_truncated": "(切り詰め済み)"
 }

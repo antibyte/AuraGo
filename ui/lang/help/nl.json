@@ -362,5 +362,14 @@
   "help.whisper.model": "Modelnaam voor Whisper, bijv. 'whisper-1'.",
   "help.whisper.provider": "Selecteer een provider uit de providerbeheer voor spraak-naar-tekst.",
   "help.tools.knowledge_graph.auto_extraction": "Extraheert automatisch entiteiten en relaties uit recente gesprekken naar de kennisgrafiek.",
-  "help.tools.knowledge_graph.prompt_injection": "Voegt relevante kennisgrafiekcontext toe aan de systeemprompt."
+  "help.tools.knowledge_graph.prompt_injection": "Voegt relevante kennisgrafiekcontext toe aan de systeemprompt.",
+  "help.mqtt.buffer_max_age_hours": "Maximale leeftijd van gebufferde berichten in uren. Oudere berichten worden verwijderd wanneer nieuwe berichten aankomen of de buffer wordt gelezen. Gebruik 0 om leeftijdsopruiming uit te schakelen.",
+  "help.mqtt.buffer_max_payload_bytes": "Maximale payloadgrootte per MQTT-bericht. Grotere inkomende payloads worden ingekort voordat ze de buffer, missietriggers of agent-relay bereiken.",
+  "help.mqtt.clean_session": "Wanneer ingeschakeld bewaart de broker geen persistente sessie voor deze client. Schakel alleen uit als de broker QoS 1/2-berichten moet bewaren terwijl AuraGo offline is.",
+  "help.mqtt.trigger_min_interval_seconds": "Fallback minimale interval in seconden tussen MQTT-getriggerde missiestarts. Gebruik 0 om de fallbacklimiet uit te schakelen.",
+  "help.mqtt.availability_enabled": "Publiceert online na verbinding en configureert MQTT Last Will zodat andere systemen detecteren wanneer AuraGo offline gaat.",
+  "help.mqtt.availability_topic": "Topic voor AuraGo-beschikbaarheidsberichten. Standaard: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloads voor online en offline beschikbaarheidsberichten.",
+  "help.mqtt.availability_qos": "QoS-niveau voor beschikbaarheidsberichten.",
+  "help.mqtt.availability_retain": "Wanneer ingeschakeld bewaart de broker de laatste beschikbaarheidsstatus voor nieuwe abonnees."
 }

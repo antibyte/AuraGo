@@ -32,6 +32,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
+
 	"golang.org/x/crypto/argon2"
 	_ "modernc.org/sqlite"
 )
@@ -40,6 +41,7 @@ const agoMagic = "AGOE"
 
 const (
 	agoMaxExtractSize      int64  = 1 << 30
+	agoMaxUploadSize       int64  = agoMaxExtractSize + (64 << 20)
 	agoMaxArchiveEntries          = 100000
 	agoMaxCompressionRatio uint64 = 1000
 	agoSaltSize                   = 16
@@ -47,6 +49,7 @@ const (
 )
 
 const vaultSecretsMagic = "AGOV"
+const tokenStoreMagic = "AGOT"
 
 // currentDBSchemaVersion is incremented whenever any SQLite schema changes.
 // Stored in the manifest so imports can warn about version mismatches.
@@ -114,30 +117,7 @@ func exportVaultSecrets(vault *security.Vault, password string) ([]byte, error) 
 		return nil, fmt.Errorf("vault marshal: %w", err)
 	}
 	// Derive per-blob key with a fresh salt so it's independent of the zip encryption.
-	salt := make([]byte, agoSaltSize)
-	if _, err := rand.Read(salt); err != nil {
-		return nil, err
-	}
-	key := deriveBackupKey(password, salt)
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	buf.WriteString(vaultSecretsMagic)
-	buf.WriteByte(agoKDFArgon2ID)
-	buf.Write(salt)
-	buf.Write(nonce)
-	buf.Write(gcm.Seal(nil, nonce, plain, nil))
-	return buf.Bytes(), nil
+	return encryptBackupPasswordBlob(vaultSecretsMagic, plain, password)
 }
 
 // importVaultSecrets decrypts vault_secrets.enc data and writes every secret
@@ -279,17 +259,9 @@ func decryptBackupGCM(payload []byte, key []byte) ([]byte, error) {
 
 func decryptVaultSecretsBlob(encData []byte, password string) ([]byte, error) {
 	if bytes.HasPrefix(encData, []byte(vaultSecretsMagic)) {
-		body := encData[len(vaultSecretsMagic):]
-		if len(body) < 1+agoSaltSize+12 {
-			return nil, fmt.Errorf("vault_secrets.enc too short")
-		}
-		if body[0] != agoKDFArgon2ID {
-			return nil, fmt.Errorf("vault_secrets.enc has unsupported KDF version")
-		}
-		salt := body[1 : 1+agoSaltSize]
-		plain, err := decryptBackupGCM(body[1+agoSaltSize:], deriveBackupKey(password, salt))
+		plain, err := decryptBackupPasswordBlob(vaultSecretsMagic, encData, password)
 		if err != nil {
-			return nil, fmt.Errorf("vault secrets decryption failed (wrong password?): %w", err)
+			return nil, fmt.Errorf("vault secrets %w", err)
 		}
 		return plain, nil
 	}
@@ -540,6 +512,16 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			})
 		}
 
+		configBytes, err := os.ReadFile(absConfig)
+		if err != nil {
+			s.Logger.Warn("[Backup] Failed to read config", "path", absConfig, "error", err)
+			jsonError(w, "Failed to read config for backup", http.StatusInternalServerError)
+			return
+		}
+		if req.Password == "" && agoConfigContainsPlaintextSecret(configBytes) {
+			jsonError(w, "Backup password required because config.yaml contains plaintext secrets", http.StatusBadRequest)
+			return
+		}
 		addFile("config.yaml", absConfig)
 		contents = append(contents, "config.yaml")
 
@@ -584,7 +566,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			"chat_history.json", "state.json", "graph.json",
 			"crontab.json", "current_plan.md", "character_journal.md",
 			"budget.json", "tokens.json", "webhooks.json", "webhook_log.json",
-			"background_tasks.json", "missions_v2.json",
+			"background_tasks.json", "missions_v2.json", "missions_v2_queue.json",
 		}
 		for _, fname := range dataFiles {
 			addFile("data/"+fname, filepath.Join(absData, fname))
@@ -613,6 +595,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			s.Cfg.SQLite.MissionHistoryPath,
 			s.Cfg.SQLite.PushPath,
 		}
+		sqliteStagingDir, err := os.MkdirTemp("", "aurago-sqlite-backup-*")
+		if err != nil {
+			jsonError(w, "Failed to prepare SQLite backup staging area", http.StatusInternalServerError)
+			return
+		}
+		defer os.RemoveAll(sqliteStagingDir)
+
 		sqliteAdded := 0
 		for _, dbPath := range sqlitePaths {
 			if dbPath == "" {
@@ -628,15 +617,22 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				continue
 			}
 			before := len(seenZipPaths)
-			addFile(zipPath, absDB)
-			addFile(zipPath+"-wal", absDB+"-wal")
-			addFile(zipPath+"-shm", absDB+"-shm")
+			snapshotPath, snapshotErr := agoCreateSQLiteSnapshot(absDB, sqliteStagingDir)
+			if snapshotErr != nil {
+				if os.IsNotExist(snapshotErr) {
+					continue
+				}
+				s.Logger.Warn("[Backup] Failed to create SQLite snapshot", "path", absDB, "error", snapshotErr)
+				jsonError(w, "Failed to create a consistent SQLite backup", http.StatusInternalServerError)
+				return
+			}
+			addFile(zipPath, snapshotPath)
 			if len(seenZipPaths) > before {
 				sqliteAdded++
 			}
 		}
 		if sqliteAdded > 0 {
-			contents = append(contents, fmt.Sprintf("sqlite/ (%d database roots incl. WAL/SHM)", sqliteAdded))
+			contents = append(contents, fmt.Sprintf("sqlite/ (%d consistent database snapshot(s))", sqliteAdded))
 		}
 
 		// 5. VectorDB (optional — can be large)
@@ -666,6 +662,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 
 		// 9. Vault secrets (only when a password is set — never in plain-text backups)
 		vaultIncluded := false
+		tokenStoreIncluded := false
 		if req.Password != "" && s.Vault != nil {
 			if vaultBlob, err := exportVaultSecrets(s.Vault, req.Password); err != nil {
 				s.Logger.Warn("[Backup] Could not export vault secrets", "error", err)
@@ -674,6 +671,15 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 					vw.Write(vaultBlob)
 					vaultIncluded = true
 					contents = append(contents, "vault_secrets.enc (secrets, encrypted)")
+				}
+			}
+			if tokenBlob, tokenCount, err := exportTokenStore(s.Vault, filepath.Join(absData, "tokens.json"), req.Password); err != nil {
+				s.Logger.Warn("[Backup] Could not export portable token store", "error", err)
+			} else if len(tokenBlob) > 0 {
+				if tw, err := zw.Create("token_store.enc"); err == nil {
+					tw.Write(tokenBlob)
+					tokenStoreIncluded = true
+					contents = append(contents, fmt.Sprintf("token_store.enc (%d API token metadata record(s), encrypted)", tokenCount))
 				}
 			}
 		}
@@ -692,7 +698,11 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			json.NewEncoder(mw).Encode(manifest)
 		}
 
-		zw.Close()
+		if err := zw.Close(); err != nil {
+			s.Logger.Error("[Backup] Failed to finalize ZIP", "error", err)
+			jsonError(w, "Failed to create backup archive", http.StatusInternalServerError)
+			return
+		}
 
 		zipData := zipBuf.Bytes()
 		filename := fmt.Sprintf("aurago_backup_%s.ago", time.Now().Format("20060102_150405"))
@@ -713,12 +723,15 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(outData)))
-		w.Write(outData)
+		if _, err := w.Write(outData); err != nil {
+			s.Logger.Warn("[Backup] Failed to write response", "error", err)
+			return
+		}
 
 		s.Logger.Info("[Backup] Backup created",
 			"filename", filename,
 			"size_bytes", len(outData),
-			"encrypted", req.Password != "", "vault_included", vaultIncluded, "vectordb", req.IncludeVectorDB,
+			"encrypted", req.Password != "", "vault_included", vaultIncluded, "token_store_included", tokenStoreIncluded, "vectordb", req.IncludeVectorDB,
 			"workdir", req.IncludeWorkdir)
 	}
 }
@@ -733,9 +746,9 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Multipart form — allow up to 512 MB for vectordb-inclusive backups
-		r.Body = http.MaxBytesReader(w, r.Body, 512<<20)
-		if err := r.ParseMultipartForm(512 << 20); err != nil {
+		// Multipart form — allow up to the archive extraction limit plus encryption/header overhead.
+		r.Body = http.MaxBytesReader(w, r.Body, agoMaxUploadSize)
+		if err := r.ParseMultipartForm(agoMaxUploadSize); err != nil {
 			s.Logger.Warn("[Backup] Invalid import form", "error", err)
 			jsonError(w, "Invalid backup upload", http.StatusBadRequest)
 			return
@@ -812,6 +825,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		restored, skipped := 0, 0
 		var vaultEncData []byte // vault_secrets.enc bytes, if present
+		var tokenStoreEncData []byte
 		var backupManifest *agoManifest
 		var importEntries []agoImportEntry
 		var totalBytes int64
@@ -865,6 +879,20 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				}
 				continue
 			}
+			if clean == "token_store.enc" {
+				rc, err := f.Open()
+				if err != nil {
+					jsonError(w, "Failed to read token store from backup", http.StatusBadRequest)
+					return
+				}
+				tokenStoreEncData, err = io.ReadAll(io.LimitReader(rc, 8<<20))
+				rc.Close()
+				if err != nil {
+					jsonError(w, "Failed to read token store from backup", http.StatusBadRequest)
+					return
+				}
+				continue
+			}
 
 			// manifest.json — read for schema version check, skip file-system restore.
 			if clean == "manifest.json" {
@@ -879,6 +907,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				}
 				rc.Close()
 				continue
+			}
+
+			if !agoIsAllowedRestorePath(clean) {
+				s.Logger.Warn("[Backup] Unsupported restore path in archive", "path", f.Name)
+				jsonError(w, "Backup archive contains unsupported restore paths", http.StatusBadRequest)
+				return
 			}
 
 			destPath, err := agoSafeDestination(configRoot, clean)
@@ -1015,7 +1049,26 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
-		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored)
+		tokensRestored := 0
+		tokenErr := ""
+		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
+			tokenPath := filepath.Join(configRoot, "data", "tokens.json")
+			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, tokenPath)
+			if err != nil {
+				s.Logger.Warn("[Backup] Token store import failed", "error", err)
+				tokenErr = err.Error()
+			} else {
+				tokensRestored = n
+				s.Logger.Info("[Backup] Token store imported", "count", n)
+				if tm, loadErr := security.NewTokenManager(s.Vault, tokenPath); loadErr == nil {
+					s.TokenManager = tm
+				} else {
+					s.Logger.Warn("[Backup] Imported token store but failed to reload TokenManager", "error", loadErr)
+				}
+			}
+		}
+
+		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored, "tokens", tokensRestored)
 
 		schemaWarning := ""
 		if backupManifest != nil && backupManifest.DBSchemaVersion != 0 && backupManifest.DBSchemaVersion != currentDBSchemaVersion {
@@ -1035,6 +1088,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		if vaultErr != "" {
 			msg += " Vault-Import fehlgeschlagen."
 		}
+		if tokensRestored > 0 {
+			msg += fmt.Sprintf(" %d API-Token-Datensätze wiederhergestellt.", tokensRestored)
+		}
+		if tokenErr != "" {
+			msg += " Token-Import fehlgeschlagen."
+		}
 		if schemaWarning != "" {
 			msg += " " + schemaWarning
 		}
@@ -1050,6 +1109,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			"restored":         restored,
 			"skipped":          skipped,
 			"vault_restored":   vaultRestored,
+			"tokens_restored":  tokensRestored,
 			"schema_warning":   schemaWarning,
 			"restart_required": sqliteRestore,
 			"message":          msg,

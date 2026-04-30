@@ -362,5 +362,14 @@
   "help.whisper.model": "Nazwa modelu dla Whisper, np. 'whisper-1'.",
   "help.whisper.provider": "Wybierz dostawcę z zarządzania dostawcami dla speech-to-text.",
   "help.tools.knowledge_graph.auto_extraction": "Automatycznie wyodrebnia encje i relacje z ostatnich rozmow do grafu wiedzy.",
-  "help.tools.knowledge_graph.prompt_injection": "Wstrzykuje istotny kontekst grafu wiedzy do promptu systemowego."
+  "help.tools.knowledge_graph.prompt_injection": "Wstrzykuje istotny kontekst grafu wiedzy do promptu systemowego.",
+  "help.mqtt.buffer_max_age_hours": "Maksymalny wiek buforowanych wiadomości w godzinach. Starsze wiadomości są usuwane po nadejściu nowych lub podczas odczytu bufora. 0 wyłącza czyszczenie według wieku.",
+  "help.mqtt.buffer_max_payload_bytes": "Maksymalny rozmiar payloadu na wiadomość MQTT. Większe przychodzące payloady są skracane przed trafieniem do bufora, triggerów misji lub relay do agenta.",
+  "help.mqtt.clean_session": "Gdy włączone, broker nie utrzymuje trwałej sesji dla tego klienta. Wyłącz tylko wtedy, gdy broker ma kolejkować wiadomości QoS 1/2, gdy AuraGo jest offline.",
+  "help.mqtt.trigger_min_interval_seconds": "Domyślny minimalny odstęp w sekundach między startami misji wyzwalanymi przez MQTT. 0 wyłącza limit.",
+  "help.mqtt.availability_enabled": "Publikuje stan online po połączeniu i konfiguruje MQTT Last Will, aby inne systemy wykryły przejście AuraGo offline.",
+  "help.mqtt.availability_topic": "Topic używany dla wiadomości dostępności AuraGo. Domyślnie: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloady używane dla wiadomości dostępności online i offline.",
+  "help.mqtt.availability_qos": "Poziom QoS dla wiadomości dostępności.",
+  "help.mqtt.availability_retain": "Gdy włączone, broker zachowuje ostatni stan dostępności dla nowych subskrybentów."
 }

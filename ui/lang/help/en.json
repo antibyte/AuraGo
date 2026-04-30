@@ -362,5 +362,14 @@
   "help.whisper.model": "Model name for Whisper, e.g. 'whisper-1'.",
   "help.whisper.provider": "Select a provider from the provider management for speech-to-text.",
   "help.tools.knowledge_graph.auto_extraction": "Automatically extracts entities and relationships from recent conversations into the knowledge graph.",
-  "help.tools.knowledge_graph.prompt_injection": "Injects relevant knowledge graph context into the system prompt."
+  "help.tools.knowledge_graph.prompt_injection": "Injects relevant knowledge graph context into the system prompt.",
+  "help.mqtt.buffer_max_age_hours": "Maximum age for buffered messages in hours. Older messages are removed when new messages arrive or the buffer is read. Use 0 to disable age cleanup.",
+  "help.mqtt.buffer_max_payload_bytes": "Maximum payload size per MQTT message. Larger incoming payloads are truncated before they reach the buffer, mission triggers, or agent relay. Default: 262144 bytes.",
+  "help.mqtt.clean_session": "When enabled, the broker does not keep a persistent session for this client. Disable only if your broker should queue QoS 1/2 messages while AuraGo is offline.",
+  "help.mqtt.trigger_min_interval_seconds": "Fallback minimum interval in seconds between MQTT-triggered mission starts. Use 0 to disable the fallback limit.",
+  "help.mqtt.availability_enabled": "Publishes an online payload after connecting and configures an MQTT Last Will message so other systems can detect when AuraGo goes offline.",
+  "help.mqtt.availability_topic": "Topic used for AuraGo availability messages. Default: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloads used for online and offline availability messages.",
+  "help.mqtt.availability_qos": "QoS level used for availability messages.",
+  "help.mqtt.availability_retain": "When enabled, the broker retains the latest availability state for new subscribers."
 }

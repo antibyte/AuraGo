@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Wprowadź hasło…",
   "config.mqtt.password_save_failed": "Nie udało się zapisać hasła.",
   "config.mqtt.password_saved": "Hasło zapisane w vault.",
-  "config.mqtt.qos_0": "0 – Co najwyżej raz (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Co najwyżej raz (fire & forget)",
   "config.mqtt.qos_1": "1 – Co najmniej raz (potwierdzone dostarczenie)",
   "config.mqtt.qos_2": "2 – Dokładnie raz (gwarantowane dostarczenie)",
   "config.mqtt.qos_label": "Quality of Service (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Pomiń weryfikację certyfikatu TLS. OSTRZEŻENIE: Używaj tylko do testowania z certyfikatami self-signed.",
   "help.mqtt.tls_key_file": "Ścieżka do pliku klucza klienta do wzajemnego uwierzytelniania TLS (opcjonalne).",
   "help.mqtt.topics": "Lista tematów oddzielonych przecinkami do subskrypcji przy starcie (np. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Nazwa użytkownika do uwierzytelniania MQTT (opcjonalne, zależy od konfiguracji brokera)."
+  "help.mqtt.username": "Nazwa użytkownika do uwierzytelniania MQTT (opcjonalne, zależy od konfiguracji brokera).",
+  "config.mqtt.clean_session_label": "Czysta sesja",
+  "config.mqtt.trigger_min_interval_label": "Limit wyzwalania",
+  "config.mqtt.buffer_max_age_hours_label": "Maksymalny wiek wiadomości",
+  "config.mqtt.buffer_max_payload_bytes_label": "Maksymalny rozmiar payloadu",
+  "config.mqtt.availability_title": "Dostępność",
+  "config.mqtt.availability_enabled_label": "Publikuj dostępność",
+  "config.mqtt.availability_topic_label": "Topic dostępności",
+  "config.mqtt.availability_online_payload_label": "Payload online",
+  "config.mqtt.availability_offline_payload_label": "Payload offline",
+  "config.mqtt.availability_qos_label": "QoS dostępności",
+  "config.mqtt.availability_retain_label": "Zachowaj stan dostępności",
+  "config.mqtt.buffered_suffix": "w buforze",
+  "config.mqtt.payload_truncated": "(skrócono)"
 }

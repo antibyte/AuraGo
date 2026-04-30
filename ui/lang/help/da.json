@@ -362,5 +362,14 @@
   "help.whisper.model": "Modelnavn til Whisper, f.eks. 'whisper-1'.",
   "help.whisper.provider": "Vælg en udbyder fra udbyderstyringen til tale-til-tekst.",
   "help.tools.knowledge_graph.auto_extraction": "Udtrakker automatisk enheder og relationer fra seneste samtaler til vidensgrafen.",
-  "help.tools.knowledge_graph.prompt_injection": "Indsaetter relevant vidensgraf-kontekst i systemprompten."
+  "help.tools.knowledge_graph.prompt_injection": "Indsaetter relevant vidensgraf-kontekst i systemprompten.",
+  "help.mqtt.buffer_max_age_hours": "Maksimal alder for buffrede beskeder i timer. Ældre beskeder fjernes, når nye beskeder ankommer, eller bufferen læses. Brug 0 for at slå aldersoprydning fra.",
+  "help.mqtt.buffer_max_payload_bytes": "Maksimal payload-størrelse pr. MQTT-besked. Større indgående payloads forkortes, før de når buffer, missionstriggere eller agent-relay.",
+  "help.mqtt.clean_session": "Når aktiveret gemmer broker ikke en persistent session for denne klient. Slå kun fra, hvis broker skal køe QoS 1/2-beskeder, mens AuraGo er offline.",
+  "help.mqtt.trigger_min_interval_seconds": "Standard minimumsinterval i sekunder mellem MQTT-udløste missionsstarter. Brug 0 for at slå standardgrænsen fra.",
+  "help.mqtt.availability_enabled": "Publicerer online efter forbindelse og konfigurerer MQTT Last Will, så andre systemer kan opdage, når AuraGo går offline.",
+  "help.mqtt.availability_topic": "Topic til AuraGo-tilgængelighedsbeskeder. Standard: aurago/status.",
+  "help.mqtt.availability_payloads": "Payloads til online og offline tilgængelighedsstatus.",
+  "help.mqtt.availability_qos": "QoS-niveau for tilgængelighedsbeskeder.",
+  "help.mqtt.availability_retain": "Når aktiveret beholder broker den seneste tilgængelighedsstatus til nye abonnenter."
 }

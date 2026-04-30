@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "Vzdálené cíle nejsou dostupné",
   "missions.toast_select_remote_target": "Vyberte vzdálený egg",
   "missions.trigger_remote_disabled_title": "Tento trigger není pro vzdálené mise dostupný",
-  "missions.card_remote_badge": "Vzdáleně"
+  "missions.card_remote_badge": "Vzdáleně",
+  "missions.trigger_mqtt_min_interval_label": "Minimální interval",
+  "missions.trigger_mqtt_min_interval_placeholder": "např. 60",
+  "missions.trigger_mqtt_min_interval_hint": "Počet sekund, než tento MQTT trigger může misi znovu spustit. 0 vypne limit.",
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. interval:"
 }

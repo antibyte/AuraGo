@@ -344,6 +344,11 @@
                                 <input type="text" id="mqtt-payload-contains" data-i18n-placeholder="missions.trigger_mqtt_payload_placeholder">
                                 <div class="form-hint" data-i18n="missions.trigger_mqtt_payload_hint">Leave empty to match any payload.</div>
                             </div>
+                            <div class="form-group">
+                                <label for="mqtt-min-interval" data-i18n="missions.trigger_mqtt_min_interval_label">Minimum interval</label>
+                                <input type="number" id="mqtt-min-interval" min="0" max="86400" value="0" data-i18n-placeholder="missions.trigger_mqtt_min_interval_placeholder">
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_min_interval_hint">Seconds to wait before this MQTT trigger can start the mission again.</div>
+                            </div>
                         </div>
 
                         <!-- Home Assistant State Trigger -->

@@ -466,7 +466,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Webhooks (enabled/disabled)")
 			}
-			if oldCfg.MQTT.Enabled != newCfg.MQTT.Enabled || oldCfg.MQTT.Broker != newCfg.MQTT.Broker || oldCfg.MQTT.ClientID != newCfg.MQTT.ClientID || oldCfg.MQTT.Username != newCfg.MQTT.Username {
+			if !reflect.DeepEqual(oldCfg.MQTT, newCfg.MQTT) {
 				needsRestart = true
 				restartReasons = append(restartReasons, "MQTT")
 			}

@@ -285,5 +285,9 @@
   "missions.form_remote_target_unavailable": "Οι απομακρυσμένοι στόχοι δεν είναι διαθέσιμοι",
   "missions.toast_select_remote_target": "Επιλέξτε απομακρυσμένο egg",
   "missions.trigger_remote_disabled_title": "Αυτός ο trigger δεν είναι διαθέσιμος για απομακρυσμένες αποστολές",
-  "missions.card_remote_badge": "Απομακρυσμένο"
+  "missions.card_remote_badge": "Απομακρυσμένο",
+  "missions.trigger_mqtt_min_interval_label": "Ελάχιστο διάστημα",
+  "missions.trigger_mqtt_min_interval_placeholder": "π.χ. 60",
+  "missions.trigger_mqtt_min_interval_hint": "Δευτερόλεπτα πριν αυτό το MQTT trigger μπορεί να ξεκινήσει ξανά την αποστολή. Το 0 απενεργοποιεί το όριο.",
+  "missions.trigger_info_mqtt_min_interval_prefix": "Ελάχ. διάστημα:"
 }

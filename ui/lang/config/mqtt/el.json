@@ -25,7 +25,7 @@
   "config.mqtt.password_placeholder": "Εισαγάγετε τον κωδικό…",
   "config.mqtt.password_save_failed": "Αποτυχία αποθήκευσης του κωδικού.",
   "config.mqtt.password_saved": "Ο κωδικός αποθηκεύτηκε στον θησαυρό.",
-  "config.mqtt.qos_0": "0 – Το πολύ μία φορά (fire \u0026 forget)",
+  "config.mqtt.qos_0": "0 – Το πολύ μία φορά (fire & forget)",
   "config.mqtt.qos_1": "1 – Τουλάχιστον μία φορά (επιβεβαιωμένη παράδοση)",
   "config.mqtt.qos_2": "2 – Ακριβώς μία φορά (εγγυημένη παράδοση)",
   "config.mqtt.qos_label": "Ποιότητα Υπηρεσίας (QoS)",
@@ -107,5 +107,18 @@
   "help.mqtt.tls_insecure_skip_verify": "Παράλειψη επαλήθευσης πιστοποιητικού TLS. ΠΡΟΕΙΔΟΠΟΙΗΣΗ: Χρησιμοποιήστε μόνο για δοκιμή με αυτο-υπογεγραμμένα πιστοποιητικά.",
   "help.mqtt.tls_key_file": "Διαδρομή στο αρχείο κλειδιού πελάτη για αμοιβαία πιστοποίηση TLS (προαιρετικό).",
   "help.mqtt.topics": "Λίστα θεμάτων διαχωρισμένων με κόμμα για εγγραφή κατά την εκκίνηση (π.χ. 'home/#, sensors/temperature').",
-  "help.mqtt.username": "Όνομα χρήστη για την πιστοποίηση MQTT (προαιρετικό, ανάλογα με τη διαμόρφωση του μεσάζοντα)."
+  "help.mqtt.username": "Όνομα χρήστη για την πιστοποίηση MQTT (προαιρετικό, ανάλογα με τη διαμόρφωση του μεσάζοντα).",
+  "config.mqtt.clean_session_label": "Καθαρή συνεδρία",
+  "config.mqtt.trigger_min_interval_label": "Όριο ενεργοποίησης",
+  "config.mqtt.buffer_max_age_hours_label": "Μέγιστη ηλικία μηνυμάτων",
+  "config.mqtt.buffer_max_payload_bytes_label": "Μέγιστο μέγεθος payload",
+  "config.mqtt.availability_title": "Διαθεσιμότητα",
+  "config.mqtt.availability_enabled_label": "Δημοσίευση διαθεσιμότητας",
+  "config.mqtt.availability_topic_label": "Topic διαθεσιμότητας",
+  "config.mqtt.availability_online_payload_label": "Online payload",
+  "config.mqtt.availability_offline_payload_label": "Offline payload",
+  "config.mqtt.availability_qos_label": "QoS διαθεσιμότητας",
+  "config.mqtt.availability_retain_label": "Διατήρηση κατάστασης διαθεσιμότητας",
+  "config.mqtt.buffered_suffix": "στο buffer",
+  "config.mqtt.payload_truncated": "(περικόπηκε)"
 }
