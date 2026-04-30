@@ -2,14 +2,54 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 )
 
-func instagramUsernameOrURLArg(args map[string]interface{}) string {
-	if v, ok := args["username_or_url"].(string); ok && v != "" {
-		return v
+type instagramUserLookup struct {
+	username      string
+	usernameOrURL string
+}
+
+func instagramUserLookupArg(args map[string]interface{}) instagramUserLookup {
+	if value, ok := args["username_or_url"].(string); ok && strings.TrimSpace(value) != "" {
+		return instagramUserLookup{
+			username:      normalizeInstagramUsername(value),
+			usernameOrURL: strings.TrimSpace(value),
+		}
 	}
-	return stringArgWithFallback(args, "username")
+	value := stringArgWithFallback(args, "username")
+	if strings.TrimSpace(value) == "" {
+		return instagramUserLookup{}
+	}
+	return instagramUserLookup{
+		username:      normalizeInstagramUsername(value),
+		usernameOrURL: strings.TrimSpace(value),
+	}
+}
+
+func normalizeInstagramUsername(value string) string {
+	trimmed := strings.TrimSpace(value)
+	trimmed = strings.TrimPrefix(trimmed, "@")
+	trimmed = strings.Trim(trimmed, "/")
+	if trimmed == "" {
+		return ""
+	}
+
+	parsedURL, err := url.Parse(trimmed)
+	if err == nil && parsedURL.Host != "" {
+		host := strings.ToLower(strings.TrimPrefix(parsedURL.Host, "www."))
+		if host == "instagram.com" || strings.HasSuffix(host, ".instagram.com") {
+			pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+			if len(pathParts) > 0 && pathParts[0] != "" {
+				return strings.TrimPrefix(pathParts[0], "@")
+			}
+		}
+	}
+
+	return trimmed
 }
 
 // DispatchYepAPIInstagram handles Instagram data operations via YepAPI.
@@ -22,13 +62,13 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/search"
 		payload := map[string]interface{}{"query": query}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, finalPayload, err := postInstagramPayloadWithValidationFallback(ctx, client, endpoint, operation, payload, map[string]interface{}{"search_query": query}, "missing search query")
 		if err != nil {
 			return "", err
 		}
-		return formatInstagramPayloadSuccess(data, endpoint, operation, payload), nil
+		return formatInstagramPayloadSuccess(data, endpoint, operation, finalPayload), nil
 
-	case "user":
+	case "user", "userinfo", "user_info", "profile", "user_profile":
 		return dispatchInstagramUsername(ctx, client, "/v1/instagram/user", operation, args, false)
 
 	case "user_about":
@@ -110,6 +150,29 @@ func postInstagramPayload(ctx context.Context, client *YepAPIClient, endpoint, o
 	return client.Post(ctx, endpoint, payload)
 }
 
+func postInstagramPayloadWithValidationFallback(ctx context.Context, client *YepAPIClient, endpoint, operation string, payload, fallbackPayload map[string]interface{}, validationNeedle string) ([]byte, map[string]interface{}, error) {
+	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	if !instagramValidationErrorContains(data, err, validationNeedle) {
+		return data, payload, err
+	}
+	data, err = postInstagramPayload(ctx, client, endpoint, operation, fallbackPayload)
+	return data, fallbackPayload, err
+}
+
+func instagramValidationErrorContains(data []byte, err error, validationNeedle string) bool {
+	needle := strings.ToLower(validationNeedle)
+	if err != nil {
+		return strings.Contains(strings.ToLower(err.Error()), needle)
+	}
+
+	var response map[string]interface{}
+	if json.Unmarshal(data, &response) != nil {
+		return false
+	}
+	message := strings.ToLower(fmt.Sprint(response["error"]))
+	return message != "" && strings.Contains(message, needle)
+}
+
 func instagramPayloadDiagnostics(endpoint, operation string, payload map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"sent_endpoint":     endpoint,
@@ -123,20 +186,23 @@ func formatInstagramPayloadSuccess(data []byte, endpoint, operation string, payl
 }
 
 func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	username := instagramUsernameOrURLArg(args)
-	if username == "" {
+	lookup := instagramUserLookupArg(args)
+	if lookup.username == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'username' or 'username_or_url' string", operation)), nil
 	}
-	payload := map[string]interface{}{"username": username}
-	payload["username_or_url"] = username
+	payload := map[string]interface{}{"username": lookup.username}
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	fallbackPayload := map[string]interface{}{"username_or_url": lookup.usernameOrURL}
+	if withLimit {
+		addPositiveIntArg(fallbackPayload, args, "limit", "limit")
+	}
+	data, finalPayload, err := postInstagramPayloadWithValidationFallback(ctx, client, endpoint, operation, payload, fallbackPayload, "username_or_url is required")
 	if err != nil {
 		return "", err
 	}
-	return formatInstagramPayloadSuccess(data, endpoint, operation, payload), nil
+	return formatInstagramPayloadSuccess(data, endpoint, operation, finalPayload), nil
 }
 
 func dispatchInstagramShortcode(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {

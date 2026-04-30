@@ -398,12 +398,12 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
 			t.Fatalf("request = %+v, want user endpoint with username", got)
 		}
-		if got.Payload["username_or_url"] != "natgeo" {
-			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, username_or_url should only be used for fallback", got)
 		}
 	})
 
-	t.Run("user_accepts_username_or_url_alias", func(t *testing.T) {
+	t.Run("user_accepts_username_or_url_alias_and_normalizes_profile_url", func(t *testing.T) {
 		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username_or_url": "https://www.instagram.com/natgeo/"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -412,11 +412,25 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "https://www.instagram.com/natgeo/" {
-			t.Fatalf("request = %+v, want user endpoint with username alias value", got)
+		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user endpoint with normalized username", got)
 		}
-		if got.Payload["username_or_url"] != "https://www.instagram.com/natgeo/" {
-			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, username_or_url should only be used for fallback", got)
+		}
+	})
+
+	t.Run("userinfo_alias_maps_to_user_endpoint", func(t *testing.T) {
+		res, err := DispatchYepAPIInstagram(ctx, client, "userinfo", map[string]interface{}{"username": "natgeo"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user endpoint with username", got)
 		}
 	})
 
@@ -432,8 +446,8 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user-posts" || got.Payload["username"] != "natgeo" || got.Payload["limit"] != float64(5) {
 			t.Fatalf("request = %+v, want user-posts endpoint with username and limit", got)
 		}
-		if got.Payload["username_or_url"] != "natgeo" {
-			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, username_or_url should only be used for fallback", got)
 		}
 	})
 
@@ -449,9 +463,63 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user-reels" || got.Payload["username"] != "natgeo" {
 			t.Fatalf("request = %+v, want user-reels endpoint with username", got)
 		}
-		if got.Payload["username_or_url"] != "natgeo" {
-			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, username_or_url should only be used for fallback", got)
 		}
+	})
+}
+
+func TestDispatchYepAPIInstagramRetriesLiveValidationFallbacks(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("user_retries_username_or_url_only_when_live_api_demands_it", func(t *testing.T) {
+		requests := make(chan yepAPIRecordedRequest, 2)
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode request body: %v", err)
+			}
+			requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
+			if _, ok := payload["username_or_url"]; !ok {
+				return http.StatusOK, `{"ok":true,"data":{"error":"username_or_url is required"}}`
+			}
+			return http.StatusOK, `{"ok":true,"data":{"username":"natgeo"}}`
+		})
+
+		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res, `"status":"success"`) {
+			t.Fatalf("expected success after fallback, got %s", res)
+		}
+		requireYepAPIRequest(t, requests, "/v1/instagram/user", map[string]interface{}{"username": "natgeo"})
+		requireYepAPIRequest(t, requests, "/v1/instagram/user", map[string]interface{}{"username_or_url": "natgeo"})
+	})
+
+	t.Run("search_retries_search_query_when_live_api_rejects_query", func(t *testing.T) {
+		requests := make(chan yepAPIRecordedRequest, 2)
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode request body: %v", err)
+			}
+			requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
+			if _, ok := payload["search_query"]; !ok {
+				return http.StatusOK, `{"ok":true,"data":{"error":"Invalid or missing search query"}}`
+			}
+			return http.StatusOK, `{"ok":true,"data":{"users":[]}}`
+		})
+
+		res, err := DispatchYepAPIInstagram(ctx, client, "search", map[string]interface{}{"query": "natgeo"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res, `"status":"success"`) {
+			t.Fatalf("expected success after fallback, got %s", res)
+		}
+		requireYepAPIRequest(t, requests, "/v1/instagram/search", map[string]interface{}{"query": "natgeo"})
+		requireYepAPIRequest(t, requests, "/v1/instagram/search", map[string]interface{}{"search_query": "natgeo"})
 	})
 }
 
@@ -481,8 +549,11 @@ func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
 	if !strings.Contains(got, "/v1/instagram/user") {
 		t.Fatalf("logs = %q, want endpoint", got)
 	}
-	if !strings.Contains(got, "username") || !strings.Contains(got, "username_or_url") {
-		t.Fatalf("logs = %q, want payload keys", got)
+	if !strings.Contains(got, "username") {
+		t.Fatalf("logs = %q, want username payload key", got)
+	}
+	if strings.Contains(got, "username_or_url") {
+		t.Fatalf("logs = %q, username_or_url should only appear during fallback", got)
 	}
 	if strings.Contains(got, "natgeo") {
 		t.Fatalf("logs = %q, should not contain raw payload value", got)
@@ -491,7 +562,7 @@ func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
 
 func TestDispatchYepAPIInstagramErrorIncludesSentPayloadKeys(t *testing.T) {
 	client := newYepAPITestClient(func(r *http.Request) (int, string) {
-		return http.StatusOK, `{"ok":true,"data":{"error":"username_or_url is required"}}`
+		return http.StatusOK, `{"ok":true,"data":{"error":"profile unavailable"}}`
 	})
 
 	res, err := DispatchYepAPIInstagram(context.Background(), client, "user", map[string]interface{}{"username": "natgeo"})
@@ -511,8 +582,11 @@ func TestDispatchYepAPIInstagramErrorIncludesSentPayloadKeys(t *testing.T) {
 		t.Fatalf("sent_payload_keys missing from %v", payload)
 	}
 	gotKeys := fmt.Sprint(keys)
-	if !strings.Contains(gotKeys, "username") || !strings.Contains(gotKeys, "username_or_url") {
-		t.Fatalf("sent_payload_keys = %v, want username and username_or_url", keys)
+	if !strings.Contains(gotKeys, "username") {
+		t.Fatalf("sent_payload_keys = %v, want username", keys)
+	}
+	if strings.Contains(gotKeys, "username_or_url") {
+		t.Fatalf("sent_payload_keys = %v, username_or_url should only appear during fallback", keys)
 	}
 	if fmt.Sprint(payload) == "" || strings.Contains(fmt.Sprint(payload), "natgeo") {
 		t.Fatalf("diagnostic payload should not include raw values: %v", payload)
@@ -683,12 +757,12 @@ func TestDispatchYepAPIInstagramParityEndpoints(t *testing.T) {
 		path    string
 		payload map[string]interface{}
 	}{
-		{"user_about", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-about", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
-		{"user_stories", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-stories", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
-		{"user_highlights", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-highlights", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
-		{"user_tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}, "/v1/instagram/user-tagged", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo", "limit": 4.0}},
-		{"user_followers", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-followers", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
-		{"user_similar", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-similar", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
+		{"user_about", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-about", map[string]interface{}{"username": "natgeo"}},
+		{"user_stories", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-stories", map[string]interface{}{"username": "natgeo"}},
+		{"user_highlights", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-highlights", map[string]interface{}{"username": "natgeo"}},
+		{"user_tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}, "/v1/instagram/user-tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}},
+		{"user_followers", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-followers", map[string]interface{}{"username": "natgeo"}},
+		{"user_similar", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-similar", map[string]interface{}{"username": "natgeo"}},
 		{"post_likers", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/post-likers", map[string]interface{}{"shortcode": "abc"}},
 		{"media_id", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/media-id", map[string]interface{}{"shortcode": "abc"}},
 	}

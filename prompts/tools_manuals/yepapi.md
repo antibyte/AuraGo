@@ -167,6 +167,7 @@ Instagram data access.
 **Operations:**
 - `search` — Search users, hashtags, and places
 - `user` — User profile by username
+- `userinfo`, `user_info`, `profile`, `user_profile` — Backward-compatible aliases for `user`; prefer `user` in new calls
 - `user_about` — User about/profile details by username
 - `user_posts` — User's posts by username
 - `user_reels` — User's reels by username
@@ -184,7 +185,7 @@ Instagram data access.
 **Parameters:**
 - `query` — Search query (for search)
 - `username` — Instagram username (for user and user_* operations)
-- `username_or_url` — Optional alias accepted by AuraGo for user-facing convenience; AuraGo sends user lookups with both `username` and `username_or_url` for compatibility with current YepAPI validation
+- `username_or_url` — Optional input alias accepted by AuraGo for user-facing convenience; profile URLs are normalized to `username`, with a targeted `username_or_url` compatibility retry only if YepAPI validation explicitly requires it
 - `shortcode` — Instagram post shortcode (for post, post_comments, post_likers, media_id)
 - `tag` — Hashtag without # (for hashtag)
 - `limit` — Max results (default: 10)

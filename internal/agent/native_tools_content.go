@@ -433,11 +433,11 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Instagram operation to perform",
-					"enum":        []string{"search", "user", "user_about", "user_posts", "user_reels", "user_stories", "user_highlights", "user_tagged", "user_followers", "user_similar", "post", "post_comments", "post_likers", "hashtag", "media_id"},
+					"enum":        []string{"search", "user", "userinfo", "user_info", "profile", "user_profile", "user_about", "user_posts", "user_reels", "user_stories", "user_highlights", "user_tagged", "user_followers", "user_similar", "post", "post_comments", "post_likers", "hashtag", "media_id"},
 				},
 				"query":           prop("string", "Search query (for search operation)"),
 				"username":        prop("string", "Instagram username (for user and user_* operations)"),
-				"username_or_url": prop("string", "Instagram username or profile URL alias; AuraGo sends username-compatible requests with both username and username_or_url fields"),
+				"username_or_url": prop("string", "Instagram username or profile URL alias; AuraGo normalizes profile URLs to username and only uses compatibility fallbacks when YepAPI validation requires them"),
 				"shortcode":       prop("string", "Instagram post shortcode (for post, post_comments, post_likers, media_id operations)"),
 				"tag":             prop("string", "Hashtag without # (for hashtag operation)"),
 				"limit":           map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
