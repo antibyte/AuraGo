@@ -191,6 +191,9 @@
 /* Contact name column – primary emphasis */
 .kc-name {
     font-weight: 500;
+    width: 100%;
+    /* Absorbs remaining horizontal space so other columns shrink to content
+       and don't develop huge gaps when the table is wider than its content. */
 }
 
 /* File icon before filename */
