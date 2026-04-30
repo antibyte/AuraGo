@@ -468,7 +468,7 @@
         .select-personality {
             font-size: 0.78rem;
             font-weight: 500;
-            padding: 0 1.5rem 0 0.7rem;
+            padding: 0 1.5rem 0 1.8rem;
             border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
@@ -493,6 +493,11 @@
         .select-personality option {
             background: var(--bg-secondary);
             color: var(--text-primary);
+        }
+
+        .personality-icon {
+            margin-right: 0.35rem;
+            flex-shrink: 0;
         }
 
         .personality-chevron {
