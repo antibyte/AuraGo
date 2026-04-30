@@ -30,7 +30,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	currentLogger := s.currentLogger
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
-	if s.helperManager != nil && len(s.pendingSummaryBatch) == 0 {
+	if s.helperManager != nil && len(s.pendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
 		s.pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, dispatchCtx, s.helperManager, lastUserMsg)
 	}
 
@@ -425,7 +425,7 @@ func executeAgentToolTurn(
 		var nativePendingSummaryBatch map[string]string
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
-			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 {
+			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
 				nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, nativeDispatchCtx, s.helperManager, lastUserMsg)
 			}
 
