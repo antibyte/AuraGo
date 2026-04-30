@@ -175,12 +175,13 @@
     border-bottom: none;
 }
 
-/* Table action buttons */
+/* Table action buttons – absorbs remaining horizontal space
+   so all other columns stay shrink-wrapped to content. Buttons
+   stay flush right via text-align:right. */
 .kc-actions {
     white-space: nowrap;
     text-align: right;
-    width: 1%;
-    /* Shrink-wrap to button width so layout stays compact */
+    width: auto;
 }
 
 .kc-actions .btn-sm {
@@ -194,12 +195,12 @@
     margin-left: 0;
 }
 
-/* Contact name column – primary emphasis + absorbs remaining width */
+/* Contact name column – primary emphasis, shrink to content like other cells */
 .kc-table td.kc-name {
     font-weight: 500;
-    width: auto;
-    /* Counterpart to width:1px on other tds - this column gets all
-       leftover horizontal space because it does NOT have width:1px. */
+    /* Stays width:1px (inherited) so it shrinks to content. The actions
+       column on the right gets text-align:right + width:1% which keeps
+       the action buttons flush right against the table edge. */
 }
 
 .kc-name {
