@@ -2964,9 +2964,19 @@ select.cfg-input option {
 
 .devices-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.82rem;
 }
+
+.devices-table-head-row th:nth-child(1) { width: 22%; }
+.devices-table-head-row th:nth-child(2) { width: 11%; }
+.devices-table-head-row th:nth-child(3) { width: 13%; }
+.devices-table-head-row th:nth-child(4) { width: 7%; }
+.devices-table-head-row th:nth-child(5) { width: 11%; }
+.devices-table-head-row th:nth-child(6) { width: 13%; }
+.devices-table-head-row th:nth-child(7) { width: 16%; }
+.devices-table-head-row th:nth-child(8) { width: 7%; }
 
 .devices-table-head-row {
     border-bottom: 2px solid var(--border-subtle);
@@ -2979,10 +2989,15 @@ select.cfg-input option {
 
 .devices-cell {
     padding: 0.5rem 0.6rem;
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .devices-cell-name {
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .devices-cell-actions {
