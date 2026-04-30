@@ -48,6 +48,9 @@
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+    /* Respect iOS home indicator / bottom safe-area so the last list items
+       are reachable above the system gesture area. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .session-drawer.open {
     transform: translateX(0);

@@ -79,8 +79,11 @@ function showModal(title, message, isConfirm = false, options = {}) {
         
         overlay.style.display = 'flex';
         if (overlay.classList) overlay.classList.add('active');
-        
+        // Engage controller (ARIA, focus trap, inert background, restore).
+        _modalCtl.open(overlay, { initialFocus: confirmBtn });
+
         function cleanup(result) {
+            _modalCtl.close(overlay);
             overlay.style.display = 'none';
             if (overlay.classList) overlay.classList.remove('active');
             if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
@@ -95,7 +98,25 @@ function showModal(title, message, isConfirm = false, options = {}) {
         function onOverlay(e) { if (e.target === overlay) cleanup(false); }
         function onKey(e) {
             if (e.key === 'Escape') cleanup(false);
-            if (e.key === 'Enter' && overlay.contains(document.activeElement)) cleanup(true);
+            if (e.key === 'Enter') {
+                // P1-5: Avoid accidental confirms. Only treat Enter as
+                // confirmation when it is intentional:
+                //  - Enter while focused on the confirm button itself, OR
+                //  - Enter while the dialog has no editable input (pure
+                //    alert/confirm without text fields).
+                // Inside <textarea> Enter must always insert a newline,
+                // and inside other inputs we let the user submit via the
+                // explicit Confirm button to prevent destructive mistakes.
+                const active = document.activeElement;
+                const isConfirmFocused = !!confirmBtn && active === confirmBtn;
+                const hasEditable = !!overlay.querySelector(
+                    'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, [contenteditable="true"]'
+                );
+                if (isConfirmFocused || !hasEditable) {
+                    e.preventDefault();
+                    cleanup(true);
+                }
+            }
         }
         
         if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
@@ -607,6 +628,14 @@ function showToast(message, type = 'success', duration = 3000) {
     toast.id = 'toast';
     toast.className = `toast ${type}`;
     toast.textContent = message;
+    // P2-17: Announce toasts to screen readers. Errors/warnings are
+    // assertive (interrupt) so the user is informed about failures
+    // immediately; success/info are polite (queued) so they do not
+    // disrupt the current speech.
+    const isAssertive = type === 'error' || type === 'warning';
+    toast.setAttribute('role', isAssertive ? 'alert' : 'status');
+    toast.setAttribute('aria-live', isAssertive ? 'assertive' : 'polite');
+    toast.setAttribute('aria-atomic', 'true');
     document.body.appendChild(toast);
 
     // Trigger animation
@@ -625,6 +654,170 @@ function showToast(message, type = 'success', duration = 3000) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * Internal modal controller that adds accessibility primitives to all
+ * modal overlays without breaking existing call sites:
+ *  - role="dialog", aria-modal="true", aria-labelledby (best effort)
+ *  - Initial focus on the first focusable element (or the title)
+ *  - Focus trap (Tab / Shift+Tab cycle inside the topmost modal)
+ *  - Focus restore to the trigger element on close
+ *  - inert on background siblings (with aria-hidden fallback)
+ *  - Modal stack so only the topmost dialog reacts to Escape / focus
+ *
+ * Public API surface remains `openModal(id)`, `closeModal(id)`,
+ * `showModal(...)`. Existing inline-onclick callers keep working.
+ */
+const _modalCtl = (function () {
+    const FOCUSABLE = [
+        'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
+        'select:not([disabled])', 'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])', '[contenteditable="true"]'
+    ].join(',');
+
+    const supportsInert = typeof HTMLElement !== 'undefined' && 'inert' in HTMLElement.prototype;
+    const stack = []; // entries: { modal, trigger, hidden: Element[] }
+
+    function focusables(root) {
+        if (!root) return [];
+        const list = root.querySelectorAll(FOCUSABLE);
+        return Array.prototype.filter.call(list, el => {
+            if (el.disabled || el.getAttribute('aria-hidden') === 'true') return false;
+            // Visible-ish check: skip elements with display:none / visibility:hidden.
+            if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+            return true;
+        });
+    }
+
+    function setBackgroundInert(modal) {
+        const hidden = [];
+        const siblings = document.body ? Array.prototype.slice.call(document.body.children) : [];
+        siblings.forEach(node => {
+            if (node === modal) return;
+            // Skip elements that already are modals managed by us further up
+            // the stack (their entries already touched them).
+            if (supportsInert) {
+                if (!node.inert) {
+                    node.inert = true;
+                    hidden.push({ node, restore: () => { node.inert = false; } });
+                }
+            } else {
+                const prev = node.getAttribute('aria-hidden');
+                node.setAttribute('aria-hidden', 'true');
+                hidden.push({ node, restore: () => {
+                    if (prev === null) node.removeAttribute('aria-hidden');
+                    else node.setAttribute('aria-hidden', prev);
+                } });
+            }
+        });
+        return hidden;
+    }
+
+    function ensureDialogAria(modal) {
+        if (!modal.getAttribute('role')) modal.setAttribute('role', 'dialog');
+        if (!modal.getAttribute('aria-modal')) modal.setAttribute('aria-modal', 'true');
+        if (!modal.getAttribute('aria-labelledby')) {
+            // Try to discover a heading inside the modal as the label.
+            const titleEl = modal.querySelector(
+                '.modal-title, .modal-header h1, .modal-header h2, .modal-header h3, h1, h2, h3'
+            );
+            if (titleEl) {
+                if (!titleEl.id) titleEl.id = 'modal-title-' + Math.random().toString(36).slice(2, 9);
+                modal.setAttribute('aria-labelledby', titleEl.id);
+            }
+        }
+    }
+
+    function pickInitialFocus(modal, explicit) {
+        if (explicit) {
+            const el = typeof explicit === 'string'
+                ? modal.querySelector(explicit) : explicit;
+            if (el && typeof el.focus === 'function') return el;
+        }
+        const list = focusables(modal);
+        if (list.length) return list[0];
+        // Fall back to the title (programmatic focus only).
+        const title = modal.querySelector('.modal-title, [aria-labelledby], h1, h2, h3');
+        if (title) {
+            if (!title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
+            return title;
+        }
+        return modal;
+    }
+
+    function onKeydown(e) {
+        if (!stack.length) return;
+        const top = stack[stack.length - 1];
+        if (!top || !top.modal.contains(document.activeElement) && e.key !== 'Tab') {
+            // If focus has escaped the modal, pull it back on Tab.
+        }
+        if (e.key === 'Tab') {
+            const list = focusables(top.modal);
+            if (!list.length) {
+                e.preventDefault();
+                top.modal.focus();
+                return;
+            }
+            const first = list[0];
+            const last = list[list.length - 1];
+            const active = document.activeElement;
+            if (e.shiftKey) {
+                if (active === first || !top.modal.contains(active)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (active === last || !top.modal.contains(active)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        }
+    }
+
+    function open(modal, options) {
+        if (!modal) return null;
+        options = options || {};
+        ensureDialogAria(modal);
+        const trigger = options.trigger || document.activeElement;
+        const hidden = setBackgroundInert(modal);
+        const entry = { modal, trigger, hidden };
+        stack.push(entry);
+        if (stack.length === 1) {
+            document.addEventListener('keydown', onKeydown, true);
+        }
+        // Focus next tick so the modal has rendered.
+        setTimeout(() => {
+            const target = pickInitialFocus(modal, options.initialFocus);
+            if (target && typeof target.focus === 'function') {
+                try { target.focus({ preventScroll: false }); } catch (_) { target.focus(); }
+            }
+        }, 0);
+        return entry;
+    }
+
+    function close(modal) {
+        if (!modal) return;
+        // Find the topmost matching entry (handles double-close gracefully).
+        let idx = -1;
+        for (let i = stack.length - 1; i >= 0; i--) {
+            if (stack[i].modal === modal) { idx = i; break; }
+        }
+        if (idx < 0) return;
+        const entry = stack.splice(idx, 1)[0];
+        entry.hidden.forEach(h => { try { h.restore(); } catch (_) { /* noop */ } });
+        if (!stack.length) {
+            document.removeEventListener('keydown', onKeydown, true);
+        }
+        // Restore focus to the trigger if it is still in the document.
+        const trig = entry.trigger;
+        if (trig && document.contains(trig) && typeof trig.focus === 'function') {
+            try { trig.focus({ preventScroll: true }); } catch (_) { trig.focus(); }
+        }
+    }
+
+    return { open, close, focusables };
+})();
+
+/**
  * Open a modal by ID
  * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
@@ -635,6 +828,7 @@ function openModal(id) {
         modal.classList.add('active');
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
+        _modalCtl.open(modal);
     }
 }
 
@@ -646,6 +840,7 @@ function openModal(id) {
 function closeModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
+        _modalCtl.close(modal);
         modal.classList.remove('active');
         modal.classList.remove('open');
         document.body.style.overflow = '';
@@ -713,6 +908,7 @@ function initModals() {
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
+                _modalCtl.close(overlay);
                 overlay.classList.remove('active', 'open');
                 document.body.style.overflow = '';
             }
@@ -726,6 +922,7 @@ function initModals() {
             const modals = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
             if (modals.length > 0) {
                 const topmost = modals[modals.length - 1];
+                _modalCtl.close(topmost);
                 topmost.classList.remove('active', 'open');
                 // Only restore body scroll if no other modals remain open
                 const remaining = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
@@ -1365,6 +1562,7 @@ function initShared() {
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initToggles(); } catch (e) { console.error('[AuraGo] initToggles failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }
+    try { initTablistKeyboard(); } catch (e) { console.error('[AuraGo] initTablistKeyboard failed:', e); }
     try { window._auragoApplySharedI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
@@ -1373,6 +1571,93 @@ function initShared() {
     try { initTsnetLoginWatcher(); } catch (e) { console.error('[AuraGo] initTsnetLoginWatcher failed:', e); }
 
     console.log('[AuraGo] Shared components initialized');
+}
+
+/**
+ * P2-16: ARIA-compliant keyboard navigation for [role="tablist"]
+ * containers. Implements the WAI-ARIA roving-tabindex pattern: only the
+ * currently selected tab is in the document tab order; ArrowLeft/Right
+ * move focus between tabs, Home/End jump to first/last. Click activation
+ * is preserved by the existing onclick handlers (switchTab / switchKCTab
+ * / switchCheatTab); this helper just keeps tabindex + aria-selected in
+ * sync after any activation path. */
+function initTablistKeyboard() {
+    if (window._tablistKeyboardInit) return;
+    window._tablistKeyboardInit = true;
+
+    function tabsOf(tablist) {
+        return Array.prototype.filter.call(
+            tablist.querySelectorAll('[role="tab"]'),
+            t => !t.disabled && t.offsetParent !== null
+        );
+    }
+
+    function selectTab(tablist, target, focus) {
+        if (!target) return;
+        const tabs = tabsOf(tablist);
+        tabs.forEach(t => {
+            const sel = t === target;
+            t.setAttribute('aria-selected', sel ? 'true' : 'false');
+            t.setAttribute('tabindex', sel ? '0' : '-1');
+        });
+        if (focus) {
+            try { target.focus({ preventScroll: false }); } catch (_) { target.focus(); }
+        }
+    }
+
+    function bind(tablist) {
+        if (tablist._tablistKbdBound) return;
+        tablist._tablistKbdBound = true;
+
+        tablist.addEventListener('keydown', (e) => {
+            const tabs = tabsOf(tablist);
+            if (!tabs.length) return;
+            const current = document.activeElement;
+            const idx = tabs.indexOf(current);
+            if (idx < 0) return;
+            let next = -1;
+            switch (e.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    next = (idx - 1 + tabs.length) % tabs.length;
+                    break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    next = (idx + 1) % tabs.length;
+                    break;
+                case 'Home':
+                    next = 0;
+                    break;
+                case 'End':
+                    next = tabs.length - 1;
+                    break;
+                default:
+                    return;
+            }
+            e.preventDefault();
+            const target = tabs[next];
+            // Activate the tab so panels switch (matches Apple/Material
+            // automatic-activation pattern that most users expect).
+            try { target.click(); } catch (_) { /* noop */ }
+            selectTab(tablist, target, true);
+        });
+
+        // Keep tabindex in sync after click activation.
+        tablist.addEventListener('click', (e) => {
+            const tab = e.target.closest('[role="tab"]');
+            if (!tab || !tablist.contains(tab)) return;
+            // Defer so any onclick="switchTab(...)" handlers run first.
+            setTimeout(() => selectTab(tablist, tab, false), 0);
+        });
+
+        // Initial sync: respect whichever tab is marked aria-selected="true",
+        // fall back to the first.
+        const tabs = tabsOf(tablist);
+        const initial = tabs.find(t => t.getAttribute('aria-selected') === 'true') || tabs[0];
+        selectTab(tablist, initial, false);
+    }
+
+    document.querySelectorAll('[role="tablist"]').forEach(bind);
 }
 
 // ── Config-page shared utilities ─────────────────────

@@ -61,10 +61,12 @@
             </div>
         </div>
 
-        <div class="cheatsheet-tabs" role="tablist">
+        <div class="cheatsheet-tabs" role="tablist" aria-label="Cheat sheet groups">
             <button class="cheatsheet-tab active" id="tab-user" role="tab" aria-selected="true"
+                aria-controls="panel-user" tabindex="0"
                 onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user">User</span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
             <button class="cheatsheet-tab" id="tab-agent" role="tab" aria-selected="false"
+                aria-controls="panel-agent" tabindex="-1"
                 onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent">Agent</span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
 
@@ -74,14 +76,14 @@
             <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
         </div>
 
-        <div class="cheatsheet-panel active" id="panel-user">
+        <div class="cheatsheet-panel active" id="panel-user" role="tabpanel" aria-labelledby="tab-user" tabindex="0">
             <div class="cards-grid" id="sheets-grid-user"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
                 <div class="empty-icon">👤</div>
                 <p data-i18n="cheatsheets.empty_user">No user cheat sheets yet.</p>
             </div>
         </div>
-        <div class="cheatsheet-panel" id="panel-agent">
+        <div class="cheatsheet-panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0">
             <div class="cards-grid" id="sheets-grid-agent"></div>
             <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
                 <div class="empty-icon">🤖</div>

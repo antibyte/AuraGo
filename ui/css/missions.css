@@ -308,9 +308,18 @@
 .mission-grid,
 .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    /* min(100%, 280px) keeps the minimum track from exceeding the viewport
+       on narrow phones, preventing right-edge clipping. */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
     gap: 20px; /* D-18: consistent 20px gap */
     align-items: start;
+}
+
+@media (max-width: 360px) {
+    .mission-grid,
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Missions masonry grid (prevents expanded cards from pushing full rows down) */

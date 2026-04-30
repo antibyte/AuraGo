@@ -177,8 +177,15 @@
 /* ── Card Grid ── */
 .sk-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    /* Use min(100%, 340px) so the minimum track never exceeds the available
+       width on narrow phones (≤360px), preventing right-edge clipping while
+       body has overflow-x: hidden. */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
     gap: 16px;
+}
+
+@media (max-width: 360px) {
+    .sk-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Skill Card ── */

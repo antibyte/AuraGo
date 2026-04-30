@@ -154,8 +154,17 @@
         .dashboard-grid,
         .card-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            /* min(100%, 280px) keeps the minimum track from exceeding the
+               viewport on narrow phones, preventing right-edge clipping. */
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
             gap: 20px; /* D-18: consistent 20px gap */
+        }
+
+        @media (max-width: 360px) {
+            .dashboard-grid,
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .dash-card {

@@ -4002,7 +4002,7 @@ select.cfg-input option {
 
 .mcp-srv-tools-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
     gap: 0.4rem;
 }
 
@@ -4221,7 +4221,7 @@ select.cfg-input option {
 
 .adg-stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     gap: 0.8rem;
 }
 

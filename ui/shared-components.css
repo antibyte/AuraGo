@@ -2535,20 +2535,43 @@ div.toggle.toggle-sm.on::before {
         font-size: 1.08rem;
     }
 
-    /* Vertical spacing for 42px icons with comfortable touch gaps */
-    .radial-item:nth-child(1) { top: 50px; }
-    .radial-item:nth-child(2) { top: 100px; }
-    .radial-item:nth-child(3) { top: 150px; }
-    .radial-item:nth-child(4) { top: 200px; }
-    .radial-item:nth-child(5) { top: 250px; }
-    .radial-item:nth-child(6) { top: 300px; }
-    .radial-item:nth-child(7) { top: 350px; }
-    .radial-item:nth-child(8) { top: 400px; }
-    .radial-item:nth-child(9) { top: 450px; }
-    .radial-item:nth-child(10) { top: 500px; }
-    .radial-item:nth-child(11) { top: 550px; }
-    .radial-item:nth-child(12) { top: 600px; }
-    .radial-item:nth-child(13) { top: 650px; }
+    /* Mobile: switch from absolute-positioned arc to a flowing, scrollable
+       vertical list so all items remain reachable on short viewports
+       (e.g. iPhone SE 375×667 or any device with the address bar visible).
+       The original :nth-child top values do not scale beyond the viewport
+       height once item count grows past ~8. */
+    .radial-items {
+        position: absolute;
+        top: 50px; /* below the trigger (42px + 8px gap) */
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: calc(100dvh - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .radial-item,
+    .radial-item:nth-child(1),
+    .radial-item:nth-child(2),
+    .radial-item:nth-child(3),
+    .radial-item:nth-child(4),
+    .radial-item:nth-child(5),
+    .radial-item:nth-child(6),
+    .radial-item:nth-child(7),
+    .radial-item:nth-child(8),
+    .radial-item:nth-child(9),
+    .radial-item:nth-child(10),
+    .radial-item:nth-child(11),
+    .radial-item:nth-child(12),
+    .radial-item:nth-child(13) {
+        position: static;
+        top: auto;
+        right: auto;
+    }
 }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
@@ -2863,4 +2886,20 @@ div.toggle.toggle-sm.on::before {
     background: var(--accent-dim);
     color: var(--text-primary);
     font-weight: 500;
+}
+
+
+/* ── Touch target enforcement (P2-13) ──────────────────────────
+   Coarse pointers (touch screens) require a minimum 44px tap area
+   per WCAG 2.5.5 / Apple HIG / Material guidelines. Several icon
+   buttons are visually 32px or smaller; widen them on touch only
+   so mouse layouts remain unchanged. */
+@media (pointer: coarse) {
+    .media-doc-row-actions a,
+    .media-doc-row-actions button,
+    .session-drawer-close,
+    .modal-close {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }

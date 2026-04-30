@@ -44,25 +44,32 @@
 
     <div class="kc-container">
         <!-- Tab bar -->
-        <div class="kc-tabs" role="tablist">
+        <div class="kc-tabs" role="tablist" aria-label="Knowledge categories">
             <button class="kc-tab active" id="tab-contacts" role="tab" aria-selected="true"
+                aria-controls="panel-contacts" tabindex="0"
                 onclick="switchKCTab('contacts')" data-i18n="knowledge.tab_contacts">📇 Address Book</button>
             <button class="kc-tab" id="tab-files" role="tab" aria-selected="false"
+                aria-controls="panel-files" tabindex="-1"
                 onclick="switchKCTab('files')" data-i18n="knowledge.tab_files">📂 Knowledge Files</button>
             <button class="kc-tab" id="tab-devices" role="tab" aria-selected="false"
+                aria-controls="panel-devices" tabindex="-1"
                 onclick="switchKCTab('devices')" data-i18n="knowledge.tab_devices">📱 Devices</button>
             <button class="kc-tab" id="tab-credentials" role="tab" aria-selected="false"
+                aria-controls="panel-credentials" tabindex="-1"
                 onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials</button>
             <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
+                aria-controls="panel-secrets" tabindex="-1"
                 onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
             <button class="kc-tab" id="tab-appointments" role="tab" aria-selected="false"
+                aria-controls="panel-appointments" tabindex="-1"
                 onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments</button>
             <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
+                aria-controls="panel-todos" tabindex="-1"
                 onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos</button>
         </div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
-        <div id="panel-contacts" class="kc-panel active">
+        <div id="panel-contacts" class="kc-panel active" role="tabpanel" aria-labelledby="tab-contacts" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="contacts-search" class="kc-search"
@@ -96,7 +103,7 @@
         </div>
 
         <!-- ═══════ FILES PANEL ═══════ -->
-        <div id="panel-files" class="kc-panel">
+        <div id="panel-files" class="kc-panel" role="tabpanel" aria-labelledby="tab-files" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="files-search" class="kc-search"
@@ -129,7 +136,7 @@
         </div>
 
         <!-- ═══════ DEVICES PANEL ═══════ -->
-        <div id="panel-devices" class="kc-panel">
+        <div id="panel-devices" class="kc-panel" role="tabpanel" aria-labelledby="tab-devices" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="devices-search" class="kc-search"
@@ -165,7 +172,7 @@
         </div>
 
         <!-- ═══════ CREDENTIALS PANEL ═══════ -->
-        <div id="panel-credentials" class="kc-panel">
+        <div id="panel-credentials" class="kc-panel" role="tabpanel" aria-labelledby="tab-credentials" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="credentials-search" class="kc-search"
@@ -201,12 +208,12 @@
         </div>
 
         <!-- ═══════ SECRETS PANEL ═══════ -->
-        <div id="panel-secrets" class="kc-panel">
+        <div id="panel-secrets" class="kc-panel" role="tabpanel" aria-labelledby="tab-secrets" tabindex="0">
             <div id="secrets-section-content"></div>
         </div>
 
         <!-- ═══════ APPOINTMENTS PANEL ═══════ -->
-        <div id="panel-appointments" class="kc-panel">
+        <div id="panel-appointments" class="kc-panel" role="tabpanel" aria-labelledby="tab-appointments" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="appointments-search" class="kc-search"
@@ -232,7 +239,7 @@
         </div>
 
         <!-- ═══════ TODOS PANEL ═══════ -->
-        <div id="panel-todos" class="kc-panel">
+        <div id="panel-todos" class="kc-panel" role="tabpanel" aria-labelledby="tab-todos" tabindex="0">
             <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <input type="text" id="todos-search" class="kc-search"

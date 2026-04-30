@@ -51,14 +51,18 @@
         </div>
 
         <!-- Tab bar -->
-        <div class="media-tabs" role="tablist">
+        <div class="media-tabs" role="tablist" aria-label="Media categories">
             <button class="media-tab active" id="tab-images" role="tab" aria-selected="true"
+                aria-controls="panel-images" tabindex="0"
                 onclick="switchTab('images')" data-i18n="media.tab_images">🖼️ Images</button>
             <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
+                aria-controls="panel-audio" tabindex="-1"
                 onclick="switchTab('audio')" data-i18n="media.tab_audio">🎵 Audio</button>
             <button class="media-tab" id="tab-videos" role="tab" aria-selected="false"
+                aria-controls="panel-videos" tabindex="-1"
                 onclick="switchTab('videos')" data-i18n="media.tab_videos">🎬 Videos</button>
             <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
+                aria-controls="panel-documents" tabindex="-1"
                 onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Documents</button>
         </div>
 
@@ -71,7 +75,7 @@
         </div>
 
         <!-- Tab panels -->
-        <div id="panel-images" class="media-panel active">
+        <div id="panel-images" class="media-panel active" role="tabpanel" aria-labelledby="tab-images" tabindex="0">
             <div id="images-extra-controls" class="media-extra-controls">
                 <select id="gallery-provider-filter" class="gallery-filter">
                     <option value="" data-i18n="gallery.all_providers">All Providers</option>
@@ -87,7 +91,7 @@
             </div>
         </div>
 
-        <div id="panel-audio" class="media-panel">
+        <div id="panel-audio" class="media-panel" role="tabpanel" aria-labelledby="tab-audio" tabindex="0">
             <div id="audio-grid" class="media-audio-grid">
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
@@ -98,7 +102,7 @@
             </div>
         </div>
 
-        <div id="panel-videos" class="media-panel">
+        <div id="panel-videos" class="media-panel" role="tabpanel" aria-labelledby="tab-videos" tabindex="0">
             <div id="video-grid" class="media-video-grid">
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
@@ -109,7 +113,7 @@
             </div>
         </div>
 
-        <div id="panel-documents" class="media-panel">
+        <div id="panel-documents" class="media-panel" role="tabpanel" aria-labelledby="tab-documents" tabindex="0">
             <div id="doc-list" class="media-doc-list">
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
