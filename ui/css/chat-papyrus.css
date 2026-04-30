@@ -339,9 +339,10 @@
     color: var(--papyrus-ink);
 }
 
-/* Restore overflow auto where needed */
+/* Restore position:absolute — base CSS uses absolute for out-of-flow popups */
 [data-theme="papyrus"] .chat-theme-dropdown,
 [data-theme="papyrus"] .mood-panel {
+    position: absolute;
     overflow-x: hidden;
     overflow-y: auto;
     z-index: 1300;
