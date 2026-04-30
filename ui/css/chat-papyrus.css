@@ -433,29 +433,27 @@
     isolation: auto;
     position: relative;
     z-index: 1;
+    /* Sheen gradient as topmost background layer + edge vignette via box-shadow.
+       Both are fixed to the element's border-box, so they always cover the
+       visible viewport regardless of scroll position — no more "plain area"
+       appearing when scrolled to the bottom. */
     background:
+        linear-gradient(105deg, rgba(255, 252, 241, 0.3), transparent 24%, transparent 78%, rgba(30, 63, 102, 0.06) 100%),
         linear-gradient(118deg, rgba(255, 252, 241, 0.56), transparent 34%),
         linear-gradient(22deg, transparent 68%, rgba(194, 147, 79, 0.14)),
         linear-gradient(90deg, rgba(93, 69, 42, 0.08), transparent 7%, transparent 93%, rgba(93, 69, 42, 0.08)),
         linear-gradient(180deg, #f3e7cd 0%, #ead7b3 47%, #ddbf8d 100%);
-}
-
-/* Soft sheen + edge shadow (breathing glow) */
-[data-theme="papyrus"] #chat-box::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    display: block;
-    pointer-events: none;
-    background:
-        linear-gradient(105deg, rgba(255, 252, 241, 0.3), transparent 24%, transparent 78%, rgba(30, 63, 102, 0.06) 100%);
     box-shadow:
         inset 0 18px 36px rgba(255, 251, 240, 0.24),
         inset 0 -22px 34px rgba(88, 62, 35, 0.1),
         inset 20px 0 16px rgba(72, 50, 30, 0.055),
         inset -20px 0 16px rgba(72, 50, 30, 0.055);
-    border-radius: 0;
     animation: papyrus-page-breathe 16s ease-in-out infinite;
+}
+
+/* ::before no longer needed for sheen — removed to avoid scroll-away artifacts */
+[data-theme="papyrus"] #chat-box::before {
+    content: none;
 }
 
 /* Faint AuraGo watermark */
