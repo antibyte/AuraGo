@@ -175,13 +175,14 @@
     border-bottom: none;
 }
 
-/* Table action buttons – absorbs remaining horizontal space
-   so all other columns stay shrink-wrapped to content. Buttons
-   stay flush right via text-align:right. */
+/* Table action buttons – absorbs ALL remaining horizontal space.
+   In table-layout:auto, width:100% on one cell wins the competition
+   against width:1px cells, so all leftover whitespace lands here
+   instead of being distributed as gaps between Name/Typ/IP/Port. */
 .kc-actions {
     white-space: nowrap;
     text-align: right;
-    width: auto;
+    width: 100%;
 }
 
 .kc-actions .btn-sm {
@@ -825,6 +826,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    max-width: 880px;
 }
 
 .kc-todo-summary {
