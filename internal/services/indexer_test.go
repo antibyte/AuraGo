@@ -18,18 +18,28 @@ import (
 )
 
 type fakeIndexerVectorDB struct {
-	mu          sync.Mutex
-	nextID      int
-	deleted     []string
-	disabled    bool
-	fingerprint string
+	mu           sync.Mutex
+	storeOnce    sync.Once
+	nextID       int
+	deleted      []string
+	disabled     bool
+	fingerprint  string
+	storeStarted chan struct{}
+	releaseStore chan struct{}
 }
 
 func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.nextID++
-	return []string{fmt.Sprintf("doc-%d", f.nextID)}, nil
+	docID := fmt.Sprintf("doc-%d", f.nextID)
+	if f.storeStarted != nil {
+		f.storeOnce.Do(func() { close(f.storeStarted) })
+	}
+	f.mu.Unlock()
+	if f.releaseStore != nil {
+		<-f.releaseStore
+	}
+	return []string{docID}, nil
 }
 
 func (f *fakeIndexerVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
@@ -360,6 +370,136 @@ func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	}
 	if len(status.Errors) == 0 || !strings.Contains(strings.ToLower(status.Errors[0]), "embedding") {
 		t.Fatalf("Errors = %v, want embedding pipeline explanation", status.Errors)
+	}
+}
+
+func TestFileIndexerSkipsOverlappingScans(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("index me once"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{storeStarted: make(chan struct{}), releaseStore: make(chan struct{})}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	done := make(chan struct{})
+	go func() {
+		fi.scan()
+		close(done)
+	}()
+
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first scan did not start storing")
+	}
+
+	fi.scan()
+	vdb.mu.Lock()
+	storedWhileBlocked := vdb.nextID
+	vdb.mu.Unlock()
+	if storedWhileBlocked != 1 {
+		t.Fatalf("stored docs while first scan blocked = %d, want 1", storedWhileBlocked)
+	}
+
+	close(vdb.releaseStore)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("first scan did not finish")
+	}
+}
+
+func TestFileIndexerCleanupDirectoryRemovesTrackedFiles(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.txt")
+	if err := os.WriteFile(path, []byte("remove me from the index"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
+	}
+
+	cleanupErrors := fi.CleanupDirectory(config.IndexingDirectory{Path: dir})
+	if len(cleanupErrors) != 0 {
+		t.Fatalf("CleanupDirectory errors = %v", cleanupErrors)
+	}
+	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
+		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	}
+	ids, err := stm.GetFileEmbeddingDocIDs(path, IndexerCollection)
+	if err != nil {
+		t.Fatalf("GetFileEmbeddingDocIDs: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("tracked IDs after cleanup = %v, want none", ids)
+	}
+}
+
+func TestFileIndexerSkipsDocumentWhenExtractionFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broken.pdf")
+	if err := os.WriteFile(path, []byte("not a valid PDF but definitely raw bytes"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".pdf"}
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	total, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	if total != 1 {
+		t.Fatalf("total = %d, want 1", total)
+	}
+	if indexed != 0 {
+		t.Fatalf("indexed = %d, want 0", indexed)
+	}
+	if len(errs) == 0 || !strings.Contains(errs[0], "text extraction error") {
+		t.Fatalf("errors = %v, want text extraction error", errs)
+	}
+	vdb.mu.Lock()
+	stored := vdb.nextID
+	vdb.mu.Unlock()
+	if stored != 0 {
+		t.Fatalf("stored docs = %d, want 0", stored)
 	}
 }
 

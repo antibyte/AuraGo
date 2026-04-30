@@ -596,6 +596,14 @@ indexing:
         - .log
         - .yaml
         - .yml
+        - .pdf
+        - .docx
+        - .xlsx
+        - .pptx
+        - .odt
+        - .ods
+        - .odp
+        - .rtf
     index_images: false                         # send images to Vision LLM for analysis and index results
 webdav:
     enabled: false

@@ -208,7 +208,7 @@ func extractDOCXText(path string) (string, error) {
 				return "", fmt.Errorf("failed to read document.xml: %w", err)
 			}
 			defer rc.Close()
-			return extractXMLText(rc, "t")
+			return extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "t")
 		}
 	}
 
@@ -235,8 +235,11 @@ func extractXLSXText(path string) (string, error) {
 			if err != nil {
 				break
 			}
-			data, _ := io.ReadAll(rc)
+			data, readErr := readLimitedAll(rc, maxArchiveMemberBytes)
 			rc.Close()
+			if readErr != nil {
+				return "", fmt.Errorf("failed to read shared strings: %w", readErr)
+			}
 
 			// Parse <si><t>...</t></si> elements
 			decoder := xml.NewDecoder(bytes.NewReader(data))
@@ -277,7 +280,7 @@ func extractXLSXText(path string) (string, error) {
 			if err != nil {
 				continue
 			}
-			text, _ := extractXMLText(rc, "v")
+			text, _ := extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "v")
 			rc.Close()
 			if text != "" {
 				parts = append(parts, text)
@@ -318,7 +321,7 @@ func extractPPTXText(path string) (string, error) {
 			if err != nil {
 				continue
 			}
-			text, _ := extractXMLText(rc, "t")
+			text, _ := extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "t")
 			rc.Close()
 			if text != "" {
 				parts = append(parts, text)
@@ -351,7 +354,7 @@ func extractODFText(path string) (string, error) {
 			}
 			defer rc.Close()
 			// ODF uses <text:p> elements, but extracting all text nodes works too
-			return extractAllXMLText(rc)
+			return extractAllXMLText(io.LimitReader(rc, maxArchiveMemberBytes))
 		}
 	}
 
@@ -362,7 +365,13 @@ func extractODFText(path string) (string, error) {
 
 // extractRTFText extracts plain text from an RTF file by stripping control words.
 func extractRTFText(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to open RTF: %w", err)
+	}
+	defer f.Close()
+
+	data, err := readLimitedAll(f, maxIndexedFileBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to read RTF: %w", err)
 	}

@@ -51,7 +51,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
+var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".rtf"}
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
 var configSaveMu sync.Mutex
 

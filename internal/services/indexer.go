@@ -49,6 +49,7 @@ type FileIndexer struct {
 	stm               *memory.SQLiteMemory
 	logger            *slog.Logger
 	cancel            context.CancelFunc
+	scanMu            sync.Mutex
 	mu                sync.RWMutex
 	status            IndexerStatus
 	extensions        map[string]bool
@@ -56,22 +57,19 @@ type FileIndexer struct {
 	cachedEmbedder    *memory.MultimodalEmbedder
 	cachedEmbedderKey string
 	kgSyncer          *FileKGSyncer
+	kgSyncSem         chan struct{}
 }
 
 // NewFileIndexer creates a new file indexer service.
 func NewFileIndexer(cfg *config.Config, cfgMu *sync.RWMutex, vectorDB memory.VectorDB, stm *memory.SQLiteMemory, logger *slog.Logger) *FileIndexer {
-	extMap := make(map[string]bool, len(cfg.Indexing.Extensions))
-	for _, ext := range cfg.Indexing.Extensions {
-		extMap[strings.ToLower(ext)] = true
-	}
-
 	return &FileIndexer{
 		cfg:        cfg,
 		cfgMu:      cfgMu,
 		vectorDB:   vectorDB,
 		stm:        stm,
 		logger:     logger,
-		extensions: extMap,
+		extensions: buildIndexingExtensionSet(cfg.Indexing.Extensions),
+		kgSyncSem:  make(chan struct{}, fileIndexerKGSyncConcurrency),
 	}
 }
 
@@ -85,13 +83,10 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 		"poll_interval", fi.cfg.Indexing.PollIntervalSeconds,
 		"extensions", fi.cfg.Indexing.Extensions)
 
+	dirs := fi.indexingDirectoriesSnapshot()
 	fi.mu.Lock()
 	fi.status.Running = true
-	dirPaths := make([]string, len(fi.cfg.Indexing.Directories))
-	for i, d := range fi.cfg.Indexing.Directories {
-		dirPaths[i] = d.Path
-	}
-	fi.status.Directories = dirPaths
+	fi.status.Directories = indexingDirectoryPaths(dirs)
 	fi.mu.Unlock()
 
 	// Ensure all configured directories exist
@@ -102,7 +97,7 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 
 	// Poll loop
 	go func() {
-		ticker := time.NewTicker(time.Duration(fi.cfg.Indexing.PollIntervalSeconds) * time.Second)
+		ticker := time.NewTicker(fi.pollInterval())
 		defer ticker.Stop()
 		for {
 			select {
@@ -148,7 +143,7 @@ func (fi *FileIndexer) Rescan() {
 
 // ensureDirectories creates any missing configured directories.
 func (fi *FileIndexer) ensureDirectories() {
-	for _, dir := range fi.cfg.Indexing.Directories {
+	for _, dir := range fi.indexingDirectoriesSnapshot() {
 		if err := os.MkdirAll(dir.Path, 0755); err != nil {
 			fi.logger.Warn("[Indexer] Failed to create directory", "dir", dir.Path, "error", err)
 		}
@@ -157,12 +152,16 @@ func (fi *FileIndexer) ensureDirectories() {
 
 // scan walks all configured directories and indexes new/changed files.
 func (fi *FileIndexer) scan() {
+	if !fi.scanMu.TryLock() {
+		fi.logger.Info("[Indexer] Scan already running, skipping overlapping request")
+		return
+	}
+	defer fi.scanMu.Unlock()
+
 	start := time.Now()
 	fi.logger.Debug("[Indexer] Starting scan...")
 
-	fi.cfgMu.RLock()
-	dirs := fi.cfg.Indexing.Directories
-	fi.cfgMu.RUnlock()
+	dirs := fi.indexingDirectoriesSnapshot()
 
 	var totalFiles, indexedFiles int
 	var scanErrors []string
@@ -251,6 +250,10 @@ func (fi *FileIndexer) countIndexableFiles(dir string) (int, []string) {
 		fi.cfgMu.RUnlock()
 
 		if fi.extensions[ext] || (isImage && (indexImages || multimodal)) || (isAudio && multimodal) {
+			if skip, reason := shouldSkipIndexingFile(info); skip {
+				errors = append(errors, fmt.Sprintf("skip %s: %s", path, reason))
+				return nil
+			}
 			total++
 		}
 		return nil
@@ -315,6 +318,11 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			(isImage && (indexImages || multimodal)) ||
 			(isAudio && multimodal)
 		if !accepted {
+			return nil
+		}
+		if skip, reason := shouldSkipIndexingFile(info); skip {
+			errors = append(errors, fmt.Sprintf("skip %s: %s", path, reason))
+			fi.logger.Warn("[Indexer] Skipping oversized file", "path", path, "reason", reason)
 			return nil
 		}
 
@@ -401,48 +409,56 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			// Document text extraction (PDF, DOCX, XLSX, PPTX, ODT, RTF).
 			extracted, extractErr := ExtractText(path)
 			if extractErr != nil {
-				fi.logger.Warn("[Indexer] Text extraction failed, trying raw read", "path", path, "error", extractErr)
-				// Fallback: try reading as raw text
-				data, readErr := os.ReadFile(path)
-				if readErr != nil {
-					errors = append(errors, fmt.Sprintf("read error %s: %v", path, readErr))
+				if multimodal && ext == ".pdf" {
+					fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(path, relPath, info.Name())
+					if fallbackErr == nil {
+						content = fallbackContent
+						precomputedEmbedding = vec
+						fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
+					} else {
+						fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", fallbackErr)
+					}
+				}
+				if precomputedEmbedding == nil {
+					fi.logger.Warn("[Indexer] Text extraction failed, skipping document", "path", path, "error", extractErr)
+					errors = append(errors, fmt.Sprintf("text extraction error %s: %v", path, extractErr))
 					return nil
 				}
-				content = strings.TrimSpace(string(data))
 			} else {
 				content = extracted
 			}
 
 			// PDF auto-fallback: if text extraction yielded almost nothing and
 			// multimodal is enabled, treat the PDF as an image (scanned document)
-			if multimodal && ext == ".pdf" && len(strings.TrimSpace(content)) < 10 {
-				embedder := fi.getMultimodalEmbedder()
-				if embedder != nil {
-					vec, embedErr := fi.indexEmbedWithRetry(func() ([]float32, error) {
-						return embedder.EmbedFile(context.Background(), path)
-					}, path, "pdf-fallback")
-					if embedErr == nil {
-						precomputedEmbedding = vec
-						content = fmt.Sprintf("PDF (gescannt): %s (Pfad: %s)", info.Name(), relPath)
-						fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
-					} else {
-						fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", embedErr)
-					}
+			if multimodal && ext == ".pdf" && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
+				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(path, relPath, info.Name())
+				if fallbackErr == nil {
+					content = fallbackContent
+					precomputedEmbedding = vec
+					fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
+				} else {
+					fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", fallbackErr)
 				}
 			}
 
 		} else {
 			// Plain text files.
-			data, readErr := os.ReadFile(path)
+			text, readErr := readIndexedTextFile(path)
 			if readErr != nil {
 				errors = append(errors, fmt.Sprintf("read error %s: %v", path, readErr))
 				return nil
 			}
-			content = strings.TrimSpace(string(data))
+			content = text
 		}
 
 		if len(content) == 0 && precomputedEmbedding == nil {
 			return nil
+		}
+		if precomputedEmbedding == nil {
+			if limitedContent, truncated := limitIndexedContent(content); truncated {
+				fi.logger.Warn("[Indexer] Truncated extracted content before indexing", "path", path, "limit_bytes", maxIndexedContentBytes)
+				content = limitedContent
+			}
 		}
 
 		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
@@ -561,8 +577,19 @@ func (fi *FileIndexer) syncIndexedFileToKG(path, collection string) {
 	if !kgEnabled || !autoExtraction {
 		return
 	}
+	if fi.kgSyncSem != nil {
+		select {
+		case fi.kgSyncSem <- struct{}{}:
+		default:
+			fi.logger.Warn("[Indexer] KG sync concurrency limit reached, skipping live sync", "path", path)
+			return
+		}
+	}
 
 	go func() {
+		if fi.kgSyncSem != nil {
+			defer func() { <-fi.kgSyncSem }()
+		}
 		res := syncer.runSyncFile(path, collection, FileKGSyncOptions{})
 		if len(res.Errors) > 0 {
 			fi.logger.Warn("[Indexer] KG sync produced errors", "path", path, "errors", res.Errors)

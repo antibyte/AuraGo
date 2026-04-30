@@ -74,28 +74,30 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 
 		case http.MethodPost:
 			var req struct {
-				Path string `json:"path"`
+				Path       string `json:"path"`
+				Collection string `json:"collection"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
-			if req.Path == "" {
+			if strings.TrimSpace(req.Path) == "" {
 				jsonError(w, "path is required", http.StatusBadRequest)
 				return
 			}
 
 			// Resolve path relative to config dir
 			configDir := filepath.Dir(s.Cfg.ConfigPath)
-			absPath := req.Path
-			if !filepath.IsAbs(absPath) {
-				absPath = filepath.Join(configDir, absPath)
+			absPath := resolveIndexingRequestPath(configDir, req.Path)
+			if isRootIndexingPath(absPath) {
+				jsonError(w, "Root directories cannot be indexed", http.StatusBadRequest)
+				return
 			}
 
 			// Check for duplicates
 			s.CfgMu.RLock()
 			for _, d := range s.Cfg.Indexing.Directories {
-				if d.Path == absPath {
+				if sameIndexingPath(d.Path, absPath) {
 					s.CfgMu.RUnlock()
 					jsonError(w, "Verzeichnis bereits in der Liste", http.StatusConflict)
 					return
@@ -110,7 +112,10 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 
 			// Update config
 			s.CfgMu.Lock()
-			s.Cfg.Indexing.Directories = append(s.Cfg.Indexing.Directories, config.IndexingDirectory{Path: absPath})
+			s.Cfg.Indexing.Directories = append(s.Cfg.Indexing.Directories, config.IndexingDirectory{
+				Path:       absPath,
+				Collection: strings.TrimSpace(req.Collection),
+			})
 			s.CfgMu.Unlock()
 
 			// Persist to YAML
@@ -136,13 +141,22 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
+			if strings.TrimSpace(req.Path) == "" {
+				jsonError(w, "path is required", http.StatusBadRequest)
+				return
+			}
+
+			configDir := filepath.Dir(s.Cfg.ConfigPath)
+			absPath := resolveIndexingRequestPath(configDir, req.Path)
 
 			s.CfgMu.Lock()
 			newDirs := make([]config.IndexingDirectory, 0, len(s.Cfg.Indexing.Directories))
 			found := false
+			var removed config.IndexingDirectory
 			for _, d := range s.Cfg.Indexing.Directories {
-				if d.Path == req.Path {
+				if sameIndexingPath(d.Path, absPath) {
 					found = true
+					removed = d
 					continue
 				}
 				newDirs = append(newDirs, d)
@@ -162,8 +176,17 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				return
 			}
 
+			cleanupErrors := []string{}
+			if s.FileIndexer != nil {
+				cleanupErrors = s.FileIndexer.CleanupDirectory(removed)
+				if len(cleanupErrors) > 0 {
+					s.Logger.Warn("[Indexer] Directory cleanup after removal produced errors", "path", removed.Path, "errors", cleanupErrors)
+				}
+				s.FileIndexer.Rescan()
+			}
+
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "cleanup_errors": len(cleanupErrors)})
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

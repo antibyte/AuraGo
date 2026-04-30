@@ -5,10 +5,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
-	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -418,6 +416,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		needsRestart := false
 		restartReasons := []string{}
 		embeddingsChanged := false
+		restartFileIndexerAfterUnlock := false
+		fileIndexerEnabledAfterReload := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -605,18 +605,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] Uptime Kuma poller restarted")
 			}
 
-			// Hot-reload File Indexer: start/stop based on enabled flag change
-			if oldCfg.Indexing.Enabled != newCfg.Indexing.Enabled {
-				if newCfg.Indexing.Enabled && s.FileIndexer == nil {
-					s.FileIndexer = services.NewFileIndexer(newCfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
-					s.attachFileKGSyncer()
-					s.FileIndexer.Start(context.Background())
-					s.Logger.Info("[Config UI] File indexer started")
-				} else if !newCfg.Indexing.Enabled && s.FileIndexer != nil {
-					s.FileIndexer.Stop()
-					s.FileIndexer = nil
-					s.Logger.Info("[Config UI] File indexer stopped")
-				}
+			// Hot-reload File Indexer when any indexing setting changes.
+			if !reflect.DeepEqual(oldCfg.Indexing, newCfg.Indexing) {
+				restartFileIndexerAfterUnlock = true
+				fileIndexerEnabledAfterReload = newCfg.Indexing.Enabled
 			}
 
 			// Auto-start Gotenberg container if document_creator just became active
@@ -935,6 +927,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		if restartFileIndexerAfterUnlock && newCfg != nil {
+			s.restartFileIndexer(newCfg)
+			if fileIndexerEnabledAfterReload {
+				s.Logger.Info("[Config UI] File indexer restarted")
+			} else {
+				s.Logger.Info("[Config UI] File indexer stopped")
+			}
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {

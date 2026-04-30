@@ -120,26 +120,26 @@
                 <div class="idx-card-body">`;
 
             // Extensions info
-            const exts = (configData.indexing && configData.indexing.extensions) || ['.txt', '.md', '.json', '.csv', '.log', '.yaml', '.yml', '.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.rtf'];
-            const docExts = ['.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.rtf'];
+            const exts = (configData.indexing && configData.indexing.extensions) || ['.txt', '.md', '.json', '.csv', '.log', '.yaml', '.yml', '.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.rtf'];
+            const docExts = ['.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.rtf'];
             const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
             html += `<div class="idx-types-subtitle">
                     ${t('config.indexing.text_files')}
                 </div>
                 <div class="idx-chip-row">
-                    ${exts.filter(e => !docExts.includes(e) && !imgExts.includes(e)).map(e => '<span class="idx-chip idx-chip-text">' + e + '</span>').join('')}
+                    ${exts.filter(e => !docExts.includes(e) && !imgExts.includes(e)).map(e => '<span class="idx-chip idx-chip-text">' + escapeHtml(String(e)) + '</span>').join('')}
                 </div>
                 <div class="idx-types-subtitle">
                     ${t('config.indexing.documents')}
                 </div>
                 <div class="idx-chip-row">
-                    ${docExts.map(e => '<span class="idx-chip idx-chip-doc">' + e + '</span>').join('')}
+                    ${docExts.map(e => '<span class="idx-chip idx-chip-doc">' + escapeHtml(String(e)) + '</span>').join('')}
                 </div>
                 <div class="idx-types-subtitle">
                     ${t('config.indexing.images')}
                 </div>
                 <div class="idx-chip-row idx-chip-row-last">
-                    ${imgExts.map(e => '<span class="idx-chip idx-chip-img">' + e + '</span>').join('')}
+                    ${imgExts.map(e => '<span class="idx-chip idx-chip-img">' + escapeHtml(String(e)) + '</span>').join('')}
                 </div>`;
 
             html += `</div></div>`; // close idx-card-body & idx-card (File Types)
