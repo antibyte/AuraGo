@@ -113,7 +113,8 @@
 .kc-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.86rem;
+    table-layout: auto;
 }
 
 .kc-table thead {
@@ -124,11 +125,11 @@
 }
 
 .kc-table th {
-    padding: 10px 14px;
+    padding: 8px 10px;
     text-align: left;
     font-weight: 600;
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border-bottom: 1px solid var(--border-subtle);
@@ -136,10 +137,17 @@
 }
 
 .kc-table td {
-    padding: 10px 14px;
+    padding: 7px 10px;
     border-bottom: 1px solid var(--border-subtle);
     color: var(--text-primary);
     vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Allow only specific columns to wrap when truly needed */
+.kc-table td.kc-wrap,
+.kc-table td.kc-tags-cell {
+    white-space: normal;
 }
 
 .kc-table tbody tr:hover {
@@ -163,15 +171,21 @@
 
 /* Table action buttons */
 .kc-actions {
-    display: flex;
-    gap: 6px;
     white-space: nowrap;
+    text-align: right;
+    width: 1%;
+    /* Shrink-wrap to button width so layout stays compact */
 }
 
 .kc-actions .btn-sm {
-    padding: 4px 10px;
-    font-size: 0.8rem;
+    padding: 3px 8px;
+    font-size: 0.78rem;
     border-radius: 6px;
+    margin-left: 2px;
+}
+
+.kc-actions .btn-sm:first-child {
+    margin-left: 0;
 }
 
 /* Contact name column – primary emphasis */
@@ -229,9 +243,10 @@
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 1px 7px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     margin-right: 4px;
-    margin-bottom: 2px;
+    white-space: nowrap;
+    line-height: 1.6;
 }
 
 .kc-state-chip {
@@ -851,11 +866,11 @@
 .kc-todo-item {
     display: flex;
     align-items: flex-start;
-    gap: 14px;
+    gap: 12px;
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
-    padding: 14px 18px;
+    padding: 12px 14px;
     box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
     transition: border-color 0.2s, opacity 0.3s;
 }
@@ -875,6 +890,8 @@
 .kc-todo-check {
     padding-top: 2px;
     flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
 }
 
 .kc-todo-check input[type="checkbox"] {
@@ -892,7 +909,7 @@
 .kc-todo-title-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 4px;
 }
@@ -901,6 +918,8 @@
     font-weight: 600;
     font-size: 0.95rem;
     color: var(--text-primary);
+    margin-right: auto;
+    /* Push following badges to the right while keeping inline */
 }
 
 .kc-todo-title-done {
@@ -909,7 +928,7 @@
 }
 
 .kc-todo-desc {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     color: var(--text-secondary);
     font-size: 0.85rem;
     line-height: 1.4;
@@ -927,6 +946,13 @@
     white-space: nowrap;
 }
 
+.kc-todo-meta-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--border-subtle);
+    flex-shrink: 0;
+}
+
 .kc-todo-overdue-text {
     color: #ef4444 !important;
     font-weight: 500;
@@ -938,20 +964,15 @@
 
 .kc-todo-actions {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
-    padding-top: 2px;
+    margin-left: auto;
 }
 
-.kc-todo-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-}
-
-.kc-todo-check {
-    display: flex;
-    align-items: flex-start;
+.kc-todo-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    line-height: 1;
 }
 
 .kc-todo-main {
@@ -959,17 +980,19 @@
     min-width: 0;
 }
 
-.kc-todo-progress-row {
+.kc-todo-info-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 10px 0 8px;
+    flex-wrap: wrap;
 }
 
 .kc-todo-progress-bar {
     position: relative;
-    flex: 1;
-    height: 8px;
+    flex: 1 1 160px;
+    min-width: 120px;
+    max-width: 280px;
+    height: 6px;
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.16);
     overflow: hidden;
@@ -981,6 +1004,7 @@
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, rgba(15, 143, 132, 0.75), rgba(45, 212, 191, 0.95));
+    transition: width 0.3s ease;
 }
 
 .kc-todo-progress-text {
@@ -988,12 +1012,13 @@
     font-weight: 600;
     color: var(--text-secondary);
     white-space: nowrap;
+    min-width: 32px;
 }
 
 .kc-todo-subtasks {
     margin-top: 8px;
     border-top: 1px solid var(--border-subtle);
-    padding-top: 10px;
+    padding-top: 8px;
 }
 
 .kc-todo-subtasks summary {
@@ -1004,12 +1029,31 @@
     cursor: pointer;
     list-style: none;
     color: var(--text-secondary);
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     user-select: none;
+    padding: 2px 4px;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.kc-todo-subtasks summary:hover {
+    background: rgba(148, 163, 184, 0.08);
 }
 
 .kc-todo-subtasks summary::-webkit-details-marker {
     display: none;
+}
+
+.kc-todo-subtasks summary::before {
+    content: '▸';
+    display: inline-block;
+    font-size: 0.7rem;
+    transition: transform 0.15s;
+    color: var(--text-tertiary, var(--text-secondary));
+}
+
+.kc-todo-subtasks[open] summary::before {
+    transform: rotate(90deg);
 }
 
 .kc-todo-subtasks-count {
@@ -1020,32 +1064,39 @@
 .kc-todo-subtasks-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 4px;
+    margin-top: 8px;
 }
 
 .kc-todo-subtask {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 6px 10px;
+    border-radius: 8px;
     background: rgba(15, 23, 42, 0.18);
     border: 1px solid rgba(148, 163, 184, 0.12);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.kc-todo-subtask:hover {
+    background: rgba(15, 23, 42, 0.28);
+    border-color: rgba(148, 163, 184, 0.2);
 }
 
 .kc-todo-subtask input[type="checkbox"] {
-    margin-top: 2px;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     accent-color: var(--accent);
+    flex-shrink: 0;
 }
 
 .kc-todo-subtask-title {
     flex: 1;
-    font-size: 0.87rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
-    line-height: 1.45;
+    line-height: 1.35;
+    min-width: 0;
 }
 
 .kc-todo-subtask-done .kc-todo-subtask-title {
@@ -1057,18 +1108,20 @@
     display: block;
     margin-top: 2px;
     color: var(--text-secondary);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
 }
 
 .kc-todo-subtask-meta {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: var(--text-tertiary, var(--text-secondary));
+    flex-shrink: 0;
 }
 
 .kc-todo-reminder {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    padding: 2px 6px;
 }
 
 .kc-todo-editor-list {

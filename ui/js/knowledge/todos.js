@@ -97,45 +97,47 @@ function renderTodoCard(todo) {
     const isOverdue = todo.due_date && !isDone && new Date(todo.due_date) < new Date();
     const progress = Number.isFinite(todo.progress_percent) ? todo.progress_percent : 0;
     const hasItems = Array.isArray(todo.items) && todo.items.length > 0;
-    const detailsOpen = !isDone || todo.status === 'in_progress';
+    // Collapse checklist by default for compactness; only auto-open when actively in progress
+    const detailsOpen = todo.status === 'in_progress' && hasItems && !isDone;
     const reminderBadge = todo.remind_daily
-        ? `<span class="kc-status-pill kc-todo-reminder">🔔 ${t('knowledge.todos_remind_daily_badge')}</span>`
+        ? `<span class="kc-status-pill kc-todo-reminder" title="${esc(t('knowledge.todos_remind_daily_label'))}">🔔</span>`
         : '';
+
+    const itemsLabel = hasItems
+        ? esc(t('knowledge.todos_items_progress').replace('{done}', String(todo.done_item_count || 0)).replace('{total}', String(todo.item_count || 0)))
+        : esc(t('knowledge.todos_no_items'));
 
     return `
     <div class="kc-todo-item ${isDone ? 'kc-todo-done' : ''} ${isOverdue ? 'kc-todo-overdue' : ''}">
-        <div class="kc-todo-header">
-            <div class="kc-todo-check">
-                <input type="checkbox" ${isDone ? 'checked' : ''}
-                    onchange='toggleTodoStatus(${quoteJS(todo.id)}, this.checked)'
-                    title="${isDone ? esc(t('knowledge.todos_reopen')) : esc(t('knowledge.todos_mark_done'))}">
-            </div>
-            <div class="kc-todo-main">
-                <div class="kc-todo-title-row">
-                    <span class="kc-todo-title ${isDone ? 'kc-todo-title-done' : ''}">${esc(todo.title)}</span>
-                    <span class="kc-priority-badge ${priorityClass}">${esc(priorityLabel)}</span>
-                    <span class="kc-status-pill ${todo.status === 'in_progress' ? 'kc-status-inprogress' : ''}">${esc(statusLabel)}</span>
-                    ${reminderBadge}
+        <div class="kc-todo-check">
+            <input type="checkbox" ${isDone ? 'checked' : ''}
+                onchange='toggleTodoStatus(${quoteJS(todo.id)}, this.checked)'
+                title="${isDone ? esc(t('knowledge.todos_reopen')) : esc(t('knowledge.todos_mark_done'))}">
+        </div>
+        <div class="kc-todo-main">
+            <div class="kc-todo-title-row">
+                <span class="kc-todo-title ${isDone ? 'kc-todo-title-done' : ''}">${esc(todo.title)}</span>
+                <span class="kc-priority-badge ${priorityClass}">${esc(priorityLabel)}</span>
+                <span class="kc-status-pill ${todo.status === 'in_progress' ? 'kc-status-inprogress' : ''}">${esc(statusLabel)}</span>
+                ${reminderBadge}
+                <div class="kc-todo-actions">
+                    ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick='setTodoInProgress(${quoteJS(todo.id)})' title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">🗑️</button>
                 </div>
-                ${todo.description ? `<p class="kc-todo-desc">${esc(todo.description)}</p>` : ''}
-                <div class="kc-todo-progress-row">
-                    <div class="kc-todo-progress-bar" aria-hidden="true">
-                        <div class="kc-todo-progress-fill" style="width:${Math.max(0, Math.min(progress, 100))}%"></div>
-                    </div>
-                    <span class="kc-todo-progress-text">${progress}%</span>
-                </div>
-                <div class="kc-todo-meta">
-                    ${hasItems ? `<span class="kc-todo-meta-item">☑️ ${esc(t('knowledge.todos_items_progress').replace('{done}', String(todo.done_item_count || 0)).replace('{total}', String(todo.item_count || 0)))}</span>` : `<span class="kc-todo-meta-item">${esc(t('knowledge.todos_no_items'))}</span>`}
-                    ${due ? `<span class="kc-todo-meta-item ${isOverdue ? 'kc-todo-overdue-text' : ''}">📅 ${esc(due)}</span>` : ''}
-                    <span class="kc-todo-meta-item kc-todo-created">🕐 ${esc(formatTodoDate(todo.created_at))}</span>
-                </div>
-                ${hasItems ? renderTodoItems(todo, detailsOpen) : ''}
             </div>
-            <div class="kc-todo-actions">
-                ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick='setTodoInProgress(${quoteJS(todo.id)})' title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
-                <button class="btn btn-sm btn-secondary" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">🗑️</button>
+            ${todo.description ? `<p class="kc-todo-desc">${esc(todo.description)}</p>` : ''}
+            <div class="kc-todo-info-row">
+                <div class="kc-todo-progress-bar" aria-hidden="true" title="${progress}%">
+                    <div class="kc-todo-progress-fill" style="width:${Math.max(0, Math.min(progress, 100))}%"></div>
+                </div>
+                <span class="kc-todo-progress-text">${progress}%</span>
+                <span class="kc-todo-meta-divider" aria-hidden="true"></span>
+                <span class="kc-todo-meta-item" title="${esc(t('knowledge.todos_items_label'))}">☑️ ${itemsLabel}</span>
+                ${due ? `<span class="kc-todo-meta-item ${isOverdue ? 'kc-todo-overdue-text' : ''}" title="${esc(due)}">📅 ${esc(due)}</span>` : ''}
+                <span class="kc-todo-meta-item kc-todo-created" title="${esc(formatTodoDate(todo.created_at))}">🕐 ${esc(formatTodoDate(todo.created_at))}</span>
             </div>
+            ${hasItems ? renderTodoItems(todo, detailsOpen) : ''}
         </div>
     </div>`;
 }

@@ -577,13 +577,13 @@ function renderDevices() {
         ).join('') || '—';
         return `
         <tr>
-            <td class="kc-name">${esc(d.name)}</td>
+            <td class="kc-name kc-wrap">${esc(d.name)}</td>
             <td><span class="kc-type-badge">${esc(d.type)}</span></td>
             <td class="kc-mono">${esc(d.ip_address || '—')}</td>
             <td>${d.port || '—'}</td>
-            <td>${esc(getDeviceAccessLabel(d))}</td>
+            <td class="kc-wrap">${esc(getDeviceAccessLabel(d))}</td>
             <td class="kc-mono kc-size">${esc(d.mac_address || '—')}</td>
-            <td>${tags}</td>
+            <td class="kc-tags-cell">${tags}</td>
             <td class="kc-actions">
                 <button class="btn btn-sm btn-secondary" onclick="editDevice('${esc(d.id)}')" title="${t('common.btn_edit')}">✏️</button>
                 <button class="btn btn-sm btn-danger" onclick="askDeleteDevice('${esc(d.id)}', '${esc(d.name)}')" title="${t('common.btn_delete')}">🗑️</button>
