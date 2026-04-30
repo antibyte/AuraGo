@@ -142,6 +142,12 @@
     color: var(--text-primary);
     vertical-align: middle;
     white-space: nowrap;
+    width: 1px;
+    /* width:1px + white-space:nowrap = shrink to content width.
+       Combined with width:100% on the .kc-name column, this forces
+       all extra horizontal space into the name column instead of
+       being distributed evenly across all columns (which creates
+       the large gaps between Name/Typ/IP/Port/etc.). */
 }
 
 /* Allow only specific columns to wrap when truly needed */
@@ -188,12 +194,16 @@
     margin-left: 0;
 }
 
-/* Contact name column – primary emphasis */
+/* Contact name column – primary emphasis + absorbs remaining width */
+.kc-table td.kc-name {
+    font-weight: 500;
+    width: auto;
+    /* Counterpart to width:1px on other tds - this column gets all
+       leftover horizontal space because it does NOT have width:1px. */
+}
+
 .kc-name {
     font-weight: 500;
-    width: 100%;
-    /* Absorbs remaining horizontal space so other columns shrink to content
-       and don't develop huge gaps when the table is wider than its content. */
 }
 
 /* File icon before filename */
