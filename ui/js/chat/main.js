@@ -535,6 +535,15 @@ async function changePersonality(newId, triggerSelect) {
 
 document.getElementById('personality-select').addEventListener('change', function (e) {
     changePersonality(e.target.value, e.target);
+
+/* Mobile personality button opens the select dropdown */
+const mobilePersonalityBtn = document.getElementById("personality-mobile-btn");
+if (mobilePersonalityBtn) {
+    mobilePersonalityBtn.addEventListener("click", function () {
+        const sel = document.getElementById("personality-select");
+        if (sel) { sel.showPicker ? sel.showPicker() : sel.click(); }
+    });
+}
 });
 
 /* ── Clear session ── */
