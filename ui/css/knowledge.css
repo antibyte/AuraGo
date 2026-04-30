@@ -142,12 +142,10 @@
     color: var(--text-primary);
     vertical-align: middle;
     white-space: nowrap;
-    width: 1px;
-    /* width:1px + white-space:nowrap = shrink to content width.
-       Combined with width:100% on the .kc-name column, this forces
-       all extra horizontal space into the name column instead of
-       being distributed evenly across all columns (which creates
-       the large gaps between Name/Typ/IP/Port/etc.). */
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* max-width + ellipsis prevents cells from overflowing the card */
 }
 
 /* Allow only specific columns to wrap when truly needed */
@@ -175,10 +173,7 @@
     border-bottom: none;
 }
 
-/* Table action buttons – absorbs ALL remaining horizontal space.
-   In table-layout:auto, width:100% on one cell wins the competition
-   against width:1px cells, so all leftover whitespace lands here
-   instead of being distributed as gaps between Name/Typ/IP/Port. */
+/* Table action buttons */
 .kc-actions {
     white-space: nowrap;
     text-align: right;
@@ -196,12 +191,9 @@
     margin-left: 0;
 }
 
-/* Contact name column – primary emphasis, shrink to content like other cells */
+/* Contact name column */
 .kc-table td.kc-name {
     font-weight: 500;
-    /* Stays width:1px (inherited) so it shrinks to content. The actions
-       column on the right gets text-align:right + width:1% which keeps
-       the action buttons flush right against the table edge. */
 }
 
 .kc-name {
