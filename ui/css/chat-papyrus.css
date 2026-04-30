@@ -93,14 +93,14 @@
 @keyframes papyrus-page-breathe {
     0%, 100% { box-shadow:
         inset 0 18px 36px rgba(255, 251, 240, 0.24),
-        inset 0 -22px 34px rgba(88, 62, 35, 0.1),
-        -3px 0 14px rgba(8, 14, 20, 0.18),
-        3px 0 14px rgba(8, 14, 20, 0.18); }
+        inset 0 -22px 34px rgba(88, 62, 35, 0.10),
+        inset 20px 0 16px rgba(72, 50, 30, 0.055),
+        inset -20px 0 16px rgba(72, 50, 30, 0.055); }
     50%      { box-shadow:
         inset 0 22px 42px rgba(255, 251, 240, 0.28),
         inset 0 -28px 38px rgba(88, 62, 35, 0.13),
-        -3px 0 18px rgba(8, 14, 20, 0.22),
-        3px 0 18px rgba(8, 14, 20, 0.22); }
+        inset 22px 0 18px rgba(72, 50, 30, 0.07),
+        inset -22px 0 18px rgba(72, 50, 30, 0.07); }
 }
 
 @keyframes papyrus-ink-rise {
@@ -154,6 +154,7 @@
 /* Floating dust particles drifting across the dark frame */
 [data-theme="papyrus"] body::before {
     content: '';
+    display: block;
     position: fixed;
     inset: -40px;
     pointer-events: none;
@@ -347,7 +348,7 @@
 }
 [data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(70vh, 30rem); }
 
-[data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; }
+[data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
 
 /* Parchment fiber overlay */
 [data-theme="papyrus"] .chat-theme-dropdown::before,
@@ -431,23 +432,14 @@
     isolation: auto;
     position: relative;
     z-index: 1;
-    margin-left: clamp(1rem, 3vw, 2.5rem);
-    margin-right: clamp(1rem, 3vw, 2.5rem);
-    border-inline: 1px solid rgba(44, 64, 74, 0.22);
     background:
         linear-gradient(118deg, rgba(255, 252, 241, 0.56), transparent 34%),
         linear-gradient(22deg, transparent 68%, rgba(194, 147, 79, 0.14)),
         linear-gradient(90deg, rgba(93, 69, 42, 0.08), transparent 7%, transparent 93%, rgba(93, 69, 42, 0.08)),
         linear-gradient(180deg, #f3e7cd 0%, #ead7b3 47%, #ddbf8d 100%);
-    box-shadow:
-        inset 0 18px 36px rgba(255, 251, 240, 0.24),
-        inset 0 -22px 34px rgba(88, 62, 35, 0.1),
-        -3px 0 14px rgba(8, 14, 20, 0.18),
-        3px 0 14px rgba(8, 14, 20, 0.18);
-    animation: papyrus-page-breathe 16s ease-in-out infinite;
 }
 
-/* Soft sheen + edge shadow */
+/* Soft sheen + edge shadow (breathing glow) */
 [data-theme="papyrus"] #chat-box::before {
     content: '';
     position: absolute;
@@ -457,9 +449,12 @@
     background:
         linear-gradient(105deg, rgba(255, 252, 241, 0.3), transparent 24%, transparent 78%, rgba(30, 63, 102, 0.06) 100%);
     box-shadow:
+        inset 0 18px 36px rgba(255, 251, 240, 0.24),
+        inset 0 -22px 34px rgba(88, 62, 35, 0.1),
         inset 20px 0 16px rgba(72, 50, 30, 0.055),
         inset -20px 0 16px rgba(72, 50, 30, 0.055);
     border-radius: 0;
+    animation: papyrus-page-breathe 16s ease-in-out infinite;
 }
 
 /* Faint AuraGo watermark */
@@ -511,14 +506,10 @@
     margin: auto 0;
     justify-content: center;
     padding: 2.2rem 2rem;
-    border-radius: 12px;
-    border: 1px solid rgba(30, 63, 102, 0.15);
-    background:
-        linear-gradient(180deg, rgba(255, 250, 239, 0.7), rgba(232, 216, 187, 0.54)),
-        linear-gradient(90deg, rgba(30, 63, 102, 0.06), transparent 22%, transparent 78%, rgba(159, 63, 53, 0.05));
-    box-shadow:
-        0 18px 42px rgba(9, 16, 23, 0.13),
-        inset 0 1px 0 rgba(255, 251, 241, 0.68);
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
 }
 
 [data-theme="papyrus"] .greeting-text {
