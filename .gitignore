@@ -76,6 +76,12 @@ data/crontab.json
 data/current_plan.md
 data/graph.json
 data/state.json
+data/background_tasks.json
+data/missions_v2_queue.json
+
+# Auto-generated example skill files (created at first run)
+agent_workspace/skills/example_hello_world.py
+agent_workspace/skills/example_hello_world.json
 
 # Python Virtual Environments
 .venv/
