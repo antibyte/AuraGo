@@ -2535,10 +2535,20 @@ div.toggle.toggle-sm.on::before {
         font-size: 1.08rem;
     }
 
-    /* Viewport-relative vertical spacing so all items fit on short screens */
-    .radial-item {
-        top: calc(var(--radial-index, 1) * min(50px, calc((100dvh - 60px) / 13))) !important;
-    }
+    /* Vertical spacing for 42px icons with comfortable touch gaps */
+    .radial-item:nth-child(1) { top: 50px; }
+    .radial-item:nth-child(2) { top: 100px; }
+    .radial-item:nth-child(3) { top: 150px; }
+    .radial-item:nth-child(4) { top: 200px; }
+    .radial-item:nth-child(5) { top: 250px; }
+    .radial-item:nth-child(6) { top: 300px; }
+    .radial-item:nth-child(7) { top: 350px; }
+    .radial-item:nth-child(8) { top: 400px; }
+    .radial-item:nth-child(9) { top: 450px; }
+    .radial-item:nth-child(10) { top: 500px; }
+    .radial-item:nth-child(11) { top: 550px; }
+    .radial-item:nth-child(12) { top: 600px; }
+    .radial-item:nth-child(13) { top: 650px; }
 }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
