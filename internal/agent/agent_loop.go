@@ -1479,7 +1479,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
 
 		// Phase D: Final mood + trait update + milestone check at session end
-		if personalityEnabled && shortTermMem != nil && !isAutonomousRun {
+		// Skip personality side-effects for missions, heartbeats, and maintenance —
+		// these are background/autonomous runs that should not update mood, traits,
+		// or trigger emotion synthesis.
+		if personalityEnabled && shortTermMem != nil && !isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
 			if cfg.Personality.EngineV2 {
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(

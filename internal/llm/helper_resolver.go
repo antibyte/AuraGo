@@ -42,7 +42,6 @@ func ResolveHelperLLM(cfg *config.Config) HelperLLMConfig {
 func IsHelperLLMAvailable(cfg *config.Config) bool {
 	resolved := ResolveHelperLLM(cfg)
 	return resolved.Enabled &&
-		resolved.ProviderID != "" &&
 		resolved.ProviderType != "" &&
 		resolved.Model != ""
 }

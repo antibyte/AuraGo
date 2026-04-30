@@ -314,7 +314,8 @@ func executeAgentToolTurn(
 		}
 	}
 
-	if s.personalityEnabled && shortTermMem != nil {
+	// Skip personality side-effects for missions, heartbeats, co-agents, and maintenance.
+	if s.personalityEnabled && shortTermMem != nil && !isAutonomousAgentRun(s.runCfg, sessionID) && !s.runCfg.IsMission && !s.flags.IsMission && !s.runCfg.IsCoAgent && !s.runCfg.IsMaintenance && sessionID != "maintenance" {
 		triggerInfo := triggerValue
 		if strings.Contains(resultContent, "ERROR") || strings.Contains(resultContent, "error") {
 			triggerInfo = triggerValue + " [tool error]"

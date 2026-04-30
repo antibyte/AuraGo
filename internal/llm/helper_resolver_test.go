@@ -68,6 +68,12 @@ func TestIsHelperLLMAvailableRequiresExplicitResolution(t *testing.T) {
 	if !IsHelperLLMAvailable(cfg) {
 		t.Fatal("expected helper LLM to become available once explicitly resolved")
 	}
+
+	// ProviderID is not required for availability; only ProviderType and Model matter.
+	cfg.LLM.HelperProvider = ""
+	if !IsHelperLLMAvailable(cfg) {
+		t.Fatal("expected helper LLM to remain available even without provider id")
+	}
 }
 
 func TestResolveHelperBackedClientFallsBackWhenDisabled(t *testing.T) {
@@ -106,10 +112,10 @@ func TestResolveHelperBackedClientFallsBackWhenModelEmpty(t *testing.T) {
 	}
 }
 
-func TestResolveHelperBackedClientFallsBackWhenProviderNotFullyResolved(t *testing.T) {
+func TestResolveHelperBackedClientFallsBackWhenProviderTypeEmpty(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.HelperEnabled = true
-	cfg.LLM.HelperProviderType = "unknown_provider"
+	cfg.LLM.HelperProviderType = ""
 	cfg.LLM.HelperBaseURL = "https://example.com"
 	cfg.LLM.HelperAPIKey = "key"
 	cfg.LLM.HelperResolvedModel = "cheap-model"
@@ -119,10 +125,31 @@ func TestResolveHelperBackedClientFallsBackWhenProviderNotFullyResolved(t *testi
 	client, model := ResolveHelperBackedClient(cfg, fallbackClient, cfg.LLM.Model)
 
 	if client != fallbackClient {
-		t.Fatal("expected fallback client when helper provider id is missing")
+		t.Fatal("expected fallback client when helper provider type is empty")
 	}
 	if model != "main-model" {
 		t.Fatalf("model = %q, want main-model", model)
+	}
+}
+
+func TestResolveHelperBackedClientReturnsHelperWhenProviderIDMissing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = ""
+	cfg.LLM.HelperProviderType = "openai"
+	cfg.LLM.HelperBaseURL = "https://api.openai.com/v1"
+	cfg.LLM.HelperAPIKey = "test-key"
+	cfg.LLM.HelperResolvedModel = "gpt-4o-mini"
+	cfg.LLM.Model = "expensive-model"
+
+	fallbackClient := &mockChatClient{}
+	client, model := ResolveHelperBackedClient(cfg, fallbackClient, cfg.LLM.Model)
+
+	if client == fallbackClient {
+		t.Fatal("expected helper client even when provider id is missing")
+	}
+	if model != "gpt-4o-mini" {
+		t.Fatalf("model = %q, want gpt-4o-mini", model)
 	}
 }
 
