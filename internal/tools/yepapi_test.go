@@ -472,29 +472,30 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 func TestDispatchYepAPIInstagramRetriesLiveValidationFallbacks(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("user_retries_username_or_url_only_when_live_api_demands_it", func(t *testing.T) {
-		requests := make(chan yepAPIRecordedRequest, 2)
+	t.Run("user_sends_canonical_username_only_and_accepts_url_alias", func(t *testing.T) {
+		requests := make(chan yepAPIRecordedRequest, 1)
 		client := newYepAPITestClient(func(r *http.Request) (int, string) {
 			var payload map[string]interface{}
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode request body: %v", err)
 			}
 			requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
-			if _, ok := payload["username_or_url"]; !ok {
-				return http.StatusOK, `{"ok":true,"data":{"error":"username_or_url is required"}}`
-			}
 			return http.StatusOK, `{"ok":true,"data":{"username":"natgeo"}}`
 		})
 
-		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"})
+		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username_or_url": "https://www.instagram.com/natgeo/"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !strings.Contains(res, `"status":"success"`) {
-			t.Fatalf("expected success after fallback, got %s", res)
+			t.Fatalf("expected success, got %s", res)
 		}
 		requireYepAPIRequest(t, requests, "/v1/instagram/user", map[string]interface{}{"username": "natgeo"})
-		requireYepAPIRequest(t, requests, "/v1/instagram/user", map[string]interface{}{"username_or_url": "natgeo"})
+		select {
+		case extra := <-requests:
+			t.Fatalf("unexpected second request: %+v", extra)
+		default:
+		}
 	})
 
 	t.Run("search_accepts_search_query_alias_and_sends_canonical_query", func(t *testing.T) {

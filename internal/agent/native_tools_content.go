@@ -438,7 +438,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"query":           prop("string", "Search query (for search operation; 'search_query' is also accepted as an alias)"),
 				"search_query":    prop("string", "Alias for 'query' (for search operation); AuraGo normalizes this to the canonical 'query' field expected by YepAPI"),
 				"username":        prop("string", "Instagram username (for user and user_* operations)"),
-				"username_or_url": prop("string", "Instagram username or profile URL alias; AuraGo normalizes profile URLs to username and only uses compatibility fallbacks when YepAPI validation requires them"),
+				"username_or_url": prop("string", "Instagram username or profile URL alias accepted as input convenience; AuraGo normalizes profile URLs to the bare username before calling YepAPI"),
 				"shortcode":       prop("string", "Instagram post shortcode (for post, post_comments, post_likers, media_id operations)"),
 				"tag":             prop("string", "Hashtag without # (for hashtag operation)"),
 				"limit":           map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},

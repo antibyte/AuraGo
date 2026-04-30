@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -163,29 +162,6 @@ func postInstagramPayload(ctx context.Context, client *YepAPIClient, endpoint, o
 	return client.Post(ctx, endpoint, payload)
 }
 
-func postInstagramPayloadWithValidationFallback(ctx context.Context, client *YepAPIClient, endpoint, operation string, payload, fallbackPayload map[string]interface{}, validationNeedle string) ([]byte, map[string]interface{}, error) {
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
-	if !instagramValidationErrorContains(data, err, validationNeedle) {
-		return data, payload, err
-	}
-	data, err = postInstagramPayload(ctx, client, endpoint, operation, fallbackPayload)
-	return data, fallbackPayload, err
-}
-
-func instagramValidationErrorContains(data []byte, err error, validationNeedle string) bool {
-	needle := strings.ToLower(validationNeedle)
-	if err != nil {
-		return strings.Contains(strings.ToLower(err.Error()), needle)
-	}
-
-	var response map[string]interface{}
-	if json.Unmarshal(data, &response) != nil {
-		return false
-	}
-	message := strings.ToLower(fmt.Sprint(response["error"]))
-	return message != "" && strings.Contains(message, needle)
-}
-
 func instagramPayloadDiagnostics(endpoint, operation string, payload map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"sent_endpoint":     endpoint,
@@ -207,15 +183,11 @@ func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoi
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	fallbackPayload := map[string]interface{}{"username_or_url": lookup.usernameOrURL}
-	if withLimit {
-		addPositiveIntArg(fallbackPayload, args, "limit", "limit")
-	}
-	data, finalPayload, err := postInstagramPayloadWithValidationFallback(ctx, client, endpoint, operation, payload, fallbackPayload, "username_or_url is required")
+	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
 	if err != nil {
 		return "", err
 	}
-	return formatInstagramPayloadSuccess(data, endpoint, operation, finalPayload), nil
+	return formatInstagramPayloadSuccess(data, endpoint, operation, payload), nil
 }
 
 func dispatchInstagramShortcode(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
