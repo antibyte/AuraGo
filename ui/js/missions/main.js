@@ -64,6 +64,15 @@ const svgIcons = {
     info: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>`,
     refresh: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/></svg>`,
     chevron: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>`,
+    chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>`,
+    more: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM17 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>`,
+    clock: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.39.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clip-rule="evenodd"/></svg>`,
+    calendar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/></svg>`,
+    bolt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.983 1.907a.75.75 0 00-1.292-.657l-8.5 9.5A.75.75 0 002.75 12h6.572l-1.305 6.093a.75.75 0 001.292.657l8.5-9.5A.75.75 0 0017.25 8h-6.572l1.305-6.093z" clip-rule="evenodd"/></svg>`,
+    hand: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a1 1 0 00-1 1v8.5L4.78 10.28a1 1 0 10-1.56 1.44l3 4A1 1 0 007 16h6a3 3 0 003-3V8a1 1 0 10-2 0V6a1 1 0 10-2 0V4a1 1 0 10-2 0V3a1 1 0 10-2 0v8a.5.5 0 11-1 0V3a1 1 0 00-1-1z"/></svg>`,
+    checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>`,
+    xCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>`,
+    fileText: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>`,
 };
 
 // Initialize
@@ -419,76 +428,146 @@ function renderMissionCompact(mission) {
     `;
 }
 
-// Grid View Card (Expandable)
+// Grid View Card (Expandable) — redesigned for clarity, hierarchy, touch-friendliness.
 function renderMissionGrid(mission, isFirstRender) {
     const isRunning = mission.id === queue.running;
     const isQueued = queue.items.some(i => i.mission_id === mission.id);
-    const statusClass = isRunning ? 'running' : isQueued ? 'queued' : mission.status === 'waiting' ? 'waiting' : '';
+    const isWaiting = !isRunning && !isQueued && mission.status === 'waiting';
+    const statusKind = isRunning ? 'running'
+        : isQueued ? 'queued'
+        : isWaiting ? 'waiting'
+        : (mission.execution_type || 'manual');
+    const statusClass = isRunning ? 'running' : isQueued ? 'queued' : isWaiting ? 'waiting' : '';
     const isExpanded = expandedCards.has(mission.id);
+    const hasError = !isRunning && mission.last_result === 'error';
 
     const mid = escapeAttr(mission.id);
-    const priorityBadge = `<span class="badge badge-priority-${escapeAttr(mission.priority)}">${escapeHtml(mission.priority)}</span>`;
-    const typeBadge = `<span class="badge badge-type-${escapeAttr(mission.execution_type)}">${escapeHtml(mission.execution_type)}</span>`;
-    const runnerBadge = mission.runner_type === 'remote'
-        ? `<span class="badge badge-remote">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
+    const statusChip = renderStatusChip(mission, isRunning, isQueued, isWaiting);
+    const remoteBadge = mission.runner_type === 'remote'
+        ? `<span class="badge badge-remote mc-remote-badge">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
         : '';
-    const statusBadge = isRunning
-        ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>`
-        : isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
 
-    let triggerInfo = '';
+    let triggerPill = '';
     if (mission.execution_type === 'triggered' && mission.trigger_config) {
-        triggerInfo = renderTriggerInfo(mission);
+        const text = renderTriggerText(mission);
+        if (text) {
+            triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(text.replace(/<[^>]+>/g, ''))}">${svgIcons.bolt}<span>${text}</span></div>`;
+        }
     }
 
     const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
-    const resultIcon = mission.last_result === 'success' ? '✅' : mission.last_result === 'error' ? '❌' : '';
+    const resultIcon = hasError ? svgIcons.xCircle : (mission.last_result === 'success' ? svgIcons.checkCircle : '');
+    const resultClass = hasError ? 'mc-meta-item--error' : (mission.last_result === 'success' ? 'mc-meta-item--ok' : '');
+
+    const lockedMark = mission.locked
+        ? `<span class="mc-name-lock" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>`
+        : '';
+
+    const fullPrompt = escapeHtml(mission.prompt || '');
 
     return `
-        <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}" data-priority="${escapeAttr(mission.priority)}">
-            <div class="mission-header" data-mission-action="toggle-expand" data-mission-id="${mid}">
-                <div class="mission-header-top">
-                    <span class="card-toggle">${svgIcons.chevron}</span>
-                    <span class="mission-name">${escapeHtml(mission.name)}</span>
-                    ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
+        <article class="mission-card mc-card${statusClass ? ' ' + statusClass : ''}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}"
+                 data-priority="${escapeAttr(mission.priority)}"
+                 data-status="${statusKind}"
+                 data-mission-id="${mid}">
+            <header class="mc-header" data-mission-action="toggle-expand" data-mission-id="${mid}">
+                <div class="mc-header-left">
+                    ${statusChip}
+                    ${remoteBadge}
+                    ${prepBadge}
                 </div>
-                <div class="mission-badges">
-                    ${priorityBadge}${typeBadge}${runnerBadge}${statusBadge}${prepBadge}
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="mission-body">
-                    <div class="mission-prompt">${escapeHtml(mission.prompt)}</div>
-                    ${triggerInfo}
-                    ${mission.last_output ? `
-                    <div class="mission-log-wrapper">
-                        <div class="mission-log-toggle" data-mission-action="toggle-log">
-                            📝 <span>${t('missions.card_view_log')}</span>
-                        </div>
-                        <div class="mission-log-content is-hidden">${escapeHtml(extractLastOutput(mission.last_output))}</div>
-                    </div>` : ''}
-                </div>
-                <div class="mission-footer">
-                    <div class="mission-stats">
-                        <span>${resultIcon} ${lastRun}</span>
-                        <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
+                <button type="button"
+                        class="mc-overflow-btn"
+                        data-mission-action="toggle-expand"
+                        data-mission-id="${mid}"
+                        aria-label="${t('missions.card_more_actions')}"
+                        title="${t('missions.card_more_actions')}"
+                        aria-expanded="${isExpanded ? 'true' : 'false'}">
+                    ${svgIcons.chevronDown}
+                </button>
+            </header>
+            <div class="mc-body">
+                <h3 class="mc-name" title="${escapeAttr(mission.name)}">
+                    <span class="mc-name-text">${escapeHtml(mission.name)}</span>
+                    ${lockedMark}
+                </h3>
+                ${triggerPill}
+                <p class="mc-prompt">${escapeHtml(mission.prompt)}</p>
+                <div class="mc-meta-row">
+                    <div class="mc-meta">
+                        <span class="mc-meta-item ${resultClass}">${resultIcon ? `<span class="mc-meta-icon">${resultIcon}</span>` : `<span class="mc-meta-icon">${svgIcons.clock}</span>`}<span>${lastRun}</span></span>
+                        <span class="mc-meta-item">${t('missions.meta_run_count', { count: mission.run_count })}</span>
                     </div>
-                    <div class="mission-actions">
-                    <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
-                    ${renderPrepButton(mission, isRunning)}
-                    <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                    <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
-                    <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
+                    <button type="button"
+                            class="mc-cta-run"
+                            data-mission-action="run"
+                            data-mission-id="${mid}"
+                            title="${t('missions.card_btn_run_title')}"
+                            ${isRunning ? 'disabled' : ''}>
+                        ${svgIcons.play}
+                        <span class="mc-cta-label">${t('missions.card_run_label')}</span>
+                    </button>
                 </div>
             </div>
-        </div>
-        </div>
+            <div class="mc-expand">
+                <div class="mc-expand-inner">
+                    ${mission.prompt ? `<div class="mc-prompt-full">${fullPrompt}</div>` : ''}
+                    ${triggerPill ? `<div class="mc-trigger-full">
+                        <div class="trigger-label">${t('missions.card_trigger_label')}</div>
+                        <div class="trigger-value">${renderTriggerText(mission)}</div>
+                    </div>` : ''}
+                    ${mission.last_output ? `
+                        <div class="mc-log-block">
+                            <div class="mc-log-head">${svgIcons.fileText}<span>${t('missions.card_view_log')}</span></div>
+                            <pre class="mc-log-body">${escapeHtml(extractLastOutput(mission.last_output))}</pre>
+                        </div>` : ''}
+                    <div class="mc-actions-secondary">
+                        ${renderPrepButton(mission, isRunning)}
+                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
+                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                        <button type="button" class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
+                    </div>
+                </div>
+            </div>
+        </article>
     `;
 }
 
-function renderTriggerInfo(mission) {
-    const cfg = mission.trigger_config;
+// Status chip combines status (running/queued/waiting) and execution type into one element.
+function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
+    let kind, label, icon;
+    if (isRunning) {
+        kind = 'running';
+        label = t('missions.card_badge_running');
+        icon = svgIcons.play;
+    } else if (isQueued) {
+        kind = 'queued';
+        label = t('missions.card_badge_queued');
+        icon = svgIcons.clock;
+    } else if (isWaiting) {
+        kind = 'waiting';
+        label = t('missions.card_chip_waiting');
+        icon = svgIcons.clock;
+    } else {
+        kind = mission.execution_type || 'manual';
+        if (kind === 'scheduled') {
+            label = t('missions.filter_scheduled');
+            icon = svgIcons.calendar;
+        } else if (kind === 'triggered') {
+            label = t('missions.filter_triggered');
+            icon = svgIcons.bolt;
+        } else {
+            label = t('missions.filter_manual');
+            icon = svgIcons.hand;
+        }
+    }
+    const priorityDot = `<span class="mc-status-chip__priority" data-priority="${escapeAttr(mission.priority)}" aria-hidden="true"></span>`;
+    return `<span class="mc-status-chip mc-status-chip--${kind}">${priorityDot}<span class="mc-status-chip__icon">${icon}</span><span class="mc-status-chip__label">${escapeHtml(label)}</span></span>`;
+}
+
+function renderTriggerText(mission) {
+    const cfg = mission.trigger_config || {};
     let triggerText = '';
 
     switch (mission.trigger_type) {
@@ -551,7 +630,11 @@ function renderTriggerInfo(mission) {
             triggerText = `🚫 ${t('missions.trigger_budget_exceeded_badge')}`;
             break;
     }
+    return triggerText;
+}
 
+function renderTriggerInfo(mission) {
+    const triggerText = renderTriggerText(mission);
     return `
                 <div class="mission-trigger">
                     <div class="trigger-label">${t('missions.card_trigger_label')}</div>

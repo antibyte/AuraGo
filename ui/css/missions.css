@@ -322,24 +322,31 @@
     }
 }
 
-/* Missions masonry grid (prevents expanded cards from pushing full rows down) */
+/* Missions grid — CSS Grid (not masonry) so rows align and expanded cards stay in their column */
 .missions-grid {
-    columns: 4 280px;
-    column-gap: 20px; /* D-18: consistent 20px gap */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: 16px;
+    align-items: start;
 }
 
 .missions-grid .mission-card {
-    break-inside: avoid;
-    margin-bottom: 20px; /* vertical gap between items */
     width: 100%;
-    display: inline-flex; /* keep flex layout, but behave as an inline column item */
-    vertical-align: top;
+    margin-bottom: 0;
+    container-type: inline-size; /* enable container queries on each card */
 }
 
 .missions-grid > .empty-state {
-    column-span: all;
+    grid-column: 1 / -1;
     width: 100%;
     margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+    .missions-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
 }
 
 .mission-card {
@@ -1059,7 +1066,7 @@
 /* Responsive */
 @media (max-width: 768px) {
     .missions-grid {
-        columns: 1;
+        grid-template-columns: 1fr;
     }
     .status-bar {
         grid-template-columns: repeat(2, 1fr);
@@ -1223,4 +1230,444 @@
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
     padding: 16px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MISSION CARD — REDESIGN (.mc-* namespace)
+   New, clean card design that supersedes the old .mission-header /
+   .mission-body / .mission-footer markup. Activated whenever
+   `<article class="mission-card mc-card">` is rendered.
+   ════════════════════════════════════════════════════════════════ */
+
+.mc-card {
+    /* Override masonry/inline behaviours from older rules */
+    display: flex !important;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+
+/* Priority rail on left — replaces the old inconspicuous 3px border */
+.mc-card[data-priority="high"]   { border-left: 4px solid var(--danger); }
+.mc-card[data-priority="medium"] { border-left: 4px solid var(--warning); }
+.mc-card[data-priority="low"]    { border-left: 4px solid var(--success); }
+
+.mc-card.running {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(45, 212, 191, .18);
+}
+
+.mc-card.queued  { border-color: var(--warning); }
+.mc-card.waiting { opacity: .85; }
+
+/* ── Header bar ───────────────────────────────────────────────── */
+.mc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 44px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+    background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    user-select: none;
+}
+
+.mc-header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+}
+
+.mc-overflow-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, color .15s ease, transform .2s ease;
+}
+
+.mc-overflow-btn svg { width: 18px; height: 18px; }
+
+.mc-overflow-btn:hover {
+    background: var(--bg-glass);
+    color: var(--text-primary);
+}
+
+.mc-card.expanded .mc-overflow-btn {
+    transform: rotate(180deg);
+    color: var(--accent);
+}
+
+/* ── Status chip (single source of truth for state) ──────────── */
+.mc-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 6px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.mc-status-chip__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+}
+
+.mc-status-chip__icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mc-status-chip__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: capitalize;
+    letter-spacing: .01em;
+}
+
+.mc-status-chip__priority {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--text-secondary);
+    flex-shrink: 0;
+}
+.mc-status-chip__priority[data-priority="high"]   { background: var(--danger); box-shadow: 0 0 6px rgba(239,68,68,.5); }
+.mc-status-chip__priority[data-priority="medium"] { background: var(--warning); }
+.mc-status-chip__priority[data-priority="low"]    { background: var(--success); }
+
+.mc-status-chip--running {
+    background: rgba(45, 212, 191, .14);
+    color: var(--accent);
+    border-color: rgba(45, 212, 191, .35);
+    animation: mc-chip-pulse 2s ease-in-out infinite;
+}
+.mc-status-chip--queued {
+    background: rgba(245, 158, 11, .12);
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, .3);
+}
+.mc-status-chip--waiting {
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    border-color: var(--border-subtle);
+}
+.mc-status-chip--manual {
+    background: rgba(99, 102, 241, .12);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, .3);
+}
+.mc-status-chip--scheduled {
+    background: rgba(45, 212, 191, .1);
+    color: var(--accent);
+    border-color: rgba(45, 212, 191, .25);
+}
+.mc-status-chip--triggered {
+    background: rgba(245, 158, 11, .1);
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, .25);
+}
+
+@keyframes mc-chip-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, .35); }
+    50%      { box-shadow: 0 0 0 4px rgba(45, 212, 191, 0); }
+}
+
+/* Remote badge inside header — kept compact */
+.mc-remote-badge {
+    font-size: 0.7rem;
+    padding: .15rem .5rem;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+.mc-body {
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.mc-name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.mc-name-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.mc-name-lock {
+    flex-shrink: 0;
+    color: var(--warning);
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+.mc-name-lock svg { width: 14px; height: 14px; }
+
+.mc-trigger-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 4px 10px;
+    background: rgba(245, 158, 11, .08);
+    border: 1px solid rgba(245, 158, 11, .2);
+    border-radius: 999px;
+    color: var(--warning);
+    font-size: 0.72rem;
+    font-weight: 500;
+    overflow: hidden;
+}
+
+.mc-trigger-pill svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+.mc-trigger-pill > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.mc-prompt {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.mc-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 2px;
+    flex-wrap: nowrap;
+}
+
+.mc-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-width: 0;
+    flex: 1 1 auto;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.mc-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.mc-meta-item--ok    { color: var(--success); }
+.mc-meta-item--error { color: var(--danger); }
+
+.mc-meta-icon {
+    display: inline-flex;
+    align-items: center;
+}
+.mc-meta-icon svg { width: 12px; height: 12px; }
+
+/* Primary CTA — large enough for touch */
+.mc-cta-run {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .2s ease, opacity .15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mc-cta-run svg { width: 14px; height: 14px; }
+
+.mc-cta-run:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(45, 212, 191, .35);
+}
+.mc-cta-run:active:not(:disabled) { transform: translateY(0); }
+.mc-cta-run:disabled { opacity: .45; cursor: not-allowed; }
+
+[data-theme="light"] .mc-cta-run {
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+}
+
+/* ── Expand area ──────────────────────────────────────────────── */
+.mc-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .25s ease;
+    border-top: 1px solid transparent;
+}
+
+.mc-card.expanded .mc-expand {
+    grid-template-rows: 1fr;
+    border-top-color: var(--border-subtle);
+}
+
+.mc-expand-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.mc-card.expanded .mc-expand-inner {
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mc-prompt-full {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-glass);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.mc-trigger-full {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.mc-trigger-full .trigger-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.mc-log-block {
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-glass);
+}
+
+.mc-log-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+}
+.mc-log-head svg { width: 14px; height: 14px; }
+
+.mc-log-body {
+    margin: 0;
+    padding: 10px 12px;
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 0.78rem;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0, 0, 0, .15);
+}
+
+.mc-actions-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+/* Override .mc-btn min size for touch */
+.mc-card .mc-actions-secondary .mc-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+}
+
+.mc-card .mc-actions-secondary .mc-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Container queries: shrink CTA on narrow cards ───────────── */
+@container (max-width: 320px) {
+    .mc-cta-run { padding: 0 12px; }
+    .mc-cta-run .mc-cta-label { display: none; }
+    .mc-cta-run { width: 40px; }
+    .mc-meta { font-size: 0.72rem; gap: 8px; }
+    .mc-remote-badge { display: none; }
+}
+
+@container (max-width: 260px) {
+    .mc-status-chip__label { max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Fallback for browsers without container queries */
+@supports not (container-type: inline-size) {
+    @media (max-width: 380px) {
+        .mc-cta-run .mc-cta-label { display: none; }
+        .mc-cta-run { width: 40px; padding: 0; }
+    }
 }
