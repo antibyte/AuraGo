@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestInitImageGalleryDB(t *testing.T) {
@@ -269,9 +270,11 @@ func TestImageGalleryMonthlyCount(t *testing.T) {
 	}
 
 	// Insert a record (created_at defaults to now)
-	SaveGeneratedImage(db, &ImageGenResult{
+	if _, err := SaveGeneratedImage(db, &ImageGenResult{
 		Filename: "test.png", Prompt: "test", Provider: "openai", Model: "dall-e-3",
-	})
+	}); err != nil {
+		t.Fatalf("SaveGeneratedImage failed: %v", err)
+	}
 
 	count, err = ImageGalleryMonthlyCount(db)
 	if err != nil {
@@ -288,6 +291,37 @@ func TestImageGalleryMonthlyCount(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("expected 0 for nil db, got %d", count)
+	}
+}
+
+func TestImageGalleryMonthlyCountUsesLocalMonthBoundsForUTCTimestamps(t *testing.T) {
+	db, err := InitImageGalleryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	insert := func(createdAt, filename string) {
+		t.Helper()
+		_, err := db.Exec(`INSERT INTO generated_images (created_at, prompt, provider, model, filename) VALUES (?, ?, ?, ?, ?)`,
+			createdAt, filename, "openai", "dall-e-3", filename)
+		if err != nil {
+			t.Fatalf("insert %s: %v", createdAt, err)
+		}
+	}
+
+	insert("2026-04-30 21:59:59", "before-local-month.png")
+	insert("2026-04-30 23:15:00", "inside-local-month.png")
+	insert("2026-05-31 22:00:00", "after-local-month.png")
+
+	loc := time.FixedZone("CEST", 2*60*60)
+	now := time.Date(2026, time.May, 1, 1, 30, 0, 0, loc)
+	count, err := imageGalleryMonthlyCountAt(db, now)
+	if err != nil {
+		t.Fatalf("monthly count failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
 	}
 }
 

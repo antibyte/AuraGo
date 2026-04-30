@@ -263,12 +263,19 @@ func DeleteGeneratedImagesByFilename(db *sql.DB, filename string) (int64, error)
 
 // ImageGalleryMonthlyCount returns the number of images generated in the current month.
 func ImageGalleryMonthlyCount(db *sql.DB) (int, error) {
+	return imageGalleryMonthlyCountAt(db, time.Now())
+}
+
+func imageGalleryMonthlyCountAt(db *sql.DB, now time.Time) (int, error) {
 	if db == nil {
 		return 0, nil
 	}
-	start := time.Now().Format("2006-01") + "-01"
+	startLocal := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	endLocal := startLocal.AddDate(0, 1, 0)
+	startUTC := startLocal.UTC().Format("2006-01-02 15:04:05")
+	endUTC := endLocal.UTC().Format("2006-01-02 15:04:05")
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM generated_images WHERE created_at >= ?", start).Scan(&count)
+	err := db.QueryRow("SELECT COUNT(*) FROM generated_images WHERE created_at >= ? AND created_at < ?", startUTC, endUTC).Scan(&count)
 	return count, err
 }
 
