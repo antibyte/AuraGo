@@ -46,6 +46,8 @@
   "config.group.server_system": "Serveur & Système",
   "config.group.smart_home": "Maison Intelligente",
   "config.group.web_publishing": "Publication Web",
+  "config.sidebar.no_results": "Aucun résultat trouvé",
+  "config.sidebar.search_placeholder": "Rechercher des paramètres…",
   "config.n8n.enabled_label": "Activé",
   "config.n8n.info_text": "n8n peut se connecter à AuraGo comme backend IA. AuraGo peut également déclencher des webhooks n8n lors d'événements. Le jeton API protège le point de terminaison n8n d'AuraGo — copiez-le dans vos identifiants n8n.",
   "config.n8n.rate_limit_hint": "Requêtes maximum par seconde depuis n8n. Définir à 0 pour illimité.",

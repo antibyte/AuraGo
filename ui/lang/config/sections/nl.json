@@ -46,6 +46,8 @@
   "config.group.server_system": "Server & Systeem",
   "config.group.smart_home": "Smart Home",
   "config.group.web_publishing": "Webpublicatie",
+  "config.sidebar.no_results": "Geen resultaten gevonden",
+  "config.sidebar.search_placeholder": "Instellingen zoeken…",
   "config.n8n.enabled_label": "Ingeschakeld",
   "config.n8n.info_text": "n8n kan verbinden met AuraGo als AI-backend. AuraGo kan ook n8n webhooks activeren bij evenementen. Het API-token beschermt het AuraGo n8n-eindpunt — kopieer het naar je n8n-inloggegevens.",
   "config.n8n.rate_limit_hint": "Maximale verzoeken per seconde van n8n. Stel in op 0 voor onbeperkt.",

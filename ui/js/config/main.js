@@ -351,6 +351,10 @@ function saveCollapsedGroups() {
 }
 
 const collapsedGroups = loadCollapsedGroups();
+let sidebarSearchQuery = '';
+let sidebarSearchSnapshot = null;
+let sidebarSearchFocusedIndex = -1;
+let sidebarSearchDebounceTimer = null;
 
 function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     const scrollFn = () => {
@@ -373,6 +377,20 @@ function buildSidebar() {
     const sb = document.getElementById('sidebar');
     sb.innerHTML = '';
     let lastWasIntSub = false;
+
+    const search = document.createElement('div');
+    search.className = 'cfg-sidebar-search';
+    search.id = 'sidebarSearch';
+    search.innerHTML = `
+        <span class="cfg-sidebar-search-icon">🔍</span>
+        <input type="text" id="sidebarSearchInput" class="cfg-sidebar-search-input"
+            placeholder="${escapeHtml(t('config.sidebar.search_placeholder'))}"
+            data-i18n-placeholder="config.sidebar.search_placeholder"
+            autocomplete="off" spellcheck="false" value="${escapeHtml(sidebarSearchQuery)}">
+        <button type="button" class="cfg-sidebar-search-clear" id="sidebarSearchClear"
+            title="Clear" aria-label="Clear search" style="display:${sidebarSearchQuery ? 'flex' : 'none'};">✕</button>
+    `;
+    sb.appendChild(search);
 
     SECTIONS.forEach((group) => {
         const groupName = group.group;
@@ -419,8 +437,11 @@ function buildSidebar() {
                 + (group.integrationSubGroup ? ' integration-sub-item' : '')
                 + (isBlocked ? ' sidebar-item-disabled' : '');
             item.dataset.section = s.key;
+            item.dataset.searchLabel = s.label;
+            item.dataset.searchDesc = s.desc || '';
+            item.dataset.searchGroup = groupName;
             if (isBlocked) item.title = blockedReason;
-            item.innerHTML = '<span class="icon">' + s.icon + '</span><span>' + s.label + '</span>';
+            item.innerHTML = '<span class="icon">' + s.icon + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
                 selectSection(s.key);
@@ -432,9 +453,175 @@ function buildSidebar() {
         groupDiv.appendChild(content);
         sb.appendChild(groupDiv);
     });
+
+    const noResults = document.createElement('div');
+    noResults.className = 'cfg-sidebar-no-results hidden';
+    noResults.id = 'sidebarSearchNoResults';
+    noResults.textContent = t('config.sidebar.no_results');
+    sb.appendChild(noResults);
+
+    initSidebarSearch();
+    if (sidebarSearchQuery) applySidebarSearch(sidebarSearchQuery);
+}
+
+function initSidebarSearch() {
+    const input = document.getElementById('sidebarSearchInput');
+    const clear = document.getElementById('sidebarSearchClear');
+    if (!input || !clear) return;
+
+    input.addEventListener('input', () => {
+        sidebarSearchQuery = input.value;
+        clear.style.display = sidebarSearchQuery ? 'flex' : 'none';
+        clearTimeout(sidebarSearchDebounceTimer);
+        sidebarSearchDebounceTimer = setTimeout(() => applySidebarSearch(sidebarSearchQuery), 150);
+    });
+    input.addEventListener('keydown', handleSidebarSearchKeys);
+    clear.addEventListener('click', () => clearSidebarSearch(true));
+}
+
+function getSidebarSearchTerms(query) {
+    return (query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+function sidebarItemMatches(item, terms) {
+    const haystack = [
+        item.dataset.searchLabel || '',
+        item.dataset.searchDesc || '',
+        item.dataset.searchGroup || ''
+    ].join(' ').toLowerCase();
+    return terms.every(term => haystack.includes(term));
+}
+
+function highlightSidebarLabel(label, terms) {
+    if (!terms.length) return escapeHtml(label);
+    const uniqueTerms = [...new Set(terms)].sort((a, b) => b.length - a.length);
+    const pattern = uniqueTerms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    if (!pattern) return escapeHtml(label);
+    return escapeHtml(label).replace(new RegExp(pattern, 'gi'), match => `<mark class="cfg-search-match">${match}</mark>`);
+}
+
+function applySidebarSearch(query) {
+    const terms = getSidebarSearchTerms(query);
+    const clear = document.getElementById('sidebarSearchClear');
+    const noResults = document.getElementById('sidebarSearchNoResults');
+    let visibleItems = 0;
+
+    if (clear) clear.style.display = terms.length ? 'flex' : 'none';
+    if (!terms.length) {
+        clearSidebarSearch(false);
+        return;
+    }
+
+    if (!sidebarSearchSnapshot) sidebarSearchSnapshot = new Set(collapsedGroups);
+
+    document.querySelectorAll('.sidebar-group').forEach(groupEl => {
+        const titleEl = groupEl.querySelector('.sidebar-group-title');
+        const content = groupEl.querySelector('.sidebar-group-content');
+        const groupName = titleEl ? titleEl.textContent.trim() : '';
+        const groupMatches = terms.every(term => groupName.toLowerCase().includes(term));
+        let groupVisibleItems = 0;
+
+        groupEl.querySelectorAll('.sidebar-item').forEach(itemEl => {
+            const isMatch = groupMatches || sidebarItemMatches(itemEl, terms);
+            itemEl.classList.toggle('hidden', !isMatch);
+            itemEl.classList.remove('search-focused');
+            const labelEl = itemEl.querySelector('.sidebar-item-label');
+            if (labelEl) {
+                labelEl.innerHTML = highlightSidebarLabel(itemEl.dataset.searchLabel || '', terms);
+            }
+            if (isMatch) {
+                groupVisibleItems++;
+                visibleItems++;
+            }
+        });
+
+        groupEl.classList.toggle('hidden', groupVisibleItems === 0);
+        groupEl.classList.toggle('collapsed', groupVisibleItems === 0);
+        if (content) content.style.maxHeight = groupVisibleItems > 0 ? 'none' : '0';
+    });
+
+    sidebarSearchFocusedIndex = -1;
+    if (noResults) noResults.classList.toggle('hidden', visibleItems > 0);
+}
+
+function clearSidebarSearch(focusInput) {
+    sidebarSearchQuery = '';
+    sidebarSearchFocusedIndex = -1;
+    const input = document.getElementById('sidebarSearchInput');
+    const clear = document.getElementById('sidebarSearchClear');
+    const noResults = document.getElementById('sidebarSearchNoResults');
+    if (input) input.value = '';
+    if (clear) clear.style.display = 'none';
+    if (noResults) noResults.classList.add('hidden');
+
+    document.querySelectorAll('.sidebar-group').forEach(groupEl => {
+        const titleEl = groupEl.querySelector('.sidebar-group-title');
+        const content = groupEl.querySelector('.sidebar-group-content');
+        const groupName = titleEl ? titleEl.textContent.trim() : '';
+        const isCollapsed = sidebarSearchSnapshot ? sidebarSearchSnapshot.has(groupName) : collapsedGroups.has(groupName);
+
+        groupEl.classList.remove('hidden');
+        groupEl.classList.toggle('collapsed', isCollapsed);
+        if (content) content.style.maxHeight = isCollapsed ? '0' : 'none';
+    });
+
+    document.querySelectorAll('.sidebar-item').forEach(itemEl => {
+        itemEl.classList.remove('hidden', 'search-focused');
+        const labelEl = itemEl.querySelector('.sidebar-item-label');
+        if (labelEl) labelEl.textContent = itemEl.dataset.searchLabel || '';
+    });
+
+    if (sidebarSearchSnapshot) {
+        collapsedGroups.clear();
+        sidebarSearchSnapshot.forEach(groupName => collapsedGroups.add(groupName));
+        sidebarSearchSnapshot = null;
+    }
+
+    if (focusInput && input) input.focus();
+}
+
+function getVisibleSidebarSearchItems() {
+    return [...document.querySelectorAll('.sidebar-item:not(.hidden):not(.sidebar-item-disabled)')]
+        .filter(item => !item.closest('.sidebar-group.hidden'));
+}
+
+function focusSidebarSearchItem(index) {
+    const items = getVisibleSidebarSearchItems();
+    document.querySelectorAll('.sidebar-item.search-focused').forEach(item => item.classList.remove('search-focused'));
+    if (!items.length) {
+        sidebarSearchFocusedIndex = -1;
+        return;
+    }
+    sidebarSearchFocusedIndex = (index + items.length) % items.length;
+    const item = items[sidebarSearchFocusedIndex];
+    item.classList.add('search-focused');
+    item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function handleSidebarSearchKeys(event) {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        clearSidebarSearch(true);
+        return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+
+    const items = getVisibleSidebarSearchItems();
+    if (!items.length) return;
+    event.preventDefault();
+
+    if (event.key === 'ArrowDown') {
+        focusSidebarSearchItem(sidebarSearchFocusedIndex + 1);
+    } else if (event.key === 'ArrowUp') {
+        focusSidebarSearchItem(sidebarSearchFocusedIndex - 1);
+    } else if (event.key === 'Enter') {
+        const item = items[sidebarSearchFocusedIndex >= 0 ? sidebarSearchFocusedIndex : 0];
+        if (item && item.dataset.section) selectSection(item.dataset.section);
+    }
 }
 
 function toggleGroup(groupName, groupDiv) {
+    if (getSidebarSearchTerms(sidebarSearchQuery).length) return;
     const isCollapsed = collapsedGroups.has(groupName);
     const content = groupDiv.querySelector('.sidebar-group-content');
 
@@ -462,7 +649,7 @@ async function selectSection(key, options = {}) {
     // Auto-expand the group containing this section if it is collapsed
     let expandedTargetGroup = false;
     for (const group of SECTIONS) {
-        if (group.items.some(s => s.key === key) && collapsedGroups.has(group.group)) {
+        if (!getSidebarSearchTerms(sidebarSearchQuery).length && group.items.some(s => s.key === key) && collapsedGroups.has(group.group)) {
             const groupDiv = [...document.querySelectorAll('.sidebar-group')].find(
                 el => el.querySelector('.sidebar-group-title') &&
                     el.querySelector('.sidebar-group-title').textContent.trim() === group.group

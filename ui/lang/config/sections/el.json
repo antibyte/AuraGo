@@ -46,6 +46,8 @@
   "config.group.server_system": "Διακομιστής & Σύστημα",
   "config.group.smart_home": "Smart Home",
   "config.group.web_publishing": "Δημοσίευση Web",
+  "config.sidebar.no_results": "Δεν βρέθηκαν αποτελέσματα",
+  "config.sidebar.search_placeholder": "Αναζήτηση ρυθμίσεων…",
   "config.n8n.enabled_label": "Ενεργοποιημένο",
   "config.n8n.info_text": "Το n8n μπορεί να συνδεθεί στο AuraGo ως AI backend. Το AuraGo μπορεί επίσης να ενεργοποιήσει n8n webhooks σε συμβάντα. Το API διακριτικό προστατεύει το endpoint n8n του AuraGo — αντιγράψτε το στα διαπιστευτήριά σας n8n.",
   "config.n8n.rate_limit_hint": "Μέγιστες αιτήσεις ανά δευτερόλεπτο από n8n. Ορίστε σε 0 για απεριόριστο.",

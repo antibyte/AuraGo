@@ -46,6 +46,8 @@
   "config.group.server_system": "サーバー & システム",
   "config.group.smart_home": "スマートホーム",
   "config.group.web_publishing": "Web公開",
+  "config.sidebar.no_results": "結果が見つかりません",
+  "config.sidebar.search_placeholder": "設定を検索…",
   "config.n8n.enabled_label": "有効",
   "config.n8n.info_text": "n8nはAIバックエンドとしてAuraGoに接続できます。AuraGoはイベント時にn8n Webhookトリガーを起動することもできます。APIトークンはAuraGo n8nエンドポイントを保護します — n8n認証情報にコピーしてください。",
   "config.n8n.rate_limit_hint": "n8nからの毎秒最大リクエスト数。無制限の場合は0を設定。",

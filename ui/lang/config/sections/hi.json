@@ -46,6 +46,8 @@
   "config.group.server_system": "सर्वर & सिस्टम",
   "config.group.smart_home": "स्मार्ट होम",
   "config.group.web_publishing": "वेब पब्लिशिंग",
+  "config.sidebar.no_results": "कोई परिणाम नहीं मिला",
+  "config.sidebar.search_placeholder": "सेटिंग्स खोजें…",
   "config.n8n.enabled_label": "सक्रिय",
   "config.n8n.info_text": "n8n AuraGo से AI बैकएंड के रूप में कनेक्ट हो सकता है। AuraGo इवेंट्स पर n8n webhooks को भी ट्रिगर कर सकता है। API टोकन AuraGo n8n एंडपॉइंट की सुरक्षा करता है — इसे अपने n8n क्रेडेंशियल्स में कॉपी करें।",
   "config.n8n.rate_limit_hint": "n8n से प्रति सेकंड अधिकतम अनुरोध। असीमित के लिए 0 सेट करें।",

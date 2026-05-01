@@ -46,6 +46,8 @@
   "config.group.server_system": "Server & Systém",
   "config.group.smart_home": "Chytrá domácnost",
   "config.group.web_publishing": "Webové publikování",
+  "config.sidebar.no_results": "Nenalezeny žádné výsledky",
+  "config.sidebar.search_placeholder": "Hledat nastavení…",
   "config.n8n.enabled_label": "Aktivní",
   "config.n8n.info_text": "n8n se může připojit k AuraGo jako AI backend. AuraGo může také spouštět n8n webhooks při událostech. API token chrání AuraGo n8n endpoint — zkopírujte ho do svých n8n přihlašovacích údajů.",
   "config.n8n.rate_limit_hint": "Maximální počet požadavků za sekundu z n8n. Nastavte na 0 pro neomezené.",

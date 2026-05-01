@@ -46,6 +46,8 @@
   "config.group.server_system": "Server & System",
   "config.group.smart_home": "Smart hjem",
   "config.group.web_publishing": "Webpublicering",
+  "config.sidebar.no_results": "Ingen resultater fundet",
+  "config.sidebar.search_placeholder": "Søg i indstillinger…",
   "config.n8n.enabled_label": "Aktiveret",
   "config.n8n.info_text": "n8n kan oprette forbindelse til AuraGo som en AI-backend. AuraGo kan også udløse n8n webhooks ved hændelser. API-token beskytter AuraGo n8n-endepunktet — kopier det til dine n8n-legitimationsoplysninger.",
   "config.n8n.rate_limit_hint": "Maksimalt antal anmodninger per sekund fra n8n. Sæt til 0 for ubegrænset.",

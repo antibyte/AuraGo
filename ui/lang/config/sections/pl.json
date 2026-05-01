@@ -46,6 +46,8 @@
   "config.group.server_system": "Serwer & System",
   "config.group.smart_home": "Inteligentny dom",
   "config.group.web_publishing": "Publikowanie w sieci",
+  "config.sidebar.no_results": "Nie znaleziono wyników",
+  "config.sidebar.search_placeholder": "Szukaj ustawień…",
   "config.n8n.enabled_label": "Włączone",
   "config.n8n.info_text": "n8n może połączyć się z AuraGo jako backend AI. AuraGo może również wywoływać webhooki n8n przy zdarzeniach. Token API chroni endpoint n8n AuraGo — skopiuj go do swoich danych logowania n8n.",
   "config.n8n.rate_limit_hint": "Maksymalna liczba żądań na sekundę z n8n. Ustaw na 0 dla nieograniczonego.",

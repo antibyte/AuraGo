@@ -46,6 +46,8 @@
   "config.group.server_system": "服务器 & 系统",
   "config.group.smart_home": "智能家居",
   "config.group.web_publishing": "网站发布",
+  "config.sidebar.no_results": "未找到结果",
+  "config.sidebar.search_placeholder": "搜索设置…",
   "config.n8n.enabled_label": "已启用",
   "config.n8n.info_text": "n8n可以作为AI后端连接到AuraGo。AuraGo还可以在事件时触发n8n Webhook。API令牌保护AuraGo n8n端点 — 将其复制到您的n8n凭据中。",
   "config.n8n.rate_limit_hint": "n8n每最大请求数/秒。设为0表示无限制。",
