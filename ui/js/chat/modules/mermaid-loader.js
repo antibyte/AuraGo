@@ -70,7 +70,9 @@
             const baseConfig = {
                 startOnLoad: false,
                 securityLevel: 'strict',
-                fontFamily: theme === 'cyberwar' || theme === 'dark-sun' || theme === 'black-matrix'
+                fontFamily: theme === '8bit'
+                    ? '"Press Start 2P", ui-monospace, SFMono-Regular, Consolas, monospace'
+                    : theme === 'cyberwar' || theme === 'dark-sun' || theme === 'black-matrix'
                     ? '"Oxanium", "Inter", system-ui, sans-serif'
                     : theme === 'papyrus'
                         ? '"Darker Grotesque", "Inter", system-ui, sans-serif'

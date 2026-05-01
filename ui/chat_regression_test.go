@@ -210,6 +210,65 @@ func TestChatFrontend_IntegrationsDrawerI18nKeysExist(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	sharedContent, err := os.ReadFile("shared.js")
+	if err != nil {
+		t.Fatalf("read shared.js: %v", err)
+	}
+	mainContent, err := os.ReadFile(filepath.Join("js", "chat", "main.js"))
+	if err != nil {
+		t.Fatalf("read chat main.js: %v", err)
+	}
+	iconsContent, err := os.ReadFile(filepath.Join("js", "chat", "ui-icons.js"))
+	if err != nil {
+		t.Fatalf("read ui-icons.js: %v", err)
+	}
+
+	indexHTML := string(indexContent)
+	for _, marker := range []string{
+		`/css/chat-8bit.css`,
+		`data-theme="8bit"`,
+		`data-chat-icon="theme-8bit"`,
+		`chat.theme_8bit`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("index.html missing 8Bit theme marker %q", marker)
+		}
+	}
+
+	for path, content := range map[string]string{
+		"shared.js":          string(sharedContent),
+		"js/chat/main.js":    string(mainContent),
+		"js/chat/ui-icons.js": string(iconsContent),
+	} {
+		for _, marker := range []string{"8bit", "theme-8bit"} {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing 8Bit theme marker %q", path, marker)
+			}
+		}
+	}
+
+	for _, assetPath := range []string{
+		filepath.Join("css", "chat-8bit.css"),
+		filepath.Join("fonts", "press-start-2p-latin-400-normal.woff2"),
+		filepath.Join("img", "chat-ui-icons", "theme-8bit.png"),
+	} {
+		info, err := os.Stat(assetPath)
+		if err != nil {
+			t.Fatalf("missing 8Bit theme asset %s: %v", assetPath, err)
+		}
+		if info.Size() == 0 {
+			t.Fatalf("8Bit theme asset %s is empty", assetPath)
+		}
+	}
+}
+
 func TestChatSmartScrollerIgnoresEmptyNonScrollableState(t *testing.T) {
 	t.Parallel()
 
@@ -703,14 +762,14 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	if strings.Contains(iconsJS, "sourceSlot: ") {
 		t.Fatalf("%s still maps chat UI icons to activity sprite source slots", iconsPath)
 	}
-	if got := strings.Count(iconsJS, "shape: "); got != 101 {
-		t.Fatalf("%s has %d explicit icon shapes, want 101", iconsPath, got)
+	if got := strings.Count(iconsJS, "shape: "); got != 102 {
+		t.Fatalf("%s has %d explicit icon shapes, want 102", iconsPath, got)
 	}
 
 	requiredIconKeys := []string{
 		"robot", "user", "bot", "conversation", "speaker", "speaker-muted", "credit-card",
 		"theme-dark", "theme-light", "theme-retro-crt", "theme-cyberwar", "theme-lollipop",
-		"theme-dark-sun", "theme-ocean", "theme-sandstorm", "theme-papyrus", "theme-threedee", "theme-black-matrix",
+		"theme-dark-sun", "theme-ocean", "theme-sandstorm", "theme-papyrus", "theme-threedee", "theme-black-matrix", "theme-8bit",
 		"mood-brain", "mood-curious", "mood-focused", "mood-creative", "mood-analytical",
 		"mood-cautious", "mood-playful", "warning", "close", "new-chat", "voice", "clear",
 		"attach", "clipboard", "bell", "feedback", "stop", "send", "more", "positive",
@@ -731,8 +790,8 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list chat UI icon files: %v", err)
 	}
-	if len(iconFiles) != 101 {
-		t.Fatalf("%s has %d generated PNG icons, want 101", iconDir, len(iconFiles))
+	if len(iconFiles) != 102 {
+		t.Fatalf("%s has %d generated PNG icons, want 102", iconDir, len(iconFiles))
 	}
 	for _, iconPath := range iconFiles {
 		assertPNGIcon(t, iconPath, 128, 128)

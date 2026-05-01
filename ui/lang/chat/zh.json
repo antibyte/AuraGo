@@ -182,6 +182,7 @@
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_threedee": "ThreeDee",
   "chat.theme_black_matrix": "黑色矩阵",
+  "chat.theme_8bit": "8位像素",
   "chat.integrations_title": "集成",
   "chat.integrations_empty": "没有活动的集成。",
   "chat.integrations_open": "打开",

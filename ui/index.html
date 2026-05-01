@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v=20260425a">
     <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/shared.js?v=12"></script>
+    <script src="/shared.js?v=14"></script>
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
         const SHOW_TOOL_RESULTS = {{.ShowToolResults }};
@@ -32,7 +32,7 @@
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/chat.css?v=20260501b">
+    <link rel="stylesheet" href="/css/chat.css?v=20260501c">
     <link rel="stylesheet" href="/css/chat-modules.css">
     <link rel="stylesheet" href="/css/stt-overlay.css">
     <link rel="stylesheet" href="/css/session-drawer.css?v=3">
@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="/css/chat-papyrus.css?v=20260430d">
     <link rel="stylesheet" href="/css/chat-threedee.css?v=20260501f">
     <link rel="stylesheet" href="/css/chat-black-matrix.css?v=20260420a">
+    <link rel="stylesheet" href="/css/chat-8bit.css?v=20260501a">
 </head>
 
 <body class="h-screen h-[100dvh] flex flex-col">
@@ -78,6 +79,10 @@
                     <button type="button" class="chat-theme-option" data-theme="retro-crt" role="option">
                         <span class="chat-theme-option-icon" data-chat-icon="theme-retro-crt"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_retro_crt">Retro CRT</span>
+                    </button>
+                    <button type="button" class="chat-theme-option" data-theme="8bit" role="option">
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-8bit"></span>
+                        <span class="chat-theme-option-label" data-i18n="chat.theme_8bit">8Bit</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="cyberwar" role="option">
                         <span class="chat-theme-option-icon" data-chat-icon="theme-cyberwar"></span>
@@ -338,20 +343,20 @@
         </div>
     </div>
 
-    <script src="/js/chat/ui-icons.js?v=20260425d"></script>
+    <script src="/js/chat/ui-icons.js?v=20260501a"></script>
     <script src="/js/chat/audio-player.js"></script>
-    <script src="/js/chat/mermaid-renderer.js?v=20260418o"></script>
+    <script src="/js/chat/mermaid-renderer.js?v=20260501a"></script>
     <!-- Chat Modules -->
     <script src="/js/chat/modules/smart-scroller.js?v=20260427a"></script>
     <script src="/js/chat/modules/code-blocks.js"></script>
     <script src="/js/chat/modules/voice-recorder.js"></script>
     <script src="/js/chat/modules/speech-to-text.js"></script>
     <script src="/js/chat/modules/drag-drop.js"></script>
-    <script src="/js/chat/modules/mermaid-loader.js?v=20260418o"></script>
+    <script src="/js/chat/modules/mermaid-loader.js?v=20260501a"></script>
     <script src="/js/chat/modules/warnings.js"></script>
     <script src="/js/chat/modules/session-drawer.js?v=3"></script>
     <script src="/js/chat/modules/integrations-drawer.js?v=1"></script>
-    <script src="/js/chat/main.js?v=20260426a"></script>
+    <script src="/js/chat/main.js?v=20260501c"></script>
     <script src="/js/chat/tool-icons.js?v=20260426a"></script>
     <script src="/js/chat/robot-mascot.js?v=20260425a"></script>
     <script src="/js/chat/lollipop-petals.js?v=20260418j"></script>

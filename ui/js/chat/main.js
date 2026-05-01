@@ -1356,7 +1356,8 @@ const THEME_ICON_KEYS = {
     'sandstorm': 'theme-sandstorm',
     'papyrus': 'theme-papyrus',
     'threedee': 'theme-threedee',
-    'black-matrix': 'theme-black-matrix'
+    'black-matrix': 'theme-black-matrix',
+    '8bit': 'theme-8bit'
 };
 
 function initChatThemePicker() {
@@ -1367,6 +1368,79 @@ function initChatThemePicker() {
     if (!picker || !btn || !dropdown || !icon) return;
     if (picker.dataset.initialized === 'true') return;
     picker.dataset.initialized = 'true';
+
+    function _themeLabel(labelKey, fallbackLabel) {
+        const translatedLabel = typeof t === 'function' ? t(labelKey) : fallbackLabel;
+        return translatedLabel === labelKey ? fallbackLabel : translatedLabel;
+    }
+
+    function _renderThemeOptions() {
+        const definitions = Array.isArray(window.AuraChatThemes) && window.AuraChatThemes.length
+            ? window.AuraChatThemes
+            : [
+                { theme: 'dark', icon: 'theme-dark', labelKey: 'chat.theme_standard', fallbackLabel: 'Standard' },
+                { theme: 'light', icon: 'theme-light', labelKey: 'chat.theme_light', fallbackLabel: 'Light' },
+                { theme: 'retro-crt', icon: 'theme-retro-crt', labelKey: 'chat.theme_retro_crt', fallbackLabel: 'Retro CRT' },
+                { theme: '8bit', icon: 'theme-8bit', labelKey: 'chat.theme_8bit', fallbackLabel: '8Bit' },
+                { theme: 'cyberwar', icon: 'theme-cyberwar', labelKey: 'chat.theme_cyberwar', fallbackLabel: 'Cyberwar' },
+                { theme: 'lollipop', icon: 'theme-lollipop', labelKey: 'chat.theme_lollipop', fallbackLabel: 'Lollipop' },
+                { theme: 'dark-sun', icon: 'theme-dark-sun', labelKey: 'chat.theme_dark_sun', fallbackLabel: 'Dark Sun' },
+                { theme: 'ocean', icon: 'theme-ocean', labelKey: 'chat.theme_ocean', fallbackLabel: 'Ocean' },
+                { theme: 'sandstorm', icon: 'theme-sandstorm', labelKey: 'chat.theme_sandstorm', fallbackLabel: 'Sandstorm' },
+                { theme: 'papyrus', icon: 'theme-papyrus', labelKey: 'chat.theme_papyrus', fallbackLabel: 'Papyrus' },
+                { theme: 'threedee', icon: 'theme-threedee', labelKey: 'chat.theme_threedee', fallbackLabel: 'ThreeDee' },
+                { theme: 'black-matrix', icon: 'theme-black-matrix', labelKey: 'chat.theme_black_matrix', fallbackLabel: 'Black Matrix' },
+            ];
+
+        dropdown.replaceChildren();
+        definitions.forEach((definition) => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'chat-theme-option';
+            option.dataset.theme = definition.theme;
+            option.setAttribute('role', 'option');
+
+            const optionIcon = document.createElement('span');
+            optionIcon.className = 'chat-theme-option-icon';
+            optionIcon.dataset.chatIcon = definition.icon;
+
+            const label = document.createElement('span');
+            label.className = 'chat-theme-option-label';
+            label.dataset.i18n = definition.labelKey;
+            label.textContent = _themeLabel(definition.labelKey, definition.fallbackLabel);
+
+            option.append(optionIcon, label);
+            dropdown.appendChild(option);
+        });
+
+        if (window.AuraChatIcons) window.AuraChatIcons.hydrate(dropdown);
+    }
+
+    _renderThemeOptions();
+
+    function _ensureThemeOption(theme, iconKey, labelKey, fallbackLabel) {
+        if (dropdown.querySelector(`.chat-theme-option[data-theme="${theme}"]`)) return;
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'chat-theme-option';
+        option.dataset.theme = theme;
+        option.setAttribute('role', 'option');
+
+        const optionIcon = document.createElement('span');
+        optionIcon.className = 'chat-theme-option-icon';
+        optionIcon.dataset.chatIcon = iconKey;
+
+        const label = document.createElement('span');
+        label.className = 'chat-theme-option-label';
+        label.dataset.i18n = labelKey;
+        label.textContent = _themeLabel(labelKey, fallbackLabel);
+
+        option.append(optionIcon, label);
+        dropdown.appendChild(option);
+        if (window.AuraChatIcons) window.AuraChatIcons.hydrate(option);
+    }
+
+    _ensureThemeOption('8bit', 'theme-8bit', 'chat.theme_8bit', '8Bit');
 
     function _refreshIcon(theme) {
         applyChatIcon(icon, THEME_ICON_KEYS[theme] || 'theme-dark');

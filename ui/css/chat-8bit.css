@@ -1,0 +1,385 @@
+/* ═══════════════════════════════════════════════════════════════════
+   8Bit Theme - C64 home-computer pixels, scanlines, and hard edges
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-theme="8bit"] {
+    color-scheme: dark;
+    --8bit-bg: #40318d;
+    --8bit-bg-dark: #2b1a5e;
+    --8bit-surface: #5b4aa0;
+    --8bit-border: #a0a0ff;
+    --8bit-text: #a0a0ff;
+    --8bit-text-dim: #786cc0;
+    --8bit-accent: #6c63ff;
+    --8bit-green: #6dff3a;
+    --8bit-cyan: #6cffff;
+    --8bit-yellow: #ffff3a;
+    --8bit-red: #ff3a3a;
+    --8bit-white: #ffffff;
+    --8bit-orange: #ff8a3a;
+    --8bit-user-bubble: #1a1a6c;
+    --8bit-bot-bubble: #5b4aa0;
+    --8bit-pixel-shadow: 4px 4px 0 #160f3f;
+    --accent: var(--8bit-cyan);
+    --accent-secondary: var(--8bit-green);
+    --bg-primary: var(--8bit-bg-dark);
+    --bg-secondary: var(--8bit-bg);
+    --bg-tertiary: var(--8bit-surface);
+    --bg-glass: #40318d;
+    --header-bg: #2b1a5e;
+    --modal-bg: rgba(12, 8, 40, 0.82);
+    --modal-surface: #40318d;
+    --modal-border: var(--8bit-border);
+    --sidebar-bg: #2b1a5e;
+    --card-bg: #40318d;
+    --code-bg: #151044;
+    --inline-code-bg: #1a1a6c;
+    --input-bg: #151044;
+    --input-border: var(--8bit-border);
+    --text-primary: var(--8bit-text);
+    --text-secondary: var(--8bit-text-dim);
+    --strong-color: var(--8bit-white);
+    --border-subtle: rgba(160, 160, 255, 0.55);
+    --border-accent: var(--8bit-border);
+    --user-bubble: var(--8bit-user-bubble);
+    --user-bubble-tail: var(--8bit-user-bubble);
+    --user-bubble-shadow: rgba(0, 0, 0, 0.48);
+    --bot-bubble: var(--8bit-bot-bubble);
+    --bot-bubble-tail: var(--8bit-bot-bubble);
+    --surface-shadow: 4px 4px 0 #160f3f;
+    --surface-shadow-strong: 6px 6px 0 #160f3f;
+    --page-orb-opacity: 0;
+    --chat-image-opacity: 0.025;
+    --bg-logo-filter: saturate(1.35) contrast(1.25);
+    --font-ui: 'Press Start 2P', ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] body {
+    color: var(--8bit-text);
+    background:
+        radial-gradient(circle at 18% 18%, rgba(108, 255, 255, 0.08) 0 2px, transparent 3px 100%),
+        radial-gradient(circle at 82% 28%, rgba(255, 255, 58, 0.08) 0 2px, transparent 3px 100%),
+        linear-gradient(180deg, #40318d 0%, #332478 52%, #2b1a5e 100%);
+    text-shadow: 1px 0 0 rgba(255, 58, 58, 0.22), -1px 0 0 rgba(108, 255, 255, 0.18);
+}
+
+[data-theme="8bit"] body::before {
+    opacity: 0.28;
+    background:
+        linear-gradient(45deg, rgba(160, 160, 255, 0.18) 25%, transparent 25% 75%, rgba(160, 160, 255, 0.18) 75%),
+        linear-gradient(45deg, rgba(0, 0, 0, 0.18) 25%, transparent 25% 75%, rgba(0, 0, 0, 0.18) 75%);
+    background-position: 0 0, 2px 2px;
+    background-size: 4px 4px;
+}
+
+html[data-theme="8bit"]::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    pointer-events: none;
+    background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 4px);
+    mix-blend-mode: multiply;
+}
+
+[data-theme="8bit"] .app-header,
+[data-theme="8bit"] .chat-input-area,
+[data-theme="8bit"] .modal-card,
+[data-theme="8bit"] .session-drawer,
+[data-theme="8bit"] .integrations-drawer,
+[data-theme="8bit"] .mood-panel,
+[data-theme="8bit"] .composer-more-menu,
+[data-theme="8bit"] .warnings-panel,
+[data-theme="8bit"] .chat-theme-dropdown,
+[data-theme="8bit"] .personality-dropdown {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg);
+    box-shadow: var(--8bit-pixel-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="8bit"] .app-header {
+    background: #2b1a5e;
+    border-width: 0 0 2px;
+}
+
+[data-theme="8bit"] .logo,
+[data-theme="8bit"] .logo-wordmark-accent,
+[data-theme="8bit"] .logo-wordmark-base {
+    font-family: var(--font-ui);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="8bit"] .logo-wordmark-accent {
+    color: var(--8bit-yellow);
+    -webkit-text-fill-color: currentColor;
+    text-shadow: 2px 2px 0 #1a1a6c;
+}
+
+[data-theme="8bit"] .logo-wordmark-base {
+    color: var(--8bit-cyan);
+    text-shadow: 2px 2px 0 #1a1a6c;
+}
+
+[data-theme="8bit"] .bubble {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    line-height: 1.9;
+    letter-spacing: 0.01em;
+    box-shadow: var(--8bit-pixel-shadow), inset 2px 2px 0 rgba(255, 255, 255, 0.1);
+    background-image:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent);
+}
+
+[data-theme="8bit"] .bubble.bot {
+    color: var(--8bit-text);
+    background-color: var(--8bit-bot-bubble);
+}
+
+[data-theme="8bit"] .bubble.user {
+    color: var(--8bit-white);
+    background-color: var(--8bit-user-bubble);
+    border-color: var(--8bit-cyan);
+}
+
+[data-theme="8bit"] .bubble::before,
+[data-theme="8bit"] .bubble::after {
+    border-radius: 0;
+}
+
+[data-theme="8bit"] .bubble a {
+    color: var(--8bit-yellow);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+}
+
+[data-theme="8bit"] .bubble strong {
+    color: var(--8bit-white);
+}
+
+[data-theme="8bit"] .bubble code,
+[data-theme="8bit"] code {
+    border: 1px solid var(--8bit-green);
+    border-radius: 0;
+    background: var(--8bit-code-bg, #151044);
+    color: var(--8bit-green);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+[data-theme="8bit"] .bubble pre,
+[data-theme="8bit"] pre {
+    border: 2px solid var(--8bit-green);
+    border-radius: 0;
+    background: #101035;
+    color: var(--8bit-green);
+    box-shadow: inset 2px 2px 0 rgba(109, 255, 58, 0.12);
+}
+
+[data-theme="8bit"] .chat-ui-icon,
+[data-theme="8bit"] .avatar,
+[data-theme="8bit"] #chat-robot-mascot,
+[data-theme="8bit"] .personality-current-icon,
+[data-theme="8bit"] .personality-preview-image,
+[data-theme="8bit"] .persona-icon,
+[data-theme="8bit"] img[class*="persona"] {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+[data-theme="8bit"] .avatar,
+[data-theme="8bit"] .personality-current-icon,
+[data-theme="8bit"] .personality-preview-image {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 3px 3px 0 #160f3f;
+}
+
+[data-theme="8bit"] #chat-robot-mascot {
+    filter: contrast(1.2) saturate(1.25);
+}
+
+[data-theme="8bit"] button,
+[data-theme="8bit"] .btn-header,
+[data-theme="8bit"] .btn-header-link,
+[data-theme="8bit"] .chat-theme-btn,
+[data-theme="8bit"] .btn-speaker,
+[data-theme="8bit"] .select-personality,
+[data-theme="8bit"] .mood-toggle,
+[data-theme="8bit"] .btn-warnings,
+[data-theme="8bit"] .btn-send,
+[data-theme="8bit"] .composer-tool-btn,
+[data-theme="8bit"] .session-edge-tab,
+[data-theme="8bit"] .integrations-edge-tab,
+[data-theme="8bit"] .modal-close {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #40318d;
+    color: var(--8bit-text);
+    box-shadow: 3px 3px 0 #160f3f;
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] button:hover,
+[data-theme="8bit"] .btn-header:hover,
+[data-theme="8bit"] .chat-theme-btn:hover,
+[data-theme="8bit"] .btn-speaker:hover,
+[data-theme="8bit"] .select-personality:hover,
+[data-theme="8bit"] .mood-toggle:hover,
+[data-theme="8bit"] .btn-warnings:hover,
+[data-theme="8bit"] .btn-send:hover,
+[data-theme="8bit"] .composer-tool-btn:hover,
+[data-theme="8bit"] .modal-close:hover {
+    background: var(--8bit-surface);
+    color: var(--8bit-white);
+    border-color: var(--8bit-cyan);
+}
+
+[data-theme="8bit"] button:active,
+[data-theme="8bit"] .btn-send:active,
+[data-theme="8bit"] .composer-tool-btn:active {
+    box-shadow: 1px 1px 0 #160f3f;
+    translate: 2px 2px;
+}
+
+[data-theme="8bit"] .session-edge-tab:hover,
+[data-theme="8bit"] .session-edge-tab:focus-visible {
+    background: var(--8bit-surface);
+    color: var(--8bit-white);
+    border-color: var(--8bit-cyan);
+}
+
+[data-theme="8bit"] .integrations-edge-tab:hover,
+[data-theme="8bit"] .integrations-edge-tab:focus-visible {
+    background: var(--8bit-surface);
+    color: var(--8bit-white);
+    border-color: var(--8bit-cyan);
+}
+
+[data-theme="8bit"] .pill,
+[data-theme="8bit"] .status-pill,
+[data-theme="8bit"] .warnings-badge,
+[data-theme="8bit"] .mood-trait,
+[data-theme="8bit"] .typing-indicator {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #151044;
+    color: var(--8bit-cyan);
+    box-shadow: 2px 2px 0 #160f3f;
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .chat-theme-option,
+[data-theme="8bit"] .personality-option,
+[data-theme="8bit"] .session-item,
+[data-theme="8bit"] .integration-item,
+[data-theme="8bit"] .composer-more-menu button {
+    border-radius: 0;
+    color: var(--8bit-text);
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .chat-theme-option:hover,
+[data-theme="8bit"] .chat-theme-option.active,
+[data-theme="8bit"] .personality-option:hover,
+[data-theme="8bit"] .personality-option.active,
+[data-theme="8bit"] .session-item:hover,
+[data-theme="8bit"] .integration-item:hover {
+    background: #1a1a6c;
+    color: var(--8bit-white);
+    outline: 2px solid var(--8bit-cyan);
+    outline-offset: -2px;
+}
+
+[data-theme="8bit"] .chat-input-area {
+    border-width: 2px 0 0;
+    background: #2b1a5e;
+    box-shadow: 0 -4px 0 #160f3f;
+}
+
+[data-theme="8bit"] textarea,
+[data-theme="8bit"] input,
+[data-theme="8bit"] select,
+[data-theme="8bit"] .message-input,
+[data-theme="8bit"] #message-input,
+[data-theme="8bit"] #chat-input {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #151044;
+    color: var(--8bit-white);
+    caret-color: var(--8bit-yellow);
+    font-family: var(--font-ui);
+    box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14);
+}
+
+[data-theme="8bit"] textarea:focus,
+[data-theme="8bit"] input:focus,
+[data-theme="8bit"] select:focus,
+[data-theme="8bit"] .message-input:focus,
+[data-theme="8bit"] #message-input:focus,
+[data-theme="8bit"] #chat-input:focus {
+    outline: 2px solid var(--8bit-yellow);
+    outline-offset: 2px;
+    animation: eightbitCaretBlink 1s steps(2, end) infinite;
+}
+
+[data-theme="8bit"] .modal-card,
+[data-theme="8bit"] .session-drawer,
+[data-theme="8bit"] .integrations-drawer {
+    background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px),
+        #40318d;
+}
+
+[data-theme="8bit"] .modal-backdrop,
+[data-theme="8bit"] .session-backdrop,
+[data-theme="8bit"] .integrations-backdrop {
+    background: rgba(12, 8, 40, 0.78);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="8bit"] hr,
+[data-theme="8bit"] .divider {
+    border-color: var(--8bit-border);
+}
+
+[data-theme="8bit"] ::selection {
+    background: var(--8bit-yellow);
+    color: #151044;
+}
+
+@keyframes eightbitCaretBlink {
+    0%, 49% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px var(--8bit-yellow); }
+    50%, 100% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px transparent; }
+}
+
+@media (max-width: 720px) {
+    [data-theme="8bit"] .bubble {
+        font-size: 0.64rem;
+        line-height: 1.8;
+    }
+
+    [data-theme="8bit"] button,
+    [data-theme="8bit"] .pill,
+    [data-theme="8bit"] .chat-theme-option,
+    [data-theme="8bit"] .personality-option {
+        font-size: 0.62rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="8bit"] *,
+    [data-theme="8bit"] *::before,
+    [data-theme="8bit"] *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

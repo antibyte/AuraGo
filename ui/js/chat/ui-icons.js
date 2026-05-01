@@ -1,5 +1,5 @@
 (() => {
-    const ICON_VERSION = '20260425d';
+    const ICON_VERSION = '20260501a';
     const ICON_BASE_PATH = '/img/chat-ui-icons';
     const DEFAULT_ICON_KEY = 'generic';
     const CHAT_UI_ICON_STYLE_PRESET = 'ai-generated-activity-3d';
@@ -9,6 +9,7 @@
         { key: 'code', label: 'Code', shape: 'code-brackets', color: '#38bdf8', aliases: [] },
         { key: 'robot', label: 'Robot', shape: 'robot', color: '#22d3ee', aliases: ['logo', 'agent'] },
         { key: 'theme-threedee', label: 'ThreeDee theme', shape: 'cube-3d', color: '#818cf8', aliases: ['threedee'] },
+        { key: 'theme-8bit', label: '8Bit theme', shape: 'gamepad', color: '#a0a0ff', aliases: ['8bit'] },
         { key: 'theme-black-matrix', label: 'Black Matrix theme', shape: 'matrix-grid', color: '#22c55e', aliases: ['black-matrix'] },
         { key: 'play', label: 'Play', shape: 'play', color: '#2dd4bf', aliases: ['resume'] },
         { key: 'blocked', label: 'Blocked', shape: 'lock', color: '#f97316', aliases: ['lock'] },

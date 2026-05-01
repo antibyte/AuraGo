@@ -349,9 +349,23 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
-// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'threedee', 'black-matrix'
-const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'threedee', 'black-matrix'];
+const CHAT_THEME_DEFINITIONS = [
+    { theme: 'dark', icon: 'theme-dark', labelKey: 'chat.theme_standard', fallbackLabel: 'Standard' },
+    { theme: 'light', icon: 'theme-light', labelKey: 'chat.theme_light', fallbackLabel: 'Light' },
+    { theme: 'retro-crt', icon: 'theme-retro-crt', labelKey: 'chat.theme_retro_crt', fallbackLabel: 'Retro CRT' },
+    { theme: '8bit', icon: 'theme-8bit', labelKey: 'chat.theme_8bit', fallbackLabel: '8Bit' },
+    { theme: 'cyberwar', icon: 'theme-cyberwar', labelKey: 'chat.theme_cyberwar', fallbackLabel: 'Cyberwar' },
+    { theme: 'lollipop', icon: 'theme-lollipop', labelKey: 'chat.theme_lollipop', fallbackLabel: 'Lollipop' },
+    { theme: 'dark-sun', icon: 'theme-dark-sun', labelKey: 'chat.theme_dark_sun', fallbackLabel: 'Dark Sun' },
+    { theme: 'ocean', icon: 'theme-ocean', labelKey: 'chat.theme_ocean', fallbackLabel: 'Ocean' },
+    { theme: 'sandstorm', icon: 'theme-sandstorm', labelKey: 'chat.theme_sandstorm', fallbackLabel: 'Sandstorm' },
+    { theme: 'papyrus', icon: 'theme-papyrus', labelKey: 'chat.theme_papyrus', fallbackLabel: 'Papyrus' },
+    { theme: 'threedee', icon: 'theme-threedee', labelKey: 'chat.theme_threedee', fallbackLabel: 'ThreeDee' },
+    { theme: 'black-matrix', icon: 'theme-black-matrix', labelKey: 'chat.theme_black_matrix', fallbackLabel: 'Black Matrix' },
+];
+const CHAT_THEMES = CHAT_THEME_DEFINITIONS.map(def => def.theme);
 const DEFAULT_CHAT_THEME = 'dark';
+window.AuraChatThemes = CHAT_THEME_DEFINITIONS;
 
 // Debounce lock: prevents double-click from toggling back immediately
 let _themeToggleLock = false;
@@ -434,8 +448,43 @@ var THEME_COLORS = {
     'sandstorm': '#1d140d',
     'papyrus': '#bca784',
     'threedee': '#070b14',
-    'black-matrix': '#030404'
+    'black-matrix': '#030404',
+    '8bit': '#40318d'
 };
+
+function ensure8BitChatThemeOption() {
+    const dropdown = document.getElementById('chat-theme-dropdown');
+    if (!dropdown) return;
+
+    let option = dropdown.querySelector('.chat-theme-option[data-theme="8bit"]');
+    if (!option) {
+        option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'chat-theme-option';
+        option.dataset.theme = '8bit';
+        option.setAttribute('role', 'option');
+
+        const icon = document.createElement('span');
+        icon.className = 'chat-theme-option-icon';
+        icon.dataset.chatIcon = 'theme-8bit';
+
+        const label = document.createElement('span');
+        label.className = 'chat-theme-option-label';
+        label.dataset.i18n = 'chat.theme_8bit';
+        label.textContent = t('chat.theme_8bit') === 'chat.theme_8bit' ? '8Bit' : t('chat.theme_8bit');
+
+        option.append(icon, label);
+    }
+
+    const anchor = dropdown.querySelector('.chat-theme-option[data-theme="retro-crt"]');
+    if (anchor && anchor.nextElementSibling !== option) {
+        anchor.after(option);
+    } else if (!option.parentElement) {
+        dropdown.appendChild(option);
+    }
+
+    if (window.AuraChatIcons) window.AuraChatIcons.hydrate(option);
+}
 
 function _updateThemeColor(theme) {
     var meta = document.querySelector('meta[name="theme-color"]');
@@ -1557,6 +1606,7 @@ function initShared() {
 
     try { ensureBrandIcons(); } catch (e) { console.error('[AuraGo] ensureBrandIcons failed:', e); }
     try { initTheme(); } catch (e) { console.error('[AuraGo] initTheme failed:', e); }
+    try { ensure8BitChatThemeOption(); } catch (e) { console.error('[AuraGo] ensure8BitChatThemeOption failed:', e); }
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
     try { initLogoutLinks(); } catch (e) { console.error('[AuraGo] initLogoutLinks failed:', e); }
