@@ -1,4 +1,4 @@
-/* ── Integrations Drawer ─────────────────────────────────────────────────── */
+/* ─ Integrations Drawer (aligned with Session Drawer theming) ─ */
 
 .integrations-edge-tab {
     position: fixed;
@@ -33,6 +33,7 @@
     outline-offset: 2px;
 }
 
+/* Backdrop */
 .integrations-backdrop {
     position: fixed;
     inset: 0;
@@ -42,18 +43,18 @@
     pointer-events: none;
     transition: opacity 0.25s ease;
 }
-
 .integrations-backdrop.active {
     opacity: 1;
     pointer-events: auto;
 }
 
+/* Drawer panel */
 .integrations-drawer {
     position: fixed;
     top: 0;
     right: 0;
-    width: 360px;
-    max-width: 88vw;
+    width: 320px;
+    max-width: 85vw;
     height: 100vh;
     height: 100dvh;
     background: var(--bg-primary, #1a1a2e);
@@ -66,48 +67,46 @@
     box-shadow: -4px 0 24px rgba(0,0,0,0.3);
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
 .integrations-drawer.open {
     transform: translateX(0);
 }
 
+/* Header */
 .integrations-drawer-header {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
+    justify-content: space-between;
     padding: 16px 20px;
     padding-top: calc(16px + env(safe-area-inset-top, 0px));
     padding-right: calc(20px + env(safe-area-inset-right, 0px));
     border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));
     flex-shrink: 0;
 }
-
 .integrations-drawer-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary, #e0e0e0);
 }
-
 .integrations-drawer-close {
     background: none;
     border: none;
+    font-size: 1.2rem;
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 6px;
     color: var(--text-secondary, #888);
     transition: background 0.2s, color 0.2s;
 }
-
 .integrations-drawer-close:hover {
     background: var(--bg-tertiary, rgba(255,255,255,0.08));
     color: var(--text-primary, #e0e0e0);
 }
 
+/* Integration list */
 .integrations-list {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 8px 12px;
     padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
@@ -118,16 +117,16 @@
     font-size: 0.9rem;
 }
 
+/* Integration item – grid layout for icon / main / button */
 .integration-item {
     display: grid;
     grid-template-columns: 32px minmax(0, 1fr) auto;
     gap: 10px;
     align-items: center;
-    padding: 12px;
+    padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid var(--border-color, rgba(255,255,255,0.1));
-    background: var(--bg-secondary, rgba(255,255,255,0.03));
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+    position: relative;
 }
 
 .integration-icon {
@@ -146,10 +145,13 @@
 }
 
 .integration-name {
-    font-size: 0.92rem;
-    font-weight: 600;
+    font-size: 0.88rem;
+    font-weight: 500;
     color: var(--text-primary, #e0e0e0);
-    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
 }
 
 .integration-meta {
@@ -157,8 +159,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    margin-top: 4px;
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     color: var(--text-secondary, #888);
 }
 
@@ -190,6 +191,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.15s;
+    flex-shrink: 0;
 }
 
 .integration-open:hover {
@@ -205,7 +207,7 @@
     }
 
     .integrations-drawer {
-        width: 88vw;
+        width: 85vw;
     }
 
     .integration-item {
