@@ -297,15 +297,24 @@ func spaceAgentRewriteProxyCookies(header http.Header, prefix string) {
 	}
 	header.Del("Set-Cookie")
 	for _, cookie := range cookies {
-		lower := strings.ToLower(cookie)
-		if strings.Contains(lower, "path=/") {
-			cookie = strings.Replace(cookie, "Path=/", "Path="+prefix+"/", 1)
-			cookie = strings.Replace(cookie, "path=/", "Path="+prefix+"/", 1)
-		} else {
-			cookie += "; Path=" + prefix + "/"
-		}
-		header.Add("Set-Cookie", cookie)
+		header.Add("Set-Cookie", spaceAgentCookieWithPath(cookie, prefix+"/"))
+		header.Add("Set-Cookie", spaceAgentCookieWithPath(cookie, "/api/"))
 	}
+}
+
+func spaceAgentCookieWithPath(cookie string, path string) string {
+	parts := strings.Split(cookie, ";")
+	for i, part := range parts {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(part)), "path=") {
+			prefix := ""
+			if strings.HasPrefix(part, " ") {
+				prefix = " "
+			}
+			parts[i] = prefix + "Path=" + path
+			return strings.Join(parts, ";")
+		}
+	}
+	return cookie + "; Path=" + path
 }
 
 func spaceAgentShouldRewriteBody(contentType string) bool {

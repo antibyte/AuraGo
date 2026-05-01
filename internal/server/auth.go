@@ -451,6 +451,12 @@ var authBypassPrefixes = []string{
 	"/mcp",
 	"/api/n8n/",                        // n8n endpoints have their own Bearer token auth (see n8nAuthenticate)
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
+	"/api/login",                       // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/api/login_challenge",             // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/api/user_self_info",              // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/api/file_read",                   // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/api/file_paths",                  // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/api/file_list",                   // Space Agent root API fallback; Space Agent enforces its own auth.
 	"/setup",
 	"/css/",
 	"/fonts/",

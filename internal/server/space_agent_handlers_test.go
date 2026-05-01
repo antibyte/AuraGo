@@ -161,8 +161,15 @@ func TestSpaceAgentProxyHelpersRewriteSubpathResponses(t *testing.T) {
 	if got := header.Get("Location"); got != "/integrations/space-agent/login" {
 		t.Fatalf("Location = %q", got)
 	}
-	if got := header.Values("Set-Cookie")[0]; !strings.Contains(got, "Path=/integrations/space-agent/") {
+	cookies := header.Values("Set-Cookie")
+	if len(cookies) != 2 {
+		t.Fatalf("Set-Cookie count = %d, want proxy and API scoped cookies: %#v", len(cookies), cookies)
+	}
+	if got := cookies[0]; !strings.Contains(got, "Path=/integrations/space-agent/") {
 		t.Fatalf("Set-Cookie was not scoped to proxy path: %q", got)
+	}
+	if got := cookies[1]; !strings.Contains(got, "Path=/api/") {
+		t.Fatalf("Set-Cookie was not scoped to root API path: %q", got)
 	}
 	for _, want := range []string{
 		`href="/integrations/space-agent/assets/app.css"`,
@@ -222,6 +229,30 @@ func TestSpaceAgentRootAPIProxyOnlyAllowsSpaceAgentRequests(t *testing.T) {
 	unknownAuraGo := httptest.NewRequest(http.MethodPost, "/api/not-an-aurago-route", nil)
 	if spaceAgentShouldProxyRootAPIRequest(unknownAuraGo) {
 		t.Fatal("unexpected proxy decision for unrelated AuraGo API path")
+	}
+}
+
+func TestSpaceAgentProxyCookiesAreScopedForUIAndRootAPI(t *testing.T) {
+	header := http.Header{}
+	header.Add("Set-Cookie", "space_session=abc; Path=/; HttpOnly")
+
+	spaceAgentRewriteProxyCookies(header, "/integrations/space-agent")
+
+	cookies := header.Values("Set-Cookie")
+	if len(cookies) != 2 {
+		t.Fatalf("Set-Cookie count = %d, want 2: %#v", len(cookies), cookies)
+	}
+	for _, want := range []string{"Path=/integrations/space-agent/", "Path=/api/"} {
+		found := false
+		for _, cookie := range cookies {
+			if strings.Contains(cookie, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("rewritten cookies missing %q: %#v", want, cookies)
+		}
 	}
 }
 
