@@ -613,3 +613,121 @@ pre,
     color: #d97706;
     border: 1px solid rgba(217, 119, 6, 0.25);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DEFAULT THEME POLISH (Dark + Light base themes)
+   Scrollbar, bubble hover, session sweep, button press
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Scrollbar: Dark theme ──────────────────────────────────────────── */
+[data-theme="dark"] #chat-content::-webkit-scrollbar,
+[data-theme="dark"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="dark"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="dark"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(45, 212, 191, 0.25), rgba(99, 102, 241, 0.3));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="dark"] #chat-content::-webkit-scrollbar-track,
+[data-theme="dark"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(45, 212, 191, 0.04);
+}
+
+/* ── Scrollbar: Light theme ─────────────────────────────────────────── */
+[data-theme="light"] #chat-content::-webkit-scrollbar,
+[data-theme="light"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="light"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="light"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(13, 148, 136, 0.25), rgba(99, 102, 241, 0.2));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="light"] #chat-content::-webkit-scrollbar-track,
+[data-theme="light"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(13, 148, 136, 0.06);
+}
+
+/* ── Session item hover sweep: Dark theme ───────────────────────────── */
+[data-theme="dark"] .chat-theme-option,
+[data-theme="dark"] .session-item {
+    position: relative;
+}
+[data-theme="dark"] .chat-theme-option::after,
+[data-theme="dark"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.45), rgba(99, 102, 241, 0.35), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="dark"] .chat-theme-option:hover::after,
+[data-theme="dark"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Session item hover sweep: Light theme ──────────────────────────── */
+[data-theme="light"] .chat-theme-option,
+[data-theme="light"] .session-item {
+    position: relative;
+}
+[data-theme="light"] .chat-theme-option::after,
+[data-theme="light"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.4), rgba(99, 102, 241, 0.3), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="light"] .chat-theme-option:hover::after,
+[data-theme="light"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Bubble hover micro-interaction: Dark ───────────────────────────── */
+[data-theme="dark"] .bubble {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+[data-theme="dark"] .msg-row:hover .bubble.bot {
+    transform: translateY(-1px);
+    box-shadow:
+        var(--bot-bubble-shadow, 0 1px 4px rgba(0, 0, 0, 0.06)),
+        0 8px 20px rgba(0, 0, 0, 0.12);
+}
+[data-theme="dark"] .msg-row:hover .bubble.user {
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 18px var(--user-bubble-shadow, rgba(45, 212, 191, 0.15));
+}
+
+/* ── Bubble hover micro-interaction: Light ──────────────────────────── */
+[data-theme="light"] .bubble {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+[data-theme="light"] .msg-row:hover .bubble {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Button active press state ──────────────────────────────────────── */
+.btn-send:active:not(:disabled),
+.btn-voice:active:not(:disabled),
+.btn-more:active:not(:disabled),
+.composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.96) !important;
+}

@@ -496,3 +496,67 @@
         display: none !important;
     }
 }
+
+/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="black-matrix"] #chat-content::-webkit-scrollbar,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="black-matrix"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(126, 134, 129, 0.28), rgba(100, 110, 104, 0.4));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="black-matrix"] #chat-content::-webkit-scrollbar-track,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(126, 134, 129, 0.06);
+}
+
+/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+[data-theme="black-matrix"] .session-item {
+    position: relative;
+}
+[data-theme="black-matrix"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(148, 242, 109, 0.5), rgba(255, 255, 255, 0.3), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.3s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="black-matrix"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Polish: Bubble hover (digital glow) ───────────────────────────────── */
+[data-theme="black-matrix"] .bubble {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+[data-theme="black-matrix"] .msg-row:hover .bubble {
+    transform: translateY(-1px);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.54),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -4px 10px rgba(0, 0, 0, 0.64),
+        0 0 16px rgba(148, 242, 109, 0.06);
+}
+
+/* ── Polish: Button active press ───────────────────────────────────────── */
+[data-theme="black-matrix"] .btn-send:active:not(:disabled),
+[data-theme="black-matrix"] .btn-voice:active:not(:disabled),
+[data-theme="black-matrix"] .btn-more:active:not(:disabled),
+[data-theme="black-matrix"] .composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.95) translateY(0) !important;
+}
+
+/* ── Polish: Typing indicator glow ─────────────────────────────────────── */
+[data-theme="black-matrix"] .typing-indicator .dot {
+    background: #94f26d;
+    box-shadow: 0 0 8px rgba(148, 242, 109, 0.4);
+}

@@ -585,3 +585,62 @@
         animation: none !important;
     }
 }
+
+/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="sandstorm"] #chat-content::-webkit-scrollbar,
+[data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="sandstorm"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(155, 117, 70, 0.45), rgba(96, 70, 40, 0.6));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="sandstorm"] #chat-content::-webkit-scrollbar-track,
+[data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(30, 63, 102, 0.06);
+}
+
+/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+[data-theme="sandstorm"] .chat-theme-option,
+[data-theme="sandstorm"] .session-item {
+    position: relative;
+}
+[data-theme="sandstorm"] .chat-theme-option::after,
+[data-theme="sandstorm"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(213, 171, 114, 0.5), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="sandstorm"] .chat-theme-option:hover::after,
+[data-theme="sandstorm"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Polish: Bubble hover ──────────────────────────────────────────────── */
+[data-theme="sandstorm"] .bubble {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+[data-theme="sandstorm"] .msg-row:hover .bubble {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(247, 231, 203, 0.06),
+        0 18px 34px rgba(11, 8, 5, 0.26);
+}
+
+/* ── Polish: Button active press ───────────────────────────────────────── */
+[data-theme="sandstorm"] .btn-send:active:not(:disabled),
+[data-theme="sandstorm"] .btn-voice:active:not(:disabled),
+[data-theme="sandstorm"] .btn-more:active:not(:disabled),
+[data-theme="sandstorm"] .composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.96) !important;
+}

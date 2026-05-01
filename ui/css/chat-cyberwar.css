@@ -803,3 +803,71 @@
 [data-theme="cyberwar"] .bubble::after {
     display: none !important;
 }
+
+/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="cyberwar"] #chat-content::-webkit-scrollbar,
+[data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="cyberwar"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(84, 247, 255, 0.28), rgba(139, 125, 255, 0.32));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="cyberwar"] #chat-content::-webkit-scrollbar-track,
+[data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(84, 247, 255, 0.04);
+}
+
+/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+[data-theme="cyberwar"] .session-item {
+    position: relative;
+}
+[data-theme="cyberwar"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(84, 247, 255, 0.6), rgba(139, 125, 255, 0.5), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.3s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="cyberwar"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Polish: Bubble hover (neon glow) ──────────────────────────────────── */
+[data-theme="cyberwar"] .bubble {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+[data-theme="cyberwar"] .msg-row:hover .bubble.bot {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.08),
+        0 0 0 1px rgba(84, 247, 255, 0.06),
+        0 18px 32px rgba(0, 0, 0, 0.36),
+        0 0 32px rgba(84, 247, 255, 0.1);
+}
+[data-theme="cyberwar"] .msg-row:hover .bubble.user {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        0 0 0 1px rgba(255, 71, 200, 0.1),
+        0 20px 36px rgba(19, 11, 38, 0.5),
+        0 0 38px rgba(255, 71, 200, 0.16);
+}
+
+/* ── Polish: Button active press ───────────────────────────────────────── */
+[data-theme="cyberwar"] .btn-send:active:not(:disabled),
+[data-theme="cyberwar"] .btn-voice:active:not(:disabled),
+[data-theme="cyberwar"] .btn-more:active:not(:disabled),
+[data-theme="cyberwar"] .composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.95) !important;
+    filter: brightness(0.9);
+}

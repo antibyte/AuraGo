@@ -712,3 +712,79 @@
 [data-theme="lollipop"] .bubble::after {
     display: none !important;
 }
+
+/* ── Polish: Message entrance animation ─────────────────────────────────── */
+[data-theme="lollipop"] .msg-row {
+    animation: lollipopMessageIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes lollipopMessageIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="lollipop"] #chat-content::-webkit-scrollbar,
+[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="lollipop"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(214, 123, 176, 0.4), rgba(199, 162, 255, 0.45));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="lollipop"] #chat-content::-webkit-scrollbar-track,
+[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(214, 123, 176, 0.08);
+}
+
+/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+[data-theme="lollipop"] .chat-theme-option,
+[data-theme="lollipop"] .session-item {
+    position: relative;
+}
+[data-theme="lollipop"] .chat-theme-option::after,
+[data-theme="lollipop"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 2px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, rgba(230, 92, 165, 0.6), rgba(159, 130, 255, 0.5), rgba(105, 207, 168, 0.5));
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="lollipop"] .chat-theme-option:hover::after,
+[data-theme="lollipop"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Polish: Bubble hover (playful lift) ────────────────────────────────── */
+[data-theme="lollipop"] .bubble {
+    transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
+}
+[data-theme="lollipop"] .msg-row:hover .bubble {
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 14px 28px rgba(179, 108, 145, 0.22);
+}
+
+/* ── Polish: Button active press ───────────────────────────────────────── */
+[data-theme="lollipop"] .btn-send:active:not(:disabled),
+[data-theme="lollipop"] .btn-voice:active:not(:disabled),
+[data-theme="lollipop"] .btn-more:active:not(:disabled),
+[data-theme="lollipop"] .composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.94) !important;
+}

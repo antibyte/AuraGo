@@ -633,3 +633,63 @@
     mix-blend-mode: normal !important;
     filter: none !important;
 }
+
+/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="ocean"] #chat-content::-webkit-scrollbar,
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+[data-theme="ocean"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(91, 135, 162, 0.4), rgba(60, 100, 130, 0.55));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+[data-theme="ocean"] #chat-content::-webkit-scrollbar-track,
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-track {
+    background: rgba(91, 135, 162, 0.08);
+}
+
+/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+[data-theme="ocean"] .chat-theme-option,
+[data-theme="ocean"] .session-item {
+    position: relative;
+}
+[data-theme="ocean"] .chat-theme-option::after,
+[data-theme="ocean"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(118, 198, 223, 0.5), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
+    pointer-events: none;
+}
+[data-theme="ocean"] .chat-theme-option:hover::after,
+[data-theme="ocean"] .session-item:hover::after { transform: scaleX(1); }
+
+/* ── Polish: Bubble hover ──────────────────────────────────────────────── */
+[data-theme="ocean"] .bubble {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+[data-theme="ocean"] .msg-row:hover .bubble {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.06),
+        0 18px 34px rgba(2, 10, 18, 0.26),
+        0 0 12px rgba(118, 198, 223, 0.06);
+}
+
+/* ── Polish: Button active press ───────────────────────────────────────── */
+[data-theme="ocean"] .btn-send:active:not(:disabled),
+[data-theme="ocean"] .btn-voice:active:not(:disabled),
+[data-theme="ocean"] .btn-more:active:not(:disabled),
+[data-theme="ocean"] .composer-tool-btn:active:not(:disabled) {
+    transform: scale(0.96) !important;
+}
