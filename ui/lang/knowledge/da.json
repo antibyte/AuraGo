@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Flyt ned",
   "knowledge.todos_item_remove": "Fjern punkt",
   "knowledge.todos_summary_progress": "Gennemsnitlig fremdrift",
-  "knowledge.todos_summary_total": "{count} opgaver i alt"
+  "knowledge.todos_summary_total": "{count} opgaver i alt",
+  "knowledge.appointments_filter_overdue": "Overskredet",
+  "knowledge.appointments_status_overdue": "Overskredet"
 }

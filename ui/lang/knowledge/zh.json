@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "下移",
   "knowledge.todos_item_remove": "移除项目",
   "knowledge.todos_summary_progress": "平均进度",
-  "knowledge.todos_summary_total": "共 {count} 项任务"
+  "knowledge.todos_summary_total": "共 {count} 项任务",
+  "knowledge.appointments_filter_overdue": "逾期",
+  "knowledge.appointments_status_overdue": "逾期"
 }

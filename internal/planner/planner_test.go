@@ -199,7 +199,7 @@ func TestValidRFC3339(t *testing.T) {
 }
 
 func TestValidAppointmentStatus(t *testing.T) {
-	for _, s := range []string{"upcoming", "completed", "cancelled"} {
+	for _, s := range []string{"upcoming", "completed", "cancelled", "overdue"} {
 		if !validAppointmentStatus(s) {
 			t.Errorf("expected %q to be valid", s)
 		}

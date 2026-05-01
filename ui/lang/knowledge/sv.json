@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Flytta ned",
   "knowledge.todos_item_remove": "Ta bort punkt",
   "knowledge.todos_summary_progress": "Genomsnittlig framsteg",
-  "knowledge.todos_summary_total": "{count} uppgifter totalt"
+  "knowledge.todos_summary_total": "{count} uppgifter totalt",
+  "knowledge.appointments_filter_overdue": "Förfallen",
+  "knowledge.appointments_status_overdue": "Förfallen"
 }

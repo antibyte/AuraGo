@@ -786,6 +786,11 @@
 .kc-status-cancelled {
     background: rgba(148, 163, 184, 0.12);
     color: var(--text-secondary);
+}
+
+.kc-status-overdue {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
     border: 1px solid rgba(148, 163, 184, 0.3);
 }
 

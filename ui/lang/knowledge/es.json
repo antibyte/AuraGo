@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Mover abajo",
   "knowledge.todos_item_remove": "Eliminar punto",
   "knowledge.todos_summary_progress": "Progreso medio",
-  "knowledge.todos_summary_total": "{count} tareas en total"
+  "knowledge.todos_summary_total": "{count} tareas en total",
+  "knowledge.appointments_filter_overdue": "Vencido",
+  "knowledge.appointments_status_overdue": "Vencido"
 }

@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "下へ移動",
   "knowledge.todos_item_remove": "項目を削除",
   "knowledge.todos_summary_progress": "平均進捗",
-  "knowledge.todos_summary_total": "合計 {count} 件のタスク"
+  "knowledge.todos_summary_total": "合計 {count} 件のタスク",
+  "knowledge.appointments_filter_overdue": "期限切れ",
+  "knowledge.appointments_status_overdue": "期限切れ"
 }

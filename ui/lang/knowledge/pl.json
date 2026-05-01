@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Przesuń w dół",
   "knowledge.todos_item_remove": "Usuń punkt",
   "knowledge.todos_summary_progress": "Średni postęp",
-  "knowledge.todos_summary_total": "Łącznie {count} zadań"
+  "knowledge.todos_summary_total": "Łącznie {count} zadań",
+  "knowledge.appointments_filter_overdue": "Zaległy",
+  "knowledge.appointments_status_overdue": "Zaległy"
 }

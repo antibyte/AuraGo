@@ -132,7 +132,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 
 // validAppointmentStatus returns true for allowed appointment status values.
 func validAppointmentStatus(s string) bool {
-	return s == "upcoming" || s == "completed" || s == "cancelled"
+	return s == "upcoming" || s == "completed" || s == "cancelled" || s == "overdue"
 }
 
 func validTodoPriority(p string) bool {
@@ -523,6 +523,19 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 		list = []Appointment{}
 	}
 	return list, nil
+}
+
+// AutoExpireAppointments updates the status of past appointments from 'upcoming' to 'overdue'.
+func AutoExpireAppointments(db *sql.DB) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(
+		`UPDATE appointments SET status = 'overdue', updated_at = ? WHERE status = 'upcoming' AND date_time < ?`,
+		now, now,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to auto-expire appointments: %w", err)
+	}
+	return nil
 }
 
 // GetDueNotifications returns appointments due for notification that have not been notified yet.

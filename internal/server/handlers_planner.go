@@ -32,6 +32,9 @@ func handleAppointments(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			query := r.URL.Query().Get("q")
 			status := r.URL.Query().Get("status")
+			if err := planner.AutoExpireAppointments(s.PlannerDB); err != nil {
+				s.Logger.Warn("Failed to auto-expire appointments", "error", err)
+			}
 			list, err := planner.ListAppointments(s.PlannerDB, query, status)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list appointments", "Failed to list appointments", err)

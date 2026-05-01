@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "नीचे ले जाएँ",
   "knowledge.todos_item_remove": "बिंदु हटाएँ",
   "knowledge.todos_summary_progress": "औसत प्रगति",
-  "knowledge.todos_summary_total": "कुल {count} कार्य"
+  "knowledge.todos_summary_total": "कुल {count} कार्य",
+  "knowledge.appointments_filter_overdue": "अतिदेय",
+  "knowledge.appointments_status_overdue": "अतिदेय"
 }

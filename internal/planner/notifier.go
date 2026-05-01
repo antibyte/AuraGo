@@ -100,6 +100,9 @@ func (n *Notifier) checkDue() {
 	if n.db == nil {
 		return
 	}
+	if err := AutoExpireAppointments(n.db); err != nil {
+		n.logger.Error("[Planner] Failed to auto-expire appointments", "error", err)
+	}
 	n.checkOverdueTodos()
 	n.mu.Lock()
 	executor := n.executor

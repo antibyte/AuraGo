@@ -63,7 +63,7 @@ function renderAppointments() {
                     <span class="kc-status-pill ${statusClass}">${statusLabel}</span>
                 </div>
                 <div class="kc-appointment-actions">
-                    ${a.status === 'upcoming' ? `
+                    ${a.status === 'upcoming' || a.status === 'overdue' ? `
                         <button class="btn btn-sm btn-secondary" onclick="completeAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_complete')}">✅</button>
                         <button class="btn btn-sm btn-secondary" onclick="cancelAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_cancel')}">❌</button>
                     ` : ''}
@@ -228,6 +228,7 @@ function appointmentStatusClass(status) {
     switch (status) {
         case 'completed': return 'kc-status-completed';
         case 'cancelled': return 'kc-status-cancelled';
+        case 'overdue': return 'kc-status-overdue';
         default: return 'kc-status-upcoming';
     }
 }
@@ -236,6 +237,7 @@ function appointmentStatusLabel(status) {
     switch (status) {
         case 'completed': return t('knowledge.appointments_status_completed');
         case 'cancelled': return t('knowledge.appointments_status_cancelled');
+        case 'overdue': return t('knowledge.appointments_status_overdue');
         default: return t('knowledge.appointments_status_upcoming');
     }
 }

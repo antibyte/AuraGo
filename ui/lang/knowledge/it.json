@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Sposta giù",
   "knowledge.todos_item_remove": "Rimuovi punto",
   "knowledge.todos_summary_progress": "Avanzamento medio",
-  "knowledge.todos_summary_total": "{count} attività totali"
+  "knowledge.todos_summary_total": "{count} attività totali",
+  "knowledge.appointments_filter_overdue": "Scaduto",
+  "knowledge.appointments_status_overdue": "Scaduto"
 }

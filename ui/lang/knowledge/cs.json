@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Posunout dolů",
   "knowledge.todos_item_remove": "Odstranit bod",
   "knowledge.todos_summary_progress": "Průměrný pokrok",
-  "knowledge.todos_summary_total": "Celkem {count} úkolů"
+  "knowledge.todos_summary_total": "Celkem {count} úkolů",
+  "knowledge.appointments_filter_overdue": "Po termínu",
+  "knowledge.appointments_status_overdue": "Po termínu"
 }

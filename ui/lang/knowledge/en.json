@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Move down",
   "knowledge.todos_item_remove": "Remove point",
   "knowledge.todos_summary_progress": "Average progress",
-  "knowledge.todos_summary_total": "{count} tasks total"
+  "knowledge.todos_summary_total": "{count} tasks total",
+  "knowledge.appointments_filter_overdue": "Overdue",
+  "knowledge.appointments_status_overdue": "Overdue"
 }

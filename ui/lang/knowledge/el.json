@@ -233,5 +233,7 @@
   "knowledge.todos_item_move_down": "Μετακίνηση κάτω",
   "knowledge.todos_item_remove": "Αφαίρεση σημείου",
   "knowledge.todos_summary_progress": "Μέση πρόοδος",
-  "knowledge.todos_summary_total": "{count} εργασίες συνολικά"
+  "knowledge.todos_summary_total": "{count} εργασίες συνολικά",
+  "knowledge.appointments_filter_overdue": "Εκπρόθεσμο",
+  "knowledge.appointments_status_overdue": "Εκπρόθεσμο"
 }
