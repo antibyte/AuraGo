@@ -100,6 +100,11 @@ func handleSpaceAgentSend(s *Server) http.HandlerFunc {
 
 func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		allowSpaceAgentBridgeCORS(w, r)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -140,6 +145,17 @@ func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 		}
 		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "message": msg})
 	}
+}
+
+func allowSpaceAgentBridgeCORS(w http.ResponseWriter, r *http.Request) {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+	w.Header().Set("Vary", "Origin")
 }
 
 func handleIntegrationWebhosts(s *Server) http.HandlerFunc {

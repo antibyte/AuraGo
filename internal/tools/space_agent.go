@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-runtime-env"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-browser-url"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -950,9 +950,31 @@ function envValue(name) {
   return "";
 }
 
+function deriveBrowserAuraGoBridgeURL() {
+  if (typeof window === "undefined" || !window.location || !window.location.hostname) {
+    return "";
+  }
+  const host = String(window.location.hostname || "");
+  const labels = host.split(".");
+  if (!labels[0] || !labels[0].endsWith("-space-agent")) {
+    return "";
+  }
+  labels[0] = labels[0].slice(0, -"-space-agent".length) || "aurago";
+  return window.location.protocol + "//" + labels.join(".") + "/api/space-agent/bridge/messages";
+}
+
+function uniqueNonEmpty(values) {
+  return [...new Set(values.filter((value) => typeof value === "string" && value.trim() !== ""))];
+}
+
 function bridgeConfig(options = {}) {
   return {
-    bridgeUrl: options.bridgeUrl || envValue("AURAGO_BRIDGE_URL") || EMBEDDED_BRIDGE_URL,
+    bridgeUrlCandidates: uniqueNonEmpty([
+      options.bridgeUrl,
+      envValue("AURAGO_BRIDGE_URL"),
+      deriveBrowserAuraGoBridgeURL(),
+      EMBEDDED_BRIDGE_URL
+    ]),
     bridgeToken: options.bridgeToken || envValue("AURAGO_BRIDGE_TOKEN") || EMBEDDED_BRIDGE_TOKEN
   };
 }
@@ -969,22 +991,31 @@ function buildAuraGoBridgePayload(message = {}) {
 }
 
 export async function sendToAuraGo(message = {}, options = {}) {
-  const { bridgeUrl, bridgeToken } = bridgeConfig(options);
-  if (!bridgeUrl || !bridgeToken) {
+  const { bridgeUrlCandidates, bridgeToken } = bridgeConfig(options);
+  if (!bridgeUrlCandidates.length || !bridgeToken) {
     throw new Error("AuraGo bridge is not configured. Pass { bridgeUrl, bridgeToken } or recreate the managed Space Agent sidecar.");
   }
-  const res = await fetch(bridgeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + bridgeToken
-    },
-    body: JSON.stringify(buildAuraGoBridgePayload(message))
-  });
-  if (!res.ok) {
-    throw new Error("AuraGo bridge returned HTTP " + res.status);
+  const payload = JSON.stringify(buildAuraGoBridgePayload(message));
+  let lastError;
+  for (const bridgeUrl of bridgeUrlCandidates) {
+    try {
+      const res = await fetch(bridgeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + bridgeToken
+        },
+        body: payload
+      });
+      if (res.ok) {
+        return res.json();
+      }
+      lastError = new Error("AuraGo bridge returned HTTP " + res.status + " for " + bridgeUrl);
+    } catch (error) {
+      lastError = error;
+    }
   }
-  return res.json();
+  throw lastError || new Error("AuraGo bridge request failed.");
 }
 
 export default { sendToAuraGo };
@@ -1007,9 +1038,31 @@ function envValue(name) {
   return '';
 }
 
+function deriveBrowserAuraGoBridgeURL() {
+  if (typeof window === 'undefined' || !window.location || !window.location.hostname) {
+    return '';
+  }
+  const host = String(window.location.hostname || '');
+  const labels = host.split('.');
+  if (!labels[0] || !labels[0].endsWith('-space-agent')) {
+    return '';
+  }
+  labels[0] = labels[0].slice(0, -'-space-agent'.length) || 'aurago';
+  return window.location.protocol + '//' + labels.join('.') + '/api/space-agent/bridge/messages';
+}
+
+function uniqueNonEmpty(values) {
+  return [...new Set(values.filter((value) => typeof value === 'string' && value.trim() !== ''))];
+}
+
 function bridgeConfig(options = {}) {
   return {
-    bridgeUrl: options.bridgeUrl || envValue('AURAGO_BRIDGE_URL') || EMBEDDED_BRIDGE_URL,
+    bridgeUrlCandidates: uniqueNonEmpty([
+      options.bridgeUrl,
+      envValue('AURAGO_BRIDGE_URL'),
+      deriveBrowserAuraGoBridgeURL(),
+      EMBEDDED_BRIDGE_URL
+    ]),
     bridgeToken: options.bridgeToken || envValue('AURAGO_BRIDGE_TOKEN') || EMBEDDED_BRIDGE_TOKEN
   };
 }
@@ -1026,22 +1079,31 @@ function buildAuraGoBridgePayload(message = {}) {
 }
 
 async function sendToAuraGo(message = {}, options = {}) {
-  const { bridgeUrl, bridgeToken } = bridgeConfig(options);
-  if (!bridgeUrl || !bridgeToken) {
+  const { bridgeUrlCandidates, bridgeToken } = bridgeConfig(options);
+  if (!bridgeUrlCandidates.length || !bridgeToken) {
     throw new Error('AuraGo bridge is not configured. Pass { bridgeUrl, bridgeToken } or recreate the managed Space Agent sidecar.');
   }
-  const res = await fetch(bridgeUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + bridgeToken
-    },
-    body: JSON.stringify(buildAuraGoBridgePayload(message))
-  });
-  if (!res.ok) {
-    throw new Error('AuraGo bridge returned HTTP ' + res.status);
+  const payload = JSON.stringify(buildAuraGoBridgePayload(message));
+  let lastError;
+  for (const bridgeUrl of bridgeUrlCandidates) {
+    try {
+      const res = await fetch(bridgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + bridgeToken
+        },
+        body: payload
+      });
+      if (res.ok) {
+        return res.json();
+      }
+      lastError = new Error('AuraGo bridge returned HTTP ' + res.status + ' for ' + bridgeUrl);
+    } catch (error) {
+      lastError = error;
+    }
   }
-  return res.json();
+  throw lastError || new Error('AuraGo bridge request failed.');
 }
 
 module.exports = { sendToAuraGo };

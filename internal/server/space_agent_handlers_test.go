@@ -43,6 +43,28 @@ func TestHandleSpaceAgentBridgeRequiresBearerToken(t *testing.T) {
 	}
 }
 
+func TestHandleSpaceAgentBridgeAllowsBrowserPreflight(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), SSE: NewSSEBroadcaster()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.BridgeToken = "bridge-secret"
+	req := httptest.NewRequest(http.MethodOptions, "/api/space-agent/bridge/messages", nil)
+	req.Header.Set("Origin", "https://aurago-space-agent.example.ts.net")
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+	rec := httptest.NewRecorder()
+
+	handleSpaceAgentBridgeMessages(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status code = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://aurago-space-agent.example.ts.net" {
+		t.Fatalf("Access-Control-Allow-Origin = %q", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "authorization") {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want authorization", got)
+	}
+}
+
 func TestHandleSpaceAgentBridgeWrapsExternalData(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), SSE: NewSSEBroadcaster()}
 	s.Cfg.SpaceAgent.Enabled = true

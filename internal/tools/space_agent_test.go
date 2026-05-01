@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-runtime-env"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-runtime-env"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-runtime-env"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -414,6 +414,9 @@ func TestSpaceAgentBridgeESMWorksInBrowserContext(t *testing.T) {
 		"typeof process !== \"undefined\"",
 		"options.bridgeUrl",
 		"globalThis[name]",
+		"deriveBrowserAuraGoBridgeURL",
+		"-space-agent",
+		"bridgeUrlCandidates",
 		"export async function sendToAuraGo(message = {}, options = {})",
 	} {
 		if !strings.Contains(helper, want) {
