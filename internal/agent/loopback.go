@@ -21,11 +21,7 @@ func shouldPersistLoopbackHistory(sessionID string) bool {
 }
 
 func isAutonomousLoopback(runCfg RunConfig, sessionID string) bool {
-	switch runCfg.MessageSource {
-	case "heartbeat":
-		return true
-	}
-	return sessionID == "heartbeat"
+	return isAutonomousAgentRun(runCfg, sessionID)
 }
 
 func buildLoopbackConversationMessages(base []openai.ChatCompletionMessage, historyManager *memory.HistoryManager, safeMessage string, includeGlobalHistory bool) []openai.ChatCompletionMessage {

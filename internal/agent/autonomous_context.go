@@ -1,9 +1,22 @@
 package agent
 
-import "aurago/internal/prompts"
+import (
+	"strings"
+
+	"aurago/internal/prompts"
+)
+
+func isAutonomousMessageSource(source string) bool {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "heartbeat", "planner_notification", "uptime_kuma":
+		return true
+	default:
+		return false
+	}
+}
 
 func isAutonomousAgentRun(runCfg RunConfig, sessionID string) bool {
-	return runCfg.MessageSource == "heartbeat" || sessionID == "heartbeat"
+	return isAutonomousMessageSource(runCfg.MessageSource) || sessionID == "heartbeat"
 }
 
 func shouldRunTurnSideEffects(runCfg RunConfig, sessionID string, flags prompts.ContextFlags) bool {
