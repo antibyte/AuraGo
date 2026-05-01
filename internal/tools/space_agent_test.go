@@ -329,7 +329,7 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 
 func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
 	customware := t.TempDir()
-	if err := writeSpaceAgentBridgeCustomware(customware, "admin"); err != nil {
+	if err := writeSpaceAgentBridgeCustomware(customware, "admin", "https://aurago.example/api/space-agent/bridge/messages", "bridge-secret"); err != nil {
 		t.Fatalf("writeSpaceAgentBridgeCustomware() error = %v", err)
 	}
 
@@ -349,6 +349,25 @@ func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
 		if !strings.Contains(text, "sendToAuraGo") {
 			t.Fatalf("%s does not contain bridge helper content: %q", path, text)
 		}
+	}
+}
+
+func TestSpaceAgentBridgeESMWorksInBrowserContext(t *testing.T) {
+	helper := spaceAgentBridgeHelperESM("https://aurago.example/api/space-agent/bridge/messages", "bridge-secret")
+	for _, want := range []string{
+		"const EMBEDDED_BRIDGE_URL = \"https://aurago.example/api/space-agent/bridge/messages\";",
+		"const EMBEDDED_BRIDGE_TOKEN = \"bridge-secret\";",
+		"typeof process !== \"undefined\"",
+		"options.bridgeUrl",
+		"globalThis[name]",
+		"export async function sendToAuraGo(message = {}, options = {})",
+	} {
+		if !strings.Contains(helper, want) {
+			t.Fatalf("ESM bridge helper missing %q:\n%s", want, helper)
+		}
+	}
+	if strings.Contains(helper, "const bridgeUrl = process.env.AURAGO_BRIDGE_URL") {
+		t.Fatalf("ESM bridge helper still directly dereferences process.env:\n%s", helper)
 	}
 }
 
