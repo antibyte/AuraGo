@@ -59,9 +59,6 @@
             <button id="session-toggle-btn" type="button" class="btn-session-toggle" data-i18n-aria-label="chat.aria_conversations">
                 <span class="chat-ui-icon" data-chat-icon="conversation"></span>
             </button>
-            <button id="integrations-toggle-btn" type="button" class="btn-integrations-toggle" data-i18n-aria-label="chat.aria_integrations">
-                <span class="chat-ui-icon" data-chat-icon="web"></span>
-            </button>
             <!-- Speaker toggle for TTS auto-play -->
             <button id="speaker-toggle" type="button" class="btn-speaker" data-i18n-aria-label="chat.aria_toggle_speaker">
                 <span class="chat-ui-icon" data-chat-icon="speaker-muted"></span>
@@ -178,6 +175,12 @@
     </aside>
 
     <!-- ── Integrations Drawer (right side webhosts) ── -->
+    <button id="integrations-toggle-btn" type="button" class="integrations-edge-tab"
+        data-i18n-aria-label="chat.aria_integrations"
+        aria-controls="integrations-drawer"
+        aria-expanded="false">
+        <span class="chat-ui-icon" data-chat-icon="web"></span>
+    </button>
     <div id="integrations-backdrop" class="integrations-backdrop"></div>
     <aside id="integrations-drawer" class="integrations-drawer">
         <div class="integrations-drawer-header">

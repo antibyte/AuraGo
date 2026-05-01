@@ -79,6 +79,7 @@ window.IntegrationsDrawer = (function () {
         isOpen = true;
         drawer.classList.add('open');
         if (backdrop) backdrop.classList.add('active');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
         fetchWebhosts();
     }
 
@@ -87,6 +88,7 @@ window.IntegrationsDrawer = (function () {
         isOpen = false;
         drawer.classList.remove('open');
         if (backdrop) backdrop.classList.remove('active');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
     }
 
     function toggle() {

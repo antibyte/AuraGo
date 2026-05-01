@@ -1,18 +1,37 @@
 /* ── Integrations Drawer ─────────────────────────────────────────────────── */
 
-.btn-integrations-toggle {
-    background: none;
-    border: none;
+.integrations-edge-tab {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    z-index: 998;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 56px;
+    border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+    border-right: 0;
+    border-radius: 8px 0 0 8px;
+    background: var(--bg-secondary, rgba(255,255,255,0.06));
+    color: var(--text-secondary, #b5b5c8);
+    box-shadow: -3px 0 16px rgba(0,0,0,0.22);
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
-    transition: background 0.2s, transform 0.15s;
-    color: var(--text-secondary);
+    transform: translateY(-50%);
+    transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
-.btn-integrations-toggle:hover {
-    background: var(--bg-tertiary, rgba(255,255,255,0.08));
-    transform: scale(1.1);
+.integrations-edge-tab:hover,
+.integrations-edge-tab:focus-visible {
+    background: var(--bg-tertiary, rgba(255,255,255,0.1));
+    color: var(--text-primary, #fff);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.28);
+    transform: translateY(-50%) translateX(-2px);
+}
+
+.integrations-edge-tab:focus-visible {
+    outline: 2px solid var(--accent, #6c63ff);
+    outline-offset: 2px;
 }
 
 .integrations-backdrop {
@@ -179,6 +198,12 @@
 }
 
 @media (max-width: 639px) {
+    .integrations-edge-tab {
+        top: 46%;
+        width: 32px;
+        height: 52px;
+    }
+
     .integrations-drawer {
         width: 88vw;
     }

@@ -148,6 +148,7 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	indexHTML := string(indexContent)
 	for _, marker := range []string{
 		`id="integrations-toggle-btn"`,
+		`class="integrations-edge-tab"`,
 		`id="integrations-drawer"`,
 		`/css/integrations-drawer.css`,
 		`/js/chat/modules/integrations-drawer.js`,
@@ -155,6 +156,9 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 		if !strings.Contains(indexHTML, marker) {
 			t.Fatalf("index.html missing integrations drawer marker %q", marker)
 		}
+	}
+	if strings.Contains(indexHTML, `btn-integrations-toggle`) {
+		t.Fatal("integrations toggle must be rendered as the right-edge tab, not a header icon button")
 	}
 
 	drawerJS := string(drawerContent)
