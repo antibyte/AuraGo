@@ -192,3 +192,19 @@ func TestSpaceAgentProxyHelpersRewriteJavaScriptModulePaths(t *testing.T) {
 		t.Fatal("expected JavaScript responses to be rewritten")
 	}
 }
+
+func TestSpaceAgentProxySecurityHeadersAllowBrowserCompatibilityProbe(t *testing.T) {
+	header := http.Header{}
+	spaceAgentSetProxySecurityHeaders(header)
+
+	csp := header.Get("Content-Security-Policy")
+	for _, want := range []string{
+		"script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+		"script-src-elem 'self' 'unsafe-inline' data: blob:",
+		"worker-src 'self' blob: data:",
+	} {
+		if !strings.Contains(csp, want) {
+			t.Fatalf("proxy CSP missing %q: %s", want, csp)
+		}
+	}
+}

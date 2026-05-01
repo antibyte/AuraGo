@@ -176,6 +176,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 	const proxyPrefix = "/integrations/space-agent"
 	return func(w http.ResponseWriter, r *http.Request) {
+		spaceAgentSetProxySecurityHeaders(w.Header())
 		cfg := s.currentSpaceAgentConfig()
 		if !cfg.SpaceAgent.Enabled {
 			http.NotFound(w, r)
@@ -206,6 +207,7 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			req.Header.Set("X-Forwarded-Prefix", proxyPrefix)
 		}
 		proxy.ModifyResponse = func(resp *http.Response) error {
+			spaceAgentSetProxySecurityHeaders(resp.Header)
 			spaceAgentRewriteProxyLocation(resp.Header, proxyPrefix)
 			spaceAgentRewriteProxyCookies(resp.Header, proxyPrefix)
 			contentType := strings.ToLower(resp.Header.Get("Content-Type"))
@@ -231,6 +233,10 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 		}
 		proxy.ServeHTTP(w, r)
 	}
+}
+
+func spaceAgentSetProxySecurityHeaders(header http.Header) {
+	header.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src-elem 'self' 'unsafe-inline' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob: data:; object-src 'none'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; manifest-src 'self' data:;")
 }
 
 func spaceAgentProxyURL() string {
