@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -256,6 +256,8 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"password_sha256",
 		"bridgeHelperContent(bridgeHelperESMTemplate)",
 		"bridgeConfigJSON()",
+		"bridgeURLUsesLoopback",
+		"browser_bridge_url_strategy",
 		"process.env.AURAGO_BRIDGE_URL",
 		"process.env.AURAGO_BRIDGE_TOKEN",
 		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",

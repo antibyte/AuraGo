@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-no-browser-loopback"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bootstrap-no-loopback-config"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -803,10 +803,23 @@ function bridgeHelperContent(template) {
     .replaceAll("__AURAGO_BRIDGE_TOKEN__", jsStringLiteralContent(process.env.AURAGO_BRIDGE_TOKEN || ""));
 }
 
+function bridgeURLUsesLoopback(value) {
+  try {
+    const url = new URL(String(value || ""));
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return host === "localhost" || host === "::1" || host === "127.0.0.1" || host.startsWith("127.");
+  } catch {
+    return false;
+  }
+}
+
 function bridgeConfigJSON() {
+  const rawBridgeURL = process.env.AURAGO_BRIDGE_URL || "";
+  const browserBridgeURL = bridgeURLUsesLoopback(rawBridgeURL) ? "" : rawBridgeURL;
   return JSON.stringify({
-    bridge_url: process.env.AURAGO_BRIDGE_URL || "",
+    bridge_url: browserBridgeURL,
     bridge_token: process.env.AURAGO_BRIDGE_TOKEN || "",
+    browser_bridge_url_strategy: "Import aurago_bridge.js; it derives https://aurago.../api/space-agent/bridge/messages from https://aurago-space-agent... at runtime.",
     note: "Browser contexts should import aurago_bridge.js instead of reading process.env directly."
   }, null, 2) + "\n";
 }
