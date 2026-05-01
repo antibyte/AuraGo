@@ -1,19 +1,38 @@
 /* ── Session Drawer ────────────────────────────────────────────────────────── */
 
-/* Toggle button in header */
-.btn-session-toggle {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
+/* Left edge tab (mirrors integrations-edge-tab on the right) */
+.session-edge-tab {
+    position: fixed;
+    top: 50%;
+    left: 0;
+    z-index: 998;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 56px;
+    border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+    border-left: 0;
+    border-radius: 0 8px 8px 0;
+    background: var(--bg-secondary, rgba(255,255,255,0.06));
+    color: var(--text-secondary, #b5b5c8);
+    box-shadow: 3px 0 16px rgba(0,0,0,0.22);
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
-    transition: background 0.2s, transform 0.15s;
-    color: var(--text-secondary);
+    transform: translateY(-50%);
+    transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
 }
-.btn-session-toggle:hover {
-    background: var(--bg-tertiary, rgba(255,255,255,0.08));
-    transform: scale(1.1);
+
+.session-edge-tab:hover,
+.session-edge-tab:focus-visible {
+    background: var(--bg-tertiary, rgba(255,255,255,0.1));
+    color: var(--text-primary, #fff);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.28);
+    transform: translateY(-50%) translateX(2px);
+}
+
+.session-edge-tab:focus-visible {
+    outline: 2px solid var(--accent, #6c63ff);
+    outline-offset: 2px;
 }
 
 /* Backdrop */
@@ -202,6 +221,12 @@
 
 /* Mobile adjustments */
 @media (max-width: 639px) {
+    .session-edge-tab {
+        top: 46%;
+        width: 32px;
+        height: 52px;
+    }
+
     .session-drawer {
         width: 85vw;
     }

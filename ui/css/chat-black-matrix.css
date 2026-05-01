@@ -121,7 +121,7 @@
 [data-theme="black-matrix"] .modal-title,
 [data-theme="black-matrix"] .app-header .pill,
 [data-theme="black-matrix"] .chat-theme-btn,
-[data-theme="black-matrix"] .btn-session-toggle,
+[data-theme="black-matrix"] .session-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
 [data-theme="black-matrix"] .select-personality,
@@ -144,7 +144,7 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-btn,
-[data-theme="black-matrix"] .btn-session-toggle,
+[data-theme="black-matrix"] .session-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
 [data-theme="black-matrix"] .select-personality,
@@ -171,7 +171,7 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-btn:hover,
-[data-theme="black-matrix"] .btn-session-toggle:hover,
+[data-theme="black-matrix"] .session-edge-tab:hover,
 [data-theme="black-matrix"] .btn-speaker:hover,
 [data-theme="black-matrix"] .btn-warnings:hover,
 [data-theme="black-matrix"] .select-personality:hover,

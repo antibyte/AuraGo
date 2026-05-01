@@ -55,10 +55,7 @@
             <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
         </a>
         <div class="header-actions">
-            <!-- Session drawer toggle -->
-            <button id="session-toggle-btn" type="button" class="btn-session-toggle" data-i18n-aria-label="chat.aria_conversations">
-                <span class="chat-ui-icon" data-chat-icon="conversation"></span>
-            </button>
+
             <!-- Speaker toggle for TTS auto-play -->
             <button id="speaker-toggle" type="button" class="btn-speaker" data-i18n-aria-label="chat.aria_toggle_speaker">
                 <span class="chat-ui-icon" data-chat-icon="speaker-muted"></span>
@@ -157,7 +154,13 @@
 
     <div id="radialMenuAnchor"></div>
 
-    <!-- ── Session Drawer (side panel) ── -->
+    <!-- ── Session Drawer (left edge tab) ── -->
+    <button id="session-toggle-btn" type="button" class="session-edge-tab"
+        data-i18n-aria-label="chat.aria_conversations"
+        aria-controls="session-drawer"
+        aria-expanded="false">
+        <span class="chat-ui-icon" data-chat-icon="conversation"></span>
+    </button>
     <div id="session-backdrop" class="session-backdrop"></div>
     <aside id="session-drawer" class="session-drawer">
         <div class="session-drawer-header">
