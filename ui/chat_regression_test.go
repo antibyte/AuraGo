@@ -293,6 +293,85 @@ func TestConfigFrontendVideoDownloadSectionRemainsWired(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendSpaceAgentSectionRemainsWired(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "config", "main.js")
+	modulePath := filepath.Join("cfg", "space_agent.js")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"{ key: 'space_agent'",
+		"space_agent: { m: 'space_agent', fn: 'renderSpaceAgentSection' }",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s missing Space Agent config marker %q", mainPath, marker)
+		}
+	}
+
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"function renderSpaceAgentSection",
+		"space_agent.enabled",
+		"space_agent.public_url",
+		"space_agent.port",
+		"/api/space-agent/status",
+		"/api/space-agent/recreate",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing Space Agent module marker %q", modulePath, marker)
+		}
+	}
+	if strings.Contains(moduleJS, "alert(") {
+		t.Fatal("Space Agent config module must not introduce alert()")
+	}
+}
+
+func TestConfigFrontendSpaceAgentI18nKeysExist(t *testing.T) {
+	t.Parallel()
+
+	keys := []string{
+		"config.section.space_agent.label",
+		"config.section.space_agent.desc",
+		"config.space_agent.enabled_label",
+		"config.space_agent.public_url_label",
+		"config.space_agent.recreate_button",
+		"help.space_agent.enabled",
+		"help.space_agent.public_url",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "sections", "*.json"))
+	if err != nil {
+		t.Fatalf("glob config section lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all config section language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+		}
+	}
+}
+
 func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	t.Parallel()
 
