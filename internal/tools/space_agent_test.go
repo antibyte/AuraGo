@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -249,13 +249,15 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
-		"class Instructions(ApiHandler):",
-		"requires_auth",
+		"export const allowAnonymous = true;",
 		"AURAGO_BRIDGE_TOKEN",
-		"Authorization",
+		"authorization",
 		"Bearer",
-		"UserMessage(message=message)",
-		"Context from AuraGo:",
+		"export async function post(context)",
+		"appendInstructionRecord",
+		"aurago_inbox",
+		"latest_instruction.json",
+		"instructions.jsonl",
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)

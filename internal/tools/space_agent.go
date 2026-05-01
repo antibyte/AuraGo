@@ -28,13 +28,13 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-instructions-api"
+	spaceAgentImageBuildRevision   = "20260502-aurago-js-instructions-api"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
-	spaceAgentInstructionEndpoint  = "/api/aurago/instructions"
+	spaceAgentInstructionEndpoint  = "/api/aurago_instructions"
 )
 
 // SpaceAgentSidecarConfig is the resolved runtime configuration for the managed sidecar.
@@ -448,7 +448,7 @@ func annotateSpaceAgentInstructionHTTPError(result map[string]interface{}, statu
 	if result == nil || statusCode != http.StatusNotFound {
 		return
 	}
-	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. This is not an offline/network error. Recreate the managed Space Agent sidecar from the current AuraGo build so /api/aurago/instructions is injected. If this persists after a fresh recreate, the running Space Agent image does not expose AuraGo's injected instruction API and only the Space-Agent-to-AuraGo bridge fast path is currently available."
+	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. This is not an offline/network error. Recreate the managed Space Agent sidecar from the current AuraGo build so /api/aurago_instructions is injected. If this persists after a fresh recreate, the running Space Agent image does not expose AuraGo's injected instruction API and only the Space-Agent-to-AuraGo bridge fast path is currently available."
 	result["requires_recreate"] = true
 	result["missing_endpoint"] = spaceAgentInstructionEndpoint
 }
@@ -498,7 +498,7 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.WriteFile(filepath.Join(cfg.SourcePath, "aurago_space_bootstrap.mjs"), []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
 		return fmt.Errorf("write aurago_space_bootstrap.mjs: %w", err)
 	}
-	instructionsAPIPath := filepath.Join(cfg.SourcePath, "api", "aurago", "instructions.py")
+	instructionsAPIPath := filepath.Join(cfg.SourcePath, "server", "api", "aurago_instructions.js")
 	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
 		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
 	}
@@ -802,54 +802,85 @@ CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --sta
 }
 
 func spaceAgentInstructionsAPIEndpoint() string {
-	return `import json
-import os
+	return `import fs from "node:fs/promises";
+import path from "node:path";
 
-from agent import UserMessage
-from helpers.api import ApiHandler, Request, Response
+export const allowAnonymous = true;
 
+function readPayload(context) {
+  return context.body && typeof context.body === "object" && !Buffer.isBuffer(context.body)
+    ? context.body
+    : {};
+}
 
-class Instructions(ApiHandler):
-    @classmethod
-    def requires_auth(cls) -> bool:
-        return False
+function unauthorized() {
+  return {
+    status: 401,
+    body: { status: "error", error: "Unauthorized" },
+  };
+}
 
-    @classmethod
-    def requires_csrf(cls) -> bool:
-        return False
+function badRequest(message) {
+  return {
+    status: 400,
+    body: { status: "error", error: message },
+  };
+}
 
-    async def process(self, input: dict, request: Request) -> dict | Response:
-        expected_token = os.environ.get("AURAGO_BRIDGE_TOKEN", "").strip()
-        auth_header = request.headers.get("Authorization", "").strip()
-        if not expected_token or auth_header != f"Bearer {expected_token}":
-            return Response(
-                json.dumps({"status": "error", "error": "Unauthorized"}),
-                status=401,
-                mimetype="application/json",
-            )
+function safeSegment(value, fallback) {
+  const normalized = String(value || fallback || "").trim().replace(/[^A-Za-z0-9._-]+/g, "_");
+  return normalized || String(fallback || "default");
+}
 
-        instruction = str(input.get("instruction", "")).strip()
-        information = str(input.get("information", "")).strip()
-        session_id = str(input.get("session_id", "")).strip()
-        if not instruction:
-            return Response(
-                json.dumps({"status": "error", "error": "instruction is required"}),
-                status=400,
-                mimetype="application/json",
-            )
+async function appendInstructionRecord(context, record) {
+  const customwarePath = String(process.env.CUSTOMWARE_PATH || "").trim();
+  const username = safeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
+  const inboxDir = customwarePath
+    ? path.join(customwarePath, "L2", username, "aurago_inbox")
+    : path.join(context.projectRoot, "app", "L2", username, "aurago_inbox");
+  await fs.mkdir(inboxDir, { recursive: true, mode: 0o700 });
+  const latestPath = path.join(inboxDir, "latest_instruction.json");
+  const logPath = path.join(inboxDir, "instructions.jsonl");
+  const serialized = JSON.stringify(record);
+  await fs.writeFile(latestPath, JSON.stringify(record, null, 2) + "\n", { mode: 0o600 });
+  await fs.appendFile(logPath, serialized + "\n", { mode: 0o600 });
+  return {
+    latest: "/L2/" + username + "/aurago_inbox/latest_instruction.json",
+    log: "/L2/" + username + "/aurago_inbox/instructions.jsonl",
+  };
+}
 
-        message = instruction
-        if information:
-            message += "\n\nContext from AuraGo:\n" + information
+export async function post(context) {
+  const expectedToken = String(process.env.AURAGO_BRIDGE_TOKEN || "").trim();
+  const authHeader = String(context.headers?.authorization || "").trim();
+  if (!expectedToken || authHeader !== "Bearer " + expectedToken) {
+    return unauthorized();
+  }
 
-        context = self.use_context(session_id)
-        task = context.communicate(UserMessage(message=message))
-        result = await task.result()
-        return {
-            "status": "ok",
-            "context_id": context.id,
-            "response": result,
-        }
+  const payload = readPayload(context);
+  const instruction = String(payload.instruction || "").trim();
+  const information = String(payload.information || "").trim();
+  const sessionId = String(payload.session_id || "").trim();
+  if (!instruction) {
+    return badRequest("instruction is required");
+  }
+
+  const record = {
+    type: "aurago_instruction",
+    instruction,
+    information,
+    session_id: sessionId,
+    source: "aurago",
+    created_at: new Date().toISOString(),
+  };
+  const inbox = await appendInstructionRecord(context, record);
+  return {
+    status: "ok",
+    delivered: "inbox",
+    inbox,
+    message: "AuraGo instruction accepted and written to the managed Space Agent inbox.",
+  };
+}
 `
 }
 
