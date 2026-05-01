@@ -37,6 +37,10 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 	if got["Image"] != "aurago-space-agent:test" {
 		t.Fatalf("Image = %v", got["Image"])
 	}
+	labels := got["Labels"].(map[string]interface{})
+	if labels["org.aurago.space-agent.build-revision"] != spaceAgentImageBuildRevision {
+		t.Fatalf("build revision label = %#v", labels)
+	}
 	env, ok := got["Env"].([]interface{})
 	if !ok {
 		t.Fatalf("Env missing or wrong type: %#v", got["Env"])
@@ -141,7 +145,10 @@ func TestSpaceAgentContainerNeedsRecreateWhenCustomwarePathEnvMissing(t *testing
 
 func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
 	inspect := []byte(`{
-		"Config": {"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"]},
+		"Config": {
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-git"}
+		},
 		"HostConfig": {
 			"PortBindings": {
 				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
@@ -150,6 +157,32 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	}`)
 	if spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "127.0.0.1", Port: 3210}) {
 		t.Fatal("did not expect LAN-reachable existing container to require recreation")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateWhenImageRevisionIsOld(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
+			"Labels": {"org.aurago.space-agent.build-revision": "old"}
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "127.0.0.1", Port: 3210}) {
+		t.Fatal("expected old image revision to require recreation")
+	}
+}
+
+func TestSpaceAgentDockerfileInstallsGit(t *testing.T) {
+	dockerfile := spaceAgentDockerfile()
+	for _, want := range []string{"apt-get install", "git", "openssh-client"} {
+		if !strings.Contains(dockerfile, want) {
+			t.Fatalf("Dockerfile missing %q:\n%s", want, dockerfile)
+		}
 	}
 }
 

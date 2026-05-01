@@ -27,6 +27,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
+	spaceAgentImageBuildRevision   = "20260501-git"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
@@ -142,8 +143,9 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)
 	payload := map[string]interface{}{
-		"Image": image,
-		"Env":   env,
+		"Image":  image,
+		"Env":    env,
+		"Labels": map[string]string{"org.aurago.space-agent.build-revision": spaceAgentImageBuildRevision},
 		"ExposedPorts": map[string]interface{}{
 			containerPort: struct{}{},
 		},
@@ -241,7 +243,8 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) bool {
 	var info struct {
 		Config struct {
-			Env []string `json:"Env"`
+			Env    []string          `json:"Env"`
+			Labels map[string]string `json:"Labels"`
 		} `json:"Config"`
 		HostConfig struct {
 			PortBindings map[string][]struct {
@@ -261,6 +264,9 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		return true
 	}
 	if !spaceAgentEnvContains(info.Config.Env, "CUSTOMWARE_PATH="+spaceAgentCustomwarePath) {
+		return true
+	}
+	if info.Config.Labels["org.aurago.space-agent.build-revision"] != spaceAgentImageBuildRevision {
 		return true
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)
@@ -484,6 +490,9 @@ func runSpaceAgentCommand(logger interface {
 func spaceAgentDockerfile() string {
 	return `FROM node:22-bookworm-slim
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates openssh-client \
+    && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev || npm install --omit=dev
 COPY . .
