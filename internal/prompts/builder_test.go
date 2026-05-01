@@ -500,6 +500,33 @@ func TestBuildSystemPromptKeepsIntegrationOverviewOutOfStablePrefix(t *testing.T
 	}
 }
 
+func TestBuildSystemPromptIncludesSpaceAgentRuntimeContext(t *testing.T) {
+	flags := ContextFlags{
+		Tier:                "full",
+		SystemLanguage:      "en",
+		SpaceAgentEnabled:   true,
+		SpaceAgentPublicURL: "https://aurago-space-agent.example.ts.net/",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "## SPACE AGENT INTEGRATION") {
+		t.Fatalf("expected Space Agent runtime section in prompt")
+	}
+	if !strings.Contains(prompt, "space_agent") {
+		t.Fatalf("expected Space Agent tool guidance in prompt")
+	}
+	if !strings.Contains(prompt, "https://aurago-space-agent.example.ts.net/") {
+		t.Fatalf("expected Space Agent browser URL in prompt")
+	}
+	if !strings.Contains(prompt, "external data") {
+		t.Fatalf("expected external-data boundary guidance in prompt")
+	}
+	if !strings.Contains(prompt, "[ENABLED INTEGRATIONS]") || !strings.Contains(prompt, "space_agent") {
+		t.Fatalf("expected Space Agent in enabled integrations overview")
+	}
+}
+
 func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 

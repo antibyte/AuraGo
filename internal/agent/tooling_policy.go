@@ -495,6 +495,8 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		VideoDownloadEnabled:     flags.VideoDownloadEnabled,
 		WebCaptureEnabled:        flags.WebCaptureEnabled,
 		BrowserAutomationEnabled: flags.BrowserAutomationEnabled,
+		SpaceAgentEnabled:        flags.SpaceAgentEnabled,
+		SpaceAgentPublicURL:      strings.TrimSpace(cfg.SpaceAgent.PublicURL),
 		NetworkPingEnabled:       flags.NetworkPingEnabled,
 		WebScraperEnabled:        flags.WebScraperEnabled,
 		S3Enabled:                flags.S3Enabled,

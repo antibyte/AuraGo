@@ -222,6 +222,8 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	cfg.Tools.UPnPScan.Enabled = true
 	cfg.S3.Enabled = true
 	cfg.VirusTotal.Enabled = true
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.PublicURL = " https://aurago-space-agent.example.ts.net/ "
 	cfg.Agent.AllowShell = true
 	cfg.Agent.AllowPython = true
 	cfg.Agent.AllowFilesystemWrite = true
@@ -276,6 +278,12 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	}
 	if contextFlags.VirusTotalEnabled != toolFlags.VirusTotalEnabled {
 		t.Fatal("virustotal capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.SpaceAgentEnabled != toolFlags.SpaceAgentEnabled {
+		t.Fatal("space agent capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.SpaceAgentPublicURL != "https://aurago-space-agent.example.ts.net/" {
+		t.Fatalf("space agent public URL = %q, want trimmed configured URL", contextFlags.SpaceAgentPublicURL)
 	}
 	if contextFlags.AllowShell != toolFlags.AllowShell ||
 		contextFlags.AllowPython != toolFlags.AllowPython ||
