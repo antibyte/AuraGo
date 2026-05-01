@@ -29,6 +29,13 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **🔍 Network Tools** | Ping, port scan, mDNS/UPnP discovery |
 | **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
 | **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
+| **📊 YepAPI** | SEO, SERP, scraping, YouTube/TikTok/Instagram/Amazon data |
+| **🗄️ Inventory + WOL** | Device registry with Wake-on-LAN support |
+| **⏰ Heartbeat** | Background agent wake-up scheduler |
+| **🧠 Knowledge Graph** | LLM-based entity extraction from conversations |
+| **📦 Browser Automation** | Headless Chrome for forms and screenshots |
+| **📝 Obsidian** | Connect to your personal knowledge vault |
+| **🔧 Output Compression** | Token-saving deduplication of tool outputs |
 
 ---
 
@@ -163,7 +170,8 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
 | 2026-04 | **Chapter 23: Internals** – Architecture, modules, and internal workings documented |
 | 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
-| 2026-04 | Documented video generation, send_video, LDAP, n8n scopes, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
+| 2026-04 | Video generation, send_video, LDAP, n8n scopes, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
+| 2026-04 | Added YepAPI, Inventory/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression to Integrations chapter |
 | 2026-03 | **Added Chat Command /sudopwd** |
 
 ---

@@ -29,6 +29,13 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **🔍 Netzwerk-Tools** | Ping, Port-Scan, mDNS/UPnP Discovery |
 | **📱 PWA & Mobile** | Installierbar als PWA mit Sprachsteuerung und TTS |
 | **🎨 Themes** | Wähle aus Cyberwar, Retro CRT, Dark Sun oder Lollipop |
+| **📊 YepAPI** | SEO, SERP, Scraping, YouTube/TikTok/Instagram/Amazon-Daten |
+| **🗄️ Inventar + WOL** | Geräteregistrierung mit Wake-on-LAN |
+| **⏰ Heartbeat** | Hintergrund-Wake-up-Scheduler für den Agenten |
+| **🧠 Knowledge Graph** | LLM-basierte Entity-Extraktion aus Konversationen |
+| **📦 Browser Automation** | Headless Chrome für Formulare und Screenshots |
+| **📝 Obsidian** | Anbindung an deinen persönlichen Knowledge Vault |
+| **🔧 Output Compression** | Token-sparende Deduplizierung von Tool-Ausgaben |
 
 ---
 
@@ -164,6 +171,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-04 | **Kapitel 23: Interna** – Architektur, Module und interne Arbeitsweise dokumentiert |
 | 2026-04 | Dokumentations-Sync mit aktuellem Code-Stand: Chat-Commands ergänzt (/voice, /warnings), interne Tools bereinigt, Integrationen korrigiert, Config-Referenzen aktualisiert |
 | 2026-04 | Video Generation, send_video, LDAP, n8n-Scopes, A2A-Nutzung, Web Push, Managed Ollama, File KG Sync, Backup/Restore, Mission Preparation und Security-Proxy-API dokumentiert |
+| 2026-04 | YepAPI, Inventar/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression zu Integrations-Kapitel hinzugefügt |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
 
 ---
