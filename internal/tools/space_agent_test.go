@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-context-pack"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-helper"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-context-pack"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-helper"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -226,6 +226,8 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"aurago_managed_user.json",
 		"password_sha256",
 		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",
+		"writeFile(path.join(process.env.CUSTOMWARE_PATH, \"aurago_bridge.js\")",
+		"writeFile(path.join(rootPath, \"aurago_bridge.js\")",
 		"clearInvalidatedUserCrypto(normalizedUsername)",
 		"createUser(projectRoot, username, password",
 		"setUserPassword(projectRoot, username, password",
@@ -321,6 +323,44 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 		}
 		if strings.TrimSpace(string(content)) != want {
 			t.Fatalf("%s = %q, want %s", path, string(content), want)
+		}
+	}
+}
+
+func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
+	customware := t.TempDir()
+	if err := writeSpaceAgentBridgeCustomware(customware, "admin"); err != nil {
+		t.Fatalf("writeSpaceAgentBridgeCustomware() error = %v", err)
+	}
+
+	for _, path := range []string{
+		filepath.Join(customware, "aurago_bridge.js"),
+		filepath.Join(customware, "aurago_bridge.cjs"),
+		filepath.Join(customware, "aurago_bridge.md"),
+		filepath.Join(customware, "L2", "admin", "aurago_bridge.js"),
+		filepath.Join(customware, "L2", "admin", "aurago_bridge.cjs"),
+		filepath.Join(customware, "L2", "admin", "aurago_bridge.md"),
+	} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", path, err)
+		}
+		text := string(content)
+		if !strings.Contains(text, "sendToAuraGo") {
+			t.Fatalf("%s does not contain bridge helper content: %q", path, text)
+		}
+	}
+}
+
+func TestSpaceAgentBridgeReadmeDocumentsImportableHelper(t *testing.T) {
+	readme := spaceAgentAuraGoBridgeReadme()
+	for _, want := range []string{
+		"file:///app/customware/aurago_bridge.js",
+		"sendToAuraGo",
+		"AuraGo seeds both locations",
+	} {
+		if !strings.Contains(readme, want) {
+			t.Fatalf("bridge readme missing %q:\n%s", want, readme)
 		}
 	}
 }

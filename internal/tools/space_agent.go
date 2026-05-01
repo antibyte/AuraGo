@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-context-pack"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-helper"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -199,6 +199,9 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 	}
 	dockerCfg := DockerConfig{Host: dockerHost}
 	containerName := effectiveSpaceAgentContainerName(cfg)
+	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath, cfg.AdminUser); err != nil {
+		logger.Error("[SpaceAgent] Failed to write bridge customware", "error", err)
+	}
 	if data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
 		if spaceAgentContainerNeedsRecreate(data, cfg) {
 			logger.Warn("[SpaceAgent] Existing sidecar container has outdated network settings; recreating")
@@ -225,11 +228,6 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 		logger.Error("[SpaceAgent] Failed to prepare sidecar image", "error", err)
 		return
 	}
-	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath); err != nil {
-		logger.Error("[SpaceAgent] Failed to write bridge customware", "error", err)
-		return
-	}
-
 	body, err := buildSpaceAgentCreatePayload(cfg)
 	if err != nil {
 		logger.Error("[SpaceAgent] Invalid Docker create payload", "error", err)
@@ -466,6 +464,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.MkdirAll(cfg.CustomwarePath, 0o750); err != nil {
 		return fmt.Errorf("create customware dir: %w", err)
 	}
+	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath, cfg.AdminUser); err != nil {
+		logger.Warn("[SpaceAgent] Host-side bridge customware seed skipped; container bootstrap will retry", "error", err)
+	}
 	if err := ensureSpaceAgentCustomwareUserHome(cfg.CustomwarePath, cfg.AdminUser); err != nil {
 		logger.Warn("[SpaceAgent] Host-side customware workspace seed skipped; container bootstrap will retry", "error", err)
 	}
@@ -637,7 +638,19 @@ The managed container exposes bridge configuration through environment variables
 - AURAGO_BRIDGE_URL
 - AURAGO_BRIDGE_TOKEN
 
-The helper /app/customware/aurago_bridge.js exports sendToAuraGo(message) for Node-compatible customware code.
+The helper /app/customware/aurago_bridge.js exports sendToAuraGo(message) for Node-compatible customware code:
+
+` + "```js" + `
+const { sendToAuraGo } = await import("file:///app/customware/aurago_bridge.js");
+await sendToAuraGo({
+  type: "question",
+  summary: "Proxmox container status",
+  content: "Please report the current status of Proxmox containers.",
+  source: "space-agent"
+});
+` + "```" + `
+
+If your execution context cannot import absolute files, use ~/aurago_bridge.js from the managed admin workspace. AuraGo seeds both locations.
 
 ## From AuraGo To Space Agent
 
@@ -751,6 +764,11 @@ function seedFile(filePath, content) {
   }
 }
 
+function writeFile(filePath, content) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o750 });
+  fs.writeFileSync(filePath, content, { mode: 0o600 });
+}
+
 function seedWorkspaceFiles(rootPath) {
   for (const dir of [
     rootPath,
@@ -769,6 +787,8 @@ function seedWorkspaceFiles(rootPath) {
   seedFile(path.join(rootPath, "AGENTS.md"), ` + strconv.Quote(spaceAgentAuraGoAgentsMarkdown()) + `);
   seedFile(path.join(rootPath, "conf", "aurago.system.include.md"), ` + strconv.Quote(spaceAgentAuraGoSystemInclude()) + `);
   seedFile(path.join(rootPath, "docs", "aurago-bridge.md"), ` + strconv.Quote(spaceAgentAuraGoBridgeReadme()) + `);
+  writeFile(path.join(rootPath, "aurago_bridge.js"), ` + strconv.Quote(spaceAgentBridgeHelperESM()) + `);
+  writeFile(path.join(rootPath, "aurago_bridge.cjs"), ` + strconv.Quote(spaceAgentBridgeHelperCJS()) + `);
   seedFile(path.join(rootPath, "meta", "login_hooks.json"), "[]\n");
   seedFile(path.join(rootPath, "conf", "dashboard.yaml"), "{}\n");
   seedFile(path.join(rootPath, "conf", "onscreen-agent.yaml"), "{}\n");
@@ -789,6 +809,9 @@ if (username && password) {
   process.env.CUSTOMWARE_PATH = process.env.CUSTOMWARE_PATH || "/app/customware";
   const normalizedUsername = normalizeEntityId(username);
   const passwordDigest = digestPassword(password);
+  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.js"), ` + strconv.Quote(spaceAgentBridgeHelperESM()) + `);
+  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.cjs"), ` + strconv.Quote(spaceAgentBridgeHelperCJS()) + `);
+  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.md"), ` + strconv.Quote(spaceAgentBridgeHelperReadme()) + `);
   seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizedUsername));
   const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
   Object.assign(process.env, auth.env);
@@ -818,40 +841,112 @@ if (username && password) {
 `
 }
 
-func writeSpaceAgentBridgeCustomware(dir string) error {
+func writeSpaceAgentBridgeCustomware(dir string, adminUser string) error {
 	if strings.TrimSpace(dir) == "" {
 		return nil
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	content := `# AuraGo Space Agent Bridge
+	files := map[string]string{
+		filepath.Join(dir, "aurago_bridge.md"):  spaceAgentBridgeHelperReadme(),
+		filepath.Join(dir, "aurago_bridge.js"):  spaceAgentBridgeHelperESM(),
+		filepath.Join(dir, "aurago_bridge.cjs"): spaceAgentBridgeHelperCJS(),
+	}
+	if userDir, err := spaceAgentCustomwareUserDir(dir, adminUser); err == nil && userDir != "" {
+		files[filepath.Join(userDir, "aurago_bridge.md")] = spaceAgentBridgeHelperReadme()
+		files[filepath.Join(userDir, "aurago_bridge.js")] = spaceAgentBridgeHelperESM()
+		files[filepath.Join(userDir, "aurago_bridge.cjs")] = spaceAgentBridgeHelperCJS()
+	} else if err != nil {
+		return err
+	}
+	for path, content := range files {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func spaceAgentCustomwareUserDir(customwarePath string, adminUser string) (string, error) {
+	username := strings.TrimSpace(adminUser)
+	if username == "" {
+		username = "admin"
+	}
+	normalizedUser, err := normalizeSpaceAgentEntityID(username)
+	if err != nil {
+		return "", fmt.Errorf("normalize Space Agent admin user: %w", err)
+	}
+	return filepath.Join(customwarePath, "L2", normalizedUser), nil
+}
+
+func spaceAgentBridgeHelperReadme() string {
+	return `# AuraGo Space Agent Bridge
 
 This directory is mounted into the managed Space Agent container.
 
-Use the environment variables AURAGO_BRIDGE_URL and AURAGO_BRIDGE_TOKEN to send structured messages back to AuraGo:
+Use the environment variables AURAGO_BRIDGE_URL and AURAGO_BRIDGE_TOKEN to send structured messages back to AuraGo.
 
-{
-  "type": "note",
-  "summary": "Short title",
-  "content": "External content from Space Agent",
-  "source": "space-agent",
-  "timestamp": "2026-05-01T12:00:00Z",
-  "session_id": "optional"
-}
+ES module example:
+
+` + "```js" + `
+const { sendToAuraGo } = await import("file:///app/customware/aurago_bridge.js");
+await sendToAuraGo({
+  type: "note",
+  summary: "Short title",
+  content: "External content from Space Agent",
+  source: "space-agent"
+});
+` + "```" + `
+
+CommonJS code can use /app/customware/aurago_bridge.cjs.
 `
-	if err := os.WriteFile(filepath.Join(dir, "aurago_bridge.md"), []byte(content), 0o600); err != nil {
-		return err
-	}
-	helper := `'use strict';
+}
 
-async function sendToAuraGo(message) {
+func spaceAgentBridgeHelperESM() string {
+	return `function buildAuraGoBridgePayload(message = {}) {
+  return {
+    type: message.type || "message",
+    summary: message.summary || "",
+    content: message.content || "",
+    source: message.source || "space-agent",
+    timestamp: message.timestamp || new Date().toISOString(),
+    session_id: message.session_id || undefined
+  };
+}
+
+export async function sendToAuraGo(message = {}) {
   const bridgeUrl = process.env.AURAGO_BRIDGE_URL;
   const bridgeToken = process.env.AURAGO_BRIDGE_TOKEN;
   if (!bridgeUrl || !bridgeToken) {
-    throw new Error('AuraGo bridge environment is not configured');
+    throw new Error("AuraGo bridge environment is not configured");
   }
-  const payload = {
+  const res = await fetch(bridgeUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + bridgeToken
+    },
+    body: JSON.stringify(buildAuraGoBridgePayload(message))
+  });
+  if (!res.ok) {
+    throw new Error("AuraGo bridge returned HTTP " + res.status);
+  }
+  return res.json();
+}
+
+export default { sendToAuraGo };
+`
+}
+
+func spaceAgentBridgeHelperCJS() string {
+	return `'use strict';
+
+function buildAuraGoBridgePayload(message = {}) {
+  return {
     type: message.type || 'message',
     summary: message.summary || '',
     content: message.content || '',
@@ -859,13 +954,21 @@ async function sendToAuraGo(message) {
     timestamp: message.timestamp || new Date().toISOString(),
     session_id: message.session_id || undefined
   };
+}
+
+async function sendToAuraGo(message = {}) {
+  const bridgeUrl = process.env.AURAGO_BRIDGE_URL;
+  const bridgeToken = process.env.AURAGO_BRIDGE_TOKEN;
+  if (!bridgeUrl || !bridgeToken) {
+    throw new Error('AuraGo bridge environment is not configured');
+  }
   const res = await fetch(bridgeUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + bridgeToken
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(buildAuraGoBridgePayload(message))
   });
   if (!res.ok) {
     throw new Error('AuraGo bridge returned HTTP ' + res.status);
@@ -875,5 +978,4 @@ async function sendToAuraGo(message) {
 
 module.exports = { sendToAuraGo };
 `
-	return os.WriteFile(filepath.Join(dir, "aurago_bridge.js"), []byte(helper), 0o600)
 }
