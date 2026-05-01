@@ -128,12 +128,9 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 	if port <= 0 {
 		port = 3000
 	}
-	host := strings.TrimSpace(cfg.Host)
-	if host == "" {
-		host = "0.0.0.0"
-	}
+	publishHost := spaceAgentPublishHost(cfg.Host)
 	env := []string{
-		"HOST=" + host,
+		"HOST=0.0.0.0",
 		"PORT=" + strconv.Itoa(port),
 		"SPACE_AGENT_ADMIN_USER=" + strings.TrimSpace(cfg.AdminUser),
 		"SPACE_AGENT_ADMIN_PASSWORD=" + cfg.AdminPassword,
@@ -154,11 +151,19 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 				dockerutil.FormatBindMount(cfg.CustomwarePath, spaceAgentCustomwarePath),
 			},
 			"PortBindings": map[string]interface{}{
-				containerPort: []map[string]string{{"HostIp": host, "HostPort": strconv.Itoa(port)}},
+				containerPort: []map[string]string{{"HostIp": publishHost, "HostPort": strconv.Itoa(port)}},
 			},
 		},
 	}
 	return json.Marshal(payload)
+}
+
+func spaceAgentPublishHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" || strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1" {
+		return "0.0.0.0"
+	}
+	return host
 }
 
 func effectiveSpaceAgentContainerName(cfg SpaceAgentSidecarConfig) string {
@@ -181,16 +186,25 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 	}
 	dockerCfg := DockerConfig{Host: dockerHost}
 	containerName := effectiveSpaceAgentContainerName(cfg)
-	if _, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
-		_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/start", "")
-		if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
-			logger.Error("[SpaceAgent] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+	if data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
+		if spaceAgentContainerNeedsRecreate(data, cfg) {
+			logger.Warn("[SpaceAgent] Existing sidecar container has outdated network settings; recreating")
+			_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/stop?t=5", "")
+			_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+containerName+"?force=true", "")
+		} else {
+			_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/start", "")
+			if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+				logger.Error("[SpaceAgent] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+				return
+			}
+			logger.Info("[SpaceAgent] Sidecar container is running")
 			return
 		}
-		logger.Info("[SpaceAgent] Sidecar container is running")
-		return
 	} else if err != nil {
 		logger.Warn("[SpaceAgent] Docker unavailable, skipping auto-start", "error", err)
+		return
+	} else if code != http.StatusNotFound {
+		logger.Warn("[SpaceAgent] Docker inspect returned unexpected status; skipping auto-start", "code", code)
 		return
 	}
 
@@ -219,6 +233,56 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 		return
 	}
 	logger.Info("[SpaceAgent] Sidecar container created and started", "image", cfg.Image, "container", containerName)
+}
+
+func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) bool {
+	var info struct {
+		Config struct {
+			Env []string `json:"Env"`
+		} `json:"Config"`
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false
+	}
+	port := cfg.Port
+	if port <= 0 {
+		port = 3000
+	}
+	if !spaceAgentEnvContains(info.Config.Env, "HOST=0.0.0.0") {
+		return true
+	}
+	containerPort := fmt.Sprintf("%d/tcp", port)
+	bindings := info.HostConfig.PortBindings[containerPort]
+	if len(bindings) == 0 {
+		return true
+	}
+	wantHost := spaceAgentPublishHost(cfg.Host)
+	wantPort := strconv.Itoa(port)
+	for _, binding := range bindings {
+		hostIP := strings.TrimSpace(binding.HostIP)
+		if hostIP == "" {
+			hostIP = "0.0.0.0"
+		}
+		if hostIP == wantHost && strings.TrimSpace(binding.HostPort) == wantPort {
+			return false
+		}
+	}
+	return true
+}
+
+func spaceAgentEnvContains(env []string, want string) bool {
+	for _, value := range env {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 // RecreateSpaceAgentSidecar removes and recreates the managed sidecar.

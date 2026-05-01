@@ -78,6 +78,66 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 	}
 }
 
+func TestBuildSpaceAgentCreatePayloadUsesLANReachablePublishHost(t *testing.T) {
+	payload, err := buildSpaceAgentCreatePayload(SpaceAgentSidecarConfig{
+		Image:          "aurago-space-agent:test",
+		ContainerName:  "aurago_space_agent",
+		Host:           "127.0.0.1",
+		Port:           3210,
+		DataPath:       `C:\aurago\data\sidecars\space-agent\data`,
+		CustomwarePath: `C:\aurago\data\sidecars\space-agent\customware`,
+	})
+	if err != nil {
+		t.Fatalf("buildSpaceAgentCreatePayload() error = %v", err)
+	}
+
+	var got map[string]interface{}
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	env := got["Env"].([]interface{})
+	if !containsInterfaceString(env, "HOST=0.0.0.0") {
+		t.Fatalf("Space Agent must listen on all container interfaces, env = %#v", env)
+	}
+	if containsInterfaceString(env, "HOST=127.0.0.1") {
+		t.Fatalf("Space Agent must not listen on container loopback only, env = %#v", env)
+	}
+	hostConfig := got["HostConfig"].(map[string]interface{})
+	portBindings := hostConfig["PortBindings"].(map[string]interface{})
+	bound := portBindings["3210/tcp"].([]interface{})[0].(map[string]interface{})
+	if bound["HostIp"] != "0.0.0.0" {
+		t.Fatalf("loopback publish host must be widened for LAN access, PortBindings = %#v", bound)
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateForLoopbackOnlyListener(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {"Env": ["HOST=127.0.0.1", "PORT=3210"]},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "127.0.0.1", Port: 3210}) {
+		t.Fatal("expected loopback-only existing container to require recreation")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {"Env": ["HOST=0.0.0.0", "PORT=3210"]},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "127.0.0.1", Port: 3210}) {
+		t.Fatal("did not expect LAN-reachable existing container to require recreation")
+	}
+}
+
 func containsInterfaceString(values []interface{}, want string) bool {
 	for _, v := range values {
 		if s, ok := v.(string); ok && s == want {
