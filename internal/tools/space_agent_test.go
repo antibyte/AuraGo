@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-url"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -255,6 +255,7 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"aurago_managed_user.json",
 		"password_sha256",
 		"bridgeHelperContent(bridgeHelperESMTemplate)",
+		"bridgeConfigJSON()",
 		"process.env.AURAGO_BRIDGE_URL",
 		"process.env.AURAGO_BRIDGE_TOKEN",
 		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",
@@ -368,9 +369,11 @@ func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
 	for _, path := range []string{
 		filepath.Join(customware, "aurago_bridge.js"),
 		filepath.Join(customware, "aurago_bridge.cjs"),
+		filepath.Join(customware, "aurago_bridge_config.json"),
 		filepath.Join(customware, "aurago_bridge.md"),
 		filepath.Join(customware, "L2", "admin", "aurago_bridge.js"),
 		filepath.Join(customware, "L2", "admin", "aurago_bridge.cjs"),
+		filepath.Join(customware, "L2", "admin", "aurago_bridge_config.json"),
 		filepath.Join(customware, "L2", "admin", "aurago_bridge.md"),
 	} {
 		content, err := os.ReadFile(path)
@@ -379,6 +382,9 @@ func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
 		}
 		text := string(content)
 		if !strings.Contains(text, "sendToAuraGo") {
+			if strings.HasSuffix(path, ".json") && strings.Contains(text, "bridge-secret") {
+				continue
+			}
 			t.Fatalf("%s does not contain bridge helper content: %q", path, text)
 		}
 	}
@@ -433,6 +439,7 @@ func TestSpaceAgentBridgeReadmeDocumentsImportableHelper(t *testing.T) {
 	for _, want := range []string{
 		"file:///app/customware/aurago_bridge.js",
 		"sendToAuraGo",
+		"Browser-style Space Agent code often cannot access process.env",
 		"AuraGo seeds both locations",
 	} {
 		if !strings.Contains(readme, want) {
