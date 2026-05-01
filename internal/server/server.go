@@ -854,6 +854,17 @@ func Start(opts StartOptions) error {
 		}
 	}
 
+	// Auto-start Space Agent sidecar whenever the integration is active and auto_start is enabled.
+	if cfg.SpaceAgent.Enabled && cfg.SpaceAgent.AutoStart {
+		if err := s.ensureSpaceAgentSecrets(cfg); err != nil {
+			logger.Warn("[SpaceAgent] Failed to ensure vault secrets", "error", err)
+		} else if sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(cfg, InternalAPIURL(cfg)); err == nil {
+			go tools.EnsureSpaceAgentSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
+		} else {
+			logger.Warn("[SpaceAgent] Failed to resolve sidecar config", "error", err)
+		}
+	}
+
 	// Auto-start Ansible sidecar container if enabled in sidecar mode
 	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
 		inventoryDir := ""

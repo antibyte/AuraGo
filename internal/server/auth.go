@@ -449,7 +449,8 @@ var authBypassPrefixes = []string{
 	"/api/remote/download", // Personalized binary download — generates an enrollment token
 	"/api/invasion/ws",     // Egg WebSocket — has its own HMAC-based auth handshake
 	"/mcp",
-	"/api/n8n/", // n8n endpoints have their own Bearer token auth (see n8nAuthenticate)
+	"/api/n8n/",                        // n8n endpoints have their own Bearer token auth (see n8nAuthenticate)
+	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
 	"/setup",
 	"/css/",
 	"/fonts/",

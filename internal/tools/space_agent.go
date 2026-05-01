@@ -1,0 +1,448 @@
+package tools
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"aurago/internal/config"
+	"aurago/internal/dockerutil"
+	"aurago/internal/sandbox"
+)
+
+const (
+	spaceAgentDefaultRepoURL       = "https://github.com/agent0ai/space-agent"
+	spaceAgentDefaultGitRef        = "main"
+	spaceAgentDefaultImage         = "aurago-space-agent:main"
+	spaceAgentDefaultContainerName = "aurago_space_agent"
+	spaceAgentDataContainerPath    = "/app/.space-agent"
+	spaceAgentCustomwarePath       = "/app/customware"
+	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
+	spaceAgentInstructionEndpoint  = "/api/aurago/instructions"
+)
+
+// SpaceAgentSidecarConfig is the resolved runtime configuration for the managed sidecar.
+type SpaceAgentSidecarConfig struct {
+	RepoURL        string
+	GitRef         string
+	Image          string
+	ContainerName  string
+	Host           string
+	Port           int
+	SourcePath     string
+	DataPath       string
+	CustomwarePath string
+	AdminUser      string
+	AdminPassword  string
+	BridgeURL      string
+	BridgeToken    string
+	PublicURL      string
+}
+
+// SpaceAgentInstruction is sent from AuraGo to Space Agent.
+type SpaceAgentInstruction struct {
+	Instruction string `json:"instruction"`
+	Information string `json:"information,omitempty"`
+	SessionID   string `json:"session_id,omitempty"`
+}
+
+// ResolveSpaceAgentSidecarConfig resolves the managed Space Agent sidecar paths and URLs.
+func ResolveSpaceAgentSidecarConfig(cfg *config.Config, bridgeBaseURL string) (SpaceAgentSidecarConfig, error) {
+	if cfg == nil {
+		return SpaceAgentSidecarConfig{}, fmt.Errorf("config is required")
+	}
+	dataDir := cfg.Directories.DataDir
+	if strings.TrimSpace(dataDir) == "" {
+		dataDir = "data"
+	}
+	sourcePath := filepath.Join(dataDir, "sidecars", "space-agent", "source")
+	port := cfg.SpaceAgent.Port
+	if port <= 0 {
+		port = 3000
+	}
+	repoURL := strings.TrimSpace(cfg.SpaceAgent.RepoURL)
+	if repoURL == "" {
+		repoURL = spaceAgentDefaultRepoURL
+	}
+	gitRef := strings.TrimSpace(cfg.SpaceAgent.GitRef)
+	if gitRef == "" {
+		gitRef = spaceAgentDefaultGitRef
+	}
+	image := strings.TrimSpace(cfg.SpaceAgent.Image)
+	if image == "" {
+		image = spaceAgentDefaultImage
+	}
+	containerName := strings.TrimSpace(cfg.SpaceAgent.ContainerName)
+	if containerName == "" {
+		containerName = spaceAgentDefaultContainerName
+	}
+	host := strings.TrimSpace(cfg.SpaceAgent.Host)
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	bridgeBaseURL = strings.TrimRight(strings.TrimSpace(bridgeBaseURL), "/")
+	bridgeURL := ""
+	if bridgeBaseURL != "" {
+		bridgeURL = bridgeBaseURL + spaceAgentBridgeEndpoint
+	}
+	return SpaceAgentSidecarConfig{
+		RepoURL:        repoURL,
+		GitRef:         gitRef,
+		Image:          image,
+		ContainerName:  containerName,
+		Host:           host,
+		Port:           port,
+		SourcePath:     sourcePath,
+		DataPath:       cfg.SpaceAgent.DataPath,
+		CustomwarePath: cfg.SpaceAgent.CustomwarePath,
+		AdminUser:      cfg.SpaceAgent.AdminUser,
+		AdminPassword:  cfg.SpaceAgent.AdminPassword,
+		BridgeURL:      bridgeURL,
+		BridgeToken:    cfg.SpaceAgent.BridgeToken,
+		PublicURL:      cfg.SpaceAgent.PublicURL,
+	}, nil
+}
+
+func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
+	if err := validateDockerName(effectiveSpaceAgentContainerName(cfg)); err != nil {
+		return nil, err
+	}
+	image := strings.TrimSpace(cfg.Image)
+	if image == "" {
+		image = spaceAgentDefaultImage
+	}
+	if err := validateDockerName(image); err != nil {
+		return nil, err
+	}
+	port := cfg.Port
+	if port <= 0 {
+		port = 3000
+	}
+	host := strings.TrimSpace(cfg.Host)
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	env := []string{
+		"HOST=" + host,
+		"PORT=" + strconv.Itoa(port),
+		"SPACE_AGENT_ADMIN_USER=" + strings.TrimSpace(cfg.AdminUser),
+		"SPACE_AGENT_ADMIN_PASSWORD=" + cfg.AdminPassword,
+		"AURAGO_BRIDGE_URL=" + strings.TrimSpace(cfg.BridgeURL),
+		"AURAGO_BRIDGE_TOKEN=" + cfg.BridgeToken,
+	}
+	containerPort := fmt.Sprintf("%d/tcp", port)
+	payload := map[string]interface{}{
+		"Image": image,
+		"Env":   env,
+		"ExposedPorts": map[string]interface{}{
+			containerPort: struct{}{},
+		},
+		"HostConfig": map[string]interface{}{
+			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+			"Binds": []string{
+				dockerutil.FormatBindMount(cfg.DataPath, spaceAgentDataContainerPath),
+				dockerutil.FormatBindMount(cfg.CustomwarePath, spaceAgentCustomwarePath),
+			},
+			"PortBindings": map[string]interface{}{
+				containerPort: []map[string]string{{"HostIp": host, "HostPort": strconv.Itoa(port)}},
+			},
+		},
+	}
+	return json.Marshal(payload)
+}
+
+func effectiveSpaceAgentContainerName(cfg SpaceAgentSidecarConfig) string {
+	name := strings.TrimSpace(cfg.ContainerName)
+	if name == "" {
+		return spaceAgentDefaultContainerName
+	}
+	return name
+}
+
+// EnsureSpaceAgentSidecarRunning creates and starts the managed Space Agent sidecar when needed.
+func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
+	if strings.TrimSpace(cfg.AdminPassword) == "" || strings.TrimSpace(cfg.BridgeToken) == "" {
+		logger.Warn("[SpaceAgent] Missing vault secrets, skipping auto-start")
+		return
+	}
+	dockerCfg := DockerConfig{Host: dockerHost}
+	containerName := effectiveSpaceAgentContainerName(cfg)
+	if _, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
+		_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/start", "")
+		if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+			logger.Error("[SpaceAgent] Failed to start existing sidecar container", "code", startCode, "error", startErr)
+			return
+		}
+		logger.Info("[SpaceAgent] Sidecar container is running")
+		return
+	} else if err != nil {
+		logger.Warn("[SpaceAgent] Docker unavailable, skipping auto-start", "error", err)
+		return
+	}
+
+	if err := ensureSpaceAgentSourceAndImage(cfg, logger); err != nil {
+		logger.Error("[SpaceAgent] Failed to prepare sidecar image", "error", err)
+		return
+	}
+	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath); err != nil {
+		logger.Error("[SpaceAgent] Failed to write bridge customware", "error", err)
+		return
+	}
+
+	body, err := buildSpaceAgentCreatePayload(cfg)
+	if err != nil {
+		logger.Error("[SpaceAgent] Invalid Docker create payload", "error", err)
+		return
+	}
+	_, createCode, createErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(containerName), string(body))
+	if createErr != nil || createCode != http.StatusCreated {
+		logger.Error("[SpaceAgent] Failed to create sidecar container", "code", createCode, "error", createErr)
+		return
+	}
+	_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/start", "")
+	if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+		logger.Error("[SpaceAgent] Failed to start new sidecar container", "code", startCode, "error", startErr)
+		return
+	}
+	logger.Info("[SpaceAgent] Sidecar container created and started", "image", cfg.Image, "container", containerName)
+}
+
+// RecreateSpaceAgentSidecar removes and recreates the managed sidecar.
+func RecreateSpaceAgentSidecar(dockerHost string, cfg SpaceAgentSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
+	containerName := effectiveSpaceAgentContainerName(cfg)
+	dockerCfg := DockerConfig{Host: dockerHost}
+	_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/stop?t=5", "")
+	_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+containerName+"?force=true", "")
+	EnsureSpaceAgentSidecarRunning(dockerHost, cfg, logger)
+}
+
+// SpaceAgentDockerStatus inspects the managed sidecar container.
+func SpaceAgentDockerStatus(dockerHost string, cfg SpaceAgentSidecarConfig) map[string]interface{} {
+	out := map[string]interface{}{
+		"status":         "starting",
+		"enabled":        true,
+		"container_name": effectiveSpaceAgentContainerName(cfg),
+		"image":          cfg.Image,
+		"url":            cfg.PublicURL,
+		"port":           cfg.Port,
+	}
+	data, code, err := dockerRequest(DockerConfig{Host: dockerHost}, http.MethodGet, "/containers/"+effectiveSpaceAgentContainerName(cfg)+"/json", "")
+	if err != nil {
+		out["status"] = "starting"
+		out["message"] = err.Error()
+		return out
+	}
+	if code == http.StatusNotFound {
+		out["status"] = "stopped"
+		return out
+	}
+	if code != http.StatusOK {
+		out["status"] = "unknown"
+		out["message"] = fmt.Sprintf("docker inspect returned HTTP %d", code)
+		return out
+	}
+	var info map[string]interface{}
+	if err := json.Unmarshal(data, &info); err != nil {
+		out["status"] = "unknown"
+		out["message"] = err.Error()
+		return out
+	}
+	if state, ok := info["State"].(map[string]interface{}); ok {
+		if running, _ := state["Running"].(bool); running {
+			out["status"] = "running"
+			out["running"] = true
+			return out
+		}
+		if status, _ := state["Status"].(string); status != "" {
+			out["status"] = status
+		}
+	}
+	return out
+}
+
+// SendSpaceAgentInstruction forwards an AuraGo instruction to the Space Agent bridge customware endpoint.
+func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req SpaceAgentInstruction) map[string]interface{} {
+	if cfg == nil || !cfg.SpaceAgent.Enabled {
+		return map[string]interface{}{"status": "disabled", "message": "Space Agent integration is disabled"}
+	}
+	instruction := strings.TrimSpace(req.Instruction)
+	if instruction == "" {
+		return map[string]interface{}{"status": "error", "message": "instruction is required"}
+	}
+	base := strings.TrimRight(strings.TrimSpace(cfg.SpaceAgent.PublicURL), "/")
+	if base == "" {
+		base = fmt.Sprintf("http://127.0.0.1:%d", cfg.SpaceAgent.Port)
+	}
+	body, _ := json.Marshal(req)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+spaceAgentInstructionEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return map[string]interface{}{"status": "error", "message": err.Error()}
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	if cfg.SpaceAgent.BridgeToken != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+cfg.SpaceAgent.BridgeToken)
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return map[string]interface{}{"status": "error", "message": err.Error()}
+	}
+	defer resp.Body.Close()
+	var parsed map[string]interface{}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&parsed); err != nil {
+		parsed = map[string]interface{}{"status": "ok", "http_status": resp.StatusCode}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		parsed["status"] = "error"
+		parsed["http_status"] = resp.StatusCode
+	}
+	return parsed
+}
+
+// ExecuteSpaceAgent is the agent-facing wrapper for Space Agent communication.
+func ExecuteSpaceAgent(ctx context.Context, cfg *config.Config, req SpaceAgentInstruction) string {
+	result := SendSpaceAgentInstruction(ctx, cfg, req)
+	raw, _ := json.Marshal(result)
+	return string(raw)
+}
+
+func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	if err := os.MkdirAll(filepath.Dir(cfg.SourcePath), 0o750); err != nil {
+		return fmt.Errorf("create sidecar dir: %w", err)
+	}
+	if err := os.MkdirAll(cfg.DataPath, 0o750); err != nil {
+		return fmt.Errorf("create data dir: %w", err)
+	}
+	if err := os.MkdirAll(cfg.CustomwarePath, 0o750); err != nil {
+		return fmt.Errorf("create customware dir: %w", err)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
+		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--branch", cfg.GitRef, cfg.RepoURL, cfg.SourcePath); err != nil {
+			return err
+		}
+	} else {
+		_ = runSpaceAgentCommand(logger, cfg.SourcePath, "git", "fetch", "--depth", "1", "origin", cfg.GitRef)
+		_ = runSpaceAgentCommand(logger, cfg.SourcePath, "git", "checkout", cfg.GitRef)
+	}
+	dockerfilePath := filepath.Join(cfg.SourcePath, "Dockerfile.aurago")
+	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
+		return fmt.Errorf("write Dockerfile.aurago: %w", err)
+	}
+	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+}
+
+func runSpaceAgentCommand(logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}, dir string, name string, args ...string) error {
+	logger.Info("[SpaceAgent] Running command", "command", name, "args", args, "dir", dir)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	dockerCfgDir := filepath.Join(dir, "data", ".docker")
+	_ = os.MkdirAll(dockerCfgDir, 0o700)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
+	if trimmed := strings.TrimSpace(string(out)); trimmed != "" {
+		logger.Info("[SpaceAgent] Command completed", "output", trimmed)
+	}
+	return nil
+}
+
+func spaceAgentDockerfile() string {
+	return `FROM node:22-bookworm-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev || npm install --omit=dev
+COPY . .
+EXPOSE 3000
+CMD ["sh", "-lc", "node space supervise HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
+`
+}
+
+func writeSpaceAgentBridgeCustomware(dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	content := `# AuraGo Space Agent Bridge
+
+This directory is mounted into the managed Space Agent container.
+
+Use the environment variables AURAGO_BRIDGE_URL and AURAGO_BRIDGE_TOKEN to send structured messages back to AuraGo:
+
+{
+  "type": "note",
+  "summary": "Short title",
+  "content": "External content from Space Agent",
+  "source": "space-agent",
+  "timestamp": "2026-05-01T12:00:00Z",
+  "session_id": "optional"
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "aurago_bridge.md"), []byte(content), 0o600); err != nil {
+		return err
+	}
+	helper := `'use strict';
+
+async function sendToAuraGo(message) {
+  const bridgeUrl = process.env.AURAGO_BRIDGE_URL;
+  const bridgeToken = process.env.AURAGO_BRIDGE_TOKEN;
+  if (!bridgeUrl || !bridgeToken) {
+    throw new Error('AuraGo bridge environment is not configured');
+  }
+  const payload = {
+    type: message.type || 'message',
+    summary: message.summary || '',
+    content: message.content || '',
+    source: message.source || 'space-agent',
+    timestamp: message.timestamp || new Date().toISOString(),
+    session_id: message.session_id || undefined
+  };
+  const res = await fetch(bridgeUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + bridgeToken
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error('AuraGo bridge returned HTTP ' + res.status);
+  }
+  return res.json();
+}
+
+module.exports = { sendToAuraGo };
+`
+	return os.WriteFile(filepath.Join(dir, "aurago_bridge.js"), []byte(helper), 0o600)
+}

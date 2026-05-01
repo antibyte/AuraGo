@@ -176,5 +176,11 @@
   "chat.sessions_minutes_ago": "vor {n} Min.",
   "chat.sessions_hours_ago": "vor {n} Std.",
   "chat.sessions_days_ago": "vor {n} Tagen",
+  "chat.integrations_title": "Integrationen",
+  "chat.integrations_empty": "Keine aktiven Integrationen.",
+  "chat.integrations_open": "Öffnen",
+  "chat.integrations_loading": "Integrationen werden geladen...",
+  "chat.integrations_error": "Integrationen konnten nicht geladen werden.",
+  "chat.aria_integrations": "Integrationen öffnen",
   "chat.voice_error": "Sprachfehler"
 }

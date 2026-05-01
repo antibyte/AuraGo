@@ -336,6 +336,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
 		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
 		BrowserAutomationEnabled:     cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled,
+		SpaceAgentEnabled:            cfg.SpaceAgent.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
 		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
 		S3Enabled:                    cfg.S3.Enabled,

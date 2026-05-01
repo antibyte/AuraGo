@@ -197,6 +197,24 @@ type BrowserAutomationConfig struct {
 	ScreenshotsDir     string                    `yaml:"screenshots_dir"`      // workspace-relative screenshot directory
 }
 
+// SpaceAgentConfig holds settings for the optional managed Space Agent sidecar.
+type SpaceAgentConfig struct {
+	Enabled        bool   `yaml:"enabled" json:"enabled"`                 // enable Space Agent integration
+	AutoStart      bool   `yaml:"auto_start" json:"auto_start"`           // create/start managed Docker sidecar on AuraGo startup
+	RepoURL        string `yaml:"repo_url" json:"repo_url"`               // Git repository used to build the sidecar
+	GitRef         string `yaml:"git_ref" json:"git_ref"`                 // branch, tag, or commit to build
+	ContainerName  string `yaml:"container_name" json:"container_name"`   // managed Docker container name
+	Image          string `yaml:"image" json:"image"`                     // managed Docker image tag
+	Host           string `yaml:"host" json:"host"`                       // host interface for LAN exposure
+	Port           int    `yaml:"port" json:"port"`                       // published Space Agent port
+	CustomwarePath string `yaml:"customware_path" json:"customware_path"` // host path for AuraGo bridge customware
+	DataPath       string `yaml:"data_path" json:"data_path"`             // host path for persistent Space Agent data
+	AdminUser      string `yaml:"admin_user" json:"admin_user"`           // Space Agent admin user
+	PublicURL      string `yaml:"public_url" json:"public_url"`           // browser URL shown in the integrations drawer
+	AdminPassword  string `yaml:"-" json:"-"`                             // vault-only: space_agent_admin_password
+	BridgeToken    string `yaml:"-" json:"-"`                             // vault-only: space_agent_bridge_token
+}
+
 // MQTTTLS holds TLS configuration for MQTT connections.
 type MQTTTLS struct {
 	Enabled            bool   `yaml:"enabled"`              // enable TLS encryption
@@ -1049,6 +1067,7 @@ type Config struct {
 		SSHInsecureHostKey bool     `yaml:"ssh_insecure_host_key"` // skip SSH host key verification (disables MITM protection)
 	} `yaml:"remote_control"`
 	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
+	SpaceAgent        SpaceAgentConfig        `yaml:"space_agent"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`
 		Domain       string `yaml:"domain"`      // primary domain for TLS (e.g. "aurago.example.com")

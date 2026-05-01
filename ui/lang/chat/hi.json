@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "रेत तूफान",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "ब्लैक मैट्रिक्स",
+  "chat.integrations_title": "एकीकरण",
+  "chat.integrations_empty": "कोई सक्रिय एकीकरण नहीं।",
+  "chat.integrations_open": "खोलें",
+  "chat.integrations_loading": "एकीकरण लोड हो रहे हैं...",
+  "chat.integrations_error": "एकीकरण लोड नहीं हो सके।",
+  "chat.aria_integrations": "एकीकरण खोलें",
   "chat.voice_error": "आवाज़ त्रुटि"
 }

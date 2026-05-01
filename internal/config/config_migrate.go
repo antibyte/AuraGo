@@ -801,6 +801,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("adguard_password", &c.AdGuard.Password)
 	apply("uptime_kuma_api_key", &c.UptimeKuma.APIKey)
 	apply("grafana_api_key", &c.Grafana.APIKey)
+	apply("space_agent_admin_password", &c.SpaceAgent.AdminPassword)
+	apply("space_agent_bridge_token", &c.SpaceAgent.BridgeToken)
 
 	// ── FritzBox ──
 	apply("fritzbox_password", &c.FritzBox.Password)
@@ -1087,6 +1089,8 @@ var plaintextSecretVaultPaths = map[string]string{
 	"mqtt.password":                    "mqtt_password",
 	"adguard.password":                 "adguard_password",
 	"uptime_kuma.api_key":              "uptime_kuma_api_key",
+	"space_agent.admin_password":       "space_agent_admin_password",
+	"space_agent.bridge_token":         "space_agent_bridge_token",
 	"fritzbox.password":                "fritzbox_password",
 	"homepage.deploy_password":         "homepage_deploy_password",
 	"homepage.deploy_key":              "homepage_deploy_key",

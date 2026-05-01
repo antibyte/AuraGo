@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "Tempesta di Sabbia",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "Matrix Nera",
+  "chat.integrations_title": "Integrazioni",
+  "chat.integrations_empty": "Nessuna integrazione attiva.",
+  "chat.integrations_open": "Apri",
+  "chat.integrations_loading": "Caricamento integrazioni...",
+  "chat.integrations_error": "Impossibile caricare le integrazioni.",
+  "chat.aria_integrations": "Apri integrazioni",
   "chat.voice_error": "Errore vocale"
 }

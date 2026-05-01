@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "Αμμοθύελλα",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "Μαύρο Matrix",
+  "chat.integrations_title": "Ενσωματώσεις",
+  "chat.integrations_empty": "Δεν υπάρχουν ενεργές ενσωματώσεις.",
+  "chat.integrations_open": "Άνοιγμα",
+  "chat.integrations_loading": "Φόρτωση ενσωματώσεων...",
+  "chat.integrations_error": "Αποτυχία φόρτωσης ενσωματώσεων.",
+  "chat.aria_integrations": "Άνοιγμα ενσωματώσεων",
   "chat.voice_error": "Σφάλμα φωνής"
 }

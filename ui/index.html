@@ -36,6 +36,7 @@
     <link rel="stylesheet" href="/css/chat-modules.css">
     <link rel="stylesheet" href="/css/stt-overlay.css">
     <link rel="stylesheet" href="/css/session-drawer.css?v=3">
+    <link rel="stylesheet" href="/css/integrations-drawer.css?v=1">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
     <link rel="stylesheet" href="/css/chat-cyberwar.css?v=20260418h">
     <link rel="stylesheet" href="/css/chat-lollipop.css?v=20260418j">
@@ -57,6 +58,9 @@
             <!-- Session drawer toggle -->
             <button id="session-toggle-btn" type="button" class="btn-session-toggle" data-i18n-aria-label="chat.aria_conversations">
                 <span class="chat-ui-icon" data-chat-icon="conversation"></span>
+            </button>
+            <button id="integrations-toggle-btn" type="button" class="btn-integrations-toggle" data-i18n-aria-label="chat.aria_integrations">
+                <span class="chat-ui-icon" data-chat-icon="web"></span>
             </button>
             <!-- Speaker toggle for TTS auto-play -->
             <button id="speaker-toggle" type="button" class="btn-speaker" data-i18n-aria-label="chat.aria_toggle_speaker">
@@ -170,6 +174,20 @@
         </button>
         <div id="session-list" class="session-list">
             <div class="session-empty" data-i18n="chat.sessions_empty">No conversations yet.</div>
+        </div>
+    </aside>
+
+    <!-- ── Integrations Drawer (right side webhosts) ── -->
+    <div id="integrations-backdrop" class="integrations-backdrop"></div>
+    <aside id="integrations-drawer" class="integrations-drawer">
+        <div class="integrations-drawer-header">
+            <span class="integrations-drawer-title" data-i18n="chat.integrations_title">Integrations</span>
+            <button type="button" id="integrations-drawer-close" class="integrations-drawer-close" data-i18n-aria-label="common.close">
+                <span class="chat-ui-icon" data-chat-icon="close"></span>
+            </button>
+        </div>
+        <div id="integrations-list" class="integrations-list">
+            <div class="integrations-empty" data-i18n="chat.integrations_loading">Loading integrations...</div>
         </div>
     </aside>
 
@@ -316,6 +334,7 @@
     <script src="/js/chat/modules/mermaid-loader.js?v=20260418o"></script>
     <script src="/js/chat/modules/warnings.js"></script>
     <script src="/js/chat/modules/session-drawer.js?v=3"></script>
+    <script src="/js/chat/modules/integrations-drawer.js?v=1"></script>
     <script src="/js/chat/main.js?v=20260426a"></script>
     <script src="/js/chat/tool-icons.js?v=20260426a"></script>
     <script src="/js/chat/robot-mascot.js?v=20260425a"></script>

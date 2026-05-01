@@ -130,6 +130,7 @@ type ToolFeatureFlags struct {
 	SendYouTubeVideoEnabled      bool
 	WebCaptureEnabled            bool
 	BrowserAutomationEnabled     bool
+	SpaceAgentEnabled            bool
 	NetworkPingEnabled           bool
 	WebScraperEnabled            bool
 	S3Enabled                    bool

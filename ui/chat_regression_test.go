@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"hash/fnv"
 	"image/png"
 	"os"
@@ -128,6 +129,79 @@ func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	for _, marker := range requiredMarkers {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("%s is missing expected paste-upload regression marker %q", mainPath, marker)
+		}
+	}
+}
+
+func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	drawerContent, err := os.ReadFile(filepath.Join("js", "chat", "modules", "integrations-drawer.js"))
+	if err != nil {
+		t.Fatalf("read integrations drawer module: %v", err)
+	}
+
+	indexHTML := string(indexContent)
+	for _, marker := range []string{
+		`id="integrations-toggle-btn"`,
+		`id="integrations-drawer"`,
+		`/css/integrations-drawer.css`,
+		`/js/chat/modules/integrations-drawer.js`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("index.html missing integrations drawer marker %q", marker)
+		}
+	}
+
+	drawerJS := string(drawerContent)
+	for _, marker := range []string{
+		"/api/integrations/webhosts",
+		"window.open(url, '_blank', 'noopener,noreferrer')",
+	} {
+		if !strings.Contains(drawerJS, marker) {
+			t.Fatalf("integrations drawer JS missing marker %q", marker)
+		}
+	}
+	if strings.Contains(drawerJS, "alert(") {
+		t.Fatal("integrations drawer must not introduce alert()")
+	}
+}
+
+func TestChatFrontend_IntegrationsDrawerI18nKeysExist(t *testing.T) {
+	t.Parallel()
+
+	keys := []string{
+		"chat.integrations_title",
+		"chat.integrations_empty",
+		"chat.integrations_open",
+		"chat.integrations_loading",
+		"chat.integrations_error",
+		"chat.aria_integrations",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "chat", "*.json"))
+	if err != nil {
+		t.Fatalf("glob chat lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all chat language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
 		}
 	}
 }

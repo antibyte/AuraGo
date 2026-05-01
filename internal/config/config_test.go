@@ -438,6 +438,56 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadSpaceAgentDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.SpaceAgent.Enabled {
+		t.Fatal("expected space_agent.enabled to default to false")
+	}
+	if !cfg.SpaceAgent.AutoStart {
+		t.Fatal("expected space_agent.auto_start to default to true")
+	}
+	if cfg.SpaceAgent.RepoURL != "https://github.com/agent0ai/space-agent" {
+		t.Fatalf("repo_url = %q", cfg.SpaceAgent.RepoURL)
+	}
+	if cfg.SpaceAgent.GitRef != "main" {
+		t.Fatalf("git_ref = %q, want main", cfg.SpaceAgent.GitRef)
+	}
+	if cfg.SpaceAgent.ContainerName != "aurago_space_agent" {
+		t.Fatalf("container_name = %q, want aurago_space_agent", cfg.SpaceAgent.ContainerName)
+	}
+	if cfg.SpaceAgent.Image != "aurago-space-agent:main" {
+		t.Fatalf("image = %q, want aurago-space-agent:main", cfg.SpaceAgent.Image)
+	}
+	if cfg.SpaceAgent.Host != "0.0.0.0" {
+		t.Fatalf("host = %q, want 0.0.0.0", cfg.SpaceAgent.Host)
+	}
+	if cfg.SpaceAgent.Port != 3000 {
+		t.Fatalf("port = %d, want 3000", cfg.SpaceAgent.Port)
+	}
+	if cfg.SpaceAgent.AdminUser != "admin" {
+		t.Fatalf("admin_user = %q, want admin", cfg.SpaceAgent.AdminUser)
+	}
+	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3000" {
+		t.Fatalf("public_url = %q, want http://127.0.0.1:3000", cfg.SpaceAgent.PublicURL)
+	}
+	if !filepath.IsAbs(cfg.SpaceAgent.CustomwarePath) || !strings.Contains(cfg.SpaceAgent.CustomwarePath, filepath.Join("data", "sidecars", "space-agent", "customware")) {
+		t.Fatalf("customware_path = %q, want absolute sidecar customware path", cfg.SpaceAgent.CustomwarePath)
+	}
+	if !filepath.IsAbs(cfg.SpaceAgent.DataPath) || !strings.Contains(cfg.SpaceAgent.DataPath, filepath.Join("data", "sidecars", "space-agent", "data")) {
+		t.Fatalf("data_path = %q, want absolute sidecar data path", cfg.SpaceAgent.DataPath)
+	}
+}
+
 func TestLoadMediaConversionDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
@@ -799,6 +849,63 @@ func TestConfigSaveOmitsGrafanaAPIKey(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), "grafana:") || !strings.Contains(string(raw), "base_url: https://grafana.local") {
 		t.Fatalf("expected grafana settings to be serialized, got:\n%s", string(raw))
+	}
+}
+
+func TestApplyVaultSecretsLoadsSpaceAgentSecrets(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"space_agent_admin_password": "admin-secret",
+		"space_agent_bridge_token":   "bridge-secret",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.SpaceAgent.AdminPassword != "admin-secret" {
+		t.Fatalf("AdminPassword = %q, want vault secret", cfg.SpaceAgent.AdminPassword)
+	}
+	if cfg.SpaceAgent.BridgeToken != "bridge-secret" {
+		t.Fatalf("BridgeToken = %q, want vault secret", cfg.SpaceAgent.BridgeToken)
+	}
+}
+
+func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.AutoStart = true
+	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
+	cfg.SpaceAgent.GitRef = "main"
+	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+	cfg.SpaceAgent.Image = "aurago-space-agent:main"
+	cfg.SpaceAgent.Host = "0.0.0.0"
+	cfg.SpaceAgent.Port = 3000
+	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
+	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
+	cfg.SpaceAgent.AdminUser = "admin"
+	cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3000"
+	cfg.SpaceAgent.AdminPassword = "space-admin-secret"
+	cfg.SpaceAgent.BridgeToken = "space-bridge-secret"
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	got := string(raw)
+	for _, needle := range []string{"space-admin-secret", "space-bridge-secret", "admin_password:", "bridge_token:"} {
+		if strings.Contains(got, needle) {
+			t.Fatalf("expected Space Agent secrets to stay out of YAML, found %q in:\n%s", needle, got)
+		}
+	}
+	if !strings.Contains(got, "space_agent:") || !strings.Contains(got, "enabled: true") {
+		t.Fatalf("expected non-secret Space Agent settings to be serialized, got:\n%s", got)
 	}
 }
 

@@ -88,6 +88,21 @@ func NormalizeLegacySidecarURL(raw string, runningInDocker bool, service string,
 	return parsed.String()
 }
 
+func sanitizeDockerTag(raw string) string {
+	tag := strings.TrimSpace(raw)
+	if tag == "" {
+		return "main"
+	}
+	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-", "@", "-", " ", "-")
+	tag = replacer.Replace(tag)
+	tag = regexp.MustCompile(`[^a-zA-Z0-9_.-]+`).ReplaceAllString(tag, "-")
+	tag = strings.Trim(tag, ".-")
+	if tag == "" {
+		return "main"
+	}
+	return tag
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -183,6 +198,19 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.Headless = true
 	cfg.BrowserAutomation.ReadOnly = false
 	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
+
+	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
+	cfg.SpaceAgent.AutoStart = true
+	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
+	cfg.SpaceAgent.GitRef = "main"
+	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+	cfg.SpaceAgent.Image = "aurago-space-agent:main"
+	cfg.SpaceAgent.Host = "0.0.0.0"
+	cfg.SpaceAgent.Port = 3000
+	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
+	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
+	cfg.SpaceAgent.AdminUser = "admin"
+	cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", 3000)
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -373,6 +401,37 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.SpaceAgent.PublicURL = NormalizeLegacySidecarURL(cfg.SpaceAgent.PublicURL, runningInDocker, "space-agent", cfg.SpaceAgent.Port)
+	if strings.TrimSpace(cfg.SpaceAgent.RepoURL) == "" {
+		cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.GitRef) == "" {
+		cfg.SpaceAgent.GitRef = "main"
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.ContainerName) == "" {
+		cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.Image) == "" {
+		cfg.SpaceAgent.Image = "aurago-space-agent:" + sanitizeDockerTag(cfg.SpaceAgent.GitRef)
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.Host) == "" {
+		cfg.SpaceAgent.Host = "0.0.0.0"
+	}
+	if cfg.SpaceAgent.Port <= 0 {
+		cfg.SpaceAgent.Port = 3000
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.AdminUser) == "" {
+		cfg.SpaceAgent.AdminUser = "admin"
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.PublicURL) == "" {
+		cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", cfg.SpaceAgent.Port)
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.CustomwarePath) == "" {
+		cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
+	}
+	if strings.TrimSpace(cfg.SpaceAgent.DataPath) == "" {
+		cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
+	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
@@ -385,6 +444,8 @@ func Load(path string) (*Config, error) {
 	cfg.Directories.PromptsDir = resolvePath(configDir, cfg.Directories.PromptsDir)
 	cfg.Directories.SkillsDir = resolvePath(configDir, cfg.Directories.SkillsDir)
 	cfg.Directories.VectorDBDir = resolvePath(configDir, cfg.Directories.VectorDBDir)
+	cfg.SpaceAgent.CustomwarePath = resolvePath(configDir, cfg.SpaceAgent.CustomwarePath)
+	cfg.SpaceAgent.DataPath = resolvePath(configDir, cfg.SpaceAgent.DataPath)
 
 	// Resolve document creator output directory
 	cfg.Tools.DocumentCreator.OutputDir = resolvePath(configDir, cfg.Tools.DocumentCreator.OutputDir)
@@ -1241,6 +1302,18 @@ func (c *Config) Save(path string) error {
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
 		{[]string{"grafana", "insecure_ssl"}, c.Grafana.InsecureSSL},
 		{[]string{"grafana", "request_timeout"}, c.Grafana.RequestTimeout},
+		{[]string{"space_agent", "enabled"}, c.SpaceAgent.Enabled},
+		{[]string{"space_agent", "auto_start"}, c.SpaceAgent.AutoStart},
+		{[]string{"space_agent", "repo_url"}, c.SpaceAgent.RepoURL},
+		{[]string{"space_agent", "git_ref"}, c.SpaceAgent.GitRef},
+		{[]string{"space_agent", "container_name"}, c.SpaceAgent.ContainerName},
+		{[]string{"space_agent", "image"}, c.SpaceAgent.Image},
+		{[]string{"space_agent", "host"}, c.SpaceAgent.Host},
+		{[]string{"space_agent", "port"}, c.SpaceAgent.Port},
+		{[]string{"space_agent", "customware_path"}, c.SpaceAgent.CustomwarePath},
+		{[]string{"space_agent", "data_path"}, c.SpaceAgent.DataPath},
+		{[]string{"space_agent", "admin_user"}, c.SpaceAgent.AdminUser},
+		{[]string{"space_agent", "public_url"}, c.SpaceAgent.PublicURL},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

@@ -824,6 +824,18 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				MaxElements:  req.MaxElements,
 			}, logger)
 
+		case "space_agent":
+			if !cfg.SpaceAgent.Enabled {
+				return `Tool Output: {"status":"error","message":"space_agent is disabled. Enable space_agent.enabled=true in config."}`
+			}
+			req := decodeSpaceAgentArgs(tc)
+			logger.Info("LLM requested Space Agent instruction", "session_id", req.SessionID)
+			return "Tool Output: " + tools.ExecuteSpaceAgent(ctx, cfg, tools.SpaceAgentInstruction{
+				Instruction: req.Instruction,
+				Information: req.Information,
+				SessionID:   req.SessionID,
+			})
+
 		case "web_performance_audit":
 			req := decodeWebPerformanceAuditArgs(tc)
 			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)

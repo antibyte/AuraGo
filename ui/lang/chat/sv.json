@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "Sandstorm",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "Svart Matrix",
+  "chat.integrations_title": "Integrationer",
+  "chat.integrations_empty": "Inga aktiva integrationer.",
+  "chat.integrations_open": "Öppna",
+  "chat.integrations_loading": "Läser in integrationer...",
+  "chat.integrations_error": "Det gick inte att läsa in integrationer.",
+  "chat.aria_integrations": "Öppna integrationer",
   "chat.voice_error": "Röstfel"
 }

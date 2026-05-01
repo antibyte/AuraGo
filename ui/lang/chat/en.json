@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "Sandstorm",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "Black Matrix",
+  "chat.integrations_title": "Integrations",
+  "chat.integrations_empty": "No active integrations.",
+  "chat.integrations_open": "Open",
+  "chat.integrations_loading": "Loading integrations...",
+  "chat.integrations_error": "Failed to load integrations.",
+  "chat.aria_integrations": "Open integrations",
   "chat.voice_error": "Voice error"
 }

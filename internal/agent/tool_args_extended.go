@@ -147,6 +147,12 @@ type browserAutomationArgs struct {
 	MaxElements  int
 }
 
+type spaceAgentArgs struct {
+	Instruction string
+	Information string
+	SessionID   string
+}
+
 type upnpScanArgs struct {
 	SearchTarget      string
 	TimeoutSecs       int
@@ -582,6 +588,14 @@ func decodeBrowserAutomationArgs(tc ToolCall) browserAutomationArgs {
 		req.DOMSnippet = domSnippet
 	}
 	return req
+}
+
+func decodeSpaceAgentArgs(tc ToolCall) spaceAgentArgs {
+	return spaceAgentArgs{
+		Instruction: firstNonEmptyToolString(tc.TaskPrompt, tc.Content, toolArgString(tc.Params, "instruction", "task_prompt", "message", "content")),
+		Information: firstNonEmptyToolString(toolArgString(tc.Params, "information", "context")),
+		SessionID:   firstNonEmptyToolString(toolArgString(tc.Params, "session_id")),
+	}
 }
 
 func decodeUPnPScanArgs(tc ToolCall) upnpScanArgs {

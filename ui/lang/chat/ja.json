@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "砂嵐",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "ブラックマトリックス",
+  "chat.integrations_title": "連携",
+  "chat.integrations_empty": "有効な連携はありません。",
+  "chat.integrations_open": "開く",
+  "chat.integrations_loading": "連携を読み込み中...",
+  "chat.integrations_error": "連携を読み込めませんでした。",
+  "chat.aria_integrations": "連携を開く",
   "chat.voice_error": "音声エラー"
 }

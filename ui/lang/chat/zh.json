@@ -176,5 +176,11 @@
   "chat.theme_sandstorm": "沙暴",
   "chat.theme_papyrus": "Papyrus",
   "chat.theme_black_matrix": "黑色矩阵",
+  "chat.integrations_title": "集成",
+  "chat.integrations_empty": "没有活动的集成。",
+  "chat.integrations_open": "打开",
+  "chat.integrations_loading": "正在加载集成...",
+  "chat.integrations_error": "无法加载集成。",
+  "chat.aria_integrations": "打开集成",
   "chat.voice_error": "语音错误"
 }

@@ -34,6 +34,7 @@ const (
 	EventToolCallPreview   SSEEventType = "tool_call_preview"
 	EventThinkingBlock     SSEEventType = "thinking_block"
 	EventCoAgentProgress   SSEEventType = "coagent_progress"
+	EventSpaceAgentMessage SSEEventType = "space_agent_message"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
