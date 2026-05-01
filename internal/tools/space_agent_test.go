@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-config-file"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -431,6 +431,16 @@ func TestSpaceAgentBridgeESMWorksInBrowserContext(t *testing.T) {
 	}
 	if strings.Contains(helper, "const bridgeUrl = process.env.AURAGO_BRIDGE_URL") {
 		t.Fatalf("ESM bridge helper still directly dereferences process.env:\n%s", helper)
+	}
+}
+
+func TestSpaceAgentBridgeConfigOmitsLoopbackURLForBrowserRuntimes(t *testing.T) {
+	cfgJSON := spaceAgentBridgeConfigJSON("http://127.0.0.1:18080/api/space-agent/bridge/messages", "bridge-secret")
+	if strings.Contains(cfgJSON, "127.0.0.1") {
+		t.Fatalf("browser bridge config leaked loopback URL: %s", cfgJSON)
+	}
+	if !strings.Contains(cfgJSON, "bridge-secret") || !strings.Contains(cfgJSON, "browser_bridge_url_strategy") {
+		t.Fatalf("bridge config missing expected browser guidance: %s", cfgJSON)
 	}
 }
 

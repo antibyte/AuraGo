@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-config-file"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-browser-first"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -962,16 +962,30 @@ CommonJS code can use /app/customware/aurago_bridge.cjs.
 }
 
 func spaceAgentBridgeConfigJSON(bridgeURL string, bridgeToken string) string {
+	browserBridgeURL := strings.TrimSpace(bridgeURL)
+	if spaceAgentBridgeURLUsesLoopback(browserBridgeURL) {
+		browserBridgeURL = ""
+	}
 	payload := map[string]string{
-		"bridge_url":   strings.TrimSpace(bridgeURL),
-		"bridge_token": strings.TrimSpace(bridgeToken),
-		"note":         "Browser contexts should import aurago_bridge.js instead of reading process.env directly.",
+		"bridge_url":                  browserBridgeURL,
+		"bridge_token":                strings.TrimSpace(bridgeToken),
+		"browser_bridge_url_strategy": "Import aurago_bridge.js; it derives https://aurago.../api/space-agent/bridge/messages from https://aurago-space-agent... at runtime.",
+		"note":                        "Browser contexts should import aurago_bridge.js instead of reading process.env directly.",
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "{}\n"
 	}
 	return string(data) + "\n"
+}
+
+func spaceAgentBridgeURLUsesLoopback(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil {
+		return false
+	}
+	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.")
 }
 
 func spaceAgentBridgeHelperESM(bridgeURL string, bridgeToken string) string {
@@ -1009,8 +1023,8 @@ function bridgeConfig(options = {}) {
   return {
     bridgeUrlCandidates: uniqueNonEmpty([
       options.bridgeUrl,
-      envValue("AURAGO_BRIDGE_URL"),
       deriveBrowserAuraGoBridgeURL(),
+      envValue("AURAGO_BRIDGE_URL"),
       EMBEDDED_BRIDGE_URL
     ]),
     bridgeToken: options.bridgeToken || envValue("AURAGO_BRIDGE_TOKEN") || EMBEDDED_BRIDGE_TOKEN
@@ -1097,8 +1111,8 @@ function bridgeConfig(options = {}) {
   return {
     bridgeUrlCandidates: uniqueNonEmpty([
       options.bridgeUrl,
-      envValue('AURAGO_BRIDGE_URL'),
       deriveBrowserAuraGoBridgeURL(),
+      envValue('AURAGO_BRIDGE_URL'),
       EMBEDDED_BRIDGE_URL
     ]),
     bridgeToken: options.bridgeToken || envValue('AURAGO_BRIDGE_TOKEN') || EMBEDDED_BRIDGE_TOKEN
