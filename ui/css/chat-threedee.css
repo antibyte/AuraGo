@@ -179,7 +179,7 @@
 
 [data-theme="threedee"] .chat-theme-dropdown,
 [data-theme="threedee"] .personality-dropdown,
-[data-theme="threedee"] .mood-panel,
+[data-theme="threedee"] .mood-panel.open,
 [data-theme="threedee"] .composer-more-menu {
     transform-style: preserve-3d;
     transform-origin: top center;
@@ -399,3 +399,4 @@
         filter: none !important;
     }
 }
+
