@@ -219,3 +219,52 @@
         justify-self: start;
     }
 }
+
+/* ── integration description ─────────────────────────────────────── */
+.integration-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #888);
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+/* ── status text label ───────────────────────────────────────────── */
+.integration-status-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #888);
+    text-transform: capitalize;
+}
+
+/* ── homepage link ───────────────────────────────────────────────── */
+.integration-homepage {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--bg-tertiary, rgba(255,255,255,0.06));
+    text-decoration: none;
+    color: var(--accent, #6c63ff);
+    font-size: 0.72rem;
+    transition: background 0.2s, color 0.2s;
+    overflow: hidden;
+}
+
+.integration-homepage:hover {
+    background: var(--accent-dim, rgba(108, 99, 255, 0.15));
+    color: var(--text-primary, #fff);
+}
+
+.integration-homepage-icon {
+    --chat-ui-icon-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.integration-homepage-url {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    unicode-bidi: plaintext;
+}
