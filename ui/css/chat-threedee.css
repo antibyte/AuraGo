@@ -1,0 +1,401 @@
+[data-theme="threedee"] {
+    color-scheme: dark;
+    --accent: #818cf8;
+    --accent-secondary: #22d3ee;
+    --accent-tertiary: #c084fc;
+    --accent-dim: rgba(129, 140, 248, 0.15);
+    --accent-glow: rgba(129, 140, 248, 0.36);
+    --bg-primary: #070b14;
+    --bg-secondary: rgba(13, 20, 36, 0.94);
+    --bg-tertiary: rgba(19, 29, 51, 0.94);
+    --bg-glass: linear-gradient(145deg, rgba(30, 41, 72, 0.72), rgba(8, 13, 25, 0.9));
+    --header-bg: rgba(7, 11, 20, 0.82);
+    --modal-bg: rgba(3, 6, 14, 0.76);
+    --modal-surface: rgba(10, 16, 31, 0.95);
+    --modal-border: rgba(129, 140, 248, 0.28);
+    --sidebar-bg: rgba(8, 13, 25, 0.97);
+    --card-bg: rgba(13, 20, 36, 0.86);
+    --code-bg: rgba(5, 8, 18, 0.94);
+    --inline-code-bg: rgba(129, 140, 248, 0.12);
+    --input-bg: rgba(8, 13, 25, 0.92);
+    --input-border: rgba(129, 140, 248, 0.26);
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --strong-color: #ffffff;
+    --border-subtle: rgba(129, 140, 248, 0.15);
+    --border-accent: rgba(129, 140, 248, 0.3);
+    --user-bubble: linear-gradient(145deg, rgba(129, 140, 248, 0.94), rgba(79, 70, 229, 0.96) 48%, rgba(45, 212, 191, 0.78));
+    --user-bubble-tail: rgba(82, 77, 218, 0.95);
+    --user-bubble-shadow: rgba(79, 70, 229, 0.36);
+    --bot-bubble: linear-gradient(145deg, rgba(19, 29, 51, 0.94), rgba(8, 13, 25, 0.98));
+    --bot-bubble-tail: rgba(13, 20, 36, 0.98);
+    --surface-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+    --surface-shadow-strong: 0 38px 110px rgba(0, 0, 0, 0.7);
+    --surface-highlight: rgba(255, 255, 255, 0.12);
+    --page-orb-1: rgba(129, 140, 248, 0.14);
+    --page-orb-2: rgba(34, 211, 238, 0.12);
+    --page-orb-3: rgba(192, 132, 252, 0.1);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.035;
+    --bg-logo-filter: saturate(1.35) brightness(0.8);
+    --threedee-panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="threedee"] body {
+    background:
+        radial-gradient(circle at 14% 12%, rgba(129, 140, 248, 0.2), transparent 28%),
+        radial-gradient(circle at 88% 18%, rgba(34, 211, 238, 0.14), transparent 28%),
+        radial-gradient(circle at 50% 112%, rgba(192, 132, 252, 0.13), transparent 34%),
+        linear-gradient(180deg, #070b14 0%, #090f1d 48%, #050812 100%);
+    color: var(--text-primary);
+}
+
+[data-theme="threedee"] body::before {
+    opacity: 0.72;
+    background:
+        linear-gradient(115deg, transparent 0 42%, rgba(129, 140, 248, 0.055) 42% 43%, transparent 43% 100%),
+        linear-gradient(65deg, transparent 0 48%, rgba(34, 211, 238, 0.04) 48% 49%, transparent 49% 100%);
+}
+
+[data-theme="threedee"] .app-header,
+[data-theme="threedee"] .chat-input-area,
+[data-theme="threedee"] .modal-card,
+[data-theme="threedee"] .session-drawer,
+[data-theme="threedee"] .integrations-drawer,
+[data-theme="threedee"] .mood-panel,
+[data-theme="threedee"] .composer-more-menu,
+[data-theme="threedee"] .warnings-panel {
+    border-color: var(--border-accent);
+    background: var(--bg-glass);
+    box-shadow: var(--surface-shadow), var(--threedee-panel-edge);
+    backdrop-filter: blur(18px) saturate(1.15);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+[data-theme="threedee"] .app-header {
+    position: relative;
+    z-index: 120;
+    transform-style: preserve-3d;
+}
+
+[data-theme="threedee"] .app-header::after {
+    background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.85), rgba(34, 211, 238, 0.65), transparent);
+    box-shadow: 0 0 28px rgba(129, 140, 248, 0.4);
+}
+
+[data-theme="threedee"] .logo,
+[data-theme="threedee"] .header-actions,
+[data-theme="threedee"] .chat-container,
+[data-theme="threedee"] #chat-box,
+[data-theme="threedee"] #chat-content {
+    transform-style: preserve-3d;
+}
+
+[data-theme="threedee"] .logo .logo-wordmark-accent {
+    background: linear-gradient(180deg, #ffffff 0%, #a5b4fc 34%, #22d3ee 72%, #ffffff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 24px rgba(129, 140, 248, 0.3);
+}
+
+[data-theme="threedee"] #chat-box {
+    perspective: 1200px;
+    perspective-origin: 50% 30%;
+}
+
+[data-theme="threedee"] #chat-content {
+    position: relative;
+    z-index: 2;
+}
+
+[data-theme="threedee"] .msg-row {
+    transform-style: preserve-3d;
+    transform-origin: top center;
+    transition:
+        transform 0.55s cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 0.4s ease,
+        filter 0.45s ease;
+}
+
+[data-theme="threedee"] .msg-row.threedee-fold-ready {
+    will-change: transform, opacity, filter;
+}
+
+[data-theme="threedee"] .msg-row.folding,
+[data-theme="threedee"] .msg-row.unfolding {
+    transition:
+        transform 0.8s cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 0.6s ease,
+        filter 0.6s ease;
+}
+
+[data-theme="threedee"] .msg-row.folded {
+    pointer-events: none;
+}
+
+[data-theme="threedee"] .bubble {
+    transform: translateZ(0) rotateX(0);
+    transition:
+        transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+        box-shadow 0.4s ease,
+        border-color 0.3s ease;
+    backface-visibility: hidden;
+}
+
+[data-theme="threedee"] .msg-row:hover .bubble {
+    transform: translateZ(20px) rotateX(-2deg);
+    box-shadow:
+        0 25px 50px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(129, 140, 248, 0.14);
+}
+
+[data-theme="threedee"] .bubble.bot {
+    border: 1px solid rgba(129, 140, 248, 0.24);
+    box-shadow:
+        0 14px 34px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="threedee"] .bubble.user {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow:
+        0 16px 36px rgba(79, 70, 229, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="threedee"] .avatar {
+    transform: translateZ(18px);
+    box-shadow:
+        0 14px 26px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="threedee"] .avatar.bot,
+[data-theme="threedee"] .avatar.human {
+    background: linear-gradient(145deg, rgba(129, 140, 248, 0.22), rgba(8, 13, 25, 0.82));
+    border-color: rgba(129, 140, 248, 0.32);
+}
+
+[data-theme="threedee"] .chat-theme-dropdown,
+[data-theme="threedee"] .personality-dropdown,
+[data-theme="threedee"] .mood-panel,
+[data-theme="threedee"] .composer-more-menu {
+    transform-style: preserve-3d;
+    transform-origin: top center;
+    animation: threedeeMenuIn 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    border: 1px solid rgba(129, 140, 248, 0.26);
+    box-shadow: var(--surface-shadow-strong), var(--threedee-panel-edge);
+}
+
+[data-theme="threedee"] .chat-theme-option,
+[data-theme="threedee"] .personality-option,
+[data-theme="threedee"] .session-item,
+[data-theme="threedee"] .integration-item {
+    transform-style: preserve-3d;
+    transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+[data-theme="threedee"] .chat-theme-option:hover,
+[data-theme="threedee"] .personality-option:hover,
+[data-theme="threedee"] .session-item:hover,
+[data-theme="threedee"] .integration-item:hover {
+    transform: translateZ(12px) rotateX(-2deg);
+    border-color: rgba(129, 140, 248, 0.34);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="threedee"] .session-edge-tab,
+[data-theme="threedee"] .integrations-edge-tab,
+[data-theme="threedee"] .chat-theme-btn,
+[data-theme="threedee"] .btn-speaker,
+[data-theme="threedee"] .select-personality,
+[data-theme="threedee"] .mood-toggle,
+[data-theme="threedee"] .btn-header,
+[data-theme="threedee"] .btn-send,
+[data-theme="threedee"] .btn-voice,
+[data-theme="threedee"] .btn-more,
+[data-theme="threedee"] .composer-tool-btn,
+[data-theme="threedee"] .modal-btn,
+[data-theme="threedee"] .scroll-to-bottom-btn,
+[data-theme="threedee"] .integration-open,
+[data-theme="threedee"] .session-new-btn {
+    transform-style: preserve-3d;
+    border-color: rgba(129, 140, 248, 0.24);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    transition: transform 0.18s ease, box-shadow 0.24s ease, background 0.24s ease, color 0.24s ease;
+}
+
+[data-theme="threedee"] .chat-theme-btn:hover,
+[data-theme="threedee"] .btn-speaker:hover,
+[data-theme="threedee"] .select-personality:hover,
+[data-theme="threedee"] .mood-toggle:hover,
+[data-theme="threedee"] .btn-header:hover,
+[data-theme="threedee"] .btn-voice:hover,
+[data-theme="threedee"] .btn-more:hover,
+[data-theme="threedee"] .composer-tool-btn:hover,
+[data-theme="threedee"] .modal-btn:hover,
+[data-theme="threedee"] .scroll-to-bottom-btn:hover,
+[data-theme="threedee"] .integration-open:hover,
+[data-theme="threedee"] .session-new-btn:hover {
+    transform: translateY(-2px) translateZ(12px) rotateX(-3deg);
+    box-shadow:
+        0 16px 34px rgba(0, 0, 0, 0.36),
+        0 0 24px rgba(129, 140, 248, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="threedee"] .btn-send:active,
+[data-theme="threedee"] .btn-voice:active,
+[data-theme="threedee"] .btn-more:active,
+[data-theme="threedee"] .composer-tool-btn:active,
+[data-theme="threedee"] .modal-btn:active,
+[data-theme="threedee"] .integration-open:active,
+[data-theme="threedee"] .session-new-btn:active {
+    transform: perspective(200px) rotateX(5deg) scale(0.94);
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="threedee"] .session-edge-tab {
+    transform: translateY(-50%) perspective(220px) rotateY(0deg);
+    transform-origin: left center;
+}
+
+[data-theme="threedee"] .session-edge-tab:hover,
+[data-theme="threedee"] .session-edge-tab:focus-visible {
+    transform: translateY(-50%) perspective(220px) rotateY(-15deg) translateZ(10px);
+    box-shadow: 7px 0 26px rgba(0, 0, 0, 0.38), 0 0 24px rgba(129, 140, 248, 0.22);
+}
+
+[data-theme="threedee"] .integrations-edge-tab {
+    transform: translateY(-50%) perspective(220px) rotateY(0deg);
+    transform-origin: right center;
+}
+
+[data-theme="threedee"] .integrations-edge-tab:hover,
+[data-theme="threedee"] .integrations-edge-tab:focus-visible {
+    transform: translateY(-50%) perspective(220px) rotateY(15deg) translateZ(10px);
+    box-shadow: -7px 0 26px rgba(0, 0, 0, 0.38), 0 0 24px rgba(129, 140, 248, 0.22);
+}
+
+[data-theme="threedee"] .session-drawer,
+[data-theme="threedee"] .integrations-drawer {
+    transform-style: preserve-3d;
+    transition: transform 0.42s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.32s ease;
+}
+
+[data-theme="threedee"] .session-drawer {
+    transform: translateX(-105%) perspective(1000px) rotateY(-18deg);
+    transform-origin: left center;
+}
+
+[data-theme="threedee"] .session-drawer.open {
+    transform: translateX(0) perspective(1000px) rotateY(0deg);
+}
+
+[data-theme="threedee"] .integrations-drawer {
+    transform: translateX(105%) perspective(1000px) rotateY(18deg);
+    transform-origin: right center;
+}
+
+[data-theme="threedee"] .integrations-drawer.open {
+    transform: translateX(0) perspective(1000px) rotateY(0deg);
+}
+
+[data-theme="threedee"] .session-backdrop.active,
+[data-theme="threedee"] .integrations-backdrop.active,
+[data-theme="threedee"] .modal-overlay.active {
+    background: rgba(2, 6, 16, 0.62);
+    backdrop-filter: blur(4px);
+}
+
+[data-theme="threedee"] .modal-card {
+    transform-style: preserve-3d;
+    animation: threedeeModalIn 0.42s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+[data-theme="threedee"] #chat-robot-mascot {
+    transform-style: preserve-3d;
+    filter: drop-shadow(0 0 20px rgba(129, 140, 248, 0.42));
+    animation: threedeeRobotFloat 6s ease-in-out infinite;
+}
+
+[data-theme="threedee"] .typing-indicator,
+[data-theme="threedee"] .thinking-card,
+[data-theme="threedee"] .tool-output-block,
+[data-theme="threedee"] .status-pill,
+[data-theme="threedee"] .pill {
+    border-color: rgba(129, 140, 248, 0.22);
+    background: rgba(13, 20, 36, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="threedee"] .chat-ui-icon {
+    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.25));
+}
+
+#threedee-overlay {
+    pointer-events: none;
+}
+
+@keyframes threedeeMenuIn {
+    from {
+        opacity: 0;
+        transform: perspective(600px) rotateX(-25deg) translateZ(-30px) scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: perspective(600px) rotateX(0deg) translateZ(0) scale(1);
+    }
+}
+
+@keyframes threedeeModalIn {
+    from {
+        opacity: 0;
+        transform: perspective(900px) rotateX(12deg) translateY(22px) translateZ(-40px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: perspective(900px) rotateX(0deg) translateY(0) translateZ(0) scale(1);
+    }
+}
+
+@keyframes threedeeRobotFloat {
+    0%, 100% { transform: translateZ(0) rotateY(0deg); }
+    25% { transform: translateZ(15px) rotateY(5deg); }
+    50% { transform: translateZ(0) rotateY(0deg); }
+    75% { transform: translateZ(10px) rotateY(-5deg); }
+}
+
+@media (max-width: 767px) {
+    [data-theme="threedee"] #chat-box {
+        perspective: 900px;
+    }
+
+    [data-theme="threedee"] .msg-row:hover .bubble,
+    [data-theme="threedee"] .chat-theme-option:hover,
+    [data-theme="threedee"] .personality-option:hover,
+    [data-theme="threedee"] .session-item:hover,
+    [data-theme="threedee"] .integration-item:hover {
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="threedee"] *,
+    [data-theme="threedee"] *::before,
+    [data-theme="threedee"] *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    [data-theme="threedee"] .msg-row,
+    [data-theme="threedee"] .bubble,
+    [data-theme="threedee"] #chat-robot-mascot {
+        transform: none !important;
+        filter: none !important;
+    }
+}

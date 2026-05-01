@@ -1333,6 +1333,7 @@ const THEME_ICON_KEYS = {
     'ocean': 'theme-ocean',
     'sandstorm': 'theme-sandstorm',
     'papyrus': 'theme-papyrus',
+    'threedee': 'theme-threedee',
     'black-matrix': 'theme-black-matrix'
 };
 

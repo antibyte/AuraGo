@@ -700,14 +700,14 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	if strings.Contains(iconsJS, "sourceSlot: ") {
 		t.Fatalf("%s still maps chat UI icons to activity sprite source slots", iconsPath)
 	}
-	if got := strings.Count(iconsJS, "shape: "); got != 100 {
-		t.Fatalf("%s has %d explicit icon shapes, want 100", iconsPath, got)
+	if got := strings.Count(iconsJS, "shape: "); got != 101 {
+		t.Fatalf("%s has %d explicit icon shapes, want 101", iconsPath, got)
 	}
 
 	requiredIconKeys := []string{
 		"robot", "user", "bot", "conversation", "speaker", "speaker-muted", "credit-card",
 		"theme-dark", "theme-light", "theme-retro-crt", "theme-cyberwar", "theme-lollipop",
-		"theme-dark-sun", "theme-ocean", "theme-sandstorm", "theme-papyrus", "theme-black-matrix",
+		"theme-dark-sun", "theme-ocean", "theme-sandstorm", "theme-papyrus", "theme-threedee", "theme-black-matrix",
 		"mood-brain", "mood-curious", "mood-focused", "mood-creative", "mood-analytical",
 		"mood-cautious", "mood-playful", "warning", "close", "new-chat", "voice", "clear",
 		"attach", "clipboard", "bell", "feedback", "stop", "send", "more", "positive",
@@ -728,8 +728,8 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list chat UI icon files: %v", err)
 	}
-	if len(iconFiles) != 100 {
-		t.Fatalf("%s has %d generated PNG icons, want 100", iconDir, len(iconFiles))
+	if len(iconFiles) != 101 {
+		t.Fatalf("%s has %d generated PNG icons, want 101", iconDir, len(iconFiles))
 	}
 	for _, iconPath := range iconFiles {
 		assertPNGIcon(t, iconPath, 128, 128)

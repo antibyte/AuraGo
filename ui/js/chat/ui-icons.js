@@ -8,6 +8,7 @@
         { key: 'theme-dark', label: 'Dark theme', shape: 'moon-stars', color: '#6d7cff', aliases: ['dark'] },
         { key: 'code', label: 'Code', shape: 'code-brackets', color: '#38bdf8', aliases: [] },
         { key: 'robot', label: 'Robot', shape: 'robot', color: '#22d3ee', aliases: ['logo', 'agent'] },
+        { key: 'theme-threedee', label: 'ThreeDee theme', shape: 'cube-3d', color: '#818cf8', aliases: ['threedee'] },
         { key: 'theme-black-matrix', label: 'Black Matrix theme', shape: 'matrix-grid', color: '#22c55e', aliases: ['black-matrix'] },
         { key: 'play', label: 'Play', shape: 'play', color: '#2dd4bf', aliases: ['resume'] },
         { key: 'blocked', label: 'Blocked', shape: 'lock', color: '#f97316', aliases: ['lock'] },

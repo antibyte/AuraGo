@@ -349,8 +349,8 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
-// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'black-matrix'
-const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'black-matrix'];
+// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'threedee', 'black-matrix'
+const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm', 'papyrus', 'threedee', 'black-matrix'];
 const DEFAULT_CHAT_THEME = 'dark';
 
 // Debounce lock: prevents double-click from toggling back immediately
@@ -405,7 +405,7 @@ function getCurrentChatTheme() {
 
 /**
  * Swap highlight.js theme stylesheet based on active theme.
- * dark/retro-crt/cyberwar/dark-sun/ocean/sandstorm/black-matrix -> github-dark, light/lollipop/papyrus -> github with CSS enhancement layers
+ * dark/retro-crt/cyberwar/dark-sun/ocean/sandstorm/threedee/black-matrix -> github-dark, light/lollipop/papyrus -> github with CSS enhancement layers
  */
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');
@@ -433,6 +433,7 @@ var THEME_COLORS = {
     'ocean': '#091827',
     'sandstorm': '#1d140d',
     'papyrus': '#bca784',
+    'threedee': '#070b14',
     'black-matrix': '#030404'
 };
 
