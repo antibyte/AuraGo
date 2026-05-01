@@ -800,6 +800,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("mqtt_password", &c.MQTT.Password)
 	apply("adguard_password", &c.AdGuard.Password)
 	apply("uptime_kuma_api_key", &c.UptimeKuma.APIKey)
+	apply("grafana_api_key", &c.Grafana.APIKey)
 
 	// ── FritzBox ──
 	apply("fritzbox_password", &c.FritzBox.Password)

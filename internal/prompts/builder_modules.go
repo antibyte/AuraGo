@@ -516,6 +516,10 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 			if flags.UptimeKumaEnabled {
 				return true
 			}
+		case "grafana_enabled":
+			if flags.GrafanaEnabled {
+				return true
+			}
 		case "jellyfin_enabled":
 			if flags.JellyfinEnabled {
 				return true

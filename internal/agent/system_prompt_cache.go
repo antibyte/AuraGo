@@ -168,6 +168,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.UptimeKumaEnabled {
 		tools = append(tools, "uptimekuma")
 	}
+	if flags.GrafanaEnabled {
+		tools = append(tools, "grafana")
+	}
 	if flags.MCPEnabled {
 		tools = append(tools, "mcp")
 	}

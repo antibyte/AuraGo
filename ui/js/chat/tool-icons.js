@@ -54,7 +54,7 @@
         { slot: 51, key: 'cloudflare_tunnel', label: 'Cloudflare tunnel', row: 5, col: 1, aliases: Object.freeze([]) },
         { slot: 52, key: 'adguard', label: 'AdGuard', row: 5, col: 2, aliases: Object.freeze([]) },
         { slot: 53, key: 'uptime_kuma', label: 'Uptime Kuma', row: 5, col: 3, aliases: Object.freeze([]) },
-        { slot: 54, key: 'site_monitor', label: 'Site monitor', row: 5, col: 4, aliases: Object.freeze(['homepage', 'homepage_registry', 'homepage_local_server']) },
+        { slot: 54, key: 'grafana', label: 'Grafana', row: 5, col: 4, aliases: Object.freeze(['site_monitor', 'homepage', 'homepage_registry', 'homepage_local_server']) },
         { slot: 55, key: 'web_scraper', label: 'Web scraper', row: 5, col: 5, aliases: Object.freeze([]) },
         { slot: 56, key: 'web_capture', label: 'Web capture', row: 5, col: 6, aliases: Object.freeze([]) },
         { slot: 57, key: 'web_performance_audit', label: 'Performance', row: 5, col: 7, aliases: Object.freeze(['web_performance']) },

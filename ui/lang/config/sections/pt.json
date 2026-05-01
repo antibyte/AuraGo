@@ -161,6 +161,8 @@
   "config.section.github.label": "GitHub",
   "config.section.google_workspace.desc": "Integração com Google Gmail, Agenda, Drive, Docs e Sheets",
   "config.section.google_workspace.label": "Google Workspace",
+  "config.section.grafana.desc": "Painéis de observabilidade, fontes de dados e alertas",
+  "config.section.grafana.label": "Grafana",
   "config.section.home_assistant.desc": "Integração com Home Assistant",
   "config.section.home_assistant.label": "Home Assistant",
   "config.section.homepage.circuit_breaker_max_calls": "Máx. chamadas Circuit Breaker",

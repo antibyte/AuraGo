@@ -1299,6 +1299,7 @@ var vaultKeyMap = map[string]string{
 	"notifications.pushover.app_token": "pushover_app_token",
 	"adguard.password":                 "adguard_password",
 	"uptime_kuma.api_key":              "uptime_kuma_api_key",
+	"grafana.api_key":                  "grafana_api_key",
 	"egg_mode.shared_key":              "egg_shared_key",
 	"google_workspace.client_secret":   "google_workspace_client_secret",
 	"onedrive.client_secret":           "onedrive_client_secret",

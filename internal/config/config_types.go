@@ -1450,6 +1450,9 @@ type Config struct {
 	// Uptime Kuma monitoring integration
 	UptimeKuma UptimeKumaConfig `yaml:"uptime_kuma"`
 
+	// Grafana observability integration
+	Grafana GrafanaConfig `yaml:"grafana"`
+
 	// Jellyfin media server integration
 	Jellyfin JellyfinConfig `yaml:"jellyfin"`
 
@@ -1503,6 +1506,16 @@ type UptimeKumaConfig struct {
 	PollIntervalSeconds int    `yaml:"poll_interval_seconds"`
 	RelayToAgent        bool   `yaml:"relay_to_agent"`
 	RelayInstruction    string `yaml:"relay_instruction"`
+}
+
+// GrafanaConfig holds configuration for the read-only Grafana integration.
+type GrafanaConfig struct {
+	Enabled        bool   `yaml:"enabled"`
+	BaseURL        string `yaml:"base_url"`
+	ReadOnly       bool   `yaml:"readonly"`
+	InsecureSSL    bool   `yaml:"insecure_ssl"`
+	RequestTimeout int    `yaml:"request_timeout"`
+	APIKey         string `yaml:"-" json:"-"` // vault-only: grafana_api_key
 }
 
 // JellyfinConfig holds configuration for Jellyfin media server integration.

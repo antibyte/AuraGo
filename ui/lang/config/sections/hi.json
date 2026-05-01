@@ -161,6 +161,8 @@
   "config.section.github.label": "गिटहब",
   "config.section.google_workspace.desc": "Google Gmail, कैलेंडर, Drive, Docs और Sheets एकीकरण",
   "config.section.google_workspace.label": "Google Workspace",
+  "config.section.grafana.desc": "ऑब्जर्वेबिलिटी डैशबोर्ड, डेटा स्रोत और अलर्ट",
+  "config.section.grafana.label": "Grafana",
   "config.section.home_assistant.desc": "स्मार्ट होम एकीकरण",
   "config.section.home_assistant.label": "गृह सहायक",
   "config.section.homepage.circuit_breaker_max_calls": "अधिकतम सर्किट ब्रेकर कॉल",

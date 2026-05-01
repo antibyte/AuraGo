@@ -133,6 +133,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"wake_on_lan", "Send Wake-on-LAN magic packets to devices"},
 		{"adguard", "Manage AdGuard Home DNS: filtering, rewrites, DHCP, clients"},
 		{"uptime_kuma", "Read monitor health and outages from Uptime Kuma"},
+		{"grafana", "Read Grafana dashboards, data sources, alerts, health, and org info"},
 	},
 	"infrastructure": {
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},

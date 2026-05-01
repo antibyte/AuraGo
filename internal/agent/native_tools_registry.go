@@ -65,7 +65,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
-		AdGuardEnabled: true, UptimeKumaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
 		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, RemoteControlEnabled: true,
@@ -124,6 +124,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
 	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)
+	appendToolFeatureKeyPart("grafana", ff.GrafanaEnabled)
 	appendToolFeatureKeyPart("mcp", ff.MCPEnabled)
 	appendToolFeatureKeyPart("sandbox", ff.SandboxEnabled)
 	appendToolFeatureKeyPart("meshcentral", ff.MeshCentralEnabled)

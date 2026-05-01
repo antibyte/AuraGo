@@ -78,6 +78,7 @@ var blockedSecretExact = map[string]struct{}{
 	"jellyfin_api_key":            {},
 	"obsidian_api_key":            {},
 	"uptime_kuma_api_key":         {},
+	"grafana_api_key":             {},
 	"yepapi_api_key":              {},
 }
 

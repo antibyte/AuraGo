@@ -294,6 +294,10 @@ func Load(path string) (*Config, error) {
 	cfg.UptimeKuma.PollIntervalSeconds = 30
 	cfg.UptimeKuma.RelayInstruction = ""
 
+	// Grafana defaults: read-only observability access when explicitly enabled.
+	cfg.Grafana.RequestTimeout = 15
+	cfg.Grafana.ReadOnly = true
+
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false
 	cfg.LDAP.ReadOnly = true
@@ -1232,6 +1236,11 @@ func (c *Config) Save(path string) error {
 		{[]string{"uptime_kuma", "poll_interval_seconds"}, c.UptimeKuma.PollIntervalSeconds},
 		{[]string{"uptime_kuma", "relay_to_agent"}, c.UptimeKuma.RelayToAgent},
 		{[]string{"uptime_kuma", "relay_instruction"}, c.UptimeKuma.RelayInstruction},
+		{[]string{"grafana", "enabled"}, c.Grafana.Enabled},
+		{[]string{"grafana", "base_url"}, c.Grafana.BaseURL},
+		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
+		{[]string{"grafana", "insecure_ssl"}, c.Grafana.InsecureSSL},
+		{[]string{"grafana", "request_timeout"}, c.Grafana.RequestTimeout},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

@@ -560,6 +560,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"a2a":              cfg.A2A.Server.Enabled,
 			"adguard":          cfg.AdGuard.Enabled,
 			"uptime_kuma":      cfg.UptimeKuma.Enabled,
+			"grafana":          cfg.Grafana.Enabled,
 			"s3":               cfg.S3.Enabled,
 			"mcp":              cfg.MCP.Enabled,
 			"mcp_server":       cfg.MCPServer.Enabled,

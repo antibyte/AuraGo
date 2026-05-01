@@ -78,6 +78,7 @@ type ToolFeatureFlags struct {
 	MQTTEnabled             bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool
+	GrafanaEnabled          bool
 	MCPEnabled              bool
 	SandboxEnabled          bool
 	MeshCentralEnabled      bool

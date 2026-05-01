@@ -731,6 +731,21 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			}, "operation"),
 		))
 	}
+	if ff.GrafanaEnabled {
+		tools = append(tools, tool("grafana",
+			"Read Grafana observability data. Supports: health, list_dashboards, get_dashboard, list_datasources, query, list_alerts, get_org.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"health", "list_dashboards", "get_dashboard", "list_datasources", "query", "list_alerts", "get_org"},
+				},
+				"query":         prop("string", "Search query for list_dashboards or expression for query"),
+				"uid":           prop("string", "Dashboard UID for get_dashboard"),
+				"datasource_id": map[string]interface{}{"type": "integer", "description": "Grafana datasource ID for query"},
+			}, "operation"),
+		))
+	}
 	if ff.GoogleWorkspaceEnabled {
 		tools = append(tools, tool("google_workspace",
 			"Interact with Google Workspace services (Gmail, Calendar, Drive, Docs, Sheets). "+

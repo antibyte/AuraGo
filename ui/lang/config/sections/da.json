@@ -161,6 +161,8 @@
   "config.section.github.label": "GitHub",
   "config.section.google_workspace.desc": "Google Gmail, Kalender, Drev, Docs & Regneark integration",
   "config.section.google_workspace.label": "Google Workspace",
+  "config.section.grafana.desc": "Observability-dashboards, datakilder og alarmer",
+  "config.section.grafana.label": "Grafana",
   "config.section.home_assistant.desc": "Smart home integration",
   "config.section.home_assistant.label": "Hjemmeassistent",
   "config.section.homepage.circuit_breaker_max_calls": "Maks. Circuit Breaker kald",

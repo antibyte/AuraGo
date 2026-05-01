@@ -105,6 +105,7 @@ func countAdaptivePromptBudgetIntegrations(cfg *Config) int {
 		cfg.Netlify.Enabled,
 		cfg.AdGuard.Enabled,
 		cfg.UptimeKuma.Enabled,
+		cfg.Grafana.Enabled,
 		cfg.MQTT.Enabled,
 		cfg.GoogleWorkspace.Enabled,
 		cfg.OneDrive.Enabled,

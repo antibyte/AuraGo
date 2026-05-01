@@ -172,6 +172,7 @@ const SECTIONS = [
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
+            { key: 'grafana', icon: '📊', label: t('config.section.grafana.label'), desc: t('config.section.grafana.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
             { key: 'ansible', icon: '⚙️', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') }
         ]
@@ -1766,6 +1767,7 @@ const SECTION_MODULES = {
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     uptime_kuma: { m: 'uptime_kuma', fn: 'renderUptimeKumaSection' },
+    grafana: { m: 'grafana', fn: 'renderGrafanaSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },

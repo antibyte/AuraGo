@@ -161,6 +161,8 @@
   "config.section.github.label": "GitHub",
   "config.section.google_workspace.desc": "Google Gmail、カレンダー、ドライブ、ドキュメント & スプレッドシートの統合",
   "config.section.google_workspace.label": "Google Workspace",
+  "config.section.grafana.desc": "可観測性ダッシュボード、データソース、アラート",
+  "config.section.grafana.label": "Grafana",
   "config.section.home_assistant.desc": "スマートホームインテグレーション",
   "config.section.home_assistant.label": "Home Assistant",
   "config.section.homepage.circuit_breaker_max_calls": "サーキットブレーカー最大呼び出し数",

@@ -655,6 +655,13 @@ uptime_kuma:
     relay_to_agent: false         # wake the agent on UP/DOWN transitions
     relay_instruction: ""         # optional instruction passed to the agent with outage transition events
     # API key is stored in the vault as uptime_kuma_api_key
+grafana:
+    enabled: false
+    base_url: ""                  # e.g. http://grafana.local:3000
+    readonly: true                 # read-only mode; v1 only performs read operations
+    insecure_ssl: false           # accept self-signed certificates
+    request_timeout: 15           # request timeout in seconds
+    # API key is stored in the vault as grafana_api_key
 obsidian:
     enabled: false
     readonly: false                 # read-only mode: only read/search operations allowed

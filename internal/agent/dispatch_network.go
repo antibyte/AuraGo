@@ -385,6 +385,44 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown uptime_kuma operation '%s'. Use: summary, list_monitors, get_monitor"}`, op)
 			}
 
+		case "grafana":
+			if !cfg.Grafana.Enabled {
+				return `Tool Output: {"status":"error","message":"Grafana is not enabled. Configure the grafana section in config.yaml."}`
+			}
+			req := decodeGrafanaArgs(tc)
+			gfCfg := tools.GrafanaConfig{
+				BaseURL:        cfg.Grafana.BaseURL,
+				APIKey:         cfg.Grafana.APIKey,
+				InsecureSSL:    cfg.Grafana.InsecureSSL,
+				RequestTimeout: cfg.Grafana.RequestTimeout,
+			}
+			op := strings.ToLower(strings.TrimSpace(req.Operation))
+			switch op {
+			case "health":
+				logger.Info("LLM requested Grafana health")
+				return "Tool Output: " + tools.GrafanaHealthJSON(context.Background(), gfCfg)
+			case "list_dashboards":
+				logger.Info("LLM requested Grafana dashboards")
+				return "Tool Output: " + tools.GrafanaListDashboardsJSON(context.Background(), gfCfg, req.Query)
+			case "get_dashboard":
+				logger.Info("LLM requested Grafana dashboard", "uid", req.UID)
+				return "Tool Output: " + tools.GrafanaGetDashboardJSON(context.Background(), gfCfg, req.UID)
+			case "list_datasources":
+				logger.Info("LLM requested Grafana datasources")
+				return "Tool Output: " + tools.GrafanaListDatasourcesJSON(context.Background(), gfCfg)
+			case "query":
+				logger.Info("LLM requested Grafana datasource query", "datasource_id", req.DatasourceID)
+				return "Tool Output: " + tools.GrafanaQueryDatasourceJSON(context.Background(), gfCfg, req.DatasourceID, req.Query)
+			case "list_alerts":
+				logger.Info("LLM requested Grafana alerts")
+				return "Tool Output: " + tools.GrafanaListAlertsJSON(context.Background(), gfCfg)
+			case "get_org":
+				logger.Info("LLM requested Grafana org")
+				return "Tool Output: " + tools.GrafanaGetOrgJSON(context.Background(), gfCfg)
+			default:
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown grafana operation '%s'. Use: health, list_dashboards, get_dashboard, list_datasources, query, list_alerts, get_org"}`, op)
+			}
+
 		case "fritzbox", "fritzbox_system", "fritzbox_network", "fritzbox_telephony", "fritzbox_smarthome", "fritzbox_storage", "fritzbox_tv":
 			if !cfg.FritzBox.Enabled {
 				return `Tool Output: {"status":"error","message":"Fritz!Box integration is not enabled. Set fritzbox.enabled=true in config.yaml."}`

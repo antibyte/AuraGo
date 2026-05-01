@@ -163,6 +163,13 @@ type uptimeKumaArgs struct {
 	MonitorName string
 }
 
+type grafanaArgs struct {
+	Operation    string
+	Query        string
+	UID          string
+	DatasourceID int64
+}
+
 type sqlQueryArgs struct {
 	Operation      string
 	ConnectionName string
@@ -325,6 +332,15 @@ func decodeUptimeKumaArgs(tc ToolCall) uptimeKumaArgs {
 	return uptimeKumaArgs{
 		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		MonitorName: firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "monitor_name", "name")),
+	}
+}
+
+func decodeGrafanaArgs(tc ToolCall) grafanaArgs {
+	return grafanaArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:        firstNonEmptyToolString(tc.Query, tc.Content, toolArgString(tc.Params, "query", "expr")),
+		UID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "uid", "dashboard_uid")),
+		DatasourceID: int64(firstNonEmptyInt(toolArgInt(tc.Params, 0, "datasource_id", "ds_id"))),
 	}
 }
 
