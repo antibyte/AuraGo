@@ -486,6 +486,9 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.SpaceAgent.PublicURL != "" {
 		t.Fatalf("public_url = %q, want empty direct-URL derivation default", cfg.SpaceAgent.PublicURL)
 	}
+	if cfg.Tailscale.TsNet.SpaceAgentHostname != "aurago-space-agent" {
+		t.Fatalf("tailscale.tsnet.space_agent_hostname = %q, want aurago-space-agent", cfg.Tailscale.TsNet.SpaceAgentHostname)
+	}
 	if !filepath.IsAbs(cfg.SpaceAgent.CustomwarePath) || !strings.Contains(cfg.SpaceAgent.CustomwarePath, filepath.Join("data", "sidecars", "space-agent", "customware")) {
 		t.Fatalf("customware_path = %q, want absolute sidecar customware path", cfg.SpaceAgent.CustomwarePath)
 	}
@@ -978,6 +981,7 @@ func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	cfg.SpaceAgent.AdminPassword = "space-admin-secret"
 	cfg.SpaceAgent.BridgeToken = "space-bridge-secret"
 	cfg.Tailscale.TsNet.ExposeSpaceAgent = true
+	cfg.Tailscale.TsNet.SpaceAgentHostname = "aurago-space-agent"
 
 	if err := cfg.Save(configPath); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -1001,6 +1005,9 @@ func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	}
 	if !strings.Contains(got, "expose_space_agent: true") {
 		t.Fatalf("expected Tailscale Space Agent exposure setting to be serialized, got:\n%s", got)
+	}
+	if !strings.Contains(got, "space_agent_hostname: aurago-space-agent") {
+		t.Fatalf("expected Tailscale Space Agent hostname setting to be serialized, got:\n%s", got)
 	}
 }
 

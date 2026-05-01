@@ -81,6 +81,8 @@
   "config.tailscale.tsnet_homepage_url_label": "首页 URL",
   "config.tailscale.tsnet_hostname_hint": "您的 tailnet 中使用的主机名（例如 aurago → aurago.tailnet-name.ts.net）",
   "config.tailscale.tsnet_hostname_label": "主机名",
+  "config.tailscale.tsnet_space_agent_hostname_label": "Space Agent 主机名",
+  "config.tailscale.tsnet_space_agent_hostname_hint": "Space Agent 专用的 MagicDNS 主机名，例如 aurago-space-agent.tailnet.ts.net。",
   "config.tailscale.tsnet_http_fallback_notice": "正在HTTP模式下运行（端口80）— 请在Tailscale管理面板中启用HTTPS以进行加密访问。",
   "config.tailscale.tsnet_https_requirements": "通过 Tailscale 的 HTTPS 需要在该节点的 Tailscale 管理面板中启用 MagicDNS 以及 HTTPS 证书。如果证书尚不可用，AuraGo 将回退到 80 端口的 HTTP。",
   "config.tailscale.tsnet_needs_login": "需要身份验证 – 打开链接以连接到您的 Tailscale 网络",

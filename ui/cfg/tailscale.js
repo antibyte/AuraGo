@@ -63,6 +63,13 @@ async function renderTailscaleSection(section) {
         </label>`;
 
         html += `<label class="ts-label-block">
+            <span class="ts-toggle-label">${t('config.tailscale.tsnet_space_agent_hostname_label')}</span>
+            <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.space_agent_hostname" value="${escapeAttr(tsnet.space_agent_hostname || ((tsnet.hostname || 'aurago') + '-space-agent'))}"
+                placeholder="aurago-space-agent">
+            <small class="ts-hint">${t('config.tailscale.tsnet_space_agent_hostname_hint')}</small>
+        </label>`;
+
+        html += `<label class="ts-label-block">
             <span class="ts-toggle-label">${t('config.tailscale.tsnet_state_dir_label')}</span>
             <input type="text" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.state_dir" value="${escapeAttr(tsnet.state_dir || '')}"
                 placeholder="data/tsnet">

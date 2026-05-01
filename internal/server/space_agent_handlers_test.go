@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/tsnetnode"
 )
 
 func TestHandleSpaceAgentStatusDisabled(t *testing.T) {
@@ -182,6 +183,42 @@ func TestHandleIntegrationWebhostsDerivesDirectURLFromForwardedHost(t *testing.T
 	}
 	if resp.Webhosts[0].URL != "https://aurago.taild1480.ts.net:3101" {
 		t.Fatalf("url = %q, want direct forwarded-host URL", resp.Webhosts[0].URL)
+	}
+}
+
+func TestHandleIntegrationWebhostsUsesDedicatedTailscaleSpaceAgentHost(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.HTTPSEnabled = true
+	cfg.SpaceAgent.HTTPSPort = 3101
+	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeSpaceAgent = true
+	cfg.Tailscale.TsNet.Hostname = "aurago"
+	cfg.Tailscale.TsNet.SpaceAgentHostname = "aurago-space-agent"
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].URL != "https://aurago-space-agent.taild1480.ts.net" {
+		t.Fatalf("url = %q, want dedicated Tailscale Space Agent host", resp.Webhosts[0].URL)
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ type Status struct {
 	ServingHTTP       bool     `json:"serving_http"`                  // true when AuraGo itself is exposed on 443/80
 	HomepageServing   bool     `json:"homepage_serving,omitempty"`    // true when Homepage/Caddy is exposed on 8443
 	SpaceAgentServing bool     `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
+	SpaceAgentDNS     string   `json:"space_agent_dns,omitempty"`     // MagicDNS name of the dedicated Space Agent node
 	HTTPFallback      bool     `json:"http_fallback,omitempty"`       // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
 	FunnelActive      bool     `json:"funnel_active,omitempty"`       // true when the AuraGo listener is exposed via Funnel
 	Hostname          string   `json:"hostname,omitempty"`
@@ -42,23 +44,25 @@ type Manager struct {
 	cfg    *config.Config
 	logger *slog.Logger
 
-	mu            sync.Mutex
-	server        *tsnet.Server
-	listener      net.Listener // main listener (Funnel or TLS)
-	tailnetLn     net.Listener // secondary direct-tailnet TLS listener when Funnel is active
-	httpSrv       *http.Server
-	homepageLn    net.Listener
-	homepageSrv   *http.Server
-	spaceAgentLn  net.Listener
-	spaceAgentSrv *http.Server
-	running       bool
-	starting      bool // true while Start() is blocked waiting for tsnet auth / certs
-	servingHTTP   bool // true when an HTTP/HTTPS listener is active
-	homepageUp    bool // true when the homepage proxy listener is active
-	spaceAgentUp  bool // true when the Space Agent proxy listener is active
-	httpFallback  bool // true when serving HTTP (no TLS) instead of HTTPS
-	funnelActive  bool // true when the AuraGo listener is exposed via Tailscale Funnel
-	lastErr       string
+	mu             sync.Mutex
+	server         *tsnet.Server
+	listener       net.Listener // main listener (Funnel or TLS)
+	tailnetLn      net.Listener // secondary direct-tailnet TLS listener when Funnel is active
+	httpSrv        *http.Server
+	homepageLn     net.Listener
+	homepageSrv    *http.Server
+	spaceAgentNode *tsnet.Server
+	spaceAgentLn   net.Listener
+	spaceAgentSrv  *http.Server
+	spaceAgentHost string
+	running        bool
+	starting       bool // true while Start() is blocked waiting for tsnet auth / certs
+	servingHTTP    bool // true when an HTTP/HTTPS listener is active
+	homepageUp     bool // true when the homepage proxy listener is active
+	spaceAgentUp   bool // true when the dedicated Space Agent node is active
+	httpFallback   bool // true when serving HTTP (no TLS) instead of HTTPS
+	funnelActive   bool // true when the AuraGo listener is exposed via Tailscale Funnel
+	lastErr        string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -82,6 +86,34 @@ func (m *Manager) UpdateConfig(cfg *config.Config) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cfg = cfg
+}
+
+func (m *Manager) makeLoginAwareLogFunc(debug bool) func(string, ...any) {
+	return func(format string, args ...any) {
+		msg := fmt.Sprintf(format, args...)
+		if strings.Contains(msg, "login.tailscale.com") {
+			url := extractLoginURL(msg)
+			m.loginMu.Lock()
+			if url != "" && url != m.loginURL {
+				m.loginURL = url
+				m.loginURLSeen = false
+			}
+			should := !m.loginURLSeen
+			if should {
+				m.loginURLSeen = true
+			}
+			m.loginMu.Unlock()
+			if should {
+				m.logger.Warn("[tsnet] Authentication required – visit the URL in Tailscale settings to connect", "url", url)
+			}
+			return
+		}
+		if debug {
+			m.logger.Debug("[tsnet] " + msg)
+		} else {
+			m.logger.Info("[tsnet] " + msg)
+		}
+	}
 }
 
 // Start initializes the tsnet server and begins serving.
@@ -218,8 +250,10 @@ func (m *Manager) Start(handler http.Handler) error {
 		m.httpSrv = nil
 		m.homepageLn = nil
 		m.homepageSrv = nil
+		m.spaceAgentNode = nil
 		m.spaceAgentLn = nil
 		m.spaceAgentSrv = nil
+		m.spaceAgentHost = ""
 		m.running = true
 		m.starting = false
 		m.lastErr = ""
@@ -279,6 +313,9 @@ func (m *Manager) Stop() error {
 	if m.spaceAgentSrv != nil {
 		m.spaceAgentSrv.Shutdown(ctx)
 	}
+	if m.spaceAgentNode != nil {
+		m.spaceAgentNode.Close()
+	}
 	if m.server != nil {
 		m.server.Close()
 	}
@@ -290,8 +327,10 @@ func (m *Manager) Stop() error {
 	m.httpSrv = nil
 	m.homepageLn = nil
 	m.homepageSrv = nil
+	m.spaceAgentNode = nil
 	m.spaceAgentLn = nil
 	m.spaceAgentSrv = nil
+	m.spaceAgentHost = ""
 	m.servingHTTP = false
 	m.homepageUp = false
 	m.spaceAgentUp = false
@@ -348,6 +387,17 @@ func (m *Manager) GetStatus() Status {
 			}
 		}
 	}
+	if m.spaceAgentNode != nil {
+		lc, err := m.spaceAgentNode.LocalClient()
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			status, err := lc.Status(ctx)
+			if err == nil && status.Self != nil && status.Self.DNSName != "" {
+				st.SpaceAgentDNS = status.Self.DNSName
+			}
+		}
+	}
 
 	m.loginMu.Lock()
 	st.LoginURL = m.loginURL
@@ -372,6 +422,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	servingHTTP := m.servingHTTP
 	homepageUp := m.homepageUp
 	spaceAgentUp := m.spaceAgentUp
+	activeSpaceAgentHost := m.spaceAgentHost
 	funnelActive := m.funnelActive
 	m.mu.Unlock()
 
@@ -379,6 +430,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	wantFunnel := wantMain && m.cfg.Tailscale.TsNet.Funnel
 	wantHomepage := m.cfg.Tailscale.TsNet.ExposeHomepage && m.cfg.Homepage.WebServerEnabled && m.cfg.Homepage.WebServerPort > 0
 	wantSpaceAgent := m.cfg.Tailscale.TsNet.ExposeSpaceAgent && m.cfg.SpaceAgent.Enabled && m.cfg.SpaceAgent.Port > 0
+	desiredSpaceAgentHost := m.effectiveSpaceAgentHostname()
 
 	if servingHTTP && (!wantMain || funnelActive != wantFunnel) {
 		if err := m.stopMainListener(); err != nil {
@@ -393,7 +445,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 		}
 		homepageUp = false
 	}
-	if spaceAgentUp && !wantSpaceAgent {
+	if spaceAgentUp && (!wantSpaceAgent || activeSpaceAgentHost != desiredSpaceAgentHost) {
 		if err := m.stopSpaceAgentListener(); err != nil {
 			return err
 		}
@@ -414,7 +466,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 		}
 	}
 	if wantSpaceAgent && !spaceAgentUp {
-		if err := m.startSpaceAgentListener(srv); err != nil {
+		if err := m.startSpaceAgentListener(); err != nil {
 			m.logger.Warn("[tsnet] Space Agent exposure could not be started", "error", err)
 			m.mu.Lock()
 			m.lastErr = err.Error()
@@ -681,19 +733,55 @@ func (m *Manager) stopHomepageListener() error {
 	return nil
 }
 
-func (m *Manager) startSpaceAgentListener(srv *tsnet.Server) error {
-	port := m.cfg.SpaceAgent.HTTPSPort
-	if port <= 0 {
-		port = 3101
+func (m *Manager) effectiveSpaceAgentHostname() string {
+	hostname := strings.TrimSpace(m.cfg.Tailscale.TsNet.SpaceAgentHostname)
+	if hostname != "" {
+		return hostname
 	}
+	base := strings.TrimSpace(m.cfg.Tailscale.TsNet.Hostname)
+	if base == "" {
+		base = "aurago"
+	}
+	return base + "-space-agent"
+}
+
+func (m *Manager) startSpaceAgentListener() error {
 	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(m.cfg.SpaceAgent.Port))
 	if err != nil {
 		return fmt.Errorf("invalid Space Agent proxy target: %w", err)
 	}
 
-	ln, err := listenTLSWithTimeout(srv, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout)
+	tsCfg := m.cfg.Tailscale.TsNet
+	stateDir := tsCfg.StateDir
+	if stateDir == "" {
+		stateDir = "data/tsnet"
+	}
+	spaceStateDir := filepath.Join(stateDir, "space-agent")
+	if err := os.MkdirAll(spaceStateDir, 0o750); err != nil {
+		return fmt.Errorf("create Space Agent tsnet state directory: %w", err)
+	}
+	hostname := m.effectiveSpaceAgentHostname()
+	authKey := tsCfg.AuthKey
+	if authKey == "" {
+		authKey = os.Getenv("TS_AUTHKEY")
+	}
+	spaceNode := &tsnet.Server{
+		Hostname: hostname,
+		Dir:      spaceStateDir,
+		Logf:     m.makeLoginAwareLogFunc(true),
+		UserLogf: m.makeLoginAwareLogFunc(false),
+	}
+	if authKey != "" {
+		spaceNode.AuthKey = authKey
+	}
+	if err := spaceNode.Start(); err != nil {
+		return fmt.Errorf("start Space Agent tsnet node: %w", err)
+	}
+
+	ln, err := listenTLSWithTimeout(spaceNode, ":443", tsnetTLSStrictTimeout)
 	if err != nil {
-		return fmt.Errorf("Space Agent exposure requires Tailscale HTTPS on :%d: %w", port, err)
+		spaceNode.Close()
+		return fmt.Errorf("Space Agent exposure requires Tailscale HTTPS on dedicated hostname %q: %w", hostname, err)
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
@@ -717,13 +805,15 @@ func (m *Manager) startSpaceAgentListener(srv *tsnet.Server) error {
 	}
 
 	m.mu.Lock()
+	m.spaceAgentNode = spaceNode
 	m.spaceAgentLn = ln
 	m.spaceAgentSrv = spaceAgentSrv
+	m.spaceAgentHost = hostname
 	m.spaceAgentUp = true
 	m.mu.Unlock()
 
 	go func() {
-		m.logger.Info("tsnet Space Agent listener started", "protocol", "HTTPS", "target", targetURL.String(), "port", port)
+		m.logger.Info("tsnet Space Agent listener started", "protocol", "HTTPS", "hostname", hostname, "target", targetURL.String(), "port", 443)
 		if err := spaceAgentSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			m.logger.Error("tsnet Space Agent listener error", "error", err)
 			m.mu.Lock()
@@ -738,10 +828,13 @@ func (m *Manager) startSpaceAgentListener(srv *tsnet.Server) error {
 
 func (m *Manager) stopSpaceAgentListener() error {
 	m.mu.Lock()
+	spaceNode := m.spaceAgentNode
 	httpSrv := m.spaceAgentSrv
 	ln := m.spaceAgentLn
+	m.spaceAgentNode = nil
 	m.spaceAgentSrv = nil
 	m.spaceAgentLn = nil
+	m.spaceAgentHost = ""
 	m.spaceAgentUp = false
 	m.mu.Unlock()
 
@@ -751,6 +844,9 @@ func (m *Manager) stopSpaceAgentListener() error {
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			return fmt.Errorf("shutdown tsnet Space Agent listener: %w", err)
 		}
+	}
+	if spaceNode != nil {
+		spaceNode.Close()
 	}
 	if ln != nil {
 		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {

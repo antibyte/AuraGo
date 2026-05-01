@@ -482,6 +482,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			newCfg.ConfigPath = s.Cfg.ConfigPath
+			*s.Cfg = *newCfg
+			newCfg = s.Cfg
+			if s.TsNetManager != nil {
+				s.TsNetManager.UpdateConfig(s.Cfg)
+			}
 
 			// Reconfigure the live LLM client when model, API key, base URL,
 			// provider or fallback settings have changed. This ensures that model
@@ -792,6 +797,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			tsExposeChanged := oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP ||
 				oldCfg.Tailscale.TsNet.ExposeHomepage != newCfg.Tailscale.TsNet.ExposeHomepage ||
 				oldCfg.Tailscale.TsNet.ExposeSpaceAgent != newCfg.Tailscale.TsNet.ExposeSpaceAgent ||
+				oldCfg.Tailscale.TsNet.SpaceAgentHostname != newCfg.Tailscale.TsNet.SpaceAgentHostname ||
 				oldCfg.Tailscale.TsNet.Funnel != newCfg.Tailscale.TsNet.Funnel ||
 				oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled ||
 				oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort ||

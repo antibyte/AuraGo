@@ -396,6 +396,7 @@ func TestConfigFrontendTailscaleSpaceAgentKeysExist(t *testing.T) {
 	moduleJS := string(moduleContent)
 	for _, marker := range []string{
 		"tailscale.tsnet.expose_space_agent",
+		"tailscale.tsnet.space_agent_hostname",
 		"config.tailscale.tsnet_expose_space_agent_label",
 		"config.tailscale.tsnet_space_agent_url_label",
 	} {
@@ -410,6 +411,8 @@ func TestConfigFrontendTailscaleSpaceAgentKeysExist(t *testing.T) {
 		"config.tailscale.tsnet_space_agent_requires_enabled",
 		"config.tailscale.tsnet_space_agent_url_label",
 		"config.tailscale.tsnet_space_agent_pending_hint",
+		"config.tailscale.tsnet_space_agent_hostname_label",
+		"config.tailscale.tsnet_space_agent_hostname_hint",
 	}
 	files, err := filepath.Glob(filepath.Join("lang", "config", "tailscale", "*.json"))
 	if err != nil {

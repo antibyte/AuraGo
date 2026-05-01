@@ -81,6 +81,8 @@
   "config.tailscale.tsnet_homepage_url_label": "URL domovské stránky",
   "config.tailscale.tsnet_hostname_hint": "Název hostitele ve vašem tailnetu (např. aurago → aurago.tailnet-name.ts.net)",
   "config.tailscale.tsnet_hostname_label": "Název hostitele",
+  "config.tailscale.tsnet_space_agent_hostname_label": "Hostname pro Space Agent",
+  "config.tailscale.tsnet_space_agent_hostname_hint": "Samostatný MagicDNS hostname pro Space Agent, např. aurago-space-agent.tailnet.ts.net.",
   "config.tailscale.tsnet_http_fallback_notice": "Běží v HTTP režimu (port 80) — pro šifrovaný přístup povolte HTTPS v Tailscale admin panelu.",
   "config.tailscale.tsnet_https_requirements": "HTTPS přes Tailscale vyžaduje povolené MagicDNS a HTTPS certifikáty pro tento uzel v Tailscale admin panelu. Pokud certifikáty ještě nejsou k dispozici, AuraGo se vrátí k HTTP na portu 80.",
   "config.tailscale.tsnet_needs_login": "Vyžadováno ověření – otevřete odkaz pro připojení k síti Tailscale",

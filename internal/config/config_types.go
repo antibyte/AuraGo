@@ -1014,15 +1014,16 @@ type Config struct {
 		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
 		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
 		TsNet    struct {
-			Enabled           bool   `yaml:"enabled"`             // enable tsnet embedded Tailscale node (independent of API integration)
-			Hostname          string `yaml:"hostname"`            // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
-			StateDir          string `yaml:"state_dir"`           // persistent state directory (default: data/tsnet)
-			ServeHTTP         bool   `yaml:"serve_http"`          // expose AuraGo's web UI over the tailnet on 443/80
-			ExposeHomepage    bool   `yaml:"expose_homepage"`     // expose the Homepage/Caddy web server over the tailnet on 8443
-			ExposeSpaceAgent  bool   `yaml:"expose_space_agent"`  // expose the Space Agent HTTPS wrapper over the tailnet
-			Funnel            bool   `yaml:"funnel"`              // expose AuraGo publicly via Tailscale Funnel on 443
-			AllowHTTPFallback bool   `yaml:"allow_http_fallback"` // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
-			AuthKey           string `yaml:"-"`                   // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			Enabled            bool   `yaml:"enabled"`              // enable tsnet embedded Tailscale node (independent of API integration)
+			Hostname           string `yaml:"hostname"`             // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
+			StateDir           string `yaml:"state_dir"`            // persistent state directory (default: data/tsnet)
+			ServeHTTP          bool   `yaml:"serve_http"`           // expose AuraGo's web UI over the tailnet on 443/80
+			ExposeHomepage     bool   `yaml:"expose_homepage"`      // expose the Homepage/Caddy web server over the tailnet on 8443
+			ExposeSpaceAgent   bool   `yaml:"expose_space_agent"`   // expose the Space Agent HTTPS wrapper over the tailnet
+			SpaceAgentHostname string `yaml:"space_agent_hostname"` // MagicDNS hostname for the dedicated Space Agent tsnet node
+			Funnel             bool   `yaml:"funnel"`               // expose AuraGo publicly via Tailscale Funnel on 443
+			AllowHTTPFallback  bool   `yaml:"allow_http_fallback"`  // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
+			AuthKey            string `yaml:"-"`                    // tsnet auth key (vault-only: tailscale_tsnet_authkey)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {

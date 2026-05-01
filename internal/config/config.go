@@ -141,6 +141,19 @@ func sanitizeDockerTag(raw string) string {
 	return tag
 }
 
+func sanitizeTsnetHostname(raw string) string {
+	name := strings.ToLower(strings.TrimSpace(raw))
+	if name == "" {
+		return "aurago-space-agent"
+	}
+	name = regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(name, "-")
+	name = strings.Trim(name, "-")
+	if name == "" {
+		return "aurago-space-agent"
+	}
+	return name
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -1110,6 +1123,13 @@ func Load(path string) (*Config, error) {
 	if cfg.Tailscale.TsNet.StateDir == "" {
 		cfg.Tailscale.TsNet.StateDir = filepath.Join(cfg.Directories.DataDir, "tsnet")
 	}
+	if strings.TrimSpace(cfg.Tailscale.TsNet.SpaceAgentHostname) == "" {
+		base := strings.TrimSpace(cfg.Tailscale.TsNet.Hostname)
+		if base == "" {
+			base = "aurago"
+		}
+		cfg.Tailscale.TsNet.SpaceAgentHostname = sanitizeTsnetHostname(base + "-space-agent")
+	}
 
 	// Ansible defaults
 	if cfg.Ansible.Mode == "" {
@@ -1348,6 +1368,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"tailscale", "tsnet", "serve_http"}, c.Tailscale.TsNet.ServeHTTP},
 		{[]string{"tailscale", "tsnet", "expose_homepage"}, c.Tailscale.TsNet.ExposeHomepage},
 		{[]string{"tailscale", "tsnet", "expose_space_agent"}, c.Tailscale.TsNet.ExposeSpaceAgent},
+		{[]string{"tailscale", "tsnet", "space_agent_hostname"}, c.Tailscale.TsNet.SpaceAgentHostname},
 		{[]string{"tailscale", "tsnet", "funnel"}, c.Tailscale.TsNet.Funnel},
 		{[]string{"tailscale", "tsnet", "allow_http_fallback"}, c.Tailscale.TsNet.AllowHTTPFallback},
 		{[]string{"space_agent", "enabled"}, c.SpaceAgent.Enabled},

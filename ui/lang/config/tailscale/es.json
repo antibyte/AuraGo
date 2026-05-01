@@ -81,6 +81,8 @@
   "config.tailscale.tsnet_homepage_url_label": "URL de inicio",
   "config.tailscale.tsnet_hostname_hint": "El nombre de host en tu tailnet (ej. aurago → aurago.tailnet-name.ts.net)",
   "config.tailscale.tsnet_hostname_label": "Nombre de host",
+  "config.tailscale.tsnet_space_agent_hostname_label": "Hostname de Space Agent",
+  "config.tailscale.tsnet_space_agent_hostname_hint": "Hostname MagicDNS dedicado para Space Agent, por ejemplo aurago-space-agent.tailnet.ts.net.",
   "config.tailscale.tsnet_http_fallback_notice": "Ejecutándose en modo HTTP (puerto 80) — activa HTTPS en el panel de administración de Tailscale.",
   "config.tailscale.tsnet_https_requirements": "HTTPS sobre Tailscale requiere MagicDNS más certificados HTTPS habilitados para este nodo en el panel de administración de Tailscale. Si los certificados aún no están disponibles, AuraGo vuelve a HTTP en el puerto 80.",
   "config.tailscale.tsnet_needs_login": "Autenticación requerida – abre el enlace para conectarte a tu red Tailscale",

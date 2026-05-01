@@ -163,7 +163,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 					Name:        "Space Agent",
 					Description: "Managed Space Agent workspace",
 					Status:      status,
-					URL:         spaceAgentPublicURL(&cfg, r),
+					URL:         spaceAgentBrowserURL(s, &cfg, r),
 					Icon:        "space_agent",
 				})
 			}
@@ -183,7 +183,7 @@ func handleSpaceAgentLegacyRedirect(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		target := spaceAgentPublicURL(&cfg, r)
+		target := spaceAgentBrowserURL(s, &cfg, r)
 		if target == "" {
 			http.NotFound(w, r)
 			return
@@ -300,6 +300,72 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 		host = "[" + host + "]"
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
+}
+
+func spaceAgentBrowserURL(s *Server, cfg *config.Config, r *http.Request) string {
+	if s != nil && cfg != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeSpaceAgent && requestLooksTailscale(r) && s.TsNetManager != nil {
+		status := s.TsNetManager.GetStatus()
+		host := strings.TrimSuffix(strings.TrimSpace(status.SpaceAgentDNS), ".")
+		if status.SpaceAgentServing && host != "" {
+			return "https://" + host
+		}
+		if derived := deriveSpaceAgentTailscaleURL(cfg, r); derived != "" {
+			return derived
+		}
+	}
+	return spaceAgentPublicURL(cfg, r)
+}
+
+func requestLooksTailscale(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	if idx := strings.IndexByte(host, ','); idx >= 0 {
+		host = strings.TrimSpace(host[:idx])
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil && parsedHost != "" {
+		host = parsedHost
+	}
+	host = strings.Trim(strings.ToLower(host), "[]")
+	return strings.HasSuffix(host, ".ts.net")
+}
+
+func deriveSpaceAgentTailscaleURL(cfg *config.Config, r *http.Request) string {
+	if cfg == nil || r == nil {
+		return ""
+	}
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	if idx := strings.IndexByte(host, ','); idx >= 0 {
+		host = strings.TrimSpace(host[:idx])
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil && parsedHost != "" {
+		host = parsedHost
+	}
+	host = strings.TrimSuffix(strings.Trim(strings.ToLower(host), "[]"), ".")
+	if !strings.HasSuffix(host, ".ts.net") {
+		return ""
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) < 4 {
+		return ""
+	}
+	spaceHost := strings.TrimSpace(cfg.Tailscale.TsNet.SpaceAgentHostname)
+	if spaceHost == "" {
+		base := strings.TrimSpace(cfg.Tailscale.TsNet.Hostname)
+		if base == "" {
+			base = parts[0]
+		}
+		spaceHost = base + "-space-agent"
+	}
+	parts[0] = strings.ToLower(spaceHost)
+	return "https://" + strings.Join(parts, ".")
 }
 
 func spaceAgentURLUsesLoopbackHost(raw string) bool {

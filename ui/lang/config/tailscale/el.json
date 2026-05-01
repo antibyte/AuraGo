@@ -81,6 +81,8 @@
   "config.tailscale.tsnet_homepage_url_label": "Homepage URL",
   "config.tailscale.tsnet_hostname_hint": "Το όνομα κεντρικού υπολογιστή στο tailnet σας (π.χ. aurago → aurago.tailnet-name.ts.net)",
   "config.tailscale.tsnet_hostname_label": "Όνομα κεντρικού υπολογιστή",
+  "config.tailscale.tsnet_space_agent_hostname_label": "Hostname Space Agent",
+  "config.tailscale.tsnet_space_agent_hostname_hint": "Ξεχωριστό MagicDNS hostname για το Space Agent, π.χ. aurago-space-agent.tailnet.ts.net.",
   "config.tailscale.tsnet_http_fallback_notice": "Εκτελείται σε λειτουργία HTTP (θύρα 80) — ενεργοποιήστε το HTTPS στον πίνακα διαχείρισης Tailscale.",
   "config.tailscale.tsnet_https_requirements": "Το HTTPS over Tailscale απαιτεί MagicDNS plus ενεργοποιημένα πιστοποιητικά HTTPS για αυτόν τον κόμβο στον πίνακα διαχείρισης Tailscale. Αν τα πιστοποιητικά δεν είναι ακόμα διαθέσιμα, το AuraGo επιστρέφει σε HTTP στη θύρα 80.",
   "config.tailscale.tsnet_needs_login": "Απαιτείται σύνδεση – ανοίξτε τον σύνδεσμο για να συνδεθείτε στο δίκτυο Tailscale",
