@@ -187,7 +187,7 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 		}
 		port := cfg.SpaceAgent.Port
 		if port <= 0 {
-			port = 3000
+			port = 3100
 		}
 		targetHost := spaceAgentProxyTargetHost(cfg.SpaceAgent.Host)
 		target, err := url.Parse(fmt.Sprintf("http://%s", net.JoinHostPort(targetHost, fmt.Sprintf("%d", port))))
@@ -373,7 +373,7 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 	}
 	port := cfg.SpaceAgent.Port
 	if port <= 0 {
-		port = 3000
+		port = 3100
 	}
 	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
 		host = "[" + host + "]"

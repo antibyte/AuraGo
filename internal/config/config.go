@@ -88,6 +88,44 @@ func NormalizeLegacySidecarURL(raw string, runningInDocker bool, service string,
 	return parsed.String()
 }
 
+func normalizeSpaceAgentURLAndPort(publicURL string, port int, runningInDocker bool) (string, int) {
+	const oldConflictingPort = 3000
+	const defaultSpaceAgentPort = 3100
+	portWasUnset := port <= 0
+	if port <= 0 {
+		port = defaultSpaceAgentPort
+	}
+	normalizedURL := NormalizeLegacySidecarURL(publicURL, runningInDocker, "space-agent", port)
+	if (portWasUnset || port == oldConflictingPort || port == defaultSpaceAgentPort) && spaceAgentUsesLegacyDefaultURL(normalizedURL, runningInDocker) {
+		port = defaultSpaceAgentPort
+		normalizedURL = defaultSidecarURL(runningInDocker, "space-agent", port)
+	}
+	if strings.TrimSpace(normalizedURL) == "" {
+		normalizedURL = defaultSidecarURL(runningInDocker, "space-agent", port)
+	}
+	return normalizedURL, port
+}
+
+func spaceAgentUsesLegacyDefaultURL(raw string, runningInDocker bool) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return true
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed == nil {
+		return false
+	}
+	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	port := parsed.Port()
+	if port != "" && port != "3000" {
+		return false
+	}
+	if runningInDocker {
+		return host == "space-agent"
+	}
+	return host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "space-agent"
+}
+
 func sanitizeDockerTag(raw string) string {
 	tag := strings.TrimSpace(raw)
 	if tag == "" {
@@ -206,11 +244,11 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 	cfg.SpaceAgent.Image = "aurago-space-agent:main"
 	cfg.SpaceAgent.Host = "0.0.0.0"
-	cfg.SpaceAgent.Port = 3000
+	cfg.SpaceAgent.Port = 3100
 	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
 	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	cfg.SpaceAgent.AdminUser = "admin"
-	cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", 3000)
+	cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", 3100)
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -401,7 +439,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
-	cfg.SpaceAgent.PublicURL = NormalizeLegacySidecarURL(cfg.SpaceAgent.PublicURL, runningInDocker, "space-agent", cfg.SpaceAgent.Port)
+	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	if strings.TrimSpace(cfg.SpaceAgent.RepoURL) == "" {
 		cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
 	}
@@ -417,14 +455,8 @@ func Load(path string) (*Config, error) {
 	if strings.TrimSpace(cfg.SpaceAgent.Host) == "" {
 		cfg.SpaceAgent.Host = "0.0.0.0"
 	}
-	if cfg.SpaceAgent.Port <= 0 {
-		cfg.SpaceAgent.Port = 3000
-	}
 	if strings.TrimSpace(cfg.SpaceAgent.AdminUser) == "" {
 		cfg.SpaceAgent.AdminUser = "admin"
-	}
-	if strings.TrimSpace(cfg.SpaceAgent.PublicURL) == "" {
-		cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", cfg.SpaceAgent.Port)
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.CustomwarePath) == "" {
 		cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"

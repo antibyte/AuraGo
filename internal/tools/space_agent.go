@@ -26,6 +26,7 @@ const (
 	spaceAgentDefaultGitRef        = "main"
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
+	spaceAgentDefaultPort          = 3100
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
@@ -69,7 +70,7 @@ func ResolveSpaceAgentSidecarConfig(cfg *config.Config, bridgeBaseURL string) (S
 	sourcePath := filepath.Join(dataDir, "sidecars", "space-agent", "source")
 	port := cfg.SpaceAgent.Port
 	if port <= 0 {
-		port = 3000
+		port = spaceAgentDefaultPort
 	}
 	repoURL := strings.TrimSpace(cfg.SpaceAgent.RepoURL)
 	if repoURL == "" {
@@ -127,7 +128,7 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 	}
 	port := cfg.Port
 	if port <= 0 {
-		port = 3000
+		port = spaceAgentDefaultPort
 	}
 	publishHost := spaceAgentPublishHost(cfg.Host)
 	env := []string{
@@ -253,7 +254,7 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 	}
 	port := cfg.Port
 	if port <= 0 {
-		port = 3000
+		port = spaceAgentDefaultPort
 	}
 	if !spaceAgentEnvContains(info.Config.Env, "HOST=0.0.0.0") {
 		return true
@@ -352,7 +353,7 @@ func SpaceAgentDockerStatus(dockerHost string, cfg SpaceAgentSidecarConfig) map[
 func spaceAgentLocalURL(cfg SpaceAgentSidecarConfig) string {
 	port := cfg.Port
 	if port <= 0 {
-		port = 3000
+		port = spaceAgentDefaultPort
 	}
 	return "http://" + net.JoinHostPort(spaceAgentLocalTargetHost(cfg.Host), strconv.Itoa(port))
 }
@@ -368,7 +369,7 @@ func spaceAgentLocalTargetHost(host string) string {
 func spaceAgentLocalPortReachable(cfg SpaceAgentSidecarConfig) bool {
 	port := cfg.Port
 	if port <= 0 {
-		port = 3000
+		port = spaceAgentDefaultPort
 	}
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(spaceAgentLocalTargetHost(cfg.Host), strconv.Itoa(port)), 750*time.Millisecond)
 	if err != nil {
@@ -387,10 +388,10 @@ func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req Spac
 	if instruction == "" {
 		return map[string]interface{}{"status": "error", "message": "instruction is required"}
 	}
-	base := strings.TrimRight(strings.TrimSpace(cfg.SpaceAgent.PublicURL), "/")
-	if base == "" {
-		base = fmt.Sprintf("http://127.0.0.1:%d", cfg.SpaceAgent.Port)
-	}
+	base := strings.TrimRight(spaceAgentLocalURL(SpaceAgentSidecarConfig{
+		Host: cfg.SpaceAgent.Host,
+		Port: cfg.SpaceAgent.Port,
+	}), "/")
 	body, _ := json.Marshal(req)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+spaceAgentInstructionEndpoint, bytes.NewReader(body))
 	if err != nil {

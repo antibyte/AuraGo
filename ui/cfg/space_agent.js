@@ -10,11 +10,12 @@ function spaceAgentEnsureData() {
     if (!data.container_name) data.container_name = 'aurago_space_agent';
     if (!data.image) data.image = 'aurago-space-agent:main';
     if (!data.host) data.host = '0.0.0.0';
-    if (!data.port) data.port = 3000;
+    const legacyDefaultUrl = !data.public_url || data.public_url === 'http://127.0.0.1:3000';
+    if (!data.port || (data.port === 3000 && legacyDefaultUrl)) data.port = 3100;
     if (!data.customware_path) data.customware_path = 'data/sidecars/space-agent/customware';
     if (!data.data_path) data.data_path = 'data/sidecars/space-agent/data';
     if (!data.admin_user) data.admin_user = 'admin';
-    if (!data.public_url) data.public_url = 'http://127.0.0.1:3000';
+    if (!data.public_url || data.public_url === 'http://127.0.0.1:3000') data.public_url = 'http://127.0.0.1:3100';
     if (typeof data.auto_start !== 'boolean') data.auto_start = true;
     return data;
 }
@@ -46,9 +47,9 @@ async function renderSpaceAgentSection(section) {
 
     html += '<div class="field-grid two-cols">';
     html += spaceAgentField('config.space_agent.public_url_label', 'help.space_agent.public_url',
-        '<input class="field-input" type="url" value="' + escapeAttr(data.public_url || 'http://127.0.0.1:3000') + '" data-path="space_agent.public_url">');
+        '<input class="field-input" type="url" value="' + escapeAttr(data.public_url || 'http://127.0.0.1:3100') + '" data-path="space_agent.public_url">');
     html += spaceAgentField('config.space_agent.port_label', 'help.space_agent.port',
-        '<input class="field-input" type="number" min="1" max="65535" value="' + (data.port || 3000) + '" data-path="space_agent.port">');
+        '<input class="field-input" type="number" min="1" max="65535" value="' + (data.port || 3100) + '" data-path="space_agent.port">');
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';

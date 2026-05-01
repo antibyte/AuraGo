@@ -471,20 +471,100 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.SpaceAgent.Host != "0.0.0.0" {
 		t.Fatalf("host = %q, want 0.0.0.0", cfg.SpaceAgent.Host)
 	}
-	if cfg.SpaceAgent.Port != 3000 {
-		t.Fatalf("port = %d, want 3000", cfg.SpaceAgent.Port)
+	if cfg.SpaceAgent.Port != 3100 {
+		t.Fatalf("port = %d, want 3100", cfg.SpaceAgent.Port)
 	}
 	if cfg.SpaceAgent.AdminUser != "admin" {
 		t.Fatalf("admin_user = %q, want admin", cfg.SpaceAgent.AdminUser)
 	}
-	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3000" {
-		t.Fatalf("public_url = %q, want http://127.0.0.1:3000", cfg.SpaceAgent.PublicURL)
+	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
+		t.Fatalf("public_url = %q, want http://127.0.0.1:3100", cfg.SpaceAgent.PublicURL)
 	}
 	if !filepath.IsAbs(cfg.SpaceAgent.CustomwarePath) || !strings.Contains(cfg.SpaceAgent.CustomwarePath, filepath.Join("data", "sidecars", "space-agent", "customware")) {
 		t.Fatalf("customware_path = %q, want absolute sidecar customware path", cfg.SpaceAgent.CustomwarePath)
 	}
 	if !filepath.IsAbs(cfg.SpaceAgent.DataPath) || !strings.Contains(cfg.SpaceAgent.DataPath, filepath.Join("data", "sidecars", "space-agent", "data")) {
 		t.Fatalf("data_path = %q, want absolute sidecar data path", cfg.SpaceAgent.DataPath)
+	}
+}
+
+func TestLoadSpaceAgentMigratesLegacyDefaultPortAwayFromGotenberg(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`server:
+  ui_language: en
+space_agent:
+  enabled: true
+  port: 3000
+  public_url: "http://127.0.0.1:3000"
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.SpaceAgent.Port != 3100 {
+		t.Fatalf("port = %d, want migrated default 3100", cfg.SpaceAgent.Port)
+	}
+	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
+		t.Fatalf("public_url = %q, want migrated default URL", cfg.SpaceAgent.PublicURL)
+	}
+}
+
+func TestLoadSpaceAgentMigratesLegacyDefaultURLWhenPortOmitted(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`server:
+  ui_language: en
+space_agent:
+  enabled: true
+  public_url: "http://space-agent:3000"
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.SpaceAgent.Port != 3100 {
+		t.Fatalf("port = %d, want migrated default 3100", cfg.SpaceAgent.Port)
+	}
+	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
+		t.Fatalf("public_url = %q, want migrated default URL", cfg.SpaceAgent.PublicURL)
+	}
+}
+
+func TestLoadSpaceAgentKeepsExplicitCustomPort(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`server:
+  ui_language: en
+space_agent:
+  enabled: true
+  port: 3000
+  public_url: "http://space.example:3000"
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.SpaceAgent.Port != 3000 {
+		t.Fatalf("port = %d, want explicit custom 3000", cfg.SpaceAgent.Port)
+	}
+	if cfg.SpaceAgent.PublicURL != "http://space.example:3000" {
+		t.Fatalf("public_url = %q, want explicit custom URL", cfg.SpaceAgent.PublicURL)
 	}
 }
 
@@ -882,11 +962,11 @@ func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 	cfg.SpaceAgent.Image = "aurago-space-agent:main"
 	cfg.SpaceAgent.Host = "0.0.0.0"
-	cfg.SpaceAgent.Port = 3000
+	cfg.SpaceAgent.Port = 3100
 	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
 	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	cfg.SpaceAgent.AdminUser = "admin"
-	cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3000"
+	cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3100"
 	cfg.SpaceAgent.AdminPassword = "space-admin-secret"
 	cfg.SpaceAgent.BridgeToken = "space-bridge-secret"
 
