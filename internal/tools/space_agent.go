@@ -515,17 +515,33 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.WriteFile(filepath.Join(cfg.SourcePath, "aurago_space_bootstrap.mjs"), []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
 		return fmt.Errorf("write aurago_space_bootstrap.mjs: %w", err)
 	}
-	instructionsAPIPath := filepath.Join(cfg.SourcePath, "api", "aurago_instructions.py")
+	if err := writeSpaceAgentInstructionsAPIEndpoint(cfg.SourcePath); err != nil {
+		return err
+	}
+	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
+		return fmt.Errorf("write Dockerfile.aurago: %w", err)
+	}
+	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+}
+
+func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
+	stalePaths := []string{
+		filepath.Join(sourcePath, "server", "api", "aurago_instructions.js"),
+		filepath.Join(sourcePath, "api", "aurago", "instructions.py"),
+	}
+	for _, stalePath := range stalePaths {
+		if err := os.Remove(stalePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove stale AuraGo instructions endpoint %s: %w", stalePath, err)
+		}
+	}
+	instructionsAPIPath := filepath.Join(sourcePath, "api", "aurago_instructions.py")
 	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
 		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
 	}
 	if err := os.WriteFile(instructionsAPIPath, []byte(spaceAgentInstructionsAPIEndpoint()), 0o600); err != nil {
 		return fmt.Errorf("write AuraGo instructions api endpoint: %w", err)
 	}
-	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
-		return fmt.Errorf("write Dockerfile.aurago: %w", err)
-	}
-	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+	return nil
 }
 
 func ensureSpaceAgentHome(homePath string) error {

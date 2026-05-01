@@ -265,6 +265,42 @@ func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	}
 }
 
+func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T) {
+	source := t.TempDir()
+	for _, stalePath := range []string{
+		filepath.Join(source, "server", "api", "aurago_instructions.js"),
+		filepath.Join(source, "api", "aurago", "instructions.py"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(stalePath), 0o750); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", stalePath, err)
+		}
+		if err := os.WriteFile(stalePath, []byte("stale"), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s): %v", stalePath, err)
+		}
+	}
+
+	if err := writeSpaceAgentInstructionsAPIEndpoint(source); err != nil {
+		t.Fatalf("writeSpaceAgentInstructionsAPIEndpoint() error = %v", err)
+	}
+
+	for _, stalePath := range []string{
+		filepath.Join(source, "server", "api", "aurago_instructions.js"),
+		filepath.Join(source, "api", "aurago", "instructions.py"),
+	} {
+		if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+			t.Fatalf("stale endpoint %s still exists or stat failed: %v", stalePath, err)
+		}
+	}
+	currentPath := filepath.Join(source, "api", "aurago_instructions.py")
+	content, err := os.ReadFile(currentPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", currentPath, err)
+	}
+	if !strings.Contains(string(content), "class AuragoInstructions") {
+		t.Fatalf("current endpoint content missing handler class: %s", string(content))
+	}
+}
+
 func TestAnnotateSpaceAgentInstructionHTTPErrorExplainsMissingEndpoint(t *testing.T) {
 	result := map[string]interface{}{"status": "error", "error": "File not found"}
 
