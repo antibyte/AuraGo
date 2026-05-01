@@ -263,6 +263,23 @@ func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	}
 }
 
+func TestAnnotateSpaceAgentInstructionHTTPErrorExplainsMissingEndpoint(t *testing.T) {
+	result := map[string]interface{}{"status": "error", "error": "File not found"}
+
+	annotateSpaceAgentInstructionHTTPError(result, 404)
+
+	if result["requires_recreate"] != true {
+		t.Fatalf("requires_recreate = %#v, want true", result["requires_recreate"])
+	}
+	if result["missing_endpoint"] != spaceAgentInstructionEndpoint {
+		t.Fatalf("missing_endpoint = %#v", result["missing_endpoint"])
+	}
+	message, _ := result["message"].(string)
+	if !strings.Contains(message, "reachable") || !strings.Contains(message, "Recreate") {
+		t.Fatalf("message does not explain missing endpoint: %q", message)
+	}
+}
+
 func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 	script := spaceAgentBootstrapScript()
 	for _, want := range []string{

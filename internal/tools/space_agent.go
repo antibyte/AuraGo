@@ -439,8 +439,18 @@ func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req Spac
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		parsed["status"] = "error"
 		parsed["http_status"] = resp.StatusCode
+		annotateSpaceAgentInstructionHTTPError(parsed, resp.StatusCode)
 	}
 	return parsed
+}
+
+func annotateSpaceAgentInstructionHTTPError(result map[string]interface{}, statusCode int) {
+	if result == nil || statusCode != http.StatusNotFound {
+		return
+	}
+	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. Recreate the managed Space Agent sidecar after updating AuraGo so /api/aurago/instructions is injected."
+	result["requires_recreate"] = true
+	result["missing_endpoint"] = spaceAgentInstructionEndpoint
 }
 
 // ExecuteSpaceAgent is the agent-facing wrapper for Space Agent communication.
