@@ -100,6 +100,35 @@ func TestHandleSpaceAgentBridgeWrapsExternalData(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentBridgeBaseURLUsesTailscaleRequestHost(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Port = 8443
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.HTTPSPort = 8443
+	cfg.CloudflareTunnel.LoopbackPort = 18080
+	req := httptest.NewRequest(http.MethodPost, "/api/space-agent/recreate", nil)
+	req.Host = "127.0.0.1:8443"
+	req.Header.Set("X-Forwarded-Host", "aurago.taild1480.ts.net")
+
+	got := spaceAgentBridgeBaseURL(&Server{Cfg: cfg, Logger: slog.Default()}, cfg, req)
+	if got != "https://aurago.taild1480.ts.net" {
+		t.Fatalf("spaceAgentBridgeBaseURL = %q, want Tailscale request host", got)
+	}
+}
+
+func TestSpaceAgentBridgeBaseURLFallsBackToInternalURL(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Port = 8443
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.HTTPSPort = 8443
+	cfg.CloudflareTunnel.LoopbackPort = 18080
+
+	got := spaceAgentBridgeBaseURL(&Server{Cfg: cfg, Logger: slog.Default()}, cfg, nil)
+	if got != "http://127.0.0.1:18080" {
+		t.Fatalf("spaceAgentBridgeBaseURL = %q, want internal loopback fallback", got)
+	}
+}
+
 func TestHandleSpaceAgentSendRequiresPost(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	req := httptest.NewRequest(http.MethodGet, "/api/space-agent/send", nil)

@@ -66,7 +66,7 @@ func handleSpaceAgentRecreate(s *Server) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(&cfg, InternalAPIURL(&cfg))
+		sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(&cfg, spaceAgentBridgeBaseURL(s, &cfg, r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -221,7 +221,7 @@ func spaceAgentStatusPayload(s *Server, cfg *config.Config) map[string]interface
 	if cfg == nil || !cfg.SpaceAgent.Enabled {
 		return map[string]interface{}{"status": "disabled", "enabled": false}
 	}
-	sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(cfg, InternalAPIURL(cfg))
+	sidecarCfg, err := tools.ResolveSpaceAgentSidecarConfig(cfg, spaceAgentBridgeBaseURL(s, cfg, nil))
 	if err != nil {
 		return map[string]interface{}{"status": "error", "enabled": true, "message": err.Error()}
 	}
@@ -267,6 +267,48 @@ func (s *Server) ensureSpaceAgentSecrets(cfg *config.Config) error {
 		s.CfgMu.Unlock()
 	}
 	return nil
+}
+
+func spaceAgentBridgeBaseURL(s *Server, cfg *config.Config, r *http.Request) string {
+	if cfg == nil {
+		return ""
+	}
+	if requestLooksTailscale(r) {
+		if host := requestForwardedHost(r); host != "" {
+			return "https://" + host
+		}
+	}
+	if s != nil && s.TsNetManager != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ServeHTTP {
+		status := s.TsNetManager.GetStatus()
+		host := strings.TrimSuffix(strings.TrimSpace(status.DNS), ".")
+		if status.ServingHTTP && host != "" {
+			return "https://" + host
+		}
+		if host == "" {
+			host = strings.TrimSpace(cfg.Tailscale.TsNet.Hostname)
+			if host != "" && strings.Contains(host, ".") {
+				return "https://" + strings.TrimSuffix(host, ".")
+			}
+		}
+	}
+	return InternalAPIURL(cfg)
+}
+
+func requestForwardedHost(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	if idx := strings.IndexByte(host, ','); idx >= 0 {
+		host = strings.TrimSpace(host[:idx])
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil && parsedHost != "" {
+		host = parsedHost
+	}
+	return strings.TrimSuffix(strings.Trim(strings.ToLower(host), "[]"), ".")
 }
 
 func randomSpaceAgentSecret(n int) (string, error) {
