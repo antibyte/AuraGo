@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v2"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v2"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v2"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -249,19 +249,15 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
-		"export const allowAnonymous = true;",
+		"class AuragoInstructions(ApiHandler):",
+		"requires_auth",
+		"requires_csrf",
 		"AURAGO_BRIDGE_TOKEN",
-		"authorization",
+		"Authorization",
 		"Bearer",
-		"export async function post(context)",
-		"export async function POST(context)",
-		"export default async function auragoInstructions(context)",
-		"handleInstruction",
-		"appendInstructionRecord",
-		"aurago_inbox",
-		"HOME",
-		"latest_instruction.json",
-		"instructions.jsonl",
+		"UserMessage(message=message",
+		"Context from AuraGo:",
+		"context.communicate",
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)
@@ -283,6 +279,28 @@ func TestAnnotateSpaceAgentInstructionHTTPErrorExplainsMissingEndpoint(t *testin
 	message, _ := result["message"].(string)
 	if !strings.Contains(message, "reachable") || !strings.Contains(message, "Recreate") {
 		t.Fatalf("message does not explain missing endpoint: %q", message)
+	}
+}
+
+func TestParseSpaceAgentInstructionResponseBodyIncludesPlainTextErrors(t *testing.T) {
+	got := parseSpaceAgentInstructionResponseBody(500, []byte("Internal server error"))
+
+	if got["http_status"] != 500 {
+		t.Fatalf("http_status = %#v, want 500", got["http_status"])
+	}
+	if got["body"] != "Internal server error" || got["message"] != "Internal server error" {
+		t.Fatalf("plain text error not preserved: %#v", got)
+	}
+}
+
+func TestParseSpaceAgentInstructionResponseBodyPreservesJSONErrors(t *testing.T) {
+	got := parseSpaceAgentInstructionResponseBody(500, []byte(`{"status":"error","message":"boom"}`))
+
+	if got["status"] != "error" || got["message"] != "boom" {
+		t.Fatalf("json error not preserved: %#v", got)
+	}
+	if got["http_status"] != 500 {
+		t.Fatalf("http_status = %#v, want 500", got["http_status"])
 	}
 }
 
