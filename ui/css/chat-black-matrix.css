@@ -207,6 +207,7 @@
 [data-theme="black-matrix"] .mood-panel,
 [data-theme="black-matrix"] .session-drawer,
 [data-theme="black-matrix"] .modal-card,
+[data-theme="black-matrix"] .personality-dropdown,
 [data-theme="black-matrix"] .voice-recorder-panel {
     --theme-option-color: #eef4ef;
     background:
@@ -223,12 +224,15 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-option,
+[data-theme="black-matrix"] .personality-option,
 [data-theme="black-matrix"] .session-item {
     border-radius: 10px;
 }
 
 [data-theme="black-matrix"] .chat-theme-option:hover,
+[data-theme="black-matrix"] .personality-option:hover,
 [data-theme="black-matrix"] .chat-theme-option.active,
+[data-theme="black-matrix"] .personality-option.active,
 [data-theme="black-matrix"] .session-item:hover,
 [data-theme="black-matrix"] .session-item.active {
     background:

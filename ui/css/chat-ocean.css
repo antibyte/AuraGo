@@ -145,6 +145,7 @@
 }
 
 [data-theme="ocean"] .chat-theme-dropdown,
+[data-theme="ocean"] .personality-dropdown,
 [data-theme="ocean"] .mood-panel {
     --theme-option-color: #def1fb;
     border: 1px solid rgba(91, 135, 162, 0.36);
@@ -155,7 +156,8 @@
         0 0 0 1px rgba(118, 198, 223, 0.05);
 }
 
-[data-theme="ocean"] .chat-theme-option {
+[data-theme="ocean"] .chat-theme-option,
+[data-theme="ocean"] .personality-option {
     border-radius: 10px;
 }
 

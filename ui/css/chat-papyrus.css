@@ -325,6 +325,7 @@
 [data-theme="papyrus"] .session-drawer,
 [data-theme="papyrus"] .modal-card,
 [data-theme="papyrus"] .mermaid-modal-content,
+[data-theme="papyrus"] .personality-dropdown,
 [data-theme="papyrus"] .voice-recorder-panel {
     --theme-option-color: #261f18;
     position: relative;
@@ -341,6 +342,7 @@
 
 /* Restore position:absolute — base CSS uses absolute for out-of-flow popups */
 [data-theme="papyrus"] .chat-theme-dropdown,
+[data-theme="papyrus"] .personality-dropdown,
 [data-theme="papyrus"] .mood-panel {
     position: absolute;
     overflow-x: hidden;
@@ -357,6 +359,7 @@
 [data-theme="papyrus"] .session-drawer::before,
 [data-theme="papyrus"] .modal-card::before,
 [data-theme="papyrus"] .mermaid-modal-content::before,
+[data-theme="papyrus"] .personality-dropdown::before,
 [data-theme="papyrus"] .voice-recorder-panel::before {
     content: '';
     position: absolute;
@@ -379,9 +382,11 @@
 [data-theme="papyrus"] .mood-panel > *,
 [data-theme="papyrus"] .session-drawer > *,
 [data-theme="papyrus"] .modal-card > *,
-[data-theme="papyrus"] .voice-recorder-panel > * { position: relative; z-index: 1; }
+[data-theme="papyrus"] .voice-recorder-panel > *,
+[data-theme="papyrus"] .personality-dropdown > * { position: relative; z-index: 1; }
 
-[data-theme="papyrus"] .chat-theme-option {
+[data-theme="papyrus"] .chat-theme-option,
+[data-theme="papyrus"] .personality-option {
     border-radius: 11px;
     font-size: 0.92rem;
     line-height: 1.2;
@@ -389,6 +394,7 @@
 }
 
 [data-theme="papyrus"] .chat-theme-option:hover,
+[data-theme="papyrus"] .personality-option:hover,
 [data-theme="papyrus"] .chat-theme-option.active,
 [data-theme="papyrus"] .session-item:hover,
 [data-theme="papyrus"] .session-item.session-active {
@@ -845,10 +851,12 @@
 
 /* ── Hover ink-bleed micro-interaction on chat options ─────────────────────── */
 [data-theme="papyrus"] .chat-theme-option,
+[data-theme="papyrus"] .personality-option,
 [data-theme="papyrus"] .session-item {
     position: relative;
 }
 [data-theme="papyrus"] .chat-theme-option::after,
+[data-theme="papyrus"] .personality-option::after,
 [data-theme="papyrus"] .session-item::after {
     content: '';
     position: absolute;

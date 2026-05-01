@@ -143,6 +143,7 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-dropdown,
+[data-theme="sandstorm"] .personality-dropdown,
 [data-theme="sandstorm"] .mood-panel {
     --theme-option-color: #f1debf;
     border: 1px solid rgba(189, 144, 88, 0.3);
@@ -153,7 +154,9 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-option:hover,
-[data-theme="sandstorm"] .chat-theme-option.active {
+[data-theme="sandstorm"] .personality-option:hover,
+[data-theme="sandstorm"] .chat-theme-option.active,
+[data-theme="sandstorm"] .personality-option.active {
     background: linear-gradient(90deg, rgba(82, 59, 37, 0.96), rgba(47, 33, 21, 0.96));
 }
 
@@ -606,10 +609,12 @@
 
 /* ── Polish: Session item hover sweep ──────────────────────────────────── */
 [data-theme="sandstorm"] .chat-theme-option,
+[data-theme="sandstorm"] .personality-option,
 [data-theme="sandstorm"] .session-item {
     position: relative;
 }
 [data-theme="sandstorm"] .chat-theme-option::after,
+[data-theme="sandstorm"] .personality-option::after,
 [data-theme="sandstorm"] .session-item::after {
     content: '';
     position: absolute;
@@ -624,6 +629,7 @@
     pointer-events: none;
 }
 [data-theme="sandstorm"] .chat-theme-option:hover::after,
+[data-theme="sandstorm"] .personality-option:hover::after,
 [data-theme="sandstorm"] .session-item:hover::after { transform: scaleX(1); }
 
 /* ── Polish: Bubble hover ──────────────────────────────────────────────── */

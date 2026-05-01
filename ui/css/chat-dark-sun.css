@@ -194,6 +194,7 @@
 }
 
 [data-theme="dark-sun"] .chat-theme-dropdown,
+[data-theme="dark-sun"] .personality-dropdown,
 [data-theme="dark-sun"] .mood-panel {
     --theme-option-color: #f0dfd2;
     border: 1px solid rgba(132, 58, 28, 0.5);
@@ -204,7 +205,8 @@
         0 0 0 1px rgba(255, 122, 42, 0.06);
 }
 
-[data-theme="dark-sun"] .chat-theme-option {
+[data-theme="dark-sun"] .chat-theme-option,
+[data-theme="dark-sun"] .personality-option {
     border-radius: 10px;
 }
 

@@ -189,6 +189,7 @@
 }
 
 [data-theme="lollipop"] .chat-theme-dropdown,
+[data-theme="lollipop"] .personality-dropdown,
 [data-theme="lollipop"] .mood-panel {
     --theme-option-color: var(--strong-color);
     border: 1px solid rgba(214, 123, 176, 0.62);
@@ -199,7 +200,8 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.96);
 }
 
-[data-theme="lollipop"] .chat-theme-option {
+[data-theme="lollipop"] .chat-theme-option,
+[data-theme="lollipop"] .personality-option {
     border-radius: 12px;
 }
 

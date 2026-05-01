@@ -169,6 +169,7 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-dropdown,
+[data-theme="cyberwar"] .personality-dropdown,
 [data-theme="cyberwar"] .mood-panel {
     --theme-option-color: #d8e6ff;
     border: 1px solid rgba(104, 241, 255, 0.18);
@@ -180,13 +181,15 @@
         0 0 28px rgba(84, 247, 255, 0.12);
 }
 
-[data-theme="cyberwar"] .chat-theme-option {
+[data-theme="cyberwar"] .chat-theme-option,
+[data-theme="cyberwar"] .personality-option {
     position: relative;
     border-radius: 10px;
     overflow: hidden;
 }
 
-[data-theme="cyberwar"] .chat-theme-option::before {
+[data-theme="cyberwar"] .chat-theme-option::before,
+[data-theme="cyberwar"] .personality-option::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -201,7 +204,9 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-option:hover::before,
-[data-theme="cyberwar"] .chat-theme-option.active::before {
+[data-theme="cyberwar"] .personality-option:hover::before,
+[data-theme="cyberwar"] .chat-theme-option.active::before,
+[data-theme="cyberwar"] .personality-option.active::before {
     transform: translateX(100%);
 }
 
