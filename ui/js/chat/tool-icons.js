@@ -100,6 +100,7 @@
         { slot: 97, key: 'secrets_vault', label: 'Secrets vault', row: 9, col: 7, aliases: Object.freeze([]) },
         { slot: 98, key: 'cron_scheduler', label: 'Scheduler', row: 9, col: 8, aliases: Object.freeze(['manage_schedule']) },
         { slot: 99, key: 'generic_tool', label: 'Generic tool', row: 9, col: 9, aliases: Object.freeze(['_default', 'generic']) },
+        { slot: 101, key: 'question_user', label: 'Question', row: 3, col: 3, aliases: Object.freeze([]) },
     ]);
 
     const DEFAULT_TOOL_ICON_KEY = 'generic_tool';

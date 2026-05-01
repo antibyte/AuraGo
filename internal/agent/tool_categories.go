@@ -59,6 +59,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_appointments", "Manage calendar appointments and reminders"},
 		{"manage_todos", "Manage todo lists and tasks"},
 		{"follow_up", "Schedule autonomous background tasks"},
+		{"question_user", "Ask the user a question with predefined options"},
 		{"wait_for_event", "Wait for a process, HTTP endpoint, or file event"},
 	},
 	"files": {

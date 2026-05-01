@@ -352,6 +352,16 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
+	sessionID := "default"
+	if tools.HasPendingQuestion(sessionID) {
+		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+			tools.CompleteQuestion(sessionID, response)
+			return
+		}
+		s.ChannelMessageSend(m.ChannelID, "Please reply with one of the listed numbers.")
+		return
+	}
+
 	logger.Info("[Discord] Processing message", "user", m.Author.Username, "channel", m.ChannelID, "isDM", isDM)
 
 	// Slash command interception
@@ -629,6 +639,12 @@ type DiscordBroker struct {
 }
 
 func (b *DiscordBroker) Send(event, message string) {
+	if event == "question_user" {
+		if _, err := b.session.ChannelMessageSend(b.channelID, message); err != nil {
+			b.logger.Warn("[Discord] Failed to send question", "error", err)
+		}
+		return
+	}
 	// Capture audio events for native sending after the loop
 	if event == "audio" {
 		var audio struct {

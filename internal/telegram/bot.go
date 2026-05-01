@@ -226,6 +226,16 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		return
 	}
 
+	sessionID := "default"
+	if tools.HasPendingQuestion(sessionID) {
+		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+			tools.CompleteQuestion(sessionID, response)
+			return
+		}
+		sendTelegramMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.")
+		return
+	}
+
 	// Phase: Command Interception
 	// Check for slash commands
 	if strings.HasPrefix(msg.Text, "/") {
@@ -261,7 +271,6 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 	// Authorized text found (either native or transcribed)
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	sessionID := "default"
 
 	// Add the message to history first
 	mid, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
@@ -502,6 +511,10 @@ type TelegramBroker struct {
 }
 
 func (b *TelegramBroker) Send(event, message string) {
+	if event == "question_user" {
+		sendTelegramMessage(b.bot, b.chatID, message)
+		return
+	}
 	// Capture audio events for native sending after the loop
 	if event == "audio" {
 		var audio struct {

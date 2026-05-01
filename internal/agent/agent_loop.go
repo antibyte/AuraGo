@@ -184,6 +184,8 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		BudgetTracker:       s.runCfg.BudgetTracker,
 		DaemonSupervisor:    s.runCfg.DaemonSupervisor,
 		PreparationService:  s.runCfg.PreparationService,
+		MessageSource:       s.runCfg.MessageSource,
+		Broker:              s.broker,
 	}
 }
 
@@ -891,7 +893,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.Tier = adjustedTier
 			}
 		}
-		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
+		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode()                                           // re-check each iteration (toggleable at runtime)
 		flags.IsVoiceMode = GetVoiceMode() && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission // re-check each iteration (toggleable at runtime)
 
 		// Inject high-priority open notes as reminders

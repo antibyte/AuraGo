@@ -56,4 +56,6 @@ type DispatchContext struct {
 	DaemonSupervisor    *tools.DaemonSupervisor
 	PreparationService  *services.MissionPreparationService
 	ExecutionTimeMs     int64
+	MessageSource       string
+	Broker              FeedbackBroker
 }

@@ -1,12 +1,23 @@
 package agent
 
-import "strings"
+import (
+	"strings"
+
+	"aurago/internal/tools"
+)
 
 type followUpArgs struct {
 	TaskPrompt         string
 	DelaySeconds       int
 	TimeoutSecs        int
 	NotifyOnCompletion bool
+}
+
+type questionUserArgs struct {
+	Question      string
+	Options       []tools.QuestionOption
+	AllowFreeText bool
+	TimeoutSecs   int
 }
 
 type waitForEventArgs struct {
@@ -164,6 +175,36 @@ func decodeFollowUpArgs(tc ToolCall) followUpArgs {
 		req.NotifyOnCompletion = notify
 	}
 	return req
+}
+
+func decodeQuestionUserArgs(tc ToolCall) questionUserArgs {
+	req := questionUserArgs{
+		Question:    firstNonEmptyToolString(tc.Question, tc.Message, tc.Content, toolArgString(tc.Params, "question", "message", "content")),
+		TimeoutSecs: toolArgInt(tc.Params, tc.TimeoutSecs, "timeout_seconds", "timeout_secs"),
+	}
+	if allow, ok := toolArgBool(tc.Params, "allow_free_text"); ok {
+		req.AllowFreeText = allow
+	}
+	for _, item := range toolArgItemMaps(tc.Params, "options") {
+		label := strings.TrimSpace(firstNonEmptyToolString(asString(item["label"]), asString(item["text"])))
+		value := strings.TrimSpace(firstNonEmptyToolString(asString(item["value"]), label))
+		if label == "" || value == "" {
+			continue
+		}
+		req.Options = append(req.Options, tools.QuestionOption{
+			Label:       label,
+			Value:       value,
+			Description: strings.TrimSpace(asString(item["description"])),
+		})
+	}
+	return req
+}
+
+func asString(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func decodeWaitForEventArgs(tc ToolCall) waitForEventArgs {

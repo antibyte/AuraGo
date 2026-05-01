@@ -46,7 +46,7 @@ func NewSMSBroker(cfg *config.Config, toNumber string, logger *slog.Logger) *Tel
 func (b *TelnyxSMSBroker) Send(event, message string) {
 	// Only send significant events via SMS to avoid spamming
 	switch event {
-	case "final_response", "error_recovery":
+	case "final_response", "error_recovery", "question_user":
 		// Truncate long messages for SMS (max ~1600 chars for long SMS)
 		message = truncateSMSMessage(message, 1500)
 		_, err := b.client.SendSMS(context.Background(), b.fromNumber, b.toNumber, message, "")

@@ -411,6 +411,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personality", handleUpdatePersonality(s))
 	mux.HandleFunc("/api/personality/state", handlePersonalityState(s))
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
+	mux.HandleFunc("/api/agent/question-status", handleQuestionStatus(s))
+	mux.HandleFunc("/api/agent/question-response", handleQuestionResponse(s))
 	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
 		s.CfgMu.RLock()
 		enabled := s.Cfg.Auth.Enabled
@@ -460,6 +462,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				webhookPath = "/api/telnyx/webhook"
 			}
 			telnyxHandler := telnyx.NewWebhookHandler(s.Cfg, s.Logger, func(from, text string, mediaURLs []string) {
+				if tools.HasPendingQuestion("default") {
+					if response, ok := tools.ResolveQuestionReply("default", text); ok {
+						tools.CompleteQuestion("default", response)
+						return
+					}
+					telnyx.NewSMSBroker(s.Cfg, from, s.Logger).Send("question_user", "Please reply with one of the listed numbers.")
+					return
+				}
 				// Relay incoming SMS to agent via loopback
 				msg := telnyx.FormatSMSForAgent(from, text, mediaURLs)
 				s.Logger.Info("Telnyx SMS relayed to agent", "from", from)

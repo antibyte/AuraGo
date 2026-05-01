@@ -420,6 +420,7 @@ type ToolCall struct {
 	Account             string                   `json:"account"` // email account ID (multi-account)
 	ChannelID           string                   `json:"channel_id"`
 	Message             string                   `json:"message"`
+	Question            string                   `json:"question"`
 	Severity            string                   `json:"severity"`
 	DedupKey            string                   `json:"dedup_key"`
 	WakeupRequested     bool                     `json:"wakeup_requested"`
@@ -887,6 +888,8 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule follow-ups."}`
 		case "wait_for_event":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule wait events."}`
+		case "question_user":
+			return `Tool Output: {"status": "error", "message": "Co-Agents cannot ask the user questions."}`
 		case "cron_scheduler":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot manage cron jobs."}`
 		case "manage_daemon":

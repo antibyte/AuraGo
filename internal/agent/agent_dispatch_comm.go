@@ -145,6 +145,89 @@ func planTaskIDsFromItems(items []map[string]interface{}) []string {
 	return ids
 }
 
+func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
+	req := decodeQuestionUserArgs(tc)
+	if strings.TrimSpace(req.Question) == "" {
+		return `Tool Output: {"status":"error","message":"question is required"}`
+	}
+	if len(req.Options) < 2 {
+		return `Tool Output: {"status":"error","message":"at least two options are required"}`
+	}
+	sessionID := strings.TrimSpace(dc.SessionID)
+	if sessionID == "" {
+		sessionID = "default"
+	}
+	source := strings.ToLower(strings.TrimSpace(dc.MessageSource))
+	if source == "" {
+		source = "web_chat"
+	}
+	timeoutSecs := req.TimeoutSecs
+	if timeoutSecs <= 0 {
+		if source == "web_chat" {
+			timeoutSecs = 120
+		} else {
+			timeoutSecs = 20
+		}
+	}
+	if source != "web_chat" && req.TimeoutSecs <= 0 {
+		timeoutSecs = 20
+	}
+	timeout := time.Duration(timeoutSecs) * time.Second
+	q := &tools.PendingQuestion{
+		Question:      req.Question,
+		Options:       req.Options,
+		AllowFreeText: req.AllowFreeText,
+		Timeout:       timeout,
+		TimeoutSecs:   timeoutSecs,
+	}
+	responseCh := tools.RegisterQuestion(sessionID, q)
+	defer tools.CancelQuestion(sessionID)
+
+	if source == "web_chat" {
+		payload, _ := json.Marshal(struct {
+			Type    string                 `json:"type"`
+			Payload *tools.PendingQuestion `json:"payload"`
+		}{"question_user", q})
+		if dc.Broker != nil {
+			dc.Broker.SendJSON(string(payload))
+		}
+	} else if dc.Broker != nil {
+		dc.Broker.Send("question_user", formatQuestionUserText(q))
+	}
+
+	select {
+	case response := <-responseCh:
+		b, _ := json.Marshal(response)
+		return "Tool Output: " + string(b)
+	case <-time.After(timeout):
+		tools.CancelQuestion(sessionID)
+		b, _ := json.Marshal(tools.QuestionResponse{Status: "timeout"})
+		return "Tool Output: " + string(b)
+	}
+}
+
+func formatQuestionUserText(q *tools.PendingQuestion) string {
+	var b strings.Builder
+	b.WriteString("Question: ")
+	b.WriteString(q.Question)
+	b.WriteString("\n\n")
+	for i, opt := range q.Options {
+		b.WriteString(strconv.Itoa(i + 1))
+		b.WriteString(") ")
+		b.WriteString(opt.Label)
+		if strings.TrimSpace(opt.Description) != "" {
+			b.WriteString(" - ")
+			b.WriteString(opt.Description)
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("\nReply with a number (1, 2, 3...) to select.")
+	if q.AllowFreeText {
+		b.WriteString("\nOr type your answer freely.")
+	}
+	return b.String()
+}
+
 // dispatchComm handles webhook, skill, notification, email, discord, mission, and notes tool calls.
 func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
@@ -181,6 +264,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		switch tc.Action {
 		case "invoke_tool":
 			return dispatchInvokeTool(ctx, tc, dc)
+
+		case "question_user":
+			return dispatchQuestionUser(tc, dc)
 
 		case "call_webhook":
 			if !cfg.Webhooks.Enabled {

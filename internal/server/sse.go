@@ -35,6 +35,7 @@ const (
 	EventThinkingBlock     SSEEventType = "thinking_block"
 	EventCoAgentProgress   SSEEventType = "coagent_progress"
 	EventSpaceAgentMessage SSEEventType = "space_agent_message"
+	EventQuestionUser      SSEEventType = "question_user"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
@@ -96,6 +97,12 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 		return
 	}
 	b.SendJSON(string(msg))
+}
+
+// BroadcastToSession sends a typed event whose payload includes a session_id.
+// The web client filters typed events by this field.
+func (b *SSEBroadcaster) BroadcastToSession(sessionID string, eventType SSEEventType, payload any) {
+	b.BroadcastType(eventType, payload)
 }
 
 type LLMStreamDeltaPayload struct {

@@ -187,6 +187,34 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"notify_on_completion": prop("boolean", "If true, store a system notification when the task completes or fails."),
 			}, "task_prompt"),
 		),
+		tool("question_user",
+			"Ask the user a question with predefined answer options. The agent blocks until the user selects an option, types a free-text answer, or the timeout expires. Use this when you need the user to make a choice from a set of options. In webchat this shows as a modal popup with buttons and optional text input; in text channels this shows as a numbered list.",
+			schema(map[string]interface{}{
+				"question": prop("string", "The question to ask the user"),
+				"options": map[string]interface{}{
+					"type": "array",
+					"items": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"label":       prop("string", "Display text for this option"),
+							"value":       prop("string", "Value returned when selected"),
+							"description": prop("string", "Optional additional description"),
+						},
+						"required": []string{"label", "value"},
+					},
+					"minItems":    2,
+					"description": "List of answer options (minimum 2)",
+				},
+				"allow_free_text": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, the user can also type a free-text answer instead of selecting an option (default: false)",
+				},
+				"timeout_seconds": map[string]interface{}{
+					"type":        "integer",
+					"description": "Maximum seconds to wait for user response. Default: 120 for webchat, 20 for other channels.",
+				},
+			}, "question", "options"),
+		),
 		tool("wait_for_event",
 			"Wait asynchronously for a concrete event, then continue autonomously in the background. "+
 				"Use this for safe polling of AuraGo-managed processes, HTTP endpoints, or workspace files without blocking the current response.",

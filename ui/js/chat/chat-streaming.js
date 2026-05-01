@@ -101,6 +101,7 @@ function connectSSE() {
     window.AuraSSE.on('_open', function () {
         setConnectionState('connected');
         if (sseReconnectTimer) { clearTimeout(sseReconnectTimer); sseReconnectTimer = null; }
+        if (typeof window.checkPendingQuestion === 'function') window.checkPendingQuestion();
     });
 
     window.AuraSSE.on('_error', function (readyState) {
@@ -206,6 +207,13 @@ function connectSSE() {
         const session = payload.session_total || 0;
         const est = payload.is_estimated ? ' ~' : '';
         tokenEl.textContent = t('chat.token_counter_format', { count: session.toLocaleString() + est });
+    });
+
+    window.AuraSSE.on('question_user', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (typeof window.showQuestionModal === 'function') {
+            window.showQuestionModal(payload);
+        }
     });
 }
 
