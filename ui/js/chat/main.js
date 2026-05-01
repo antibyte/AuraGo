@@ -141,9 +141,10 @@ function applyI18n() {
     document.getElementById('tokenCounter').textContent = t('chat.token_counter_default');
     document.getElementById('budgetPill').title = t('chat.budget_pill_title');
     document.getElementById('creditsPill').title = t('chat.credits_pill_title');
-    document.getElementById('personality-select').title = t('chat.personality_select_title');
-    const psOpt = document.querySelector('#personality-select option[disabled]');
-    if (psOpt) psOpt.textContent = t('chat.personality_loading');
+    const psBtn = document.getElementById('personality-select');
+    if (psBtn) psBtn.title = t('chat.personality_select_title');
+    const psLabel = document.getElementById('personality-label');
+    if (psLabel) psLabel.textContent = t('chat.personality_loading');
     document.getElementById('moodToggle').title = t('chat.mood_toggle_title');
     document.getElementById('moodText').textContent = t('chat.mood_default_text');
     document.getElementById('moodPanelLabel').textContent = t('chat.mood_default_text');
@@ -554,18 +555,66 @@ async function changePersonality(newId, triggerSelect) {
     }
 }
 
-document.getElementById('personality-select').addEventListener('change', function (e) {
-    changePersonality(e.target.value, e.target);
+// Personality dropdown toggle (custom, theme-aware)
+(function initPersonalityDropdown() {
+    const btn = document.getElementById('personality-select');
+    const dropdown = document.getElementById('personality-dropdown');
+    if (!btn || !dropdown) return;
 
-/* Mobile personality button opens the select dropdown */
-const mobilePersonalityBtn = document.getElementById("personality-mobile-btn");
-if (mobilePersonalityBtn) {
-    mobilePersonalityBtn.addEventListener("click", function () {
-        const sel = document.getElementById("personality-select");
-        if (sel) { sel.showPicker ? sel.showPicker() : sel.click(); }
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !dropdown.hidden;
+        dropdown.hidden = isOpen;
+        btn.setAttribute('aria-expanded', String(!isOpen));
     });
-}
-});
+
+    document.addEventListener('click', (e) => {
+        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !dropdown.hidden) {
+            dropdown.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
+            btn.focus();
+        }
+    });
+
+    const mobilePersonalityBtn = document.getElementById('personality-mobile-btn');
+    if (mobilePersonalityBtn) {
+        mobilePersonalityBtn.addEventListener('click', () => {
+            dropdown.hidden = !dropdown.hidden;
+            btn.setAttribute('aria-expanded', String(!dropdown.hidden));
+        });
+    }
+})();
+
+// Global handler called from chat-history.js when user picks a personality
+window._selectPersonality = function(personalityId) {
+    const btn = document.getElementById('personality-select');
+    const dropdown = document.getElementById('personality-dropdown');
+    const label = document.getElementById('personality-label');
+
+    changePersonality(personalityId, btn);
+
+    if (dropdown) dropdown.hidden = true;
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+
+    if (dropdown) {
+        dropdown.querySelectorAll('.personality-option').forEach(opt => {
+            const isActive = opt.dataset.value === personalityId;
+            opt.classList.toggle('active', isActive);
+            opt.setAttribute('aria-selected', String(isActive));
+        });
+    }
+
+    if (label) {
+        label.textContent = personalityId.charAt(0).toUpperCase() + personalityId.slice(1);
+    }
+};
 
 /* ── Clear session ── */
 document.getElementById('clear-btn').addEventListener('click', async () => {

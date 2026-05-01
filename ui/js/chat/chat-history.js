@@ -172,15 +172,36 @@ async function initPage() {
         const res = await fetch('/api/personalities');
         if (res.ok) {
             const data = await res.json();
-            const select = document.getElementById('personality-select');
-            if (select) {
-                select.innerHTML = '';
+            const btn = document.getElementById('personality-select');
+            const dropdown = document.getElementById('personality-dropdown');
+            const label = document.getElementById('personality-label');
+            if (btn && dropdown) {
+                dropdown.innerHTML = '';
                 data.personalities.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.name;
-                    opt.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
-                    if (p.name === data.active) opt.selected = true;
-                    select.appendChild(opt);
+                    const opt = document.createElement('button');
+                    opt.type = 'button';
+                    opt.className = 'personality-option';
+                    opt.dataset.value = p.name;
+                    opt.setAttribute('role', 'option');
+                    const icon = document.createElement('span');
+                    icon.className = 'personality-option-icon';
+                    icon.textContent = '\u{1F916}';
+                    opt.appendChild(icon);
+                    const lbl = document.createElement('span');
+                    lbl.className = 'personality-option-label';
+                    lbl.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                    opt.appendChild(lbl);
+                    if (p.name === data.active) {
+                        opt.classList.add('active');
+                        opt.setAttribute('aria-selected', 'true');
+                        if (label) label.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                    }
+                    opt.addEventListener('click', () => {
+                        if (typeof window._selectPersonality === 'function') {
+                            window._selectPersonality(p.name);
+                        }
+                    });
+                    dropdown.appendChild(opt);
                 });
             }
         }

@@ -1,4 +1,4 @@
-﻿/* AuraGo – index page styles */
+/* AuraGo – index page styles */
 /* Extracted from index.html */
 
         /* ═══════════════════════════════════════════════════════════════
@@ -380,7 +380,8 @@
         }
 
         @media (max-width: 1100px) {
-            .chat-theme-dropdown {
+            .chat-theme-dropdown,
+            .personality-dropdown {
                 position: fixed;
                 top: 64px;
                 right: 12px;
@@ -619,9 +620,10 @@
             outline: none;
             max-width: 140px;
             height: 32px;
-            display: inline-block;
-            line-height: 30px;
-            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            font-family: inherit;
             appearance: none;
             -webkit-appearance: none;
         }
@@ -631,9 +633,12 @@
             color: var(--text-primary);
         }
 
-        .select-personality option {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
+        .personality-select-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100px;
+            line-height: 1;
         }
 
         .personality-mobile-btn {
@@ -646,6 +651,79 @@
             justify-content: center;
         }
 
+        /* Custom personality dropdown (theme-picker pattern) */
+        .personality-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 160px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: var(--modal-surface);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border-subtle);
+            z-index: 900;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .personality-dropdown[hidden] {
+            display: none !important;
+        }
+
+        .personality-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 7px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.82rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .personality-option:hover {
+            background: var(--bg-glass-hover, rgba(128, 128, 128, 0.1));
+        }
+
+        .personality-option.active {
+            background: var(--bg-glass-active, rgba(128, 128, 128, 0.15));
+            font-weight: 600;
+        }
+
+        .personality-option-icon {
+            font-size: 0.85rem;
+            line-height: 1;
+            width: 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .personality-option-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .personality-option.active::after {
+            content: '✓';
+            position: absolute;
+            right: 10px;
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
         .personality-chevron {
             position: absolute;
             right: 0.5rem;
@@ -653,9 +731,15 @@
             opacity: 0.5;
             pointer-events: none;
             color: var(--text-secondary);
+            transition: transform 0.2s ease;
         }
 
         .personality-select-wrapper:hover .personality-chevron {
+            opacity: 0.9;
+        }
+
+        .select-personality[aria-expanded="true"] .personality-chevron {
+            transform: rotate(180deg);
             opacity: 0.9;
         }
         /* ── Chat area ─────────────────────────────────────── */
@@ -3734,6 +3818,7 @@
                 .credits-pill-action,
                 .select-personality,
                 .personality-select-wrapper,
+                .personality-dropdown,
                 .pill-debug,
                 #debug-pill {
                     display: none !important;

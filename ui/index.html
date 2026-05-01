@@ -120,10 +120,11 @@
                 <span class="chat-ui-icon" data-chat-icon="bot"></span>
             </button>
             <div class="personality-select-wrapper">
-                <select id="personality-select" class="select-personality">
-                    <option value="" disabled selected></option>
-                </select>
-                <span class="personality-chevron chat-ui-icon" data-chat-icon="chevron-down"></span>
+                <button type="button" id="personality-select" class="select-personality" data-i18n-title="chat.personality_select_title" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="personality-select-label" id="personality-label">Persona</span>
+                    <span class="personality-chevron chat-ui-icon" data-chat-icon="chevron-down"></span>
+                </button>
+                <div class="personality-dropdown" id="personality-dropdown" role="listbox" hidden></div>
             </div>
             <div class="mood-widget" id="moodWidget">
                 <button class="mood-toggle" id="moodToggle" data-i18n-aria-label="chat.aria_mood_settings" aria-expanded="false" aria-haspopup="true">
