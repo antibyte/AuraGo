@@ -217,7 +217,7 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			spaceAgentRewriteProxyLocation(resp.Header, spaceAgentProxyPrefix)
 			spaceAgentRewriteProxyCookies(resp.Header, spaceAgentProxyPrefix)
 			contentType := strings.ToLower(resp.Header.Get("Content-Type"))
-			if !spaceAgentShouldRewriteBody(contentType) {
+			if !spaceAgentShouldRewriteResponseBody(contentType, resp.Request.URL.Path) {
 				return nil
 			}
 			body, err := io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024))
@@ -328,7 +328,15 @@ func spaceAgentCookieWithPath(cookie string, path string) string {
 }
 
 func spaceAgentShouldRewriteBody(contentType string) bool {
+	return spaceAgentShouldRewriteResponseBody(contentType, "")
+}
+
+func spaceAgentShouldRewriteResponseBody(contentType string, path string) bool {
 	contentType = strings.ToLower(contentType)
+	path = strings.TrimSpace(path)
+	if (path == "/api/login" || path == "/api/login_challenge") && strings.Contains(contentType, "json") {
+		return false
+	}
 	return strings.Contains(contentType, "text/html") ||
 		strings.Contains(contentType, "javascript") ||
 		strings.Contains(contentType, "ecmascript") ||
@@ -373,9 +381,12 @@ func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 		{`href='site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
 		{`href="/site.webmanifest"`, `href="` + prefix + `/site.webmanifest"`},
 		{`href='/site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
-		{`"/"`, `"` + prefix + `/"`},
-		{`'/'`, `'` + prefix + `/'`},
-		{"`/`", "`" + prefix + `/` + "`"},
+		{`location.href = "/"`, `location.href = "` + prefix + `/"`},
+		{`location.href="/"`, `location.href="` + prefix + `/"`},
+		{`window.location = "/"`, `window.location = "` + prefix + `/"`},
+		{`window.location="/"`, `window.location="` + prefix + `/"`},
+		{`window.location.href = "/"`, `window.location.href = "` + prefix + `/"`},
+		{`window.location.href="/"`, `window.location.href="` + prefix + `/"`},
 	}
 	out := string(body)
 	for _, repl := range replacements {

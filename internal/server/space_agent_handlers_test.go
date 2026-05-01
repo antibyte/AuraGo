@@ -278,17 +278,28 @@ func TestSpaceAgentProxyHelpersRewriteAbsoluteModStringLiterals(t *testing.T) {
 }
 
 func TestSpaceAgentProxyHelpersRewriteAbsoluteRouteStringLiterals(t *testing.T) {
-	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`; const home = \"/\";"), "/integrations/space-agent")
+	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`; window.location.href=\"/\"; const harmless = \"/\";"), "/integrations/space-agent")
 
 	for _, want := range []string{
 		`"/integrations/space-agent/enter?next=%2Fintegrations%2Fspace-agent%2F"`,
 		`'/integrations/space-agent/login'`,
 		"`/integrations/space-agent/enter`",
-		`"/integrations/space-agent/"`,
+		`window.location.href="/integrations/space-agent/"`,
+		`const harmless = "/"`,
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("rewritten JS missing %q: %s", want, string(body))
 		}
+	}
+}
+
+func TestSpaceAgentProxyDoesNotRewriteLoginChallengeJSON(t *testing.T) {
+	if spaceAgentShouldRewriteResponseBody("application/json; charset=utf-8", "/api/login_challenge") {
+		t.Fatal("login challenge JSON must not be rewritten")
+	}
+	body := spaceAgentRewriteBody([]byte(`{"salt":"/","challenge":"abc/def==","next":"/"}`), "/integrations/space-agent")
+	if got := string(body); got != `{"salt":"/","challenge":"abc/def==","next":"/"}` {
+		t.Fatalf("unexpected manual rewrite result: %s", got)
 	}
 }
 
