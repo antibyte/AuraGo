@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 const (
 	spaceAgentBridgeMaxBodyBytes int64 = 64 * 1024
 	spaceAgentProxyPrefix              = "/integrations/space-agent"
+	spaceAgentFileReadBodyHeader       = "X-Aurago-Space-Agent-File-Read-Body"
 )
 
 type spaceAgentBridgeMessage struct {
@@ -216,6 +218,18 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			spaceAgentSetProxySecurityHeaders(resp.Header)
 			spaceAgentRewriteProxyLocation(resp.Header, spaceAgentProxyPrefix)
 			spaceAgentRewriteProxyCookies(resp.Header, spaceAgentProxyPrefix)
+			if body, ok := spaceAgentOptionalFileReadFallback(resp); ok {
+				resp.StatusCode = http.StatusOK
+				resp.Status = "200 OK"
+				resp.Header.Set("Content-Type", "application/json")
+				resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+				if resp.Body != nil {
+					_ = resp.Body.Close()
+				}
+				resp.Body = io.NopCloser(bytes.NewReader(body))
+				resp.ContentLength = int64(len(body))
+				return nil
+			}
 			contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 			if !spaceAgentShouldRewriteResponseBody(contentType, resp.Request.URL.Path) {
 				return nil
@@ -251,6 +265,21 @@ func handleSpaceAgentRootAPIProxy(s *Server) http.HandlerFunc {
 		if !spaceAgentShouldProxyRootAPIRequest(r) {
 			http.NotFound(w, r)
 			return
+		}
+		if r.URL.Path == "/api/file_read" && r.Body != nil {
+			body, err := io.ReadAll(io.LimitReader(r.Body, 256*1024))
+			if closeErr := r.Body.Close(); err == nil && closeErr != nil {
+				err = closeErr
+			}
+			if err != nil {
+				http.Error(w, "Invalid file_read body", http.StatusBadRequest)
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			r.ContentLength = int64(len(body))
+			if len(body) > 0 {
+				r.Header.Set(spaceAgentFileReadBodyHeader, base64.RawURLEncoding.EncodeToString(body))
+			}
 		}
 		proxy.ServeHTTP(w, r)
 	}
@@ -446,6 +475,133 @@ func spaceAgentIsRedirectField(key string) bool {
 	default:
 		return false
 	}
+}
+
+func spaceAgentOptionalFileReadFallback(resp *http.Response) ([]byte, bool) {
+	if resp == nil || resp.Request == nil || resp.Request.URL == nil {
+		return nil, false
+	}
+	if resp.StatusCode != http.StatusNotFound || resp.Request.URL.Path != "/api/file_read" {
+		return nil, false
+	}
+	encoded := strings.TrimSpace(resp.Request.Header.Get(spaceAgentFileReadBodyHeader))
+	if encoded == "" {
+		return nil, false
+	}
+	body, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, false
+	}
+	fallback, ok := spaceAgentBuildOptionalFileReadResponse(body)
+	if !ok {
+		return nil, false
+	}
+	return fallback, true
+}
+
+func spaceAgentBuildOptionalFileReadResponse(body []byte) ([]byte, bool) {
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, false
+	}
+	encoding := strings.TrimSpace(stringValue(payload["encoding"]))
+	if encoding == "" {
+		encoding = "utf8"
+	}
+	if rawFiles, ok := payload["files"].([]interface{}); ok {
+		if len(rawFiles) == 0 {
+			return nil, false
+		}
+		files := make([]map[string]string, 0, len(rawFiles))
+		for _, raw := range rawFiles {
+			path, itemEncoding := spaceAgentFileReadRequestInfo(raw, encoding)
+			content, ok := spaceAgentOptionalFileContent(path)
+			if !ok {
+				return nil, false
+			}
+			if itemEncoding == "" {
+				itemEncoding = encoding
+			}
+			files = append(files, map[string]string{"content": content, "encoding": itemEncoding, "path": path})
+		}
+		out, err := json.Marshal(map[string]interface{}{"count": len(files), "files": files})
+		return out, err == nil
+	}
+	path := strings.TrimSpace(stringValue(payload["path"]))
+	content, ok := spaceAgentOptionalFileContent(path)
+	if !ok {
+		return nil, false
+	}
+	out, err := json.Marshal(map[string]string{"content": content, "encoding": encoding, "path": path})
+	return out, err == nil
+}
+
+func spaceAgentFileReadRequestInfo(raw interface{}, defaultEncoding string) (string, string) {
+	switch typed := raw.(type) {
+	case string:
+		return strings.TrimSpace(typed), defaultEncoding
+	case map[string]interface{}:
+		path := strings.TrimSpace(stringValue(typed["path"]))
+		encoding := strings.TrimSpace(stringValue(typed["encoding"]))
+		return path, encoding
+	default:
+		return "", defaultEncoding
+	}
+}
+
+func stringValue(value interface{}) string {
+	if str, ok := value.(string); ok {
+		return str
+	}
+	return ""
+}
+
+func spaceAgentOptionalFileContent(path string) (string, bool) {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"))
+	if normalized == "" || !(strings.HasPrefix(normalized, "~/") || strings.HasPrefix(normalized, "/~")) {
+		return "", false
+	}
+	optionalPrefixes := []string{
+		"~/meta/",
+		"~/.config/",
+		"~/dashboard/",
+		"~/onscreen-agent/",
+		"~/onscreen_agent/",
+	}
+	matchesPrefix := false
+	for _, prefix := range optionalPrefixes {
+		if strings.HasPrefix(normalized, prefix) {
+			matchesPrefix = true
+			break
+		}
+	}
+	if !matchesPrefix {
+		return "", false
+	}
+	optionalNames := []string{
+		"login_hooks",
+		"dashboard-prefs",
+		"dashboard_prefs",
+		"prefs",
+		"onscreen-agent",
+		"onscreen_agent",
+		"config",
+		"history",
+	}
+	matchesName := false
+	for _, name := range optionalNames {
+		if strings.Contains(normalized, name) {
+			matchesName = true
+			break
+		}
+	}
+	if !matchesName {
+		return "", false
+	}
+	if strings.Contains(normalized, "history") || strings.Contains(normalized, "hooks") {
+		return "[]\n", true
+	}
+	return "{}\n", true
 }
 
 func (s *Server) currentSpaceAgentConfig() config.Config {

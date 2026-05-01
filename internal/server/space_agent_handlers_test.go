@@ -328,6 +328,45 @@ func TestSpaceAgentProxyRewritesOnlyLoginJSONRedirectFields(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentOptionalFileReadFallbacksOnlyForUIState(t *testing.T) {
+	body, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/onscreen-agent/history.json"}`))
+	if !ok {
+		t.Fatal("expected optional onscreen history file to receive fallback")
+	}
+	var file map[string]string
+	if err := json.Unmarshal(body, &file); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v; body=%s", err, string(body))
+	}
+	if file["content"] != "[]\n" || file["encoding"] != "utf8" || file["path"] != "~/onscreen-agent/history.json" {
+		t.Fatalf("unexpected fallback file response: %#v", file)
+	}
+
+	body, ok = spaceAgentBuildOptionalFileReadResponse([]byte(`{"files":[{"path":"~/dashboard/prefs.json"},{"path":"~/.config/onscreen-agent-config.json"}]}`))
+	if !ok {
+		t.Fatal("expected optional batch file_read to receive fallback")
+	}
+	var batch struct {
+		Count int `json:"count"`
+		Files []struct {
+			Content string `json:"content"`
+			Path    string `json:"path"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(body, &batch); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v; body=%s", err, string(body))
+	}
+	if batch.Count != 2 || len(batch.Files) != 2 || batch.Files[0].Content != "{}\n" {
+		t.Fatalf("unexpected fallback batch response: %#v", batch)
+	}
+
+	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/spaces/big-bang/space.yaml"}`)); ok {
+		t.Fatal("must not hide missing real Space Agent project files")
+	}
+	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/notes.txt"}`)); ok {
+		t.Fatal("must not hide arbitrary missing user files")
+	}
+}
+
 func TestHandleSpaceAgentProxyServesManifest(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
