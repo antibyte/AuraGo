@@ -185,6 +185,7 @@ window.SessionDrawer = (function () {
         isOpen = true;
         drawer.classList.add('open');
         backdrop.classList.add('active');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
         fetchSessions().then(renderList);
     }
 
@@ -193,6 +194,7 @@ window.SessionDrawer = (function () {
         isOpen = false;
         drawer.classList.remove('open');
         backdrop.classList.remove('active');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
     }
 
     function toggle() {
