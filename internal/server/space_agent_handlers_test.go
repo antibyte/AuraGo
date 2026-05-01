@@ -137,6 +137,23 @@ func TestSpaceAgentBridgeNonQuestionDoesNotTriggerLoopback(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentBridgeResponseIncludesAnswerWhenDeliveryFails(t *testing.T) {
+	msg := spaceAgentBridgeMessage{Type: "question", Content: "status"}
+	delivery := map[string]interface{}{"status": "error", "http_status": float64(404)}
+
+	resp := spaceAgentBridgeResponse(msg, "final answer", delivery)
+
+	if resp["status"] != "ok" {
+		t.Fatalf("status = %#v, want ok", resp["status"])
+	}
+	if resp["answer"] != "final answer" {
+		t.Fatalf("answer = %#v, want final answer", resp["answer"])
+	}
+	if resp["space_agent_delivery"] == nil {
+		t.Fatal("expected failed postback result to be included")
+	}
+}
+
 func TestSpaceAgentReplyBrokerCapturesFinalResponse(t *testing.T) {
 	base := NewSSEBrokerAdapter(NewSSEBroadcaster())
 	broker := &spaceAgentReplyBroker{FeedbackBroker: base}

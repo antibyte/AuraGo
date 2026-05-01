@@ -141,29 +141,46 @@ func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 		}
 		msg.Summary = security.IsolateExternalData(strings.TrimSpace(msg.Summary))
 		msg.Content = security.IsolateExternalData(strings.TrimSpace(msg.Content))
+		if shouldRunSpaceAgentBridgeMessage(msg) {
+			answer, delivery := runSpaceAgentBridgeMessage(s, msg)
+			response := spaceAgentBridgeResponse(msg, answer, delivery)
+			if s.SSE != nil {
+				s.SSE.BroadcastType(EventSpaceAgentMessage, response)
+			}
+			writeSpaceAgentJSON(w, response)
+			return
+		}
 		if s.SSE != nil {
 			s.SSE.BroadcastType(EventSpaceAgentMessage, msg)
 		}
-		if shouldRunSpaceAgentBridgeMessage(msg) {
-			go runSpaceAgentBridgeMessage(s, msg)
-		}
 		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "message": msg})
 	}
+}
+
+func spaceAgentBridgeResponse(msg spaceAgentBridgeMessage, answer string, delivery map[string]interface{}) map[string]interface{} {
+	response := map[string]interface{}{"status": "ok", "message": msg}
+	if strings.TrimSpace(answer) != "" {
+		response["answer"] = answer
+	}
+	if delivery != nil {
+		response["space_agent_delivery"] = delivery
+	}
+	return response
 }
 
 func shouldRunSpaceAgentBridgeMessage(msg spaceAgentBridgeMessage) bool {
 	return strings.EqualFold(strings.TrimSpace(msg.Type), "question") && strings.TrimSpace(msg.Content) != ""
 }
 
-func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) {
+func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) (string, map[string]interface{}) {
 	if s == nil || s.Cfg == nil || s.SSE == nil {
-		return
+		return "", nil
 	}
 	cfg := s.currentSpaceAgentConfig()
 	sessionID := "default"
 	content := spaceAgentBridgeQuestionPrompt(msg)
 	if strings.TrimSpace(content) == "" {
-		return
+		return "", nil
 	}
 	runCfg := agent.RunConfig{
 		Config:             &cfg,
@@ -205,7 +222,7 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) {
 		if s.Logger != nil {
 			s.Logger.Warn("[SpaceAgent] Bridge question completed without final response", "session_id", msg.SessionID)
 		}
-		return
+		return "", nil
 	}
 	reply := tools.SpaceAgentInstruction{
 		Instruction: "AuraGo answered your bridge question.",
@@ -219,11 +236,12 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) {
 		if s.Logger != nil {
 			s.Logger.Warn("[SpaceAgent] Failed to send bridge answer back to Space Agent", "result", result, "session_id", msg.SessionID)
 		}
-		return
+		return answer, result
 	}
 	if s.Logger != nil {
 		s.Logger.Info("[SpaceAgent] Bridge answer sent back to Space Agent", "session_id", msg.SessionID)
 	}
+	return answer, result
 }
 
 func spaceAgentBridgeQuestionPrompt(msg spaceAgentBridgeMessage) string {
