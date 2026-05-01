@@ -89,7 +89,7 @@ func TestHandleSpaceAgentSendRequiresPost(t *testing.T) {
 	}
 }
 
-func TestHandleIntegrationWebhostsIncludesRunningSpaceAgent(t *testing.T) {
+func TestHandleIntegrationWebhostsIncludesRunningSpaceAgentProxy(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3000
@@ -115,12 +115,12 @@ func TestHandleIntegrationWebhostsIncludesRunningSpaceAgent(t *testing.T) {
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].ID != "space_agent" || resp.Webhosts[0].URL != "http://space.local:3000" {
+	if resp.Webhosts[0].ID != "space_agent" || resp.Webhosts[0].URL != "/integrations/space-agent/" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }
 
-func TestHandleIntegrationWebhostsRewritesLoopbackSpaceAgentURLToServerHost(t *testing.T) {
+func TestHandleIntegrationWebhostsUsesProxyInsteadOfLoopbackURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3000
@@ -144,7 +144,33 @@ func TestHandleIntegrationWebhostsRewritesLoopbackSpaceAgentURLToServerHost(t *t
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].URL != "http://aurago-server.local:3000" {
-		t.Fatalf("url = %q, want server host with Space Agent port", resp.Webhosts[0].URL)
+	if resp.Webhosts[0].URL != "/integrations/space-agent/" {
+		t.Fatalf("url = %q, want AuraGo proxy URL", resp.Webhosts[0].URL)
+	}
+}
+
+func TestSpaceAgentProxyHelpersRewriteSubpathResponses(t *testing.T) {
+	header := http.Header{}
+	header.Set("Location", "/login")
+	header.Add("Set-Cookie", "space_session=abc; Path=/; HttpOnly")
+
+	spaceAgentRewriteProxyLocation(header, "/integrations/space-agent")
+	spaceAgentRewriteProxyCookies(header, "/integrations/space-agent")
+	body := spaceAgentRewriteHTML([]byte(`<link href="/assets/app.css"><script src="/app.js"></script><form action="/login"></form>`), "/integrations/space-agent")
+
+	if got := header.Get("Location"); got != "/integrations/space-agent/login" {
+		t.Fatalf("Location = %q", got)
+	}
+	if got := header.Values("Set-Cookie")[0]; !strings.Contains(got, "Path=/integrations/space-agent/") {
+		t.Fatalf("Set-Cookie was not scoped to proxy path: %q", got)
+	}
+	for _, want := range []string{
+		`href="/integrations/space-agent/assets/app.css"`,
+		`src="/integrations/space-agent/app.js"`,
+		`action="/integrations/space-agent/login"`,
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten HTML missing %q: %s", want, string(body))
+		}
 	}
 }

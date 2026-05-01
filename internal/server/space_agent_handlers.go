@@ -1,14 +1,17 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -161,13 +164,127 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 					Name:        "Space Agent",
 					Description: "Managed Space Agent workspace",
 					Status:      status,
-					URL:         spaceAgentPublicURL(&cfg, r),
+					URL:         spaceAgentProxyURL(),
 					Icon:        "space_agent",
 				})
 			}
 		}
 		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "webhosts": webhosts})
 	}
+}
+
+func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
+	const proxyPrefix = "/integrations/space-agent"
+	return func(w http.ResponseWriter, r *http.Request) {
+		cfg := s.currentSpaceAgentConfig()
+		if !cfg.SpaceAgent.Enabled {
+			http.NotFound(w, r)
+			return
+		}
+		if r.URL.Path == proxyPrefix {
+			http.Redirect(w, r, proxyPrefix+"/", http.StatusTemporaryRedirect)
+			return
+		}
+		port := cfg.SpaceAgent.Port
+		if port <= 0 {
+			port = 3000
+		}
+		targetHost := spaceAgentProxyTargetHost(cfg.SpaceAgent.Host)
+		target, err := url.Parse(fmt.Sprintf("http://%s", net.JoinHostPort(targetHost, fmt.Sprintf("%d", port))))
+		if err != nil {
+			http.Error(w, "Space Agent proxy target is invalid", http.StatusInternalServerError)
+			return
+		}
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		originalDirector := proxy.Director
+		proxy.Director = func(req *http.Request) {
+			originalDirector(req)
+			req.URL.Path = "/" + strings.TrimPrefix(strings.TrimPrefix(req.URL.Path, proxyPrefix), "/")
+			req.URL.RawPath = ""
+			req.Host = target.Host
+			req.Header.Set("X-Forwarded-Host", r.Host)
+			req.Header.Set("X-Forwarded-Prefix", proxyPrefix)
+		}
+		proxy.ModifyResponse = func(resp *http.Response) error {
+			spaceAgentRewriteProxyLocation(resp.Header, proxyPrefix)
+			spaceAgentRewriteProxyCookies(resp.Header, proxyPrefix)
+			if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
+				return nil
+			}
+			body, err := io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024))
+			if closeErr := resp.Body.Close(); err == nil && closeErr != nil {
+				err = closeErr
+			}
+			if err != nil {
+				return err
+			}
+			body = spaceAgentRewriteHTML(body, proxyPrefix)
+			resp.Body = io.NopCloser(bytes.NewReader(body))
+			resp.ContentLength = int64(len(body))
+			resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+			return nil
+		}
+		proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+			s.Logger.Warn("[SpaceAgent] Proxy request failed", "target", target.String(), "error", err)
+			http.Error(w, "Space Agent is running but not reachable from AuraGo on "+target.String(), http.StatusBadGateway)
+		}
+		proxy.ServeHTTP(w, r)
+	}
+}
+
+func spaceAgentProxyURL() string {
+	return "/integrations/space-agent/"
+}
+
+func spaceAgentProxyTargetHost(host string) string {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" || host == "0.0.0.0" || host == "::" || strings.EqualFold(host, "localhost") || host == "::1" {
+		return "127.0.0.1"
+	}
+	return host
+}
+
+func spaceAgentRewriteProxyLocation(header http.Header, prefix string) {
+	location := strings.TrimSpace(header.Get("Location"))
+	if strings.HasPrefix(location, "/") && !strings.HasPrefix(location, prefix+"/") {
+		header.Set("Location", prefix+location)
+	}
+}
+
+func spaceAgentRewriteProxyCookies(header http.Header, prefix string) {
+	cookies := header.Values("Set-Cookie")
+	if len(cookies) == 0 {
+		return
+	}
+	header.Del("Set-Cookie")
+	for _, cookie := range cookies {
+		lower := strings.ToLower(cookie)
+		if strings.Contains(lower, "path=/") {
+			cookie = strings.Replace(cookie, "Path=/", "Path="+prefix+"/", 1)
+			cookie = strings.Replace(cookie, "path=/", "Path="+prefix+"/", 1)
+		} else {
+			cookie += "; Path=" + prefix + "/"
+		}
+		header.Add("Set-Cookie", cookie)
+	}
+}
+
+func spaceAgentRewriteHTML(body []byte, prefix string) []byte {
+	replacements := []struct {
+		old string
+		new string
+	}{
+		{`href="/`, `href="` + prefix + `/`},
+		{`src="/`, `src="` + prefix + `/`},
+		{`action="/`, `action="` + prefix + `/`},
+		{`fetch("/`, `fetch("` + prefix + `/`},
+		{`fetch('/`, `fetch('` + prefix + `/`},
+	}
+	out := string(body)
+	for _, repl := range replacements {
+		out = strings.ReplaceAll(out, repl.old, repl.new)
+	}
+	return []byte(out)
 }
 
 func (s *Server) currentSpaceAgentConfig() config.Config {

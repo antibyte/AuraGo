@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -333,6 +334,12 @@ func SpaceAgentDockerStatus(dockerHost string, cfg SpaceAgentSidecarConfig) map[
 		if running, _ := state["Running"].(bool); running {
 			out["status"] = "running"
 			out["running"] = true
+			out["local_url"] = spaceAgentLocalURL(cfg)
+			if !spaceAgentLocalPortReachable(cfg) {
+				out["status"] = "starting"
+				out["message"] = "container is running, but the Space Agent HTTP port is not reachable from AuraGo yet"
+				out["running"] = false
+			}
 			return out
 		}
 		if status, _ := state["Status"].(string); status != "" {
@@ -340,6 +347,35 @@ func SpaceAgentDockerStatus(dockerHost string, cfg SpaceAgentSidecarConfig) map[
 		}
 	}
 	return out
+}
+
+func spaceAgentLocalURL(cfg SpaceAgentSidecarConfig) string {
+	port := cfg.Port
+	if port <= 0 {
+		port = 3000
+	}
+	return "http://" + net.JoinHostPort(spaceAgentLocalTargetHost(cfg.Host), strconv.Itoa(port))
+}
+
+func spaceAgentLocalTargetHost(host string) string {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" || host == "0.0.0.0" || host == "::" || strings.EqualFold(host, "localhost") || host == "::1" {
+		return "127.0.0.1"
+	}
+	return host
+}
+
+func spaceAgentLocalPortReachable(cfg SpaceAgentSidecarConfig) bool {
+	port := cfg.Port
+	if port <= 0 {
+		port = 3000
+	}
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(spaceAgentLocalTargetHost(cfg.Host), strconv.Itoa(port)), 750*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 // SendSpaceAgentInstruction forwards an AuraGo instruction to the Space Agent bridge customware endpoint.
