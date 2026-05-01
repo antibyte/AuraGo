@@ -1353,6 +1353,259 @@ egg_mode:
 
 ---
 
+## YepAPI Integration
+
+Unified API for SEO, SERP, web scraping, and social media data (YouTube, TikTok, Instagram, Amazon).
+
+### Web UI Setup
+1. Open **Config → Integrations → YepAPI**.
+2. Enable the integration.
+3. Store the API key in the Vault (key: `yepapi_api_key`).
+4. Configure per-service enable/disable as needed.
+5. Save and restart.
+
+### Capabilities
+
+| Service | Capabilities |
+|---------|--------------|
+| **SEO** | Keyword research, domain overview, competitor analysis, backlinks, on-page analysis, trends |
+| **SERP** | Google/Bing/Yahoo/Baidu search, Maps, Images, News, YouTube, Autocomplete |
+| **Scraping** | Standard, JavaScript-rendered, stealth, screenshots, AI extraction |
+| **YouTube** | Video search, transcripts, comments, channels, playlists, shorts |
+| **TikTok** | Video/user search, profiles, posts, comments, music, challenges |
+| **Instagram** | User search, profiles, posts, reels, stories, comments, hashtags |
+| **Amazon** | Product search, ASIN lookup, reviews, deals, best sellers |
+
+### YAML Reference
+```yaml
+yepapi:
+    enabled: true
+    seo:
+        enabled: true
+    serp:
+        enabled: true
+    scraping:
+        enabled: true
+    youtube:
+        enabled: true
+    tiktok:
+        enabled: true
+    instagram:
+        enabled: true
+    amazon:
+        enabled: true
+```
+
+---
+
+## Inventory System
+
+Device registry with SSH credential management and Wake-on-LAN support.
+
+### Web UI Setup
+1. Open **Config → Integrations → Inventory**.
+2. Enable the integration.
+3. Configure `inventory_path` if using a custom database location.
+4. Enable **Wake-on-LAN** if needed.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+sqlite:
+    inventory_path: ./data/inventory.db
+
+tools:
+    inventory:
+        enabled: true
+    wol:
+        enabled: true
+```
+
+### Key Features
+- **Device Registry**: Store devices (servers, VMs, Docker, network devices) with IP, port, SSH credentials
+- **Wake-on-LAN**: Send magic packets to wake devices via stored MAC addresses
+- **Credential Security**: SSH passwords and private keys stored in encrypted Vault
+- **Tag-based Organization**: Group and search devices by tags
+
+Use `register_device`, `query_inventory`, and `wake_on_lan` tools in chat.
+
+---
+
+## Heartbeat System
+
+Background wake-up scheduler for autonomous status checks at configurable intervals.
+
+### Web UI Setup
+1. Open **Config → Integrations → Heartbeat**.
+2. Enable the integration.
+3. Configure **Day Window** (default: 08:00–22:00, every 1h) and **Night Window** (default: 22:00–08:00, every 4h).
+4. Toggle what to check: Tasks, Appointments, Emails.
+5. Optionally add a custom prompt for heartbeat wake-ups.
+6. Save and restart.
+
+### YAML Reference
+```yaml
+heartbeat:
+    enabled: true
+    check_tasks: true
+    check_appointments: true
+    check_emails: true
+    additional_prompt: "Alert me only for critical issues."
+    day_time_window:
+        start: "08:00"
+        end: "22:00"
+        interval: "1h"
+    night_time_window:
+        start: "22:00"
+        end: "08:00"
+        interval: "4h"
+```
+
+### Key Features
+- **Time-aware guidance**: Different wake-up priorities based on time of day (morning check, midday review, evening summary, night quiet mode)
+- **Overlap protection**: Prevents concurrent heartbeat executions
+- **State persistence**: Persists last-run time to survive process restarts
+- **Custom prompts**: Append user-defined instructions to every heartbeat wake-up
+
+---
+
+## Knowledge Graph Extraction
+
+LLM-based entity and relationship extraction from conversations and files.
+
+### Web UI Setup
+1. Open **Config → Integrations → Knowledge Graph**.
+2. Enable the integration.
+3. Configure **Auto Extraction** for nightly batch entity extraction.
+4. Toggle **Prompt Injection** to include KG context in system prompts.
+5. Set limits for prompt node count and character count.
+6. Save and restart.
+
+### YAML Reference
+```yaml
+tools:
+    knowledge_graph:
+        enabled: true
+        readonly: false
+        auto_extraction: true
+        prompt_injection: true
+        max_prompt_nodes: 5
+        max_prompt_chars: 800
+        retrieval_fusion: true
+```
+
+### Key Features
+- **Entity Types**: person, device, service, software, location, project, concept, event
+- **Relations**: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in
+- **Confidence Scoring**: Heuristic quality scoring (0.0–1.0) per extraction
+- **Cross-enrichment**: RAG ↔ Knowledge Graph bidirectional fusion
+
+---
+
+## Obsidian Integration
+
+Connect AuraGo to your Obsidian vault for notes and knowledge management.
+
+### Web UI Setup
+1. Open **Config → Integrations → Obsidian**.
+2. Enable the integration.
+3. Enter the **Vault Path** and synchronization mode.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+obsidian:
+    enabled: true
+    vault_path: "/home/user/obsidian-vault"
+```
+
+---
+
+## Uptime Kuma Integration
+
+Monitor service availability with Uptime Kuma.
+
+### Web UI Setup
+1. Open **Config → Integrations → Uptime Kuma**.
+2. Enable the integration.
+3. Enter the **URL**.
+4. Store the API key in the Vault.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+uptime_kuma:
+    enabled: true
+    url: "https://uptime-kuma.example.com"
+```
+
+---
+
+## Vercel Integration
+
+Deploy web projects directly to Vercel.
+
+### Web UI Setup
+1. Open **Config → Integrations → Vercel**.
+2. Enable the integration.
+3. Enter the **Team Slug**.
+4. Store the API token in the Vault.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+vercel:
+    enabled: true
+    team_slug: "my-team"
+```
+
+---
+
+## Browser Automation
+
+Headless browser automation for forms, screenshots, and web interactions.
+
+### Web UI Setup
+1. Open **Config → Integrations → Browser Automation**.
+2. Enable the integration.
+3. Configure **Headless Mode** and screenshot directory.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+browser_automation:
+    enabled: true
+    headless: true
+    screenshots_dir: "browser_screenshots"
+```
+
+---
+
+## Output Compression
+
+Reduces token consumption by filtering and deduplicating tool outputs before they enter the LLM context.
+
+### Web UI Setup
+1. Open **Config → Agent → Output Compression**.
+2. Enable the integration.
+3. Adjust thresholds (minimum characters, preserve errors).
+4. Toggle compression for Shell, Python, and API outputs.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+agent:
+    output_compression:
+        enabled: true
+        min_chars: 500
+        preserve_errors: true
+        shell_compression: true
+        python_compression: true
+        api_compression: true
+```
+
+---
+
 ## Testing Integrations
 
 ### Health Check Commands

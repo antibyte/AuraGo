@@ -1148,6 +1148,155 @@ agent:
 
 ---
 
+## YepAPI Integration
+
+Einheitliche API für SEO, SERP, Web-Scraping und Social-Media-Daten (YouTube, TikTok, Instagram, Amazon).
+
+### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → YepAPI**.
+2. Aktiviere die Integration.
+3. Speichere den API-Key im Vault (Schlüssel: `yepapi_api_key`).
+4. Konfiguriere bei Bedarf einzelne Dienste ein/aus.
+5. Speichere und starte neu.
+
+### Fähigkeiten
+
+| Dienst | Fähigkeiten |
+|--------|--------------|
+| **SEO** | Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlinks, On-Page-Analyse, Trends |
+| **SERP** | Google/Bing/Yahoo/Baidu-Suche, Maps, Bilder, News, YouTube, Autocomplete |
+| **Scraping** | Standard, JavaScript-gestützt, Stealth, Screenshots, KI-Extraktion |
+| **YouTube** | Video-Suche, Transkripte, Kommentare, Kanäle, Playlists, Shorts |
+| **TikTok** | Video-/Benutzersuche, Profile, Posts, Kommentare, Musik, Challenges |
+| **Instagram** | Benutzer-/Hashtag-Suche, Profile, Posts, Reels, Stories, Kommentare |
+| **Amazon** | Produktsuche, ASIN-Lookup, Rezensionen, Deals, Bestseller |
+
+### YAML-Referenz
+```yaml
+yepapi:
+    enabled: true
+    seo:
+        enabled: true
+    serp:
+        enabled: true
+    scraping:
+        enabled: true
+    youtube:
+        enabled: true
+    tiktok:
+        enabled: true
+    instagram:
+        enabled: true
+    amazon:
+        enabled: true
+```
+
+---
+
+## Inventar-System
+
+Geräteregistrierung mit SSH-Credential-Verwaltung und Wake-on-LAN-Unterstützung.
+
+### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Inventar**.
+2. Aktiviere die Integration.
+3. Konfiguriere `inventory_path` für einen benutzerdefinierten Datenbankspeicherort.
+4. Aktiviere **Wake-on-LAN** falls benötigt.
+5. Speichere und starte neu.
+
+### YAML-Referenz
+```yaml
+sqlite:
+    inventory_path: ./data/inventory.db
+
+tools:
+    inventory:
+        enabled: true
+    wol:
+        enabled: true
+```
+
+### Wichtige Funktionen
+- **Geräteregistrierung**: Geräte (Server, VMs, Docker, Netzwerkgeräte) mit IP, Port, SSH-Credentials speichern
+- **Wake-on-LAN**: Magic Packets senden um Geräte über gespeicherte MAC-Adressen aufzuwecken
+- **Credential-Sicherheit**: SSH-Passwörter und Private Keys im verschlüsselten Vault gespeichert
+- **Tag-basierte Organisation**: Geräte nach Tags gruppieren und durchsuchen
+
+Nutze die Tools `register_device`, `query_inventory` und `wake_on_lan` im Chat.
+
+---
+
+## Heartbeat-System
+
+Hintergrund-Wake-up-Scheduler für autonome Statusprüfungen in konfigurierbaren Intervallen.
+
+### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Heartbeat**.
+2. Aktiviere die Integration.
+3. Konfiguriere **Tagesfenster** (Standard: 08:00–22:00, alle 1h) und **Nachtfenster** (Standard: 22:00–08:00, alle 4h).
+4. Wähle was geprüft werden soll: Aufgaben, Termine, E-Mails.
+5. Optional: Eigenes Prompt für Heartbeat-Wake-ups hinzufügen.
+6. Speichere und starte neu.
+
+### YAML-Referenz
+```yaml
+heartbeat:
+    enabled: true
+    check_tasks: true
+    check_appointments: true
+    check_emails: true
+    additional_prompt: "Benachrichtige mich nur bei kritischen Problemen."
+    day_time_window:
+        start: "08:00"
+        end: "22:00"
+        interval: "1h"
+    night_time_window:
+        start: "22:00"
+        end: "08:00"
+        interval: "4h"
+```
+
+### Wichtige Funktionen
+- **Zeitbasierte Führung**: Unterschiedliche Wake-up-Prioritäten je nach Tageszeit (Morgen-Check, Mittag-Review, Abend-Zusammenfassung, Nacht-Ruhe-Modus)
+- **Overlap-Schutz**: Verhindert parallele Heartbeat-Ausführungen
+- **State-Persistenz**: Speichert letzten Laufzeitpunkt um Neustarts zu überstehen
+- **Eigene Prompts**: Benutzerdefinierte Anweisungen an jeden Heartbeat-Wake-up anhängen
+
+---
+
+## Knowledge Graph Extraction
+
+LLM-basierte Entity- und Beziehungsextraktion aus Konversationen und Dateien.
+
+### Web-UI Einrichtung
+1. Öffne **Config → Integrationen → Knowledge Graph**.
+2. Aktiviere die Integration.
+3. Konfiguriere **Auto Extraction** für nächtliche Batch-Entity-Extraktion.
+4. Aktiviere **Prompt Injection** um KG-Kontext in System-Prompts einzubinden.
+5. Setze Limits für Prompt-Node-Anzahl und Zeichenanzahl.
+6. Speichere und starte neu.
+
+### YAML-Referenz
+```yaml
+tools:
+    knowledge_graph:
+        enabled: true
+        readonly: false
+        auto_extraction: true
+        prompt_injection: true
+        max_prompt_nodes: 5
+        max_prompt_chars: 800
+        retrieval_fusion: true
+```
+
+### Wichtige Funktionen
+- **Entity-Typen**: person, device, service, software, location, project, concept, event
+- **Beziehungen**: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in
+- **Confidence Scoring**: Heuristische Qualitätsbewertung (0.0–1.0) pro Extraktion
+- **Kreuzanreicherung**: RAG ↔ Knowledge Graph bidirektionale Fusion
+
+---
+
 ## Integrationen testen
 
 ### Test über Chat
