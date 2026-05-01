@@ -65,11 +65,11 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 		t.Fatalf("restart policy = %#v", restart)
 	}
 	binds := hostConfig["Binds"].([]interface{})
-	if len(binds) != 2 {
-		t.Fatalf("bind count = %d, want 2: %#v", len(binds), binds)
+	if len(binds) != 3 {
+		t.Fatalf("bind count = %d, want 3: %#v", len(binds), binds)
 	}
 	bindText := strings.Join(interfaceStrings(binds), "\n")
-	if !strings.Contains(bindText, "/app/.space-agent") || !strings.Contains(bindText, "/app/customware") {
+	if !strings.Contains(bindText, "/app/.space-agent") || !strings.Contains(bindText, "/app/customware") || !strings.Contains(bindText, "/app/supervisor") {
 		t.Fatalf("binds missing expected container paths: %s", bindText)
 	}
 	ports := got["ExposedPorts"].(map[string]interface{})
@@ -147,7 +147,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-git"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-auth-bootstrap"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -182,6 +182,30 @@ func TestSpaceAgentDockerfileInstallsGit(t *testing.T) {
 	for _, want := range []string{"apt-get install", "git", "openssh-client"} {
 		if !strings.Contains(dockerfile, want) {
 			t.Fatalf("Dockerfile missing %q:\n%s", want, dockerfile)
+		}
+	}
+}
+
+func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
+	dockerfile := spaceAgentDockerfile()
+	for _, want := range []string{"aurago_space_bootstrap.mjs", "node aurago_space_bootstrap.mjs", "--state-dir /app/supervisor"} {
+		if !strings.Contains(dockerfile, want) {
+			t.Fatalf("Dockerfile missing %q:\n%s", want, dockerfile)
+		}
+	}
+}
+
+func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
+	script := spaceAgentBootstrapScript()
+	for _, want := range []string{
+		"SPACE_AGENT_ADMIN_USER",
+		"SPACE_AGENT_ADMIN_PASSWORD",
+		"loadSupervisorAuthEnv",
+		"createUser(projectRoot, username, password",
+		"setUserPassword(projectRoot, username, password",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("bootstrap script missing %q:\n%s", want, script)
 		}
 	}
 }

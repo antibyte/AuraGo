@@ -27,8 +27,9 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-git"
+	spaceAgentImageBuildRevision   = "20260501-auth-bootstrap"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
+	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
 	spaceAgentInstructionEndpoint  = "/api/aurago/instructions"
@@ -153,6 +154,7 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"Binds": []string{
 				dockerutil.FormatBindMount(cfg.DataPath, spaceAgentDataContainerPath),
+				dockerutil.FormatBindMount(filepath.Join(cfg.DataPath, "supervisor"), spaceAgentSupervisorPath),
 				dockerutil.FormatBindMount(cfg.CustomwarePath, spaceAgentCustomwarePath),
 			},
 			"PortBindings": map[string]interface{}{
@@ -446,6 +448,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.MkdirAll(cfg.DataPath, 0o750); err != nil {
 		return fmt.Errorf("create data dir: %w", err)
 	}
+	if err := os.MkdirAll(filepath.Join(cfg.DataPath, "supervisor"), 0o750); err != nil {
+		return fmt.Errorf("create supervisor state dir: %w", err)
+	}
 	if err := os.MkdirAll(cfg.CustomwarePath, 0o750); err != nil {
 		return fmt.Errorf("create customware dir: %w", err)
 	}
@@ -458,6 +463,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 		_ = runSpaceAgentCommand(logger, cfg.SourcePath, "git", "checkout", cfg.GitRef)
 	}
 	dockerfilePath := filepath.Join(cfg.SourcePath, "Dockerfile.aurago")
+	if err := os.WriteFile(filepath.Join(cfg.SourcePath, "aurago_space_bootstrap.mjs"), []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
+		return fmt.Errorf("write aurago_space_bootstrap.mjs: %w", err)
+	}
 	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
 		return fmt.Errorf("write Dockerfile.aurago: %w", err)
 	}
@@ -496,8 +504,36 @@ RUN apt-get update \
 COPY package*.json ./
 RUN npm ci --omit=dev || npm install --omit=dev
 COPY . .
-EXPOSE 3000
-CMD ["sh", "-lc", "node space supervise HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
+EXPOSE 3000 3100
+CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --state-dir /app/supervisor HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
+`
+}
+
+func spaceAgentBootstrapScript() string {
+	return `import { loadSupervisorAuthEnv } from "./commands/lib/supervisor/auth_keys.js";
+import { createUser, setUserPassword } from "./server/lib/auth/user_manage.js";
+
+const username = String(process.env.SPACE_AGENT_ADMIN_USER || "").trim();
+const password = String(process.env.SPACE_AGENT_ADMIN_PASSWORD || "");
+const projectRoot = process.cwd();
+const stateDir = "/app/supervisor";
+
+if (username && password) {
+  process.env.CUSTOMWARE_PATH = process.env.CUSTOMWARE_PATH || "/app/customware";
+  const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
+  Object.assign(process.env, auth.env);
+
+  try {
+    createUser(projectRoot, username, password, { fullName: username });
+    console.log("[aurago-bootstrap] Created managed Space Agent user " + username + ".");
+  } catch (error) {
+    if (!String(error?.message || "").startsWith("User already exists:")) {
+      throw error;
+    }
+    setUserPassword(projectRoot, username, password);
+    console.log("[aurago-bootstrap] Updated managed Space Agent user " + username + ".");
+  }
+}
 `
 }
 
