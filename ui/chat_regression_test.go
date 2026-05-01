@@ -642,6 +642,30 @@ func TestChatComposerToolIconsKeepExplicitImageBox(t *testing.T) {
 	}
 }
 
+func TestChatCheatsheetPickerRequestsOnlyUserSheets(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("js", "chat", "main.js"))
+	if err != nil {
+		t.Fatalf("read chat main.js: %v", err)
+	}
+	if !strings.Contains(string(content), "/api/cheatsheets?active=true&created_by=user") {
+		t.Fatal("chat cheatsheet picker should request only active user-created cheatsheets")
+	}
+}
+
+func TestMissionCheatsheetPickerRequestsOnlyUserSheets(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("js", "missions", "main.js"))
+	if err != nil {
+		t.Fatalf("read missions main.js: %v", err)
+	}
+	if !strings.Contains(string(content), "/api/cheatsheets?active=true&created_by=user") {
+		t.Fatal("mission cheatsheet picker should request only active user-created cheatsheets")
+	}
+}
+
 func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 	t.Parallel()
 

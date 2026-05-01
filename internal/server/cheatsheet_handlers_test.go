@@ -167,6 +167,35 @@ func TestHandleCheatSheetsCreatedByAlwaysUser(t *testing.T) {
 	}
 }
 
+func TestHandleCheatSheetsListFiltersCreatedByUser(t *testing.T) {
+	t.Parallel()
+	s := newTestCheatsheetServer(t)
+	handler := handleCheatSheets(s)
+
+	userSheet, err := tools.CheatsheetCreate(s.CheatsheetDB, "User Sheet", "user content", "user")
+	if err != nil {
+		t.Fatalf("create user sheet: %v", err)
+	}
+	if _, err := tools.CheatsheetCreate(s.CheatsheetDB, "Agent Sheet", "agent content", "agent"); err != nil {
+		t.Fatalf("create agent sheet: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cheatsheets?active=true&created_by=user", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var list []tools.CheatSheet
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != userSheet.ID {
+		t.Fatalf("filtered list = %+v, want only %q", list, userSheet.ID)
+	}
+}
+
 func TestHandleCheatSheetsDeleteNotFound(t *testing.T) {
 	t.Parallel()
 	s := newTestCheatsheetServer(t)

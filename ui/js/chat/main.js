@@ -291,7 +291,7 @@ async function openCheatsheetPicker() {
     if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = true;
 
     try {
-        const res = await fetch('/api/cheatsheets?active=true');
+        const res = await fetch('/api/cheatsheets?active=true&created_by=user');
         if (!res.ok) throw new Error(res.statusText || 'Failed to fetch cheatsheets');
         const data = await res.json();
         cheatsheetPickerItems = Array.isArray(data) ? data : [];

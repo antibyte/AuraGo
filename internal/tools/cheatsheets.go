@@ -114,15 +114,29 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 
 // CheatsheetList returns all cheat sheets, optionally filtered.
 func CheatsheetList(db *sql.DB, activeOnly bool) ([]CheatSheet, error) {
+	return CheatsheetListByCreatedBy(db, activeOnly, "")
+}
+
+// CheatsheetListByCreatedBy returns cheat sheets filtered by active state and creator.
+func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([]CheatSheet, error) {
 	query := `SELECT c.id, c.name, c.content, c.active, c.created_by, c.created_at, c.updated_at,
 		COALESCE((SELECT COUNT(*) FROM cheatsheet_attachments a WHERE a.cheatsheet_id = c.id), 0)
 		FROM cheatsheets c`
+	var where []string
+	var args []interface{}
 	if activeOnly {
-		query += " WHERE c.active = 1"
+		where = append(where, "c.active = 1")
+	}
+	if createdBy != "" {
+		where = append(where, "c.created_by = ?")
+		args = append(args, createdBy)
+	}
+	if len(where) > 0 {
+		query += " WHERE " + strings.Join(where, " AND ")
 	}
 	query += " ORDER BY c.name ASC"
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

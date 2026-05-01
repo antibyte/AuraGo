@@ -967,7 +967,7 @@ function fillTriggerConfig(cfg, type) {
 async function loadCheatsheetPicker(selectedIds = []) {
     const container = document.getElementById('cheatsheet-picker');
     try {
-        const resp = await fetch('/api/cheatsheets?active=true');
+        const resp = await fetch('/api/cheatsheets?active=true&created_by=user');
         if (!resp.ok) throw new Error();
         const sheets = await resp.json();
 

@@ -113,6 +113,44 @@ func TestCheatsheetCount(t *testing.T) {
 	}
 }
 
+func TestCheatsheetListByCreatedByFiltersUserSheets(t *testing.T) {
+	t.Parallel()
+	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer db.Close()
+
+	userSheet, err := CheatsheetCreate(db, "User Sheet", "user content", "user")
+	if err != nil {
+		t.Fatalf("create user sheet: %v", err)
+	}
+	agentSheet, err := CheatsheetCreate(db, "Agent Sheet", "agent content", "agent")
+	if err != nil {
+		t.Fatalf("create agent sheet: %v", err)
+	}
+	inactive := false
+	if _, err := CheatsheetUpdate(db, agentSheet.ID, nil, nil, &inactive); err != nil {
+		t.Fatalf("deactivate agent sheet: %v", err)
+	}
+
+	sheets, err := CheatsheetListByCreatedBy(db, true, "user")
+	if err != nil {
+		t.Fatalf("list user sheets: %v", err)
+	}
+	if len(sheets) != 1 || sheets[0].ID != userSheet.ID {
+		t.Fatalf("user active sheets = %+v, want only %q", sheets, userSheet.ID)
+	}
+
+	allSheets, err := CheatsheetListByCreatedBy(db, false, "")
+	if err != nil {
+		t.Fatalf("list all sheets: %v", err)
+	}
+	if len(allSheets) != 2 {
+		t.Fatalf("all sheets = %+v, want 2", allSheets)
+	}
+}
+
 func TestCheatsheetDeleteNotFound(t *testing.T) {
 	t.Parallel()
 	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")

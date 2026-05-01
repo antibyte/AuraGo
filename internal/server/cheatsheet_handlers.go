@@ -45,7 +45,12 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 		switch r.Method {
 		case http.MethodGet:
 			activeOnly := r.URL.Query().Get("active") == "true"
-			sheets, err := tools.CheatsheetList(s.CheatsheetDB, activeOnly)
+			createdBy := strings.TrimSpace(r.URL.Query().Get("created_by"))
+			if createdBy != "" && createdBy != "user" && createdBy != "agent" {
+				jsonError(w, "invalid created_by filter", http.StatusBadRequest)
+				return
+			}
+			sheets, err := tools.CheatsheetListByCreatedBy(s.CheatsheetDB, activeOnly, createdBy)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load cheat sheets", "Failed to list cheat sheets", err)
 				return
