@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-bridge-fast-path"
+	spaceAgentImageBuildRevision   = "20260502-aurago-instructions-api"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -488,6 +488,13 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.WriteFile(filepath.Join(cfg.SourcePath, "aurago_space_bootstrap.mjs"), []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
 		return fmt.Errorf("write aurago_space_bootstrap.mjs: %w", err)
 	}
+	instructionsAPIPath := filepath.Join(cfg.SourcePath, "api", "aurago", "instructions.py")
+	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
+		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
+	}
+	if err := os.WriteFile(instructionsAPIPath, []byte(spaceAgentInstructionsAPIEndpoint()), 0o600); err != nil {
+		return fmt.Errorf("write AuraGo instructions api endpoint: %w", err)
+	}
 	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
 		return fmt.Errorf("write Dockerfile.aurago: %w", err)
 	}
@@ -781,6 +788,58 @@ RUN npm ci --omit=dev || npm install --omit=dev
 COPY . .
 EXPOSE 3000 3100
 CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --state-dir /app/supervisor HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
+`
+}
+
+func spaceAgentInstructionsAPIEndpoint() string {
+	return `import json
+import os
+
+from agent import UserMessage
+from helpers.api import ApiHandler, Request, Response
+
+
+class Instructions(ApiHandler):
+    @classmethod
+    def requires_auth(cls) -> bool:
+        return False
+
+    @classmethod
+    def requires_csrf(cls) -> bool:
+        return False
+
+    async def process(self, input: dict, request: Request) -> dict | Response:
+        expected_token = os.environ.get("AURAGO_BRIDGE_TOKEN", "").strip()
+        auth_header = request.headers.get("Authorization", "").strip()
+        if not expected_token or auth_header != f"Bearer {expected_token}":
+            return Response(
+                json.dumps({"status": "error", "error": "Unauthorized"}),
+                status=401,
+                mimetype="application/json",
+            )
+
+        instruction = str(input.get("instruction", "")).strip()
+        information = str(input.get("information", "")).strip()
+        session_id = str(input.get("session_id", "")).strip()
+        if not instruction:
+            return Response(
+                json.dumps({"status": "error", "error": "instruction is required"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        message = instruction
+        if information:
+            message += "\n\nContext from AuraGo:\n" + information
+
+        context = self.use_context(session_id)
+        task = context.communicate(UserMessage(message=message))
+        result = await task.result()
+        return {
+            "status": "ok",
+            "context_id": context.id,
+            "response": result,
+        }
 `
 }
 
