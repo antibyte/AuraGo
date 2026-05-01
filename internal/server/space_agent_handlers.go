@@ -278,6 +278,13 @@ func handleSpaceAgentRootAPIProxy(s *Server) http.HandlerFunc {
 			r.Body = io.NopCloser(bytes.NewReader(body))
 			r.ContentLength = int64(len(body))
 			if len(body) > 0 {
+				if fallback, ok := spaceAgentBuildOptionalFileReadResponse(body); ok {
+					w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("Cache-Control", "no-store")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write(fallback)
+					return
+				}
 				r.Header.Set(spaceAgentFileReadBodyHeader, base64.RawURLEncoding.EncodeToString(body))
 			}
 		}
@@ -561,23 +568,13 @@ func spaceAgentOptionalFileContent(path string) (string, bool) {
 	if normalized == "" || !(strings.HasPrefix(normalized, "~/") || strings.HasPrefix(normalized, "/~")) {
 		return "", false
 	}
-	optionalPrefixes := []string{
-		"~/meta/",
-		"~/.config/",
-		"~/dashboard/",
-		"~/onscreen-agent/",
-		"~/onscreen_agent/",
-	}
-	matchesPrefix := false
-	for _, prefix := range optionalPrefixes {
-		if strings.HasPrefix(normalized, prefix) {
-			matchesPrefix = true
-			break
-		}
-	}
-	if !matchesPrefix {
+	if !strings.HasSuffix(normalized, ".json") {
 		return "", false
 	}
+	if strings.HasPrefix(normalized, "~/spaces/") {
+		return "", false
+	}
+	baseName := pathBaseName(normalized)
 	optionalNames := []string{
 		"login_hooks",
 		"dashboard-prefs",
@@ -585,12 +582,16 @@ func spaceAgentOptionalFileContent(path string) (string, bool) {
 		"prefs",
 		"onscreen-agent",
 		"onscreen_agent",
+		"onscreenagent",
+		"ui-state",
+		"ui_state",
+		"settings",
 		"config",
 		"history",
 	}
 	matchesName := false
 	for _, name := range optionalNames {
-		if strings.Contains(normalized, name) {
+		if strings.Contains(baseName, name) || strings.Contains(normalized, "/"+name+"/") {
 			matchesName = true
 			break
 		}
@@ -598,10 +599,18 @@ func spaceAgentOptionalFileContent(path string) (string, bool) {
 	if !matchesName {
 		return "", false
 	}
-	if strings.Contains(normalized, "history") || strings.Contains(normalized, "hooks") {
+	if strings.Contains(baseName, "history") || strings.Contains(baseName, "hooks") {
 		return "[]\n", true
 	}
 	return "{}\n", true
+}
+
+func pathBaseName(path string) string {
+	path = strings.TrimRight(path, "/")
+	if idx := strings.LastIndex(path, "/"); idx >= 0 {
+		return path[idx+1:]
+	}
+	return path
 }
 
 func (s *Server) currentSpaceAgentConfig() config.Config {

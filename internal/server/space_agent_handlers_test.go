@@ -359,6 +359,17 @@ func TestSpaceAgentOptionalFileReadFallbacksOnlyForUIState(t *testing.T) {
 		t.Fatalf("unexpected fallback batch response: %#v", batch)
 	}
 
+	for _, path := range []string{
+		"~/prefs/dashboard-prefs.json",
+		"~/state/onscreen-agent-history.json",
+		"~/state/onscreen_agent_config.json",
+		"~/ui/settings.json",
+	} {
+		if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"` + path + `"}`)); !ok {
+			t.Fatalf("expected optional UI state path %q to receive fallback", path)
+		}
+	}
+
 	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/spaces/big-bang/space.yaml"}`)); ok {
 		t.Fatal("must not hide missing real Space Agent project files")
 	}
