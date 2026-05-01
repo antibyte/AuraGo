@@ -26,7 +26,6 @@
     background: var(--bg-tertiary, rgba(255,255,255,0.1));
     color: var(--text-primary, #fff);
     box-shadow: -4px 0 20px rgba(0,0,0,0.28);
-    transform: translateY(-50%) translateX(-2px);
 }
 
 .integrations-edge-tab:focus-visible {
@@ -75,7 +74,8 @@
 .integrations-drawer-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 10px;
     padding: 16px 20px;
     padding-top: calc(16px + env(safe-area-inset-top, 0px));
     padding-right: calc(20px + env(safe-area-inset-right, 0px));
