@@ -819,7 +819,7 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 	css := string(cssContent)
 	for _, marker := range []string{
 		".personality-preview-panel",
-		"right: calc(100% + 72px);",
+		"right: calc(100% + 172px);",
 		"width: 256px;",
 		"height: 256px;",
 		".personality-preview-image",
@@ -914,6 +914,11 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		".personality-current-icon",
 		".persona-option-avatar",
 		".persona-avatar-img",
+		"width: 24px;",
+		"height: 24px;",
+		"flex: 0 0 24px;",
+		"max-width: 24px;",
+		"max-height: 24px;",
 		"width: 32px;",
 		"height: 32px;",
 	} {

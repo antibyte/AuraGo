@@ -685,7 +685,7 @@
         .personality-preview-panel {
             position: absolute;
             top: calc(100% + 6px);
-            right: calc(100% + 72px);
+            right: calc(100% + 172px);
             width: 256px;
             height: 256px;
             border-radius: 14px;
@@ -745,10 +745,14 @@
         }
 
         .persona-option-avatar {
-            width: 32px;
-            height: 32px;
+            display: block;
+            width: 24px;
+            height: 24px;
+            max-width: 24px;
+            max-height: 24px;
             object-fit: contain;
-            margin: -6px -4px -6px -5px;
+            flex: 0 0 24px;
+            margin: 0;
             filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.28));
         }
 
