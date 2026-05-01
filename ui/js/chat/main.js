@@ -566,12 +566,18 @@ async function changePersonality(newId, triggerSelect) {
         const isOpen = !dropdown.hidden;
         dropdown.hidden = isOpen;
         btn.setAttribute('aria-expanded', String(!isOpen));
+        if (isOpen && typeof window._hidePersonalityPreview === 'function') {
+            window._hidePersonalityPreview();
+        }
     });
 
     document.addEventListener('click', (e) => {
         if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.hidden = true;
             btn.setAttribute('aria-expanded', 'false');
+            if (typeof window._hidePersonalityPreview === 'function') {
+                window._hidePersonalityPreview();
+            }
         }
     });
 
@@ -579,6 +585,9 @@ async function changePersonality(newId, triggerSelect) {
         if (e.key === 'Escape' && !dropdown.hidden) {
             dropdown.hidden = true;
             btn.setAttribute('aria-expanded', 'false');
+            if (typeof window._hidePersonalityPreview === 'function') {
+                window._hidePersonalityPreview();
+            }
             btn.focus();
         }
     });
@@ -586,8 +595,12 @@ async function changePersonality(newId, triggerSelect) {
     const mobilePersonalityBtn = document.getElementById('personality-mobile-btn');
     if (mobilePersonalityBtn) {
         mobilePersonalityBtn.addEventListener('click', () => {
-            dropdown.hidden = !dropdown.hidden;
+            const willClose = !dropdown.hidden;
+            dropdown.hidden = willClose;
             btn.setAttribute('aria-expanded', String(!dropdown.hidden));
+            if (willClose && typeof window._hidePersonalityPreview === 'function') {
+                window._hidePersonalityPreview();
+            }
         });
     }
 })();
@@ -602,6 +615,9 @@ window._selectPersonality = function(personalityId) {
 
     if (dropdown) dropdown.hidden = true;
     if (btn) btn.setAttribute('aria-expanded', 'false');
+    if (typeof window._hidePersonalityPreview === 'function') {
+        window._hidePersonalityPreview();
+    }
 
     if (dropdown) {
         dropdown.querySelectorAll('.personality-option').forEach(opt => {

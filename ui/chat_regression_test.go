@@ -781,6 +781,67 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 }
 
+func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "chat", "chat-history.js")
+	cssPath := filepath.Join("css", "chat.css")
+	indexPath := "index.html"
+	spritePath := filepath.Join("img", "personas", "persona-spritesheet.png")
+	personaDir := filepath.Join("img", "personas")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+	indexContent, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", indexPath, err)
+	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"const PERSONA_PREVIEW_FALLBACK = 'custom';",
+		"function personaPreviewKey(name, isCore)",
+		"personality-preview-image",
+		"/img/personas/${key}.png",
+		"personaPreview.hidden = false;",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s is missing persona preview JS marker %q", mainPath, marker)
+		}
+	}
+
+	css := string(cssContent)
+	for _, marker := range []string{
+		".personality-preview-panel",
+		"width: 256px;",
+		"height: 256px;",
+		".personality-preview-image",
+		".personality-preview-panel[hidden]",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("%s is missing persona preview CSS marker %q", cssPath, marker)
+		}
+	}
+
+	if !strings.Contains(string(indexContent), `id="personality-preview"`) {
+		t.Fatalf("%s is missing personality preview container", indexPath)
+	}
+
+	assertPNGImageSize(t, spritePath, 1024, 1024)
+	for _, name := range []string{
+		"evil", "friend", "mcp", "mistress", "neutral", "professional", "psycho",
+		"punk", "secretary", "servant", "terminator", "thinker", "custom",
+	} {
+		assertPNGImageSize(t, filepath.Join(personaDir, name+".png"), 256, 256)
+	}
+}
+
 func TestChatLogoIconIsNotCapturedByWordmarkCSS(t *testing.T) {
 	t.Parallel()
 
@@ -1039,6 +1100,27 @@ func assertPNGIcon(t *testing.T, path string, wantWidth, wantHeight int) {
 		if a != 0 {
 			t.Fatalf("%s has non-transparent corner pixel at %v, alpha=%d", path, point, a)
 		}
+	}
+}
+
+func assertPNGImageSize(t *testing.T, path string, wantWidth, wantHeight int) {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	const pngHeaderLen = 26
+	if len(content) < pngHeaderLen || string(content[:8]) != "\x89PNG\r\n\x1a\n" || string(content[12:16]) != "IHDR" {
+		t.Fatalf("%s is not a valid PNG header", path)
+	}
+	width := binary.BigEndian.Uint32(content[16:20])
+	height := binary.BigEndian.Uint32(content[20:24])
+	if int(width) != wantWidth || int(height) != wantHeight {
+		t.Fatalf("%s is %dx%d, want %dx%d", path, width, height, wantWidth, wantHeight)
+	}
+	if _, err := png.Decode(bytes.NewReader(content)); err != nil {
+		t.Fatalf("decode %s: %v", path, err)
 	}
 }
 

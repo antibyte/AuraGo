@@ -80,6 +80,34 @@ function buildClearUrl() {
     return '/clear';
 }
 
+const PERSONA_PREVIEW_FALLBACK = 'custom';
+const PERSONA_PREVIEW_KEYS = new Set([
+    'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
+    'punk', 'secretary', 'servant', 'terminator', 'thinker',
+]);
+
+function personaPreviewKey(name, isCore) {
+    const key = String(name || '').toLowerCase();
+    if (!isCore) return PERSONA_PREVIEW_FALLBACK;
+    return PERSONA_PREVIEW_KEYS.has(key) ? key : PERSONA_PREVIEW_FALLBACK;
+}
+
+function showPersonaPreview(previewKey) {
+    const personaPreview = document.getElementById('personality-preview');
+    const img = document.getElementById('personality-preview-image');
+    if (!personaPreview || !img) return;
+    const key = previewKey || PERSONA_PREVIEW_FALLBACK;
+    img.src = `/img/personas/${key}.png`;
+    personaPreview.hidden = false;
+}
+
+function hidePersonaPreview() {
+    const personaPreview = document.getElementById('personality-preview');
+    if (personaPreview) personaPreview.hidden = true;
+}
+
+window._hidePersonalityPreview = hidePersonaPreview;
+
 window.onSessionSwitch = async function (sessionId) {
     chatContent.innerHTML = '';
     conversation = [];
@@ -182,6 +210,7 @@ async function initPage() {
                     opt.type = 'button';
                     opt.className = 'personality-option';
                     opt.dataset.value = p.name;
+                    opt.dataset.previewKey = personaPreviewKey(p.name, p.core);
                     opt.setAttribute('role', 'option');
                     const icon = document.createElement('span');
                     icon.className = 'personality-option-icon';
@@ -201,8 +230,11 @@ async function initPage() {
                             window._selectPersonality(p.name);
                         }
                     });
+                    opt.addEventListener('mouseenter', () => showPersonaPreview(opt.dataset.previewKey));
+                    opt.addEventListener('focus', () => showPersonaPreview(opt.dataset.previewKey));
                     dropdown.appendChild(opt);
                 });
+                dropdown.addEventListener('mouseleave', hidePersonaPreview);
             }
         }
     } catch (err) {
