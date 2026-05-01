@@ -610,6 +610,7 @@ window._selectPersonality = function(personalityId) {
     const btn = document.getElementById('personality-select');
     const dropdown = document.getElementById('personality-dropdown');
     const label = document.getElementById('personality-label');
+    let selectedPreviewKey = 'custom';
 
     changePersonality(personalityId, btn);
 
@@ -624,7 +625,12 @@ window._selectPersonality = function(personalityId) {
             const isActive = opt.dataset.value === personalityId;
             opt.classList.toggle('active', isActive);
             opt.setAttribute('aria-selected', String(isActive));
+            if (isActive) selectedPreviewKey = opt.dataset.previewKey || 'custom';
         });
+    }
+
+    if (typeof window._setActivePersonaIconKey === 'function') {
+        window._setActivePersonaIconKey(selectedPreviewKey);
     }
 
     if (label) {

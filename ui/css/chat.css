@@ -610,7 +610,7 @@
         .select-personality {
             font-size: 0.78rem;
             font-weight: 500;
-            padding: 0 1.5rem 0 0.7rem;
+            padding: 0 1.5rem 0 0.35rem;
             border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
@@ -618,11 +618,11 @@
             cursor: pointer;
             transition: all 0.2s;
             outline: none;
-            max-width: 140px;
+            max-width: 172px;
             height: 32px;
             display: inline-flex;
             align-items: center;
-            gap: 0.2rem;
+            gap: 0.35rem;
             font-family: inherit;
             appearance: none;
             -webkit-appearance: none;
@@ -639,6 +639,15 @@
             white-space: nowrap;
             max-width: 100px;
             line-height: 1;
+        }
+
+        .personality-current-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            margin-left: -0.25rem;
+            flex: 0 0 32px;
+            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.28));
         }
 
         .personality-mobile-btn {
@@ -733,6 +742,14 @@
             width: 18px;
             text-align: center;
             flex-shrink: 0;
+        }
+
+        .persona-option-avatar {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            margin: -6px -4px -6px -5px;
+            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.28));
         }
 
         .personality-option-label {
@@ -980,6 +997,13 @@
         .avatar.human {
             background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
             border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .persona-avatar-img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.32));
         }
 
         .mood-emotion {

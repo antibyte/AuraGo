@@ -42,6 +42,14 @@ function stripLeakedToolMarkup(text) {
         .trim();
 }
 
+function personaAvatarMarkup(role) {
+    if (role === 'user') {
+        return '<img class="persona-avatar-img" src="/img/persona-icons/user.png" alt="" width="32" height="32" decoding="async">';
+    }
+    const key = window._activePersonaIconKey || 'custom';
+    return `<img class="persona-avatar-img" data-persona-icon="${key}" src="/img/persona-icons/${key}.png" alt="" width="32" height="32" decoding="async">`;
+}
+
 function appendMessage(role, text) {
     if (!text || typeof text !== 'string') text = '';
 
@@ -171,7 +179,7 @@ function appendMessage(role, text) {
     }
 
     const side = isUser ? 'user' : 'bot';
-    const avatarIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup(isUser ? 'user' : 'bot') : '';
+    const avatarIcon = personaAvatarMarkup(isUser ? 'user' : 'bot');
     const bubbleClass = isTechnical ? 'bubble bot technical' : `bubble ${side}`;
 
     const msgHTML = `
@@ -528,7 +536,7 @@ function appendVideoMessage(videoData) {
 
     const row = document.createElement('div');
     row.className = 'msg-row bot';
-    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+    const botIcon = personaAvatarMarkup('bot');
     row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
     row.querySelector('.bubble').appendChild(createChatVideoElement(videoData));
     chatContent.appendChild(row);
@@ -544,7 +552,7 @@ function appendYouTubeMessage(youtubeData) {
 
     const row = document.createElement('div');
     row.className = 'msg-row bot';
-    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+    const botIcon = personaAvatarMarkup('bot');
     row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
     row.querySelector('.bubble').appendChild(element);
     chatContent.appendChild(row);

@@ -92,6 +92,17 @@ function personaPreviewKey(name, isCore) {
     return PERSONA_PREVIEW_KEYS.has(key) ? key : PERSONA_PREVIEW_FALLBACK;
 }
 
+function setActivePersonaIconKey(previewKey) {
+    const key = previewKey || PERSONA_PREVIEW_FALLBACK;
+    window._activePersonaIconKey = key;
+    const currentIcon = document.getElementById('personality-current-icon');
+    if (currentIcon) currentIcon.src = `/img/persona-icons/${key}.png`;
+    document.querySelectorAll('.avatar.bot .persona-avatar-img').forEach(img => {
+        img.src = `/img/persona-icons/${key}.png`;
+        img.dataset.personaIcon = key;
+    });
+}
+
 function showPersonaPreview(previewKey) {
     const personaPreview = document.getElementById('personality-preview');
     const img = document.getElementById('personality-preview-image');
@@ -107,6 +118,7 @@ function hidePersonaPreview() {
 }
 
 window._hidePersonalityPreview = hidePersonaPreview;
+window._setActivePersonaIconKey = setActivePersonaIconKey;
 
 window.onSessionSwitch = async function (sessionId) {
     chatContent.innerHTML = '';
@@ -210,11 +222,16 @@ async function initPage() {
                     opt.type = 'button';
                     opt.className = 'personality-option';
                     opt.dataset.value = p.name;
-                    opt.dataset.previewKey = personaPreviewKey(p.name, p.core);
+                    const previewKey = personaPreviewKey(p.name, p.core);
+                    opt.dataset.previewKey = previewKey;
                     opt.setAttribute('role', 'option');
-                    const icon = document.createElement('span');
-                    icon.className = 'personality-option-icon';
-                    icon.textContent = '\u{1F916}';
+                    const icon = document.createElement('img');
+                    icon.className = 'personality-option-icon persona-option-avatar';
+                    icon.src = `/img/persona-icons/${previewKey}.png`;
+                    icon.alt = '';
+                    icon.width = 32;
+                    icon.height = 32;
+                    icon.decoding = 'async';
                     opt.appendChild(icon);
                     const lbl = document.createElement('span');
                     lbl.className = 'personality-option-label';
@@ -224,6 +241,7 @@ async function initPage() {
                         opt.classList.add('active');
                         opt.setAttribute('aria-selected', 'true');
                         if (label) label.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                        setActivePersonaIconKey(opt.dataset.previewKey);
                     }
                     opt.addEventListener('click', () => {
                         if (typeof window._selectPersonality === 'function') {

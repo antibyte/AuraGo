@@ -141,7 +141,8 @@ function connectSSE() {
         if (!_streamingRow) {
             _streamingRow = document.createElement('div');
             _streamingRow.className = 'msg-row bot';
-            _streamingRow.innerHTML = '\u003cdiv class="avatar bot"\u003e\ud83e\udd16\u003c/div\u003e\u003cdiv class="bubble bot"\u003e\u003c/div\u003e';
+            const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
+            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
             chatContent.appendChild(_streamingRow);
         }
         _streamingContent += payload.content;
@@ -174,7 +175,8 @@ function connectSSE() {
         if (!_streamingRow) {
             _streamingRow = document.createElement('div');
             _streamingRow.className = 'msg-row bot';
-            _streamingRow.innerHTML = '\u003cdiv class="avatar bot"\u003e\ud83e\udd16\u003c/div\u003e\u003cdiv class="bubble bot"\u003e\u003c/div\u003e';
+            const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
+            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
             chatContent.appendChild(_streamingRow);
         }
         const bubble = _streamingRow.querySelector('.bubble');
@@ -321,9 +323,10 @@ function handleSSEMessage(e) {
                     seenSSEImages.add(imgData.path);
                     const cap = imgData.caption ? escapeHtml(imgData.caption) : '';
                     const safePath = escapeHtml(imgData.path);
+                    const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
                     const imgHTML = `
                                 \u003cdiv class="msg-row bot"\u003e
-                                    \u003cdiv class="avatar bot"\u003e\ud83e\udd16\u003c/div\u003e
+                                    \u003cdiv class="avatar bot"\u003e${botIcon}\u003c/div\u003e
                                     \u003cdiv class="bubble bot"\u003e\u003cimg class="chat-zoomable-image" src="${safePath}" alt="${cap}" title="${cap}" loading="lazy"\u003e\u003c/div\u003e
                                 \u003c/div\u003e`;
                     chatContent.insertAdjacentHTML('beforeend', imgHTML);
@@ -351,7 +354,7 @@ function handleSSEMessage(e) {
                         wrapper.appendChild(player.element);
                         const row = document.createElement('div');
                         row.className = 'msg-row bot';
-                        const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+                        const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
                         row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
                         row.querySelector('.bubble').appendChild(wrapper);
                         chatContent.appendChild(row);
@@ -408,7 +411,7 @@ function handleSSEMessage(e) {
                         \u003c/div\u003e`;
                     const row = document.createElement('div');
                     row.className = 'msg-row bot';
-                    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+                    const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
                     row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
                     row.querySelector('.bubble').insertAdjacentHTML('beforeend', cardHTML);
                     chatContent.appendChild(row);

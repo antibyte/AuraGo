@@ -843,6 +843,97 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 	}
 }
 
+func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	messagesPath := filepath.Join("js", "chat", "chat-messages.js")
+	historyPath := filepath.Join("js", "chat", "chat-history.js")
+	streamingPath := filepath.Join("js", "chat", "chat-streaming.js")
+	cssPath := filepath.Join("css", "chat.css")
+	indexPath := "index.html"
+	spritePath := filepath.Join("img", "persona-icons", "persona-icons-spritesheet.png")
+	iconDir := filepath.Join("img", "persona-icons")
+
+	messagesContent, err := os.ReadFile(messagesPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", messagesPath, err)
+	}
+	historyContent, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", historyPath, err)
+	}
+	streamingContent, err := os.ReadFile(streamingPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", streamingPath, err)
+	}
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+	indexContent, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", indexPath, err)
+	}
+
+	messagesJS := string(messagesContent)
+	for _, marker := range []string{
+		"function personaAvatarMarkup(role)",
+		"window._activePersonaIconKey",
+		"/img/persona-icons/user.png",
+		"/img/persona-icons/${key}.png",
+		"persona-avatar-img",
+	} {
+		if !strings.Contains(messagesJS, marker) {
+			t.Fatalf("%s is missing persona bubble avatar JS marker %q", messagesPath, marker)
+		}
+	}
+
+	streamingJS := string(streamingContent)
+	if !strings.Contains(streamingJS, "personaAvatarMarkup('bot')") {
+		t.Fatalf("%s should use persona avatars for streamed assistant bubbles", streamingPath)
+	}
+	if strings.Contains(streamingJS, `\ud83e\udd16`) {
+		t.Fatalf("%s still uses the static robot glyph for streamed assistant bubbles", streamingPath)
+	}
+
+	historyJS := string(historyContent)
+	for _, marker := range []string{
+		"function setActivePersonaIconKey(previewKey)",
+		"window._activePersonaIconKey = key;",
+		"personality-current-icon",
+		"persona-option-avatar",
+		"/img/persona-icons/${previewKey}.png",
+	} {
+		if !strings.Contains(historyJS, marker) {
+			t.Fatalf("%s is missing persona dropdown icon JS marker %q", historyPath, marker)
+		}
+	}
+
+	css := string(cssContent)
+	for _, marker := range []string{
+		".personality-current-icon",
+		".persona-option-avatar",
+		".persona-avatar-img",
+		"width: 32px;",
+		"height: 32px;",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("%s is missing persona icon CSS marker %q", cssPath, marker)
+		}
+	}
+	if !strings.Contains(string(indexContent), `id="personality-current-icon"`) {
+		t.Fatalf("%s is missing selected persona icon in the dropdown button", indexPath)
+	}
+
+	assertPNGIcon(t, spritePath, 128, 128)
+	for _, name := range []string{
+		"evil", "friend", "mcp", "mistress", "neutral", "professional", "psycho",
+		"punk", "secretary", "servant", "terminator", "thinker", "custom", "user",
+	} {
+		assertPNGIcon(t, filepath.Join(iconDir, name+".png"), 32, 32)
+	}
+}
+
 func TestChatLogoIconIsNotCapturedByWordmarkCSS(t *testing.T) {
 	t.Parallel()
 
