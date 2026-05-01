@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "ユーザーが作成",
   "cheatsheets.group_agent": "エージェント",
   "cheatsheets.empty_agent": "まだエージェントのチートシートはありません。",
-  "cheatsheets.char_limit_exceeded": "文字数制限を超えました"
+  "cheatsheets.char_limit_exceeded": "文字数制限を超えました",
+  "cheatsheets.delete_locked": "削除ロック",
+  "cheatsheets.delete_locked_hint": "このチートシートが削除されないようにします。",
+  "cheatsheets.abstract": "概要",
+  "cheatsheets.usage": "使用状況",
+  "cheatsheets.usage_count": "{{count}}回使用",
+  "cheatsheets.last_used": "最終使用: {{date}}",
+  "cheatsheets.last_used_label": "最終使用",
+  "cheatsheets.never_used": "未使用",
+  "cheatsheets.created_at": "作成日",
+  "cheatsheets.expires_at": "期限: {{date}}",
+  "cheatsheets.expires_label": "期限",
+  "cheatsheets.delete_locked_error": "このチートシートは削除ロックされているため削除できません。",
+  "cheatsheets.unused_marked": "未使用としてマーク"
 }

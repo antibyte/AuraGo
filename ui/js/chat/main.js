@@ -280,7 +280,7 @@ function renderCheatsheetPickerList() {
     }
 
     cheatsheetPickerList.innerHTML = activeSheets.map((sheet) => {
-        const previewText = String(sheet.content || '').replace(/\s+/g, ' ').trim();
+        const previewText = String(sheet.abstract || sheet.content || '').replace(/\s+/g, ' ').trim();
         const preview = previewText.length > 180 ? previewText.slice(0, 177) + '...' : previewText;
         const checked = sheet.id === selectedCheatsheetId ? 'checked' : '';
         return `

@@ -240,6 +240,16 @@
     line-height: 1.35;
 }
 
+.card-abstract {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .card-badges {
     display: flex;
     flex-wrap: wrap;
@@ -255,6 +265,16 @@
 .card-meta-line {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.badge-usage {
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+}
+
+.badge-locked {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf24;
 }
 
 .card-expanded .card-toggle {
@@ -288,6 +308,46 @@
 .modal-wide {
     max-width: 700px;
     width: 95%;
+}
+
+.metadata-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 4px 0 16px;
+    padding: 12px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+}
+
+.metadata-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.metadata-row span {
+    color: var(--text-tertiary);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.metadata-row strong {
+    color: var(--text-primary);
+    font-size: 0.84rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.field-hint {
+    color: var(--text-tertiary);
+    font-size: 0.78rem;
+    margin-top: 4px;
 }
 
 /* Editor tabs */
@@ -589,6 +649,9 @@
     }
     .modal-wide {
         max-width: 95vw;
+    }
+    .metadata-panel {
+        grid-template-columns: 1fr;
     }
 }
 

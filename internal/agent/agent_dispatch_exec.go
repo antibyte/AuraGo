@@ -748,17 +748,24 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			switch op {
 			case "list":
-				sheets, err := tools.CheatsheetList(cheatsheetDB, true)
+				sheets, err := tools.CheatsheetList(cheatsheetDB, false)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				type entry struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
+					ID           string `json:"id"`
+					Name         string `json:"name"`
+					Abstract     string `json:"abstract"`
+					Active       bool   `json:"active"`
+					CreatedBy    string `json:"created_by"`
+					UsageCount   int    `json:"usage_count"`
+					LastUsedAt   string `json:"last_used_at,omitempty"`
+					DeleteLocked bool   `json:"delete_locked"`
+					ExpiresAt    string `json:"expires_at,omitempty"`
 				}
 				list := make([]entry, len(sheets))
 				for i, s := range sheets {
-					list[i] = entry{ID: s.ID, Name: s.Name}
+					list[i] = entry{ID: s.ID, Name: s.Name, Abstract: s.Abstract, Active: s.Active, CreatedBy: s.CreatedBy, UsageCount: s.UsageCount, LastUsedAt: s.LastUsedAt, DeleteLocked: s.DeleteLocked, ExpiresAt: s.ExpiresAt}
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(list), "cheatsheets": list})
 				return fmt.Sprintf("Tool Output: %s", string(data))
@@ -775,6 +782,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"cheat sheet not found: %v"}`, err)
 				}
+				if usageErr := tools.CheatsheetRecordUsage(cheatsheetDB, sheet.ID); usageErr != nil {
+					dc.Logger.Warn("Failed to record cheatsheet usage", "cs_id", sheet.ID, "error", usageErr)
+				} else if refreshed, refreshErr := tools.CheatsheetGet(cheatsheetDB, sheet.ID); refreshErr == nil {
+					sheet = refreshed
+				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "create":
@@ -784,6 +796,26 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				sheet, err := tools.CheatsheetCreate(cheatsheetDB, req.Name, req.Content, "agent")
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+				}
+				if req.Abstract != "" {
+					if updated, abstractErr := tools.CheatsheetUpdateAbstract(cheatsheetDB, sheet.ID, req.Abstract); abstractErr == nil {
+						sheet = updated
+					} else {
+						dc.Logger.Warn("Failed to store provided cheatsheet abstract", "cs_id", sheet.ID, "error", abstractErr)
+					}
+				} else {
+					abstractCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					abstract, abstractErr := GenerateCheatsheetAbstract(abstractCtx, cfg, dc.Logger, sheet.Name, sheet.Content)
+					cancel()
+					if abstractErr != nil {
+						dc.Logger.Warn("Failed to generate cheatsheet abstract", "cs_id", sheet.ID, "error", abstractErr)
+					} else if abstract != "" {
+						if updated, updateErr := tools.CheatsheetUpdateAbstract(cheatsheetDB, sheet.ID, abstract); updateErr == nil {
+							sheet = updated
+						} else {
+							dc.Logger.Warn("Failed to store generated cheatsheet abstract", "cs_id", sheet.ID, "error", updateErr)
+						}
+					}
 				}
 				// Index cheatsheet in vector DB for semantic search (best-effort)
 				if storeErr := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, dc.LongTermMem, sheet.ID); storeErr != nil {
@@ -798,18 +830,24 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for update."}`
 				}
-				var namePtr, contentPtr *string
-				var activePtr *bool
+				var namePtr, contentPtr, abstractPtr *string
+				var activePtr, deleteLockedPtr *bool
 				if req.Name != "" {
 					namePtr = &req.Name
 				}
 				if req.Content != "" {
 					contentPtr = &req.Content
 				}
+				if req.Abstract != "" {
+					abstractPtr = &req.Abstract
+				}
 				if req.Active != nil {
 					activePtr = req.Active
 				}
-				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, req.ID, namePtr, contentPtr, activePtr)
+				if req.DeleteLocked != nil {
+					deleteLockedPtr = req.DeleteLocked
+				}
+				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, req.ID, namePtr, contentPtr, abstractPtr, activePtr, deleteLockedPtr)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}

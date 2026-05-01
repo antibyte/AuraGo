@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "उपयोगकर्ता द्वारा बनाया गया",
   "cheatsheets.group_agent": "एजेंट",
   "cheatsheets.empty_agent": "अभी तक कोई एजेंट चीट शीट नहीं।",
-  "cheatsheets.char_limit_exceeded": "वर्ण सीमा पार हो गई"
+  "cheatsheets.char_limit_exceeded": "वर्ण सीमा पार हो गई",
+  "cheatsheets.delete_locked": "हटाना लॉक है",
+  "cheatsheets.delete_locked_hint": "इस चीट शीट को हटाए जाने से रोकता है।",
+  "cheatsheets.abstract": "सारांश",
+  "cheatsheets.usage": "उपयोग",
+  "cheatsheets.usage_count": "{{count}} बार उपयोग किया गया",
+  "cheatsheets.last_used": "अंतिम उपयोग: {{date}}",
+  "cheatsheets.last_used_label": "अंतिम उपयोग",
+  "cheatsheets.never_used": "कभी उपयोग नहीं किया गया",
+  "cheatsheets.created_at": "बनाया गया",
+  "cheatsheets.expires_at": "समाप्ति: {{date}}",
+  "cheatsheets.expires_label": "समाप्ति",
+  "cheatsheets.delete_locked_error": "यह चीट शीट हटाने से लॉक है और हटाई नहीं जा सकती।",
+  "cheatsheets.unused_marked": "अप्रयुक्त के रूप में चिह्नित"
 }

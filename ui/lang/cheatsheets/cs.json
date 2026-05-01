@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Vytvořil uživatel",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Zatím žádné agentní cheaty.",
-  "cheatsheets.char_limit_exceeded": "Překročen limit znaků"
+  "cheatsheets.char_limit_exceeded": "Překročen limit znaků",
+  "cheatsheets.delete_locked": "Smazání zamčeno",
+  "cheatsheets.delete_locked_hint": "Zabrání smazání tohoto cheat sheetu.",
+  "cheatsheets.abstract": "Shrnutí",
+  "cheatsheets.usage": "Použití",
+  "cheatsheets.usage_count": "Použito {{count}}krát",
+  "cheatsheets.last_used": "Naposledy použito: {{date}}",
+  "cheatsheets.last_used_label": "Naposledy použito",
+  "cheatsheets.never_used": "Nikdy nepoužito",
+  "cheatsheets.created_at": "Vytvořeno",
+  "cheatsheets.expires_at": "Vyprší: {{date}}",
+  "cheatsheets.expires_label": "Vyprší",
+  "cheatsheets.delete_locked_error": "Tento cheat sheet je zamčen proti smazání a nelze jej smazat.",
+  "cheatsheets.unused_marked": "Označeno jako nepoužívané"
 }

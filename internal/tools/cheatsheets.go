@@ -19,10 +19,15 @@ type CheatSheet struct {
 	ID              string                 `json:"id"`
 	Name            string                 `json:"name"`
 	Content         string                 `json:"content"`
+	Abstract        string                 `json:"abstract"`
 	Active          bool                   `json:"active"`
 	CreatedBy       string                 `json:"created_by"` // "user" or "agent"
 	CreatedAt       string                 `json:"created_at"`
 	UpdatedAt       string                 `json:"updated_at"`
+	UsageCount      int                    `json:"usage_count"`
+	LastUsedAt      string                 `json:"last_used_at"`
+	DeleteLocked    bool                   `json:"delete_locked"`
+	ExpiresAt       string                 `json:"expires_at"`
 	Attachments     []CheatSheetAttachment `json:"attachments,omitempty"`
 	AttachmentCount int                    `json:"attachment_count"`
 }
@@ -38,7 +43,7 @@ type CheatSheetAttachment struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-const cheatsheetSchemaVersion = 2
+const cheatsheetSchemaVersion = 3
 
 // MaxAttachmentChars is the total character limit across all attachments of a single cheat sheet.
 const MaxAttachmentChars = 25000
@@ -61,10 +66,15 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 		id         TEXT PRIMARY KEY,
 		name       TEXT NOT NULL,
 		content    TEXT NOT NULL DEFAULT '',
+		abstract   TEXT NOT NULL DEFAULT '',
 		active     INTEGER NOT NULL DEFAULT 1,
 		created_by TEXT NOT NULL DEFAULT 'user',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		usage_count INTEGER NOT NULL DEFAULT 0,
+		last_used_at DATETIME,
+		delete_locked INTEGER NOT NULL DEFAULT 0,
+		expires_at DATETIME
 	);
 	CREATE TABLE IF NOT EXISTS cheatsheet_attachments (
 		id            TEXT PRIMARY KEY,
@@ -104,6 +114,25 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 			return nil, fmt.Errorf("failed to migrate attachments table: %w", err)
 		}
 	}
+	if version < 3 {
+		migrations := []string{
+			"ALTER TABLE cheatsheets ADD COLUMN abstract TEXT NOT NULL DEFAULT ''",
+			"ALTER TABLE cheatsheets ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0",
+			"ALTER TABLE cheatsheets ADD COLUMN last_used_at DATETIME",
+			"ALTER TABLE cheatsheets ADD COLUMN delete_locked INTEGER NOT NULL DEFAULT 0",
+			"ALTER TABLE cheatsheets ADD COLUMN expires_at DATETIME",
+		}
+		for _, stmt := range migrations {
+			if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				db.Close()
+				return nil, fmt.Errorf("failed to migrate cheatsheet metadata: %w", err)
+			}
+		}
+		if _, err := db.Exec("UPDATE cheatsheets SET expires_at = ? WHERE created_by = 'agent' AND expires_at IS NULL", time.Now().UTC().Add(7*24*time.Hour).Format(time.RFC3339)); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to backfill agent cheatsheet expirations: %w", err)
+		}
+	}
 
 	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", cheatsheetSchemaVersion)); err != nil {
 		db.Close()
@@ -119,7 +148,8 @@ func CheatsheetList(db *sql.DB, activeOnly bool) ([]CheatSheet, error) {
 
 // CheatsheetListByCreatedBy returns cheat sheets filtered by active state and creator.
 func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([]CheatSheet, error) {
-	query := `SELECT c.id, c.name, c.content, c.active, c.created_by, c.created_at, c.updated_at,
+	query := `SELECT c.id, c.name, c.content, c.abstract, c.active, c.created_by, c.created_at, c.updated_at,
+		c.usage_count, c.last_used_at, c.delete_locked, c.expires_at,
 		COALESCE((SELECT COUNT(*) FROM cheatsheet_attachments a WHERE a.cheatsheet_id = c.id), 0)
 		FROM cheatsheets c`
 	var where []string
@@ -145,11 +175,19 @@ func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([
 	var sheets []CheatSheet
 	for rows.Next() {
 		var s CheatSheet
-		var active int
-		if err := rows.Scan(&s.ID, &s.Name, &s.Content, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.AttachmentCount); err != nil {
+		var active, deleteLocked int
+		var lastUsed, expires sql.NullString
+		if err := rows.Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires, &s.AttachmentCount); err != nil {
 			return nil, err
 		}
 		s.Active = active == 1
+		s.DeleteLocked = deleteLocked == 1
+		if lastUsed.Valid {
+			s.LastUsedAt = lastUsed.String
+		}
+		if expires.Valid {
+			s.ExpiresAt = expires.String
+		}
 		sheets = append(sheets, s)
 	}
 	if err := rows.Err(); err != nil {
@@ -161,14 +199,22 @@ func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([
 // CheatsheetGet returns a single cheat sheet by ID, including its attachments.
 func CheatsheetGet(db *sql.DB, id string) (*CheatSheet, error) {
 	var s CheatSheet
-	var active int
+	var active, deleteLocked int
+	var lastUsed, expires sql.NullString
 	err := db.QueryRow(
-		"SELECT id, name, content, active, created_by, created_at, updated_at FROM cheatsheets WHERE id = ?", id,
-	).Scan(&s.ID, &s.Name, &s.Content, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt)
+		"SELECT id, name, content, abstract, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE id = ?", id,
+	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
 	if err != nil {
 		return nil, err
 	}
 	s.Active = active == 1
+	s.DeleteLocked = deleteLocked == 1
+	if lastUsed.Valid {
+		s.LastUsedAt = lastUsed.String
+	}
+	if expires.Valid {
+		s.ExpiresAt = expires.String
+	}
 
 	attachments, err := CheatsheetAttachmentList(db, id)
 	if err != nil {
@@ -186,14 +232,22 @@ func CheatsheetGet(db *sql.DB, id string) (*CheatSheet, error) {
 // CheatsheetGetByName returns a single cheat sheet by name (case-insensitive).
 func CheatsheetGetByName(db *sql.DB, name string) (*CheatSheet, error) {
 	var s CheatSheet
-	var active int
+	var active, deleteLocked int
+	var lastUsed, expires sql.NullString
 	err := db.QueryRow(
-		"SELECT id, name, content, active, created_by, created_at, updated_at FROM cheatsheets WHERE LOWER(name) = LOWER(?)", name,
-	).Scan(&s.ID, &s.Name, &s.Content, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt)
+		"SELECT id, name, content, abstract, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE LOWER(name) = LOWER(?)", name,
+	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
 	if err != nil {
 		return nil, err
 	}
 	s.Active = active == 1
+	s.DeleteLocked = deleteLocked == 1
+	if lastUsed.Valid {
+		s.LastUsedAt = lastUsed.String
+	}
+	if expires.Valid {
+		s.ExpiresAt = expires.String
+	}
 
 	attachments, err := CheatsheetAttachmentList(db, s.ID)
 	if err != nil {
@@ -223,10 +277,14 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 
 	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
+	expiresAt := sql.NullString{}
+	if createdBy == "agent" {
+		expiresAt = sql.NullString{String: time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339), Valid: true}
+	}
 
 	_, err := db.Exec(
-		"INSERT INTO cheatsheets (id, name, content, active, created_by, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?, ?)",
-		id, name, content, createdBy, now, now,
+		"INSERT INTO cheatsheets (id, name, content, active, created_by, created_at, updated_at, expires_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?)",
+		id, name, content, createdBy, now, now, expiresAt,
 	)
 	if err != nil {
 		return nil, err
@@ -235,7 +293,7 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 }
 
 // CheatsheetUpdate updates an existing cheat sheet.
-func CheatsheetUpdate(db *sql.DB, id string, name, content *string, active *bool) (*CheatSheet, error) {
+func CheatsheetUpdate(db *sql.DB, id string, name, content, abstract *string, active, deleteLocked *bool) (*CheatSheet, error) {
 	existing, err := CheatsheetGet(db, id)
 	if err != nil {
 		return nil, fmt.Errorf("cheat sheet not found: %w", err)
@@ -254,8 +312,14 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content *string, active *bool
 		}
 		existing.Content = *content
 	}
+	if abstract != nil {
+		existing.Abstract = strings.TrimSpace(*abstract)
+	}
 	if active != nil {
 		existing.Active = *active
+	}
+	if deleteLocked != nil {
+		existing.DeleteLocked = *deleteLocked
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -263,10 +327,21 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content *string, active *bool
 	if existing.Active {
 		activeInt = 1
 	}
+	deleteLockedInt := 0
+	if existing.DeleteLocked {
+		deleteLockedInt = 1
+	}
+	expiresAt := sql.NullString{}
+	if existing.ExpiresAt != "" {
+		expiresAt = sql.NullString{String: existing.ExpiresAt, Valid: true}
+	}
+	if content != nil && existing.CreatedBy == "agent" {
+		expiresAt = sql.NullString{String: time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339), Valid: true}
+	}
 
 	_, err = db.Exec(
-		"UPDATE cheatsheets SET name = ?, content = ?, active = ?, updated_at = ? WHERE id = ?",
-		existing.Name, existing.Content, activeInt, now, id,
+		"UPDATE cheatsheets SET name = ?, content = ?, abstract = ?, active = ?, delete_locked = ?, expires_at = ?, updated_at = ? WHERE id = ?",
+		existing.Name, existing.Content, existing.Abstract, activeInt, deleteLockedInt, expiresAt, now, id,
 	)
 	if err != nil {
 		return nil, err
@@ -276,7 +351,105 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content *string, active *bool
 
 // CheatsheetDelete deletes a cheat sheet by ID.
 func CheatsheetDelete(db *sql.DB, id string) error {
+	var locked int
+	if err := db.QueryRow("SELECT delete_locked FROM cheatsheets WHERE id = ?", id).Scan(&locked); err != nil {
+		return err
+	}
+	if locked == 1 {
+		return fmt.Errorf("cheat sheet is delete-locked")
+	}
 	result, err := db.Exec("DELETE FROM cheatsheets WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// CheatsheetRecordUsage records that a cheat sheet was used by the agent or UI.
+func CheatsheetRecordUsage(db *sql.DB, id string) error {
+	now := time.Now().UTC()
+	nowText := now.Format(time.RFC3339)
+	expiresAt := now.Add(7 * 24 * time.Hour).Format(time.RFC3339)
+	result, err := db.Exec(`UPDATE cheatsheets
+		SET usage_count = usage_count + 1,
+			last_used_at = ?,
+			expires_at = CASE WHEN created_by = 'agent' THEN ? ELSE expires_at END,
+			updated_at = ?
+		WHERE id = ?`, nowText, expiresAt, nowText, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// CheatsheetUpdateAbstract updates a cheat sheet's generated one-line abstract.
+func CheatsheetUpdateAbstract(db *sql.DB, id, abstract string) (*CheatSheet, error) {
+	abstract = strings.TrimSpace(abstract)
+	_, err := db.Exec("UPDATE cheatsheets SET abstract = ?, updated_at = ? WHERE id = ?", abstract, time.Now().UTC().Format(time.RFC3339), id)
+	if err != nil {
+		return nil, err
+	}
+	return CheatsheetGet(db, id)
+}
+
+// CheatsheetGetExpiredUnused returns agent-created cheat sheets due for maintenance review.
+func CheatsheetGetExpiredUnused(db *sql.DB) ([]CheatSheet, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	rows, err := db.Query(`SELECT id FROM cheatsheets
+		WHERE created_by = 'agent'
+			AND active = 1
+			AND delete_locked = 0
+			AND expires_at IS NOT NULL
+			AND expires_at <= ?
+		ORDER BY expires_at ASC`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	var sheets []CheatSheet
+	for _, id := range ids {
+		sheet, err := CheatsheetGet(db, id)
+		if err != nil {
+			return nil, err
+		}
+		sheets = append(sheets, *sheet)
+	}
+	return sheets, nil
+}
+
+// CheatsheetMarkUnused deactivates an expired agent-created cheat sheet for maintenance review.
+func CheatsheetMarkUnused(db *sql.DB, id string) error {
+	result, err := db.Exec("UPDATE cheatsheets SET active = 0, updated_at = ? WHERE id = ? AND created_by = 'agent'", time.Now().UTC().Format(time.RFC3339), id)
 	if err != nil {
 		return err
 	}
@@ -317,6 +490,7 @@ func CheatsheetGetMultiple(db *sql.DB, ids []string) string {
 		if err != nil || !s.Active {
 			continue
 		}
+		_ = CheatsheetRecordUsage(db, id)
 		part := fmt.Sprintf("[Cheat Sheet: %q]\n%s", s.Name, s.Content)
 
 		// Append attachments if any (already loaded by CheatsheetGet)
@@ -463,7 +637,11 @@ func ReindexCheatsheetInVectorDB(db *sql.DB, vdb memory.VectorDB, cheatsheetID s
 	for i, a := range cs.Attachments {
 		attachments[i] = a.Content
 	}
-	return vdb.StoreCheatsheet(cs.ID, cs.Name, cs.Content, attachments...)
+	content := cs.Content
+	if cs.Abstract != "" {
+		content = "Abstract: " + cs.Abstract + "\n\n" + content
+	}
+	return vdb.StoreCheatsheet(cs.ID, cs.Name, content, attachments...)
 }
 
 // CheatsheetAttachmentRemove removes an attachment by ID.

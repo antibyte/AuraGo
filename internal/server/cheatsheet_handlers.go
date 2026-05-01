@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -9,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/tools"
 )
 
@@ -62,8 +65,10 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 
 		case http.MethodPost:
 			var body struct {
-				Name    string `json:"name"`
-				Content string `json:"content"`
+				Name         string `json:"name"`
+				Content      string `json:"content"`
+				Abstract     string `json:"abstract"`
+				DeleteLocked bool   `json:"delete_locked"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
@@ -74,6 +79,20 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create cheat sheet", "Failed to create cheat sheet", err, "name", body.Name)
 				return
+			}
+			if body.Abstract != "" || body.DeleteLocked {
+				abstractPtr := (*string)(nil)
+				if body.Abstract != "" {
+					abstractPtr = &body.Abstract
+				}
+				deleteLocked := body.DeleteLocked
+				if updated, updateErr := tools.CheatsheetUpdate(s.CheatsheetDB, sheet.ID, nil, nil, abstractPtr, nil, &deleteLocked); updateErr == nil {
+					sheet = updated
+				} else {
+					s.Logger.Warn("Failed to update initial cheatsheet metadata", "cs_id", sheet.ID, "error", updateErr)
+				}
+			} else {
+				go generateAndStoreCheatsheetAbstract(s, sheet.ID, sheet.Name, sheet.Content)
 			}
 			// Index cheatsheet in vector DB for semantic search (best-effort, non-blocking)
 			if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, sheet.ID); storeErr != nil {
@@ -117,15 +136,17 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 
 		case http.MethodPut:
 			var body struct {
-				Name    *string `json:"name"`
-				Content *string `json:"content"`
-				Active  *bool   `json:"active"`
+				Name         *string `json:"name"`
+				Content      *string `json:"content"`
+				Abstract     *string `json:"abstract"`
+				Active       *bool   `json:"active"`
+				DeleteLocked *bool   `json:"delete_locked"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
-			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Active)
+			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Abstract, body.Active, body.DeleteLocked)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					jsonError(w, "not found", http.StatusNotFound)
@@ -149,6 +170,10 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 			if err := tools.CheatsheetDelete(s.CheatsheetDB, id); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					jsonError(w, "not found", http.StatusNotFound)
+					return
+				}
+				if strings.Contains(err.Error(), "delete-locked") {
+					jsonError(w, err.Error(), http.StatusForbidden)
 					return
 				}
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete cheat sheet", "Failed to delete cheat sheet", err, "cheatsheet_id", id)
@@ -350,5 +375,28 @@ func handleCheatSheetAttachmentByID(s *Server) http.HandlerFunc {
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+func generateAndStoreCheatsheetAbstract(s *Server, id, name, content string) {
+	if s == nil || s.CheatsheetDB == nil || s.Cfg == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	abstract, err := agent.GenerateCheatsheetAbstract(ctx, s.Cfg, s.Logger, name, content)
+	if err != nil {
+		s.Logger.Warn("Failed to generate cheatsheet abstract", "cs_id", id, "error", err)
+		return
+	}
+	if abstract == "" {
+		return
+	}
+	if _, err := tools.CheatsheetUpdateAbstract(s.CheatsheetDB, id, abstract); err != nil {
+		s.Logger.Warn("Failed to store cheatsheet abstract", "cs_id", id, "error", err)
+		return
+	}
+	if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, id); storeErr != nil {
+		s.Logger.Warn("Failed to re-index cheatsheet after abstract generation", "cs_id", id, "error", storeErr)
 	}
 }

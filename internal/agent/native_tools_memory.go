@@ -92,7 +92,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 	// Cheat Sheets — always available (DB is always initialized)
 	tools = append(tools, tool("cheatsheet",
-		"Manage cheat sheets (reusable workflow instructions). List, view, create, update, or delete cheat sheets that describe step-by-step procedures.",
+		"Manage cheat sheets (reusable workflow instructions with metadata). List results include one-sentence abstracts; delete-locked sheets cannot be removed.",
 		schema(map[string]interface{}{
 			"operation": map[string]interface{}{
 				"type":        "string",
@@ -102,7 +102,9 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 			"id":            prop("string", "Cheat sheet ID (for get/update/delete/attach/detach). Can also be the name for 'get'."),
 			"name":          prop("string", "Name of the cheat sheet (for create/update)"),
 			"content":       prop("string", "Markdown content of the cheat sheet (for create/update/attach)"),
+			"abstract":      prop("string", "One-sentence description of what this cheat sheet is for (auto-generated if empty and helper LLM is available)."),
 			"active":        map[string]interface{}{"type": "boolean", "description": "Whether the cheat sheet is active (for update)"},
+			"delete_locked": map[string]interface{}{"type": "boolean", "description": "If true, prevents deletion of this cheat sheet (for update)."},
 			"filename":      prop("string", "Filename of the attachment to add (for attach). Only .txt and .md allowed."),
 			"source":        prop("string", "Source of the attachment: 'upload' or 'knowledge' (for attach). Defaults to 'upload'."),
 			"attachment_id": prop("string", "Attachment ID to remove (for detach)."),

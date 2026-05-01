@@ -26,7 +26,7 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
 		return
@@ -52,7 +52,7 @@ func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.
 
 			select {
 			case <-time.After(sleepDuration):
-				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, missionManagerV2)
+				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, cheatsheetDB, missionManagerV2)
 			case <-ctx.Done():
 				logger.Info("Maintenance loop shutting down")
 				return
@@ -77,7 +77,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 
 	// Phase A5: Clean up old interaction patterns (>90 days)
@@ -137,6 +137,21 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Error("[Maintenance] Failed to clean stale profile entries", "error", err)
 		} else if removed > 0 {
 			logger.Info("[Maintenance] Cleaned stale user profile entries", "removed", removed)
+		}
+	}
+
+	if cheatsheetDB != nil {
+		expired, err := tools.CheatsheetGetExpiredUnused(cheatsheetDB)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to find expired cheat sheets", "error", err)
+		} else {
+			for _, sheet := range expired {
+				if err := tools.CheatsheetMarkUnused(cheatsheetDB, sheet.ID); err != nil {
+					logger.Error("[Maintenance] Failed to mark cheat sheet unused", "id", sheet.ID, "name", sheet.Name, "error", err)
+					continue
+				}
+				logger.Info("[Maintenance] Marked unused agent cheat sheet", "id", sheet.ID, "name", sheet.Name)
+			}
 		}
 	}
 
@@ -259,6 +274,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		LongTermMem:      longTermMem,
 		KG:               kg,
 		InventoryDB:      inventoryDB,
+		CheatsheetDB:     cheatsheetDB,
 		Vault:            vault,
 		Registry:         registry,
 		Manifest:         manifest,

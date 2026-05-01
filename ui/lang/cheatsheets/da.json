@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Oprettet af brugeren",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Ingen agent-snydeark endnu.",
-  "cheatsheets.char_limit_exceeded": "Tegngrænse overskredet"
+  "cheatsheets.char_limit_exceeded": "Tegngrænse overskredet",
+  "cheatsheets.delete_locked": "Sletning låst",
+  "cheatsheets.delete_locked_hint": "Forhindrer, at dette snydeark slettes.",
+  "cheatsheets.abstract": "Resumé",
+  "cheatsheets.usage": "Brug",
+  "cheatsheets.usage_count": "Brugt {{count}} gange",
+  "cheatsheets.last_used": "Sidst brugt: {{date}}",
+  "cheatsheets.last_used_label": "Sidst brugt",
+  "cheatsheets.never_used": "Aldrig brugt",
+  "cheatsheets.created_at": "Oprettet",
+  "cheatsheets.expires_at": "Udløber: {{date}}",
+  "cheatsheets.expires_label": "Udløber",
+  "cheatsheets.delete_locked_error": "Dette snydeark er låst mod sletning og kan ikke slettes.",
+  "cheatsheets.unused_marked": "Markeret som ubrugt"
 }

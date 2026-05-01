@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Δημιουργήθηκε από τον χρήστη",
   "cheatsheets.group_agent": "Πράκτορας",
   "cheatsheets.empty_agent": "Δεν υπάρχουν ακόμα φύλλα εξαπάτησης πράκτορα.",
-  "cheatsheets.char_limit_exceeded": "Υπέρβαση ορίου χαρακτήρων"
+  "cheatsheets.char_limit_exceeded": "Υπέρβαση ορίου χαρακτήρων",
+  "cheatsheets.delete_locked": "Κλείδωμα διαγραφής",
+  "cheatsheets.delete_locked_hint": "Αποτρέπει τη διαγραφή αυτού του φύλλου εξαπάτησης.",
+  "cheatsheets.abstract": "Περίληψη",
+  "cheatsheets.usage": "Χρήση",
+  "cheatsheets.usage_count": "Χρησιμοποιήθηκε {{count}} φορές",
+  "cheatsheets.last_used": "Τελευταία χρήση: {{date}}",
+  "cheatsheets.last_used_label": "Τελευταία χρήση",
+  "cheatsheets.never_used": "Δεν χρησιμοποιήθηκε ποτέ",
+  "cheatsheets.created_at": "Δημιουργήθηκε",
+  "cheatsheets.expires_at": "Λήγει: {{date}}",
+  "cheatsheets.expires_label": "Λήγει",
+  "cheatsheets.delete_locked_error": "Αυτό το φύλλο εξαπάτησης έχει κλείδωμα διαγραφής και δεν μπορεί να διαγραφεί.",
+  "cheatsheets.unused_marked": "Επισημάνθηκε ως αχρησιμοποίητο"
 }

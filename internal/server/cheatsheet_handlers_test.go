@@ -210,6 +210,29 @@ func TestHandleCheatSheetsDeleteNotFound(t *testing.T) {
 	}
 }
 
+func TestHandleCheatSheetsDeleteLockedForbidden(t *testing.T) {
+	t.Parallel()
+	s := newTestCheatsheetServer(t)
+	byIDHandler := handleCheatSheetByID(s)
+
+	sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, "Locked Sheet", "content", "user")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	locked := true
+	if _, err := tools.CheatsheetUpdate(s.CheatsheetDB, sheet.ID, nil, nil, nil, nil, &locked); err != nil {
+		t.Fatalf("lock: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/cheatsheets/"+sheet.ID, nil)
+	rec := httptest.NewRecorder()
+	byIDHandler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
 func TestCheatsheetContentLimit(t *testing.T) {
 	t.Parallel()
 	s := newTestCheatsheetServer(t)

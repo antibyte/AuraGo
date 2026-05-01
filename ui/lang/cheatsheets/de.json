@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Vom Benutzer erstellt",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Noch keine Agent-Spickzettel.",
-  "cheatsheets.char_limit_exceeded": "Zeichenlimit überschritten"
+  "cheatsheets.char_limit_exceeded": "Zeichenlimit überschritten",
+  "cheatsheets.delete_locked": "Löschen gesperrt",
+  "cheatsheets.delete_locked_hint": "Verhindert, dass dieser Spickzettel gelöscht wird.",
+  "cheatsheets.abstract": "Kurzbeschreibung",
+  "cheatsheets.usage": "Nutzung",
+  "cheatsheets.usage_count": "{{count}} Mal genutzt",
+  "cheatsheets.last_used": "Zuletzt genutzt: {{date}}",
+  "cheatsheets.last_used_label": "Zuletzt genutzt",
+  "cheatsheets.never_used": "Nie genutzt",
+  "cheatsheets.created_at": "Erstellt",
+  "cheatsheets.expires_at": "Läuft ab: {{date}}",
+  "cheatsheets.expires_label": "Läuft ab",
+  "cheatsheets.delete_locked_error": "Dieser Spickzettel ist gegen Löschen gesperrt und kann nicht gelöscht werden.",
+  "cheatsheets.unused_marked": "Als ungenutzt markiert"
 }

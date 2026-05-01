@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Skapad av användaren",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Inga agent-fuskblad ännu.",
-  "cheatsheets.char_limit_exceeded": "Teckengränsen har överskridits"
+  "cheatsheets.char_limit_exceeded": "Teckengränsen har överskridits",
+  "cheatsheets.delete_locked": "Radering låst",
+  "cheatsheets.delete_locked_hint": "Förhindrar att detta fuskblad raderas.",
+  "cheatsheets.abstract": "Sammanfattning",
+  "cheatsheets.usage": "Användning",
+  "cheatsheets.usage_count": "Använt {{count}} gånger",
+  "cheatsheets.last_used": "Senast använt: {{date}}",
+  "cheatsheets.last_used_label": "Senast använt",
+  "cheatsheets.never_used": "Aldrig använt",
+  "cheatsheets.created_at": "Skapat",
+  "cheatsheets.expires_at": "Upphör: {{date}}",
+  "cheatsheets.expires_label": "Upphör",
+  "cheatsheets.delete_locked_error": "Detta fuskblad är låst mot radering och kan inte raderas.",
+  "cheatsheets.unused_marked": "Markerat som oanvänt"
 }

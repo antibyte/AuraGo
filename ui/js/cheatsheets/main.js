@@ -140,19 +140,22 @@ function setGroupCount(groupKey, count) {
 function renderSheetCompact(s) {
     const statusIcon = s.active ? '🟢' : '⚪';
     const creatorIcon = s.created_by === 'agent' ? '🤖' : '';
+    const lockIcon = s.delete_locked ? '🔒' : '';
+    const abstract = s.abstract || (s.content || '').substring(0, 120).replace(/\n/g, ' ');
     const creatorTitle = s.created_by === 'agent'
         ? esc(t('cheatsheets.created_by_agent') || 'Created by agent')
         : esc(t('cheatsheets.created_by_user') || 'Created by user');
 
     return `
-        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
+        <div class="card-compact" title="${esc(abstract)}" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
             <span class="card-icon" title="${s.active ? t('cheatsheets.active') : t('cheatsheets.inactive')}">${statusIcon}</span>
             <span class="card-name">${esc(s.name)}</span>
             ${creatorIcon ? `<span class="card-icon" title="${creatorTitle}">${creatorIcon}</span>` : ''}
+            ${lockIcon ? `<span class="card-icon" title="${esc(t('cheatsheets.delete_locked'))}">${lockIcon}</span>` : ''}
             <div class="card-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
                 <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
-                <button class="btn btn-sm btn-danger" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>
+                ${s.delete_locked ? '' : `<button class="btn btn-sm btn-danger" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>`}
             </div>
         </div>
     `;
@@ -170,8 +173,12 @@ function renderSheetGrid(s) {
     const attachBadge = (s.attachment_count > 0)
         ? `<span class="badge badge-attachment">📎 ${s.attachment_count}</span>`
         : '';
+    const lockBadge = s.delete_locked ? `<span class="badge badge-locked">🔒 ${esc(t('cheatsheets.delete_locked'))}</span>` : '';
+    const usageBadge = `<span class="badge badge-usage">${esc(t('cheatsheets.usage_count', { count: s.usage_count || 0 }))}</span>`;
+    const abstract = esc(s.abstract || '');
     const preview = esc((s.content || '').substring(0, 150).replace(/\n/g, ' '));
     const updated = s.updated_at ? timeAgo(s.updated_at) : '';
+    const expires = s.expires_at ? timeAgo(s.expires_at) : '';
 
     return `
         <div class="card card-expanded ${isExpanded ? 'expanded' : ''}">
@@ -179,17 +186,19 @@ function renderSheetGrid(s) {
                 <span class="card-toggle">▶</span>
                 <div class="card-header-content">
                     <div class="card-title">${esc(s.name)}</div>
-                    <div class="card-badges">${statusBadge}${creatorBadge}${attachBadge}</div>
+                    ${abstract ? `<div class="card-abstract">${abstract}</div>` : ''}
+                    <div class="card-badges">${statusBadge}${creatorBadge}${attachBadge}${usageBadge}${lockBadge}</div>
                 </div>
             </div>
             <div class="card-body">
                 <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
                 ${updated ? `<div class="card-meta-line">🕐 ${updated}</div>` : ''}
+                ${expires && s.created_by === 'agent' ? `<div class="card-meta-line">⏳ ${esc(t('cheatsheets.expires_at', { date: expires }))}</div>` : ''}
             </div>
             <div class="card-footer">
                 <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
                 <button class="btn btn-secondary btn-sm" onclick="toggleActive('${escJs(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
-                <button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
+                ${s.delete_locked ? '' : `<button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>`}
             </div>
         </div>
     `;
@@ -200,7 +209,10 @@ function openCreate() {
     document.getElementById('sheet-id').value = '';
     document.getElementById('sheet-name').value = '';
     document.getElementById('sheet-content').value = '';
+    document.getElementById('sheet-abstract').value = '';
     document.getElementById('sheet-active').checked = true;
+    document.getElementById('sheet-delete-locked').checked = false;
+    document.getElementById('sheet-metadata-panel').classList.add('is-hidden');
     document.getElementById('modal-title').textContent = t('cheatsheets.create_new');
     currentAttachments = [];
     pendingAttachments = [];
@@ -222,7 +234,10 @@ async function openEdit(id) {
     document.getElementById('sheet-id').value = s.id;
     document.getElementById('sheet-name').value = s.name;
     document.getElementById('sheet-content').value = s.content;
+    document.getElementById('sheet-abstract').value = s.abstract || '';
     document.getElementById('sheet-active').checked = s.active;
+    document.getElementById('sheet-delete-locked').checked = !!s.delete_locked;
+    renderMetadata(s);
     document.getElementById('modal-title').textContent = t('cheatsheets.edit_sheet');
     currentAttachments = s.attachments || [];
     pendingAttachments = [];
@@ -236,7 +251,9 @@ async function saveSheet() {
     const id = document.getElementById('sheet-id').value;
     const name = document.getElementById('sheet-name').value.trim();
     const content = document.getElementById('sheet-content').value;
+    const abstract = document.getElementById('sheet-abstract').value.trim();
     const active = document.getElementById('sheet-active').checked;
+    const delete_locked = document.getElementById('sheet-delete-locked').checked;
 
     if (!name) {
         document.getElementById('sheet-name').focus();
@@ -249,12 +266,12 @@ async function saveSheet() {
         if (id) {
             await api('/' + id, {
                 method: 'PUT',
-                body: JSON.stringify({ name, content, active })
+                body: JSON.stringify({ name, content, abstract, active, delete_locked })
             });
         } else {
             const created = await api('', {
                 method: 'POST',
-                body: JSON.stringify({ name, content })
+                body: JSON.stringify({ name, content, abstract, delete_locked })
             });
             targetId = created.id;
         }
@@ -293,6 +310,28 @@ async function saveSheet() {
     } catch (e) {
         showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
     }
+}
+
+function renderMetadata(s) {
+    const panel = document.getElementById('sheet-metadata-panel');
+    if (!panel) return;
+    panel.classList.remove('is-hidden');
+    document.getElementById('sheet-meta-created').textContent = s.created_at ? formatDateTime(s.created_at) : '—';
+    document.getElementById('sheet-meta-usage').textContent = t('cheatsheets.usage_count', { count: s.usage_count || 0 });
+    document.getElementById('sheet-meta-last-used').textContent = s.last_used_at ? formatDateTime(s.last_used_at) : t('cheatsheets.never_used');
+    const expiresRow = document.getElementById('sheet-meta-expires-row');
+    if (s.created_by === 'agent' && s.expires_at) {
+        expiresRow.classList.remove('is-hidden');
+        document.getElementById('sheet-meta-expires').textContent = formatDateTime(s.expires_at);
+    } else {
+        expiresRow.classList.add('is-hidden');
+    }
+}
+
+function formatDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value || '—';
+    return date.toLocaleString();
 }
 
 // ── Toggle Active ────────────────────────────────────────

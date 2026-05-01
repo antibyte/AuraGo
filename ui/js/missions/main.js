@@ -978,9 +978,10 @@ async function loadCheatsheetPicker(selectedIds = []) {
 
         container.innerHTML = sheets.map(s => {
             const checked = selectedIds.includes(s.id) ? 'checked' : '';
+            const abstract = s.abstract ? `<div class="cheatsheet-picker-preview">${escapeHtml(s.abstract)}</div>` : '';
             return `<div class="cheatsheet-picker-item">
                 <input type="checkbox" id="cs-${s.id}" value="${s.id}" ${checked}>
-                <label for="cs-${s.id}">${escapeHtml(s.name)}</label>
+                <label for="cs-${s.id}">${escapeHtml(s.name)}${abstract}</label>
             </div>`;
         }).join('');
     } catch (e) {

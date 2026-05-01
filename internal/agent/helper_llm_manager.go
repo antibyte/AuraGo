@@ -408,6 +408,20 @@ type helperRAGBatchResult struct {
 	CandidateScores []helperRAGBatchScore `json:"candidate_scores"`
 }
 
+type helperCheatsheetAbstractResult struct {
+	Abstract string `json:"abstract"`
+}
+
+const helperCheatsheetAbstractPrompt = `You generate concise metadata for reusable cheat sheets.
+Return ONLY valid JSON in this exact shape:
+{"abstract":""}
+
+Rules:
+- Write exactly one sentence.
+- Explain what the cheat sheet helps with, not how it is formatted.
+- Be concrete and useful for search result lists.
+- Do not invent details that are not supported by the name or content.`
+
 func newHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helperLLMManager {
 	return getOrCreateHelperLLMManager(cfg, logger)
 }
@@ -465,6 +479,42 @@ func ResetGlobalHelperLLMManager() {
 	defer globalHelperMu.Unlock()
 	globalHelperInstance = nil
 	globalHelperConfig = helperInstanceConfig{}
+}
+
+// GenerateCheatsheetAbstract creates a one-sentence abstract when the helper LLM is available.
+func GenerateCheatsheetAbstract(ctx context.Context, cfg *config.Config, logger *slog.Logger, name, content string) (string, error) {
+	manager := newHelperLLMManager(cfg, logger)
+	if manager == nil {
+		return "", nil
+	}
+	return manager.GenerateCheatsheetAbstract(ctx, name, content)
+}
+
+func (m *helperLLMManager) GenerateCheatsheetAbstract(ctx context.Context, name, content string) (string, error) {
+	if m == nil || m.client == nil || m.model == "" {
+		return "", fmt.Errorf("helper llm manager unavailable")
+	}
+	name = strings.TrimSpace(name)
+	content = truncateActivityDigestInput(strings.TrimSpace(content), 2400)
+	if name == "" && content == "" {
+		return "", nil
+	}
+	userPrompt := fmt.Sprintf("Cheat sheet name:\n%s\n\nCheat sheet content:\n%s", name, content)
+	cacheKey := m.helperCacheKey("cheatsheet_abstract", m.model, userPrompt)
+	raw, err := m.requestJSONResponse(ctx, "cheatsheet_abstract", cacheKey, helperCheatsheetAbstractPrompt, userPrompt, 120)
+	if err != nil {
+		return "", err
+	}
+	var parsed helperCheatsheetAbstractResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &parsed); err != nil {
+		return "", fmt.Errorf("parse helper cheatsheet abstract response: %w", err)
+	}
+	abstract := strings.TrimSpace(strings.ReplaceAll(parsed.Abstract, "\n", " "))
+	if len([]rune(abstract)) > 280 {
+		runes := []rune(abstract)
+		abstract = strings.TrimSpace(string(runes[:280]))
+	}
+	return abstract, nil
 }
 
 func (m *helperLLMManager) helperCacheKey(parts ...string) string {

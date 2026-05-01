@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Created by user",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "No agent cheat sheets yet.",
-  "cheatsheets.char_limit_exceeded": "Character limit exceeded"
+  "cheatsheets.char_limit_exceeded": "Character limit exceeded",
+  "cheatsheets.delete_locked": "Delete Locked",
+  "cheatsheets.delete_locked_hint": "Prevents this cheat sheet from being deleted.",
+  "cheatsheets.abstract": "Abstract",
+  "cheatsheets.usage": "Usage",
+  "cheatsheets.usage_count": "Used {{count}} times",
+  "cheatsheets.last_used": "Last used: {{date}}",
+  "cheatsheets.last_used_label": "Last used",
+  "cheatsheets.never_used": "Never used",
+  "cheatsheets.created_at": "Created",
+  "cheatsheets.expires_at": "Expires: {{date}}",
+  "cheatsheets.expires_label": "Expires",
+  "cheatsheets.delete_locked_error": "This cheat sheet is delete-locked and cannot be deleted.",
+  "cheatsheets.unused_marked": "Marked as unused"
 }

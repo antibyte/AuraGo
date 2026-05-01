@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Creado por el usuario",
   "cheatsheets.group_agent": "Agente",
   "cheatsheets.empty_agent": "Aún no hay hojas de trucos del agente.",
-  "cheatsheets.char_limit_exceeded": "Límite de caracteres superado"
+  "cheatsheets.char_limit_exceeded": "Límite de caracteres superado",
+  "cheatsheets.delete_locked": "Eliminación bloqueada",
+  "cheatsheets.delete_locked_hint": "Evita que esta hoja de trucos se elimine.",
+  "cheatsheets.abstract": "Resumen",
+  "cheatsheets.usage": "Uso",
+  "cheatsheets.usage_count": "Usada {{count}} veces",
+  "cheatsheets.last_used": "Último uso: {{date}}",
+  "cheatsheets.last_used_label": "Último uso",
+  "cheatsheets.never_used": "Nunca usada",
+  "cheatsheets.created_at": "Creada",
+  "cheatsheets.expires_at": "Caduca: {{date}}",
+  "cheatsheets.expires_label": "Caduca",
+  "cheatsheets.delete_locked_error": "Esta hoja de trucos tiene la eliminación bloqueada y no se puede eliminar.",
+  "cheatsheets.unused_marked": "Marcada como no usada"
 }

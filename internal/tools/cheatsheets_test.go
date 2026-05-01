@@ -3,6 +3,7 @@ package tools
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCheatsheetCreateAndGet(t *testing.T) {
@@ -79,7 +80,7 @@ func TestCheatsheetContentLimit(t *testing.T) {
 
 	// Update over limit should fail
 	overContent := strings.Repeat("y", MaxContentChars+1)
-	_, err = CheatsheetUpdate(db, sheet.ID, nil, &overContent, nil)
+	_, err = CheatsheetUpdate(db, sheet.ID, nil, &overContent, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for update exceeding limit")
 	}
@@ -130,7 +131,7 @@ func TestCheatsheetListByCreatedByFiltersUserSheets(t *testing.T) {
 		t.Fatalf("create agent sheet: %v", err)
 	}
 	inactive := false
-	if _, err := CheatsheetUpdate(db, agentSheet.ID, nil, nil, &inactive); err != nil {
+	if _, err := CheatsheetUpdate(db, agentSheet.ID, nil, nil, nil, &inactive, nil); err != nil {
 		t.Fatalf("deactivate agent sheet: %v", err)
 	}
 
@@ -162,6 +163,84 @@ func TestCheatsheetDeleteNotFound(t *testing.T) {
 	err = CheatsheetDelete(db, "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for deleting nonexistent sheet")
+	}
+}
+
+func TestCheatsheetMetadataUsageAndDeleteLock(t *testing.T) {
+	t.Parallel()
+	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer db.Close()
+
+	sheet, err := CheatsheetCreate(db, "Locked", "content", "agent")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if sheet.ExpiresAt == "" {
+		t.Fatal("agent-created sheet should get an expiration")
+	}
+
+	abstract := "Useful for testing metadata."
+	locked := true
+	sheet, err = CheatsheetUpdate(db, sheet.ID, nil, nil, &abstract, nil, &locked)
+	if err != nil {
+		t.Fatalf("update metadata: %v", err)
+	}
+	if sheet.Abstract != abstract || !sheet.DeleteLocked {
+		t.Fatalf("metadata not updated: %+v", sheet)
+	}
+
+	if err := CheatsheetRecordUsage(db, sheet.ID); err != nil {
+		t.Fatalf("record usage: %v", err)
+	}
+	used, err := CheatsheetGet(db, sheet.ID)
+	if err != nil {
+		t.Fatalf("get used: %v", err)
+	}
+	if used.UsageCount != 1 || used.LastUsedAt == "" {
+		t.Fatalf("usage not recorded: %+v", used)
+	}
+
+	if err := CheatsheetDelete(db, sheet.ID); err == nil || !strings.Contains(err.Error(), "delete-locked") {
+		t.Fatalf("expected delete lock error, got %v", err)
+	}
+}
+
+func TestCheatsheetExpiredUnusedQueryAndMark(t *testing.T) {
+	t.Parallel()
+	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer db.Close()
+
+	sheet, err := CheatsheetCreate(db, "Expired", "content", "agent")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	old := time.Now().UTC().Add(-8 * 24 * time.Hour).Format(time.RFC3339)
+	if _, err := db.Exec("UPDATE cheatsheets SET expires_at = ? WHERE id = ?", old, sheet.ID); err != nil {
+		t.Fatalf("force expiration: %v", err)
+	}
+
+	expired, err := CheatsheetGetExpiredUnused(db)
+	if err != nil {
+		t.Fatalf("expired query: %v", err)
+	}
+	if len(expired) != 1 || expired[0].ID != sheet.ID {
+		t.Fatalf("expired = %+v, want %q", expired, sheet.ID)
+	}
+	if err := CheatsheetMarkUnused(db, sheet.ID); err != nil {
+		t.Fatalf("mark unused: %v", err)
+	}
+	marked, err := CheatsheetGet(db, sheet.ID)
+	if err != nil {
+		t.Fatalf("get marked: %v", err)
+	}
+	if marked.Active {
+		t.Fatalf("expected inactive after mark unused: %+v", marked)
 	}
 }
 

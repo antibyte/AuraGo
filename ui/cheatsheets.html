@@ -113,6 +113,10 @@
                 <textarea id="sheet-content" rows="16" placeholder="# Steps&#10;1. First do this&#10;2. Then do that"></textarea>
                 <div id="sheet-preview" class="md-preview is-hidden"></div>
             </div>
+            <div class="form-group">
+                <label data-i18n="cheatsheets.abstract">Abstract</label>
+                <input type="text" id="sheet-abstract" maxlength="280" placeholder="One sentence describing what this cheat sheet is for">
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="toggle-wrap">
@@ -123,6 +127,22 @@
                         <span class="toggle-label" data-i18n="cheatsheets.active">Active</span>
                     </label>
                 </div>
+                <div class="form-group">
+                    <label class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="sheet-delete-locked">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="cheatsheets.delete_locked">Delete Locked</span>
+                    </label>
+                    <div class="field-hint" data-i18n="cheatsheets.delete_locked_hint">Prevents this cheat sheet from being deleted.</div>
+                </div>
+            </div>
+            <div class="metadata-panel is-hidden" id="sheet-metadata-panel">
+                <div class="metadata-row"><span data-i18n="cheatsheets.created_at">Created</span><strong id="sheet-meta-created">—</strong></div>
+                <div class="metadata-row"><span data-i18n="cheatsheets.usage">Usage</span><strong id="sheet-meta-usage">—</strong></div>
+                <div class="metadata-row"><span data-i18n="cheatsheets.last_used_label">Last used</span><strong id="sheet-meta-last-used">—</strong></div>
+                <div class="metadata-row is-hidden" id="sheet-meta-expires-row"><span data-i18n="cheatsheets.expires_label">Expires</span><strong id="sheet-meta-expires">—</strong></div>
             </div>
 
             <!-- Attachments Section -->

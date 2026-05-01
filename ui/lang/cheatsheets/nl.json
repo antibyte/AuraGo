@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Gemaakt door gebruiker",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Nog geen agent-spiekbriefjes.",
-  "cheatsheets.char_limit_exceeded": "Tekenlimiet overschreden"
+  "cheatsheets.char_limit_exceeded": "Tekenlimiet overschreden",
+  "cheatsheets.delete_locked": "Verwijderen vergrendeld",
+  "cheatsheets.delete_locked_hint": "Voorkomt dat dit spiekbriefje wordt verwijderd.",
+  "cheatsheets.abstract": "Samenvatting",
+  "cheatsheets.usage": "Gebruik",
+  "cheatsheets.usage_count": "{{count}} keer gebruikt",
+  "cheatsheets.last_used": "Laatst gebruikt: {{date}}",
+  "cheatsheets.last_used_label": "Laatst gebruikt",
+  "cheatsheets.never_used": "Nooit gebruikt",
+  "cheatsheets.created_at": "Aangemaakt",
+  "cheatsheets.expires_at": "Verloopt: {{date}}",
+  "cheatsheets.expires_label": "Verloopt",
+  "cheatsheets.delete_locked_error": "Dit spiekbriefje is vergrendeld tegen verwijderen en kan niet worden verwijderd.",
+  "cheatsheets.unused_marked": "Gemarkeerd als ongebruikt"
 }

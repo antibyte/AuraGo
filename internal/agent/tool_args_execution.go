@@ -85,7 +85,9 @@ type cheatsheetArgs struct {
 	ID           string
 	Name         string
 	Content      string
+	Abstract     string
 	Active       *bool
+	DeleteLocked *bool
 	Filename     string
 	Source       string
 	AttachmentID string
@@ -601,7 +603,9 @@ func decodeCheatsheetArgs(tc ToolCall) cheatsheetArgs {
 		ID:           firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
 		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
 		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Abstract:     firstNonEmptyToolString(toolArgString(tc.Params, "abstract")),
 		Active:       tc.Active,
+		DeleteLocked: toolArgBoolPtr(tc.Params, "delete_locked"),
 		Filename:     firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
 		Source:       firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
 		AttachmentID: firstNonEmptyToolString(tc.AttachmentID, toolArgString(tc.Params, "attachment_id")),

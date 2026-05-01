@@ -36,5 +36,9 @@ You are performing scheduled daily maintenance. Review system state and ensure o
    - Do NOT delete entries that are still factually accurate and useful for personalizing future interactions.
    - Example categories to review with particular attention: `behavior`, `preferences`, `context`, `goals`, `persona_evolution`.
    - After cleanup, briefly summarize how many entries were reviewed, how many removed, and why.
+6. **Cheat Sheet Cleanup.** Call `cheatsheet` with operation `list` and review agent-created cheat sheets.
+   - Agent-created cheat sheets that were not used for 7 days are automatically marked inactive before this maintenance run.
+   - Treat inactive agent-created cheat sheets as unused review candidates. Delete ones that were for one-time or obsolete tasks unless they are delete-locked.
+   - Reactivate or update inactive agent-created cheat sheets only when they are still clearly useful.
 
 Execute these tasks autonomously. Report only significant actions taken.

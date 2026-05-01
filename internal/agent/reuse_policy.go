@@ -192,7 +192,7 @@ func searchReusableCheatsheets(db *sql.DB, query string, limit int) []reuseArtif
 		if !errorRecoveryQuery && isErrorRecoveryCheatsheet(sheets[i].Name, sheets[i].Content) {
 			continue
 		}
-		score, matched := scoreReuseCandidate(query, sheets[i].Name, sheets[i].Content)
+		score, matched := scoreReuseCandidate(query, sheets[i].Name, sheets[i].Abstract, sheets[i].Content)
 		if score < 0.26 {
 			continue
 		}
@@ -203,7 +203,7 @@ func searchReusableCheatsheets(db *sql.DB, query string, limit int) []reuseArtif
 			Ownership:  normalizedArtifactOwnership(sheets[i].CreatedBy),
 			Score:      score,
 			Reason:     matchedReason(matched),
-			Excerpt:    trimForPrompt(reuseFirstNonEmpty(sheets[i].Content), 280),
+			Excerpt:    trimForPrompt(reuseFirstNonEmpty(sheets[i].Abstract, sheets[i].Content), 280),
 			Cheatsheet: &sheets[i],
 		})
 	}
@@ -703,7 +703,7 @@ func applyReusableCheatsheet(runCfg RunConfig, logger *slog.Logger, evaluation R
 					return nil
 				}
 				content := merged
-				updated, updateErr := tools.CheatsheetUpdate(runCfg.CheatsheetDB, existing.ID, nil, &content, nil)
+				updated, updateErr := tools.CheatsheetUpdate(runCfg.CheatsheetDB, existing.ID, nil, &content, nil, nil, nil)
 				if updateErr != nil {
 					return fmt.Errorf("update reusable cheatsheet after name collision: %w", updateErr)
 				}
@@ -736,7 +736,7 @@ func applyReusableCheatsheet(runCfg RunConfig, logger *slog.Logger, evaluation R
 			return nil
 		}
 		content := merged
-		sheet, err := tools.CheatsheetUpdate(runCfg.CheatsheetDB, evaluation.ExistingAgentCheatsheet.ID, nil, &content, nil)
+		sheet, err := tools.CheatsheetUpdate(runCfg.CheatsheetDB, evaluation.ExistingAgentCheatsheet.ID, nil, &content, nil, nil, nil)
 		if err != nil {
 			return fmt.Errorf("update reusable cheatsheet: %w", err)
 		}

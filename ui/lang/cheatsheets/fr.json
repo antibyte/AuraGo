@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Créé par l'utilisateur",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Aucun aide-mémoire agent pour le moment.",
-  "cheatsheets.char_limit_exceeded": "Limite de caractères dépassée"
+  "cheatsheets.char_limit_exceeded": "Limite de caractères dépassée",
+  "cheatsheets.delete_locked": "Suppression verrouillée",
+  "cheatsheets.delete_locked_hint": "Empêche la suppression de cet aide-mémoire.",
+  "cheatsheets.abstract": "Résumé",
+  "cheatsheets.usage": "Utilisation",
+  "cheatsheets.usage_count": "Utilisé {{count}} fois",
+  "cheatsheets.last_used": "Dernière utilisation : {{date}}",
+  "cheatsheets.last_used_label": "Dernière utilisation",
+  "cheatsheets.never_used": "Jamais utilisé",
+  "cheatsheets.created_at": "Créé",
+  "cheatsheets.expires_at": "Expire : {{date}}",
+  "cheatsheets.expires_label": "Expire",
+  "cheatsheets.delete_locked_error": "Cet aide-mémoire est verrouillé contre la suppression et ne peut pas être supprimé.",
+  "cheatsheets.unused_marked": "Marqué comme inutilisé"
 }

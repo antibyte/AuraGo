@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Creato dall'utente",
   "cheatsheets.group_agent": "Agente",
   "cheatsheets.empty_agent": "Nessun foglietto agente ancora.",
-  "cheatsheets.char_limit_exceeded": "Limite di caratteri superato"
+  "cheatsheets.char_limit_exceeded": "Limite di caratteri superato",
+  "cheatsheets.delete_locked": "Eliminazione bloccata",
+  "cheatsheets.delete_locked_hint": "Impedisce l'eliminazione di questo foglio informativo.",
+  "cheatsheets.abstract": "Riassunto",
+  "cheatsheets.usage": "Utilizzo",
+  "cheatsheets.usage_count": "Usato {{count}} volte",
+  "cheatsheets.last_used": "Ultimo uso: {{date}}",
+  "cheatsheets.last_used_label": "Ultimo uso",
+  "cheatsheets.never_used": "Mai usato",
+  "cheatsheets.created_at": "Creato",
+  "cheatsheets.expires_at": "Scade: {{date}}",
+  "cheatsheets.expires_label": "Scade",
+  "cheatsheets.delete_locked_error": "Questo foglio informativo è bloccato contro l'eliminazione e non può essere eliminato.",
+  "cheatsheets.unused_marked": "Contrassegnato come inutilizzato"
 }

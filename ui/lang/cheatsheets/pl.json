@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Utworzone przez użytkownika",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Nie ma jeszcze ściągawek agenta.",
-  "cheatsheets.char_limit_exceeded": "Przekroczono limit znaków"
+  "cheatsheets.char_limit_exceeded": "Przekroczono limit znaków",
+  "cheatsheets.delete_locked": "Usuwanie zablokowane",
+  "cheatsheets.delete_locked_hint": "Zapobiega usunięciu tej ściągawki.",
+  "cheatsheets.abstract": "Streszczenie",
+  "cheatsheets.usage": "Użycie",
+  "cheatsheets.usage_count": "Użyto {{count}} razy",
+  "cheatsheets.last_used": "Ostatnio użyto: {{date}}",
+  "cheatsheets.last_used_label": "Ostatnio użyto",
+  "cheatsheets.never_used": "Nigdy nie użyto",
+  "cheatsheets.created_at": "Utworzono",
+  "cheatsheets.expires_at": "Wygasa: {{date}}",
+  "cheatsheets.expires_label": "Wygasa",
+  "cheatsheets.delete_locked_error": "Ta ściągawka jest zablokowana przed usunięciem i nie można jej usunąć.",
+  "cheatsheets.unused_marked": "Oznaczono jako nieużywaną"
 }

@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Criado pelo utilizador",
   "cheatsheets.group_agent": "Agente",
   "cheatsheets.empty_agent": "Ainda não há folhas de dicas do agente.",
-  "cheatsheets.char_limit_exceeded": "Limite de caracteres excedido"
+  "cheatsheets.char_limit_exceeded": "Limite de caracteres excedido",
+  "cheatsheets.delete_locked": "Exclusão bloqueada",
+  "cheatsheets.delete_locked_hint": "Impede que esta folha de dicas seja excluída.",
+  "cheatsheets.abstract": "Resumo",
+  "cheatsheets.usage": "Uso",
+  "cheatsheets.usage_count": "Usada {{count}} vezes",
+  "cheatsheets.last_used": "Último uso: {{date}}",
+  "cheatsheets.last_used_label": "Último uso",
+  "cheatsheets.never_used": "Nunca usada",
+  "cheatsheets.created_at": "Criada",
+  "cheatsheets.expires_at": "Expira: {{date}}",
+  "cheatsheets.expires_label": "Expira",
+  "cheatsheets.delete_locked_error": "Esta folha de dicas está bloqueada contra exclusão e não pode ser excluída.",
+  "cheatsheets.unused_marked": "Marcada como não usada"
 }

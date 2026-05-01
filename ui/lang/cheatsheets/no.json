@@ -47,5 +47,18 @@
   "cheatsheets.created_by_user": "Opprettet av brukeren",
   "cheatsheets.group_agent": "Agent",
   "cheatsheets.empty_agent": "Ingen agent-jukseark ennå.",
-  "cheatsheets.char_limit_exceeded": "Tegngrensen er overskredet"
+  "cheatsheets.char_limit_exceeded": "Tegngrensen er overskredet",
+  "cheatsheets.delete_locked": "Sletting låst",
+  "cheatsheets.delete_locked_hint": "Hindrer at dette juksearket kan slettes.",
+  "cheatsheets.abstract": "Sammendrag",
+  "cheatsheets.usage": "Bruk",
+  "cheatsheets.usage_count": "Brukt {{count}} ganger",
+  "cheatsheets.last_used": "Sist brukt: {{date}}",
+  "cheatsheets.last_used_label": "Sist brukt",
+  "cheatsheets.never_used": "Aldri brukt",
+  "cheatsheets.created_at": "Opprettet",
+  "cheatsheets.expires_at": "Utløper: {{date}}",
+  "cheatsheets.expires_label": "Utløper",
+  "cheatsheets.delete_locked_error": "Dette juksearket er låst mot sletting og kan ikke slettes.",
+  "cheatsheets.unused_marked": "Merket som ubrukt"
 }
