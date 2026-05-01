@@ -481,6 +481,9 @@ func GetAppointment(db *sql.DB, id string) (*Appointment, error) {
 
 // ListAppointments returns appointments filtered by search query and status.
 func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
+	if db != nil {
+		_ = AutoExpireAppointments(db)
+	}
 	var conditions []string
 	var args []interface{}
 

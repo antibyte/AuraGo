@@ -321,7 +321,7 @@ func TestUpdateAppointment(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "Original",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	a, _ := GetAppointment(db, id)
@@ -347,7 +347,7 @@ func TestUpdateAppointmentAllowsClearingDateTime(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "Flexible",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	a, _ := GetAppointment(db, id)
@@ -368,7 +368,7 @@ func TestUpdateAppointmentInvalidStatus(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "Test",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	a, _ := GetAppointment(db, id)
@@ -385,7 +385,7 @@ func TestDeleteAppointment(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "To Delete",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	err := DeleteAppointment(db, id)
@@ -413,9 +413,9 @@ func TestListAppointments(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
 
-	CreateAppointment(db, Appointment{Title: "Alpha", DateTime: "2025-07-01T10:00:00Z"})
-	CreateAppointment(db, Appointment{Title: "Beta Meeting", DateTime: "2025-07-02T14:00:00Z"})
-	CreateAppointment(db, Appointment{Title: "Gamma", DateTime: "2025-07-03T09:00:00Z", Status: "completed"})
+	CreateAppointment(db, Appointment{Title: "Alpha", DateTime: "2099-07-01T10:00:00Z"})
+	CreateAppointment(db, Appointment{Title: "Beta Meeting", DateTime: "2099-07-02T14:00:00Z"})
+	CreateAppointment(db, Appointment{Title: "Gamma", DateTime: "2099-07-03T09:00:00Z", Status: "completed"})
 
 	all, err := ListAppointments(db, "", "")
 	if err != nil {
@@ -452,6 +452,38 @@ func TestListAppointmentsEmpty(t *testing.T) {
 	}
 	if len(list) != 0 {
 		t.Errorf("Expected 0 appointments, got %d", len(list))
+	}
+}
+
+func TestAutoExpireAppointments(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	past := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
+	future := time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
+
+	id1, _ := CreateAppointment(db, Appointment{Title: "Past", DateTime: past})
+	id2, _ := CreateAppointment(db, Appointment{Title: "Future", DateTime: future})
+	id3, _ := CreateAppointment(db, Appointment{Title: "Past Completed", DateTime: past, Status: "completed"})
+
+	// All should be created with their respective statuses
+	if err := AutoExpireAppointments(db); err != nil {
+		t.Fatalf("AutoExpireAppointments failed: %v", err)
+	}
+
+	a1, _ := GetAppointment(db, id1)
+	if a1.Status != "overdue" {
+		t.Errorf("Expected past upcoming appointment to be overdue, got %q", a1.Status)
+	}
+
+	a2, _ := GetAppointment(db, id2)
+	if a2.Status != "upcoming" {
+		t.Errorf("Expected future appointment to stay upcoming, got %q", a2.Status)
+	}
+
+	a3, _ := GetAppointment(db, id3)
+	if a3.Status != "completed" {
+		t.Errorf("Expected completed appointment to stay completed, got %q", a3.Status)
 	}
 }
 
@@ -1359,11 +1391,11 @@ func TestBuildPromptSnapshotSortsOverdueAndLimitsResults(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
 
-	now := time.Date(2026, 4, 17, 8, 0, 0, 0, time.UTC)
+	now := time.Date(2099, 4, 17, 8, 0, 0, 0, time.UTC)
 	entries := []Todo{
-		{Title: "Medium later", Priority: "medium", Status: "open", DueDate: "2026-04-18T12:00:00Z"},
-		{Title: "High overdue", Priority: "high", Status: "open", DueDate: "2026-04-16T12:00:00Z"},
-		{Title: "Low overdue", Priority: "low", Status: "open", DueDate: "2026-04-16T18:00:00Z"},
+		{Title: "Medium later", Priority: "medium", Status: "open", DueDate: "2099-04-18T12:00:00Z"},
+		{Title: "High overdue", Priority: "high", Status: "open", DueDate: "2099-04-16T12:00:00Z"},
+		{Title: "Low overdue", Priority: "low", Status: "open", DueDate: "2099-04-16T18:00:00Z"},
 		{Title: "No due", Priority: "high", Status: "in_progress"},
 	}
 	for _, todo := range entries {
@@ -1371,10 +1403,10 @@ func TestBuildPromptSnapshotSortsOverdueAndLimitsResults(t *testing.T) {
 			t.Fatalf("CreateTodo(%q): %v", todo.Title, err)
 		}
 	}
-	if _, err := CreateAppointment(db, Appointment{Title: "Inside window", DateTime: "2026-04-18T07:00:00Z", Status: "upcoming"}); err != nil {
+	if _, err := CreateAppointment(db, Appointment{Title: "Inside window", DateTime: "2099-04-18T07:00:00Z", Status: "upcoming"}); err != nil {
 		t.Fatalf("CreateAppointment inside: %v", err)
 	}
-	if _, err := CreateAppointment(db, Appointment{Title: "Outside window", DateTime: "2026-04-20T09:00:00Z", Status: "upcoming"}); err != nil {
+	if _, err := CreateAppointment(db, Appointment{Title: "Outside window", DateTime: "2099-04-20T09:00:00Z", Status: "upcoming"}); err != nil {
 		t.Fatalf("CreateAppointment outside: %v", err)
 	}
 
@@ -1504,7 +1536,7 @@ func TestSyncAppointmentToKGNoDescription(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "No Desc",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	kg := newMockKG()
@@ -1556,7 +1588,7 @@ func TestSyncToKGNilKG(t *testing.T) {
 
 	id, _ := CreateAppointment(db, Appointment{
 		Title:    "Nil KG",
-		DateTime: "2025-07-01T10:00:00Z",
+		DateTime: "2099-07-01T10:00:00Z",
 	})
 
 	err := SyncAppointmentToKG(nil, db, id)

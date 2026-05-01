@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 7
+const plannerSchemaVersion = 8
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -56,6 +56,11 @@ func initPlannerSchema(db *sql.DB) error {
 		fallthrough
 	case version < 7:
 		if err := migratePlannerToV7(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < 8:
+		if err := migratePlannerToV8(db); err != nil {
 			return err
 		}
 	default:
@@ -221,7 +226,7 @@ func migratePlannerToV3(db *sql.DB) error {
 				wake_agent INTEGER NOT NULL DEFAULT 0,
 				agent_instruction TEXT NOT NULL DEFAULT '',
 				notified INTEGER NOT NULL DEFAULT 0,
-				status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled')),
+				status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled', 'overdue')),
 				kg_node_id TEXT NOT NULL DEFAULT '',
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL
@@ -415,7 +420,7 @@ func plannerTablesSQL() string {
 			wake_agent INTEGER NOT NULL DEFAULT 0,
 			agent_instruction TEXT NOT NULL DEFAULT '',
 			notified INTEGER NOT NULL DEFAULT 0,
-			status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled')),
+			status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled', 'overdue')),
 			kg_node_id TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
@@ -477,6 +482,55 @@ func operationalIssuesTableSQL(tableName string) string {
 			updated_at TEXT NOT NULL
 		);
 	`)
+}
+
+func migratePlannerToV8(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin planner v8 migration: %w", err)
+	}
+	defer tx.Rollback()
+
+	// SQLite does not allow altering CHECK constraints; recreate the table.
+	if _, err := tx.Exec(`ALTER TABLE appointments RENAME TO appointments_legacy`); err != nil {
+		return fmt.Errorf("rename appointments table for v8: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+		CREATE TABLE appointments (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			date_time TEXT NOT NULL DEFAULT '',
+			notification_at TEXT NOT NULL DEFAULT '',
+			wake_agent INTEGER NOT NULL DEFAULT 0,
+			agent_instruction TEXT NOT NULL DEFAULT '',
+			notified INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled', 'overdue')),
+			kg_node_id TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)
+	`); err != nil {
+		return fmt.Errorf("create appointments table v8: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at)
+		SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
+		FROM appointments_legacy
+	`); err != nil {
+		return fmt.Errorf("copy appointments to v8 table: %w", err)
+	}
+
+	if _, err := tx.Exec(`DROP TABLE appointments_legacy`); err != nil {
+		return fmt.Errorf("drop appointments_legacy: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit planner v8 migration: %w", err)
+	}
+	return ensurePlannerIndexes(db)
 }
 
 func plannerIndexesSQL() string {
