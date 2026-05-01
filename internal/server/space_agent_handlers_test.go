@@ -207,6 +207,20 @@ func TestSpaceAgentProxyHelpersRewriteAbsoluteAPIStringLiterals(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentProxyHelpersRewriteAbsoluteRouteStringLiterals(t *testing.T) {
+	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`;"), "/integrations/space-agent")
+
+	for _, want := range []string{
+		`"/integrations/space-agent/enter?next=%2Fintegrations%2Fspace-agent%2F"`,
+		`'/integrations/space-agent/login'`,
+		"`/integrations/space-agent/enter`",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten JS missing %q: %s", want, string(body))
+		}
+	}
+}
+
 func TestSpaceAgentProxyHelpersRewriteManifestLinks(t *testing.T) {
 	body := spaceAgentRewriteBody([]byte(`<link rel="manifest" href="site.webmanifest"><link rel='manifest' href='/site.webmanifest'>`), "/integrations/space-agent")
 
