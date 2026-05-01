@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -48,7 +50,12 @@ func main() {
 	}
 
 	if *installFlag {
-		if err := installService(); err != nil {
+		exePath, err := os.Executable()
+		if err != nil {
+			log.Fatalf("Failed to get executable path: %v", err)
+		}
+		exePath, _ = filepath.Abs(exePath)
+		if err := installService(exePath); err != nil {
 			log.Fatalf("Failed to install service: %v", err)
 		}
 		fmt.Println("AuraGo Remote service installed and started.")
@@ -65,6 +72,28 @@ func main() {
 
 	// Load configuration: CLI flags > trailer config > stored config
 	cfg := loadConfig(*supervisorFlag, *tokenFlag, *nameFlag)
+
+	// Interactive menu when running in a terminal without explicit flags
+	if !*foregroundFlag && !*installFlag && !*uninstallFlag && !*statusFlag && !*versionFlag && *supervisorFlag == "" && *tokenFlag == "" && *nameFlag == "" && isTerminal() {
+		choice := showMenu()
+		switch choice {
+		case "1":
+			if err := installPermanent(); err != nil {
+				fmt.Fprintf(os.Stderr, "Installation failed: %v\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		case "2":
+			*foregroundFlag = true
+		case "3", "q", "Q":
+			fmt.Println("Goodbye.")
+			os.Exit(0)
+		default:
+			fmt.Println("Invalid choice. Exiting.")
+			os.Exit(1)
+		}
+	}
+
 	if cfg.SupervisorURL == "" {
 		log.Fatal("No supervisor URL configured. Use --supervisor or download a personalized binary.")
 	}
@@ -594,6 +623,10 @@ func (c *Client) handleRevoke() {
 	_ = os.RemoveAll(configDir())
 	// Try to uninstall service
 	_ = uninstallService()
+	// Remove installed binary
+	if installPath, err := getInstallPath(); err == nil {
+		_ = os.Remove(installPath)
+	}
 	c.Stop()
 	os.Exit(0)
 }
@@ -644,4 +677,105 @@ func isRunningAsService() bool {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice == 0
+}
+
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func showMenu() string {
+	version := fmt.Sprintf("%s (%s/%s)", BuildVersion, runtime.GOOS, runtime.GOARCH)
+	if len(version) > 42 {
+		version = version[:42]
+	}
+
+	fmt.Println()
+	fmt.Println("╔════════════════════════════════════════════╗")
+	fmt.Printf("║ %-42s ║\n", "AuraGo Remote Agent")
+	fmt.Printf("║ %-42s ║\n", version)
+	fmt.Println("╠════════════════════════════════════════════╣")
+	fmt.Println("║                                            ║")
+	fmt.Println("║  1) Install AuraGo Remote permanently      ║")
+	fmt.Println("║  2) Run only now                           ║")
+	fmt.Println("║  3) Quit                                   ║")
+	fmt.Println("║                                            ║")
+	fmt.Println("╚════════════════════════════════════════════╝")
+	fmt.Println()
+	fmt.Print("Select an option [1-3]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	choice, _ := reader.ReadString('\n')
+	return strings.TrimSpace(choice)
+}
+
+func installPermanent() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+	exePath, _ = filepath.Abs(exePath)
+
+	installPath, err := getInstallPath()
+	if err != nil {
+		return fmt.Errorf("failed to determine install path: %w", err)
+	}
+
+	// If already at install path, just install the service
+	if exePath == installPath {
+		if err := installService(exePath); err != nil {
+			return fmt.Errorf("failed to install service: %w", err)
+		}
+		fmt.Println("AuraGo Remote service installed and started.")
+		return nil
+	}
+
+	// Create install directory
+	if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
+		return fmt.Errorf("failed to create install directory: %w", err)
+	}
+
+	// Copy binary
+	if err := copyFile(exePath, installPath); err != nil {
+		return fmt.Errorf("failed to copy binary to %s: %w", installPath, err)
+	}
+
+	// Make executable on Unix
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(installPath, 0755); err != nil {
+			return fmt.Errorf("failed to set permissions: %w", err)
+		}
+	}
+
+	fmt.Printf("Binary installed to: %s\n", installPath)
+
+	// Install and start service
+	if err := installService(installPath); err != nil {
+		return fmt.Errorf("failed to install service: %w", err)
+	}
+
+	fmt.Println("AuraGo Remote installed and started as a system service.")
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	if _, err := io.Copy(destination, source); err != nil {
+		return err
+	}
+	return destination.Sync()
 }

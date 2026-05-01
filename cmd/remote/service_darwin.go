@@ -33,11 +33,16 @@ const launchAgentPlist = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
-func installService() error {
-	exePath, err := os.Executable()
+func getInstallPath() (string, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
+		return "", err
 	}
+	dir := filepath.Join(home, "Library", "Application Support", "AuraGo")
+	return filepath.Join(dir, "aurago-remote"), nil
+}
+
+func installService(exePath string) error {
 	exePath, _ = filepath.Abs(exePath)
 
 	home, _ := os.UserHomeDir()

@@ -15,7 +15,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={{.ExePath}} --foreground
+ExecStart="{{.ExePath}}" --foreground
 Restart=always
 RestartSec=10
 User={{.User}}
@@ -25,11 +25,11 @@ WorkingDirectory={{.WorkDir}}
 WantedBy=multi-user.target
 `
 
-func installService() error {
-	exePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
-	}
+func getInstallPath() (string, error) {
+	return "/usr/local/bin/aurago-remote", nil
+}
+
+func installService(exePath string) error {
 	exePath, _ = filepath.Abs(exePath)
 
 	user := os.Getenv("USER")

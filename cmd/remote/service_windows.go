@@ -7,15 +7,20 @@ import (
 	"path/filepath"
 )
 
-func installService() error {
-	exePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
+func getInstallPath() (string, error) {
+	pf := os.Getenv("ProgramFiles")
+	if pf == "" {
+		pf = `C:\Program Files`
 	}
+	dir := filepath.Join(pf, "AuraGo")
+	return filepath.Join(dir, "aurago-remote.exe"), nil
+}
+
+func installService(exePath string) error {
 	exePath, _ = filepath.Abs(exePath)
 
 	// Use sc.exe to create a Windows service
-	err = exec.Command("sc", "create", "AuraGoRemote",
+	err := exec.Command("sc", "create", "AuraGoRemote",
 		"binpath=", fmt.Sprintf(`"%s" --foreground`, exePath),
 		"start=", "auto",
 		"DisplayName=", "AuraGo Remote Agent",
