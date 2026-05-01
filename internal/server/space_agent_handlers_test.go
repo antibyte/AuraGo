@@ -178,3 +178,23 @@ func TestHandleIntegrationWebhostsDerivesDirectURLFromForwardedHost(t *testing.T
 		t.Fatalf("url = %q, want direct forwarded-host URL", resp.Webhosts[0].URL)
 	}
 }
+
+func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.Port = 3100
+	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+
+	req := httptest.NewRequest(http.MethodGet, "/integrations/space-agent/", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	rec := httptest.NewRecorder()
+
+	handleSpaceAgentLegacyRedirect(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status code = %d, want 307; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "http://aurago.taild1480.ts.net:3100" {
+		t.Fatalf("Location = %q, want direct Space Agent webhost URL", got)
+	}
+}

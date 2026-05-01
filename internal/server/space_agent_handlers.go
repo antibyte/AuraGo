@@ -172,6 +172,26 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleSpaceAgentLegacyRedirect(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		cfg := s.currentSpaceAgentConfig()
+		if !cfg.SpaceAgent.Enabled {
+			http.NotFound(w, r)
+			return
+		}
+		target := spaceAgentPublicURL(&cfg, r)
+		if target == "" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+	}
+}
+
 func (s *Server) currentSpaceAgentConfig() config.Config {
 	if s == nil || s.Cfg == nil {
 		return config.Config{}
