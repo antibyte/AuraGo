@@ -208,7 +208,8 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			spaceAgentRewriteProxyLocation(resp.Header, proxyPrefix)
 			spaceAgentRewriteProxyCookies(resp.Header, proxyPrefix)
-			if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
+			contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+			if !spaceAgentShouldRewriteBody(contentType) {
 				return nil
 			}
 			body, err := io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024))
@@ -218,7 +219,7 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
-			body = spaceAgentRewriteHTML(body, proxyPrefix)
+			body = spaceAgentRewriteBody(body, proxyPrefix)
 			resp.Body = io.NopCloser(bytes.NewReader(body))
 			resp.ContentLength = int64(len(body))
 			resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
@@ -269,7 +270,14 @@ func spaceAgentRewriteProxyCookies(header http.Header, prefix string) {
 	}
 }
 
-func spaceAgentRewriteHTML(body []byte, prefix string) []byte {
+func spaceAgentShouldRewriteBody(contentType string) bool {
+	contentType = strings.ToLower(contentType)
+	return strings.Contains(contentType, "text/html") ||
+		strings.Contains(contentType, "javascript") ||
+		strings.Contains(contentType, "ecmascript")
+}
+
+func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 	replacements := []struct {
 		old string
 		new string
@@ -279,6 +287,14 @@ func spaceAgentRewriteHTML(body []byte, prefix string) []byte {
 		{`action="/`, `action="` + prefix + `/`},
 		{`fetch("/`, `fetch("` + prefix + `/`},
 		{`fetch('/`, `fetch('` + prefix + `/`},
+		{`import("/`, `import("` + prefix + `/`},
+		{`import('/`, `import('` + prefix + `/`},
+		{`from "/`, `from "` + prefix + `/`},
+		{`from '/`, `from '` + prefix + `/`},
+		{`new URL("/`, `new URL("` + prefix + `/`},
+		{`new URL('/`, `new URL('` + prefix + `/`},
+		{`Worker("/`, `Worker("` + prefix + `/`},
+		{`Worker('/`, `Worker('` + prefix + `/`},
 	}
 	out := string(body)
 	for _, repl := range replacements {

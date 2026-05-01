@@ -156,7 +156,7 @@ func TestSpaceAgentProxyHelpersRewriteSubpathResponses(t *testing.T) {
 
 	spaceAgentRewriteProxyLocation(header, "/integrations/space-agent")
 	spaceAgentRewriteProxyCookies(header, "/integrations/space-agent")
-	body := spaceAgentRewriteHTML([]byte(`<link href="/assets/app.css"><script src="/app.js"></script><form action="/login"></form>`), "/integrations/space-agent")
+	body := spaceAgentRewriteBody([]byte(`<link href="/assets/app.css"><script src="/app.js"></script><form action="/login"></form>`), "/integrations/space-agent")
 
 	if got := header.Get("Location"); got != "/integrations/space-agent/login" {
 		t.Fatalf("Location = %q", got)
@@ -172,5 +172,23 @@ func TestSpaceAgentProxyHelpersRewriteSubpathResponses(t *testing.T) {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("rewritten HTML missing %q: %s", want, string(body))
 		}
+	}
+}
+
+func TestSpaceAgentProxyHelpersRewriteJavaScriptModulePaths(t *testing.T) {
+	body := spaceAgentRewriteBody([]byte(`import("/assets/app.js"); import('/modules/check.js'); export { x } from "/chunks/x.js"; const w = new Worker("/worker.js");`), "/integrations/space-agent")
+
+	for _, want := range []string{
+		`import("/integrations/space-agent/assets/app.js")`,
+		`import('/integrations/space-agent/modules/check.js')`,
+		`from "/integrations/space-agent/chunks/x.js"`,
+		`new Worker("/integrations/space-agent/worker.js")`,
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten JS missing %q: %s", want, string(body))
+		}
+	}
+	if !spaceAgentShouldRewriteBody("application/javascript; charset=utf-8") {
+		t.Fatal("expected JavaScript responses to be rewritten")
 	}
 }
