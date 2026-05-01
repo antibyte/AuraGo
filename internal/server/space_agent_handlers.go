@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -143,8 +144,80 @@ func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 		if s.SSE != nil {
 			s.SSE.BroadcastType(EventSpaceAgentMessage, msg)
 		}
+		if shouldRunSpaceAgentBridgeMessage(msg) {
+			go runSpaceAgentBridgeMessage(s, msg)
+		}
 		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "message": msg})
 	}
+}
+
+func shouldRunSpaceAgentBridgeMessage(msg spaceAgentBridgeMessage) bool {
+	return strings.EqualFold(strings.TrimSpace(msg.Type), "question") && strings.TrimSpace(msg.Content) != ""
+}
+
+func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) {
+	if s == nil || s.Cfg == nil || s.SSE == nil {
+		return
+	}
+	cfg := s.currentSpaceAgentConfig()
+	sessionID := "default"
+	content := spaceAgentBridgeQuestionPrompt(msg)
+	if strings.TrimSpace(content) == "" {
+		return
+	}
+	runCfg := agent.RunConfig{
+		Config:             &cfg,
+		Logger:             s.Logger,
+		LLMClient:          s.LLMClient,
+		ShortTermMem:       s.ShortTermMem,
+		HistoryManager:     s.HistoryManager,
+		LongTermMem:        s.LongTermMem,
+		KG:                 s.KG,
+		InventoryDB:        s.InventoryDB,
+		InvasionDB:         s.InvasionDB,
+		CheatsheetDB:       s.CheatsheetDB,
+		ImageGalleryDB:     s.ImageGalleryDB,
+		MediaRegistryDB:    s.MediaRegistryDB,
+		HomepageRegistryDB: s.HomepageRegistryDB,
+		ContactsDB:         s.ContactsDB,
+		PlannerDB:          s.PlannerDB,
+		SQLConnectionsDB:   s.SQLConnectionsDB,
+		SQLConnectionPool:  s.SQLConnectionPool,
+		RemoteHub:          s.RemoteHub,
+		Vault:              s.Vault,
+		Registry:           s.Registry,
+		Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
+		CronManager:        s.CronManager,
+		MissionManagerV2:   s.MissionManagerV2,
+		CoAgentRegistry:    s.CoAgentRegistry,
+		BudgetTracker:      s.BudgetTracker,
+		DaemonSupervisor:   s.DaemonSupervisor,
+		LLMGuardian:        s.LLMGuardian,
+		PreparationService: s.PreparationService,
+		SessionID:          sessionID,
+		MessageSource:      "space_agent_bridge",
+		VoiceOutputActive:  GetSpeakerMode(),
+	}
+	agent.Loopback(runCfg, content, NewSSEBrokerAdapterWithSession(s.SSE, sessionID))
+}
+
+func spaceAgentBridgeQuestionPrompt(msg spaceAgentBridgeMessage) string {
+	parts := []string{"Space Agent sent this bridge question to AuraGo."}
+	if source := strings.TrimSpace(msg.Source); source != "" {
+		parts = append(parts, "Source: "+source)
+	}
+	if sessionID := strings.TrimSpace(msg.SessionID); sessionID != "" {
+		parts = append(parts, "Correlation ID: "+sessionID)
+	}
+	if summary := strings.TrimSpace(msg.Summary); summary != "" {
+		parts = append(parts, "Summary: "+summary)
+	}
+	parts = append(parts,
+		"Question:",
+		strings.TrimSpace(msg.Content),
+		"Answer the Space Agent using AuraGo's current tools and integrations. If live system state is requested, query it now rather than relying on memory.",
+	)
+	return strings.Join(parts, "\n\n")
 }
 
 func allowSpaceAgentBridgeCORS(w http.ResponseWriter, r *http.Request) {

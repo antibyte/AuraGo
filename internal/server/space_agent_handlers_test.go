@@ -100,6 +100,43 @@ func TestHandleSpaceAgentBridgeWrapsExternalData(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentBridgeQuestionPromptTriggersLoopback(t *testing.T) {
+	msg := spaceAgentBridgeMessage{
+		Type:      "question",
+		Summary:   "Proxmox status",
+		Content:   "List all containers",
+		Source:    "space-agent",
+		SessionID: "corr-1",
+	}
+	if !shouldRunSpaceAgentBridgeMessage(msg) {
+		t.Fatal("expected question bridge message to trigger loopback")
+	}
+	prompt := spaceAgentBridgeQuestionPrompt(msg)
+	for _, want := range []string{
+		"Space Agent sent this bridge question",
+		"Source: space-agent",
+		"Correlation ID: corr-1",
+		"Summary: Proxmox status",
+		"List all containers",
+		"query it now rather than relying on memory",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing %q:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestSpaceAgentBridgeNonQuestionDoesNotTriggerLoopback(t *testing.T) {
+	msg := spaceAgentBridgeMessage{Type: "note", Content: "FYI"}
+	if shouldRunSpaceAgentBridgeMessage(msg) {
+		t.Fatal("did not expect note bridge message to trigger loopback")
+	}
+	msg = spaceAgentBridgeMessage{Type: "question"}
+	if shouldRunSpaceAgentBridgeMessage(msg) {
+		t.Fatal("did not expect empty question bridge message to trigger loopback")
+	}
+}
+
 func TestSpaceAgentBridgeBaseURLUsesTailscaleRequestHost(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.Port = 8443
