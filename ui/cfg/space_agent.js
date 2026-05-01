@@ -59,6 +59,9 @@ async function renderSpaceAgentSection(section) {
         '<input class="field-input" type="text" value="' + escapeAttr(data.admin_user || 'admin') + '" data-path="space_agent.admin_user">');
     html += '</div>';
 
+    html += spaceAgentField('config.space_agent.admin_password_label', 'help.space_agent.admin_password',
+        '<div class="password-wrap"><input class="field-input" type="password" value="' + escapeAttr(data.admin_password || '') + '" data-path="space_agent.admin_password" autocomplete="new-password"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
+
     html += '<details class="cfg-advanced-panel space-agent-advanced-panel">';
     html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.space_agent.advanced_label') + '</summary>';
     html += '<div class="cfg-advanced-body">';

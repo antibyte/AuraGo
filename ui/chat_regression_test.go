@@ -328,6 +328,7 @@ func TestConfigFrontendSpaceAgentSectionRemainsWired(t *testing.T) {
 		"space_agent.enabled",
 		"space_agent.public_url",
 		"space_agent.port",
+		"space_agent.admin_password",
 		"/api/space-agent/status",
 		"/api/space-agent/recreate",
 	} {
@@ -348,9 +349,11 @@ func TestConfigFrontendSpaceAgentI18nKeysExist(t *testing.T) {
 		"config.section.space_agent.desc",
 		"config.space_agent.enabled_label",
 		"config.space_agent.public_url_label",
+		"config.space_agent.admin_password_label",
 		"config.space_agent.recreate_button",
 		"help.space_agent.enabled",
 		"help.space_agent.public_url",
+		"help.space_agent.admin_password",
 	}
 	files, err := filepath.Glob(filepath.Join("lang", "config", "sections", "*.json"))
 	if err != nil {

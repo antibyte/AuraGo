@@ -1314,6 +1314,7 @@ var vaultKeyMap = map[string]string{
 	"jellyfin.api_key":                 "jellyfin_api_key",
 	"obsidian.api_key":                 "obsidian_api_key",
 	"ldap.bind_password":               "ldap_bind_password",
+	"space_agent.admin_password":       "space_agent_admin_password",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.

@@ -126,6 +126,43 @@ func TestExtractSecretsToVaultStoresAIGatewayToken(t *testing.T) {
 	}
 }
 
+func TestExtractSecretsToVaultStoresSpaceAgentAdminPassword(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	vault, err := security.NewVault(masterKey, t.TempDir()+"\\vault.bin")
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+
+	patch := map[string]interface{}{
+		"space_agent": map[string]interface{}{
+			"enabled":        true,
+			"admin_user":     "admin",
+			"admin_password": "chosen-space-password",
+		},
+	}
+
+	if err := extractSecretsToVault(patch, vault, slog.Default()); err != nil {
+		t.Fatalf("extractSecretsToVault() error = %v", err)
+	}
+
+	secret, err := vault.ReadSecret("space_agent_admin_password")
+	if err != nil {
+		t.Fatalf("vault.ReadSecret() error = %v", err)
+	}
+	if secret != "chosen-space-password" {
+		t.Fatalf("vault secret = %q, want %q", secret, "chosen-space-password")
+	}
+
+	section, ok := patch["space_agent"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("patch[\"space_agent\"] missing or wrong type: %#v", patch["space_agent"])
+	}
+	if _, exists := section["admin_password"]; exists {
+		t.Fatalf("admin_password field should have been removed from patch: %#v", section)
+	}
+}
+
 func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: "config.yaml"},
