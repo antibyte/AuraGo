@@ -113,7 +113,8 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if sessionID == "default" {
 		historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
 	}
-	followUpContent := toolResultFollowUpContent(ptc, pResultContent, s.runCfg.VoiceOutputActive || GetVoiceMode())
+	voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
+	followUpContent := toolResultFollowUpContent(ptc, pResultContent, voiceModeActive)
 	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
 	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	s.lastResponseWasTool = true
@@ -512,7 +513,8 @@ func executeAgentToolTurn(
 		if !xmlFallbackHandledThisTurn {
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 		}
-		followUpContent := toolResultFollowUpContent(tc, resultContent, s.runCfg.VoiceOutputActive || GetVoiceMode())
+		voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
+		followUpContent := toolResultFollowUpContent(tc, resultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
 

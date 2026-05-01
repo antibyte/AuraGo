@@ -312,7 +312,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
 			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
-			if GetVoiceMode() && ff.TTSEnabled {
+			if GetVoiceMode() && ff.TTSEnabled && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission {
 				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
 			}
 			if ff.MusicGenerationEnabled {
