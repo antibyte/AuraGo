@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-current-core-state"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-password-crypto-guard"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-current-core-state"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-password-crypto-guard"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -223,7 +223,10 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"SPACE_AGENT_ADMIN_USER",
 		"SPACE_AGENT_ADMIN_PASSWORD",
 		"loadSupervisorAuthEnv",
-		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizeEntityId(username)))",
+		"aurago_managed_user.json",
+		"password_sha256",
+		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",
+		"clearInvalidatedUserCrypto(normalizedUsername)",
 		"createUser(projectRoot, username, password",
 		"setUserPassword(projectRoot, username, password",
 	} {

@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-current-core-state"
+	spaceAgentImageBuildRevision   = "20260501-password-crypto-guard"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -605,7 +605,8 @@ CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --sta
 }
 
 func spaceAgentBootstrapScript() string {
-	return `import fs from "node:fs";
+	return `import { createHash } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 
 import { loadSupervisorAuthEnv } from "./commands/lib/supervisor/auth_keys.js";
@@ -615,6 +616,7 @@ const username = String(process.env.SPACE_AGENT_ADMIN_USER || "").trim();
 const password = String(process.env.SPACE_AGENT_ADMIN_PASSWORD || "");
 const projectRoot = process.cwd();
 const stateDir = "/app/supervisor";
+const managedStatePath = path.join(stateDir, "auth", "aurago_managed_user.json");
 
 function normalizeEntityId(value) {
   const raw = String(value || "").trim().replaceAll("\\", "/");
@@ -626,6 +628,39 @@ function normalizeEntityId(value) {
     throw new Error("Managed Space Agent username must be a single path segment.");
   }
   return normalized;
+}
+
+function digestPassword(value) {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function readManagedState() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(managedStatePath, "utf8"));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeManagedState(usernameValue, passwordDigest) {
+  fs.mkdirSync(path.dirname(managedStatePath), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(
+    managedStatePath,
+    JSON.stringify({
+      password_sha256: passwordDigest,
+      updated_at: new Date().toISOString(),
+      username: usernameValue
+    }, null, 2) + "\n",
+    { mode: 0o600 }
+  );
+}
+
+function clearInvalidatedUserCrypto(usernameValue) {
+  const customwarePath = process.env.CUSTOMWARE_PATH || "/app/customware";
+  fs.rmSync(path.join(customwarePath, "L2", usernameValue, "meta", "user_crypto.json"), {
+    force: true
+  });
 }
 
 function seedFile(filePath, content) {
@@ -666,19 +701,32 @@ function seedWorkspaceFiles(rootPath) {
 
 if (username && password) {
   process.env.CUSTOMWARE_PATH = process.env.CUSTOMWARE_PATH || "/app/customware";
-  seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizeEntityId(username)));
+  const normalizedUsername = normalizeEntityId(username);
+  const passwordDigest = digestPassword(password);
+  seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizedUsername));
   const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
   Object.assign(process.env, auth.env);
 
   try {
     createUser(projectRoot, username, password, { fullName: username });
+    writeManagedState(normalizedUsername, passwordDigest);
     console.log("[aurago-bootstrap] Created managed Space Agent user " + username + ".");
   } catch (error) {
     if (!String(error?.message || "").startsWith("User already exists:")) {
       throw error;
     }
-    setUserPassword(projectRoot, username, password);
-    console.log("[aurago-bootstrap] Updated managed Space Agent user " + username + ".");
+    const managedState = readManagedState();
+    if (
+      managedState.username === normalizedUsername &&
+      managedState.password_sha256 === passwordDigest
+    ) {
+      console.log("[aurago-bootstrap] Managed Space Agent user " + username + " already current.");
+    } else {
+      setUserPassword(projectRoot, username, password);
+      clearInvalidatedUserCrypto(normalizedUsername);
+      writeManagedState(normalizedUsername, passwordDigest);
+      console.log("[aurago-bootstrap] Updated managed Space Agent user " + username + ".");
+    }
   }
 }
 `
