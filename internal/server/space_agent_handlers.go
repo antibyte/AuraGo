@@ -21,7 +21,10 @@ import (
 	"aurago/internal/tools"
 )
 
-const spaceAgentBridgeMaxBodyBytes int64 = 64 * 1024
+const (
+	spaceAgentBridgeMaxBodyBytes int64 = 64 * 1024
+	spaceAgentProxyPrefix              = "/integrations/space-agent"
+)
 
 type spaceAgentBridgeMessage struct {
 	Type      string `json:"type"`
@@ -174,7 +177,6 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 }
 
 func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
-	const proxyPrefix = "/integrations/space-agent"
 	return func(w http.ResponseWriter, r *http.Request) {
 		spaceAgentSetProxySecurityHeaders(w.Header())
 		cfg := s.currentSpaceAgentConfig()
@@ -182,8 +184,8 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if r.URL.Path == proxyPrefix {
-			http.Redirect(w, r, proxyPrefix+"/", http.StatusTemporaryRedirect)
+		if r.URL.Path == spaceAgentProxyPrefix {
+			http.Redirect(w, r, spaceAgentProxyPrefix+"/", http.StatusTemporaryRedirect)
 			return
 		}
 		port := cfg.SpaceAgent.Port
@@ -200,16 +202,16 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 		originalDirector := proxy.Director
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
-			req.URL.Path = "/" + strings.TrimPrefix(strings.TrimPrefix(req.URL.Path, proxyPrefix), "/")
+			req.URL.Path = "/" + strings.TrimPrefix(strings.TrimPrefix(req.URL.Path, spaceAgentProxyPrefix), "/")
 			req.URL.RawPath = ""
 			req.Host = target.Host
 			req.Header.Set("X-Forwarded-Host", r.Host)
-			req.Header.Set("X-Forwarded-Prefix", proxyPrefix)
+			req.Header.Set("X-Forwarded-Prefix", spaceAgentProxyPrefix)
 		}
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			spaceAgentSetProxySecurityHeaders(resp.Header)
-			spaceAgentRewriteProxyLocation(resp.Header, proxyPrefix)
-			spaceAgentRewriteProxyCookies(resp.Header, proxyPrefix)
+			spaceAgentRewriteProxyLocation(resp.Header, spaceAgentProxyPrefix)
+			spaceAgentRewriteProxyCookies(resp.Header, spaceAgentProxyPrefix)
 			contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 			if !spaceAgentShouldRewriteBody(contentType) {
 				return nil
@@ -221,7 +223,7 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
-			body = spaceAgentRewriteBody(body, proxyPrefix)
+			body = spaceAgentRewriteBody(body, spaceAgentProxyPrefix)
 			resp.Body = io.NopCloser(bytes.NewReader(body))
 			resp.ContentLength = int64(len(body))
 			resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
@@ -233,6 +235,36 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 		}
 		proxy.ServeHTTP(w, r)
 	}
+}
+
+func handleSpaceAgentRootAPIProxy(s *Server) http.HandlerFunc {
+	proxy := handleSpaceAgentProxy(s)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !spaceAgentShouldProxyRootAPIRequest(r) {
+			http.NotFound(w, r)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	}
+}
+
+func spaceAgentShouldProxyRootAPIRequest(r *http.Request) bool {
+	if r == nil || r.URL == nil || !strings.HasPrefix(r.URL.Path, "/api/") {
+		return false
+	}
+	switch r.URL.Path {
+	case "/api/login", "/api/login_challenge", "/api/user_self_info", "/api/file_read", "/api/file_paths", "/api/file_list":
+		return true
+	}
+	referer := strings.TrimSpace(r.Referer())
+	if referer == "" {
+		return false
+	}
+	refURL, err := url.Parse(referer)
+	if err != nil {
+		return false
+	}
+	return refURL.Path == spaceAgentProxyPrefix || strings.HasPrefix(refURL.Path, spaceAgentProxyPrefix+"/")
 }
 
 func spaceAgentSetProxySecurityHeaders(header http.Header) {

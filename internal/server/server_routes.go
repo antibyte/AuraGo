@@ -435,6 +435,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/integrations/space-agent", handleSpaceAgentProxy(s))
 	mux.HandleFunc("/integrations/space-agent/", handleSpaceAgentProxy(s))
 	mux.HandleFunc("/mod/", handleSpaceAgentProxy(s))
+	mux.HandleFunc("/api/", handleSpaceAgentRootAPIProxy(s))
 
 	s.registerConfigAPIRoutes(mux, sse)
 

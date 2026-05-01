@@ -207,6 +207,24 @@ func TestSpaceAgentProxyHelpersRewriteAbsoluteAPIStringLiterals(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentRootAPIProxyOnlyAllowsSpaceAgentRequests(t *testing.T) {
+	known := httptest.NewRequest(http.MethodPost, "/api/user_self_info", nil)
+	if !spaceAgentShouldProxyRootAPIRequest(known) {
+		t.Fatal("expected known Space Agent root API path to be proxied")
+	}
+
+	fromSpaceAgent := httptest.NewRequest(http.MethodPost, "/api/dynamic_extension_call", nil)
+	fromSpaceAgent.Header.Set("Referer", "https://aurago.test/integrations/space-agent/index")
+	if !spaceAgentShouldProxyRootAPIRequest(fromSpaceAgent) {
+		t.Fatal("expected Space Agent referer API path to be proxied")
+	}
+
+	unknownAuraGo := httptest.NewRequest(http.MethodPost, "/api/not-an-aurago-route", nil)
+	if spaceAgentShouldProxyRootAPIRequest(unknownAuraGo) {
+		t.Fatal("unexpected proxy decision for unrelated AuraGo API path")
+	}
+}
+
 func TestSpaceAgentProxyHelpersRewriteAbsoluteModStringLiterals(t *testing.T) {
 	body := spaceAgentRewriteBody([]byte("{\"component\":\"/mod/_core/router/ext/html/body/start/router-page.html\",\"hooks\":'/mod/_core/login_hooks/ext/js/_core/framework/initializer.js/initialize/end/login-hooks.js',\"crypto\":`/mod/_core/user_crypto/ext/js/user-crypto.js`}"), "/integrations/space-agent")
 
