@@ -134,6 +134,7 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 	env := []string{
 		"HOST=0.0.0.0",
 		"PORT=" + strconv.Itoa(port),
+		"CUSTOMWARE_PATH=" + spaceAgentCustomwarePath,
 		"SPACE_AGENT_ADMIN_USER=" + strings.TrimSpace(cfg.AdminUser),
 		"SPACE_AGENT_ADMIN_PASSWORD=" + cfg.AdminPassword,
 		"AURAGO_BRIDGE_URL=" + strings.TrimSpace(cfg.BridgeURL),
@@ -257,6 +258,9 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		port = spaceAgentDefaultPort
 	}
 	if !spaceAgentEnvContains(info.Config.Env, "HOST=0.0.0.0") {
+		return true
+	}
+	if !spaceAgentEnvContains(info.Config.Env, "CUSTOMWARE_PATH="+spaceAgentCustomwarePath) {
 		return true
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)

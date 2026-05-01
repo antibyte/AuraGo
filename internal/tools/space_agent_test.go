@@ -44,6 +44,7 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 	for _, want := range []string{
 		"HOST=0.0.0.0",
 		"PORT=3210",
+		"CUSTOMWARE_PATH=/app/customware",
 		"SPACE_AGENT_ADMIN_USER=admin",
 		"SPACE_AGENT_ADMIN_PASSWORD=admin-secret",
 		"AURAGO_BRIDGE_URL=http://127.0.0.1:8088/api/space-agent/bridge/messages",
@@ -124,9 +125,23 @@ func TestSpaceAgentContainerNeedsRecreateForLoopbackOnlyListener(t *testing.T) {
 	}
 }
 
-func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+func TestSpaceAgentContainerNeedsRecreateWhenCustomwarePathEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {"Env": ["HOST=0.0.0.0", "PORT=3210"]},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "0.0.0.0", Port: 3210}) {
+		t.Fatal("expected container without CUSTOMWARE_PATH to require recreation")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"]},
 		"HostConfig": {
 			"PortBindings": {
 				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
