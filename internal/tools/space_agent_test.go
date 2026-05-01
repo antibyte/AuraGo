@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-password-crypto-guard"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-context-pack"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-password-crypto-guard"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-context-pack"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -246,6 +246,7 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		filepath.Join(home, "spaces"),
 		filepath.Join(home, "conf"),
 		filepath.Join(home, "hist"),
+		filepath.Join(home, "docs"),
 		filepath.Join(home, "dashboard"),
 		filepath.Join(home, "onscreen-agent"),
 		filepath.Join(home, ".config"),
@@ -267,6 +268,8 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		filepath.Join(home, "conf", "dashboard.yaml"):                "{}",
 		filepath.Join(home, "conf", "onscreen-agent.yaml"):           "{}",
 		filepath.Join(home, "hist", "onscreen-agent.json"):           "[]",
+		filepath.Join(home, "docs", "aurago-bridge.md"):              "contains:AuraGo Bridge",
+		filepath.Join(home, "conf", "aurago.system.include.md"):      "contains:AuraGo",
 		filepath.Join(home, "onscreen-agent", "config.json"):         "{}",
 		filepath.Join(home, "onscreen-agent", "history.json"):        "[]",
 		filepath.Join(home, "meta", "dashboard-prefs.json"):          "{}",
@@ -275,6 +278,12 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("ReadFile(%s) error = %v", path, err)
+		}
+		if strings.HasPrefix(want, "contains:") {
+			if !strings.Contains(string(content), strings.TrimPrefix(want, "contains:")) {
+				t.Fatalf("%s = %q, want content containing %s", path, string(content), strings.TrimPrefix(want, "contains:"))
+			}
+			continue
 		}
 		if strings.TrimSpace(string(content)) != want {
 			t.Fatalf("%s = %q, want %s", path, string(content), want)
@@ -293,6 +302,8 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 		filepath.Join(userHome, "conf", "dashboard.yaml"):            "{}",
 		filepath.Join(userHome, "conf", "onscreen-agent.yaml"):       "{}",
 		filepath.Join(userHome, "hist", "onscreen-agent.json"):       "[]",
+		filepath.Join(userHome, "docs", "aurago-bridge.md"):          "contains:AuraGo Bridge",
+		filepath.Join(userHome, "conf", "aurago.system.include.md"):  "contains:AuraGo",
 		filepath.Join(userHome, ".config", "dashboard-prefs.json"):   "{}",
 		filepath.Join(userHome, "onscreen-agent", "config.json"):     "{}",
 		filepath.Join(userHome, "onscreen-agent", "history.json"):    "[]",
@@ -301,6 +312,12 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("ReadFile(%s) error = %v", path, err)
+		}
+		if strings.HasPrefix(want, "contains:") {
+			if !strings.Contains(string(content), strings.TrimPrefix(want, "contains:")) {
+				t.Fatalf("%s = %q, want content containing %s", path, string(content), strings.TrimPrefix(want, "contains:"))
+			}
+			continue
 		}
 		if strings.TrimSpace(string(content)) != want {
 			t.Fatalf("%s = %q, want %s", path, string(content), want)
