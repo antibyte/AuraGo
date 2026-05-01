@@ -2,6 +2,8 @@ package tools
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -48,6 +50,9 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 	for _, want := range []string{
 		"HOST=0.0.0.0",
 		"PORT=3210",
+		"HOME=/app/home",
+		"XDG_CONFIG_HOME=/app/home/.config",
+		"XDG_DATA_HOME=/app/home/.local/share",
 		"CUSTOMWARE_PATH=/app/customware",
 		"SPACE_AGENT_ADMIN_USER=admin",
 		"SPACE_AGENT_ADMIN_PASSWORD=admin-secret",
@@ -65,11 +70,11 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 		t.Fatalf("restart policy = %#v", restart)
 	}
 	binds := hostConfig["Binds"].([]interface{})
-	if len(binds) != 3 {
-		t.Fatalf("bind count = %d, want 3: %#v", len(binds), binds)
+	if len(binds) != 4 {
+		t.Fatalf("bind count = %d, want 4: %#v", len(binds), binds)
 	}
 	bindText := strings.Join(interfaceStrings(binds), "\n")
-	if !strings.Contains(bindText, "/app/.space-agent") || !strings.Contains(bindText, "/app/customware") || !strings.Contains(bindText, "/app/supervisor") {
+	if !strings.Contains(bindText, "/app/.space-agent") || !strings.Contains(bindText, "/app/home") || !strings.Contains(bindText, "/app/customware") || !strings.Contains(bindText, "/app/supervisor") {
 		t.Fatalf("binds missing expected container paths: %s", bindText)
 	}
 	ports := got["ExposedPorts"].(map[string]interface{})
@@ -143,11 +148,28 @@ func TestSpaceAgentContainerNeedsRecreateWhenCustomwarePathEnvMissing(t *testing
 	}
 }
 
-func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-auth-bootstrap"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-persistent-home"}
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "0.0.0.0", Port: 3210}) {
+		t.Fatal("expected container without persistent HOME to require recreation")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-persistent-home"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -163,7 +185,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 func TestSpaceAgentContainerNeedsRecreateWhenImageRevisionIsOld(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
-			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
 			"Labels": {"org.aurago.space-agent.build-revision": "old"}
 		},
 		"HostConfig": {
@@ -207,6 +229,30 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Fatalf("bootstrap script missing %q:\n%s", want, script)
 		}
+	}
+}
+
+func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
+	home := t.TempDir()
+	if err := ensureSpaceAgentHome(home); err != nil {
+		t.Fatalf("ensureSpaceAgentHome() error = %v", err)
+	}
+	for _, dir := range []string{
+		filepath.Join(home, "meta"),
+		filepath.Join(home, "spaces"),
+		filepath.Join(home, ".config"),
+		filepath.Join(home, ".local", "share"),
+	} {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			t.Fatalf("expected seeded dir %s, info=%#v err=%v", dir, info, err)
+		}
+	}
+	content, err := os.ReadFile(filepath.Join(home, "meta", "login_hooks.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(login_hooks.json) error = %v", err)
+	}
+	if strings.TrimSpace(string(content)) != "[]" {
+		t.Fatalf("login_hooks.json = %q, want []", string(content))
 	}
 }
 

@@ -27,8 +27,9 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-auth-bootstrap"
+	spaceAgentImageBuildRevision   = "20260501-persistent-home"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
+	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
@@ -136,6 +137,9 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 	env := []string{
 		"HOST=0.0.0.0",
 		"PORT=" + strconv.Itoa(port),
+		"HOME=" + spaceAgentHomePath,
+		"XDG_CONFIG_HOME=" + spaceAgentHomePath + "/.config",
+		"XDG_DATA_HOME=" + spaceAgentHomePath + "/.local/share",
 		"CUSTOMWARE_PATH=" + spaceAgentCustomwarePath,
 		"SPACE_AGENT_ADMIN_USER=" + strings.TrimSpace(cfg.AdminUser),
 		"SPACE_AGENT_ADMIN_PASSWORD=" + cfg.AdminPassword,
@@ -154,6 +158,7 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"Binds": []string{
 				dockerutil.FormatBindMount(cfg.DataPath, spaceAgentDataContainerPath),
+				dockerutil.FormatBindMount(filepath.Join(cfg.DataPath, "home"), spaceAgentHomePath),
 				dockerutil.FormatBindMount(filepath.Join(cfg.DataPath, "supervisor"), spaceAgentSupervisorPath),
 				dockerutil.FormatBindMount(cfg.CustomwarePath, spaceAgentCustomwarePath),
 			},
@@ -266,6 +271,9 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		return true
 	}
 	if !spaceAgentEnvContains(info.Config.Env, "CUSTOMWARE_PATH="+spaceAgentCustomwarePath) {
+		return true
+	}
+	if !spaceAgentEnvContains(info.Config.Env, "HOME="+spaceAgentHomePath) {
 		return true
 	}
 	if info.Config.Labels["org.aurago.space-agent.build-revision"] != spaceAgentImageBuildRevision {
@@ -451,6 +459,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.MkdirAll(filepath.Join(cfg.DataPath, "supervisor"), 0o750); err != nil {
 		return fmt.Errorf("create supervisor state dir: %w", err)
 	}
+	if err := ensureSpaceAgentHome(filepath.Join(cfg.DataPath, "home")); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(cfg.CustomwarePath, 0o750); err != nil {
 		return fmt.Errorf("create customware dir: %w", err)
 	}
@@ -470,6 +481,32 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 		return fmt.Errorf("write Dockerfile.aurago: %w", err)
 	}
 	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+}
+
+func ensureSpaceAgentHome(homePath string) error {
+	for _, dir := range []string{
+		homePath,
+		filepath.Join(homePath, "meta"),
+		filepath.Join(homePath, "spaces"),
+		filepath.Join(homePath, ".config"),
+		filepath.Join(homePath, ".local", "share"),
+	} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return fmt.Errorf("create Space Agent home dir %s: %w", dir, err)
+		}
+	}
+	for path, content := range map[string]string{
+		filepath.Join(homePath, "meta", "login_hooks.json"): "[]\n",
+	} {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			if writeErr := os.WriteFile(path, []byte(content), 0o600); writeErr != nil {
+				return fmt.Errorf("seed Space Agent home file %s: %w", path, writeErr)
+			}
+		} else if err != nil {
+			return fmt.Errorf("stat Space Agent home file %s: %w", path, err)
+		}
+	}
+	return nil
 }
 
 func runSpaceAgentCommand(logger interface {
