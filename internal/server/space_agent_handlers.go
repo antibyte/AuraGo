@@ -198,7 +198,32 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) {
 		MessageSource:      "space_agent_bridge",
 		VoiceOutputActive:  GetSpeakerMode(),
 	}
-	agent.Loopback(runCfg, content, NewSSEBrokerAdapterWithSession(s.SSE, sessionID))
+	broker := &spaceAgentReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
+	agent.Loopback(runCfg, content, broker)
+	answer := strings.TrimSpace(broker.finalResponse)
+	if answer == "" {
+		if s.Logger != nil {
+			s.Logger.Warn("[SpaceAgent] Bridge question completed without final response", "session_id", msg.SessionID)
+		}
+		return
+	}
+	reply := tools.SpaceAgentInstruction{
+		Instruction: "AuraGo answered your bridge question.",
+		Information: answer,
+		SessionID:   msg.SessionID,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
+	result := tools.SendSpaceAgentInstruction(ctx, &cfg, reply)
+	if rawStatus, _ := result["status"].(string); rawStatus != "ok" {
+		if s.Logger != nil {
+			s.Logger.Warn("[SpaceAgent] Failed to send bridge answer back to Space Agent", "result", result, "session_id", msg.SessionID)
+		}
+		return
+	}
+	if s.Logger != nil {
+		s.Logger.Info("[SpaceAgent] Bridge answer sent back to Space Agent", "session_id", msg.SessionID)
+	}
 }
 
 func spaceAgentBridgeQuestionPrompt(msg spaceAgentBridgeMessage) string {
@@ -218,6 +243,18 @@ func spaceAgentBridgeQuestionPrompt(msg spaceAgentBridgeMessage) string {
 		"Answer the Space Agent using AuraGo's current tools and integrations. If live system state is requested, query it now rather than relying on memory.",
 	)
 	return strings.Join(parts, "\n\n")
+}
+
+type spaceAgentReplyBroker struct {
+	agent.FeedbackBroker
+	finalResponse string
+}
+
+func (b *spaceAgentReplyBroker) Send(event, message string) {
+	if event == "final_response" {
+		b.finalResponse = message
+	}
+	b.FeedbackBroker.Send(event, message)
 }
 
 func allowSpaceAgentBridgeCORS(w http.ResponseWriter, r *http.Request) {

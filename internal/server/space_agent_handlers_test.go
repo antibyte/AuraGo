@@ -137,6 +137,20 @@ func TestSpaceAgentBridgeNonQuestionDoesNotTriggerLoopback(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentReplyBrokerCapturesFinalResponse(t *testing.T) {
+	base := NewSSEBrokerAdapter(NewSSEBroadcaster())
+	broker := &spaceAgentReplyBroker{FeedbackBroker: base}
+
+	broker.Send("tool_start", "proxmox")
+	if broker.finalResponse != "" {
+		t.Fatalf("finalResponse captured non-final event: %q", broker.finalResponse)
+	}
+	broker.Send("final_response", "answer")
+	if broker.finalResponse != "answer" {
+		t.Fatalf("finalResponse = %q, want answer", broker.finalResponse)
+	}
+}
+
 func TestSpaceAgentBridgeBaseURLUsesTailscaleRequestHost(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.Port = 8443
