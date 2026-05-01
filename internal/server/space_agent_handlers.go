@@ -227,7 +227,11 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
-			body = spaceAgentRewriteBody(body, spaceAgentProxyPrefix)
+			if strings.Contains(contentType, "json") && resp.Request.URL.Path == "/api/login" {
+				body = spaceAgentRewriteLoginJSONRedirects(body, spaceAgentProxyPrefix)
+			} else {
+				body = spaceAgentRewriteBody(body, spaceAgentProxyPrefix)
+			}
 			resp.Body = io.NopCloser(bytes.NewReader(body))
 			resp.ContentLength = int64(len(body))
 			resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
@@ -334,7 +338,7 @@ func spaceAgentShouldRewriteBody(contentType string) bool {
 func spaceAgentShouldRewriteResponseBody(contentType string, path string) bool {
 	contentType = strings.ToLower(contentType)
 	path = strings.TrimSpace(path)
-	if (path == "/api/login" || path == "/api/login_challenge") && strings.Contains(contentType, "json") {
+	if path == "/api/login_challenge" && strings.Contains(contentType, "json") {
 		return false
 	}
 	return strings.Contains(contentType, "text/html") ||
@@ -393,6 +397,55 @@ func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 		out = strings.ReplaceAll(out, repl.old, repl.new)
 	}
 	return []byte(out)
+}
+
+func spaceAgentRewriteLoginJSONRedirects(body []byte, prefix string) []byte {
+	var payload interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	changed := spaceAgentRewriteRedirectFields(payload, prefix)
+	if !changed {
+		return body
+	}
+	rewritten, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return rewritten
+}
+
+func spaceAgentRewriteRedirectFields(value interface{}, prefix string) bool {
+	changed := false
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for key, raw := range typed {
+			if str, ok := raw.(string); ok && spaceAgentIsRedirectField(key) && strings.HasPrefix(str, "/") && !strings.HasPrefix(str, prefix+"/") {
+				typed[key] = prefix + str
+				changed = true
+				continue
+			}
+			if spaceAgentRewriteRedirectFields(raw, prefix) {
+				changed = true
+			}
+		}
+	case []interface{}:
+		for _, item := range typed {
+			if spaceAgentRewriteRedirectFields(item, prefix) {
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+func spaceAgentIsRedirectField(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "redirect", "redirect_url", "redirecturl", "next", "next_url", "nexturl", "location", "url", "href":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) currentSpaceAgentConfig() config.Config {

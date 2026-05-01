@@ -458,6 +458,7 @@ var authBypassPrefixes = []string{
 	"/api/file_paths",                  // Space Agent root API fallback; Space Agent enforces its own auth.
 	"/api/file_list",                   // Space Agent root API fallback; Space Agent enforces its own auth.
 	"/api/file_info",                   // Space Agent root API fallback; Space Agent enforces its own auth.
+	"/integrations/space-agent/site.webmanifest",
 	"/setup",
 	"/css/",
 	"/fonts/",

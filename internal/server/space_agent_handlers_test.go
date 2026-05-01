@@ -303,6 +303,31 @@ func TestSpaceAgentProxyDoesNotRewriteLoginChallengeJSON(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentProxyRewritesOnlyLoginJSONRedirectFields(t *testing.T) {
+	if !spaceAgentShouldRewriteResponseBody("application/json; charset=utf-8", "/api/login") {
+		t.Fatal("login JSON should be inspected for redirect fields")
+	}
+	body := spaceAgentRewriteLoginJSONRedirects([]byte(`{"redirect":"/","next":"/dashboard","salt":"/","challenge":"abc/def==","nested":{"location":"/enter"}}`), "/integrations/space-agent")
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v; body=%s", err, string(body))
+	}
+	for key, want := range map[string]string{
+		"redirect": "/integrations/space-agent/",
+		"next":     "/integrations/space-agent/dashboard",
+		"salt":     "/",
+	} {
+		if got := payload[key]; got != want {
+			t.Fatalf("%s = %#v, want %q; body=%s", key, got, want, string(body))
+		}
+	}
+	nested, ok := payload["nested"].(map[string]interface{})
+	if !ok || nested["location"] != "/integrations/space-agent/enter" {
+		t.Fatalf("nested location was not rewritten: %#v", payload["nested"])
+	}
+}
+
 func TestHandleSpaceAgentProxyServesManifest(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
