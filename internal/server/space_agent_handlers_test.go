@@ -93,6 +93,8 @@ func TestHandleIntegrationWebhostsIncludesRunningSpaceAgentDirectURL(t *testing.
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3000
+	s.Cfg.SpaceAgent.HTTPSEnabled = true
+	s.Cfg.SpaceAgent.HTTPSPort = 3101
 	s.Cfg.SpaceAgent.PublicURL = "http://space.local:3000"
 	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 
@@ -124,6 +126,8 @@ func TestHandleIntegrationWebhostsDerivesServerURLInsteadOfLoopbackURL(t *testin
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3000
+	s.Cfg.SpaceAgent.HTTPSEnabled = true
+	s.Cfg.SpaceAgent.HTTPSPort = 3101
 	s.Cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3000"
 	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 
@@ -144,7 +148,7 @@ func TestHandleIntegrationWebhostsDerivesServerURLInsteadOfLoopbackURL(t *testin
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].URL != "http://aurago-server.local:3000" {
+	if resp.Webhosts[0].URL != "https://aurago-server.local:3101" {
 		t.Fatalf("url = %q, want direct server URL", resp.Webhosts[0].URL)
 	}
 }
@@ -153,6 +157,8 @@ func TestHandleIntegrationWebhostsDerivesDirectURLFromForwardedHost(t *testing.T
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3100
+	s.Cfg.SpaceAgent.HTTPSEnabled = true
+	s.Cfg.SpaceAgent.HTTPSPort = 3101
 	s.Cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3100"
 	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 
@@ -174,8 +180,37 @@ func TestHandleIntegrationWebhostsDerivesDirectURLFromForwardedHost(t *testing.T
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].URL != "http://aurago.taild1480.ts.net:3100" {
+	if resp.Webhosts[0].URL != "https://aurago.taild1480.ts.net:3101" {
 		t.Fatalf("url = %q, want direct forwarded-host URL", resp.Webhosts[0].URL)
+	}
+}
+
+func TestHandleIntegrationWebhostsDerivesHTTPURLWhenHTTPSWrapperDisabled(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.Port = 3100
+	s.Cfg.SpaceAgent.HTTPSEnabled = false
+	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago-server.local:8443"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].URL != "http://aurago-server.local:3100" {
+		t.Fatalf("url = %q, want HTTP direct server URL", resp.Webhosts[0].URL)
 	}
 }
 
@@ -183,6 +218,8 @@ func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.Port = 3100
+	s.Cfg.SpaceAgent.HTTPSEnabled = true
+	s.Cfg.SpaceAgent.HTTPSPort = 3101
 	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 
 	req := httptest.NewRequest(http.MethodGet, "/integrations/space-agent/", nil)
@@ -194,7 +231,7 @@ func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
 	if rec.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("status code = %d, want 307; body=%s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("Location"); got != "http://aurago.taild1480.ts.net:3100" {
+	if got := rec.Header().Get("Location"); got != "https://aurago.taild1480.ts.net:3101" {
 		t.Fatalf("Location = %q, want direct Space Agent webhost URL", got)
 	}
 }

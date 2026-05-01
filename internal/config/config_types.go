@@ -207,6 +207,8 @@ type SpaceAgentConfig struct {
 	Image          string `yaml:"image" json:"image"`                     // managed Docker image tag
 	Host           string `yaml:"host" json:"host"`                       // host interface for LAN exposure
 	Port           int    `yaml:"port" json:"port"`                       // published Space Agent port
+	HTTPSEnabled   bool   `yaml:"https_enabled" json:"https_enabled"`     // expose an AuraGo-managed HTTPS wrapper
+	HTTPSPort      int    `yaml:"https_port" json:"https_port"`           // AuraGo-managed HTTPS wrapper port
 	CustomwarePath string `yaml:"customware_path" json:"customware_path"` // host path for AuraGo bridge customware
 	DataPath       string `yaml:"data_path" json:"data_path"`             // host path for persistent Space Agent data
 	AdminUser      string `yaml:"admin_user" json:"admin_user"`           // Space Agent admin user
@@ -1017,6 +1019,7 @@ type Config struct {
 			StateDir          string `yaml:"state_dir"`           // persistent state directory (default: data/tsnet)
 			ServeHTTP         bool   `yaml:"serve_http"`          // expose AuraGo's web UI over the tailnet on 443/80
 			ExposeHomepage    bool   `yaml:"expose_homepage"`     // expose the Homepage/Caddy web server over the tailnet on 8443
+			ExposeSpaceAgent  bool   `yaml:"expose_space_agent"`  // expose the Space Agent HTTPS wrapper over the tailnet
 			Funnel            bool   `yaml:"funnel"`              // expose AuraGo publicly via Tailscale Funnel on 443
 			AllowHTTPFallback bool   `yaml:"allow_http_fallback"` // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
 			AuthKey           string `yaml:"-"`                   // tsnet auth key (vault-only: tailscale_tsnet_authkey)

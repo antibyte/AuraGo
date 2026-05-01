@@ -71,9 +71,11 @@ async function renderTailscaleSection(section) {
 
         const serveHTTP = tsnet.serve_http === true;
         const exposeHomepage = tsnet.expose_homepage === true;
+        const exposeSpaceAgent = tsnet.expose_space_agent === true;
         const funnel = tsnet.funnel === true;
         const allowHTTPFallback = tsnet.allow_http_fallback === true;
         const homepageCfg = configData.homepage || {};
+        const spaceAgentCfg = configData.space_agent || {};
         html += `<div class="ts-exposure-box">
             <div class="ts-exposure-title">${t('config.tailscale.tsnet_exposure_title')}</div>
             <div class="ts-exposure-row">
@@ -88,6 +90,13 @@ async function renderTailscaleSection(section) {
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_homepage_hint')}</small>
             ${homepageCfg.webserver_enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_homepage_requires_webserver')}</div>`}
+
+            <div class="ts-exposure-row-mt">
+                <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_space_agent_label')}</span>
+                <div class="toggle ${exposeSpaceAgent ? 'on' : ''}" data-path="tailscale.tsnet.expose_space_agent" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_space_agent',this.classList.contains('on'));renderTailscaleSection(null)"></div>
+            </div>
+            <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_space_agent_hint')}</small>
+            ${spaceAgentCfg.enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_space_agent_requires_enabled')}</div>`}
 
             <div class="ts-exposure-row-mt">
                 <span class="ts-exposure-label">${t('config.tailscale.tsnet_funnel_label')}</span>
@@ -203,6 +212,11 @@ async function _tsnetRefreshStatus() {
                 info += `<div class="ts-url-row-lg">🏠 <strong>${escapeHtml(t('config.tailscale.tsnet_homepage_url_label'))}:</strong> <a href="${escapeAttr(data.homepage_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.homepage_url)}</a></div>`;
             } else if (data.expose_homepage) {
                 info += `<div class="ts-detail-box-lg">🏠 ${t('config.tailscale.tsnet_homepage_pending_hint')}</div>`;
+            }
+            if (data.space_agent_serving && data.space_agent_url) {
+                info += `<div class="ts-url-row-lg">🛰️ <strong>${escapeHtml(t('config.tailscale.tsnet_space_agent_url_label'))}:</strong> <a href="${escapeAttr(data.space_agent_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.space_agent_url)}</a></div>`;
+            } else if (data.expose_space_agent) {
+                info += `<div class="ts-detail-box-lg">🛰️ ${t('config.tailscale.tsnet_space_agent_pending_hint')}</div>`;
             }
             if (startBtn) startBtn.classList.add('is-hidden');
         } else if (data.starting) {

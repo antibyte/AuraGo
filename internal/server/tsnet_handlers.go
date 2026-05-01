@@ -34,6 +34,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		host = strings.TrimSuffix(host, ".")
 		webUIURL := ""
 		homepageURL := ""
+		spaceAgentURL := ""
 		publicURL := ""
 		if host != "" && status.ServingHTTP {
 			scheme := "https"
@@ -48,27 +49,42 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		if host != "" && status.HomepageServing {
 			homepageURL = fmt.Sprintf("https://%s:8443", host)
 		}
+		if host != "" && status.SpaceAgentServing {
+			s.CfgMu.RLock()
+			port := s.Cfg.SpaceAgent.HTTPSPort
+			s.CfgMu.RUnlock()
+			if port <= 0 {
+				port = 3101
+			}
+			spaceAgentURL = fmt.Sprintf("https://%s:%d", host, port)
+		}
+		s.CfgMu.RLock()
+		tsnetCfg := s.Cfg.Tailscale.TsNet
+		s.CfgMu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":          s.Cfg.Tailscale.TsNet.Enabled,
-			"serve_http":       s.Cfg.Tailscale.TsNet.ServeHTTP,
-			"expose_homepage":  s.Cfg.Tailscale.TsNet.ExposeHomepage,
-			"funnel":           s.Cfg.Tailscale.TsNet.Funnel,
-			"running":          status.Running,
-			"starting":         status.Starting,
-			"serving_http":     status.ServingHTTP,
-			"homepage_serving": status.HomepageServing,
-			"http_fallback":    status.HTTPFallback,
-			"funnel_active":    status.FunnelActive,
-			"hostname":         status.Hostname,
-			"dns":              status.DNS,
-			"ips":              status.IPs,
-			"cert_dns":         status.CertDNS,
-			"web_ui_url":       webUIURL,
-			"homepage_url":     homepageURL,
-			"public_url":       publicURL,
-			"error":            status.Error,
-			"login_url":        status.LoginURL,
+			"enabled":             tsnetCfg.Enabled,
+			"serve_http":          tsnetCfg.ServeHTTP,
+			"expose_homepage":     tsnetCfg.ExposeHomepage,
+			"expose_space_agent":  tsnetCfg.ExposeSpaceAgent,
+			"funnel":              tsnetCfg.Funnel,
+			"running":             status.Running,
+			"starting":            status.Starting,
+			"serving_http":        status.ServingHTTP,
+			"homepage_serving":    status.HomepageServing,
+			"space_agent_serving": status.SpaceAgentServing,
+			"http_fallback":       status.HTTPFallback,
+			"funnel_active":       status.FunnelActive,
+			"hostname":            status.Hostname,
+			"dns":                 status.DNS,
+			"ips":                 status.IPs,
+			"cert_dns":            status.CertDNS,
+			"web_ui_url":          webUIURL,
+			"homepage_url":        homepageURL,
+			"space_agent_url":     spaceAgentURL,
+			"public_url":          publicURL,
+			"error":               status.Error,
+			"login_url":           status.LoginURL,
 		})
 	}
 }

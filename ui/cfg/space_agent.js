@@ -12,6 +12,8 @@ function spaceAgentEnsureData() {
     if (!data.host) data.host = '0.0.0.0';
     const legacyDefaultUrl = !data.public_url || data.public_url === 'http://127.0.0.1:3000';
     if (!data.port || (data.port === 3000 && legacyDefaultUrl)) data.port = 3100;
+    if (typeof data.https_enabled !== 'boolean') data.https_enabled = true;
+    if (!data.https_port) data.https_port = 3101;
     if (!data.customware_path) data.customware_path = 'data/sidecars/space-agent/customware';
     if (!data.data_path) data.data_path = 'data/sidecars/space-agent/data';
     if (!data.admin_user) data.admin_user = 'admin';
@@ -47,9 +49,15 @@ async function renderSpaceAgentSection(section) {
 
     html += '<div class="field-grid two-cols">';
     html += spaceAgentField('config.space_agent.public_url_label', 'help.space_agent.public_url',
-        '<input class="field-input" type="url" placeholder="http://aurago-server.local:3100" value="' + escapeAttr(data.public_url || '') + '" data-path="space_agent.public_url">');
+        '<input class="field-input" type="url" placeholder="https://aurago-server.local:3101" value="' + escapeAttr(data.public_url || '') + '" data-path="space_agent.public_url">');
     html += spaceAgentField('config.space_agent.port_label', 'help.space_agent.port',
         '<input class="field-input" type="number" min="1" max="65535" value="' + (data.port || 3100) + '" data-path="space_agent.port">');
+    html += '</div>';
+
+    html += '<div class="field-grid two-cols">';
+    html += spaceAgentField('config.space_agent.https_port_label', 'help.space_agent.https_port',
+        '<input class="field-input" type="number" min="1" max="65535" value="' + (data.https_port || 3101) + '" data-path="space_agent.https_port">');
+    html += spaceAgentToggleRow('config.space_agent.https_enabled_label', 'help.space_agent.https_enabled', data.https_enabled !== false, 'space_agent.https_enabled');
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';

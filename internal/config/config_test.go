@@ -474,6 +474,12 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.SpaceAgent.Port != 3100 {
 		t.Fatalf("port = %d, want 3100", cfg.SpaceAgent.Port)
 	}
+	if !cfg.SpaceAgent.HTTPSEnabled {
+		t.Fatal("expected space_agent.https_enabled to default to true")
+	}
+	if cfg.SpaceAgent.HTTPSPort != 3101 {
+		t.Fatalf("https_port = %d, want 3101", cfg.SpaceAgent.HTTPSPort)
+	}
 	if cfg.SpaceAgent.AdminUser != "admin" {
 		t.Fatalf("admin_user = %q, want admin", cfg.SpaceAgent.AdminUser)
 	}
@@ -963,12 +969,15 @@ func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	cfg.SpaceAgent.Image = "aurago-space-agent:main"
 	cfg.SpaceAgent.Host = "0.0.0.0"
 	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.HTTPSEnabled = true
+	cfg.SpaceAgent.HTTPSPort = 3101
 	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
 	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	cfg.SpaceAgent.AdminUser = "admin"
 	cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3100"
 	cfg.SpaceAgent.AdminPassword = "space-admin-secret"
 	cfg.SpaceAgent.BridgeToken = "space-bridge-secret"
+	cfg.Tailscale.TsNet.ExposeSpaceAgent = true
 
 	if err := cfg.Save(configPath); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -986,6 +995,12 @@ func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	}
 	if !strings.Contains(got, "space_agent:") || !strings.Contains(got, "enabled: true") {
 		t.Fatalf("expected non-secret Space Agent settings to be serialized, got:\n%s", got)
+	}
+	if !strings.Contains(got, "https_enabled: true") || !strings.Contains(got, "https_port: 3101") {
+		t.Fatalf("expected Space Agent HTTPS settings to be serialized, got:\n%s", got)
+	}
+	if !strings.Contains(got, "expose_space_agent: true") {
+		t.Fatalf("expected Tailscale Space Agent exposure setting to be serialized, got:\n%s", got)
 	}
 }
 

@@ -211,6 +211,7 @@ type Server struct {
 	internalToken   string       // per-process crypto token for loopback auth
 	loopbackSrv     *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
+	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
 	bridgeMu        sync.Mutex
 	bridgeListener  net.Listener
 	bridgeCloseOnce sync.Once
@@ -1166,6 +1167,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		if s.loopbackSrv != nil {
 			s.loopbackSrv.Shutdown(ctx)
+		}
+		if s.spaceAgentHTTPS != nil {
+			s.spaceAgentHTTPS.Shutdown(ctx)
 		}
 		if err := server.Shutdown(ctx); err != nil {
 			s.Logger.Error("Server shutdown error", "error", err)

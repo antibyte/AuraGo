@@ -52,8 +52,8 @@ func isNetworkFacing(cfg *config.Config) bool {
 	if hostLooksNetworkFacing(h) {
 		return true
 	}
-	// Tailscale Serve makes the UI reachable inside the private tailnet only.
-	if cfg.Tailscale.TsNet.Enabled && (cfg.Tailscale.TsNet.ServeHTTP || cfg.Tailscale.TsNet.ExposeHomepage) {
+	// Tailscale Serve makes services reachable inside the private tailnet only.
+	if cfg.Tailscale.TsNet.Enabled && (cfg.Tailscale.TsNet.ServeHTTP || cfg.Tailscale.TsNet.ExposeHomepage || cfg.Tailscale.TsNet.ExposeSpaceAgent) {
 		return true
 	}
 	// Security Proxy binds on a network interface even when it only serves LAN clients.

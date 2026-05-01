@@ -22,18 +22,19 @@ import (
 
 // Status represents the current state of the tsnet node.
 type Status struct {
-	Running         bool     `json:"running"`
-	Starting        bool     `json:"starting,omitempty"`         // waiting for interactive auth / cert issuance
-	ServingHTTP     bool     `json:"serving_http"`               // true when AuraGo itself is exposed on 443/80
-	HomepageServing bool     `json:"homepage_serving,omitempty"` // true when Homepage/Caddy is exposed on 8443
-	HTTPFallback    bool     `json:"http_fallback,omitempty"`    // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
-	FunnelActive    bool     `json:"funnel_active,omitempty"`    // true when the AuraGo listener is exposed via Funnel
-	Hostname        string   `json:"hostname,omitempty"`
-	DNS             string   `json:"dns,omitempty"`
-	IPs             []string `json:"ips,omitempty"`
-	CertDNS         []string `json:"cert_dns,omitempty"`
-	Error           string   `json:"error,omitempty"`
-	LoginURL        string   `json:"login_url,omitempty"`
+	Running           bool     `json:"running"`
+	Starting          bool     `json:"starting,omitempty"`            // waiting for interactive auth / cert issuance
+	ServingHTTP       bool     `json:"serving_http"`                  // true when AuraGo itself is exposed on 443/80
+	HomepageServing   bool     `json:"homepage_serving,omitempty"`    // true when Homepage/Caddy is exposed on 8443
+	SpaceAgentServing bool     `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
+	HTTPFallback      bool     `json:"http_fallback,omitempty"`       // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
+	FunnelActive      bool     `json:"funnel_active,omitempty"`       // true when the AuraGo listener is exposed via Funnel
+	Hostname          string   `json:"hostname,omitempty"`
+	DNS               string   `json:"dns,omitempty"`
+	IPs               []string `json:"ips,omitempty"`
+	CertDNS           []string `json:"cert_dns,omitempty"`
+	Error             string   `json:"error,omitempty"`
+	LoginURL          string   `json:"login_url,omitempty"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -41,20 +42,23 @@ type Manager struct {
 	cfg    *config.Config
 	logger *slog.Logger
 
-	mu           sync.Mutex
-	server       *tsnet.Server
-	listener     net.Listener // main listener (Funnel or TLS)
-	tailnetLn    net.Listener // secondary direct-tailnet TLS listener when Funnel is active
-	httpSrv      *http.Server
-	homepageLn   net.Listener
-	homepageSrv  *http.Server
-	running      bool
-	starting     bool // true while Start() is blocked waiting for tsnet auth / certs
-	servingHTTP  bool // true when an HTTP/HTTPS listener is active
-	homepageUp   bool // true when the homepage proxy listener is active
-	httpFallback bool // true when serving HTTP (no TLS) instead of HTTPS
-	funnelActive bool // true when the AuraGo listener is exposed via Tailscale Funnel
-	lastErr      string
+	mu            sync.Mutex
+	server        *tsnet.Server
+	listener      net.Listener // main listener (Funnel or TLS)
+	tailnetLn     net.Listener // secondary direct-tailnet TLS listener when Funnel is active
+	httpSrv       *http.Server
+	homepageLn    net.Listener
+	homepageSrv   *http.Server
+	spaceAgentLn  net.Listener
+	spaceAgentSrv *http.Server
+	running       bool
+	starting      bool // true while Start() is blocked waiting for tsnet auth / certs
+	servingHTTP   bool // true when an HTTP/HTTPS listener is active
+	homepageUp    bool // true when the homepage proxy listener is active
+	spaceAgentUp  bool // true when the Space Agent proxy listener is active
+	httpFallback  bool // true when serving HTTP (no TLS) instead of HTTPS
+	funnelActive  bool // true when the AuraGo listener is exposed via Tailscale Funnel
+	lastErr       string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -214,11 +218,14 @@ func (m *Manager) Start(handler http.Handler) error {
 		m.httpSrv = nil
 		m.homepageLn = nil
 		m.homepageSrv = nil
+		m.spaceAgentLn = nil
+		m.spaceAgentSrv = nil
 		m.running = true
 		m.starting = false
 		m.lastErr = ""
 		m.servingHTTP = false
 		m.homepageUp = false
+		m.spaceAgentUp = false
 		m.httpFallback = false
 		m.funnelActive = false
 		m.mu.Unlock()
@@ -244,7 +251,7 @@ func (m *Manager) Start(handler http.Handler) error {
 		return err
 	}
 
-	if !tsCfg.ServeHTTP && !tsCfg.ExposeHomepage {
+	if !tsCfg.ServeHTTP && !tsCfg.ExposeHomepage && !tsCfg.ExposeSpaceAgent {
 		m.logger.Info("tsnet node connected (network-only mode — no web services exposed over Tailscale)", "hostname", hostname)
 	}
 
@@ -269,6 +276,9 @@ func (m *Manager) Stop() error {
 	if m.homepageSrv != nil {
 		m.homepageSrv.Shutdown(ctx)
 	}
+	if m.spaceAgentSrv != nil {
+		m.spaceAgentSrv.Shutdown(ctx)
+	}
 	if m.server != nil {
 		m.server.Close()
 	}
@@ -280,8 +290,11 @@ func (m *Manager) Stop() error {
 	m.httpSrv = nil
 	m.homepageLn = nil
 	m.homepageSrv = nil
+	m.spaceAgentLn = nil
+	m.spaceAgentSrv = nil
 	m.servingHTTP = false
 	m.homepageUp = false
+	m.spaceAgentUp = false
 	m.httpFallback = false
 	m.funnelActive = false
 	m.logger.Info("tsnet node stopped")
@@ -294,13 +307,14 @@ func (m *Manager) GetStatus() Status {
 	defer m.mu.Unlock()
 
 	st := Status{
-		Running:         m.running,
-		Starting:        m.starting,
-		ServingHTTP:     m.servingHTTP,
-		HomepageServing: m.homepageUp,
-		HTTPFallback:    m.httpFallback,
-		FunnelActive:    m.funnelActive,
-		Hostname:        m.cfg.Tailscale.TsNet.Hostname,
+		Running:           m.running,
+		Starting:          m.starting,
+		ServingHTTP:       m.servingHTTP,
+		HomepageServing:   m.homepageUp,
+		SpaceAgentServing: m.spaceAgentUp,
+		HTTPFallback:      m.httpFallback,
+		FunnelActive:      m.funnelActive,
+		Hostname:          m.cfg.Tailscale.TsNet.Hostname,
 	}
 
 	if m.lastErr != "" {
@@ -357,12 +371,14 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	}
 	servingHTTP := m.servingHTTP
 	homepageUp := m.homepageUp
+	spaceAgentUp := m.spaceAgentUp
 	funnelActive := m.funnelActive
 	m.mu.Unlock()
 
 	wantMain := m.cfg.Tailscale.TsNet.ServeHTTP
 	wantFunnel := wantMain && m.cfg.Tailscale.TsNet.Funnel
 	wantHomepage := m.cfg.Tailscale.TsNet.ExposeHomepage && m.cfg.Homepage.WebServerEnabled && m.cfg.Homepage.WebServerPort > 0
+	wantSpaceAgent := m.cfg.Tailscale.TsNet.ExposeSpaceAgent && m.cfg.SpaceAgent.Enabled && m.cfg.SpaceAgent.Port > 0
 
 	if servingHTTP && (!wantMain || funnelActive != wantFunnel) {
 		if err := m.stopMainListener(); err != nil {
@@ -376,6 +392,12 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 			return err
 		}
 		homepageUp = false
+	}
+	if spaceAgentUp && !wantSpaceAgent {
+		if err := m.stopSpaceAgentListener(); err != nil {
+			return err
+		}
+		spaceAgentUp = false
 	}
 
 	if wantMain && !servingHTTP {
@@ -391,9 +413,17 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 			m.mu.Unlock()
 		}
 	}
+	if wantSpaceAgent && !spaceAgentUp {
+		if err := m.startSpaceAgentListener(srv); err != nil {
+			m.logger.Warn("[tsnet] Space Agent exposure could not be started", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+		}
+	}
 
 	m.mu.Lock()
-	if (!wantMain || m.servingHTTP) && (!wantHomepage || m.homepageUp) && (!wantFunnel || m.funnelActive) {
+	if (!wantMain || m.servingHTTP) && (!wantHomepage || m.homepageUp) && (!wantSpaceAgent || m.spaceAgentUp) && (!wantFunnel || m.funnelActive) {
 		m.lastErr = ""
 	}
 	m.mu.Unlock()
@@ -413,15 +443,19 @@ func (m *Manager) DowngradeToNetworkOnly() error {
 	m.mu.Lock()
 	servingHTTP := m.servingHTTP
 	homepageUp := m.homepageUp
+	spaceAgentUp := m.spaceAgentUp
 	m.mu.Unlock()
 
-	if !servingHTTP && !homepageUp {
+	if !servingHTTP && !homepageUp && !spaceAgentUp {
 		return nil
 	}
 	if err := m.stopMainListener(); err != nil {
 		return err
 	}
 	if err := m.stopHomepageListener(); err != nil {
+		return err
+	}
+	if err := m.stopSpaceAgentListener(); err != nil {
 		return err
 	}
 	m.logger.Info("[tsnet] Downgraded to network-only mode (HTTP listener stopped)")
@@ -584,6 +618,12 @@ func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", req.Host)
+	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
 		m.logger.Warn("[tsnet] Homepage reverse proxy failed", "error", proxyErr)
 		http.Error(w, "Homepage backend unavailable", http.StatusBadGateway)
@@ -636,6 +676,85 @@ func (m *Manager) stopHomepageListener() error {
 	if ln != nil {
 		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
 			return fmt.Errorf("close tsnet Homepage listener: %w", err)
+		}
+	}
+	return nil
+}
+
+func (m *Manager) startSpaceAgentListener(srv *tsnet.Server) error {
+	port := m.cfg.SpaceAgent.HTTPSPort
+	if port <= 0 {
+		port = 3101
+	}
+	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(m.cfg.SpaceAgent.Port))
+	if err != nil {
+		return fmt.Errorf("invalid Space Agent proxy target: %w", err)
+	}
+
+	ln, err := listenTLSWithTimeout(srv, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout)
+	if err != nil {
+		return fmt.Errorf("Space Agent exposure requires Tailscale HTTPS on :%d: %w", port, err)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", req.Host)
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
+		m.logger.Warn("[tsnet] Space Agent reverse proxy failed", "error", proxyErr)
+		http.Error(w, "Space Agent backend unavailable", http.StatusBadGateway)
+	}
+
+	spaceAgentSrv := &http.Server{
+		Handler:      proxy,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
+		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+
+	m.mu.Lock()
+	m.spaceAgentLn = ln
+	m.spaceAgentSrv = spaceAgentSrv
+	m.spaceAgentUp = true
+	m.mu.Unlock()
+
+	go func() {
+		m.logger.Info("tsnet Space Agent listener started", "protocol", "HTTPS", "target", targetURL.String(), "port", port)
+		if err := spaceAgentSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Error("tsnet Space Agent listener error", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.spaceAgentUp = false
+			m.mu.Unlock()
+		}
+	}()
+
+	return nil
+}
+
+func (m *Manager) stopSpaceAgentListener() error {
+	m.mu.Lock()
+	httpSrv := m.spaceAgentSrv
+	ln := m.spaceAgentLn
+	m.spaceAgentSrv = nil
+	m.spaceAgentLn = nil
+	m.spaceAgentUp = false
+	m.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if httpSrv != nil {
+		if err := httpSrv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown tsnet Space Agent listener: %w", err)
+		}
+	}
+	if ln != nil {
+		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
+			return fmt.Errorf("close tsnet Space Agent listener: %w", err)
 		}
 	}
 	return nil

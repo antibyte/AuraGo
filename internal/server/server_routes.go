@@ -776,6 +776,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 	}
 
+	s.reconcileSpaceAgentHTTPSProxy()
+
 	// Always build and store the tsnet handler so it is available even when tsnet
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {

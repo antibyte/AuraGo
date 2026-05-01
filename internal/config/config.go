@@ -245,6 +245,8 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.Image = "aurago-space-agent:main"
 	cfg.SpaceAgent.Host = "0.0.0.0"
 	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.HTTPSEnabled = true
+	cfg.SpaceAgent.HTTPSPort = 3101
 	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
 	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	cfg.SpaceAgent.AdminUser = "admin"
@@ -454,6 +456,9 @@ func Load(path string) (*Config, error) {
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.Host) == "" {
 		cfg.SpaceAgent.Host = "0.0.0.0"
+	}
+	if cfg.SpaceAgent.HTTPSPort <= 0 {
+		cfg.SpaceAgent.HTTPSPort = 3101
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.AdminUser) == "" {
 		cfg.SpaceAgent.AdminUser = "admin"
@@ -1334,6 +1339,17 @@ func (c *Config) Save(path string) error {
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
 		{[]string{"grafana", "insecure_ssl"}, c.Grafana.InsecureSSL},
 		{[]string{"grafana", "request_timeout"}, c.Grafana.RequestTimeout},
+		{[]string{"tailscale", "enabled"}, c.Tailscale.Enabled},
+		{[]string{"tailscale", "readonly"}, c.Tailscale.ReadOnly},
+		{[]string{"tailscale", "tailnet"}, c.Tailscale.Tailnet},
+		{[]string{"tailscale", "tsnet", "enabled"}, c.Tailscale.TsNet.Enabled},
+		{[]string{"tailscale", "tsnet", "hostname"}, c.Tailscale.TsNet.Hostname},
+		{[]string{"tailscale", "tsnet", "state_dir"}, c.Tailscale.TsNet.StateDir},
+		{[]string{"tailscale", "tsnet", "serve_http"}, c.Tailscale.TsNet.ServeHTTP},
+		{[]string{"tailscale", "tsnet", "expose_homepage"}, c.Tailscale.TsNet.ExposeHomepage},
+		{[]string{"tailscale", "tsnet", "expose_space_agent"}, c.Tailscale.TsNet.ExposeSpaceAgent},
+		{[]string{"tailscale", "tsnet", "funnel"}, c.Tailscale.TsNet.Funnel},
+		{[]string{"tailscale", "tsnet", "allow_http_fallback"}, c.Tailscale.TsNet.AllowHTTPFallback},
 		{[]string{"space_agent", "enabled"}, c.SpaceAgent.Enabled},
 		{[]string{"space_agent", "auto_start"}, c.SpaceAgent.AutoStart},
 		{[]string{"space_agent", "repo_url"}, c.SpaceAgent.RepoURL},
@@ -1342,6 +1358,8 @@ func (c *Config) Save(path string) error {
 		{[]string{"space_agent", "image"}, c.SpaceAgent.Image},
 		{[]string{"space_agent", "host"}, c.SpaceAgent.Host},
 		{[]string{"space_agent", "port"}, c.SpaceAgent.Port},
+		{[]string{"space_agent", "https_enabled"}, c.SpaceAgent.HTTPSEnabled},
+		{[]string{"space_agent", "https_port"}, c.SpaceAgent.HTTPSPort},
 		{[]string{"space_agent", "customware_path"}, c.SpaceAgent.CustomwarePath},
 		{[]string{"space_agent", "data_path"}, c.SpaceAgent.DataPath},
 		{[]string{"space_agent", "admin_user"}, c.SpaceAgent.AdminUser},

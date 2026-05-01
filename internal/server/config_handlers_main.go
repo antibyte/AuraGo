@@ -791,9 +791,22 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// while the node is already connected to the Tailscale network.
 			tsExposeChanged := oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP ||
 				oldCfg.Tailscale.TsNet.ExposeHomepage != newCfg.Tailscale.TsNet.ExposeHomepage ||
+				oldCfg.Tailscale.TsNet.ExposeSpaceAgent != newCfg.Tailscale.TsNet.ExposeSpaceAgent ||
 				oldCfg.Tailscale.TsNet.Funnel != newCfg.Tailscale.TsNet.Funnel ||
 				oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled ||
-				oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort
+				oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort ||
+				oldCfg.SpaceAgent.Enabled != newCfg.SpaceAgent.Enabled ||
+				oldCfg.SpaceAgent.HTTPSEnabled != newCfg.SpaceAgent.HTTPSEnabled ||
+				oldCfg.SpaceAgent.HTTPSPort != newCfg.SpaceAgent.HTTPSPort ||
+				oldCfg.SpaceAgent.Port != newCfg.SpaceAgent.Port
+			spaceAgentHTTPSChanged := oldCfg.SpaceAgent.Enabled != newCfg.SpaceAgent.Enabled ||
+				oldCfg.SpaceAgent.HTTPSEnabled != newCfg.SpaceAgent.HTTPSEnabled ||
+				oldCfg.SpaceAgent.HTTPSPort != newCfg.SpaceAgent.HTTPSPort ||
+				oldCfg.SpaceAgent.Port != newCfg.SpaceAgent.Port ||
+				oldCfg.SpaceAgent.Host != newCfg.SpaceAgent.Host
+			if spaceAgentHTTPSChanged {
+				go s.reconcileSpaceAgentHTTPSProxy()
+			}
 			if s.TsNetManager != nil && tsExposeChanged {
 				tsStatus := s.TsNetManager.GetStatus()
 				if tsStatus.Running {
@@ -805,7 +818,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 								s.Logger.Info("[Config UI] tsnet exposure reconfigured")
 							}
 						}()
-					} else if !newCfg.Tailscale.TsNet.ServeHTTP && !newCfg.Tailscale.TsNet.ExposeHomepage {
+					} else if !newCfg.Tailscale.TsNet.ServeHTTP && !newCfg.Tailscale.TsNet.ExposeHomepage && !newCfg.Tailscale.TsNet.ExposeSpaceAgent {
 						go func() {
 							if err := s.TsNetManager.DowngradeToNetworkOnly(); err != nil {
 								s.Logger.Warn("[Config UI] tsnet downgrade to network-only failed", "error", err)

@@ -591,10 +591,12 @@ space_agent:
     image: aurago-space-agent:main
     host: "0.0.0.0"                                      # LAN exposure interface for the published Docker port
     port: 3100
+    https_enabled: true                                  # AuraGo-managed HTTPS wrapper for browsers that require secure origins
+    https_port: 3101
     customware_path: data/sidecars/space-agent/customware
     data_path: data/sidecars/space-agent/data
     admin_user: admin
-    public_url: ""                                        # Optional browser URL; empty derives http://<AuraGo-server-host>:3100
+    public_url: ""                                        # Optional browser URL; empty derives https://<AuraGo-server-host>:3101 when https_enabled is true
 indexing:
     enabled: true
     directories:
@@ -792,6 +794,7 @@ tailscale:
         state_dir: ""                       # persistent state directory (default: data/tsnet)
         serve_http: false                   # also expose AuraGo web UI over Tailscale (default: join network only)
         expose_homepage: false              # also expose the Homepage/Caddy web server over Tailscale on :8443
+        expose_space_agent: false           # also expose the Space Agent HTTPS wrapper over Tailscale on space_agent.https_port
         funnel: false                       # expose AuraGo publicly via Tailscale Funnel on :443
         allow_http_fallback: false           # fall back to HTTP on :80 if HTTPS cert is unavailable (disabled by default for security)
 cloudflare_tunnel:

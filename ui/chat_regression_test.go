@@ -328,6 +328,8 @@ func TestConfigFrontendSpaceAgentSectionRemainsWired(t *testing.T) {
 		"space_agent.enabled",
 		"space_agent.public_url",
 		"space_agent.port",
+		"space_agent.https_enabled",
+		"space_agent.https_port",
 		"space_agent.admin_password",
 		"/api/space-agent/status",
 		"/api/space-agent/recreate",
@@ -349,10 +351,14 @@ func TestConfigFrontendSpaceAgentI18nKeysExist(t *testing.T) {
 		"config.section.space_agent.desc",
 		"config.space_agent.enabled_label",
 		"config.space_agent.public_url_label",
+		"config.space_agent.https_enabled_label",
+		"config.space_agent.https_port_label",
 		"config.space_agent.admin_password_label",
 		"config.space_agent.recreate_button",
 		"help.space_agent.enabled",
 		"help.space_agent.public_url",
+		"help.space_agent.https_enabled",
+		"help.space_agent.https_port",
 		"help.space_agent.admin_password",
 	}
 	files, err := filepath.Glob(filepath.Join("lang", "config", "sections", "*.json"))
@@ -361,6 +367,56 @@ func TestConfigFrontendSpaceAgentI18nKeysExist(t *testing.T) {
 	}
 	if len(files) < 15 {
 		t.Fatalf("expected all config section language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+		}
+	}
+}
+
+func TestConfigFrontendTailscaleSpaceAgentKeysExist(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "tailscale.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"tailscale.tsnet.expose_space_agent",
+		"config.tailscale.tsnet_expose_space_agent_label",
+		"config.tailscale.tsnet_space_agent_url_label",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing Tailscale Space Agent marker %q", modulePath, marker)
+		}
+	}
+
+	keys := []string{
+		"config.tailscale.tsnet_expose_space_agent_label",
+		"config.tailscale.tsnet_expose_space_agent_hint",
+		"config.tailscale.tsnet_space_agent_requires_enabled",
+		"config.tailscale.tsnet_space_agent_url_label",
+		"config.tailscale.tsnet_space_agent_pending_hint",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "tailscale", "*.json"))
+	if err != nil {
+		t.Fatalf("glob tailscale lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all tailscale language files, got %d", len(files))
 	}
 	for _, path := range files {
 		raw, err := os.ReadFile(path)

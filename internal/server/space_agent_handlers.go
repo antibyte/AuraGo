@@ -284,13 +284,22 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 		}
 	}
 	port := cfg.SpaceAgent.Port
+	scheme := "http"
+	if cfg.SpaceAgent.HTTPSEnabled {
+		scheme = "https"
+		port = cfg.SpaceAgent.HTTPSPort
+	}
 	if port <= 0 {
-		port = 3100
+		if scheme == "https" {
+			port = 3101
+		} else {
+			port = 3100
+		}
 	}
 	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
 		host = "[" + host + "]"
 	}
-	return fmt.Sprintf("http://%s:%d", host, port)
+	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
 }
 
 func spaceAgentURLUsesLoopbackHost(raw string) bool {
