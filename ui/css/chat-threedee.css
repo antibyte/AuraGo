@@ -30,10 +30,10 @@
     --strong-color: #ffffff;
     --border-subtle: rgba(129, 140, 248, 0.15);
     --border-accent: rgba(129, 140, 248, 0.3);
-    --user-bubble: linear-gradient(145deg, rgba(129, 140, 248, 0.94), rgba(79, 70, 229, 0.96) 48%, rgba(45, 212, 191, 0.78));
-    --user-bubble-tail: rgba(82, 77, 218, 0.95);
+    --user-bubble: linear-gradient(145deg, rgba(129, 140, 248, 0.97), rgba(79, 70, 229, 0.99) 48%, rgba(45, 212, 191, 0.88));
+    --user-bubble-tail: rgba(82, 77, 218, 0.98);
     --user-bubble-shadow: rgba(79, 70, 229, 0.36);
-    --bot-bubble: linear-gradient(145deg, rgba(19, 29, 51, 0.94), rgba(8, 13, 25, 0.98));
+    --bot-bubble: linear-gradient(145deg, rgba(19, 29, 51, 0.97), rgba(8, 13, 25, 1));
     --bot-bubble-tail: rgba(13, 20, 36, 0.98);
     --surface-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
     --surface-shadow-strong: 0 38px 110px rgba(0, 0, 0, 0.7);
