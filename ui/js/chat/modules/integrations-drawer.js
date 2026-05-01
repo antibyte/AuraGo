@@ -51,26 +51,18 @@ window.IntegrationsDrawer = (function () {
         }
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
-            const isRunning = status === 'running';
             const url = item.url || '';
-            const homepageUrl = isRunning && url ? url : '';
             return `
                 <div class="integration-item" data-integration-id="${escapeAttr(item.id)}">
                     <div class="integration-icon">${window.chatUiIconMarkup ? window.chatUiIconMarkup(item.icon || 'web') : ''}</div>
                     <div class="integration-main">
                         <div class="integration-name">${escapeHtml(item.name || item.id)}</div>
-                        ${item.description ? `<div class="integration-desc">${escapeHtml(item.description)}</div>` : ''}
                         <div class="integration-meta">
                             <span class="integration-status ${escapeAttr(status)}" aria-hidden="true"></span>
-                            <span class="integration-status-text">${escapeHtml(t('chat.integrations_status_' + status) || status)}</span>
+                            <span class="integration-url">${escapeHtml(url)}</span>
                         </div>
-                        ${homepageUrl ? `
-                        <a class="integration-homepage" href="${escapeAttr(homepageUrl)}" target="_blank" rel="noopener noreferrer">
-                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('link', 'integration-homepage-icon') : ''}
-                            <span class="integration-homepage-url">${escapeHtml(homepageUrl)}</span>
-                        </a>` : ''}
                     </div>
-                    ${homepageUrl ? `<button type="button" class="integration-open" data-url="${escapeAttr(homepageUrl)}">${escapeHtml(t('chat.integrations_open'))}</button>` : ''}
+                    ${url ? `<button type="button" class="integration-open" data-url="${escapeAttr(url)}">${escapeHtml(t('chat.integrations_open'))}</button>` : ''}
                 </div>`;
         }).join('');
 
