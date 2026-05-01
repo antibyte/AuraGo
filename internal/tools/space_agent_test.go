@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -249,15 +249,19 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
-		"class AuragoInstructions(ApiHandler):",
-		"requires_auth",
-		"requires_csrf",
 		"AURAGO_BRIDGE_TOKEN",
-		"Authorization",
+		"authorization",
 		"Bearer",
-		"UserMessage(message=message",
-		"Context from AuraGo:",
-		"context.communicate",
+		"export const allowAnonymous = true;",
+		"export async function post(context)",
+		"export async function POST(context)",
+		"export default async function auragoInstructions(context)",
+		"handleInstruction",
+		"appendInstructionRecord",
+		"aurago_inbox",
+		"HOME",
+		"latest_instruction.json",
+		"instructions.jsonl",
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)
@@ -268,8 +272,8 @@ func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T) {
 	source := t.TempDir()
 	for _, stalePath := range []string{
-		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
+		filepath.Join(source, "api", "aurago_instructions.py"),
 	} {
 		if err := os.MkdirAll(filepath.Dir(stalePath), 0o750); err != nil {
 			t.Fatalf("MkdirAll(%s): %v", stalePath, err)
@@ -284,20 +288,20 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 	}
 
 	for _, stalePath := range []string{
-		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
+		filepath.Join(source, "api", "aurago_instructions.py"),
 	} {
 		if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
 			t.Fatalf("stale endpoint %s still exists or stat failed: %v", stalePath, err)
 		}
 	}
-	currentPath := filepath.Join(source, "api", "aurago_instructions.py")
+	currentPath := filepath.Join(source, "server", "api", "aurago_instructions.js")
 	content, err := os.ReadFile(currentPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%s): %v", currentPath, err)
 	}
-	if !strings.Contains(string(content), "class AuragoInstructions") {
-		t.Fatalf("current endpoint content missing handler class: %s", string(content))
+	if !strings.Contains(string(content), "export async function post") || !strings.Contains(string(content), "handleInstruction") {
+		t.Fatalf("current endpoint content missing JS handlers: %s", string(content))
 	}
 }
 
