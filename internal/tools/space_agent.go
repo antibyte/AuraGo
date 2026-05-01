@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-helper"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-runtime-env"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -775,6 +775,19 @@ function writeFile(filePath, content) {
   fs.writeFileSync(filePath, content, { mode: 0o600 });
 }
 
+const bridgeHelperESMTemplate = ` + strconv.Quote(spaceAgentBridgeHelperESM("__AURAGO_BRIDGE_URL__", "__AURAGO_BRIDGE_TOKEN__")) + `;
+const bridgeHelperCJSTemplate = ` + strconv.Quote(spaceAgentBridgeHelperCJS("__AURAGO_BRIDGE_URL__", "__AURAGO_BRIDGE_TOKEN__")) + `;
+
+function jsStringLiteralContent(value) {
+  return JSON.stringify(String(value || "")).slice(1, -1);
+}
+
+function bridgeHelperContent(template) {
+  return template
+    .replaceAll("__AURAGO_BRIDGE_URL__", jsStringLiteralContent(process.env.AURAGO_BRIDGE_URL || ""))
+    .replaceAll("__AURAGO_BRIDGE_TOKEN__", jsStringLiteralContent(process.env.AURAGO_BRIDGE_TOKEN || ""));
+}
+
 function seedWorkspaceFiles(rootPath) {
   for (const dir of [
     rootPath,
@@ -793,8 +806,8 @@ function seedWorkspaceFiles(rootPath) {
   seedFile(path.join(rootPath, "AGENTS.md"), ` + strconv.Quote(spaceAgentAuraGoAgentsMarkdown()) + `);
   seedFile(path.join(rootPath, "conf", "aurago.system.include.md"), ` + strconv.Quote(spaceAgentAuraGoSystemInclude()) + `);
   seedFile(path.join(rootPath, "docs", "aurago-bridge.md"), ` + strconv.Quote(spaceAgentAuraGoBridgeReadme()) + `);
-  writeFile(path.join(rootPath, "aurago_bridge.js"), ` + strconv.Quote(spaceAgentBridgeHelperESM("", "")) + `);
-  writeFile(path.join(rootPath, "aurago_bridge.cjs"), ` + strconv.Quote(spaceAgentBridgeHelperCJS("", "")) + `);
+  writeFile(path.join(rootPath, "aurago_bridge.js"), bridgeHelperContent(bridgeHelperESMTemplate));
+  writeFile(path.join(rootPath, "aurago_bridge.cjs"), bridgeHelperContent(bridgeHelperCJSTemplate));
   seedFile(path.join(rootPath, "meta", "login_hooks.json"), "[]\n");
   seedFile(path.join(rootPath, "conf", "dashboard.yaml"), "{}\n");
   seedFile(path.join(rootPath, "conf", "onscreen-agent.yaml"), "{}\n");
@@ -815,8 +828,8 @@ if (username && password) {
   process.env.CUSTOMWARE_PATH = process.env.CUSTOMWARE_PATH || "/app/customware";
   const normalizedUsername = normalizeEntityId(username);
   const passwordDigest = digestPassword(password);
-  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.js"), ` + strconv.Quote(spaceAgentBridgeHelperESM("", "")) + `);
-  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.cjs"), ` + strconv.Quote(spaceAgentBridgeHelperCJS("", "")) + `);
+  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.js"), bridgeHelperContent(bridgeHelperESMTemplate));
+  writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.cjs"), bridgeHelperContent(bridgeHelperCJSTemplate));
   writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.md"), ` + strconv.Quote(spaceAgentBridgeHelperReadme()) + `);
   seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizedUsername));
   const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
