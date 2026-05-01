@@ -631,6 +631,10 @@ function renderTriggerText(mission) {
             triggerText = `🚫 ${t('missions.trigger_budget_exceeded_badge')}`;
             break;
     }
+    if (cfg.min_interval_seconds) {
+        const intervalText = `${t('missions.trigger_info_min_interval_prefix')} ${cfg.min_interval_seconds}s`;
+        triggerText = triggerText ? `${triggerText} | ${intervalText}` : intervalText;
+    }
     return triggerText;
 }
 
@@ -873,6 +877,8 @@ async function loadRemoteTargets(selectedMission = null) {
 function fillTriggerConfig(cfg, type) {
     if (!cfg) return;
 
+    document.getElementById('trigger-min-interval').value = cfg.min_interval_seconds || 0;
+
     switch (type) {
         case 'mission_completed':
             if (cfg.source_mission_id) {
@@ -1038,6 +1044,7 @@ async function saveMission() {
 
 function buildTriggerConfig(type) {
     const config = {};
+    config.min_interval_seconds = parseInt(document.getElementById('trigger-min-interval').value || '0', 10) || 0;
 
     switch (type) {
         case 'mission_completed':

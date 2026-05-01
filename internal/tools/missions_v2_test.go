@@ -25,6 +25,46 @@ type fakeRemoteMissionClient struct {
 	runErr         error
 }
 
+type fakeEmailTriggerWatcher struct {
+	registrations []fakeEmailRegistration
+}
+
+type fakeEmailRegistration struct {
+	folder          string
+	subjectContains string
+	fromContains    string
+	callback        func(subject, from, body string)
+}
+
+func (f *fakeEmailTriggerWatcher) RegisterMissionTrigger(folder, subjectContains, fromContains string, callback func(subject, from, body string)) {
+	f.registrations = append(f.registrations, fakeEmailRegistration{
+		folder:          folder,
+		subjectContains: subjectContains,
+		fromContains:    fromContains,
+		callback:        callback,
+	})
+}
+
+type fakeMQTTTriggerManager struct {
+	registrations []fakeMQTTRegistration
+}
+
+type fakeMQTTRegistration struct {
+	topicFilter        string
+	payloadContains    string
+	minIntervalSeconds int
+	callback           func(topic, payload string)
+}
+
+func (f *fakeMQTTTriggerManager) RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	f.registrations = append(f.registrations, fakeMQTTRegistration{
+		topicFilter:        topicFilter,
+		payloadContains:    payloadContains,
+		minIntervalSeconds: minIntervalSeconds,
+		callback:           callback,
+	})
+}
+
 func (f *fakeRemoteMissionClient) SyncMission(ctx context.Context, mission MissionV2, promptSnapshot string) error {
 	f.syncCalls++
 	f.syncedMission = mission
@@ -228,6 +268,46 @@ func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
 	}
 }
 
+func TestOnMissionCompleteClearsActiveRunIDWithoutHistoryDB(t *testing.T) {
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.missions["mission_active"] = &MissionV2{
+		ID:      "mission_active",
+		Name:    "Active",
+		Enabled: true,
+		Status:  MissionStatusRunning,
+	}
+	mgr.queue.Restore(nil, "mission_active")
+	mgr.activeRunID["mission_active"] = "run_123"
+
+	mgr.OnMissionComplete("mission_active", MissionResultSuccess, "ok")
+
+	mgr.mu.RLock()
+	_, active := mgr.activeRunID["mission_active"]
+	mgr.mu.RUnlock()
+	if active {
+		t.Fatal("active run ID was not cleared when history DB was nil")
+	}
+}
+
+func TestOnMissionCompleteIgnoresSecondCompletionWithoutPanic(t *testing.T) {
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.missions["mission_double"] = &MissionV2{
+		ID:      "mission_double",
+		Name:    "Double",
+		Enabled: true,
+		Status:  MissionStatusRunning,
+	}
+	mgr.queue.Restore(nil, "mission_double")
+
+	mgr.OnMissionComplete("mission_double", MissionResultSuccess, "first")
+	mgr.OnMissionComplete("mission_double", MissionResultError, "second")
+
+	got, _ := mgr.Get("mission_double")
+	if got.LastResult != MissionResultSuccess || got.RunCount != 1 {
+		t.Fatalf("second completion mutated mission: %+v", got)
+	}
+}
+
 func TestApplySyncedMissionPreservesMetadata(t *testing.T) {
 	mgr := NewMissionManagerV2(t.TempDir(), nil)
 	createdAt := time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC)
@@ -369,6 +449,43 @@ func TestSyncRemoteMissionsForNestRetriesPendingMission(t *testing.T) {
 	got, _ := mgr.Get("remote-retry")
 	if got.RemoteSyncStatus != RemoteSyncSynced || got.RemoteSyncError != "" {
 		t.Fatalf("remote sync status/error = %s/%q, want synced", got.RemoteSyncStatus, got.RemoteSyncError)
+	}
+}
+
+func TestSyncRemoteMissionsForNestPersistsPendingAfterTemporaryError(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := &fakeRemoteMissionClient{}
+	mgr := NewMissionManagerV2(tmpDir, nil)
+	mgr.SetRemoteMissionClient(client)
+
+	if err := mgr.Create(&MissionV2{
+		ID:            "remote-persist-pending",
+		Name:          "Remote persist pending",
+		Prompt:        "sync after reconnect",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	client.syncErr = errors.New("remote nest nest-1 is not connected")
+
+	if _, err := mgr.SyncRemoteMissionsForNest("nest-1"); err == nil {
+		t.Fatal("expected temporary sync error")
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer restarted.Stop()
+	got, ok := restarted.Get("remote-persist-pending")
+	if !ok {
+		t.Fatal("mission missing after restart")
+	}
+	if got.RemoteSyncStatus != RemoteSyncPending || !strings.Contains(got.RemoteSyncError, "not connected") {
+		t.Fatalf("persisted remote sync status/error = %s/%q, want pending not connected", got.RemoteSyncStatus, got.RemoteSyncError)
 	}
 }
 
@@ -647,6 +764,92 @@ func TestUpdatedWebhookTriggerIgnoresStaleRegistration(t *testing.T) {
 	}
 }
 
+func TestWebhookTriggerRegistrationIsIdempotentForSameConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	webhooks := &fakeWebhookTriggerManager{}
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.SetWebhookManager(webhooks)
+
+	if err := mm.Create(&MissionV2{
+		ID:            "webhook-idempotent",
+		Name:          "Webhook idempotent",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerWebhook,
+		TriggerConfig: &TriggerConfig{WebhookID: "hook"},
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	updated, _ := mm.Get("webhook-idempotent")
+	if err := mm.Update("webhook-idempotent", updated); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	if got := len(webhooks.callbacks["hook"]); got != 1 {
+		t.Fatalf("webhook registrations = %d, want 1", got)
+	}
+}
+
+func TestLateEmailWatcherRegistrationRescansExistingTriggers(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+	if err := mm.Create(&MissionV2{
+		ID:            "email-late",
+		Name:          "Email late",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerEmailReceived,
+		TriggerConfig: &TriggerConfig{
+			EmailFolder:          "INBOX",
+			EmailSubjectContains: "invoice",
+			EmailFromContains:    "@example.com",
+		},
+		Enabled: true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	watcher := &fakeEmailTriggerWatcher{}
+	mm.SetEmailWatcher(watcher)
+
+	if got := len(watcher.registrations); got != 1 {
+		t.Fatalf("email registrations = %d, want 1", got)
+	}
+	reg := watcher.registrations[0]
+	if reg.folder != "INBOX" || reg.subjectContains != "invoice" || reg.fromContains != "@example.com" {
+		t.Fatalf("email registration = %+v", reg)
+	}
+}
+
+func TestMQTTGenericMinIntervalUsedWhenSpecificUnset(t *testing.T) {
+	mqttMgr := &fakeMQTTTriggerManager{}
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm.SetMQTTManager(mqttMgr)
+
+	if err := mm.Create(&MissionV2{
+		ID:            "mqtt-generic-interval",
+		Name:          "MQTT generic interval",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerMQTTMessage,
+		TriggerConfig: &TriggerConfig{
+			MQTTTopic:          "home/#",
+			MinIntervalSeconds: 45,
+		},
+		Enabled: true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if got := len(mqttMgr.registrations); got != 1 {
+		t.Fatalf("mqtt registrations = %d, want 1", got)
+	}
+	if got := mqttMgr.registrations[0].minIntervalSeconds; got != 45 {
+		t.Fatalf("mqtt min interval = %d, want 45", got)
+	}
+}
+
 func TestSystemStartupMissionQueuesOnStart(t *testing.T) {
 	tmpDir := t.TempDir()
 	writer := NewMissionManagerV2(tmpDir, nil)
@@ -671,6 +874,35 @@ func TestSystemStartupMissionQueuesOnStart(t *testing.T) {
 	queue, _ := mm.GetQueue()
 	if got := len(queue.List()); got != 1 {
 		t.Fatalf("startup queue length = %d, want 1", got)
+	}
+}
+
+func TestNotifyInvasionEventPersistsQueueForRestart(t *testing.T) {
+	tmpDir := t.TempDir()
+	writer := NewMissionManagerV2(tmpDir, nil)
+	if err := writer.Create(&MissionV2{
+		ID:            "egg-trigger",
+		Name:          "Egg trigger",
+		Prompt:        "run on hatch",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerEggHatched,
+		TriggerConfig: &TriggerConfig{},
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	writer.NotifyInvasionEvent(string(TriggerEggHatched), "nest-1", "Nest", "egg-1", "Egg")
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer restarted.Stop()
+	queue, _ := restarted.GetQueue()
+	items := queue.List()
+	if len(items) != 1 || items[0].MissionID != "egg-trigger" {
+		t.Fatalf("restored invasion queue = %+v, want egg-trigger", items)
 	}
 }
 
@@ -953,7 +1185,7 @@ func TestMissionQueuePersistsAndRehydrates(t *testing.T) {
 	restarted := NewMissionManagerV2(tmpDir, nil)
 	restarted.missions["mission_a"] = &MissionV2{ID: "mission_a", Name: "A", Priority: "low", Enabled: true}
 	restarted.missions["mission_b"] = &MissionV2{ID: "mission_b", Name: "B", Priority: "high", Enabled: true}
-	if err := restarted.loadQueueLocked(); err != nil {
+	if _, err := restarted.loadQueueLocked(); err != nil {
 		t.Fatalf("loadQueueLocked: %v", err)
 	}
 
@@ -980,7 +1212,7 @@ func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
 
 	restarted := NewMissionManagerV2(tmpDir, nil)
 	restarted.missions["mission_running"] = &MissionV2{ID: "mission_running", Name: "Running", Priority: "medium", Enabled: true}
-	if err := restarted.loadQueueLocked(); err != nil {
+	if _, err := restarted.loadQueueLocked(); err != nil {
 		t.Fatalf("loadQueueLocked: %v", err)
 	}
 	items := restarted.queue.List()
@@ -989,6 +1221,45 @@ func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
 	}
 	if restarted.queue.GetRunning() != "" {
 		t.Fatalf("running marker should be cleared on restart, got %q", restarted.queue.GetRunning())
+	}
+}
+
+func TestStartPersistsRestoredQueuedMissionStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+	writer := NewMissionManagerV2(tmpDir, nil)
+	writer.missions["mission_restore"] = &MissionV2{
+		ID:       "mission_restore",
+		Name:     "Restore",
+		Prompt:   "run",
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+	if err := writer.save(); err != nil {
+		t.Fatalf("save missions: %v", err)
+	}
+	writer.queue.Enqueue("mission_restore", "medium", "manual", "")
+	if err := writer.saveQueueLocked(); err != nil {
+		t.Fatalf("save queue: %v", err)
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer restarted.Stop()
+
+	reloaded := NewMissionManagerV2(tmpDir, nil)
+	if err := reloaded.Start(); err != nil {
+		t.Fatalf("second Start: %v", err)
+	}
+	defer reloaded.Stop()
+	got, ok := reloaded.Get("mission_restore")
+	if !ok {
+		t.Fatal("mission missing after second restart")
+	}
+	if got.Status != MissionStatusQueued {
+		t.Fatalf("persisted mission status = %q, want queued", got.Status)
 	}
 }
 

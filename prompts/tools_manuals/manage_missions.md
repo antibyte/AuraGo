@@ -17,7 +17,7 @@ Create and manage background automation tasks (missions) with scheduling, trigge
 Missions support three execution types (set via the V2 API):
 - **manual** — Run on demand via `run` operation
 - **scheduled** — Run on a cron schedule
-- **triggered** — Run automatically when an event occurs (webhook, mission completed, MQTT, system startup, invasion events)
+- **triggered** — Run automatically when an event occurs (webhook, mission completed, email, MQTT, system startup, invasion, device, Fritz!Box, budget, and Home Assistant events)
 
 ## Examples
 
@@ -38,4 +38,4 @@ Missions support three execution types (set via the V2 API):
 - `locked`: prevents accidental deletion
 - `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours). When provided, the mission is automatically set to `scheduled` execution type.
 - Missions without a `cron_expr` default to `manual` execution type
-- Triggered missions (webhook, MQTT, mission chaining) are configured via the V2 REST API
+- Triggered missions are configured via the V2 REST API. Use `trigger_config.min_interval_seconds` to debounce any trigger type; MQTT can additionally use `mqtt_min_interval_seconds` as a topic-specific override.

@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Intervalo mínimo",
   "missions.trigger_mqtt_min_interval_placeholder": "ex.: 60",
   "missions.trigger_mqtt_min_interval_hint": "Segundos a esperar antes que este gatilho MQTT possa iniciar a missão novamente. 0 desativa o limite.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalo mín.:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalo mín.:",
+  "missions.trigger_min_interval_label": "Intervalo minimo",
+  "missions.trigger_min_interval_placeholder": "ex. 60",
+  "missions.trigger_min_interval_hint": "Segundos que este acionador deve esperar antes de iniciar a missao novamente. Use 0 para desativar o limite.",
+  "missions.trigger_info_min_interval_prefix": "Intervalo min.:"
 }

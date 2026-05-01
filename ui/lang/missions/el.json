@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Ελάχιστο διάστημα",
   "missions.trigger_mqtt_min_interval_placeholder": "π.χ. 60",
   "missions.trigger_mqtt_min_interval_hint": "Δευτερόλεπτα πριν αυτό το MQTT trigger μπορεί να ξεκινήσει ξανά την αποστολή. Το 0 απενεργοποιεί το όριο.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Ελάχ. διάστημα:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Ελάχ. διάστημα:",
+  "missions.trigger_min_interval_label": "Elachisto diastima",
+  "missions.trigger_min_interval_placeholder": "p.ch. 60",
+  "missions.trigger_min_interval_hint": "Defterolepta anamonis prin o trigger xekinisei ksana tin apostoli. Xrisimopoiiste 0 gia apenergopoiisi tou oriou.",
+  "missions.trigger_info_min_interval_prefix": "Elachisto diastima:"
 }

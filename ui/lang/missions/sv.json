@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Minsta intervall",
   "missions.trigger_mqtt_min_interval_placeholder": "t.ex. 60",
   "missions.trigger_mqtt_min_interval_hint": "Sekunder att vänta innan denna MQTT-trigger kan starta missionen igen. 0 stänger av gränsen.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Min. intervall:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. intervall:",
+  "missions.trigger_min_interval_label": "Minsta intervall",
+  "missions.trigger_min_interval_placeholder": "t.ex. 60",
+  "missions.trigger_min_interval_hint": "Sekunder som denna trigger ska vanta innan den kan starta missionen igen. Anvand 0 for att stanga av gransen.",
+  "missions.trigger_info_min_interval_prefix": "Min. intervall:"
 }

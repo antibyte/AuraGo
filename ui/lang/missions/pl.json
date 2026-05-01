@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Minimalny odstęp",
   "missions.trigger_mqtt_min_interval_placeholder": "np. 60",
   "missions.trigger_mqtt_min_interval_hint": "Sekundy oczekiwania, zanim ten trigger MQTT może ponownie uruchomić misję. 0 wyłącza limit.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Min. odstęp:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. odstęp:",
+  "missions.trigger_min_interval_label": "Minimalny odstep",
+  "missions.trigger_min_interval_placeholder": "np. 60",
+  "missions.trigger_min_interval_hint": "Liczba sekund oczekiwania, zanim ten wyzwalacz moze ponownie uruchomic misje. Uzyj 0, aby wylaczyc limit.",
+  "missions.trigger_info_min_interval_prefix": "Min. odstep:"
 }

@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Intervalle minimal",
   "missions.trigger_mqtt_min_interval_placeholder": "ex. 60",
   "missions.trigger_mqtt_min_interval_hint": "Secondes à attendre avant que ce déclencheur MQTT puisse relancer la mission. 0 désactive la limite.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalle min. :"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Intervalle min. :",
+  "missions.trigger_min_interval_label": "Intervalle minimum",
+  "missions.trigger_min_interval_placeholder": "p. ex. 60",
+  "missions.trigger_min_interval_hint": "Nombre de secondes a attendre avant que ce declencheur puisse relancer la mission. Utilisez 0 pour desactiver la limite.",
+  "missions.trigger_info_min_interval_prefix": "Intervalle min.:"
 }

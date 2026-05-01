@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Minimální interval",
   "missions.trigger_mqtt_min_interval_placeholder": "např. 60",
   "missions.trigger_mqtt_min_interval_hint": "Počet sekund, než tento MQTT trigger může misi znovu spustit. 0 vypne limit.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Min. interval:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. interval:",
+  "missions.trigger_min_interval_label": "Minimalni interval",
+  "missions.trigger_min_interval_placeholder": "napr. 60",
+  "missions.trigger_min_interval_hint": "Pocet sekund, ktere ma tento trigger pockat, nez znovu spusti misi. Hodnota 0 limit vypne.",
+  "missions.trigger_info_min_interval_prefix": "Min. interval:"
 }

@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Minimuminterval",
   "missions.trigger_mqtt_min_interval_placeholder": "bijv. 60",
   "missions.trigger_mqtt_min_interval_hint": "Seconden wachten voordat deze MQTT-trigger de missie opnieuw mag starten. 0 schakelt de limiet uit.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Min. interval:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Min. interval:",
+  "missions.trigger_min_interval_label": "Minimuminterval",
+  "missions.trigger_min_interval_placeholder": "bijv. 60",
+  "missions.trigger_min_interval_hint": "Aantal seconden dat deze trigger moet wachten voordat hij de missie opnieuw mag starten. Gebruik 0 om de limiet uit te schakelen.",
+  "missions.trigger_info_min_interval_prefix": "Min. interval:"
 }

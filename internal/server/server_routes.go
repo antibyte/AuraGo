@@ -428,7 +428,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
-		tools.StartEmailWatcher(s.Cfg, s.Logger, s.Guardian, s.LLMGuardian)
+		if emailWatcher := tools.StartEmailWatcher(s.Cfg, s.Logger, s.Guardian, s.LLMGuardian); emailWatcher != nil {
+			s.MissionManagerV2.SetEmailWatcher(emailWatcher)
+		}
 
 		// Rocket.Chat Bot: listen for messages and relay to the agent
 		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)

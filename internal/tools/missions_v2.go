@@ -60,6 +60,9 @@ const (
 
 // TriggerConfig holds configuration for mission triggers
 type TriggerConfig struct {
+	// For all event triggers
+	MinIntervalSeconds int `json:"min_interval_seconds,omitempty"` // Minimum seconds between trigger fires (0 = disabled)
+
 	// For TriggerMissionCompleted
 	SourceMissionID   string `json:"source_mission_id,omitempty"`   // ID of mission that triggers this one
 	SourceMissionName string `json:"source_mission_name,omitempty"` // Name for display purposes
@@ -323,27 +326,29 @@ func (q *MissionQueue) Remove(missionID string) bool {
 
 // MissionManagerV2 provides enhanced mission management with triggers and queue
 type MissionManagerV2 struct {
-	mu                sync.RWMutex
-	saveMu            sync.Mutex // serialises file writes in save()
-	file              string
-	queueFile         string
-	missions          map[string]*MissionV2
-	queue             *MissionQueue
-	cron              *CronManager
-	callback          func(prompt string, missionID string) // agent invocation callback with mission ID
-	ctx               context.Context
-	cancel            context.CancelFunc
-	emailWatcher      EmailWatcherInterface
-	webhookMgr        WebhookManagerInterface
-	mqttMgr           MQTTManagerInterface
-	cheatsheetDB      *sql.DB
-	preparedDB        *sql.DB                                  // prepared missions database
-	historyDB         *sql.DB                                  // mission execution history database
-	activeRunID       map[string]string                        // missionID → history run ID for in-progress tracking
-	onMissionComplete func(completedID, result, output string) // callback for mission completion
-	missionGuards     map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
-	remoteRunGuards   map[string]context.CancelFunc            // remote mission result timeout cancel functions
-	remoteClient      RemoteMissionClient
+	mu                 sync.RWMutex
+	saveMu             sync.Mutex // serialises file writes in save()
+	file               string
+	queueFile          string
+	missions           map[string]*MissionV2
+	queue              *MissionQueue
+	cron               *CronManager
+	callback           func(prompt string, missionID string) // agent invocation callback with mission ID
+	ctx                context.Context
+	cancel             context.CancelFunc
+	emailWatcher       EmailWatcherInterface
+	webhookMgr         WebhookManagerInterface
+	mqttMgr            MQTTManagerInterface
+	cheatsheetDB       *sql.DB
+	preparedDB         *sql.DB                                  // prepared missions database
+	historyDB          *sql.DB                                  // mission execution history database
+	activeRunID        map[string]string                        // missionID → history run ID for in-progress tracking
+	onMissionComplete  func(completedID, result, output string) // callback for mission completion
+	missionGuards      map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
+	remoteRunGuards    map[string]context.CancelFunc            // remote mission result timeout cancel functions
+	remoteClient       RemoteMissionClient
+	registeredTriggers map[string]string
+	lastTriggerFire    map[string]time.Time
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -365,16 +370,18 @@ type MQTTManagerInterface interface {
 func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2 {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MissionManagerV2{
-		file:            filepath.Join(dataDir, "missions_v2.json"),
-		queueFile:       filepath.Join(dataDir, "missions_v2_queue.json"),
-		missions:        make(map[string]*MissionV2),
-		queue:           NewMissionQueue(),
-		cron:            cronMgr,
-		ctx:             ctx,
-		cancel:          cancel,
-		activeRunID:     make(map[string]string),
-		missionGuards:   make(map[string]context.CancelFunc),
-		remoteRunGuards: make(map[string]context.CancelFunc),
+		file:               filepath.Join(dataDir, "missions_v2.json"),
+		queueFile:          filepath.Join(dataDir, "missions_v2_queue.json"),
+		missions:           make(map[string]*MissionV2),
+		queue:              NewMissionQueue(),
+		cron:               cronMgr,
+		ctx:                ctx,
+		cancel:             cancel,
+		activeRunID:        make(map[string]string),
+		missionGuards:      make(map[string]context.CancelFunc),
+		remoteRunGuards:    make(map[string]context.CancelFunc),
+		registeredTriggers: make(map[string]string),
+		lastTriggerFire:    make(map[string]time.Time),
 	}
 }
 
@@ -390,6 +397,7 @@ func (m *MissionManagerV2) SetEmailWatcher(watcher EmailWatcherInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.emailWatcher = watcher
+	m.setupTriggersLocked()
 }
 
 // SetWebhookManager sets the webhook manager for webhook triggers
@@ -397,6 +405,7 @@ func (m *MissionManagerV2) SetWebhookManager(mgr WebhookManagerInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.webhookMgr = mgr
+	m.setupTriggersLocked()
 }
 
 // SetMQTTManager sets the MQTT manager for MQTT message triggers
@@ -404,6 +413,7 @@ func (m *MissionManagerV2) SetMQTTManager(mgr MQTTManagerInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.mqttMgr = mgr
+	m.setupTriggersLocked()
 }
 
 // SetCheatsheetDB sets the cheatsheet database for prompt expansion
@@ -512,7 +522,8 @@ func (m *MissionManagerV2) Start() error {
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read %s: %w", m.file, err)
 	}
-	if err := m.loadQueueLocked(); err != nil {
+	queueStatusChanged, err := m.loadQueueLocked()
+	if err != nil {
 		return err
 	}
 	for _, mission := range m.missions {
@@ -524,9 +535,14 @@ func (m *MissionManagerV2) Start() error {
 	if err := m.saveQueueLocked(); err != nil {
 		return err
 	}
+	if queueStatusChanged {
+		if err := m.save(); err != nil {
+			return err
+		}
+	}
 
 	// Setup triggers
-	m.setupTriggers()
+	m.setupTriggersLocked()
 
 	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
 	if m.cron != nil {
@@ -616,19 +632,20 @@ func (m *MissionManagerV2) saveQueueLocked() error {
 	return nil
 }
 
-func (m *MissionManagerV2) loadQueueLocked() error {
+func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	data, err := os.ReadFile(m.queueFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("failed to read %s: %w", m.queueFile, err)
+		return false, fmt.Errorf("failed to read %s: %w", m.queueFile, err)
 	}
 	var snapshot missionQueueSnapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
-		return fmt.Errorf("failed to parse %s: %w", m.queueFile, err)
+		return false, fmt.Errorf("failed to parse %s: %w", m.queueFile, err)
 	}
 	items := make([]QueueItem, 0, len(snapshot.Items))
+	statusChanged := false
 	for _, item := range snapshot.Items {
 		mission, ok := m.missions[item.MissionID]
 		if !ok || !mission.Enabled || isRemoteMission(mission) {
@@ -638,7 +655,10 @@ func (m *MissionManagerV2) loadQueueLocked() error {
 			item.EnqueuedAt = time.Now()
 		}
 		items = append(items, item)
-		mission.Status = MissionStatusQueued
+		if mission.Status != MissionStatusQueued {
+			mission.Status = MissionStatusQueued
+			statusChanged = true
+		}
 	}
 	running := ""
 	if snapshot.Running != "" {
@@ -650,15 +670,18 @@ func (m *MissionManagerV2) loadQueueLocked() error {
 				TriggerType: "restart_recovery",
 			}
 			items = append(items, item)
-			mission.Status = MissionStatusQueued
+			if mission.Status != MissionStatusQueued {
+				mission.Status = MissionStatusQueued
+				statusChanged = true
+			}
 		}
 	}
 	m.queue.Restore(items, running)
-	return nil
+	return statusChanged, nil
 }
 
-// setupTriggers initializes all active triggers
-func (m *MissionManagerV2) setupTriggers() {
+// setupTriggersLocked initializes all active triggers. Caller must hold m.mu.
+func (m *MissionManagerV2) setupTriggersLocked() {
 	for _, mission := range m.missions {
 		if !mission.Enabled || mission.ExecutionType != ExecutionTriggered {
 			continue
@@ -687,6 +710,9 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			folder := cfg.EmailFolder
 			subjectContains := cfg.EmailSubjectContains
 			fromContains := cfg.EmailFromContains
+			if !m.markTriggerRegistrationLocked(mission, fmt.Sprintf("email|%s|%s|%s", folder, subjectContains, fromContains)) {
+				return
+			}
 			m.emailWatcher.RegisterMissionTrigger(
 				folder,
 				subjectContains,
@@ -713,6 +739,9 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 		if m.webhookMgr != nil && mission.TriggerConfig.WebhookID != "" {
 			missionID := mission.ID
 			webhookID := mission.TriggerConfig.WebhookID
+			if !m.markTriggerRegistrationLocked(mission, "webhook|"+webhookID) {
+				return
+			}
 			m.webhookMgr.RegisterMissionTrigger(
 				webhookID,
 				func(payload []byte) {
@@ -733,15 +762,25 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			topicFilter := cfg.MQTTTopic
 			payloadContains := cfg.MQTTPayloadContains
 			minIntervalSeconds := cfg.MQTTMinIntervalSeconds
+			if minIntervalSeconds <= 0 {
+				minIntervalSeconds = cfg.MinIntervalSeconds
+			}
+			if !m.markTriggerRegistrationLocked(mission, fmt.Sprintf("mqtt|%s|%s|%d", topicFilter, payloadContains, minIntervalSeconds)) {
+				return
+			}
 			m.mqttMgr.RegisterMissionTrigger(
 				topicFilter,
 				payloadContains,
 				minIntervalSeconds,
 				func(topic, payload string) {
 					if !m.triggerRegistrationIsCurrent(missionID, TriggerMQTTMessage, func(current *TriggerConfig) bool {
+						currentMinInterval := current.MQTTMinIntervalSeconds
+						if currentMinInterval <= 0 {
+							currentMinInterval = current.MinIntervalSeconds
+						}
 						return current.MQTTTopic == topicFilter &&
 							current.MQTTPayloadContains == payloadContains &&
-							current.MQTTMinIntervalSeconds == minIntervalSeconds
+							currentMinInterval == minIntervalSeconds
 					}) {
 						return
 					}
@@ -755,6 +794,21 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 		}
 	}
 	// TriggerMissionCompleted is handled via OnMissionComplete callback
+}
+
+func (m *MissionManagerV2) markTriggerRegistrationLocked(mission *MissionV2, key string) bool {
+	if mission == nil {
+		return false
+	}
+	if m.registeredTriggers == nil {
+		m.registeredTriggers = make(map[string]string)
+	}
+	slot := mission.ID + "|" + string(mission.TriggerType)
+	if m.registeredTriggers[slot] == key {
+		return false
+	}
+	m.registeredTriggers[slot] = key
+	return true
 }
 
 func (m *MissionManagerV2) triggerRegistrationIsCurrent(missionID string, triggerType TriggerType, match func(*TriggerConfig) bool) bool {
@@ -798,8 +852,40 @@ func (m *MissionManagerV2) processNext() {
 	if !ok {
 		return
 	}
+	m.dispatchQueuedMission(item)
+}
+
+func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
+	dispatched := false
+	muLocked := false
+	defer func() {
+		if r := recover(); r != nil {
+			if muLocked {
+				m.mu.Unlock()
+				muLocked = false
+			}
+			if !dispatched {
+				m.mu.Lock()
+				if mission, ok := m.missions[item.MissionID]; ok {
+					mission.Status = MissionStatusIdle
+					mission.LastResult = MissionResultError
+					mission.LastOutput = truncateString(fmt.Sprintf("mission dispatch panic: %v", r), 500)
+				}
+				m.queue.Done()
+				if err := m.save(); err != nil {
+					slog.Error("[MissionV2] Failed to persist mission after dispatch panic", "mission_id", item.MissionID, "error", err)
+				}
+				if err := m.saveQueueLocked(); err != nil {
+					slog.Error("[MissionV2] Failed to persist queue after dispatch panic", "mission_id", item.MissionID, "error", err)
+				}
+				m.mu.Unlock()
+			}
+			slog.Default().Error("[MissionManagerV2] recovered from panic in processNext", "mission_id", item.MissionID, "panic", r)
+		}
+	}()
 
 	m.mu.Lock()
+	muLocked = true
 	mission, exists := m.missions[item.MissionID]
 	if !exists || !mission.Enabled {
 		m.queue.Done()
@@ -807,6 +893,7 @@ func (m *MissionManagerV2) processNext() {
 			slog.Error("[MissionV2] Failed to persist queue after dropping invalid item", "error", err)
 		}
 		m.mu.Unlock()
+		muLocked = false
 		return
 	}
 
@@ -826,6 +913,7 @@ func (m *MissionManagerV2) processNext() {
 	preparedDB := m.preparedDB
 	historyDB := m.historyDB
 	m.mu.Unlock()
+	muLocked = false
 
 	// Record mission start in history
 	if historyDB != nil {
@@ -893,6 +981,7 @@ func (m *MissionManagerV2) processNext() {
 			// System shutdown
 		}
 	}()
+	dispatched = true
 	go callback(prompt, missionID)
 }
 
@@ -906,9 +995,39 @@ func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) strin
 	return fmt.Sprintf("%s\n\n[Trigger Context: %s]\n%s", prompt, triggerType, security.IsolateExternalData(triggerData))
 }
 
+func triggerMinIntervalSeconds(cfg *TriggerConfig) int {
+	if cfg == nil || cfg.MinIntervalSeconds <= 0 {
+		return 0
+	}
+	return cfg.MinIntervalSeconds
+}
+
+func (m *MissionManagerV2) shouldFireTriggerLocked(mission *MissionV2, triggerType string, now time.Time) bool {
+	if mission == nil {
+		return false
+	}
+	interval := triggerMinIntervalSeconds(mission.TriggerConfig)
+	if interval <= 0 {
+		return true
+	}
+	if m.lastTriggerFire == nil {
+		m.lastTriggerFire = make(map[string]time.Time)
+	}
+	if triggerType == "" {
+		triggerType = string(mission.TriggerType)
+	}
+	key := mission.ID + "|" + triggerType
+	if last := m.lastTriggerFire[key]; !last.IsZero() && now.Sub(last) < time.Duration(interval)*time.Second {
+		return false
+	}
+	m.lastTriggerFire[key] = now
+	return true
+}
+
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	// Cancel timeout guardian if active
 	if cancel, ok := m.missionGuards[missionID]; ok {
@@ -918,28 +1037,28 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 
 	// Guard against double completion (e.g. timeout + normal completion race)
 	if mission, ok := m.missions[missionID]; ok && mission.Status != MissionStatusRunning {
-		m.mu.Unlock()
 		return
 	}
 
 	// Record mission completion in history
-	if runID, ok := m.activeRunID[missionID]; ok && m.historyDB != nil {
-		hdb := m.historyDB
+	if runID, ok := m.activeRunID[missionID]; ok {
 		delete(m.activeRunID, missionID)
-		// Write history outside the lock to avoid contention
-		go func() {
-			var histErr error
-			if result == MissionResultSuccess || result == "success" {
-				histErr = RecordMissionCompletion(hdb, runID, "success", output)
-			} else {
-				histErr = RecordMissionError(hdb, runID, output)
-			}
-			if histErr != nil {
-				slog.Error("[MissionV2] Failed to record mission history", "run_id", runID, "error", histErr)
-			}
-		}()
+		if m.historyDB != nil {
+			hdb := m.historyDB
+			// Write history outside the lock to avoid contention
+			go func() {
+				var histErr error
+				if result == MissionResultSuccess || result == "success" {
+					histErr = RecordMissionCompletion(hdb, runID, "success", output)
+				} else {
+					histErr = RecordMissionError(hdb, runID, output)
+				}
+				if histErr != nil {
+					slog.Error("[MissionV2] Failed to record mission history", "run_id", runID, "error", histErr)
+				}
+			}()
+		}
 	}
-	defer m.mu.Unlock()
 
 	// Update mission status
 	if mission, ok := m.missions[missionID]; ok {
@@ -970,6 +1089,9 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 
 		// Check if success is required
 		if cfg.RequireSuccess && result != MissionResultSuccess {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), time.Now()) {
 			continue
 		}
 
@@ -1011,6 +1133,9 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 	if !mission.Enabled {
 		return fmt.Errorf("mission is disabled")
 	}
+	if mission.ExecutionType == ExecutionTriggered && !m.shouldFireTriggerLocked(mission, triggerType, time.Now()) {
+		return nil
+	}
 	if isRemoteMission(mission) {
 		if len(extraCheatsheetIDs) > 0 || extraPromptSuffix != "" {
 			return fmt.Errorf("remote missions do not support transient prompt extras")
@@ -1049,6 +1174,8 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	queued := false
+	now := time.Now()
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -1069,6 +1196,9 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 		if eventType == string(TriggerEggHatched) && cfg.EggID != "" && cfg.EggID != eggID {
 			continue
 		}
+		if !m.shouldFireTriggerLocked(mission, eventType, now) {
+			continue
+		}
 
 		triggerData, _ := json.Marshal(map[string]string{
 			"event":     eventType,
@@ -1079,8 +1209,14 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after invasion event", "error", err)
+		}
+	}
 }
 
 // NotifySystemStartup fires mission triggers meant to run when AuraGo starts.
@@ -1092,6 +1228,7 @@ func (m *MissionManagerV2) NotifySystemStartup() {
 
 func (m *MissionManagerV2) notifySystemStartupLocked() {
 	queued := false
+	now := time.Now()
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -1099,10 +1236,13 @@ func (m *MissionManagerV2) notifySystemStartupLocked() {
 			mission.TriggerType != TriggerSystemStartup {
 			continue
 		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerSystemStartup), now) {
+			continue
+		}
 
 		triggerData, _ := json.Marshal(map[string]string{
 			"event": "system_startup",
-			"time":  time.Now().Format(time.RFC3339),
+			"time":  now.Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerSystemStartup), string(triggerData))
 		mission.Status = MissionStatusQueued
@@ -1122,6 +1262,8 @@ func (m *MissionManagerV2) NotifyDeviceEvent(eventType, deviceID, deviceName str
 	defer m.mu.Unlock()
 
 	trigType := TriggerType(eventType)
+	now := time.Now()
+	queued := false
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -1141,19 +1283,25 @@ func (m *MissionManagerV2) NotifyDeviceEvent(eventType, deviceID, deviceName str
 		if cfg.DeviceName != "" && cfg.DeviceName != deviceName {
 			continue
 		}
+		if !m.shouldFireTriggerLocked(mission, eventType, now) {
+			continue
+		}
 
 		triggerData, _ := json.Marshal(map[string]string{
 			"event":       eventType,
 			"device_id":   deviceID,
 			"device_name": deviceName,
-			"time":        time.Now().Format(time.RFC3339),
+			"time":        now.Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
-	if err := m.saveQueueLocked(); err != nil {
-		slog.Error("[MissionV2] Failed to persist queue after device event", "error", err)
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after device event", "error", err)
+		}
 	}
 }
 
@@ -1163,6 +1311,8 @@ func (m *MissionManagerV2) NotifyFritzBoxEvent(callType, summary string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
+	queued := false
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -1179,18 +1329,24 @@ func (m *MissionManagerV2) NotifyFritzBoxEvent(callType, summary string) {
 		if cfg.CallType != "" && cfg.CallType != callType {
 			continue
 		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerFritzBoxCall), now) {
+			continue
+		}
 
 		triggerData, _ := json.Marshal(map[string]string{
 			"call_type": callType,
 			"summary":   summary,
-			"time":      time.Now().Format(time.RFC3339),
+			"time":      now.Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, "fritzbox_call", string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
-	if err := m.saveQueueLocked(); err != nil {
-		slog.Error("[MissionV2] Failed to persist queue after fritzbox event", "error", err)
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after fritzbox event", "error", err)
+		}
 	}
 }
 
@@ -1201,11 +1357,16 @@ func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUS
 	defer m.mu.Unlock()
 
 	trigType := TriggerType(eventType)
+	now := time.Now()
+	queued := false
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != trigType {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, eventType, now) {
 			continue
 		}
 
@@ -1214,14 +1375,17 @@ func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUS
 			"spent_usd":  spentUSD,
 			"limit_usd":  limitUSD,
 			"percentage": percentage,
-			"time":       time.Now().Format(time.RFC3339),
+			"time":       now.Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, eventType, string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
-	if err := m.saveQueueLocked(); err != nil {
-		slog.Error("[MissionV2] Failed to persist queue after budget event", "error", err)
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after budget event", "error", err)
+		}
 	}
 }
 
@@ -1230,6 +1394,8 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
+	queued := false
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
 			isRemoteMission(mission) ||
@@ -1249,19 +1415,25 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 		if cfg.HAStateEquals != "" && cfg.HAStateEquals != newState {
 			continue
 		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerHomeAssistantState), now) {
+			continue
+		}
 
 		triggerData, _ := json.Marshal(map[string]string{
 			"entity_id": entityID,
 			"new_state": newState,
 			"old_state": oldState,
-			"time":      time.Now().Format(time.RFC3339),
+			"time":      now.Format(time.RFC3339),
 		})
 		m.queue.Enqueue(mission.ID, mission.Priority, "home_assistant_state", string(triggerData))
 		mission.Status = MissionStatusQueued
+		queued = true
 	}
-	m.save()
-	if err := m.saveQueueLocked(); err != nil {
-		slog.Error("[MissionV2] Failed to persist queue after Home Assistant event", "error", err)
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after Home Assistant event", "error", err)
+		}
 	}
 }
 

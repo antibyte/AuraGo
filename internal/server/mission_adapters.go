@@ -24,21 +24,8 @@ func (a *missionWebhookAdapter) RegisterMissionTrigger(webhookID string, callbac
 }
 
 // ensure MissionV2 types are compatible with expected interfaces
-var _ tools.EmailWatcherInterface = (*dummyEmailWatcher)(nil)
 var _ tools.WebhookManagerInterface = (*missionWebhookAdapter)(nil)
 var _ tools.MQTTManagerInterface = (*missionMQTTAdapter)(nil)
-
-// dummyEmailWatcher is a placeholder for email watcher integration
-type dummyEmailWatcher struct {
-	logger *slog.Logger
-}
-
-func (d *dummyEmailWatcher) RegisterMissionTrigger(folder, subjectContains, fromContains string, callback func(subject, from, body string)) {
-	d.logger.Info("[EmailWatcherAdapter] Registered mission trigger",
-		"folder", folder,
-		"subject", subjectContains,
-		"from", fromContains)
-}
 
 // missionMQTTAdapter adapts mqtt package to tools.MQTTManagerInterface
 type missionMQTTAdapter struct {

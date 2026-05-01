@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "Mindestabstand",
   "missions.trigger_mqtt_min_interval_placeholder": "z.B. 60",
   "missions.trigger_mqtt_min_interval_hint": "Sekunden, bevor dieser MQTT-Trigger die Mission erneut starten darf. 0 deaktiviert das Limit.",
-  "missions.trigger_info_mqtt_min_interval_prefix": "Mindestabstand:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "Mindestabstand:",
+  "missions.trigger_min_interval_label": "Mindestintervall",
+  "missions.trigger_min_interval_placeholder": "z. B. 60",
+  "missions.trigger_min_interval_hint": "Sekunden, die dieser Trigger warten soll, bevor er die Mission erneut starten darf. 0 deaktiviert die Begrenzung.",
+  "missions.trigger_info_min_interval_prefix": "Mindestintervall:"
 }

@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "न्यूनतम अंतराल",
   "missions.trigger_mqtt_min_interval_placeholder": "जैसे 60",
   "missions.trigger_mqtt_min_interval_hint": "इस MQTT ट्रिगर द्वारा मिशन फिर से शुरू करने से पहले प्रतीक्षा सेकंड। 0 से सीमा बंद होती है।",
-  "missions.trigger_info_mqtt_min_interval_prefix": "न्यूनतम अंतराल:"
+  "missions.trigger_info_mqtt_min_interval_prefix": "न्यूनतम अंतराल:",
+  "missions.trigger_min_interval_label": "Nyuntam antaral",
+  "missions.trigger_min_interval_placeholder": "jaise 60",
+  "missions.trigger_min_interval_hint": "Is trigger ko mission dobara shuru karne se pahle kitne seconds rukna hai. Limit band karne ke liye 0 use karein.",
+  "missions.trigger_info_min_interval_prefix": "Nyuntam antaral:"
 }

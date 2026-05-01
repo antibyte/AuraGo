@@ -289,5 +289,9 @@
   "missions.trigger_mqtt_min_interval_label": "最小间隔",
   "missions.trigger_mqtt_min_interval_placeholder": "例如 60",
   "missions.trigger_mqtt_min_interval_hint": "此 MQTT 触发器再次启动任务前需要等待的秒数。0 表示禁用限制。",
-  "missions.trigger_info_mqtt_min_interval_prefix": "最小间隔："
+  "missions.trigger_info_mqtt_min_interval_prefix": "最小间隔：",
+  "missions.trigger_min_interval_label": "Minimum interval",
+  "missions.trigger_min_interval_placeholder": "e.g. 60",
+  "missions.trigger_min_interval_hint": "Seconds to wait before this trigger can start the mission again. Use 0 to disable the limit.",
+  "missions.trigger_info_min_interval_prefix": "Min interval:"
 }
