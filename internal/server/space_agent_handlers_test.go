@@ -364,6 +364,10 @@ func TestSpaceAgentOptionalFileReadFallbacksOnlyForUIState(t *testing.T) {
 		"~/state/onscreen-agent-history.json",
 		"~/state/onscreen_agent_config.json",
 		"~/ui/settings.json",
+		"dashboard/prefs.json",
+		"meta/dashboard-prefs.json",
+		".config/onscreen-agent-config.json",
+		"runtime/onscreen-agent/history.json",
 	} {
 		if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"` + path + `"}`)); !ok {
 			t.Fatalf("expected optional UI state path %q to receive fallback", path)
@@ -373,8 +377,14 @@ func TestSpaceAgentOptionalFileReadFallbacksOnlyForUIState(t *testing.T) {
 	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/spaces/big-bang/space.yaml"}`)); ok {
 		t.Fatal("must not hide missing real Space Agent project files")
 	}
+	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"spaces/big-bang/settings.json"}`)); ok {
+		t.Fatal("must not hide missing relative Space Agent project files")
+	}
 	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"~/notes.txt"}`)); ok {
 		t.Fatal("must not hide arbitrary missing user files")
+	}
+	if _, ok := spaceAgentBuildOptionalFileReadResponse([]byte(`{"path":"notes.json"}`)); ok {
+		t.Fatal("must not hide arbitrary relative JSON files")
 	}
 }
 

@@ -565,16 +565,31 @@ func stringValue(value interface{}) string {
 
 func spaceAgentOptionalFileContent(path string) (string, bool) {
 	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"))
-	if normalized == "" || !(strings.HasPrefix(normalized, "~/") || strings.HasPrefix(normalized, "/~")) {
+	if normalized == "" {
 		return "", false
 	}
 	if !strings.HasSuffix(normalized, ".json") {
 		return "", false
 	}
-	if strings.HasPrefix(normalized, "~/spaces/") {
+	if strings.HasPrefix(normalized, "~/spaces/") || strings.HasPrefix(normalized, "/~/spaces/") || strings.HasPrefix(normalized, "spaces/") || strings.Contains(normalized, "/spaces/") {
 		return "", false
 	}
 	baseName := pathBaseName(normalized)
+	hasUserScope := strings.HasPrefix(normalized, "~/") || strings.HasPrefix(normalized, "/~/")
+	stateLikePath := hasUserScope ||
+		strings.HasPrefix(normalized, "meta/") ||
+		strings.HasPrefix(normalized, ".config/") ||
+		strings.HasPrefix(normalized, "dashboard/") ||
+		strings.HasPrefix(normalized, "onscreen-agent/") ||
+		strings.HasPrefix(normalized, "onscreen_agent/") ||
+		strings.Contains(normalized, "/meta/") ||
+		strings.Contains(normalized, "/.config/") ||
+		strings.Contains(normalized, "/dashboard/") ||
+		strings.Contains(normalized, "/onscreen-agent/") ||
+		strings.Contains(normalized, "/onscreen_agent/")
+	if !stateLikePath {
+		return "", false
+	}
 	optionalNames := []string{
 		"login_hooks",
 		"dashboard-prefs",
