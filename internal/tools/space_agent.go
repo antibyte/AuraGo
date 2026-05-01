@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-js-instructions-api"
+	spaceAgentImageBuildRevision   = "20260502-aurago-js-instructions-api-v2"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -807,7 +807,7 @@ import path from "node:path";
 
 export const allowAnonymous = true;
 
-function readPayload(context) {
+function readPayload(context = {}) {
   return context.body && typeof context.body === "object" && !Buffer.isBuffer(context.body)
     ? context.body
     : {};
@@ -832,12 +832,24 @@ function safeSegment(value, fallback) {
   return normalized || String(fallback || "default");
 }
 
+function headerValue(context = {}, name) {
+  const wanted = String(name || "").toLowerCase();
+  const headers = context.headers || context.request?.headers || {};
+  if (typeof headers.get === "function") {
+    return String(headers.get(name) || headers.get(wanted) || "").trim();
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (String(key).toLowerCase() === wanted) {
+      return Array.isArray(value) ? String(value[0] || "").trim() : String(value || "").trim();
+    }
+  }
+  return "";
+}
+
 async function appendInstructionRecord(context, record) {
-  const customwarePath = String(process.env.CUSTOMWARE_PATH || "").trim();
   const username = safeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
-  const inboxDir = customwarePath
-    ? path.join(customwarePath, "L2", username, "aurago_inbox")
-    : path.join(context.projectRoot, "app", "L2", username, "aurago_inbox");
+  const homePath = String(process.env.HOME || "/app/home").trim() || "/app/home";
+  const inboxDir = path.join(homePath, "aurago_inbox");
   await fs.mkdir(inboxDir, { recursive: true, mode: 0o700 });
   const latestPath = path.join(inboxDir, "latest_instruction.json");
   const logPath = path.join(inboxDir, "instructions.jsonl");
@@ -846,40 +858,64 @@ async function appendInstructionRecord(context, record) {
   await fs.appendFile(logPath, serialized + "\n", { mode: 0o600 });
   return {
     latest: "/L2/" + username + "/aurago_inbox/latest_instruction.json",
-    log: "/L2/" + username + "/aurago_inbox/instructions.jsonl",
+    host_path: latestPath,
+    log_path: logPath,
   };
 }
 
+async function handleInstruction(context = {}) {
+  try {
+    const expectedToken = String(process.env.AURAGO_BRIDGE_TOKEN || "").trim();
+    const authHeader = headerValue(context, "authorization");
+    if (!expectedToken || authHeader !== "Bearer " + expectedToken) {
+      return unauthorized();
+    }
+
+    const payload = readPayload(context);
+    const instruction = String(payload.instruction || "").trim();
+    const information = String(payload.information || "").trim();
+    const sessionId = String(payload.session_id || "").trim();
+    if (!instruction) {
+      return badRequest("instruction is required");
+    }
+
+    const record = {
+      type: "aurago_instruction",
+      instruction,
+      information,
+      session_id: sessionId,
+      source: "aurago",
+      created_at: new Date().toISOString(),
+    };
+    const inbox = await appendInstructionRecord(context, record);
+    return {
+      status: "ok",
+      delivered: "inbox",
+      inbox,
+      message: "AuraGo instruction accepted and written to the managed Space Agent inbox.",
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      body: {
+        status: "error",
+        error: "AuraGo instruction endpoint failed",
+        message: error && error.message ? error.message : String(error),
+      },
+    };
+  }
+}
+
 export async function post(context) {
-  const expectedToken = String(process.env.AURAGO_BRIDGE_TOKEN || "").trim();
-  const authHeader = String(context.headers?.authorization || "").trim();
-  if (!expectedToken || authHeader !== "Bearer " + expectedToken) {
-    return unauthorized();
-  }
+  return handleInstruction(context);
+}
 
-  const payload = readPayload(context);
-  const instruction = String(payload.instruction || "").trim();
-  const information = String(payload.information || "").trim();
-  const sessionId = String(payload.session_id || "").trim();
-  if (!instruction) {
-    return badRequest("instruction is required");
-  }
+export async function POST(context) {
+  return handleInstruction(context);
+}
 
-  const record = {
-    type: "aurago_instruction",
-    instruction,
-    information,
-    session_id: sessionId,
-    source: "aurago",
-    created_at: new Date().toISOString(),
-  };
-  const inbox = await appendInstructionRecord(context, record);
-  return {
-    status: "ok",
-    delivered: "inbox",
-    inbox,
-    message: "AuraGo instruction accepted and written to the managed Space Agent inbox.",
-  };
+export default async function auragoInstructions(context) {
+  return handleInstruction(context);
 }
 `
 }
