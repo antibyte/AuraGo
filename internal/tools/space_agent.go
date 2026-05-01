@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-container-user-home"
+	spaceAgentImageBuildRevision   = "20260501-current-core-state"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -529,6 +529,8 @@ func ensureSpaceAgentWorkspaceFiles(homePath string) error {
 		homePath,
 		filepath.Join(homePath, "meta"),
 		filepath.Join(homePath, "spaces"),
+		filepath.Join(homePath, "conf"),
+		filepath.Join(homePath, "hist"),
 		filepath.Join(homePath, "dashboard"),
 		filepath.Join(homePath, "onscreen-agent"),
 		filepath.Join(homePath, ".config"),
@@ -540,6 +542,9 @@ func ensureSpaceAgentWorkspaceFiles(homePath string) error {
 	}
 	for path, content := range map[string]string{
 		filepath.Join(homePath, "meta", "login_hooks.json"):               "[]\n",
+		filepath.Join(homePath, "conf", "dashboard.yaml"):                 "{}\n",
+		filepath.Join(homePath, "conf", "onscreen-agent.yaml"):            "{}\n",
+		filepath.Join(homePath, "hist", "onscreen-agent.json"):            "[]\n",
 		filepath.Join(homePath, "dashboard", "prefs.json"):                "{}\n",
 		filepath.Join(homePath, "dashboard", "dashboard-prefs.json"):      "{}\n",
 		filepath.Join(homePath, "onscreen-agent", "config.json"):          "{}\n",
@@ -634,6 +639,8 @@ function seedWorkspaceFiles(rootPath) {
     rootPath,
     path.join(rootPath, "meta"),
     path.join(rootPath, "spaces"),
+    path.join(rootPath, "conf"),
+    path.join(rootPath, "hist"),
     path.join(rootPath, "dashboard"),
     path.join(rootPath, "onscreen-agent"),
     path.join(rootPath, ".config"),
@@ -642,6 +649,9 @@ function seedWorkspaceFiles(rootPath) {
     fs.mkdirSync(dir, { recursive: true, mode: 0o750 });
   }
   seedFile(path.join(rootPath, "meta", "login_hooks.json"), "[]\n");
+  seedFile(path.join(rootPath, "conf", "dashboard.yaml"), "{}\n");
+  seedFile(path.join(rootPath, "conf", "onscreen-agent.yaml"), "{}\n");
+  seedFile(path.join(rootPath, "hist", "onscreen-agent.json"), "[]\n");
   seedFile(path.join(rootPath, "dashboard", "prefs.json"), "{}\n");
   seedFile(path.join(rootPath, "dashboard", "dashboard-prefs.json"), "{}\n");
   seedFile(path.join(rootPath, "onscreen-agent", "config.json"), "{}\n");

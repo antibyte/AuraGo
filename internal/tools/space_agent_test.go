@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-container-user-home"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-current-core-state"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-container-user-home"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-current-core-state"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -241,6 +241,8 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 	for _, dir := range []string{
 		filepath.Join(home, "meta"),
 		filepath.Join(home, "spaces"),
+		filepath.Join(home, "conf"),
+		filepath.Join(home, "hist"),
 		filepath.Join(home, "dashboard"),
 		filepath.Join(home, "onscreen-agent"),
 		filepath.Join(home, ".config"),
@@ -259,6 +261,9 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 	}
 	for path, want := range map[string]string{
 		filepath.Join(home, "dashboard", "prefs.json"):               "{}",
+		filepath.Join(home, "conf", "dashboard.yaml"):                "{}",
+		filepath.Join(home, "conf", "onscreen-agent.yaml"):           "{}",
+		filepath.Join(home, "hist", "onscreen-agent.json"):           "[]",
 		filepath.Join(home, "onscreen-agent", "config.json"):         "{}",
 		filepath.Join(home, "onscreen-agent", "history.json"):        "[]",
 		filepath.Join(home, "meta", "dashboard-prefs.json"):          "{}",
@@ -282,6 +287,9 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 	userHome := filepath.Join(customware, "L2", "admin")
 	for path, want := range map[string]string{
 		filepath.Join(userHome, "meta", "login_hooks.json"):          "[]",
+		filepath.Join(userHome, "conf", "dashboard.yaml"):            "{}",
+		filepath.Join(userHome, "conf", "onscreen-agent.yaml"):       "{}",
+		filepath.Join(userHome, "hist", "onscreen-agent.json"):       "[]",
 		filepath.Join(userHome, ".config", "dashboard-prefs.json"):   "{}",
 		filepath.Join(userHome, "onscreen-agent", "config.json"):     "{}",
 		filepath.Join(userHome, "onscreen-agent", "history.json"):    "[]",
