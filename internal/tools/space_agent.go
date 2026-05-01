@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-customware-user-home"
+	spaceAgentImageBuildRevision   = "20260501-container-user-home"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -467,7 +467,7 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 		return fmt.Errorf("create customware dir: %w", err)
 	}
 	if err := ensureSpaceAgentCustomwareUserHome(cfg.CustomwarePath, cfg.AdminUser); err != nil {
-		return err
+		logger.Warn("[SpaceAgent] Host-side customware workspace seed skipped; container bootstrap will retry", "error", err)
 	}
 	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
 		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--branch", cfg.GitRef, cfg.RepoURL, cfg.SourcePath); err != nil {
@@ -600,7 +600,10 @@ CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --sta
 }
 
 func spaceAgentBootstrapScript() string {
-	return `import { loadSupervisorAuthEnv } from "./commands/lib/supervisor/auth_keys.js";
+	return `import fs from "node:fs";
+import path from "node:path";
+
+import { loadSupervisorAuthEnv } from "./commands/lib/supervisor/auth_keys.js";
 import { createUser, setUserPassword } from "./server/lib/auth/user_manage.js";
 
 const username = String(process.env.SPACE_AGENT_ADMIN_USER || "").trim();
@@ -608,8 +611,52 @@ const password = String(process.env.SPACE_AGENT_ADMIN_PASSWORD || "");
 const projectRoot = process.cwd();
 const stateDir = "/app/supervisor";
 
+function normalizeEntityId(value) {
+  const raw = String(value || "").trim().replaceAll("\\", "/");
+  if (!raw || raw.includes("/")) {
+    throw new Error("Managed Space Agent username must be a single path segment.");
+  }
+  const normalized = path.posix.normalize(raw);
+  if (!normalized || normalized === "." || normalized === ".." || normalized.includes("/")) {
+    throw new Error("Managed Space Agent username must be a single path segment.");
+  }
+  return normalized;
+}
+
+function seedFile(filePath, content) {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, content, { mode: 0o600 });
+  }
+}
+
+function seedWorkspaceFiles(rootPath) {
+  for (const dir of [
+    rootPath,
+    path.join(rootPath, "meta"),
+    path.join(rootPath, "spaces"),
+    path.join(rootPath, "dashboard"),
+    path.join(rootPath, "onscreen-agent"),
+    path.join(rootPath, ".config"),
+    path.join(rootPath, ".local", "share")
+  ]) {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o750 });
+  }
+  seedFile(path.join(rootPath, "meta", "login_hooks.json"), "[]\n");
+  seedFile(path.join(rootPath, "dashboard", "prefs.json"), "{}\n");
+  seedFile(path.join(rootPath, "dashboard", "dashboard-prefs.json"), "{}\n");
+  seedFile(path.join(rootPath, "onscreen-agent", "config.json"), "{}\n");
+  seedFile(path.join(rootPath, "onscreen-agent", "history.json"), "[]\n");
+  seedFile(path.join(rootPath, "meta", "onscreen-agent-config.json"), "{}\n");
+  seedFile(path.join(rootPath, "meta", "onscreen-agent-history.json"), "[]\n");
+  seedFile(path.join(rootPath, "meta", "dashboard-prefs.json"), "{}\n");
+  seedFile(path.join(rootPath, ".config", "dashboard-prefs.json"), "{}\n");
+  seedFile(path.join(rootPath, ".config", "onscreen-agent-config.json"), "{}\n");
+  seedFile(path.join(rootPath, ".config", "onscreen-agent-history.json"), "[]\n");
+}
+
 if (username && password) {
   process.env.CUSTOMWARE_PATH = process.env.CUSTOMWARE_PATH || "/app/customware";
+  seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizeEntityId(username)));
   const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
   Object.assign(process.env, auth.env);
 
