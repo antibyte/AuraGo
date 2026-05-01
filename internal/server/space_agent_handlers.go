@@ -188,6 +188,10 @@ func handleSpaceAgentProxy(s *Server) http.HandlerFunc {
 			http.Redirect(w, r, spaceAgentProxyPrefix+"/", http.StatusTemporaryRedirect)
 			return
 		}
+		if r.URL.Path == spaceAgentProxyPrefix+"/site.webmanifest" {
+			spaceAgentWriteManifest(w)
+			return
+		}
 		port := cfg.SpaceAgent.Port
 		if port <= 0 {
 			port = 3100
@@ -253,7 +257,7 @@ func spaceAgentShouldProxyRootAPIRequest(r *http.Request) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case "/api/login", "/api/login_challenge", "/api/user_self_info", "/api/file_read", "/api/file_paths", "/api/file_list":
+	case "/api/login", "/api/login_challenge", "/api/user_self_info", "/api/file_read", "/api/file_paths", "/api/file_list", "/api/file_info":
 		return true
 	}
 	referer := strings.TrimSpace(r.Referer())
@@ -269,6 +273,12 @@ func spaceAgentShouldProxyRootAPIRequest(r *http.Request) bool {
 
 func spaceAgentSetProxySecurityHeaders(header http.Header) {
 	header.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src-elem 'self' 'unsafe-inline' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob: data:; object-src 'none'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; manifest-src 'self' data:;")
+}
+
+func spaceAgentWriteManifest(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/manifest+json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = w.Write([]byte(`{"name":"Space Agent","short_name":"Space Agent","display":"standalone","start_url":"/integrations/space-agent/","scope":"/integrations/space-agent/","theme_color":"#111827","background_color":"#111827","icons":[]}`))
 }
 
 func spaceAgentProxyURL() string {
@@ -363,6 +373,9 @@ func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 		{`href='site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
 		{`href="/site.webmanifest"`, `href="` + prefix + `/site.webmanifest"`},
 		{`href='/site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
+		{`"/"`, `"` + prefix + `/"`},
+		{`'/'`, `'` + prefix + `/'`},
+		{"`/`", "`" + prefix + `/` + "`"},
 	}
 	out := string(body)
 	for _, repl := range replacements {

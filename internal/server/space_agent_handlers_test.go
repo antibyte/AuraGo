@@ -219,6 +219,10 @@ func TestSpaceAgentRootAPIProxyOnlyAllowsSpaceAgentRequests(t *testing.T) {
 	if !spaceAgentShouldProxyRootAPIRequest(known) {
 		t.Fatal("expected known Space Agent root API path to be proxied")
 	}
+	fileInfo := httptest.NewRequest(http.MethodGet, "/api/file_info?path=%7E%2Fmeta%2Flogin_hooks.json", nil)
+	if !spaceAgentShouldProxyRootAPIRequest(fileInfo) {
+		t.Fatal("expected Space Agent file_info root API path to be proxied")
+	}
 
 	fromSpaceAgent := httptest.NewRequest(http.MethodPost, "/api/dynamic_extension_call", nil)
 	fromSpaceAgent.Header.Set("Referer", "https://aurago.test/integrations/space-agent/index")
@@ -274,16 +278,40 @@ func TestSpaceAgentProxyHelpersRewriteAbsoluteModStringLiterals(t *testing.T) {
 }
 
 func TestSpaceAgentProxyHelpersRewriteAbsoluteRouteStringLiterals(t *testing.T) {
-	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`;"), "/integrations/space-agent")
+	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`; const home = \"/\";"), "/integrations/space-agent")
 
 	for _, want := range []string{
 		`"/integrations/space-agent/enter?next=%2Fintegrations%2Fspace-agent%2F"`,
 		`'/integrations/space-agent/login'`,
 		"`/integrations/space-agent/enter`",
+		`"/integrations/space-agent/"`,
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("rewritten JS missing %q: %s", want, string(body))
 		}
+	}
+}
+
+func TestHandleSpaceAgentProxyServesManifest(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.SpaceAgent.Enabled = true
+	req := httptest.NewRequest(http.MethodGet, "/integrations/space-agent/site.webmanifest", nil)
+	rec := httptest.NewRecorder()
+
+	handleSpaceAgentProxy(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.Contains(got, "application/manifest+json") {
+		t.Fatalf("Content-Type = %q, want manifest JSON", got)
+	}
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &manifest); err != nil {
+		t.Fatalf("manifest JSON invalid: %v; body=%s", err, rec.Body.String())
+	}
+	if manifest["start_url"] != "/integrations/space-agent/" {
+		t.Fatalf("start_url = %#v", manifest["start_url"])
 	}
 }
 
