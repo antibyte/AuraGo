@@ -359,6 +359,30 @@ func TestSpaceAgentOptionalFileReadFallbacksOnlyForUIState(t *testing.T) {
 		t.Fatalf("unexpected fallback batch response: %#v", batch)
 	}
 
+	for _, payload := range []string{
+		`{"paths":["dashboard/prefs.json",".config/onscreen-agent-config.json"]}`,
+		`{"requests":[{"file_path":"runtime/onscreen-agent/history.json"},{"filepath":"meta/dashboard-prefs.json"}]}`,
+		`{"items":[{"file":"~/state/onscreen_agent_config.json"}]}`,
+		`["dashboard/prefs.json","runtime/onscreen-agent/history.json"]`,
+	} {
+		body, ok := spaceAgentBuildOptionalFileReadResponse([]byte(payload))
+		if !ok {
+			t.Fatalf("expected optional batch payload to receive fallback: %s", payload)
+		}
+		var got struct {
+			Count int `json:"count"`
+			Files []struct {
+				Path string `json:"path"`
+			} `json:"files"`
+		}
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Fatalf("json.Unmarshal() error = %v; body=%s", err, string(body))
+		}
+		if got.Count == 0 || len(got.Files) == 0 {
+			t.Fatalf("unexpected empty fallback response for %s: %#v", payload, got)
+		}
+	}
+
 	for _, path := range []string{
 		"~/prefs/dashboard-prefs.json",
 		"~/state/onscreen-agent-history.json",

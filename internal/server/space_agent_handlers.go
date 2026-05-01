@@ -507,53 +507,109 @@ func spaceAgentOptionalFileReadFallback(resp *http.Response) ([]byte, bool) {
 }
 
 func spaceAgentBuildOptionalFileReadResponse(body []byte) ([]byte, bool) {
-	var payload map[string]interface{}
+	var payload interface{}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, false
 	}
-	encoding := strings.TrimSpace(stringValue(payload["encoding"]))
-	if encoding == "" {
-		encoding = "utf8"
-	}
-	if rawFiles, ok := payload["files"].([]interface{}); ok {
-		if len(rawFiles) == 0 {
-			return nil, false
+	root, _ := payload.(map[string]interface{})
+	encoding := "utf8"
+	if root != nil {
+		encoding = strings.TrimSpace(stringValue(root["encoding"]))
+		if encoding == "" {
+			encoding = "utf8"
 		}
-		files := make([]map[string]string, 0, len(rawFiles))
-		for _, raw := range rawFiles {
-			path, itemEncoding := spaceAgentFileReadRequestInfo(raw, encoding)
-			content, ok := spaceAgentOptionalFileContent(path)
-			if !ok {
-				return nil, false
-			}
-			if itemEncoding == "" {
-				itemEncoding = encoding
-			}
-			files = append(files, map[string]string{"content": content, "encoding": itemEncoding, "path": path})
-		}
-		out, err := json.Marshal(map[string]interface{}{"count": len(files), "files": files})
-		return out, err == nil
 	}
-	path := strings.TrimSpace(stringValue(payload["path"]))
-	content, ok := spaceAgentOptionalFileContent(path)
-	if !ok {
+	requests := spaceAgentCollectFileReadRequests(payload, encoding)
+	if len(requests) == 0 {
 		return nil, false
 	}
-	out, err := json.Marshal(map[string]string{"content": content, "encoding": encoding, "path": path})
+	files := make([]map[string]string, 0, len(requests))
+	for _, req := range requests {
+		content, ok := spaceAgentOptionalFileContent(req.Path)
+		if !ok {
+			return nil, false
+		}
+		itemEncoding := strings.TrimSpace(req.Encoding)
+		if itemEncoding == "" {
+			itemEncoding = encoding
+		}
+		files = append(files, map[string]string{"content": content, "encoding": itemEncoding, "path": req.Path})
+	}
+	if len(files) == 1 && root != nil && root["path"] != nil {
+		out, err := json.Marshal(files[0])
+		return out, err == nil
+	}
+	out, err := json.Marshal(map[string]interface{}{"count": len(files), "files": files})
 	return out, err == nil
 }
 
-func spaceAgentFileReadRequestInfo(raw interface{}, defaultEncoding string) (string, string) {
+type spaceAgentFileReadRequest struct {
+	Path     string
+	Encoding string
+}
+
+func spaceAgentCollectFileReadRequests(payload interface{}, defaultEncoding string) []spaceAgentFileReadRequest {
+	switch typed := payload.(type) {
+	case []interface{}:
+		return spaceAgentCollectFileReadArray(typed, defaultEncoding)
+	case map[string]interface{}:
+		for _, key := range []string{"files", "paths", "requests", "items", "reads", "batch"} {
+			if raw, ok := typed[key].([]interface{}); ok {
+				return spaceAgentCollectFileReadArray(raw, defaultEncoding)
+			}
+		}
+		path := spaceAgentFirstNonEmptyString(typed["path"], typed["file_path"], typed["filepath"], typed["file"])
+		if path == "" {
+			return nil
+		}
+		encoding := strings.TrimSpace(stringValue(typed["encoding"]))
+		if encoding == "" {
+			encoding = defaultEncoding
+		}
+		return []spaceAgentFileReadRequest{{Path: path, Encoding: encoding}}
+	default:
+		return nil
+	}
+}
+
+func spaceAgentCollectFileReadArray(values []interface{}, defaultEncoding string) []spaceAgentFileReadRequest {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]spaceAgentFileReadRequest, 0, len(values))
+	for _, raw := range values {
+		req := spaceAgentFileReadRequestInfo(raw, defaultEncoding)
+		if strings.TrimSpace(req.Path) == "" {
+			return nil
+		}
+		out = append(out, req)
+	}
+	return out
+}
+
+func spaceAgentFileReadRequestInfo(raw interface{}, defaultEncoding string) spaceAgentFileReadRequest {
 	switch typed := raw.(type) {
 	case string:
-		return strings.TrimSpace(typed), defaultEncoding
+		return spaceAgentFileReadRequest{Path: strings.TrimSpace(typed), Encoding: defaultEncoding}
 	case map[string]interface{}:
-		path := strings.TrimSpace(stringValue(typed["path"]))
+		path := spaceAgentFirstNonEmptyString(typed["path"], typed["file_path"], typed["filepath"], typed["file"])
 		encoding := strings.TrimSpace(stringValue(typed["encoding"]))
-		return path, encoding
+		if encoding == "" {
+			encoding = defaultEncoding
+		}
+		return spaceAgentFileReadRequest{Path: path, Encoding: encoding}
 	default:
-		return "", defaultEncoding
+		return spaceAgentFileReadRequest{Encoding: defaultEncoding}
 	}
+}
+
+func spaceAgentFirstNonEmptyString(values ...interface{}) string {
+	for _, value := range values {
+		if str := strings.TrimSpace(stringValue(value)); str != "" {
+			return str
+		}
+	}
+	return ""
 }
 
 func stringValue(value interface{}) string {
