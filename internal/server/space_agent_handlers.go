@@ -301,6 +301,13 @@ func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 		{`new URL('/`, `new URL('` + prefix + `/`},
 		{`Worker("/`, `Worker("` + prefix + `/`},
 		{`Worker('/`, `Worker('` + prefix + `/`},
+		{`"/api/`, `"` + prefix + `/api/`},
+		{`'/api/`, `'` + prefix + `/api/`},
+		{"`/api/", "`" + prefix + `/api/`},
+		{`href="site.webmanifest"`, `href="` + prefix + `/site.webmanifest"`},
+		{`href='site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
+		{`href="/site.webmanifest"`, `href="` + prefix + `/site.webmanifest"`},
+		{`href='/site.webmanifest'`, `href='` + prefix + `/site.webmanifest'`},
 	}
 	out := string(body)
 	for _, repl := range replacements {

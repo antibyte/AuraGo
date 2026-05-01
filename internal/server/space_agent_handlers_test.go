@@ -193,6 +193,33 @@ func TestSpaceAgentProxyHelpersRewriteJavaScriptModulePaths(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentProxyHelpersRewriteAbsoluteAPIStringLiterals(t *testing.T) {
+	body := spaceAgentRewriteBody([]byte("const challenge = \"/api/login_challenge\"; const submit = '/api/login'; const csrf = `/api/csrf`; fetch(challenge);"), "/integrations/space-agent")
+
+	for _, want := range []string{
+		`"/integrations/space-agent/api/login_challenge"`,
+		`'/integrations/space-agent/api/login'`,
+		"`/integrations/space-agent/api/csrf`",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten JS missing %q: %s", want, string(body))
+		}
+	}
+}
+
+func TestSpaceAgentProxyHelpersRewriteManifestLinks(t *testing.T) {
+	body := spaceAgentRewriteBody([]byte(`<link rel="manifest" href="site.webmanifest"><link rel='manifest' href='/site.webmanifest'>`), "/integrations/space-agent")
+
+	for _, want := range []string{
+		`href="/integrations/space-agent/site.webmanifest"`,
+		`href='/integrations/space-agent/site.webmanifest'`,
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten HTML missing %q: %s", want, string(body))
+		}
+	}
+}
+
 func TestSpaceAgentProxySecurityHeadersAllowBrowserCompatibilityProbe(t *testing.T) {
 	header := http.Header{}
 	spaceAgentSetProxySecurityHeaders(header)
