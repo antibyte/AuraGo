@@ -1,3 +1,9 @@
+/* ═══════════════════════════════════════════════════════════════════
+   ThreeDee Theme – Spectacular Edition
+   Morphing backgrounds, holographic modals, energy drawers
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── theme variables ──────────────────────────────────────────────── */
 [data-theme="threedee"] {
     color-scheme: dark;
     --accent: #818cf8;
@@ -41,6 +47,7 @@
     --threedee-panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.55);
 }
 
+/* ── body background ──────────────────────────────────────────────── */
 [data-theme="threedee"] body {
     background:
         radial-gradient(circle at 14% 12%, rgba(129, 140, 248, 0.2), transparent 28%),
@@ -57,6 +64,7 @@
         linear-gradient(65deg, transparent 0 48%, rgba(34, 211, 238, 0.04) 48% 49%, transparent 49% 100%);
 }
 
+/* ── shared glass panel styles ────────────────────────────────────── */
 [data-theme="threedee"] .app-header,
 [data-theme="threedee"] .chat-input-area,
 [data-theme="threedee"] .modal-card,
@@ -72,6 +80,7 @@
     -webkit-backdrop-filter: blur(18px) saturate(1.15);
 }
 
+/* ── header ───────────────────────────────────────────────────────── */
 [data-theme="threedee"] .app-header {
     position: relative;
     z-index: 120;
@@ -99,9 +108,6 @@
     text-shadow: 0 0 24px rgba(129, 140, 248, 0.3);
 }
 
-[data-theme="threedee"] #chat-box {
-}
-
 [data-theme="threedee"] #chat-content {
     position: relative;
     z-index: 2;
@@ -109,6 +115,7 @@
     perspective-origin: 50% 30%;
 }
 
+/* ── message rows & bubbles ───────────────────────────────────────── */
 [data-theme="threedee"] .msg-row {
     transform-style: preserve-3d;
     transform-origin: top center;
@@ -144,10 +151,10 @@
 }
 
 [data-theme="threedee"] .msg-row:hover .bubble {
-    transform: translateZ(20px) rotateX(-2deg);
+    transform: translateZ(22px) rotateX(-2deg);
     box-shadow:
-        0 25px 50px rgba(0, 0, 0, 0.5),
-        0 0 30px rgba(129, 140, 248, 0.14);
+        0 28px 56px rgba(0, 0, 0, 0.5),
+        0 0 36px rgba(129, 140, 248, 0.16);
 }
 
 [data-theme="threedee"] .bubble.bot {
@@ -177,34 +184,77 @@
     border-color: rgba(129, 140, 248, 0.32);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   DROPDOWNS & MENUS – holographic morphing entrance
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] .chat-theme-dropdown,
 [data-theme="threedee"] .personality-dropdown,
 [data-theme="threedee"] .mood-panel.open,
 [data-theme="threedee"] .composer-more-menu {
     transform-style: preserve-3d;
     transform-origin: top center;
-    animation: threedeeMenuIn 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-    border: 1px solid rgba(129, 140, 248, 0.26);
-    box-shadow: var(--surface-shadow-strong), var(--threedee-panel-edge);
+    animation:
+        threedeeMenuMorphIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+        threedeeHoloShimmer 4s ease-in-out 0.5s infinite;
+    border: 1px solid rgba(129, 140, 248, 0.28);
+    box-shadow:
+        var(--surface-shadow-strong),
+        var(--threedee-panel-edge),
+        0 0 32px rgba(129, 140, 248, 0.12);
+    position: relative;
+    overflow: hidden;
 }
 
+/* holographic shimmer overlay on menus */
+[data-theme="threedee"] .chat-theme-dropdown::before,
+[data-theme="threedee"] .personality-dropdown::before,
+[data-theme="threedee"] .mood-panel.open::before,
+[data-theme="threedee"] .composer-more-menu::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        125deg,
+        transparent 0%,
+        rgba(129, 140, 248, 0.06) 25%,
+        rgba(34, 211, 238, 0.08) 50%,
+        rgba(192, 132, 252, 0.06) 75%,
+        transparent 100%
+    );
+    background-size: 300% 300%;
+    animation: threedeeHoloBgSweep 3s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+}
+
+/* ── menu items ───────────────────────────────────────────────────── */
 [data-theme="threedee"] .chat-theme-option,
 [data-theme="threedee"] .personality-option,
 [data-theme="threedee"] .session-item,
 [data-theme="threedee"] .integration-item {
     transform-style: preserve-3d;
-    transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+    transition:
+        transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background 0.22s ease,
+        border-color 0.22s ease,
+        box-shadow 0.22s ease;
 }
 
 [data-theme="threedee"] .chat-theme-option:hover,
 [data-theme="threedee"] .personality-option:hover,
 [data-theme="threedee"] .session-item:hover,
 [data-theme="threedee"] .integration-item:hover {
-    transform: translateZ(12px) rotateX(-2deg);
-    border-color: rgba(129, 140, 248, 0.34);
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+    transform: translateZ(14px) rotateX(-2deg) scale(1.02);
+    border-color: rgba(129, 140, 248, 0.4);
+    box-shadow:
+        0 16px 34px rgba(0, 0, 0, 0.32),
+        0 0 20px rgba(129, 140, 248, 0.12);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   BUTTONS – 3D depth press + glow pulse
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] .session-edge-tab,
 [data-theme="threedee"] .integrations-edge-tab,
 [data-theme="threedee"] .chat-theme-btn,
@@ -225,7 +275,11 @@
     box-shadow:
         0 10px 24px rgba(0, 0, 0, 0.28),
         inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    transition: transform 0.18s ease, box-shadow 0.24s ease, background 0.24s ease, color 0.24s ease;
+    transition:
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.24s ease,
+        background 0.24s ease,
+        color 0.24s ease;
 }
 
 [data-theme="threedee"] .chat-theme-btn:hover,
@@ -240,11 +294,11 @@
 [data-theme="threedee"] .scroll-to-bottom-btn:hover,
 [data-theme="threedee"] .integration-open:hover,
 [data-theme="threedee"] .session-new-btn:hover {
-    transform: translateY(-2px) translateZ(12px) rotateX(-3deg);
+    transform: translateY(-3px) translateZ(14px) rotateX(-3deg);
     box-shadow:
-        0 16px 34px rgba(0, 0, 0, 0.36),
-        0 0 24px rgba(129, 140, 248, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        0 20px 40px rgba(0, 0, 0, 0.38),
+        0 0 28px rgba(129, 140, 248, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="threedee"] .btn-send:active,
@@ -254,10 +308,13 @@
 [data-theme="threedee"] .modal-btn:active,
 [data-theme="threedee"] .integration-open:active,
 [data-theme="threedee"] .session-new-btn:active {
-    transform: perspective(200px) rotateX(5deg) scale(0.94);
-    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.32);
+    transform: perspective(200px) rotateX(6deg) scale(0.93);
+    box-shadow:
+        inset 0 6px 12px rgba(0, 0, 0, 0.36),
+        0 0 16px rgba(129, 140, 248, 0.15);
 }
 
+/* ── edge tabs ────────────────────────────────────────────────────── */
 [data-theme="threedee"] .session-edge-tab {
     transform: translateY(-50%) perspective(220px) rotateY(0deg);
     transform-origin: left center;
@@ -265,8 +322,10 @@
 
 [data-theme="threedee"] .session-edge-tab:hover,
 [data-theme="threedee"] .session-edge-tab:focus-visible {
-    transform: translateY(-50%) perspective(220px) rotateY(-15deg) translateZ(10px);
-    box-shadow: 7px 0 26px rgba(0, 0, 0, 0.38), 0 0 24px rgba(129, 140, 248, 0.22);
+    transform: translateY(-50%) perspective(220px) rotateY(-18deg) translateZ(12px);
+    box-shadow:
+        8px 0 30px rgba(0, 0, 0, 0.4),
+        0 0 28px rgba(129, 140, 248, 0.28);
 }
 
 [data-theme="threedee"] .integrations-edge-tab {
@@ -276,52 +335,137 @@
 
 [data-theme="threedee"] .integrations-edge-tab:hover,
 [data-theme="threedee"] .integrations-edge-tab:focus-visible {
-    transform: translateY(-50%) perspective(220px) rotateY(15deg) translateZ(10px);
-    box-shadow: -7px 0 26px rgba(0, 0, 0, 0.38), 0 0 24px rgba(129, 140, 248, 0.22);
+    transform: translateY(-50%) perspective(220px) rotateY(18deg) translateZ(12px);
+    box-shadow:
+        -8px 0 30px rgba(0, 0, 0, 0.4),
+        0 0 28px rgba(129, 140, 248, 0.28);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   DRAWERS – spectacular 3D slide + glow trail
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] .session-drawer,
 [data-theme="threedee"] .integrations-drawer {
     transform-style: preserve-3d;
-    transition: transform 0.42s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.32s ease;
+    transition:
+        transform 0.48s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.36s ease;
 }
 
 [data-theme="threedee"] .session-drawer {
-    transform: translateX(-105%) perspective(1000px) rotateY(-18deg);
+    transform: translateX(-105%) perspective(1000px) rotateY(-22deg) scale(0.92);
     transform-origin: left center;
 }
 
 [data-theme="threedee"] .session-drawer.open {
-    transform: translateX(0) perspective(1000px) rotateY(0deg);
+    transform: translateX(0) perspective(1000px) rotateY(0deg) scale(1);
+    animation: threedeeDrawerGlowPulse 3s ease-in-out 0.5s infinite;
 }
 
 [data-theme="threedee"] .integrations-drawer {
-    transform: translateX(105%) perspective(1000px) rotateY(18deg);
+    transform: translateX(105%) perspective(1000px) rotateY(22deg) scale(0.92);
     transform-origin: right center;
 }
 
 [data-theme="threedee"] .integrations-drawer.open {
-    transform: translateX(0) perspective(1000px) rotateY(0deg);
+    transform: translateX(0) perspective(1000px) rotateY(0deg) scale(1);
+    animation: threedeeDrawerGlowPulse 3s ease-in-out 0.5s infinite;
+}
+
+/* glow trail on drawer border */
+[data-theme="threedee"] .session-drawer.open::before,
+[data-theme="threedee"] .integrations-drawer.open::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        180deg,
+        rgba(129, 140, 248, 0.08) 0%,
+        transparent 30%,
+        transparent 70%,
+        rgba(34, 211, 238, 0.08) 100%
+    );
+    pointer-events: none;
+    animation: threedeeBorderGlowSweep 4s ease-in-out infinite;
 }
 
 [data-theme="threedee"] .session-backdrop.active,
 [data-theme="threedee"] .integrations-backdrop.active,
 [data-theme="threedee"] .modal-overlay.active {
     background: rgba(2, 6, 16, 0.62);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MODALS – dramatic morph + glow + holographic shimmer
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] .modal-card {
     transform-style: preserve-3d;
-    animation: threedeeModalIn 0.42s cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation:
+        threedeeModalMorphIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    position: relative;
+    overflow: hidden;
 }
 
+/* holographic shimmer overlay on modal */
+[data-theme="threedee"] .modal-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        135deg,
+        transparent 0%,
+        rgba(129, 140, 248, 0.05) 20%,
+        rgba(34, 211, 238, 0.07) 40%,
+        rgba(192, 132, 252, 0.05) 60%,
+        rgba(129, 140, 248, 0.06) 80%,
+        transparent 100%
+    );
+    background-size: 250% 250%;
+    animation: threedeeHoloBgSweep 3.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* energy glow pulse on modal border */
+[data-theme="threedee"] .modal-card::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid transparent;
+    background: linear-gradient(
+        90deg,
+        rgba(129, 140, 248, 0.3),
+        rgba(34, 211, 238, 0.3),
+        rgba(192, 132, 252, 0.3),
+        rgba(129, 140, 248, 0.3)
+    ) border-box;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: threedeeBorderRotate 4s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ROBOT MASCOT
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] #chat-robot-mascot {
     transform-style: preserve-3d;
-    filter: drop-shadow(0 0 20px rgba(129, 140, 248, 0.42));
-    animation: threedeeRobotFloat 6s ease-in-out infinite;
+    filter: drop-shadow(0 0 22px rgba(129, 140, 248, 0.45));
+    animation: threedeeRobotMorph 8s ease-in-out infinite;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MISCELLANEOUS
+   ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] .typing-indicator,
 [data-theme="threedee"] .thinking-card,
 [data-theme="threedee"] .tool-output-block,
@@ -333,42 +477,156 @@
 }
 
 [data-theme="threedee"] .chat-ui-icon {
-    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.25));
+    filter: drop-shadow(0 0 10px rgba(129, 140, 248, 0.3));
 }
 
 #threedee-overlay {
     pointer-events: none;
 }
 
-@keyframes threedeeMenuIn {
-    from {
+/* ═══════════════════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── menu morph-in with elastic bounce ────────────────────────────── */
+@keyframes threedeeMenuMorphIn {
+    0% {
         opacity: 0;
-        transform: perspective(600px) rotateX(-25deg) translateZ(-30px) scale(0.92);
+        transform: perspective(600px) rotateX(-30deg) translateZ(-40px) scale(0.85) skewX(4deg);
+        filter: blur(6px);
     }
-    to {
+    60% {
         opacity: 1;
-        transform: perspective(600px) rotateX(0deg) translateZ(0) scale(1);
+        transform: perspective(600px) rotateX(3deg) translateZ(8px) scale(1.03) skewX(-1deg);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(600px) rotateX(0deg) translateZ(0) scale(1) skewX(0deg);
+        filter: blur(0);
     }
 }
 
-@keyframes threedeeModalIn {
-    from {
+/* ── modal dramatic morph-in ──────────────────────────────────────── */
+@keyframes threedeeModalMorphIn {
+    0% {
         opacity: 0;
-        transform: perspective(900px) rotateX(12deg) translateY(22px) translateZ(-40px) scale(0.96);
+        transform: perspective(900px) rotateX(18deg) rotateY(-8deg) translateY(40px) translateZ(-60px) scale(0.88);
+        filter: blur(8px);
     }
-    to {
+    50% {
         opacity: 1;
-        transform: perspective(900px) rotateX(0deg) translateY(0) translateZ(0) scale(1);
+        transform: perspective(900px) rotateX(-3deg) rotateY(2deg) translateY(-6px) translateZ(20px) scale(1.04);
+        filter: blur(0);
+    }
+    75% {
+        transform: perspective(900px) rotateX(1deg) rotateY(-0.5deg) translateY(2px) translateZ(5px) scale(0.99);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0) translateZ(0) scale(1);
+        filter: blur(0);
     }
 }
 
-@keyframes threedeeRobotFloat {
-    0%, 100% { transform: translateZ(0) rotateY(0deg); }
-    25% { transform: translateZ(15px) rotateY(5deg); }
-    50% { transform: translateZ(0) rotateY(0deg); }
-    75% { transform: translateZ(10px) rotateY(-5deg); }
+/* ── robot morphing float ─────────────────────────────────────────── */
+@keyframes threedeeRobotMorph {
+    0%, 100% {
+        transform: translateZ(0) rotateY(0deg) rotateX(0deg) scale(1);
+        filter: drop-shadow(0 0 22px rgba(129, 140, 248, 0.45));
+    }
+    12% {
+        transform: translateZ(18px) rotateY(8deg) rotateX(3deg) scale(1.04);
+        filter: drop-shadow(0 0 30px rgba(129, 140, 248, 0.55));
+    }
+    25% {
+        transform: translateZ(8px) rotateY(-3deg) rotateX(-2deg) scale(0.98);
+        filter: drop-shadow(0 0 26px rgba(34, 211, 238, 0.45));
+    }
+    37% {
+        transform: translateZ(22px) rotateY(12deg) rotateX(5deg) scale(1.06);
+        filter: drop-shadow(0 0 34px rgba(192, 132, 252, 0.5));
+    }
+    50% {
+        transform: translateZ(0) rotateY(0deg) rotateX(0deg) scale(1);
+        filter: drop-shadow(0 0 22px rgba(129, 140, 248, 0.45));
+    }
+    62% {
+        transform: translateZ(14px) rotateY(-6deg) rotateX(-3deg) scale(1.02);
+        filter: drop-shadow(0 0 28px rgba(34, 211, 238, 0.5));
+    }
+    75% {
+        transform: translateZ(6px) rotateY(4deg) rotateX(2deg) scale(0.97);
+        filter: drop-shadow(0 0 24px rgba(192, 132, 252, 0.45));
+    }
+    87% {
+        transform: translateZ(16px) rotateY(-8deg) rotateX(-4deg) scale(1.03);
+        filter: drop-shadow(0 0 32px rgba(129, 140, 248, 0.55));
+    }
 }
 
+/* ── holographic shimmer sweep ────────────────────────────────────── */
+@keyframes threedeeHoloShimmer {
+    0%, 100% {
+        box-shadow:
+            var(--surface-shadow-strong),
+            var(--threedee-panel-edge),
+            0 0 20px rgba(129, 140, 248, 0.08);
+    }
+    33% {
+        box-shadow:
+            var(--surface-shadow-strong),
+            var(--threedee-panel-edge),
+            0 0 32px rgba(34, 211, 238, 0.14);
+    }
+    66% {
+        box-shadow:
+            var(--surface-shadow-strong),
+            var(--threedee-panel-edge),
+            0 0 28px rgba(192, 132, 252, 0.12);
+    }
+}
+
+/* ── holographic background sweep ─────────────────────────────────── */
+@keyframes threedeeHoloBgSweep {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ── drawer glow pulse ────────────────────────────────────────────── */
+@keyframes threedeeDrawerGlowPulse {
+    0%, 100% {
+        box-shadow:
+            var(--surface-shadow),
+            var(--threedee-panel-edge),
+            0 0 20px rgba(129, 140, 248, 0.06);
+    }
+    50% {
+        box-shadow:
+            var(--surface-shadow),
+            var(--threedee-panel-edge),
+            0 0 40px rgba(129, 140, 248, 0.16),
+            inset 0 0 30px rgba(129, 140, 248, 0.03);
+    }
+}
+
+/* ── border glow sweep for drawers ────────────────────────────────── */
+@keyframes threedeeBorderGlowSweep {
+    0% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+    100% { opacity: 0.3; }
+}
+
+/* ── rotating border gradient for modals ──────────────────────────── */
+@keyframes threedeeBorderRotate {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE & ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
     [data-theme="threedee"] #chat-box {
         perspective: 900px;
@@ -380,6 +638,13 @@
     [data-theme="threedee"] .session-item:hover,
     [data-theme="threedee"] .integration-item:hover {
         transform: none;
+    }
+
+    [data-theme="threedee"] .chat-theme-dropdown,
+    [data-theme="threedee"] .personality-dropdown,
+    [data-theme="threedee"] .mood-panel.open,
+    [data-theme="threedee"] .composer-more-menu {
+        animation: threedeeMenuMorphIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
 }
 
@@ -399,4 +664,3 @@
         filter: none !important;
     }
 }
-
