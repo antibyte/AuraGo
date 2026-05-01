@@ -119,3 +119,32 @@ func TestHandleIntegrationWebhostsIncludesRunningSpaceAgent(t *testing.T) {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }
+
+func TestHandleIntegrationWebhostsRewritesLoopbackSpaceAgentURLToServerHost(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.Port = 3000
+	s.Cfg.SpaceAgent.PublicURL = "http://127.0.0.1:3000"
+	s.Cfg.SpaceAgent.ContainerName = "aurago_space_agent"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago-server.local:8088"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Space Agent entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].URL != "http://aurago-server.local:3000" {
+		t.Fatalf("url = %q, want server host with Space Agent port", resp.Webhosts[0].URL)
+	}
+}

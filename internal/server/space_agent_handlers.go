@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -242,7 +243,7 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 	if cfg == nil {
 		return ""
 	}
-	if raw := strings.TrimSpace(cfg.SpaceAgent.PublicURL); raw != "" {
+	if raw := strings.TrimSpace(cfg.SpaceAgent.PublicURL); raw != "" && !spaceAgentURLUsesLoopbackHost(raw) {
 		return raw
 	}
 	host := "127.0.0.1"
@@ -261,6 +262,15 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 		host = "[" + host + "]"
 	}
 	return fmt.Sprintf("http://%s:%d", host, port)
+}
+
+func spaceAgentURLUsesLoopbackHost(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil {
+		return false
+	}
+	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 func writeSpaceAgentJSON(w http.ResponseWriter, payload interface{}) {
