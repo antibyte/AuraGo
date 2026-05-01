@@ -56,9 +56,30 @@ function setIconPillText(el, iconName, text) {
 
 
 /* ── Mood Feedback Buttons ── */
+const moodEmojiMap = {
+    positive: '👍',
+    negative: '👎',
+    angry: '😡',
+    laughing: '😂',
+    crying: '😢',
+    amazed: '😲'
+};
+
 document.querySelectorAll('.mood-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         const feedbackType = btn.dataset.feedback;
+        const emoji = moodEmojiMap[feedbackType] || '';
+
+        // Insert emoji at cursor position in the textarea
+        const ta = document.getElementById('user-input');
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const before = ta.value.substring(0, start);
+        const after = ta.value.substring(end);
+        ta.value = before + emoji + after;
+        ta.selectionStart = ta.selectionEnd = start + emoji.length;
+        ta.focus();
+        autoResize();
 
         // Send personality feedback to backend
         btn.disabled = true;
