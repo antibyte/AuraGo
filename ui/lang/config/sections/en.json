@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Recreating Space Agent sidecar...",
   "help.space_agent.enabled": "Enables Space Agent and shows it in the chat integrations drawer.",
   "help.space_agent.auto_start": "Starts the managed Docker container when AuraGo starts.",
-  "help.space_agent.public_url": "URL opened from the chat integrations drawer.",
+  "help.space_agent.public_url": "Optional browser URL. Leave empty to open Space Agent directly on the AuraGo server host and configured port.",
   "help.space_agent.port": "Port published on the local network.",
   "help.space_agent.host": "Interface for the published port; 0.0.0.0 exposes it on LAN.",
   "help.space_agent.admin_user": "Admin user; password is stored only in the vault.",

@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Återskapar Space Agent-sidecar...",
   "help.space_agent.enabled": "Aktiverar Space Agent och visar den i chattintegrationer.",
   "help.space_agent.auto_start": "Startar Docker-containern när AuraGo startar.",
-  "help.space_agent.public_url": "URL öppnad från chattintegrationer.",
+  "help.space_agent.public_url": "Valfri webbläsar-URL. Lämna tomt för att öppna Space Agent direkt på AuraGo-serverns värd och konfigurerad port.",
   "help.space_agent.port": "Port publicerad på lokalnätet.",
   "help.space_agent.host": "Interface för portpublicering; 0.0.0.0 öppnar LAN.",
   "help.space_agent.admin_user": "Adminanvändare; lösenordet finns bara i vault.",

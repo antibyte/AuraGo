@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Επαναδημιουργία Space Agent sidecar...",
   "help.space_agent.enabled": "Ενεργοποιεί το Space Agent και το εμφανίζει στις ενσωματώσεις chat.",
   "help.space_agent.auto_start": "Ξεκινά το Docker κοντέινερ στην εκκίνηση του AuraGo.",
-  "help.space_agent.public_url": "URL που ανοίγει από τις ενσωματώσεις chat.",
+  "help.space_agent.public_url": "Προαιρετικό URL προγράμματος περιήγησης. Αφήστε το κενό για άνοιγμα του Space Agent απευθείας στον host του AuraGo και τη ρυθμισμένη θύρα.",
   "help.space_agent.port": "Θύρα που δημοσιεύεται στο τοπικό δίκτυο.",
   "help.space_agent.host": "Interface δημοσίευσης θύρας· 0.0.0.0 ανοίγει LAN.",
   "help.space_agent.admin_user": "Χρήστης admin· ο κωδικός μένει μόνο στο vault.",

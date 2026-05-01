@@ -98,10 +98,10 @@ func normalizeSpaceAgentURLAndPort(publicURL string, port int, runningInDocker b
 	normalizedURL := NormalizeLegacySidecarURL(publicURL, runningInDocker, "space-agent", port)
 	if (portWasUnset || port == oldConflictingPort || port == defaultSpaceAgentPort) && spaceAgentUsesLegacyDefaultURL(normalizedURL, runningInDocker) {
 		port = defaultSpaceAgentPort
-		normalizedURL = defaultSidecarURL(runningInDocker, "space-agent", port)
+		normalizedURL = ""
 	}
 	if strings.TrimSpace(normalizedURL) == "" {
-		normalizedURL = defaultSidecarURL(runningInDocker, "space-agent", port)
+		normalizedURL = ""
 	}
 	return normalizedURL, port
 }
@@ -248,7 +248,7 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.CustomwarePath = "data/sidecars/space-agent/customware"
 	cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	cfg.SpaceAgent.AdminUser = "admin"
-	cfg.SpaceAgent.PublicURL = defaultSidecarURL(runningInDocker, "space-agent", 3100)
+	cfg.SpaceAgent.PublicURL = ""
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120

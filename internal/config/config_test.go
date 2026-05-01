@@ -477,8 +477,8 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.SpaceAgent.AdminUser != "admin" {
 		t.Fatalf("admin_user = %q, want admin", cfg.SpaceAgent.AdminUser)
 	}
-	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
-		t.Fatalf("public_url = %q, want http://127.0.0.1:3100", cfg.SpaceAgent.PublicURL)
+	if cfg.SpaceAgent.PublicURL != "" {
+		t.Fatalf("public_url = %q, want empty direct-URL derivation default", cfg.SpaceAgent.PublicURL)
 	}
 	if !filepath.IsAbs(cfg.SpaceAgent.CustomwarePath) || !strings.Contains(cfg.SpaceAgent.CustomwarePath, filepath.Join("data", "sidecars", "space-agent", "customware")) {
 		t.Fatalf("customware_path = %q, want absolute sidecar customware path", cfg.SpaceAgent.CustomwarePath)
@@ -510,8 +510,8 @@ space_agent:
 	if cfg.SpaceAgent.Port != 3100 {
 		t.Fatalf("port = %d, want migrated default 3100", cfg.SpaceAgent.Port)
 	}
-	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
-		t.Fatalf("public_url = %q, want migrated default URL", cfg.SpaceAgent.PublicURL)
+	if cfg.SpaceAgent.PublicURL != "" {
+		t.Fatalf("public_url = %q, want empty direct-URL derivation default", cfg.SpaceAgent.PublicURL)
 	}
 }
 
@@ -536,8 +536,8 @@ space_agent:
 	if cfg.SpaceAgent.Port != 3100 {
 		t.Fatalf("port = %d, want migrated default 3100", cfg.SpaceAgent.Port)
 	}
-	if cfg.SpaceAgent.PublicURL != "http://127.0.0.1:3100" {
-		t.Fatalf("public_url = %q, want migrated default URL", cfg.SpaceAgent.PublicURL)
+	if cfg.SpaceAgent.PublicURL != "" {
+		t.Fatalf("public_url = %q, want empty direct-URL derivation default", cfg.SpaceAgent.PublicURL)
 	}
 }
 

@@ -594,7 +594,7 @@ space_agent:
     customware_path: data/sidecars/space-agent/customware
     data_path: data/sidecars/space-agent/data
     admin_user: admin
-    public_url: "http://127.0.0.1:3100"                   # URL shown in the chat integrations drawer
+    public_url: ""                                        # Optional browser URL; empty derives http://<AuraGo-server-host>:3100
 indexing:
     enabled: true
     directories:

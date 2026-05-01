@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Odtwarzanie sidecara Space Agent...",
   "help.space_agent.enabled": "Włącza Space Agent i pokazuje go w integracjach czatu.",
   "help.space_agent.auto_start": "Uruchamia zarządzany kontener Docker przy starcie AuraGo.",
-  "help.space_agent.public_url": "URL otwierany z integracji czatu.",
+  "help.space_agent.public_url": "Opcjonalny URL przeglądarki. Pozostaw puste, aby otworzyć Space Agent bezpośrednio na hoście serwera AuraGo i skonfigurowanym porcie.",
   "help.space_agent.port": "Port publikowany w sieci lokalnej.",
   "help.space_agent.host": "Interfejs publikacji portu; 0.0.0.0 otwiera LAN.",
   "help.space_agent.admin_user": "Użytkownik admin; hasło jest tylko w vault.",

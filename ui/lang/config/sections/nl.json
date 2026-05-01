@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Space Agent-sidecar opnieuw maken...",
   "help.space_agent.enabled": "Schakelt Space Agent in en toont hem in chatintegraties.",
   "help.space_agent.auto_start": "Start de beheerde Docker-container bij AuraGo-start.",
-  "help.space_agent.public_url": "URL geopend vanuit chatintegraties.",
+  "help.space_agent.public_url": "Optionele browser-URL. Laat leeg om Space Agent direct op de AuraGo-serverhost en geconfigureerde poort te openen.",
   "help.space_agent.port": "Poort gepubliceerd op het lokale netwerk.",
   "help.space_agent.host": "Interface voor poortpublicatie; 0.0.0.0 opent LAN.",
   "help.space_agent.admin_user": "Admin-gebruiker; wachtwoord staat alleen in vault.",

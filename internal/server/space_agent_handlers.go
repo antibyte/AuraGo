@@ -169,7 +169,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 					Name:        "Space Agent",
 					Description: "Managed Space Agent workspace",
 					Status:      status,
-					URL:         spaceAgentProxyURL(),
+					URL:         spaceAgentPublicURL(&cfg, r),
 					Icon:        "space_agent",
 				})
 			}
@@ -762,10 +762,17 @@ func spaceAgentPublicURL(cfg *config.Config, r *http.Request) string {
 	}
 	host := "127.0.0.1"
 	if r != nil {
-		if reqHost, _, err := net.SplitHostPort(r.Host); err == nil && reqHost != "" {
+		reqHost := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+		if reqHost == "" {
+			reqHost = r.Host
+		}
+		if idx := strings.IndexByte(reqHost, ','); idx >= 0 {
+			reqHost = strings.TrimSpace(reqHost[:idx])
+		}
+		if parsedHost, _, err := net.SplitHostPort(reqHost); err == nil && parsedHost != "" {
+			host = parsedHost
+		} else if reqHost != "" {
 			host = reqHost
-		} else if r.Host != "" {
-			host = r.Host
 		}
 	}
 	port := cfg.SpaceAgent.Port

@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "Znovu se vytváří Space Agent sidecar...",
   "help.space_agent.enabled": "Aktivuje Space Agent a zobrazí jej v chat draweru Integrace.",
   "help.space_agent.auto_start": "Spustí spravovaný Docker kontejner při startu AuraGo.",
-  "help.space_agent.public_url": "URL otevřená z chat draweru Integrace.",
+  "help.space_agent.public_url": "Volitelná URL pro prohlížeč. Nechte prázdné, aby se Space Agent otevřel přímo na hostiteli AuraGo a nastaveném portu.",
   "help.space_agent.port": "Port publikovaný v lokální síti.",
   "help.space_agent.host": "Rozhraní pro publikování portu; 0.0.0.0 zpřístupní LAN.",
   "help.space_agent.admin_user": "Admin uživatel; heslo je pouze ve vaultu.",

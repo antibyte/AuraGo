@@ -404,7 +404,7 @@
   "config.space_agent.recreate_starting": "正在重新创建 Space Agent sidecar...",
   "help.space_agent.enabled": "启用 Space Agent 并在聊天集成抽屉中显示。",
   "help.space_agent.auto_start": "AuraGo 启动时启动托管 Docker 容器。",
-  "help.space_agent.public_url": "从聊天集成抽屉打开的 URL。",
+  "help.space_agent.public_url": "可选浏览器 URL。留空时，会直接通过 AuraGo 服务器主机和配置的端口打开 Space Agent。",
   "help.space_agent.port": "发布到本地网络的端口。",
   "help.space_agent.host": "发布端口的接口；0.0.0.0 会开放 LAN。",
   "help.space_agent.admin_user": "管理员用户；密码仅保存在 vault 中。",
