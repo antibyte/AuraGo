@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-bridge-fast-path"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-bridge-fast-path"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-bridge-fast-path"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -509,6 +509,9 @@ func TestSpaceAgentBridgeReadmeDocumentsImportableHelper(t *testing.T) {
 	for _, want := range []string{
 		"file:///app/customware/aurago_bridge.js",
 		"sendToAuraGo",
+		"Fast path",
+		"response.answer",
+		"do not wait for a second callback",
 		"Browser-style Space Agent code often cannot access process.env",
 		"AuraGo seeds both locations",
 	} {

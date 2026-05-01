@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-memory-guard"
+	spaceAgentImageBuildRevision   = "20260502-aurago-bridge-fast-path"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -601,6 +601,16 @@ This Space Agent instance is managed by AuraGo.
 - If a bridge attempt fails twice with the same error, stop retrying the same approach and report the exact current error to the user or AuraGo.
 - If the execution planner reports an internal block-format error such as "_____javascript at most once", stop emitting executable blocks for that turn and explain the issue plainly.
 
+## AuraGo Bridge Fast Path
+
+When the user asks you to ask AuraGo, report AuraGo state, or query AuraGo-managed integrations such as Proxmox, do this first:
+
+1. Import the seeded helper from /L2/admin/aurago_bridge.js, ~/aurago_bridge.js, or /app/customware/aurago_bridge.js.
+2. Call sendToAuraGo({ type: "question", summary, content, source: "space-agent", session_id }).
+3. If the returned JSON contains answer, show that answer to the user immediately. Do not wait for a separate callback.
+4. If space_agent_delivery is present and has status error, mention it only as diagnostics; the answer field is still authoritative.
+5. Only inspect aurago_bridge_config.json, process.env, or memory after the helper call fails.
+
 ## Bridge
 
 Read docs/aurago-bridge.md for the structured bridge contract.
@@ -620,6 +630,13 @@ Your role in this integration:
 - Do not claim direct access to AuraGo internals unless AuraGo explicitly provided that information.
 - Memory is advisory only. Do not conclude that the AuraGo bridge is unavailable from memory, old notes, or missing process.env alone. Verify the current helper/config first.
 - Avoid retry loops. After two identical bridge or execution-format failures, stop, summarize the current evidence, and ask for orchestration help instead of trying again.
+
+Fast path for questions to AuraGo:
+- Import the seeded bridge helper first: /L2/admin/aurago_bridge.js, ~/aurago_bridge.js, or /app/customware/aurago_bridge.js.
+- Call sendToAuraGo with type "question".
+- Treat the returned JSON answer field as AuraGo's reply and show it to the user immediately.
+- Do not wait for a separate inbound message after sendToAuraGo returns status ok with answer.
+- Empty process.env values and an empty browser bridge_url are normal in browser-style execution contexts and are not proof that the bridge is unavailable.
 
 Bridge message shape:
 {
@@ -642,6 +659,28 @@ AuraGo provides this Space Agent instance as a managed sidecar. The bridge is Au
 
 ## From Space Agent To AuraGo
 
+### Fast path
+
+Use this first when you need AuraGo to answer a question or query an AuraGo-managed integration:
+
+` + "```js" + `
+const { sendToAuraGo } = await import("/L2/admin/aurago_bridge.js");
+const response = await sendToAuraGo({
+  type: "question",
+  summary: "Proxmox container status",
+  content: "Please report the current Proxmox VM and container status.",
+  source: "space-agent",
+  session_id: "proxmox-status"
+});
+
+if (response.answer) {
+  return response.answer;
+}
+return response;
+` + "```" + `
+
+If sendToAuraGo returns { status: "ok", answer: "..." }, the answer is complete. Show it to the user immediately and do not wait for a second callback.
+
 Use structured messages with:
 
 - type: note, result, question, warning, or error
@@ -660,24 +699,26 @@ Browser-style Space Agent code often cannot access process.env. In that case, us
 
 ` + "```js" + `
 const { sendToAuraGo } = await import("/L2/admin/aurago_bridge.js");
-await sendToAuraGo({
+const response = await sendToAuraGo({
   type: "question",
   summary: "Proxmox container status",
   content: "Please report the current Proxmox VM and container status.",
   source: "space-agent"
 });
+return response.answer || response;
 ` + "```" + `
 
 The helper /app/customware/aurago_bridge.js exports sendToAuraGo(message) for Node-compatible customware code:
 
 ` + "```js" + `
 const { sendToAuraGo } = await import("file:///app/customware/aurago_bridge.js");
-await sendToAuraGo({
+const response = await sendToAuraGo({
   type: "question",
   summary: "Proxmox container status",
   content: "Please report the current status of Proxmox containers.",
   source: "space-agent"
 });
+return response.answer || response;
 ` + "```" + `
 
 If your execution context cannot import absolute files, use ~/aurago_bridge.js from the managed admin workspace. AuraGo seeds both locations.
@@ -687,6 +728,14 @@ Do not call http://127.0.0.1:18080 from browser-style Space Agent code. In the b
 If aurago_bridge_config.json has an empty bridge_url but a bridge_token, that does not mean the bridge is missing. It means browser-style code should import aurago_bridge.js and let it derive the AuraGo URL from the current https://...-space-agent... hostname.
 
 Treat old memory entries about HTTP 502, empty AURAGO_BRIDGE_URL, or missing process.env as stale clues. Re-test with the current helper before drawing conclusions. If the same bridge call fails twice with the same current error, stop retrying and report the exact error.
+
+Troubleshooting order:
+
+1. Helper import and sendToAuraGo result.
+2. Current returned HTTP status/error.
+3. aurago_bridge_config.json.
+4. process.env values, only for Node-style customware.
+5. Old memory, only as historical context.
 
 ## From AuraGo To Space Agent
 
@@ -975,16 +1024,19 @@ This directory is mounted into the managed Space Agent container.
 
 Use aurago_bridge.js from browser-style Space Agent code, or aurago_bridge.cjs from Node/CommonJS code, to send structured messages back to AuraGo.
 
+Fast path: import the helper, call sendToAuraGo, and use response.answer immediately when present. A separate callback is not required for bridge questions.
+
 ES module example:
 
 ` + "```js" + `
 const { sendToAuraGo } = await import("/L2/admin/aurago_bridge.js");
-await sendToAuraGo({
-  type: "note",
+const response = await sendToAuraGo({
+  type: "question",
   summary: "Short title",
-  content: "External content from Space Agent",
+  content: "Question for AuraGo",
   source: "space-agent"
 });
+return response.answer || response;
 ` + "```" + `
 
 CommonJS code can use /app/customware/aurago_bridge.cjs.
