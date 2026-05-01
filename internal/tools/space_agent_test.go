@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-browser-first"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-no-browser-loopback"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -421,6 +421,8 @@ func TestSpaceAgentBridgeESMWorksInBrowserContext(t *testing.T) {
 		"options.bridgeUrl",
 		"globalThis[name]",
 		"deriveBrowserAuraGoBridgeURL",
+		"isLoopbackBridgeURL",
+		"bridgeUrlCandidates(options)",
 		"-space-agent",
 		"bridgeUrlCandidates",
 		"export async function sendToAuraGo(message = {}, options = {})",
@@ -431,6 +433,20 @@ func TestSpaceAgentBridgeESMWorksInBrowserContext(t *testing.T) {
 	}
 	if strings.Contains(helper, "const bridgeUrl = process.env.AURAGO_BRIDGE_URL") {
 		t.Fatalf("ESM bridge helper still directly dereferences process.env:\n%s", helper)
+	}
+}
+
+func TestSpaceAgentBridgeHelperFiltersLoopbackURLsInBrowserContext(t *testing.T) {
+	helper := spaceAgentBridgeHelperESM("http://127.0.0.1:18080/api/space-agent/bridge/messages", "bridge-secret")
+	for _, want := range []string{
+		"typeof window === \"undefined\"",
+		"return candidates.filter((candidate) => !isLoopbackBridgeURL(candidate));",
+		"host === \"127.0.0.1\"",
+		"host.startsWith(\"127.\")",
+	} {
+		if !strings.Contains(helper, want) {
+			t.Fatalf("ESM bridge helper missing %q:\n%s", want, helper)
+		}
 	}
 }
 

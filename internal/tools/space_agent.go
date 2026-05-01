@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-browser-first"
+	spaceAgentImageBuildRevision   = "20260501-aurago-bridge-no-browser-loopback"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -671,6 +671,8 @@ await sendToAuraGo({
 
 If your execution context cannot import absolute files, use ~/aurago_bridge.js from the managed admin workspace. AuraGo seeds both locations.
 
+Do not call http://127.0.0.1:18080 from browser-style Space Agent code. In the browser that address is not the AuraGo host. The helper intentionally filters loopback bridge URLs in browser contexts and derives the correct AuraGo tailnet URL instead.
+
 ## From AuraGo To Space Agent
 
 AuraGo sends instructions through its Space Agent integration endpoint and may include mission context, user requests, or follow-up information. Treat those payloads as local orchestration context.
@@ -1019,14 +1021,32 @@ function uniqueNonEmpty(values) {
   return [...new Set(values.filter((value) => typeof value === "string" && value.trim() !== ""))];
 }
 
+function isLoopbackBridgeURL(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return host === "localhost" || host === "::1" || host === "127.0.0.1" || host.startsWith("127.");
+  } catch {
+    return false;
+  }
+}
+
+function bridgeUrlCandidates(options = {}) {
+  const candidates = uniqueNonEmpty([
+    options.bridgeUrl,
+    deriveBrowserAuraGoBridgeURL(),
+    envValue("AURAGO_BRIDGE_URL"),
+    EMBEDDED_BRIDGE_URL
+  ]);
+  if (typeof window === "undefined") {
+    return candidates;
+  }
+  return candidates.filter((candidate) => !isLoopbackBridgeURL(candidate));
+}
+
 function bridgeConfig(options = {}) {
   return {
-    bridgeUrlCandidates: uniqueNonEmpty([
-      options.bridgeUrl,
-      deriveBrowserAuraGoBridgeURL(),
-      envValue("AURAGO_BRIDGE_URL"),
-      EMBEDDED_BRIDGE_URL
-    ]),
+    bridgeUrlCandidates: bridgeUrlCandidates(options),
     bridgeToken: options.bridgeToken || envValue("AURAGO_BRIDGE_TOKEN") || EMBEDDED_BRIDGE_TOKEN
   };
 }
@@ -1107,14 +1127,32 @@ function uniqueNonEmpty(values) {
   return [...new Set(values.filter((value) => typeof value === 'string' && value.trim() !== ''))];
 }
 
+function isLoopbackBridgeURL(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    return host === 'localhost' || host === '::1' || host === '127.0.0.1' || host.startsWith('127.');
+  } catch {
+    return false;
+  }
+}
+
+function bridgeUrlCandidates(options = {}) {
+  const candidates = uniqueNonEmpty([
+    options.bridgeUrl,
+    deriveBrowserAuraGoBridgeURL(),
+    envValue('AURAGO_BRIDGE_URL'),
+    EMBEDDED_BRIDGE_URL
+  ]);
+  if (typeof window === 'undefined') {
+    return candidates;
+  }
+  return candidates.filter((candidate) => !isLoopbackBridgeURL(candidate));
+}
+
 function bridgeConfig(options = {}) {
   return {
-    bridgeUrlCandidates: uniqueNonEmpty([
-      options.bridgeUrl,
-      deriveBrowserAuraGoBridgeURL(),
-      envValue('AURAGO_BRIDGE_URL'),
-      EMBEDDED_BRIDGE_URL
-    ]),
+    bridgeUrlCandidates: bridgeUrlCandidates(options),
     bridgeToken: options.bridgeToken || envValue('AURAGO_BRIDGE_TOKEN') || EMBEDDED_BRIDGE_TOKEN
   };
 }
