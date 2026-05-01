@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bootstrap-no-loopback-config"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-memory-guard"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -261,6 +261,8 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"process.env.AURAGO_BRIDGE_URL",
 		"process.env.AURAGO_BRIDGE_TOKEN",
 		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",
+		"writeFile(path.join(rootPath, \"AGENTS.md\")",
+		"writeFile(path.join(rootPath, \"docs\", \"aurago-bridge.md\")",
 		"writeFile(path.join(process.env.CUSTOMWARE_PATH, \"aurago_bridge.js\")",
 		"writeFile(path.join(rootPath, \"aurago_bridge.js\")",
 		"clearInvalidatedUserCrypto(normalizedUsername)",
@@ -269,6 +271,46 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 	} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("bootstrap script missing %q:\n%s", want, script)
+		}
+	}
+}
+
+func TestEnsureSpaceAgentHomeRefreshesManagedBridgeGuidance(t *testing.T) {
+	home := t.TempDir()
+	for _, dir := range []string{
+		filepath.Join(home, "conf"),
+		filepath.Join(home, "docs"),
+	} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+	staleFiles := []string{
+		filepath.Join(home, "AGENTS.md"),
+		filepath.Join(home, "conf", "aurago.system.include.md"),
+		filepath.Join(home, "docs", "aurago-bridge.md"),
+	}
+	for _, path := range staleFiles {
+		if err := os.WriteFile(path, []byte("stale bridge is broken\n"), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s): %v", path, err)
+		}
+	}
+
+	if err := ensureSpaceAgentHome(home); err != nil {
+		t.Fatalf("ensureSpaceAgentHome() error = %v", err)
+	}
+
+	for _, path := range staleFiles {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", path, err)
+		}
+		text := string(content)
+		if strings.Contains(text, "stale bridge is broken") {
+			t.Fatalf("%s was not refreshed: %q", path, text)
+		}
+		if !strings.Contains(text, "Memory") && !strings.Contains(text, "memory") {
+			t.Fatalf("%s missing memory freshness guidance: %q", path, text)
 		}
 	}
 }
