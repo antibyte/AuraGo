@@ -11,19 +11,23 @@ import (
 
 // Notifier periodically checks for due appointment notifications and wakes the agent.
 type Notifier struct {
-	db       *sql.DB
-	logger   *slog.Logger
-	executor func(string)
-	mu       sync.Mutex
-	cancel   context.CancelFunc
-	running  bool
+	db               *sql.DB
+	logger           *slog.Logger
+	executor         func(string)
+	missionTrigger   func(Appointment)
+	todoTrigger      func(Todo)
+	seenOverdueTodos map[string]struct{}
+	mu               sync.Mutex
+	cancel           context.CancelFunc
+	running          bool
 }
 
 // NewNotifier creates a new appointment notifier.
 func NewNotifier(db *sql.DB, logger *slog.Logger) *Notifier {
 	return &Notifier{
-		db:     db,
-		logger: logger,
+		db:               db,
+		logger:           logger,
+		seenOverdueTodos: make(map[string]struct{}),
 	}
 }
 
@@ -32,6 +36,20 @@ func (n *Notifier) SetExecutor(fn func(string)) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.executor = fn
+}
+
+// SetMissionTrigger sets the callback fired after a due appointment notification is claimed.
+func (n *Notifier) SetMissionTrigger(fn func(Appointment)) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.missionTrigger = fn
+}
+
+// SetTodoOverdueTrigger sets the callback fired when an open todo is detected as overdue.
+func (n *Notifier) SetTodoOverdueTrigger(fn func(Todo)) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.todoTrigger = fn
 }
 
 // Start begins the notification check loop. Call in a goroutine.
@@ -82,10 +100,12 @@ func (n *Notifier) checkDue() {
 	if n.db == nil {
 		return
 	}
+	n.checkOverdueTodos()
 	n.mu.Lock()
 	executor := n.executor
+	missionTrigger := n.missionTrigger
 	n.mu.Unlock()
-	if executor == nil {
+	if executor == nil && missionTrigger == nil {
 		return
 	}
 
@@ -98,21 +118,33 @@ func (n *Notifier) checkDue() {
 	for _, a := range due {
 		n.logger.Info("[Planner] Processing due appointment notification", "id", a.ID, "title", a.Title, "wake_agent", a.WakeAgent)
 
-		if a.WakeAgent {
-			// BUG-1 + BUG-4: Atomically claim the notification before spawning the goroutine.
-			// ClaimNotification uses compare-and-swap (WHERE notified=0) so that if the 30s ticker
-			// fires again before the executor finishes, the second tick finds notified=1 and skips.
-			// This also means a panic in the executor no longer causes an infinite retry loop,
-			// because the claim was already committed to the DB.
-			claimed, err := ClaimNotification(n.db, a.ID)
-			if err != nil {
-				n.logger.Error("[Planner] Failed to claim appointment notification", "error", err, "id", a.ID)
-				continue
-			}
-			if !claimed {
-				// Another goroutine already claimed this notification; skip.
-				continue
-			}
+		// BUG-1 + BUG-4: Atomically claim the notification before spawning callbacks.
+		// ClaimNotification uses compare-and-swap (WHERE notified=0) so that if the 30s ticker
+		// fires again before the executor finishes, the second tick finds notified=1 and skips.
+		// This also means a panic in the executor no longer causes an infinite retry loop,
+		// because the claim was already committed to the DB.
+		claimed, err := ClaimNotification(n.db, a.ID)
+		if err != nil {
+			n.logger.Error("[Planner] Failed to claim appointment notification", "error", err, "id", a.ID)
+			continue
+		}
+		if !claimed {
+			// Another goroutine already claimed this notification; skip.
+			continue
+		}
+
+		if missionTrigger != nil {
+			func(apt Appointment) {
+				defer func() {
+					if r := recover(); r != nil {
+						n.logger.Error("[Planner] Panic in appointment mission trigger", "error", r, "appointment_id", apt.ID)
+					}
+				}()
+				missionTrigger(apt)
+			}(a)
+		}
+
+		if a.WakeAgent && executor != nil {
 			prompt := buildNotificationPrompt(a)
 			go func(apt Appointment, p string) {
 				defer func() {
@@ -123,14 +155,51 @@ func (n *Notifier) checkDue() {
 				executor(p)
 			}(a, prompt)
 		} else {
-			// Non-wake appointments: claim atomically and log that the reminder time was reached.
-			claimed, err := ClaimNotification(n.db, a.ID)
-			if err != nil {
-				n.logger.Error("[Planner] Failed to mark non-wake appointment as notified", "error", err, "id", a.ID)
-			} else if claimed {
-				n.logger.Info("[Planner] Appointment reminder time reached (wake_agent=false, no agent action)", "id", a.ID, "title", a.Title)
-			}
+			n.logger.Info("[Planner] Appointment reminder time reached (wake_agent=false, no agent action)", "id", a.ID, "title", a.Title)
 		}
+	}
+}
+
+func (n *Notifier) checkOverdueTodos() {
+	n.mu.Lock()
+	todoTrigger := n.todoTrigger
+	n.mu.Unlock()
+	if todoTrigger == nil {
+		return
+	}
+
+	todos, err := ListTodos(n.db, "", "all")
+	if err != nil {
+		n.logger.Error("[Planner] Failed to query overdue todos", "error", err)
+		return
+	}
+	now := time.Now()
+	for _, todo := range todos {
+		if todo.Status == "done" || todo.DueDate == "" {
+			continue
+		}
+		dueAt, err := time.Parse(time.RFC3339, todo.DueDate)
+		if err != nil || dueAt.After(now) {
+			continue
+		}
+		key := todo.ID + "|" + todo.DueDate
+		n.mu.Lock()
+		_, seen := n.seenOverdueTodos[key]
+		if !seen {
+			n.seenOverdueTodos[key] = struct{}{}
+		}
+		n.mu.Unlock()
+		if seen {
+			continue
+		}
+		func(t Todo) {
+			defer func() {
+				if r := recover(); r != nil {
+					n.logger.Error("[Planner] Panic in overdue todo mission trigger", "error", r, "todo_id", t.ID)
+				}
+			}()
+			todoTrigger(t)
+		}(todo)
 	}
 }
 

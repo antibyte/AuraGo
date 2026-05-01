@@ -2,6 +2,8 @@ package planner
 
 import (
 	"database/sql"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1620,6 +1622,72 @@ func TestClaimNotification(t *testing.T) {
 	a, _ := GetAppointment(db, id)
 	if !a.Notified {
 		t.Error("Appointment should be marked as notified after successful claim")
+	}
+}
+
+func TestNotifierCallsMissionTriggerForDueAppointmentWithoutExecutor(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	now := time.Now().UTC()
+	id, err := CreateAppointment(db, Appointment{
+		Title:          "NAS Backup",
+		DateTime:       now.Add(time.Hour).Format(time.RFC3339),
+		NotificationAt: now.Add(-time.Minute).Format(time.RFC3339),
+		WakeAgent:      false,
+	})
+	if err != nil {
+		t.Fatalf("CreateAppointment: %v", err)
+	}
+
+	var got Appointment
+	notifier := NewNotifier(db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	notifier.SetMissionTrigger(func(a Appointment) {
+		got = a
+	})
+
+	notifier.checkDue()
+
+	if got.ID != id {
+		t.Fatalf("mission trigger got appointment %q, want %q", got.ID, id)
+	}
+	appointment, err := GetAppointment(db, id)
+	if err != nil {
+		t.Fatalf("GetAppointment: %v", err)
+	}
+	if !appointment.Notified {
+		t.Fatal("appointment should be marked notified after mission trigger")
+	}
+}
+
+func TestNotifierCallsTodoOverdueTriggerOncePerDueDate(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	now := time.Now().UTC()
+	id, err := CreateTodo(db, Todo{
+		Title:   "Backup NAS",
+		DueDate: now.Add(-time.Hour).Format(time.RFC3339),
+		Status:  "open",
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+
+	calls := 0
+	var got Todo
+	notifier := NewNotifier(db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	notifier.SetTodoOverdueTrigger(func(todo Todo) {
+		calls++
+		got = todo
+	})
+
+	notifier.checkDue()
+	notifier.checkDue()
+
+	if calls != 1 {
+		t.Fatalf("todo overdue trigger calls = %d, want 1", calls)
+	}
+	if got.ID != id {
+		t.Fatalf("todo overdue trigger got todo %q, want %q", got.ID, id)
 	}
 }
 

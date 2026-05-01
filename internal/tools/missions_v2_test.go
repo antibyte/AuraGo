@@ -1263,6 +1263,161 @@ func TestStartPersistsRestoredQueuedMissionStatus(t *testing.T) {
 	}
 }
 
+func TestNotifyPlannerAppointmentDueFiltersAndPersistsQueue(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.missions["planner_match"] = &MissionV2{
+		ID:            "planner_match",
+		Name:          "Planner match",
+		Prompt:        "handle appointment",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerAppointmentDue,
+		TriggerConfig: &TriggerConfig{
+			PlannerTitleContains: "Backup",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+	mm.missions["planner_skip"] = &MissionV2{
+		ID:            "planner_skip",
+		Name:          "Planner skip",
+		Prompt:        "ignore appointment",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerAppointmentDue,
+		TriggerConfig: &TriggerConfig{
+			PlannerAppointmentID: "other",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+
+	mm.NotifyPlannerAppointmentDue("apt-1", "Backup NAS", "2026-05-01T10:00:00Z")
+
+	items := mm.queue.List()
+	if len(items) != 1 || items[0].MissionID != "planner_match" {
+		t.Fatalf("queued items = %+v, want only planner_match", items)
+	}
+	if mm.missions["planner_match"].Status != MissionStatusQueued {
+		t.Fatalf("planner_match status = %q, want queued", mm.missions["planner_match"].Status)
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	restarted.missions["planner_match"] = &MissionV2{ID: "planner_match", Name: "Planner match", Priority: "medium", Enabled: true}
+	if _, err := restarted.loadQueueLocked(); err != nil {
+		t.Fatalf("loadQueueLocked: %v", err)
+	}
+	reloaded := restarted.queue.List()
+	if len(reloaded) != 1 || reloaded[0].MissionID != "planner_match" {
+		t.Fatalf("persisted queue = %+v, want planner_match", reloaded)
+	}
+	if !strings.Contains(reloaded[0].TriggerData, `"appointment_id":"apt-1"`) {
+		t.Fatalf("trigger data = %q, want appointment_id", reloaded[0].TriggerData)
+	}
+}
+
+func TestNotifyPlannerAppointmentDueHonorsMinInterval(t *testing.T) {
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm.missions["planner"] = &MissionV2{
+		ID:            "planner",
+		Name:          "Planner",
+		Prompt:        "handle appointment",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerAppointmentDue,
+		TriggerConfig: &TriggerConfig{
+			MinIntervalSeconds: 60,
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+
+	mm.NotifyPlannerAppointmentDue("apt-1", "One", "2026-05-01T10:00:00Z")
+	mm.NotifyPlannerAppointmentDue("apt-2", "Two", "2026-05-01T10:01:00Z")
+
+	items := mm.queue.List()
+	if len(items) != 1 {
+		t.Fatalf("queued items = %+v, want one item due to min interval", items)
+	}
+}
+
+func TestNotifyPlannerTodoOverdueFiltersByTodoAndTitle(t *testing.T) {
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm.missions["todo_match"] = &MissionV2{
+		ID:            "todo_match",
+		Name:          "Todo match",
+		Prompt:        "handle todo",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerTodoOverdue,
+		TriggerConfig: &TriggerConfig{
+			PlannerTitleContains: "backup",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+	mm.missions["todo_skip"] = &MissionV2{
+		ID:            "todo_skip",
+		Name:          "Todo skip",
+		Prompt:        "ignore todo",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerTodoOverdue,
+		TriggerConfig: &TriggerConfig{
+			PlannerTodoID: "other",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+
+	mm.NotifyPlannerTodoOverdue("todo-1", "Backup NAS", "2026-05-01T10:00:00Z")
+
+	items := mm.queue.List()
+	if len(items) != 1 || items[0].MissionID != "todo_match" {
+		t.Fatalf("queued items = %+v, want only todo_match", items)
+	}
+}
+
+func TestNotifyPlannerOperationalIssueFiltersBySourceSeverityAndTitle(t *testing.T) {
+	mm := NewMissionManagerV2(t.TempDir(), nil)
+	mm.missions["issue_match"] = &MissionV2{
+		ID:            "issue_match",
+		Name:          "Issue match",
+		Prompt:        "handle issue",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerOperationalIssue,
+		TriggerConfig: &TriggerConfig{
+			PlannerIssueSource:   "mission",
+			PlannerIssueSeverity: "error",
+			PlannerTitleContains: "Backup",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+	mm.missions["issue_skip"] = &MissionV2{
+		ID:            "issue_skip",
+		Name:          "Issue skip",
+		Prompt:        "ignore issue",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerPlannerOperationalIssue,
+		TriggerConfig: &TriggerConfig{
+			PlannerIssueSeverity: "warning",
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+
+	mm.NotifyPlannerOperationalIssue("issue-1", "mission", "error", "Backup failed")
+
+	items := mm.queue.List()
+	if len(items) != 1 || items[0].MissionID != "issue_match" {
+		t.Fatalf("queued items = %+v, want only issue_match", items)
+	}
+}
+
 func TestScheduledMissionNotRegisteredWhenDisabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	cronMgr := NewCronManager(tmpDir)

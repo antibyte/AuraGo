@@ -249,6 +249,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Start Planner Notifier for appointment reminders with agent wake-up
 	if s.PlannerDB != nil && s.Cfg.Tools.Planner.Enabled {
 		plannerNotifier := planner.NewNotifier(s.PlannerDB, s.Logger)
+		if s.MissionManagerV2 != nil {
+			plannerNotifier.SetMissionTrigger(func(appointment planner.Appointment) {
+				s.MissionManagerV2.NotifyPlannerAppointmentDue(appointment.ID, appointment.Title, appointment.DateTime)
+			})
+			plannerNotifier.SetTodoOverdueTrigger(func(todo planner.Todo) {
+				s.MissionManagerV2.NotifyPlannerTodoOverdue(todo.ID, todo.Title, todo.DueDate)
+			})
+		}
 		plannerNotifier.SetExecutor(func(prompt string) {
 			runCfg := agent.RunConfig{
 				Config:             s.Cfg,

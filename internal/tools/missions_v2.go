@@ -29,19 +29,22 @@ const (
 type TriggerType string
 
 const (
-	TriggerMissionCompleted   TriggerType = "mission_completed"    // Another mission finished
-	TriggerEmailReceived      TriggerType = "email_received"       // Email received
-	TriggerWebhook            TriggerType = "webhook"              // Webhook fired
-	TriggerEggHatched         TriggerType = "egg_hatched"          // Egg deployed to a nest
-	TriggerNestCleared        TriggerType = "nest_cleared"         // Nest removed
-	TriggerMQTTMessage        TriggerType = "mqtt_message"         // MQTT message received
-	TriggerSystemStartup      TriggerType = "system_startup"       // AuraGo Startup
-	TriggerDeviceConnected    TriggerType = "device_connected"     // Remote device connected
-	TriggerDeviceDisconnected TriggerType = "device_disconnected"  // Remote device disconnected or stale
-	TriggerFritzBoxCall       TriggerType = "fritzbox_call"        // Fritz!Box call or voicemail event
-	TriggerBudgetWarning      TriggerType = "budget_warning"       // Budget warning threshold crossed
-	TriggerBudgetExceeded     TriggerType = "budget_exceeded"      // Budget limit exceeded
-	TriggerHomeAssistantState TriggerType = "home_assistant_state" // HA entity state change
+	TriggerMissionCompleted        TriggerType = "mission_completed"         // Another mission finished
+	TriggerEmailReceived           TriggerType = "email_received"            // Email received
+	TriggerWebhook                 TriggerType = "webhook"                   // Webhook fired
+	TriggerEggHatched              TriggerType = "egg_hatched"               // Egg deployed to a nest
+	TriggerNestCleared             TriggerType = "nest_cleared"              // Nest removed
+	TriggerMQTTMessage             TriggerType = "mqtt_message"              // MQTT message received
+	TriggerSystemStartup           TriggerType = "system_startup"            // AuraGo Startup
+	TriggerDeviceConnected         TriggerType = "device_connected"          // Remote device connected
+	TriggerDeviceDisconnected      TriggerType = "device_disconnected"       // Remote device disconnected or stale
+	TriggerFritzBoxCall            TriggerType = "fritzbox_call"             // Fritz!Box call or voicemail event
+	TriggerBudgetWarning           TriggerType = "budget_warning"            // Budget warning threshold crossed
+	TriggerBudgetExceeded          TriggerType = "budget_exceeded"           // Budget limit exceeded
+	TriggerHomeAssistantState      TriggerType = "home_assistant_state"      // HA entity state change
+	TriggerPlannerAppointmentDue   TriggerType = "planner_appointment_due"   // Planner appointment reminder due
+	TriggerPlannerTodoOverdue      TriggerType = "planner_todo_overdue"      // Planner todo due date passed
+	TriggerPlannerOperationalIssue TriggerType = "planner_operational_issue" // Planner operational issue recorded
 )
 
 // MissionStatus represents the runtime status of a mission
@@ -98,6 +101,13 @@ type TriggerConfig struct {
 	// For TriggerHomeAssistantState
 	HAEntityID    string `json:"ha_entity_id,omitempty"`    // Entity to watch
 	HAStateEquals string `json:"ha_state_equals,omitempty"` // Trigger when state matches this
+
+	// For TriggerPlannerAppointmentDue
+	PlannerAppointmentID string `json:"planner_appointment_id,omitempty"` // Filter by appointment ID (empty = any)
+	PlannerTitleContains string `json:"planner_title_contains,omitempty"` // Optional title substring filter
+	PlannerTodoID        string `json:"planner_todo_id,omitempty"`        // Filter by todo ID (empty = any)
+	PlannerIssueSource   string `json:"planner_issue_source,omitempty"`   // Filter by operational issue source
+	PlannerIssueSeverity string `json:"planner_issue_severity,omitempty"` // Filter by operational issue severity
 }
 
 // MissionV2 represents an enhanced mission with trigger support
@@ -1433,6 +1443,157 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
 			slog.Error("[MissionV2] Failed to persist queue after Home Assistant event", "error", err)
+		}
+	}
+}
+
+// NotifyPlannerAppointmentDue fires mission triggers when a planner appointment notification becomes due.
+func (m *MissionManagerV2) NotifyPlannerAppointmentDue(appointmentID, title, dateTime string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now()
+	queued := false
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			isRemoteMission(mission) ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerPlannerAppointmentDue {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.PlannerAppointmentID != "" && cfg.PlannerAppointmentID != appointmentID {
+			continue
+		}
+		if cfg.PlannerTitleContains != "" && !strings.Contains(strings.ToLower(title), strings.ToLower(cfg.PlannerTitleContains)) {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerPlannerAppointmentDue), now) {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"appointment_id": appointmentID,
+			"title":          title,
+			"date_time":      dateTime,
+			"time":           now.Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerPlannerAppointmentDue), string(triggerData))
+		mission.Status = MissionStatusQueued
+		mission.LastResult = ""
+		queued = true
+	}
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after planner appointment event", "error", err)
+		}
+	}
+}
+
+// NotifyPlannerTodoOverdue fires mission triggers when a planner todo becomes overdue.
+func (m *MissionManagerV2) NotifyPlannerTodoOverdue(todoID, title, dueDate string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now()
+	queued := false
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			isRemoteMission(mission) ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerPlannerTodoOverdue {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.PlannerTodoID != "" && cfg.PlannerTodoID != todoID {
+			continue
+		}
+		if cfg.PlannerTitleContains != "" && !strings.Contains(strings.ToLower(title), strings.ToLower(cfg.PlannerTitleContains)) {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerPlannerTodoOverdue), now) {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"todo_id":  todoID,
+			"title":    title,
+			"due_date": dueDate,
+			"time":     now.Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerPlannerTodoOverdue), string(triggerData))
+		mission.Status = MissionStatusQueued
+		mission.LastResult = ""
+		queued = true
+	}
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after planner todo event", "error", err)
+		}
+	}
+}
+
+// NotifyPlannerOperationalIssue fires mission triggers when a planner operational issue is recorded.
+func (m *MissionManagerV2) NotifyPlannerOperationalIssue(issueID, source, severity, title string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now()
+	queued := false
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			isRemoteMission(mission) ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerPlannerOperationalIssue {
+			continue
+		}
+
+		cfg := mission.TriggerConfig
+		if cfg == nil {
+			cfg = &TriggerConfig{}
+		}
+
+		if cfg.PlannerIssueSource != "" && cfg.PlannerIssueSource != source {
+			continue
+		}
+		if cfg.PlannerIssueSeverity != "" && cfg.PlannerIssueSeverity != severity {
+			continue
+		}
+		if cfg.PlannerTitleContains != "" && !strings.Contains(strings.ToLower(title), strings.ToLower(cfg.PlannerTitleContains)) {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerPlannerOperationalIssue), now) {
+			continue
+		}
+
+		triggerData, _ := json.Marshal(map[string]string{
+			"issue_id": issueID,
+			"source":   source,
+			"severity": severity,
+			"title":    title,
+			"time":     now.Format(time.RFC3339),
+		})
+		m.queue.Enqueue(mission.ID, mission.Priority, string(TriggerPlannerOperationalIssue), string(triggerData))
+		mission.Status = MissionStatusQueued
+		mission.LastResult = ""
+		queued = true
+	}
+	if queued {
+		m.save()
+		if err := m.saveQueueLocked(); err != nil {
+			slog.Error("[MissionV2] Failed to persist queue after planner operational issue event", "error", err)
 		}
 	}
 }

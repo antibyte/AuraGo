@@ -247,6 +247,9 @@
                             <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call" data-i18n="missions.trigger_fritzbox_call">Fritz!Box call</button>
                             <button type="button" class="trigger-type-btn" data-trigger="budget_warning" data-i18n="missions.trigger_budget_warning">Budget warning</button>
                             <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded" data-i18n="missions.trigger_budget_exceeded">Budget exceeded</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_appointment_due" data-i18n="missions.trigger_planner_appointment_due">Planner appointment due</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_todo_overdue" data-i18n="missions.trigger_planner_todo_overdue">Planner todo overdue</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="planner_operational_issue" data-i18n="missions.trigger_planner_operational_issue">Planner operational issue</button>
                         </div>
 
                         <div class="form-group">
@@ -258,6 +261,59 @@
                         <!-- System Startup Trigger -->
                         <div id="trigger-system_startup" class="trigger-fields">
                             <div class="form-hint form-hint-tight" data-i18n="missions.trigger_system_startup_hint">This mission will run when AuraGo starts.</div>
+                        </div>
+
+                        <!-- Planner Appointment Due Trigger -->
+                        <div id="trigger-planner_appointment_due" class="trigger-fields">
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_appointment_due_hint">React when a planner appointment reminder becomes due.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="planner-appointment-id" data-i18n="missions.trigger_planner_appointment_id_label">Appointment ID</label>
+                                    <input type="text" id="planner-appointment-id" data-i18n-placeholder="missions.trigger_planner_appointment_id_placeholder">
+                                </div>
+                                <div class="form-group">
+                                    <label for="planner-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                    <input type="text" id="planner-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Planner Todo Overdue Trigger -->
+                        <div id="trigger-planner_todo_overdue" class="trigger-fields">
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_todo_overdue_hint">React when an open planner todo passes its due date.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="planner-todo-id" data-i18n="missions.trigger_planner_todo_id_label">Todo ID</label>
+                                    <input type="text" id="planner-todo-id" data-i18n-placeholder="missions.trigger_planner_todo_id_placeholder">
+                                </div>
+                                <div class="form-group">
+                                    <label for="planner-todo-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                    <input type="text" id="planner-todo-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Planner Operational Issue Trigger -->
+                        <div id="trigger-planner_operational_issue" class="trigger-fields">
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_planner_operational_issue_hint">React when AuraGo records an internal operational issue.</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="planner-issue-source" data-i18n="missions.trigger_planner_issue_source_label">Issue source</label>
+                                    <input type="text" id="planner-issue-source" data-i18n-placeholder="missions.trigger_planner_issue_source_placeholder">
+                                </div>
+                                <div class="form-group">
+                                    <label for="planner-issue-severity" data-i18n="missions.trigger_planner_issue_severity_label">Severity</label>
+                                    <select id="planner-issue-severity" class="form-select">
+                                        <option value="" data-i18n="missions.trigger_planner_issue_severity_any">Any severity</option>
+                                        <option value="warning" data-i18n="missions.trigger_planner_issue_severity_warning">Warning</option>
+                                        <option value="error" data-i18n="missions.trigger_planner_issue_severity_error">Error</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="planner-issue-title-contains" data-i18n="missions.trigger_planner_title_contains_label">Title contains</label>
+                                <input type="text" id="planner-issue-title-contains" data-i18n-placeholder="missions.trigger_planner_title_contains_placeholder">
+                            </div>
                         </div>
 
                         <!-- Mission Completed Trigger -->

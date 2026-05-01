@@ -630,6 +630,28 @@ function renderTriggerText(mission) {
         case 'budget_exceeded':
             triggerText = `🚫 ${t('missions.trigger_budget_exceeded_badge')}`;
             break;
+        case 'planner_appointment_due': {
+            const parts = [];
+            if (cfg.planner_appointment_id) parts.push(`${t('missions.trigger_info_planner_appointment_id_prefix')} ${escapeHtml(cfg.planner_appointment_id)}`);
+            if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
+            triggerText = `📅 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment')}`;
+            break;
+        }
+        case 'planner_todo_overdue': {
+            const parts = [];
+            if (cfg.planner_todo_id) parts.push(`${t('missions.trigger_info_planner_todo_id_prefix')} ${escapeHtml(cfg.planner_todo_id)}`);
+            if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
+            triggerText = `📝 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo')}`;
+            break;
+        }
+        case 'planner_operational_issue': {
+            const parts = [];
+            if (cfg.planner_issue_source) parts.push(`${t('missions.trigger_info_planner_issue_source_prefix')} ${escapeHtml(cfg.planner_issue_source)}`);
+            if (cfg.planner_issue_severity) parts.push(`${t('missions.trigger_info_planner_issue_severity_prefix')} ${escapeHtml(cfg.planner_issue_severity)}`);
+            if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
+            triggerText = `🧯 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue')}`;
+            break;
+        }
     }
     if (cfg.min_interval_seconds) {
         const intervalText = `${t('missions.trigger_info_min_interval_prefix')} ${cfg.min_interval_seconds}s`;
@@ -925,6 +947,19 @@ function fillTriggerConfig(cfg, type) {
         case 'fritzbox_call':
             document.getElementById('fritzbox-call-type').value = cfg.call_type || '';
             break;
+        case 'planner_appointment_due':
+            document.getElementById('planner-appointment-id').value = cfg.planner_appointment_id || '';
+            document.getElementById('planner-title-contains').value = cfg.planner_title_contains || '';
+            break;
+        case 'planner_todo_overdue':
+            document.getElementById('planner-todo-id').value = cfg.planner_todo_id || '';
+            document.getElementById('planner-todo-title-contains').value = cfg.planner_title_contains || '';
+            break;
+        case 'planner_operational_issue':
+            document.getElementById('planner-issue-source').value = cfg.planner_issue_source || '';
+            document.getElementById('planner-issue-severity').value = cfg.planner_issue_severity || '';
+            document.getElementById('planner-issue-title-contains').value = cfg.planner_title_contains || '';
+            break;
     }
 }
 
@@ -1101,6 +1136,19 @@ function buildTriggerConfig(type) {
             break;
         case 'fritzbox_call':
             config.call_type = document.getElementById('fritzbox-call-type').value;
+            break;
+        case 'planner_appointment_due':
+            config.planner_appointment_id = document.getElementById('planner-appointment-id').value.trim();
+            config.planner_title_contains = document.getElementById('planner-title-contains').value.trim();
+            break;
+        case 'planner_todo_overdue':
+            config.planner_todo_id = document.getElementById('planner-todo-id').value.trim();
+            config.planner_title_contains = document.getElementById('planner-todo-title-contains').value.trim();
+            break;
+        case 'planner_operational_issue':
+            config.planner_issue_source = document.getElementById('planner-issue-source').value.trim();
+            config.planner_issue_severity = document.getElementById('planner-issue-severity').value;
+            config.planner_title_contains = document.getElementById('planner-issue-title-contains').value.trim();
             break;
     }
 

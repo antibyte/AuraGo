@@ -536,7 +536,7 @@ func Start(opts StartOptions) error {
 				if title == "" {
 					title = fmt.Sprintf("Mission %s failed", missionLabel)
 				}
-				if _, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+				issue := planner.OperationalIssue{
 					Source:      "mission",
 					Context:     missionID,
 					Title:       title,
@@ -545,8 +545,11 @@ func Start(opts StartOptions) error {
 					Reference:   missionID,
 					Fingerprint: "mission|" + missionID,
 					OccurredAt:  time.Now(),
-				}); err != nil {
+				}
+				if issueID, err := planner.RecordOperationalIssue(s.PlannerDB, issue); err != nil {
 					logger.Warn("[MissionV2] Failed to record internal operational issue", "mission_id", missionID, "error", err)
+				} else if s.MissionManagerV2 != nil {
+					s.MissionManagerV2.NotifyPlannerOperationalIssue(issueID, issue.Source, issue.Severity, issue.Title)
 				}
 			}
 			setMissionError := func(title, detail string) {
@@ -698,15 +701,18 @@ func Start(opts StartOptions) error {
 			if reconciled, recErr := tools.ReconcileStaleRunningMarks(histDB, 1*time.Hour, logger); recErr != nil {
 				logger.Warn("[MissionHistory] Failed to reconcile stale running missions", "error", recErr)
 			} else if reconciled > 0 && s.PlannerDB != nil {
-				if _, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+				issue := planner.OperationalIssue{
 					Source:     "mission_history",
 					Title:      "Stale running missions were marked as failed",
 					Detail:     fmt.Sprintf("%d mission run(s) were still marked as running after a restart and were reconciled as failed.", reconciled),
 					Severity:   "warning",
 					Reference:  "mission_history_reconcile",
 					OccurredAt: time.Now(),
-				}); err != nil {
+				}
+				if issueID, err := planner.RecordOperationalIssue(s.PlannerDB, issue); err != nil {
 					logger.Warn("[MissionHistory] Failed to record stale mission operational issue", "error", err)
+				} else if s.MissionManagerV2 != nil {
+					s.MissionManagerV2.NotifyPlannerOperationalIssue(issueID, issue.Source, issue.Severity, issue.Title)
 				}
 			}
 		}
