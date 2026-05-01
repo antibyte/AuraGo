@@ -1,4 +1,4 @@
-[data-theme="threedee"] {
+﻿[data-theme="threedee"] {
     color-scheme: dark;
     --accent: #818cf8;
     --accent-secondary: #22d3ee;
@@ -100,13 +100,13 @@
 }
 
 [data-theme="threedee"] #chat-box {
-    perspective: 1200px;
-    perspective-origin: 50% 30%;
 }
 
 [data-theme="threedee"] #chat-content {
     position: relative;
     z-index: 2;
+    perspective: 1200px;
+    perspective-origin: 50% 30%;
 }
 
 [data-theme="threedee"] .msg-row {

@@ -2291,6 +2291,7 @@
             --chat-ui-icon-size: 1.9rem;
         }
 
+        .integrations-edge-tab .chat-ui-icon,
         .session-edge-tab .chat-ui-icon,
         .btn-speaker .chat-ui-icon,
         .chat-theme-btn .chat-ui-icon,
@@ -4849,3 +4850,4 @@ html[data-theme="retro-crt"]::before {
         opacity: 1;
     }
 }
+
