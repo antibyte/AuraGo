@@ -139,57 +139,24 @@ html[data-theme="8bit"]::after {
     text-shadow: 2px 2px 0 #1a1a6c;
 }
 
-/* ── True Pixelation: shrink source → browser upscales with pixelated ── */
-/*
- * background-image elements: background-size to tiny value, pixelated
- * does nearest-neighbor upscaling = real pixel blocks.
- *
- * <img> elements: CSS width/height shrink the intrinsic rendering size,
- * the parent container stays large, overflow:hidden clips, and
- * image-rendering:pixelated does nearest-neighbor when the browser
- * composites the small raster into the larger layout box.
- */
+/* ── Pixelation: images are replaced by canvas-downscaled versions ── */
+/* See 8bit-pixelate.js — it draws each image onto a tiny canvas and
+   replaces the src/background-image with the low-res data-URL.
+   CSS just needs pixelated rendering for the upscaling step. */
 
-/* ── Chat UI Icons (background-image PNGs) ────────────────────── */
-[data-theme="8bit"] .chat-ui-icon {
+[data-theme="8bit"] .chat-ui-icon,
+[data-theme="8bit"] .chat-robot-sprite,
+[data-theme="8bit"] img.persona-avatar-img,
+[data-theme="8bit"] img.personality-current-icon,
+[data-theme="8bit"] img.personality-preview-image,
+[data-theme="8bit"] .persona-icon,
+[data-theme="8bit"] img[class*="persona"],
+[data-theme="8bit"] .personality-option img {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    background-size: 8px 8px !important;
 }
 
-[data-theme="8bit"] .chat-theme-option-icon .chat-ui-icon,
-[data-theme="8bit"] .chat-theme-option-icon.chat-ui-icon {
-    background-size: 6px 6px !important;
-}
-
-[data-theme="8bit"] .chat-ui-icon.is-large {
-    background-size: 12px 12px !important;
-}
-
-[data-theme="8bit"] .logo-icon .chat-ui-icon {
-    background-size: 14px 14px !important;
-}
-
-[data-theme="8bit"] .integrations-edge-tab .chat-ui-icon,
-[data-theme="8bit"] .session-edge-tab .chat-ui-icon,
-[data-theme="8bit"] .btn-speaker .chat-ui-icon,
-[data-theme="8bit"] .chat-theme-btn .chat-ui-icon,
-[data-theme="8bit"] .btn-composer-primary .chat-ui-icon {
-    background-size: 9px 9px !important;
-}
-
-[data-theme="8bit"] .mood-toggle .chat-ui-icon {
-    background-size: 10px 10px !important;
-}
-
-[data-theme="8bit"] .avatar .chat-ui-icon {
-    background-size: 8px 8px !important;
-}
-
-/* ── Avatars ──────────────────────────────────────────────────── */
 [data-theme="8bit"] .avatar {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
     border: 2px solid var(--8bit-border);
     border-radius: 0;
     background: var(--8bit-bg-dark);
@@ -197,64 +164,18 @@ html[data-theme="8bit"]::after {
     overflow: hidden;
 }
 
-/* The <img> inside .avatar is 32x32 via HTML attributes.
-   We force it to render at 8x8 inside the 34x34 container.
-   image-rendering:pixelated makes the browser upscale with
-   nearest-neighbor = visible pixel blocks from real pixels. */
-[data-theme="8bit"] .avatar img,
-[data-theme="8bit"] .avatar .persona-avatar-img {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    width: 8px !important;
-    height: 8px !important;
-    object-fit: cover;
-    min-width: 8px;
-    min-height: 8px;
-}
-
-/* ── Robot Mascot (CSS sprite via background-image) ───────────── */
-/* The sprite uses background-size:600% for a 6x6 grid.
-   We override to compress each sprite cell to ~8px = real pixelation. */
-[data-theme="8bit"] .chat-robot-sprite {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    background-size: 48px 48px !important;
-}
-
-/* ── Personality Current Icon (standalone <img>) ──────────────── */
 [data-theme="8bit"] .personality-current-icon {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
     border: 2px solid var(--8bit-border);
     border-radius: 0;
     background: var(--8bit-bg-dark);
     box-shadow: 2px 2px 0 #160f3f;
-    width: 8px !important;
-    height: 8px !important;
-    min-width: 8px;
-    min-height: 8px;
 }
 
-/* ── Personality Preview Image (<img> 256x256) ────────────────── */
-/* Shrink to 16x16, container clips. 256/16 = 16x pixel blocks. */
 [data-theme="8bit"] .personality-preview-image {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
     border: 2px solid var(--8bit-border);
     border-radius: 0;
     background: var(--8bit-bg-dark);
     box-shadow: 3px 3px 0 #160f3f;
-    width: 16px !important;
-    height: 16px !important;
-}
-
-/* ── Persona icons in drawers / options ───────────────────────── */
-[data-theme="8bit"] .persona-icon,
-[data-theme="8bit"] img[class*="persona"],
-[data-theme="8bit"] .personality-option img,
-[data-theme="8bit"] .personality-option .chat-ui-icon {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
 }
 
 /* ── Chat Bubbles ───────────────────────────────────────────────── */
