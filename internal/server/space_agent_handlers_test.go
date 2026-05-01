@@ -154,6 +154,15 @@ func TestSpaceAgentBridgeResponseIncludesAnswerWhenDeliveryFails(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentBridgeAnswerPostbackRequiresSessionID(t *testing.T) {
+	if shouldPostBackSpaceAgentBridgeAnswer(spaceAgentBridgeMessage{}) {
+		t.Fatal("did not expect postback without session_id")
+	}
+	if !shouldPostBackSpaceAgentBridgeAnswer(spaceAgentBridgeMessage{SessionID: "corr-1"}) {
+		t.Fatal("expected postback with session_id")
+	}
+}
+
 func TestSpaceAgentReplyBrokerCapturesFinalResponse(t *testing.T) {
 	base := NewSSEBrokerAdapter(NewSSEBroadcaster())
 	broker := &spaceAgentReplyBroker{FeedbackBroker: base}

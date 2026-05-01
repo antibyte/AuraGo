@@ -448,7 +448,7 @@ func annotateSpaceAgentInstructionHTTPError(result map[string]interface{}, statu
 	if result == nil || statusCode != http.StatusNotFound {
 		return
 	}
-	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. Recreate the managed Space Agent sidecar after updating AuraGo so /api/aurago/instructions is injected."
+	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. This is not an offline/network error. Recreate the managed Space Agent sidecar from the current AuraGo build so /api/aurago/instructions is injected. If this persists after a fresh recreate, the running Space Agent image does not expose AuraGo's injected instruction API and only the Space-Agent-to-AuraGo bridge fast path is currently available."
 	result["requires_recreate"] = true
 	result["missing_endpoint"] = spaceAgentInstructionEndpoint
 }

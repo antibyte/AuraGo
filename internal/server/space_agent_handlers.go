@@ -224,6 +224,12 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) (string,
 		}
 		return "", nil
 	}
+	if !shouldPostBackSpaceAgentBridgeAnswer(msg) {
+		if s.Logger != nil {
+			s.Logger.Info("[SpaceAgent] Bridge answer returned synchronously; no Space Agent postback needed")
+		}
+		return answer, nil
+	}
 	reply := tools.SpaceAgentInstruction{
 		Instruction: "AuraGo answered your bridge question.",
 		Information: answer,
@@ -242,6 +248,10 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) (string,
 		s.Logger.Info("[SpaceAgent] Bridge answer sent back to Space Agent", "session_id", msg.SessionID)
 	}
 	return answer, result
+}
+
+func shouldPostBackSpaceAgentBridgeAnswer(msg spaceAgentBridgeMessage) bool {
+	return strings.TrimSpace(msg.SessionID) != ""
 }
 
 func spaceAgentBridgeQuestionPrompt(msg spaceAgentBridgeMessage) string {
