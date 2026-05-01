@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-persistent-home"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-customware-user-home"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260501-persistent-home"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-customware-user-home"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -270,6 +270,35 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		if strings.TrimSpace(string(content)) != want {
 			t.Fatalf("%s = %q, want %s", path, string(content), want)
 		}
+	}
+}
+
+func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
+	customware := t.TempDir()
+	if err := ensureSpaceAgentCustomwareUserHome(customware, "admin"); err != nil {
+		t.Fatalf("ensureSpaceAgentCustomwareUserHome() error = %v", err)
+	}
+	userHome := filepath.Join(customware, "L2", "admin")
+	for path, want := range map[string]string{
+		filepath.Join(userHome, "meta", "login_hooks.json"):          "[]",
+		filepath.Join(userHome, ".config", "dashboard-prefs.json"):   "{}",
+		filepath.Join(userHome, "onscreen-agent", "config.json"):     "{}",
+		filepath.Join(userHome, "onscreen-agent", "history.json"):    "[]",
+		filepath.Join(userHome, "dashboard", "dashboard-prefs.json"): "{}",
+	} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", path, err)
+		}
+		if strings.TrimSpace(string(content)) != want {
+			t.Fatalf("%s = %q, want %s", path, string(content), want)
+		}
+	}
+}
+
+func TestEnsureSpaceAgentCustomwareUserHomeRejectsPathTraversalUser(t *testing.T) {
+	if err := ensureSpaceAgentCustomwareUserHome(t.TempDir(), "../admin"); err == nil {
+		t.Fatal("expected path traversal admin user to be rejected")
 	}
 }
 

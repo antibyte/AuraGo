@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260501-persistent-home"
+	spaceAgentImageBuildRevision   = "20260501-customware-user-home"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -465,6 +466,9 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.MkdirAll(cfg.CustomwarePath, 0o750); err != nil {
 		return fmt.Errorf("create customware dir: %w", err)
 	}
+	if err := ensureSpaceAgentCustomwareUserHome(cfg.CustomwarePath, cfg.AdminUser); err != nil {
+		return err
+	}
 	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
 		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--branch", cfg.GitRef, cfg.RepoURL, cfg.SourcePath); err != nil {
 			return err
@@ -484,6 +488,43 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 }
 
 func ensureSpaceAgentHome(homePath string) error {
+	return ensureSpaceAgentWorkspaceFiles(homePath)
+}
+
+func ensureSpaceAgentCustomwareUserHome(customwarePath string, adminUser string) error {
+	if strings.TrimSpace(customwarePath) == "" {
+		return nil
+	}
+	username := strings.TrimSpace(adminUser)
+	if username == "" {
+		username = "admin"
+	}
+	normalizedUser, err := normalizeSpaceAgentEntityID(username)
+	if err != nil {
+		return fmt.Errorf("normalize Space Agent admin user: %w", err)
+	}
+	return ensureSpaceAgentWorkspaceFiles(filepath.Join(customwarePath, "L2", normalizedUser))
+}
+
+func normalizeSpaceAgentEntityID(value string) (string, error) {
+	raw := strings.ReplaceAll(strings.TrimSpace(value), "\\", "/")
+	if raw == "" {
+		return "", fmt.Errorf("entity id must not be empty")
+	}
+	if strings.Contains(raw, "/") {
+		return "", fmt.Errorf("entity id must be a single path segment")
+	}
+	normalized := path.Clean(raw)
+	if normalized == "" || normalized == "." {
+		return "", fmt.Errorf("entity id must not be empty")
+	}
+	if normalized == ".." || strings.HasPrefix(normalized, "../") || strings.Contains(normalized, "/") {
+		return "", fmt.Errorf("entity id must be a single path segment")
+	}
+	return normalized, nil
+}
+
+func ensureSpaceAgentWorkspaceFiles(homePath string) error {
 	for _, dir := range []string{
 		homePath,
 		filepath.Join(homePath, "meta"),
