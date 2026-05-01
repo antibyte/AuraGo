@@ -20,6 +20,7 @@
     --8bit-user-bubble: #1a1a6c;
     --8bit-bot-bubble: #5b4aa0;
     --8bit-pixel-shadow: 4px 4px 0 #160f3f;
+
     --accent: var(--8bit-cyan);
     --accent-secondary: var(--8bit-green);
     --bg-primary: var(--8bit-bg-dark);
@@ -51,12 +52,18 @@
     --page-orb-opacity: 0;
     --chat-image-opacity: 0.025;
     --bg-logo-filter: saturate(1.35) contrast(1.25);
+
     --font-ui: 'Press Start 2P', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --chat-copy-font-size: 0.88rem;
+    --chat-input-font-size: 0.8rem;
     font-family: var(--font-ui);
+    font-size: 0.8rem;
 }
 
+/* ── Body & Background ─────────────────────────────────────────── */
 [data-theme="8bit"] body {
     color: var(--8bit-text);
+    font-size: 0.8rem;
     background:
         radial-gradient(circle at 18% 18%, rgba(108, 255, 255, 0.08) 0 2px, transparent 3px 100%),
         radial-gradient(circle at 82% 28%, rgba(255, 255, 58, 0.08) 0 2px, transparent 3px 100%),
@@ -73,6 +80,7 @@
     background-size: 4px 4px;
 }
 
+/* ── CRT Scanlines ─────────────────────────────────────────────── */
 html[data-theme="8bit"]::after {
     content: '';
     position: fixed;
@@ -83,6 +91,7 @@ html[data-theme="8bit"]::after {
     mix-blend-mode: multiply;
 }
 
+/* ── Shared panel overrides ─────────────────────────────────────── */
 [data-theme="8bit"] .app-header,
 [data-theme="8bit"] .chat-input-area,
 [data-theme="8bit"] .modal-card,
@@ -99,18 +108,24 @@ html[data-theme="8bit"]::after {
     box-shadow: var(--8bit-pixel-shadow);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
 }
 
+/* ── Header ─────────────────────────────────────────────────────── */
 [data-theme="8bit"] .app-header {
     background: #2b1a5e;
     border-width: 0 0 2px;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
 }
 
 [data-theme="8bit"] .logo,
 [data-theme="8bit"] .logo-wordmark-accent,
 [data-theme="8bit"] .logo-wordmark-base {
     font-family: var(--font-ui);
-    letter-spacing: 0.03em;
+    font-size: 1.15rem;
+    letter-spacing: 0.06em;
 }
 
 [data-theme="8bit"] .logo-wordmark-accent {
@@ -124,12 +139,131 @@ html[data-theme="8bit"]::after {
     text-shadow: 2px 2px 0 #1a1a6c;
 }
 
+/* ── True Pixelation: shrink source → browser upscales with pixelated ── */
+/*
+ * background-image elements: background-size to tiny value, pixelated
+ * does nearest-neighbor upscaling = real pixel blocks.
+ *
+ * <img> elements: CSS width/height shrink the intrinsic rendering size,
+ * the parent container stays large, overflow:hidden clips, and
+ * image-rendering:pixelated does nearest-neighbor when the browser
+ * composites the small raster into the larger layout box.
+ */
+
+/* ── Chat UI Icons (background-image PNGs) ────────────────────── */
+[data-theme="8bit"] .chat-ui-icon {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background-size: 8px 8px !important;
+}
+
+[data-theme="8bit"] .chat-theme-option-icon .chat-ui-icon,
+[data-theme="8bit"] .chat-theme-option-icon.chat-ui-icon {
+    background-size: 6px 6px !important;
+}
+
+[data-theme="8bit"] .chat-ui-icon.is-large {
+    background-size: 12px 12px !important;
+}
+
+[data-theme="8bit"] .logo-icon .chat-ui-icon {
+    background-size: 14px 14px !important;
+}
+
+[data-theme="8bit"] .integrations-edge-tab .chat-ui-icon,
+[data-theme="8bit"] .session-edge-tab .chat-ui-icon,
+[data-theme="8bit"] .btn-speaker .chat-ui-icon,
+[data-theme="8bit"] .chat-theme-btn .chat-ui-icon,
+[data-theme="8bit"] .btn-composer-primary .chat-ui-icon {
+    background-size: 9px 9px !important;
+}
+
+[data-theme="8bit"] .mood-toggle .chat-ui-icon {
+    background-size: 10px 10px !important;
+}
+
+[data-theme="8bit"] .avatar .chat-ui-icon {
+    background-size: 8px 8px !important;
+}
+
+/* ── Avatars ──────────────────────────────────────────────────── */
+[data-theme="8bit"] .avatar {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 3px 3px 0 #160f3f;
+    overflow: hidden;
+}
+
+/* The <img> inside .avatar is 32x32 via HTML attributes.
+   We force it to render at 8x8 inside the 34x34 container.
+   image-rendering:pixelated makes the browser upscale with
+   nearest-neighbor = visible pixel blocks from real pixels. */
+[data-theme="8bit"] .avatar img,
+[data-theme="8bit"] .avatar .persona-avatar-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    width: 8px !important;
+    height: 8px !important;
+    object-fit: cover;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+/* ── Robot Mascot (CSS sprite via background-image) ───────────── */
+/* The sprite uses background-size:600% for a 6x6 grid.
+   We override to compress each sprite cell to ~8px = real pixelation. */
+[data-theme="8bit"] .chat-robot-sprite {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background-size: 48px 48px !important;
+}
+
+/* ── Personality Current Icon (standalone <img>) ──────────────── */
+[data-theme="8bit"] .personality-current-icon {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 2px 2px 0 #160f3f;
+    width: 8px !important;
+    height: 8px !important;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+/* ── Personality Preview Image (<img> 256x256) ────────────────── */
+/* Shrink to 16x16, container clips. 256/16 = 16x pixel blocks. */
+[data-theme="8bit"] .personality-preview-image {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 3px 3px 0 #160f3f;
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* ── Persona icons in drawers / options ───────────────────────── */
+[data-theme="8bit"] .persona-icon,
+[data-theme="8bit"] img[class*="persona"],
+[data-theme="8bit"] .personality-option img,
+[data-theme="8bit"] .personality-option .chat-ui-icon {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* ── Chat Bubbles ───────────────────────────────────────────────── */
 [data-theme="8bit"] .bubble {
     border: 2px solid var(--8bit-border);
     border-radius: 0;
     font-family: var(--font-ui);
-    font-size: 0.72rem;
-    line-height: 1.9;
+    font-size: var(--chat-copy-font-size);
+    line-height: 2;
     letter-spacing: 0.01em;
     box-shadow: var(--8bit-pixel-shadow), inset 2px 2px 0 rgba(255, 255, 255, 0.1);
     background-image:
@@ -163,13 +297,21 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-white);
 }
 
+[data-theme="8bit"] .bubble h1,
+[data-theme="8bit"] .bubble h2,
+[data-theme="8bit"] .bubble h3 {
+    color: var(--8bit-yellow);
+    text-shadow: 1px 1px 0 #1a1a6c;
+}
+
 [data-theme="8bit"] .bubble code,
 [data-theme="8bit"] code {
     border: 1px solid var(--8bit-green);
     border-radius: 0;
-    background: var(--8bit-code-bg, #151044);
+    background: #151044;
     color: var(--8bit-green);
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.78em;
 }
 
 [data-theme="8bit"] .bubble pre,
@@ -181,30 +323,7 @@ html[data-theme="8bit"]::after {
     box-shadow: inset 2px 2px 0 rgba(109, 255, 58, 0.12);
 }
 
-[data-theme="8bit"] .chat-ui-icon,
-[data-theme="8bit"] .avatar,
-[data-theme="8bit"] #chat-robot-mascot,
-[data-theme="8bit"] .personality-current-icon,
-[data-theme="8bit"] .personality-preview-image,
-[data-theme="8bit"] .persona-icon,
-[data-theme="8bit"] img[class*="persona"] {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-}
-
-[data-theme="8bit"] .avatar,
-[data-theme="8bit"] .personality-current-icon,
-[data-theme="8bit"] .personality-preview-image {
-    border: 2px solid var(--8bit-border);
-    border-radius: 0;
-    background: var(--8bit-bg-dark);
-    box-shadow: 3px 3px 0 #160f3f;
-}
-
-[data-theme="8bit"] #chat-robot-mascot {
-    filter: contrast(1.2) saturate(1.25);
-}
-
+/* ── Buttons ────────────────────────────────────────────────────── */
 [data-theme="8bit"] button,
 [data-theme="8bit"] .btn-header,
 [data-theme="8bit"] .btn-header-link,
@@ -224,6 +343,7 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-text);
     box-shadow: 3px 3px 0 #160f3f;
     font-family: var(--font-ui);
+    font-size: 0.65rem;
 }
 
 [data-theme="8bit"] button:hover,
@@ -249,12 +369,7 @@ html[data-theme="8bit"]::after {
 }
 
 [data-theme="8bit"] .session-edge-tab:hover,
-[data-theme="8bit"] .session-edge-tab:focus-visible {
-    background: var(--8bit-surface);
-    color: var(--8bit-white);
-    border-color: var(--8bit-cyan);
-}
-
+[data-theme="8bit"] .session-edge-tab:focus-visible,
 [data-theme="8bit"] .integrations-edge-tab:hover,
 [data-theme="8bit"] .integrations-edge-tab:focus-visible {
     background: var(--8bit-surface);
@@ -262,6 +377,7 @@ html[data-theme="8bit"]::after {
     border-color: var(--8bit-cyan);
 }
 
+/* ── Pills & Status ─────────────────────────────────────────────── */
 [data-theme="8bit"] .pill,
 [data-theme="8bit"] .status-pill,
 [data-theme="8bit"] .warnings-badge,
@@ -273,8 +389,10 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-cyan);
     box-shadow: 2px 2px 0 #160f3f;
     font-family: var(--font-ui);
+    font-size: 0.6rem;
 }
 
+/* ── Dropdowns & Menu Items ─────────────────────────────────────── */
 [data-theme="8bit"] .chat-theme-option,
 [data-theme="8bit"] .personality-option,
 [data-theme="8bit"] .session-item,
@@ -283,6 +401,7 @@ html[data-theme="8bit"]::after {
     border-radius: 0;
     color: var(--8bit-text);
     font-family: var(--font-ui);
+    font-size: 0.65rem;
 }
 
 [data-theme="8bit"] .chat-theme-option:hover,
@@ -297,10 +416,13 @@ html[data-theme="8bit"]::after {
     outline-offset: -2px;
 }
 
+/* ── Input Area ─────────────────────────────────────────────────── */
 [data-theme="8bit"] .chat-input-area {
     border-width: 2px 0 0;
     background: #2b1a5e;
     box-shadow: 0 -4px 0 #160f3f;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
 }
 
 [data-theme="8bit"] textarea,
@@ -315,6 +437,8 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-white);
     caret-color: var(--8bit-yellow);
     font-family: var(--font-ui);
+    font-size: var(--chat-input-font-size);
+    line-height: 1.8;
     box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14);
 }
 
@@ -329,6 +453,7 @@ html[data-theme="8bit"]::after {
     animation: eightbitCaretBlink 1s steps(2, end) infinite;
 }
 
+/* ── Modals & Drawers ───────────────────────────────────────────── */
 [data-theme="8bit"] .modal-card,
 [data-theme="8bit"] .session-drawer,
 [data-theme="8bit"] .integrations-drawer {
@@ -345,6 +470,18 @@ html[data-theme="8bit"]::after {
     -webkit-backdrop-filter: none;
 }
 
+[data-theme="8bit"] .modal-title {
+    font-size: 0.85rem;
+    color: var(--8bit-yellow);
+    text-shadow: 1px 1px 0 #1a1a6c;
+}
+
+[data-theme="8bit"] .modal-body {
+    font-size: 0.75rem;
+    line-height: 2;
+}
+
+/* ── Misc ────────────────────────────────────────────────────────── */
 [data-theme="8bit"] hr,
 [data-theme="8bit"] .divider {
     border-color: var(--8bit-border);
@@ -355,25 +492,52 @@ html[data-theme="8bit"]::after {
     color: #151044;
 }
 
+[data-theme="8bit"] .greeting-text {
+    font-size: 0.75rem;
+    line-height: 2.2;
+}
+
+/* ── Animations ──────────────────────────────────────────────────── */
 @keyframes eightbitCaretBlink {
     0%, 49% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px var(--8bit-yellow); }
     50%, 100% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px transparent; }
 }
 
+/* ── Mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
-    [data-theme="8bit"] .bubble {
-        font-size: 0.64rem;
-        line-height: 1.8;
+    [data-theme="8bit"] {
+        font-size: 0.7rem;
     }
-
-    [data-theme="8bit"] button,
-    [data-theme="8bit"] .pill,
+    [data-theme="8bit"] body {
+        font-size: 0.7rem;
+    }
+    [data-theme="8bit"] .bubble {
+        font-size: 0.76rem;
+        line-height: 1.9;
+    }
+    [data-theme="8bit"] .logo,
+    [data-theme="8bit"] .logo-wordmark-accent,
+    [data-theme="8bit"] .logo-wordmark-base {
+        font-size: 0.9rem;
+    }
+    [data-theme="8bit"] button {
+        font-size: 0.58rem;
+    }
+    [data-theme="8bit"] .pill {
+        font-size: 0.52rem;
+    }
     [data-theme="8bit"] .chat-theme-option,
     [data-theme="8bit"] .personality-option {
-        font-size: 0.62rem;
+        font-size: 0.58rem;
+    }
+    [data-theme="8bit"] textarea,
+    [data-theme="8bit"] input,
+    [data-theme="8bit"] #message-input {
+        font-size: 0.7rem;
     }
 }
 
+/* ── Reduced Motion ──────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     [data-theme="8bit"] *,
     [data-theme="8bit"] *::before,
