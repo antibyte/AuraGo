@@ -240,6 +240,8 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 	for _, dir := range []string{
 		filepath.Join(home, "meta"),
 		filepath.Join(home, "spaces"),
+		filepath.Join(home, "dashboard"),
+		filepath.Join(home, "onscreen-agent"),
 		filepath.Join(home, ".config"),
 		filepath.Join(home, ".local", "share"),
 	} {
@@ -253,6 +255,21 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 	}
 	if strings.TrimSpace(string(content)) != "[]" {
 		t.Fatalf("login_hooks.json = %q, want []", string(content))
+	}
+	for path, want := range map[string]string{
+		filepath.Join(home, "dashboard", "prefs.json"):               "{}",
+		filepath.Join(home, "onscreen-agent", "config.json"):         "{}",
+		filepath.Join(home, "onscreen-agent", "history.json"):        "[]",
+		filepath.Join(home, "meta", "dashboard-prefs.json"):          "{}",
+		filepath.Join(home, ".config", "onscreen-agent-config.json"): "{}",
+	} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s) error = %v", path, err)
+		}
+		if strings.TrimSpace(string(content)) != want {
+			t.Fatalf("%s = %q, want %s", path, string(content), want)
+		}
 	}
 }
 

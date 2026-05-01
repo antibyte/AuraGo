@@ -488,6 +488,8 @@ func ensureSpaceAgentHome(homePath string) error {
 		homePath,
 		filepath.Join(homePath, "meta"),
 		filepath.Join(homePath, "spaces"),
+		filepath.Join(homePath, "dashboard"),
+		filepath.Join(homePath, "onscreen-agent"),
 		filepath.Join(homePath, ".config"),
 		filepath.Join(homePath, ".local", "share"),
 	} {
@@ -496,7 +498,17 @@ func ensureSpaceAgentHome(homePath string) error {
 		}
 	}
 	for path, content := range map[string]string{
-		filepath.Join(homePath, "meta", "login_hooks.json"): "[]\n",
+		filepath.Join(homePath, "meta", "login_hooks.json"):               "[]\n",
+		filepath.Join(homePath, "dashboard", "prefs.json"):                "{}\n",
+		filepath.Join(homePath, "dashboard", "dashboard-prefs.json"):      "{}\n",
+		filepath.Join(homePath, "onscreen-agent", "config.json"):          "{}\n",
+		filepath.Join(homePath, "onscreen-agent", "history.json"):         "[]\n",
+		filepath.Join(homePath, "meta", "onscreen-agent-config.json"):     "{}\n",
+		filepath.Join(homePath, "meta", "onscreen-agent-history.json"):    "[]\n",
+		filepath.Join(homePath, "meta", "dashboard-prefs.json"):           "{}\n",
+		filepath.Join(homePath, ".config", "dashboard-prefs.json"):        "{}\n",
+		filepath.Join(homePath, ".config", "onscreen-agent-config.json"):  "{}\n",
+		filepath.Join(homePath, ".config", "onscreen-agent-history.json"): "[]\n",
 	} {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			if writeErr := os.WriteFile(path, []byte(content), 0o600); writeErr != nil {
