@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 
@@ -68,28 +69,34 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	}
 
 	if code == 200 {
-		// Container exists — check if running
-		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil {
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				if running, _ := state["Running"].(bool); running {
-					logger.Info("[Ollama Managed] Container already running")
-					waitForOllamaReady(port, logger)
-					pullManagedModels(port, mi.DefaultModels, logger)
-					return
+		if ollamaContainerNeedsRecreateForHostDevices(data) {
+			logger.Warn("[Ollama Managed] Existing container references missing host GPU devices; recreating")
+			removeOllamaContainerBestEffort(dockerCfg, ollamaManagedContainerName)
+			code = 404
+		} else {
+			// Container exists — check if running
+			var info map[string]interface{}
+			if json.Unmarshal(data, &info) == nil {
+				if state, ok := info["State"].(map[string]interface{}); ok {
+					if running, _ := state["Running"].(bool); running {
+						logger.Info("[Ollama Managed] Container already running")
+						waitForOllamaReady(port, logger)
+						pullManagedModels(port, mi.DefaultModels, logger)
+						return
+					}
 				}
 			}
-		}
-		// Exists but stopped — start it
-		startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
-		if startErr != nil || (startCode != 204 && startCode != 304) {
-			logger.Error("[Ollama Managed] Failed to start existing container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
+			// Exists but stopped — start it
+			startData, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaManagedContainerName+"/start", "")
+			if startErr != nil || (startCode != 204 && startCode != 304) {
+				logger.Error("[Ollama Managed] Failed to start existing container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
+				return
+			}
+			logger.Info("[Ollama Managed] Container started")
+			waitForOllamaReady(port, logger)
+			pullManagedModels(port, mi.DefaultModels, logger)
 			return
 		}
-		logger.Info("[Ollama Managed] Container started")
-		waitForOllamaReady(port, logger)
-		pullManagedModels(port, mi.DefaultModels, logger)
-		return
 	}
 
 	if code != 404 {
@@ -161,6 +168,34 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 
 	waitForOllamaReady(port, logger)
 	pullManagedModels(port, mi.DefaultModels, logger)
+}
+
+func ollamaContainerNeedsRecreateForHostDevices(data []byte) bool {
+	var info struct {
+		HostConfig struct {
+			Devices []struct {
+				PathOnHost string `json:"PathOnHost"`
+			} `json:"Devices"`
+		} `json:"HostConfig"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false
+	}
+	for _, device := range info.HostConfig.Devices {
+		path := strings.TrimSpace(device.PathOnHost)
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func removeOllamaContainerBestEffort(dockerCfg DockerConfig, containerName string) {
+	_, _, _ = dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "")
+	_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName+"?force=true", "")
 }
 
 // StopOllamaManagedContainer stops the managed Ollama container.

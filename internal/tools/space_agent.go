@@ -200,7 +200,7 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 	dockerCfg := DockerConfig{Host: dockerHost}
 	containerName := effectiveSpaceAgentContainerName(cfg)
 	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath, cfg.AdminUser, cfg.BridgeURL, cfg.BridgeToken); err != nil {
-		logger.Error("[SpaceAgent] Failed to write bridge customware", "error", err)
+		logger.Warn("[SpaceAgent] Host-side bridge customware seed skipped; container bootstrap will retry", "error", err)
 	}
 	if data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
 		if spaceAgentContainerNeedsRecreate(data, cfg) {
@@ -276,6 +276,12 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		return true
 	}
 	if info.Config.Labels["org.aurago.space-agent.build-revision"] != spaceAgentImageBuildRevision {
+		return true
+	}
+	if wantBridgeURL := strings.TrimSpace(cfg.BridgeURL); wantBridgeURL != "" && !spaceAgentEnvContains(info.Config.Env, "AURAGO_BRIDGE_URL="+wantBridgeURL) {
+		return true
+	}
+	if wantBridgeToken := strings.TrimSpace(cfg.BridgeToken); wantBridgeToken != "" && !spaceAgentEnvContains(info.Config.Env, "AURAGO_BRIDGE_TOKEN="+wantBridgeToken) {
 		return true
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)
@@ -468,7 +474,7 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 		logger.Warn("[SpaceAgent] Host-side bridge customware seed skipped; container bootstrap will retry", "error", err)
 	}
 	if err := ensureSpaceAgentCustomwareUserHome(cfg.CustomwarePath, cfg.AdminUser); err != nil {
-		logger.Warn("[SpaceAgent] Host-side customware workspace seed skipped; container bootstrap will retry", "error", err)
+		logger.Info("[SpaceAgent] Host-side customware workspace seed skipped; container bootstrap will retry", "error", err)
 	}
 	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
 		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--branch", cfg.GitRef, cfg.RepoURL, cfg.SourcePath); err != nil {
@@ -848,18 +854,29 @@ func writeSpaceAgentBridgeCustomware(dir string, adminUser string, bridgeURL str
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	files := map[string]string{
+	rootFiles := map[string]string{
 		filepath.Join(dir, "aurago_bridge.md"):  spaceAgentBridgeHelperReadme(),
 		filepath.Join(dir, "aurago_bridge.js"):  spaceAgentBridgeHelperESM(bridgeURL, bridgeToken),
 		filepath.Join(dir, "aurago_bridge.cjs"): spaceAgentBridgeHelperCJS(bridgeURL, bridgeToken),
 	}
+	if err := writeSpaceAgentBridgeFiles(rootFiles); err != nil {
+		return err
+	}
+
 	if userDir, err := spaceAgentCustomwareUserDir(dir, adminUser); err == nil && userDir != "" {
-		files[filepath.Join(userDir, "aurago_bridge.md")] = spaceAgentBridgeHelperReadme()
-		files[filepath.Join(userDir, "aurago_bridge.js")] = spaceAgentBridgeHelperESM(bridgeURL, bridgeToken)
-		files[filepath.Join(userDir, "aurago_bridge.cjs")] = spaceAgentBridgeHelperCJS(bridgeURL, bridgeToken)
+		userFiles := map[string]string{
+			filepath.Join(userDir, "aurago_bridge.md"):  spaceAgentBridgeHelperReadme(),
+			filepath.Join(userDir, "aurago_bridge.js"):  spaceAgentBridgeHelperESM(bridgeURL, bridgeToken),
+			filepath.Join(userDir, "aurago_bridge.cjs"): spaceAgentBridgeHelperCJS(bridgeURL, bridgeToken),
+		}
+		_ = writeSpaceAgentBridgeFiles(userFiles)
 	} else if err != nil {
 		return err
 	}
+	return nil
+}
+
+func writeSpaceAgentBridgeFiles(files map[string]string) error {
 	for path, content := range files {
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return err

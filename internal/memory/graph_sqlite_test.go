@@ -184,6 +184,22 @@ func TestKnowledgeGraphRebuildsLegacyFTSSchema(t *testing.T) {
 	if result := kg.Search("legacy"); result == "[]" {
 		t.Fatal("expected search results after legacy FTS rebuild")
 	}
+
+	var hasEdgeUpdatedAt bool
+	if err := kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_info('kg_edges') WHERE name='updated_at'").Scan(&hasEdgeUpdatedAt); err != nil {
+		t.Fatalf("query kg_edges updated_at column: %v", err)
+	}
+	if !hasEdgeUpdatedAt {
+		t.Fatal("legacy kg_edges table was not migrated with updated_at")
+	}
+
+	var edgeUpdatedAt string
+	if err := kg.db.QueryRow(`SELECT COALESCE(updated_at, '') FROM kg_edges WHERE source='legacy_node' AND target='target' AND relation='relates_to'`).Scan(&edgeUpdatedAt); err != nil {
+		t.Fatalf("query migrated edge updated_at: %v", err)
+	}
+	if strings.TrimSpace(edgeUpdatedAt) == "" {
+		t.Fatal("legacy kg_edges.updated_at was not backfilled")
+	}
 }
 
 func TestKGDeleteNode(t *testing.T) {

@@ -53,7 +53,7 @@ func (kg *KnowledgeGraph) initTables() error {
 	colMigrations := []colMigration{
 		{"kg_nodes", "semantic_indexed_at", "DATETIME"},
 		{"kg_edges", "semantic_indexed_at", "DATETIME"},
-		{"kg_edges", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"},
+		{"kg_edges", "updated_at", "DATETIME"},
 	}
 	for _, cm := range colMigrations {
 		if !validIdentifier(cm.table) || !validIdentifier(cm.column) {
@@ -71,6 +71,9 @@ func (kg *KnowledgeGraph) initTables() error {
 		} else {
 			kg.logger.Info("KG migration: added column", "table", cm.table, "column", cm.column)
 		}
+	}
+	if _, err := kg.db.Exec("UPDATE kg_edges SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at = ''"); err != nil {
+		kg.logger.Warn("KG migration: backfill kg_edges.updated_at failed", "error", err)
 	}
 
 	var hasNodeType bool

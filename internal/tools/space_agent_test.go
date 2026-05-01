@@ -199,6 +199,35 @@ func TestSpaceAgentContainerNeedsRecreateWhenImageRevisionIsOld(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"HOST=0.0.0.0",
+				"PORT=3210",
+				"CUSTOMWARE_PATH=/app/customware",
+				"HOME=/app/home",
+				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
+				"AURAGO_BRIDGE_TOKEN=old-token"
+			],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260501-aurago-bridge-helper"}
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{
+		Host:        "0.0.0.0",
+		Port:        3210,
+		BridgeURL:   "https://new.example/api/bridge",
+		BridgeToken: "new-token",
+	}) {
+		t.Fatal("expected stale bridge env to require recreation")
+	}
+}
+
 func TestSpaceAgentDockerfileInstallsGit(t *testing.T) {
 	dockerfile := spaceAgentDockerfile()
 	for _, want := range []string{"apt-get install", "git", "openssh-client"} {
@@ -349,6 +378,28 @@ func TestWriteSpaceAgentBridgeCustomwareSeedsRootAndUserHelpers(t *testing.T) {
 		if !strings.Contains(text, "sendToAuraGo") {
 			t.Fatalf("%s does not contain bridge helper content: %q", path, text)
 		}
+	}
+}
+
+func TestWriteSpaceAgentBridgeCustomwareTreatsUserHomeAsBestEffort(t *testing.T) {
+	customware := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(customware, "L2", "admin"), 0o750); err != nil {
+		t.Fatalf("MkdirAll(user dir): %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(customware, "L2", "admin", "aurago_bridge.js"), []byte("stale"), 0o400); err != nil {
+		t.Fatalf("WriteFile(stale user helper): %v", err)
+	}
+
+	if err := writeSpaceAgentBridgeCustomware(customware, "admin", "https://aurago.example/api/space-agent/bridge/messages", "bridge-secret"); err != nil {
+		t.Fatalf("writeSpaceAgentBridgeCustomware() error = %v", err)
+	}
+
+	rootHelper, err := os.ReadFile(filepath.Join(customware, "aurago_bridge.js"))
+	if err != nil {
+		t.Fatalf("ReadFile(root helper): %v", err)
+	}
+	if !strings.Contains(string(rootHelper), "sendToAuraGo") {
+		t.Fatalf("root helper was not written: %q", string(rootHelper))
 	}
 }
 
