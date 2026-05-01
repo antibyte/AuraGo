@@ -280,7 +280,9 @@ func spaceAgentShouldRewriteBody(contentType string) bool {
 	contentType = strings.ToLower(contentType)
 	return strings.Contains(contentType, "text/html") ||
 		strings.Contains(contentType, "javascript") ||
-		strings.Contains(contentType, "ecmascript")
+		strings.Contains(contentType, "ecmascript") ||
+		strings.Contains(contentType, "application/json") ||
+		strings.Contains(contentType, "text/json")
 }
 
 func spaceAgentRewriteBody(body []byte, prefix string) []byte {
@@ -304,6 +306,9 @@ func spaceAgentRewriteBody(body []byte, prefix string) []byte {
 		{`"/api/`, `"` + prefix + `/api/`},
 		{`'/api/`, `'` + prefix + `/api/`},
 		{"`/api/", "`" + prefix + `/api/`},
+		{`"/mod/`, `"` + prefix + `/mod/`},
+		{`'/mod/`, `'` + prefix + `/mod/`},
+		{"`/mod/", "`" + prefix + `/mod/`},
 		{`"/enter`, `"` + prefix + `/enter`},
 		{`'/enter`, `'` + prefix + `/enter`},
 		{"`/enter", "`" + prefix + `/enter`},

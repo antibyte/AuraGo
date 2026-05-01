@@ -207,6 +207,23 @@ func TestSpaceAgentProxyHelpersRewriteAbsoluteAPIStringLiterals(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentProxyHelpersRewriteAbsoluteModStringLiterals(t *testing.T) {
+	body := spaceAgentRewriteBody([]byte("{\"component\":\"/mod/_core/router/ext/html/body/start/router-page.html\",\"hooks\":'/mod/_core/login_hooks/ext/js/_core/framework/initializer.js/initialize/end/login-hooks.js',\"crypto\":`/mod/_core/user_crypto/ext/js/user-crypto.js`}"), "/integrations/space-agent")
+
+	for _, want := range []string{
+		`"/integrations/space-agent/mod/_core/router/ext/html/body/start/router-page.html"`,
+		`'/integrations/space-agent/mod/_core/login_hooks/ext/js/_core/framework/initializer.js/initialize/end/login-hooks.js'`,
+		"`/integrations/space-agent/mod/_core/user_crypto/ext/js/user-crypto.js`",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("rewritten mod path missing %q: %s", want, string(body))
+		}
+	}
+	if !spaceAgentShouldRewriteBody("application/json; charset=utf-8") {
+		t.Fatal("expected JSON responses to be rewritten")
+	}
+}
+
 func TestSpaceAgentProxyHelpersRewriteAbsoluteRouteStringLiterals(t *testing.T) {
 	body := spaceAgentRewriteBody([]byte("window.location.href = \"/enter?next=%2Fintegrations%2Fspace-agent%2F\"; history.replaceState(null, \"\", '/login'); const route = `/enter`;"), "/integrations/space-agent")
 
