@@ -166,23 +166,24 @@ func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logge
 	logger.Debug("[User Profiling] Profile updates applied", "count", count)
 }
 
-// dampenTraitDelta reduces the magnitude of a trait update as the trait approaches
-// the extremes (0.0 or 1.0). This prevents traits from saturating at 1.0 and staying
-// there indefinitely because the daily decay is too small to overcome repeated small
-// positive LLM deltas.
-//   distanceFromCenter = abs(current - 0.5)
-//   dampening          = 1.0 - distanceFromCenter*0.6
-// Examples:
-//   current=0.5  → dampening=1.0  (no reduction)
-//   current=0.9  → dampening=0.76 (24% reduction)
-//   current=0.99 → dampening=0.70 (30% reduction)
+// dampenTraitDelta reduces only updates that push a trait further toward an
+// extreme. Center-bound updates are left intact so saturated traits can recover
+// quickly while repeated positive helper deltas converge instead of clamping to 1.0.
 func dampenTraitDelta(current, delta float64) float64 {
-	dist := math.Abs(current - 0.5)
-	dampening := 1.0 - dist*0.6
-	if dampening < 0.3 {
-		dampening = 0.3
+	if delta == 0 || math.IsNaN(delta) || math.IsInf(delta, 0) {
+		return 0
 	}
-	return delta * dampening
+	current = math.Max(0, math.Min(1, current))
+	if delta > 0 {
+		if current < 0.5 {
+			return delta
+		}
+		return delta * math.Max(0, math.Min(1, (1-current)/0.5))
+	}
+	if current > 0.5 {
+		return delta
+	}
+	return delta * math.Max(0, math.Min(1, current/0.5))
 }
 
 func applyPersonalityV2AnalysisResult(
@@ -219,8 +220,9 @@ func applyPersonalityV2AnalysisResult(
 			logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", damped, "error", err)
 		}
 	}
-	if err := stm.UpdateTrait(memory.TraitAffinity, result.AffinityDelta); err != nil {
-		logger.Warn("[Personality V2] Failed to update affinity trait", "delta", result.AffinityDelta, "error", err)
+	affinityDelta := dampenTraitDelta(currentTraits[memory.TraitAffinity], result.AffinityDelta)
+	if err := stm.UpdateTrait(memory.TraitAffinity, affinityDelta); err != nil {
+		logger.Warn("[Personality V2] Failed to update affinity trait", "delta", affinityDelta, "error", err)
 	}
 
 	if profilingEnabled && len(result.ProfileUpdates) > 0 {

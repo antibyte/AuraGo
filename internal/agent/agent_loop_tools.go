@@ -349,13 +349,13 @@ func executeAgentToolTurn(
 			)
 		} else {
 			mood, traitDeltas := memory.DetectMood(lastUserMsg, resultContent, s.meta)
+			currentTraits, _ := shortTermMem.GetTraits()
 			if s.emotionSynthesizer != nil {
-				traits, _ := shortTermMem.GetTraits()
-				mood = memory.ApplyEmotionBias(mood, s.emotionSynthesizer.GetLastEmotion(), traits)
+				mood = memory.ApplyEmotionBias(mood, s.emotionSynthesizer.GetLastEmotion(), currentTraits)
 			}
 			_ = shortTermMem.LogMood(mood, triggerInfo)
 			for trait, delta := range traitDeltas {
-				_ = shortTermMem.UpdateTrait(trait, delta)
+				_ = shortTermMem.UpdateTrait(trait, dampenTraitDelta(currentTraits[trait], delta))
 			}
 		}
 		s.flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, s.meta)

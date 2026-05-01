@@ -84,34 +84,38 @@ func TestNormalizeHelperTurnPersonalityResultDefaultsMissingOptionalMoodFields(t
 }
 
 func TestDampenTraitDeltaReducesNearExtremes(t *testing.T) {
-	// At center (0.5) there should be no dampening.
 	if got := dampenTraitDelta(0.5, 0.1); got != 0.1 {
 		t.Errorf("dampenTraitDelta(0.5, 0.1) = %.4f, want 0.1", got)
 	}
 
-	// Near high extreme (0.9): dampening ≈ 1.0 - 0.4*0.6 = 0.76
-	// So a +0.1 delta becomes ~0.076.
 	got := dampenTraitDelta(0.9, 0.1)
-	if got < 0.07 || got > 0.08 {
-		t.Errorf("dampenTraitDelta(0.9, 0.1) = %.4f, want ~0.076", got)
+	if got < 0.019 || got > 0.021 {
+		t.Errorf("dampenTraitDelta(0.9, 0.1) = %.4f, want ~0.020", got)
 	}
 
-	// Near low extreme (0.1): same dampening factor for negative deltas.
 	got = dampenTraitDelta(0.1, -0.1)
-	if got < -0.08 || got > -0.07 {
-		t.Errorf("dampenTraitDelta(0.1, -0.1) = %.4f, want ~-0.076", got)
+	if got < -0.021 || got > -0.019 {
+		t.Errorf("dampenTraitDelta(0.1, -0.1) = %.4f, want ~-0.020", got)
 	}
 
-	// Very close to ceiling (0.99): dampening ≈ 1.0 - 0.49*0.6 = 0.706
 	got = dampenTraitDelta(0.99, 0.1)
-	if got < 0.065 || got > 0.075 {
-		t.Errorf("dampenTraitDelta(0.99, 0.1) = %.4f, want ~0.0706", got)
+	if got < 0.0019 || got > 0.0021 {
+		t.Errorf("dampenTraitDelta(0.99, 0.1) = %.4f, want ~0.002", got)
+	}
+	if 0.99+got >= 1.0 {
+		t.Errorf("dampenTraitDelta(0.99, 0.1) would saturate trait to %.4f", 0.99+got)
 	}
 
-	// At 1.0: dist=0.5, dampening=1.0-0.5*0.6=0.7, so delta=0.07.
 	got = dampenTraitDelta(1.0, 0.1)
-	if got < 0.069 || got > 0.071 {
-		t.Errorf("dampenTraitDelta(1.0, 0.1) = %.4f, want ~0.07", got)
+	if got != 0 {
+		t.Errorf("dampenTraitDelta(1.0, 0.1) = %.4f, want 0", got)
+	}
+
+	if got := dampenTraitDelta(0.9, -0.1); got != -0.1 {
+		t.Errorf("dampenTraitDelta(0.9, -0.1) = %.4f, want -0.1 for center-bound movement", got)
+	}
+	if got := dampenTraitDelta(0.1, 0.1); got != 0.1 {
+		t.Errorf("dampenTraitDelta(0.1, 0.1) = %.4f, want 0.1 for center-bound movement", got)
 	}
 }
 
@@ -173,6 +177,46 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	}
 	if len(entries) == 0 || entries[0].Key != "language" || entries[0].Value != "go" {
 		t.Fatalf("profile entries = %#v", entries)
+	}
+}
+
+func TestApplyPersonalityV2AnalysisResultDampensAffinityNearCeiling(t *testing.T) {
+	stm := newTestPersonalityRuntimeMemory(t)
+	if err := stm.SetTrait(memory.TraitAffinity, 0.99); err != nil {
+		t.Fatalf("SetTrait affinity: %v", err)
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	applyPersonalityV2AnalysisResult(
+		"default",
+		&config.Config{},
+		logger,
+		stm,
+		nil,
+		nil,
+		"positive feedback",
+		memory.EmotionTriggerConversation,
+		"",
+		0,
+		false,
+		0,
+		1,
+		personalityV2AnalysisResult{
+			Mood:          memory.MoodFocused,
+			AffinityDelta: 0.1,
+		},
+	)
+
+	traits, err := stm.GetTraits()
+	if err != nil {
+		t.Fatalf("GetTraits: %v", err)
+	}
+	got := traits[memory.TraitAffinity]
+	if got >= 1.0 {
+		t.Fatalf("affinity after damped update = %.4f, want below saturation", got)
+	}
+	if got <= 0.99 {
+		t.Fatalf("affinity after damped update = %.4f, want a small positive movement", got)
 	}
 }
 

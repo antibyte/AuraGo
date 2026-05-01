@@ -1510,14 +1510,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			} else {
 				mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
+				currentTraits, _ := shortTermMem.GetTraits()
 				// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
 				if emotionSynthesizer != nil {
-					traits, _ := shortTermMem.GetTraits()
-					mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), traits)
+					mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), currentTraits)
 				}
 				_ = shortTermMem.LogMood(mood, moodTrigger())
 				for trait, delta := range traitDeltas {
-					_ = shortTermMem.UpdateTrait(trait, delta)
+					_ = shortTermMem.UpdateTrait(trait, dampenTraitDelta(currentTraits[trait], delta))
 				}
 			}
 		}
