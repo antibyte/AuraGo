@@ -95,7 +95,6 @@
 [data-theme="threedee"] .logo,
 [data-theme="threedee"] .header-actions,
 [data-theme="threedee"] .chat-container,
-[data-theme="threedee"] #chat-box,
 [data-theme="threedee"] #chat-content {
     transform-style: preserve-3d;
 }
