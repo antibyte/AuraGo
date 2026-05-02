@@ -53,6 +53,7 @@
     --surface-shadow-strong: 6px 6px 0 var(--8bit-shadow-color);
     --page-orb-opacity: 0;
     --chat-image-opacity: 0.025;
+    --bg-logo-size: cover;
     --bg-logo-filter: saturate(1.2) contrast(1.15);
 
     --font-ui: 'Press Start 2P', ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -83,7 +84,7 @@
 }
 
 [data-theme="8bit"] #chat-box::after {
-    background-size: 192px auto;
+    background-size: var(--bg-logo-size);
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     filter: var(--bg-logo-filter) contrast(1.08);
@@ -171,7 +172,8 @@ html[data-theme="8bit"]::after {
     box-shadow: var(--8bit-pixel-shadow);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    font-family: var(--font-ui);`n    font-size: 0.78rem;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
 }
 
 /* ── Header ─────────────────────────────────────────────────────── */
@@ -218,7 +220,8 @@ html[data-theme="8bit"]::after {
     width: auto;
     min-width: max-content;
     height: 38px;
-    line-height: 1;
+    font-size: 0.68rem;
+    line-height: 1.2;
     padding: 0 0.7rem;
 }
 
@@ -639,6 +642,60 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-text-dim);
 }
 
+/* Radial page menu */
+[data-theme="8bit"] .radial-trigger,
+[data-theme="8bit"] .radial-item-icon,
+[data-theme="8bit"] .radial-item-label {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #2c3e50;
+    color: var(--8bit-text);
+    box-shadow: 3px 3px 0 var(--8bit-shadow-color);
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .radial-trigger {
+    width: 38px;
+    height: 38px;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="8bit"] .radial-trigger::before,
+[data-theme="8bit"] .radial-item-icon::before,
+[data-theme="8bit"] .radial-item-label::before {
+    display: none;
+}
+
+[data-theme="8bit"] .radial-item {
+    gap: 0.45rem;
+}
+
+[data-theme="8bit"] .radial-item-icon {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    font-size: 0.9rem;
+}
+
+[data-theme="8bit"] .radial-item-label {
+    padding: 0.32rem 0.55rem;
+    font-size: 0.58rem;
+    line-height: 1.45;
+    text-shadow: 1px 1px 0 #0d1520;
+}
+
+[data-theme="8bit"] .radial-menu.open .radial-trigger,
+[data-theme="8bit"] .radial-trigger:hover,
+[data-theme="8bit"] .radial-item:hover .radial-item-icon,
+[data-theme="8bit"] .radial-item:hover .radial-item-label,
+[data-theme="8bit"] .radial-item.active .radial-item-icon,
+[data-theme="8bit"] .radial-item.active .radial-item-label {
+    background: #1e3a5f;
+    color: var(--8bit-white);
+    border-color: var(--8bit-blue);
+}
+
 /* Scrollbars in drawers */
 [data-theme="8bit"] .session-drawer::-webkit-scrollbar,
 [data-theme="8bit"] .integrations-drawer::-webkit-scrollbar {
@@ -704,6 +761,12 @@ html[data-theme="8bit"]::after {
     [data-theme="8bit"] .chat-theme-option,
     [data-theme="8bit"] .personality-option {
         font-size: 0.58rem;
+    }
+    [data-theme="8bit"] .app-header #logout-btn {
+        font-size: 0.58rem;
+    }
+    [data-theme="8bit"] .radial-item-label {
+        font-size: 0.52rem;
     }
     [data-theme="8bit"] textarea,
     [data-theme="8bit"] input,

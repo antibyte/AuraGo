@@ -284,12 +284,18 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 
 	chatCSS := string(chatCSSContent)
 	for _, marker := range []string{
-		`.chat-theme-option[data-theme="8bit"] .chat-theme-option-label`,
-		`font-family: 'Press Start 2P'`,
 		`max-height: min(calc(100dvh - 5rem), 34rem);`,
 	} {
 		if !strings.Contains(chatCSS, marker) {
-			t.Fatalf("css/chat.css missing 8Bit theme picker font marker %q", marker)
+			t.Fatalf("css/chat.css missing 8Bit theme picker marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		`.chat-theme-option[data-theme="8bit"] .chat-theme-option-label`,
+		`font-family: 'Press Start 2P'`,
+	} {
+		if strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css still gives the 8Bit picker option a custom font marker %q", marker)
 		}
 	}
 	papyrusContent, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
@@ -320,16 +326,26 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	}
 	bitCSSString := string(bitCSS)
 	for _, marker := range []string{
+		`--bg-logo-size: cover;`,
 		`[data-theme="8bit"] #chat-box::after`,
-		`background-size: 192px auto;`,
+		`background-size: var(--bg-logo-size);`,
 		`image-rendering: pixelated;`,
 		`[data-theme="8bit"] .app-header #logout-btn`,
 		`align-items: center;`,
 		`min-width: max-content;`,
+		`[data-theme="8bit"] .radial-trigger,`,
+		`[data-theme="8bit"] .radial-item-label`,
+		`font-size: 0.58rem;`,
 	} {
 		if !strings.Contains(bitCSSString, marker) {
 			t.Fatalf("css/chat-8bit.css missing 8Bit background pixelation marker %q", marker)
 		}
+	}
+	if strings.Contains(bitCSSString, "192px auto") {
+		t.Fatal("css/chat-8bit.css still shrinks the 8Bit background image to 192px")
+	}
+	if strings.Contains(bitCSSString, "`n") {
+		t.Fatal("css/chat-8bit.css contains a stray PowerShell newline escape")
 	}
 }
 
