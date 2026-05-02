@@ -1270,9 +1270,14 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 // securityHeadersMiddleware adds security headers based on TLS mode
 func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/")
+
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
+		if !allowDesktopIframe {
+			w.Header().Set("X-Frame-Options", "DENY")
+		}
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
@@ -1301,7 +1306,6 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		}
 
 		// Cache control: static assets get public 1-hour cache; everything else no-store.
-		path := r.URL.Path
 		isStaticAsset := strings.HasSuffix(path, ".js") ||
 			strings.HasSuffix(path, ".css") ||
 			strings.HasSuffix(path, ".png") ||

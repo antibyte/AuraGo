@@ -48,3 +48,22 @@ func TestSecurityHeadersSetStrictTransportSecurityForHTTPS(t *testing.T) {
 		t.Fatalf("Strict-Transport-Security = %q, want max-age=31536000", got)
 	}
 }
+
+func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
+	const desktopCSP = "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'"
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", desktopCSP)
+		w.WriteHeader(http.StatusNoContent)
+	}), true, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "https://example.test/files/desktop/Apps/notes/widget.html", nil)
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("X-Frame-Options"); got != "" {
+		t.Fatalf("X-Frame-Options = %q, want empty for desktop iframe files", got)
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != desktopCSP {
+		t.Fatalf("Content-Security-Policy = %q, want desktop CSP", got)
+	}
+}
