@@ -107,7 +107,7 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-btn,
-[data-theme="sandstorm"] .session-edge-tab
+[data-theme="sandstorm"] .session-edge-tab,
 [data-theme="sandstorm"] .integrations-edge-tab,
 [data-theme="sandstorm"] .btn-speaker,
 [data-theme="sandstorm"] .btn-warnings,
@@ -126,8 +126,8 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-btn:hover,
-[data-theme="sandstorm"] .session-edge-tab
-[data-theme="sandstorm"] .integrations-edge-tab,
+[data-theme="sandstorm"] .session-edge-tab:hover,
+[data-theme="sandstorm"] .integrations-edge-tab:hover,
 [data-theme="sandstorm"] .btn-speaker:hover,
 [data-theme="sandstorm"] .btn-warnings:hover,
 [data-theme="sandstorm"] .select-personality:hover,

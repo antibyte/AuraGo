@@ -113,7 +113,7 @@
 [data-theme="dark-sun"] .modal-title,
 [data-theme="dark-sun"] .app-header .pill,
 [data-theme="dark-sun"] .chat-theme-btn,
-[data-theme="dark-sun"] .session-edge-tab
+[data-theme="dark-sun"] .session-edge-tab,
 [data-theme="dark-sun"] .integrations-edge-tab,
 [data-theme="dark-sun"] .btn-speaker,
 [data-theme="dark-sun"] .btn-warnings,
@@ -137,7 +137,7 @@
 
 [data-theme="dark-sun"] .app-header .pill,
 [data-theme="dark-sun"] .chat-theme-btn,
-[data-theme="dark-sun"] .session-edge-tab
+[data-theme="dark-sun"] .session-edge-tab,
 [data-theme="dark-sun"] .integrations-edge-tab,
 [data-theme="dark-sun"] .btn-speaker,
 [data-theme="dark-sun"] .btn-warnings,
@@ -161,7 +161,7 @@
 }
 
 [data-theme="dark-sun"] .chat-theme-btn,
-[data-theme="dark-sun"] .session-edge-tab
+[data-theme="dark-sun"] .session-edge-tab,
 [data-theme="dark-sun"] .integrations-edge-tab,
 [data-theme="dark-sun"] .btn-speaker,
 [data-theme="dark-sun"] .btn-warnings,
@@ -181,8 +181,8 @@
 }
 
 [data-theme="dark-sun"] .chat-theme-btn:hover,
-[data-theme="dark-sun"] .session-edge-tab
-[data-theme="dark-sun"] .integrations-edge-tab,
+[data-theme="dark-sun"] .session-edge-tab:hover,
+[data-theme="dark-sun"] .integrations-edge-tab:hover,
 [data-theme="dark-sun"] .btn-speaker:hover,
 [data-theme="dark-sun"] .btn-warnings:hover,
 [data-theme="dark-sun"] .select-personality:hover,

@@ -219,6 +219,64 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	controlsContent, err := os.ReadFile(filepath.Join("css", "chat-header-controls.css"))
+	if err != nil {
+		t.Fatalf("read header controls CSS: %v", err)
+	}
+
+	indexHTML := string(indexContent)
+	if !strings.Contains(indexHTML, `/css/chat-header-controls.css`) {
+		t.Fatal("index.html must load final chat header controls CSS after theme styles")
+	}
+	if strings.Index(indexHTML, `/css/chat-header-controls.css`) < strings.Index(indexHTML, `/css/chat-8bit.css`) {
+		t.Fatal("chat header controls CSS must load after all chat theme styles")
+	}
+
+	themeCSSFiles, err := filepath.Glob(filepath.Join("css", "chat*.css"))
+	if err != nil {
+		t.Fatalf("glob chat CSS files: %v", err)
+	}
+	for _, cssFile := range themeCSSFiles {
+		cssContent, err := os.ReadFile(cssFile)
+		if err != nil {
+			t.Fatalf("read %s: %v", cssFile, err)
+		}
+		cssText := string(cssContent)
+		for _, broken := range []string{
+			".session-edge-tab\n[data-theme=",
+			".session-edge-tab\r\n[data-theme=",
+		} {
+			if strings.Contains(cssText, broken) {
+				t.Fatalf("%s still contains broken header selector fragment %q", cssFile, broken)
+			}
+		}
+	}
+
+	controlsCSS := string(controlsContent)
+	for _, marker := range []string{
+		".app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings)",
+		"width: var(--chat-header-control-size) !important;",
+		"border-radius: var(--chat-header-control-radius) !important;",
+		".app-header .header-actions .personality-mobile-btn",
+		"background: var(--bg-glass);",
+		"border: 1px solid var(--border-subtle);",
+		"display: inline-grid !important;",
+		"pointer-events: auto !important;",
+		"z-index: 4;",
+	} {
+		if !strings.Contains(controlsCSS, marker) {
+			t.Fatalf("header controls CSS missing normalization marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 	t.Parallel()
 

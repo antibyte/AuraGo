@@ -95,7 +95,7 @@
     [data-theme="lollipop"] .integrations-drawer-title,
 [data-theme="lollipop"] .modal-title,
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .session-edge-tab,
 [data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
@@ -120,7 +120,7 @@
 
 [data-theme="lollipop"] .app-header .pill,
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .session-edge-tab,
 [data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
@@ -152,7 +152,7 @@
 }
 
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .session-edge-tab,
 [data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
@@ -173,8 +173,8 @@
 }
 
 [data-theme="lollipop"] .chat-theme-btn:hover,
-[data-theme="lollipop"] .session-edge-tab
-[data-theme="lollipop"] .integrations-edge-tab,
+[data-theme="lollipop"] .session-edge-tab:hover,
+[data-theme="lollipop"] .integrations-edge-tab:hover,
 [data-theme="lollipop"] .btn-speaker:hover,
 [data-theme="lollipop"] .btn-warnings:hover,
 [data-theme="lollipop"] .select-personality:hover,

@@ -269,7 +269,7 @@
 
 /* ── Header buttons / pills ─────────────────────────────────────────────────── */
 [data-theme="papyrus"] .chat-theme-btn,
-[data-theme="papyrus"] .session-edge-tab
+[data-theme="papyrus"] .session-edge-tab,
 [data-theme="papyrus"] .integrations-edge-tab,
 [data-theme="papyrus"] .btn-speaker,
 [data-theme="papyrus"] .btn-warnings,
@@ -294,8 +294,8 @@
 }
 
 [data-theme="papyrus"] .chat-theme-btn:hover,
-[data-theme="papyrus"] .session-edge-tab
-[data-theme="papyrus"] .integrations-edge-tab,
+[data-theme="papyrus"] .session-edge-tab:hover,
+[data-theme="papyrus"] .integrations-edge-tab:hover,
 [data-theme="papyrus"] .btn-speaker:hover,
 [data-theme="papyrus"] .btn-warnings:hover,
 [data-theme="papyrus"] .select-personality:hover,

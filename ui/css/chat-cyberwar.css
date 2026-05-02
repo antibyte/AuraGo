@@ -113,7 +113,7 @@
 [data-theme="cyberwar"] .modal-title,
 [data-theme="cyberwar"] .app-header .pill,
 [data-theme="cyberwar"] .chat-theme-btn,
-[data-theme="cyberwar"] .session-edge-tab
+[data-theme="cyberwar"] .session-edge-tab,
 [data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
@@ -126,7 +126,7 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-btn,
-[data-theme="cyberwar"] .session-edge-tab
+[data-theme="cyberwar"] .session-edge-tab,
 [data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
@@ -147,8 +147,8 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-btn:hover,
-[data-theme="cyberwar"] .session-edge-tab
-[data-theme="cyberwar"] .integrations-edge-tab,
+[data-theme="cyberwar"] .session-edge-tab:hover,
+[data-theme="cyberwar"] .integrations-edge-tab:hover,
 [data-theme="cyberwar"] .btn-speaker:hover,
 [data-theme="cyberwar"] .btn-warnings:hover,
 [data-theme="cyberwar"] .select-personality:hover,

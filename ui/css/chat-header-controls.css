@@ -1,0 +1,110 @@
+/* Final chat header control normalization. Loaded after all theme styles. */
+
+.app-header {
+    isolation: isolate;
+}
+
+.app-header::before,
+.app-header::after {
+    pointer-events: none !important;
+}
+
+.app-header .header-actions {
+    --chat-header-control-size: 32px;
+    --chat-header-control-radius: 8px;
+    align-items: center;
+    position: relative;
+    z-index: 4;
+}
+
+.app-header .header-actions :where(.chat-theme-picker, .personality-select-wrapper, .mood-widget) {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 4;
+}
+
+.app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings) {
+    width: var(--chat-header-control-size) !important;
+    height: var(--chat-header-control-size) !important;
+    min-width: var(--chat-header-control-size) !important;
+    min-height: var(--chat-header-control-size) !important;
+    border-radius: var(--chat-header-control-radius) !important;
+    padding: 0 !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    box-sizing: border-box;
+    line-height: 1;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 4;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn, .personality-mobile-btn) {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 4;
+    box-sizing: border-box;
+}
+
+.app-header .header-actions :where(.chat-ui-icon, .chat-theme-icon, .warnings-icon, .personality-chevron, .mood-chevron) {
+    pointer-events: none;
+}
+
+.app-header .header-actions .personality-mobile-btn {
+    width: var(--chat-header-control-size) !important;
+    height: var(--chat-header-control-size) !important;
+    min-width: var(--chat-header-control-size) !important;
+    min-height: var(--chat-header-control-size) !important;
+    border-radius: var(--chat-header-control-radius) !important;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    display: none;
+    place-items: center;
+    padding: 0 !important;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.app-header .header-actions .personality-mobile-btn:hover,
+.app-header .header-actions .personality-mobile-btn:focus-visible {
+    border-color: var(--border-accent);
+    color: var(--text-primary);
+}
+
+.app-header .header-actions .select-personality,
+.app-header .header-actions .mood-toggle,
+.app-header .header-actions #logout-btn {
+    min-height: var(--chat-header-control-size);
+    height: var(--chat-header-control-size);
+    border-radius: var(--chat-header-control-radius) !important;
+}
+
+.app-header .header-actions .mood-toggle {
+    align-items: center;
+}
+
+.app-header .header-actions .chat-theme-dropdown,
+.app-header .header-actions .personality-dropdown,
+.app-header .header-actions .mood-panel {
+    z-index: 1400;
+    pointer-events: auto !important;
+}
+
+@media (max-width: 639px) {
+    .app-header .header-actions .personality-mobile-btn {
+        display: inline-grid !important;
+    }
+
+    .app-header .header-actions .select-personality {
+        display: none !important;
+    }
+
+    .app-header .header-actions .personality-select-wrapper {
+        display: contents !important;
+    }
+}
+
