@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -112,6 +114,61 @@ func NewInternalHTTPClient(timeout time.Duration) *http.Client {
 			DisableKeepAlives: true,
 		},
 	}
+}
+
+// DoInternalRequestWithStartupRetry retries short-lived loopback connection
+// refusals during server startup. Mission triggers can fire before the internal
+// listener has finished binding; treating that race as a hard mission failure
+// makes otherwise valid startup missions fail spuriously.
+func DoInternalRequestWithStartupRetry(ctx context.Context, client *http.Client, method, rawURL string, body []byte, headers http.Header, maxWait time.Duration) (*http.Response, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	deadline := time.Now().Add(maxWait)
+	for {
+		req, err := http.NewRequestWithContext(ctx, method, rawURL, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		req.Header = headers.Clone()
+		resp, err := client.Do(req)
+		if err == nil {
+			return resp, nil
+		}
+		if maxWait <= 0 || !isLoopbackConnectionRefused(rawURL, err) || time.Now().After(deadline) {
+			return nil, err
+		}
+		sleep := 500 * time.Millisecond
+		if remaining := time.Until(deadline); remaining < sleep {
+			sleep = remaining
+		}
+		if sleep <= 0 {
+			return nil, err
+		}
+		timer := time.NewTimer(sleep)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func isLoopbackConnectionRefused(rawURL string, err error) bool {
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "connection refused") {
+		return false
+	}
+	parsed, parseErr := url.Parse(rawURL)
+	if parseErr != nil {
+		return false
+	}
+	host := parsed.Hostname()
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // i18nStore holds the parsed translations from ui/lang/ keyed by language code.
@@ -581,19 +638,13 @@ func Start(opts StartOptions) error {
 				setMissionError("Mission request preparation failed", err.Error())
 				return
 			}
-			req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
-			if err != nil {
-				logger.Error("[MissionV2] Failed to create request", "error", err, "mission_id", missionID)
-				setMissionError("Mission request creation failed", err.Error())
-				return
-			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-Internal-FollowUp", "true")
-			req.Header.Set("X-Internal-Token", s.internalToken)
-			req.Header.Set("X-Mission-ID", missionID)
-
+			headers := make(http.Header)
+			headers.Set("Content-Type", "application/json")
+			headers.Set("X-Internal-FollowUp", "true")
+			headers.Set("X-Internal-Token", s.internalToken)
+			headers.Set("X-Mission-ID", missionID)
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
-			resp, err := client.Do(req)
+			resp, err := DoInternalRequestWithStartupRetry(context.Background(), client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				setMissionError("", err.Error())

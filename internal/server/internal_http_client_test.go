@@ -1,7 +1,11 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,4 +79,71 @@ func TestInternalAPIURLUsesHTTPWhenHTTPSDisabled(t *testing.T) {
 	if got := InternalAPIURL(cfg); got != "http://127.0.0.1:8080" {
 		t.Fatalf("InternalAPIURL = %q, want http://127.0.0.1:8080", got)
 	}
+}
+
+func TestDoInternalRequestWithStartupRetryRetriesLoopbackRefusal(t *testing.T) {
+	attempts := 0
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return nil, fmt.Errorf("dial tcp 127.0.0.1:18080: connect: connection refused")
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	resp, err := DoInternalRequestWithStartupRetry(
+		context.Background(),
+		client,
+		http.MethodPost,
+		"http://127.0.0.1:18080/v1/chat/completions",
+		[]byte(`{"ok":true}`),
+		http.Header{"X-Test": []string{"1"}},
+		2*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("DoInternalRequestWithStartupRetry returned error: %v", err)
+	}
+	defer resp.Body.Close()
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestDoInternalRequestWithStartupRetryDoesNotRetryExternalRefusal(t *testing.T) {
+	attempts := 0
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			return nil, fmt.Errorf("dial tcp 203.0.113.1:18080: connect: connection refused")
+		}),
+	}
+
+	_, err := DoInternalRequestWithStartupRetry(
+		context.Background(),
+		client,
+		http.MethodPost,
+		"http://example.com/v1/chat/completions",
+		nil,
+		nil,
+		2*time.Second,
+	)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
