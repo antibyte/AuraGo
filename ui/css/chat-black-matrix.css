@@ -204,6 +204,13 @@
         0 0 20px rgba(148, 242, 109, 0.09);
 }
 
+[data-theme="black-matrix"] .session-edge-tab:hover,
+[data-theme="black-matrix"] .session-edge-tab:focus-visible,
+[data-theme="black-matrix"] .integrations-edge-tab:hover,
+[data-theme="black-matrix"] .integrations-edge-tab:focus-visible {
+    transform: translateY(-50%);
+}
+
 [data-theme="black-matrix"] .chat-theme-icon,
 [data-theme="black-matrix"] .personality-chevron,
 [data-theme="black-matrix"] .mood-chevron {

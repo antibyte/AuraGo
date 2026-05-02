@@ -288,6 +288,28 @@ func TestChatFrontend_PersonalityPreviewFollowsWholeOption(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
+	t.Parallel()
+
+	blackMatrixContent, err := os.ReadFile(filepath.Join("css", "chat-black-matrix.css"))
+	if err != nil {
+		t.Fatalf("read black matrix CSS: %v", err)
+	}
+
+	blackMatrixCSS := string(blackMatrixContent)
+	for _, marker := range []string{
+		`[data-theme="black-matrix"] .session-edge-tab:hover`,
+		`[data-theme="black-matrix"] .session-edge-tab:focus-visible`,
+		`[data-theme="black-matrix"] .integrations-edge-tab:hover`,
+		`[data-theme="black-matrix"] .integrations-edge-tab:focus-visible`,
+		`transform: translateY(-50%);`,
+	} {
+		if !strings.Contains(blackMatrixCSS, marker) {
+			t.Fatalf("black matrix CSS missing anchored edge tab hover marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	t.Parallel()
 
