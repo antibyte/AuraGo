@@ -10,9 +10,15 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/security"
+)
+
+const (
+	defaultGrafanaListLimit = 50
+	maxGrafanaListLimit     = 200
 )
 
 // GrafanaConfig contains connection settings for the Grafana HTTP API.
@@ -52,16 +58,31 @@ type GrafanaDatasource struct {
 	IsDefault bool   `json:"isDefault,omitempty"`
 }
 
+type GrafanaListOptions struct {
+	Limit int
+	Page  int
+}
+
+type GrafanaQueryOptions struct {
+	DatasourceUID  string
+	DatasourceType string
+}
+
 type GrafanaAlert struct {
-	ID             int64  `json:"id,omitempty"`
-	DashboardID    int64  `json:"dashboardId,omitempty"`
-	DashboardUID   string `json:"dashboardUid,omitempty"`
-	DashboardSlug  string `json:"dashboardSlug,omitempty"`
-	PanelID        int64  `json:"panelId,omitempty"`
-	Name           string `json:"name,omitempty"`
-	State          string `json:"state,omitempty"`
-	NewStateDate   string `json:"newStateDate,omitempty"`
-	ExecutionError string `json:"executionError,omitempty"`
+	ID             int64             `json:"id,omitempty"`
+	UID            string            `json:"uid,omitempty"`
+	RuleUID        string            `json:"ruleUid,omitempty"`
+	DashboardID    int64             `json:"dashboardId,omitempty"`
+	DashboardUID   string            `json:"dashboardUid,omitempty"`
+	DashboardSlug  string            `json:"dashboardSlug,omitempty"`
+	PanelID        int64             `json:"panelId,omitempty"`
+	Name           string            `json:"name,omitempty"`
+	State          string            `json:"state,omitempty"`
+	NewStateDate   string            `json:"newStateDate,omitempty"`
+	ExecutionError string            `json:"executionError,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	Annotations    map[string]string `json:"annotations,omitempty"`
+	Source         string            `json:"source,omitempty"`
 }
 
 type GrafanaOrg struct {
@@ -94,16 +115,31 @@ func normalizeGrafanaBaseURL(raw string) (string, error) {
 	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
+var grafanaHTTPClientCache sync.Map
+
 func grafanaHTTPClient(cfg GrafanaConfig) *http.Client {
 	timeout := time.Duration(cfg.RequestTimeout) * time.Second
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
+	baseURL, err := normalizeGrafanaBaseURL(cfg.BaseURL)
+	if err != nil {
+		baseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
+	}
+	cacheKey := fmt.Sprintf("%s|%t|%s", baseURL, cfg.InsecureSSL, timeout)
+	if cached, ok := grafanaHTTPClientCache.Load(cacheKey); ok {
+		return cached.(*http.Client)
+	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 10
+	transport.IdleConnTimeout = 90 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: cfg.InsecureSSL, //nolint:gosec // user-controlled for self-signed homelab instances
 	}
-	return &http.Client{Timeout: timeout, Transport: transport}
+	client := &http.Client{Timeout: timeout, Transport: transport}
+	actual, _ := grafanaHTTPClientCache.LoadOrStore(cacheKey, client)
+	return actual.(*http.Client)
 }
 
 func grafanaDoRequest(ctx context.Context, cfg GrafanaConfig, method, path string, body io.Reader, out interface{}) error {
@@ -157,11 +193,33 @@ func FetchGrafanaHealth(ctx context.Context, cfg GrafanaConfig) (GrafanaHealthRe
 	return out, nil
 }
 
-func ListGrafanaDashboards(ctx context.Context, cfg GrafanaConfig, query string) ([]GrafanaDashboard, error) {
-	path := "/api/search?type=dash-db"
-	if strings.TrimSpace(query) != "" {
-		path += "&query=" + url.QueryEscape(strings.TrimSpace(query))
+func normalizeGrafanaListOptions(opts []GrafanaListOptions) GrafanaListOptions {
+	out := GrafanaListOptions{Limit: defaultGrafanaListLimit, Page: 1}
+	if len(opts) > 0 {
+		out = opts[0]
 	}
+	if out.Limit <= 0 {
+		out.Limit = defaultGrafanaListLimit
+	}
+	if out.Limit > maxGrafanaListLimit {
+		out.Limit = maxGrafanaListLimit
+	}
+	if out.Page <= 0 {
+		out.Page = 1
+	}
+	return out
+}
+
+func ListGrafanaDashboards(ctx context.Context, cfg GrafanaConfig, query string, opts ...GrafanaListOptions) ([]GrafanaDashboard, error) {
+	listOpts := normalizeGrafanaListOptions(opts)
+	values := url.Values{}
+	values.Set("type", "dash-db")
+	values.Set("limit", fmt.Sprintf("%d", listOpts.Limit))
+	values.Set("page", fmt.Sprintf("%d", listOpts.Page))
+	if strings.TrimSpace(query) != "" {
+		values.Set("query", strings.TrimSpace(query))
+	}
+	path := "/api/search?" + values.Encode()
 	var out []GrafanaDashboard
 	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
@@ -189,19 +247,49 @@ func ListGrafanaDatasources(ctx context.Context, cfg GrafanaConfig) ([]GrafanaDa
 	return out, nil
 }
 
-func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, query string) (map[string]interface{}, error) {
-	if dsID <= 0 {
-		return nil, fmt.Errorf("datasource id is required")
+func grafanaQueryField(datasourceType string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(datasourceType)) {
+	case "", "prometheus", "mimir", "cortex", "loki":
+		return "expr", nil
+	case "elasticsearch":
+		return "query", nil
+	default:
+		return "", fmt.Errorf("unsupported grafana datasource_type %q for simple text query; use prometheus, mimir, cortex, loki, or elasticsearch", datasourceType)
+	}
+}
+
+func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, query string, opts ...GrafanaQueryOptions) (map[string]interface{}, error) {
+	queryOpts := GrafanaQueryOptions{}
+	if len(opts) > 0 {
+		queryOpts = opts[0]
+	}
+	queryOpts.DatasourceUID = strings.TrimSpace(queryOpts.DatasourceUID)
+	queryOpts.DatasourceType = strings.TrimSpace(queryOpts.DatasourceType)
+	if dsID <= 0 && queryOpts.DatasourceUID == "" {
+		return nil, fmt.Errorf("datasource id or datasource uid is required")
 	}
 	if strings.TrimSpace(query) == "" {
 		return nil, fmt.Errorf("query is required")
 	}
+	queryField, err := grafanaQueryField(queryOpts.DatasourceType)
+	if err != nil {
+		return nil, err
+	}
+	grafanaQuery := map[string]interface{}{
+		"refId":    "A",
+		queryField: strings.TrimSpace(query),
+	}
+	if queryOpts.DatasourceUID != "" {
+		ds := map[string]interface{}{"uid": queryOpts.DatasourceUID}
+		if queryOpts.DatasourceType != "" {
+			ds["type"] = queryOpts.DatasourceType
+		}
+		grafanaQuery["datasource"] = ds
+	} else {
+		grafanaQuery["datasourceId"] = dsID
+	}
 	body := map[string]interface{}{
-		"queries": []map[string]interface{}{{
-			"refId":        "A",
-			"datasourceId": dsID,
-			"expr":         query,
-		}},
+		"queries": []map[string]interface{}{grafanaQuery},
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -215,11 +303,107 @@ func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, 
 }
 
 func ListGrafanaAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
+	var endpointErrors []string
+	if alerts, err := listGrafanaPrometheusAlerts(ctx, cfg); err == nil {
+		return alerts, nil
+	} else {
+		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/prometheus/grafana/api/v1/alerts: %v", err))
+	}
+	if alerts, err := listGrafanaAlertRules(ctx, cfg); err == nil {
+		return alerts, nil
+	} else {
+		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/alert-rules: %v", err))
+	}
 	var out []GrafanaAlert
 	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/alerts", nil, &out); err != nil {
-		return nil, err
+		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/alerts: %v", err))
+		return nil, fmt.Errorf("grafana alert endpoints failed: %s", strings.Join(endpointErrors, "; "))
+	}
+	for i := range out {
+		out[i].Source = "legacy_alerts"
 	}
 	return out, nil
+}
+
+func listGrafanaPrometheusAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
+	var out struct {
+		Status string `json:"status,omitempty"`
+		Data   struct {
+			Alerts []struct {
+				Labels      map[string]string `json:"labels,omitempty"`
+				Annotations map[string]string `json:"annotations,omitempty"`
+				State       string            `json:"state,omitempty"`
+				ActiveAt    string            `json:"activeAt,omitempty"`
+			} `json:"alerts,omitempty"`
+		} `json:"data,omitempty"`
+	}
+	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/prometheus/grafana/api/v1/alerts", nil, &out); err != nil {
+		return nil, err
+	}
+	alerts := make([]GrafanaAlert, 0, len(out.Data.Alerts))
+	for _, alert := range out.Data.Alerts {
+		name := firstGrafanaMapValue(alert.Labels, "alertname", "grafana_alertname", "rule_uid")
+		if name == "" {
+			name = firstGrafanaMapValue(alert.Annotations, "summary", "title")
+		}
+		alerts = append(alerts, GrafanaAlert{
+			Name:         name,
+			State:        alert.State,
+			NewStateDate: alert.ActiveAt,
+			Labels:       alert.Labels,
+			Annotations:  alert.Annotations,
+			Source:       "prometheus_alerts",
+		})
+	}
+	return alerts, nil
+}
+
+func listGrafanaAlertRules(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
+	var rules []struct {
+		UID       string            `json:"uid,omitempty"`
+		RuleUID   string            `json:"ruleUid,omitempty"`
+		Title     string            `json:"title,omitempty"`
+		Name      string            `json:"name,omitempty"`
+		Labels    map[string]string `json:"labels,omitempty"`
+		Condition string            `json:"condition,omitempty"`
+		Updated   string            `json:"updated,omitempty"`
+	}
+	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/alert-rules", nil, &rules); err != nil {
+		return nil, err
+	}
+	alerts := make([]GrafanaAlert, 0, len(rules))
+	for _, rule := range rules {
+		name := firstNonEmptyGrafanaString(rule.Title, rule.Name, rule.UID, rule.RuleUID)
+		ruleUID := firstNonEmptyGrafanaString(rule.RuleUID, rule.UID)
+		alerts = append(alerts, GrafanaAlert{
+			UID:          rule.UID,
+			RuleUID:      ruleUID,
+			Name:         name,
+			State:        "rule",
+			NewStateDate: rule.Updated,
+			Labels:       rule.Labels,
+			Source:       "alert_rules",
+		})
+	}
+	return alerts, nil
+}
+
+func firstGrafanaMapValue(values map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(values[key]); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstNonEmptyGrafanaString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func GetGrafanaOrg(ctx context.Context, cfg GrafanaConfig) (GrafanaOrg, error) {
@@ -250,12 +434,13 @@ func GrafanaHealthJSON(ctx context.Context, cfg GrafanaConfig) string {
 	return GrafanaJSONResponse(map[string]interface{}{"status": "ok", "data": data})
 }
 
-func GrafanaListDashboardsJSON(ctx context.Context, cfg GrafanaConfig, query string) string {
-	data, err := ListGrafanaDashboards(ctx, cfg, query)
+func GrafanaListDashboardsJSON(ctx context.Context, cfg GrafanaConfig, query string, listOpts ...GrafanaListOptions) string {
+	opts := normalizeGrafanaListOptions(listOpts)
+	data, err := ListGrafanaDashboards(ctx, cfg, query, opts)
 	if err != nil {
 		return grafanaErrorJSON(err)
 	}
-	return GrafanaJSONResponse(map[string]interface{}{"status": "ok", "count": len(data), "data": data})
+	return GrafanaJSONResponse(map[string]interface{}{"status": "ok", "count": len(data), "limit": opts.Limit, "page": opts.Page, "data": data})
 }
 
 func GrafanaGetDashboardJSON(ctx context.Context, cfg GrafanaConfig, uid string) string {
@@ -274,8 +459,8 @@ func GrafanaListDatasourcesJSON(ctx context.Context, cfg GrafanaConfig) string {
 	return GrafanaJSONResponse(map[string]interface{}{"status": "ok", "count": len(data), "data": data})
 }
 
-func GrafanaQueryDatasourceJSON(ctx context.Context, cfg GrafanaConfig, dsID int64, query string) string {
-	data, err := QueryGrafanaDatasource(ctx, cfg, dsID, query)
+func GrafanaQueryDatasourceJSON(ctx context.Context, cfg GrafanaConfig, dsID int64, query string, opts ...GrafanaQueryOptions) string {
+	data, err := QueryGrafanaDatasource(ctx, cfg, dsID, query, opts...)
 	if err != nil {
 		return grafanaErrorJSON(err)
 	}

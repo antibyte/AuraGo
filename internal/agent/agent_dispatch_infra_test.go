@@ -76,3 +76,42 @@ func TestDispatchInfraMQTTPublishUsesParamsFallback(t *testing.T) {
 		t.Fatalf("expected downstream MQTT bridge error, got %s", out)
 	}
 }
+
+func TestDecodeGrafanaArgsSupportsUIDTypeAndPagination(t *testing.T) {
+	req := decodeGrafanaArgs(ToolCall{
+		Params: map[string]interface{}{
+			"operation":       "query",
+			"query":           "up",
+			"datasource_uid":  "prom-main",
+			"datasource_type": "prometheus",
+			"limit":           float64(25),
+			"page":            float64(2),
+		},
+	})
+
+	if req.DatasourceUID != "prom-main" {
+		t.Fatalf("DatasourceUID = %q, want prom-main", req.DatasourceUID)
+	}
+	if req.DatasourceType != "prometheus" {
+		t.Fatalf("DatasourceType = %q, want prometheus", req.DatasourceType)
+	}
+	if req.Limit != 25 {
+		t.Fatalf("Limit = %d, want 25", req.Limit)
+	}
+	if req.Page != 2 {
+		t.Fatalf("Page = %d, want 2", req.Page)
+	}
+}
+
+func TestGrafanaReadOnlyGuardBlocksFutureMutations(t *testing.T) {
+	for _, op := range []string{"create_dashboard", "update_dashboard", "delete_dashboard", "pause_alert", "create_annotation"} {
+		if !isGrafanaMutation(op) {
+			t.Fatalf("isGrafanaMutation(%q) = false, want true", op)
+		}
+	}
+	for _, op := range []string{"health", "list_dashboards", "get_dashboard", "list_datasources", "query", "list_alerts", "get_org"} {
+		if isGrafanaMutation(op) {
+			t.Fatalf("isGrafanaMutation(%q) = true, want false", op)
+		}
+	}
+}

@@ -48,15 +48,29 @@ func handleGrafanaStatus(s *Server) http.HandlerFunc {
 			return
 		}
 
-		dashboards, _ := tools.ListGrafanaDashboards(ctx, cfg, "")
-		datasources, _ := tools.ListGrafanaDatasources(ctx, cfg)
-		alerts, _ := tools.ListGrafanaAlerts(ctx, cfg)
-		org, _ := tools.GetGrafanaOrg(ctx, cfg)
+		var partialErrors []string
+		dashboards, err := tools.ListGrafanaDashboards(ctx, cfg, "")
+		if err != nil {
+			partialErrors = append(partialErrors, "dashboards: "+err.Error())
+		}
+		datasources, err := tools.ListGrafanaDatasources(ctx, cfg)
+		if err != nil {
+			partialErrors = append(partialErrors, "datasources: "+err.Error())
+		}
+		alerts, err := tools.ListGrafanaAlerts(ctx, cfg)
+		if err != nil {
+			partialErrors = append(partialErrors, "alerts: "+err.Error())
+		}
+		org, err := tools.GetGrafanaOrg(ctx, cfg)
+		if err != nil {
+			partialErrors = append(partialErrors, "org: "+err.Error())
+		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
 			"data": map[string]interface{}{
-				"health": health,
+				"health":         health,
+				"partial_errors": partialErrors,
 				"summary": map[string]interface{}{
 					"dashboards":  len(dashboards),
 					"datasources": len(datasources),

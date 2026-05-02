@@ -772,9 +772,13 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Operation to perform",
 					"enum":        []string{"health", "list_dashboards", "get_dashboard", "list_datasources", "query", "list_alerts", "get_org"},
 				},
-				"query":         prop("string", "Search query for list_dashboards or expression for query"),
-				"uid":           prop("string", "Dashboard UID for get_dashboard"),
-				"datasource_id": map[string]interface{}{"type": "integer", "description": "Grafana datasource ID for query"},
+				"query":           prop("string", "Search query for list_dashboards or read expression for query"),
+				"uid":             prop("string", "Dashboard UID for get_dashboard"),
+				"datasource_id":   map[string]interface{}{"type": "integer", "description": "Grafana datasource ID for query; datasource_uid is preferred when available"},
+				"datasource_uid":  prop("string", "Grafana datasource UID for query"),
+				"datasource_type": prop("string", "Datasource type for query payload mapping: prometheus, mimir, cortex, loki, or elasticsearch"),
+				"limit":           map[string]interface{}{"type": "integer", "description": "Maximum dashboards for list_dashboards (default 50, max 200)"},
+				"page":            map[string]interface{}{"type": "integer", "description": "Dashboard search page for list_dashboards (default 1)"},
 			}, "operation"),
 		))
 	}

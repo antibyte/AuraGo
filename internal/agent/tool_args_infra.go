@@ -185,10 +185,14 @@ type uptimeKumaArgs struct {
 }
 
 type grafanaArgs struct {
-	Operation    string
-	Query        string
-	UID          string
-	DatasourceID int64
+	Operation      string
+	Query          string
+	UID            string
+	DatasourceID   int64
+	DatasourceUID  string
+	DatasourceType string
+	Limit          int
+	Page           int
 }
 
 type sqlQueryArgs struct {
@@ -358,10 +362,14 @@ func decodeUptimeKumaArgs(tc ToolCall) uptimeKumaArgs {
 
 func decodeGrafanaArgs(tc ToolCall) grafanaArgs {
 	return grafanaArgs{
-		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Query:        firstNonEmptyToolString(tc.Query, tc.Content, toolArgString(tc.Params, "query", "expr")),
-		UID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "uid", "dashboard_uid")),
-		DatasourceID: int64(firstNonEmptyInt(toolArgInt(tc.Params, 0, "datasource_id", "ds_id"))),
+		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:          firstNonEmptyToolString(tc.Query, tc.Content, toolArgString(tc.Params, "query", "expr")),
+		UID:            firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "uid", "dashboard_uid")),
+		DatasourceID:   int64(firstNonEmptyInt(toolArgInt(tc.Params, 0, "datasource_id", "ds_id"))),
+		DatasourceUID:  firstNonEmptyToolString(toolArgString(tc.Params, "datasource_uid", "ds_uid")),
+		DatasourceType: firstNonEmptyToolString(toolArgString(tc.Params, "datasource_type", "ds_type")),
+		Limit:          firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		Page:           firstNonEmptyInt(toolArgInt(tc.Params, 0, "page")),
 	}
 }
 

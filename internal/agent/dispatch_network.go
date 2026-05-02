@@ -15,6 +15,15 @@ import (
 	"aurago/internal/tools"
 )
 
+func isGrafanaMutation(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "create_dashboard", "update_dashboard", "delete_dashboard", "pause_alert", "create_annotation":
+		return true
+	default:
+		return false
+	}
+}
+
 func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
 	logger := dc.Logger
@@ -397,13 +406,16 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				RequestTimeout: cfg.Grafana.RequestTimeout,
 			}
 			op := strings.ToLower(strings.TrimSpace(req.Operation))
+			if cfg.Grafana.ReadOnly && isGrafanaMutation(op) {
+				return `Tool Output: {"status":"error","message":"Grafana is in read-only mode. Disable grafana.readonly to allow changes."}`
+			}
 			switch op {
 			case "health":
 				logger.Info("LLM requested Grafana health")
 				return "Tool Output: " + tools.GrafanaHealthJSON(context.Background(), gfCfg)
 			case "list_dashboards":
 				logger.Info("LLM requested Grafana dashboards")
-				return "Tool Output: " + tools.GrafanaListDashboardsJSON(context.Background(), gfCfg, req.Query)
+				return "Tool Output: " + tools.GrafanaListDashboardsJSON(context.Background(), gfCfg, req.Query, tools.GrafanaListOptions{Limit: req.Limit, Page: req.Page})
 			case "get_dashboard":
 				logger.Info("LLM requested Grafana dashboard", "uid", req.UID)
 				return "Tool Output: " + tools.GrafanaGetDashboardJSON(context.Background(), gfCfg, req.UID)
@@ -411,8 +423,8 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				logger.Info("LLM requested Grafana datasources")
 				return "Tool Output: " + tools.GrafanaListDatasourcesJSON(context.Background(), gfCfg)
 			case "query":
-				logger.Info("LLM requested Grafana datasource query", "datasource_id", req.DatasourceID)
-				return "Tool Output: " + tools.GrafanaQueryDatasourceJSON(context.Background(), gfCfg, req.DatasourceID, req.Query)
+				logger.Info("LLM requested Grafana datasource query", "datasource_id", req.DatasourceID, "datasource_uid", req.DatasourceUID, "datasource_type", req.DatasourceType)
+				return "Tool Output: " + tools.GrafanaQueryDatasourceJSON(context.Background(), gfCfg, req.DatasourceID, req.Query, tools.GrafanaQueryOptions{DatasourceUID: req.DatasourceUID, DatasourceType: req.DatasourceType})
 			case "list_alerts":
 				logger.Info("LLM requested Grafana alerts")
 				return "Tool Output: " + tools.GrafanaListAlertsJSON(context.Background(), gfCfg)
