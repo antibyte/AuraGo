@@ -39,6 +39,7 @@ func TestIsAutonomousLoopback(t *testing.T) {
 		{name: "heartbeat session", runCfg: RunConfig{}, sessionID: "heartbeat", want: true},
 		{name: "planner notification source", runCfg: RunConfig{MessageSource: "planner_notification"}, sessionID: "default", want: true},
 		{name: "uptime kuma source", runCfg: RunConfig{MessageSource: "uptime_kuma"}, sessionID: "default", want: true},
+		{name: "space agent bridge source", runCfg: RunConfig{MessageSource: "space_agent_bridge"}, sessionID: "default", want: true},
 		{name: "sms loopback remains visible", runCfg: RunConfig{MessageSource: "sms"}, sessionID: "default", want: false},
 	}
 

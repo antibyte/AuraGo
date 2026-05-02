@@ -393,6 +393,29 @@ func TestGetSessionMessagesHidesHeartbeatMessages(t *testing.T) {
 	}
 }
 
+func TestGetSessionMessagesHidesSpaceAgentBridgePrompts(t *testing.T) {
+	stm := newTestSTM(t)
+	_, _ = stm.InsertMessage("default", "user", "normal chat", false, false)
+	_, _ = stm.InsertMessage("default", "user", "Space Agent sent this bridge question to AuraGo.\n\nQuestion:\ninternal routing task", false, false)
+	_, _ = stm.InsertMessage("space-agent-bridge", "user", "isolated bridge task", false, false)
+
+	defaultMsgs, err := stm.GetSessionMessages("default")
+	if err != nil {
+		t.Fatalf("GetSessionMessages(default): %v", err)
+	}
+	if len(defaultMsgs) != 1 || defaultMsgs[0].Content != "normal chat" {
+		t.Fatalf("default visible messages = %#v, want only normal chat", defaultMsgs)
+	}
+
+	bridgeMsgs, err := stm.GetSessionMessages("space-agent-bridge")
+	if err != nil {
+		t.Fatalf("GetSessionMessages(space-agent-bridge): %v", err)
+	}
+	if len(bridgeMsgs) != 0 {
+		t.Fatalf("bridge visible messages = %#v, want none", bridgeMsgs)
+	}
+}
+
 func TestEnsureDefaultSession(t *testing.T) {
 	stm := newTestSTM(t)
 

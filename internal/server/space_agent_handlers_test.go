@@ -126,6 +126,12 @@ func TestSpaceAgentBridgeQuestionPromptTriggersLoopback(t *testing.T) {
 	}
 }
 
+func TestSpaceAgentBridgeUsesIsolatedSession(t *testing.T) {
+	if spaceAgentBridgeSessionID == "" || spaceAgentBridgeSessionID == "default" {
+		t.Fatalf("spaceAgentBridgeSessionID = %q, want non-default isolated session", spaceAgentBridgeSessionID)
+	}
+}
+
 func TestSpaceAgentBridgeNonQuestionDoesNotTriggerLoopback(t *testing.T) {
 	msg := spaceAgentBridgeMessage{Type: "note", Content: "FYI"}
 	if shouldRunSpaceAgentBridgeMessage(msg) {

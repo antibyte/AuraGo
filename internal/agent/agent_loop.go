@@ -1459,7 +1459,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 		if !isEmpty {
-			isInternalFinal := runCfg.MessageSource == "heartbeat" || sessionID == "heartbeat"
+			isInternalFinal := isAutonomousAgentRun(runCfg, sessionID)
 			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, isInternalFinal)
 			if err != nil {
 				s.currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)

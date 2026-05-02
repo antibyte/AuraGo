@@ -21,6 +21,7 @@ import (
 
 const (
 	spaceAgentBridgeMaxBodyBytes int64 = 64 * 1024
+	spaceAgentBridgeSessionID          = "space-agent-bridge"
 )
 
 type spaceAgentBridgeMessage struct {
@@ -177,7 +178,7 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) (string,
 		return "", nil
 	}
 	cfg := s.currentSpaceAgentConfig()
-	sessionID := "default"
+	sessionID := spaceAgentBridgeSessionID
 	content := spaceAgentBridgeQuestionPrompt(msg)
 	if strings.TrimSpace(content) == "" {
 		return "", nil

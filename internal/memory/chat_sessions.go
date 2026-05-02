@@ -39,10 +39,14 @@ func sqliteDatetimeToRFC3339(dt string) string {
 }
 
 func ShouldHideAutonomousMessage(sessionID, role, content string) bool {
-	if sessionID == "heartbeat" {
+	if sessionID == "heartbeat" || sessionID == "space-agent-bridge" {
 		return true
 	}
-	return role == "user" && strings.Contains(content, "[SYSTEM HEARTBEAT]")
+	if role != "user" {
+		return false
+	}
+	return strings.Contains(content, "[SYSTEM HEARTBEAT]") ||
+		strings.Contains(content, "Space Agent sent this bridge question to AuraGo.")
 }
 
 // CreateChatSession creates a new chat session and returns its ID.
