@@ -144,6 +144,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.ProxmoxEnabled {
 		tools = append(tools, "proxmox")
 	}
+	if flags.FrigateEnabled {
+		tools = append(tools, "frigate")
+	}
 	if flags.OllamaEnabled {
 		tools = append(tools, "ollama")
 	}

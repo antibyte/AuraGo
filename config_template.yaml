@@ -749,6 +749,17 @@ proxmox:
     token_id: ""
     node: ""
     insecure: false
+frigate:
+    enabled: false
+    readonly: true
+    url: ""
+    default_camera: ""
+    insecure: false
+    internal_port: false
+    event_relay: false
+    review_relay: false
+    store_media: true
+    mqtt_topic_prefix: "frigate"
 ollama:
     enabled: false
     readonly: false

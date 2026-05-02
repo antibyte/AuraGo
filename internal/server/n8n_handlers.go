@@ -1485,6 +1485,7 @@ func buildFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
 		WebhooksEnabled:              cfg.Webhooks.Enabled,
 		ProxmoxEnabled:               cfg.Proxmox.Enabled,
+		FrigateEnabled:               cfg.Frigate.Enabled,
 		OllamaEnabled:                cfg.Ollama.Enabled,
 		TailscaleEnabled:             cfg.Tailscale.Enabled,
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,

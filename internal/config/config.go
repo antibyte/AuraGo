@@ -379,6 +379,15 @@ func Load(path string) (*Config, error) {
 	cfg.Grafana.RequestTimeout = 15
 	cfg.Grafana.ReadOnly = true
 
+	// Frigate defaults: disabled by default, read-only when enabled.
+	cfg.Frigate.Enabled = false
+	cfg.Frigate.ReadOnly = true
+	cfg.Frigate.InternalPort = false
+	cfg.Frigate.EventRelay = false
+	cfg.Frigate.ReviewRelay = false
+	cfg.Frigate.StoreMedia = true
+	cfg.Frigate.MQTTTopicPrefix = "frigate"
+
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false
 	cfg.LDAP.ReadOnly = true
@@ -1359,6 +1368,16 @@ func (c *Config) Save(path string) error {
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
 		{[]string{"grafana", "insecure_ssl"}, c.Grafana.InsecureSSL},
 		{[]string{"grafana", "request_timeout"}, c.Grafana.RequestTimeout},
+		{[]string{"frigate", "enabled"}, c.Frigate.Enabled},
+		{[]string{"frigate", "readonly"}, c.Frigate.ReadOnly},
+		{[]string{"frigate", "url"}, c.Frigate.URL},
+		{[]string{"frigate", "internal_port"}, c.Frigate.InternalPort},
+		{[]string{"frigate", "insecure"}, c.Frigate.Insecure},
+		{[]string{"frigate", "default_camera"}, c.Frigate.DefaultCamera},
+		{[]string{"frigate", "event_relay"}, c.Frigate.EventRelay},
+		{[]string{"frigate", "review_relay"}, c.Frigate.ReviewRelay},
+		{[]string{"frigate", "store_media"}, c.Frigate.StoreMedia},
+		{[]string{"frigate", "mqtt_topic_prefix"}, c.Frigate.MQTTTopicPrefix},
 		{[]string{"tailscale", "enabled"}, c.Tailscale.Enabled},
 		{[]string{"tailscale", "readonly"}, c.Tailscale.ReadOnly},
 		{[]string{"tailscale", "tailnet"}, c.Tailscale.Tailnet},

@@ -985,6 +985,19 @@ type Config struct {
 		Node             string `yaml:"node"`              // default node name (e.g. "pve")
 		Insecure         bool   `yaml:"insecure"`          // skip TLS verification for self-signed certs
 	} `yaml:"proxmox"`
+	Frigate struct {
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"`            // true = only read events/reviews/stats, block delete/config save
+		URL             string `yaml:"url"`                 // e.g. "https://frigate.local:8971"
+		APIToken        string `yaml:"-" vault:"api_token"` // Bearer token (vault-only)
+		InternalPort    bool   `yaml:"internal_port"`       // true = use :5000 unauthenticated (Docker-internal only)
+		Insecure        bool   `yaml:"insecure"`            // skip TLS verification
+		DefaultCamera   string `yaml:"default_camera"`      // default camera name for queries
+		EventRelay      bool   `yaml:"event_relay"`         // relay frigate/events via MQTT to agent
+		ReviewRelay     bool   `yaml:"review_relay"`        // relay frigate/reviews via MQTT to agent
+		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
+		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
+	} `yaml:"frigate"`
 	Ollama struct {
 		Enabled         bool   `yaml:"enabled"`
 		ReadOnly        bool   `yaml:"readonly"` // true = only list/show/running, block pull/delete/copy

@@ -418,5 +418,7 @@
   "help.space_agent.container_name": "Naam van beheerde Docker-container.",
   "help.space_agent.image": "Docker-image voor de sidecar.",
   "help.space_agent.data_path": "Persistent hostpad voor data.",
-  "help.space_agent.customware_path": "Hostpad voor AuraGo bridge customware."
+  "help.space_agent.customware_path": "Hostpad voor AuraGo bridge customware.",
+  "config.section.frigate.label": "Frigate NVR",
+  "config.section.frigate.desc": "Frigate NVR-camera’s en detectiegebeurtenissen"
 }

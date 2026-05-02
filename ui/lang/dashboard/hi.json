@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} इवेंट्स",
   "dashboard.quickstatus_appointments": "अपॉइंटमेंट",
   "dashboard.quickstatus_todos": "कार्य",
-  "dashboard.quickstatus_plans": "योजनाएँ"
+  "dashboard.quickstatus_plans": "योजनाएँ",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

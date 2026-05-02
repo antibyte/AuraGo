@@ -76,6 +76,27 @@ type proxmoxArgs struct {
 	UPID         string
 }
 
+type frigateArgs struct {
+	Operation   string
+	Camera      string
+	EventID     string
+	Label       string
+	Zone        string
+	After       int64
+	Before      int64
+	MinScore    float64
+	HasClip     *bool
+	HasSnapshot *bool
+	Limit       int
+	InProgress  *bool
+	StartTime   string
+	EndTime     string
+	Playback    string
+	Cameras     string
+	Labels      string
+	Zones       string
+}
+
 type ollamaArgs struct {
 	Operation   string
 	Model       string
@@ -546,6 +567,29 @@ func (req proxmoxArgs) upid() string {
 		return req.UPID
 	}
 	return req.ID
+}
+
+func decodeFrigateArgs(tc ToolCall) frigateArgs {
+	return frigateArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Camera:      firstNonEmptyToolString(toolArgString(tc.Params, "camera")),
+		EventID:     firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "event_id", "id")),
+		Label:       firstNonEmptyToolString(tc.Label, toolArgString(tc.Params, "label")),
+		Zone:        firstNonEmptyToolString(toolArgString(tc.Params, "zone")),
+		After:       toolArgInt64(tc.Params, "after"),
+		Before:      toolArgInt64(tc.Params, "before"),
+		MinScore:    toolArgFloat64(tc.Params, "min_score"),
+		HasClip:     toolArgBoolPtr(tc.Params, "has_clip"),
+		HasSnapshot: toolArgBoolPtr(tc.Params, "has_snapshot"),
+		Limit:       toolArgInt(tc.Params, tc.Limit, "limit"),
+		InProgress:  toolArgBoolPtr(tc.Params, "in_progress"),
+		StartTime:   firstNonEmptyToolString(toolArgString(tc.Params, "start_time")),
+		EndTime:     firstNonEmptyToolString(toolArgString(tc.Params, "end_time")),
+		Playback:    firstNonEmptyToolString(toolArgString(tc.Params, "playback")),
+		Cameras:     firstNonEmptyToolString(toolArgString(tc.Params, "cameras")),
+		Labels:      firstNonEmptyToolString(toolArgString(tc.Params, "labels")),
+		Zones:       firstNonEmptyToolString(toolArgString(tc.Params, "zones")),
+	}
 }
 
 func decodeOllamaArgs(tc ToolCall) ollamaArgs {

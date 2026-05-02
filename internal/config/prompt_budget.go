@@ -98,6 +98,7 @@ func countAdaptivePromptBudgetIntegrations(cfg *Config) int {
 		cfg.S3.Enabled,
 		cfg.PaperlessNGX.Enabled,
 		cfg.Proxmox.Enabled,
+		cfg.Frigate.Enabled,
 		cfg.Tailscale.Enabled,
 		cfg.CloudflareTunnel.Enabled,
 		cfg.Ansible.Enabled,

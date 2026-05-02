@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}}イベント",
   "dashboard.quickstatus_appointments": "予定",
   "dashboard.quickstatus_todos": "To-Do",
-  "dashboard.quickstatus_plans": "プラン"
+  "dashboard.quickstatus_plans": "プラン",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

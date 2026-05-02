@@ -1901,7 +1901,7 @@
             if (name.includes('web_') || name === 'site_crawler' || name === 'api_request' || name === 'virustotal_scan' || name === 'form_automation') return 'web';
             if (name.includes('homepage') || name === 'netlify' || name.includes('update') || name === 'cloudflare_tunnel') return 'deployment';
             if (name.includes('network') || name.includes('dns_') || name.includes('port_') || name.includes('mdns_') || name.includes('whois') || name.includes('upnp') || name.includes('wake_on_lan') || name.includes('fritzbox')) return 'network';
-            if (name === 'docker' || name === 'proxmox' || name === 'tailscale' || name === 'ansible' || name === 'github' || name === 'mcp_call' || name.startsWith('sql_') || name === 'manage_sql_connections' || name.includes('meshcentral') || name.includes('remote_') || name === 'invasion_control' || name === 'home_assistant' || name === 'ollama' || name === 'adguard' || name.startsWith('mqtt_') || name === 's3_storage') return 'infra';
+            if (name === 'docker' || name === 'proxmox' || name === 'frigate' || name === 'tailscale' || name === 'ansible' || name === 'github' || name === 'mcp_call' || name.startsWith('sql_') || name === 'manage_sql_connections' || name.includes('meshcentral') || name.includes('remote_') || name === 'invasion_control' || name === 'home_assistant' || name === 'ollama' || name === 'adguard' || name.startsWith('mqtt_') || name === 's3_storage') return 'infra';
             if (name.includes('email') || name.includes('webhook') || name.includes('telnyx') || name === 'address_book') return 'communication';
             if (name.includes('cron') || name.includes('follow_up') || name.includes('mission') || name === 'co_agent' || name === 'co_agents') return 'automation';
             if (name.includes('image') || name.includes('audio') || name === 'tts' || name.includes('transcribe') || name.includes('media_')) return 'media';
@@ -2647,7 +2647,7 @@
             const icons = {
                 telegram: '📱', discord: '💬', email: '📧', home_assistant: '🏠',
                 docker: '🐳', co_agents: '🤖', webhooks: '🔗', webdav: '☁️',
-                koofr: '☁️', chromecast: '📺', proxmox: '🖥️', ollama: '🧠',
+                koofr: '☁️', chromecast: '📺', proxmox: '🖥️', frigate: '📹', ollama: '🧠',
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
                 auth: '🔑', fallback_llm: '🔄', helper_llm: '🪶', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
@@ -2668,7 +2668,7 @@
                 docker: t('dashboard.integration_docker'), co_agents: t('dashboard.integration_co_agents'),
                 webhooks: t('dashboard.integration_webhooks'), webdav: t('dashboard.integration_webdav'),
                 koofr: t('dashboard.integration_koofr'), chromecast: t('dashboard.integration_chromecast'),
-                proxmox: t('dashboard.integration_proxmox'), ollama: t('dashboard.integration_ollama'),
+                proxmox: t('dashboard.integration_proxmox'), frigate: t('dashboard.integration_frigate'), ollama: t('dashboard.integration_ollama'),
                 rocketchat: t('dashboard.integration_rocketchat'), tailscale: t('dashboard.integration_tailscale'),
                 ansible: t('dashboard.integration_ansible'), invasion: t('dashboard.integration_invasion'),
                 github: t('dashboard.integration_github'), mqtt: t('dashboard.integration_mqtt'),

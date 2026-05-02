@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} hendelser",
   "dashboard.quickstatus_appointments": "Avtaler",
   "dashboard.quickstatus_todos": "Oppgaver",
-  "dashboard.quickstatus_plans": "Planer"
+  "dashboard.quickstatus_plans": "Planer",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

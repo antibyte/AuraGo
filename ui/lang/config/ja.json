@@ -162,5 +162,13 @@
   "config.yepapi.testing": "テスト中...",
   "config.yepapi.test_success": "接続成功 — APIキーは有効です。",
   "config.yepapi.test_error": "接続失敗 — APIキーとプロバイダー設定を確認してください。",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Frigate を有効化",
+  "config.frigate_url": "Frigate URL",
+  "config.frigate_api_token": "API トークン",
+  "config.frigate_default_camera": "デフォルトカメラ",
+  "config.frigate_readonly": "読み取り専用",
+  "config.frigate_event_relay": "MQTT でイベントを中継",
+  "config.frigate_test_connection": "接続テスト"
 }

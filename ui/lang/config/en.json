@@ -130,8 +130,7 @@
   "config.n8n.status_test": "Test Connection",
   "config.n8n.status_testing": "Testing connection…",
   "config.n8n.status_success": "Connection OK",
-  "config.n8n.status_error": "Connection failed"
-,
+  "config.n8n.status_error": "Connection failed",
   "config.yepapi.enabled_label": "Enable YepAPI",
   "config.yepapi.enabled_hint": "Activate the YepAPI integration for SEO, SERP, scraping, and social media tools.",
   "config.yepapi.seo_label": "SEO Tools",
@@ -163,5 +162,13 @@
   "config.yepapi.testing": "Testing...",
   "config.yepapi.test_success": "Connection successful — API key is valid.",
   "config.yepapi.test_error": "Connection failed — check your API key and provider settings.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Enable Frigate",
+  "config.frigate_url": "Frigate URL",
+  "config.frigate_api_token": "API Token",
+  "config.frigate_default_camera": "Default Camera",
+  "config.frigate_readonly": "Read Only",
+  "config.frigate_event_relay": "Relay Events via MQTT",
+  "config.frigate_test_connection": "Test Connection"
 }

@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} zdarzeń",
   "dashboard.quickstatus_appointments": "Spotkania",
   "dashboard.quickstatus_todos": "Zadania",
-  "dashboard.quickstatus_plans": "Plany"
+  "dashboard.quickstatus_plans": "Plany",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

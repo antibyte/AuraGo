@@ -172,6 +172,7 @@ const SECTIONS = [
             { key: 'jellyfin', icon: '🎬', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
+            { key: 'frigate', icon: '📹', label: t('config.section.frigate.label'), desc: t('config.section.frigate.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
             { key: 'grafana', icon: '📊', label: t('config.section.grafana.label'), desc: t('config.section.grafana.desc') },
             { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },

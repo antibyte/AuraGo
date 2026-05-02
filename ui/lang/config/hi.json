@@ -162,5 +162,13 @@
   "config.yepapi.testing": "परीक्षण हो रहा है...",
   "config.yepapi.test_success": "कनेक्शन सफल — API कुंजी वैध है।",
   "config.yepapi.test_error": "कनेक्शन विफल — API कुंजी और प्रदाता सेटिंग्स जाँचें।",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Frigate सक्षम करें",
+  "config.frigate_url": "Frigate URL",
+  "config.frigate_api_token": "API टोकन",
+  "config.frigate_default_camera": "डिफ़ॉल्ट कैमरा",
+  "config.frigate_readonly": "केवल पढ़ें",
+  "config.frigate_event_relay": "MQTT के जरिए इवेंट रिले करें",
+  "config.frigate_test_connection": "कनेक्शन टेस्ट करें"
 }

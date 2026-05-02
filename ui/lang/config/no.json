@@ -162,5 +162,13 @@
   "config.yepapi.testing": "Tester...",
   "config.yepapi.test_success": "Tilkobling vellykket — API-nøkkel er gyldig.",
   "config.yepapi.test_error": "Tilkobling mislyktes — sjekk API-nøkkel og leverandørinnstillinger.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Aktiver Frigate",
+  "config.frigate_url": "Frigate-URL",
+  "config.frigate_api_token": "API-token",
+  "config.frigate_default_camera": "Standardkamera",
+  "config.frigate_readonly": "Skrivebeskyttet",
+  "config.frigate_event_relay": "Videresend hendelser via MQTT",
+  "config.frigate_test_connection": "Test tilkobling"
 }

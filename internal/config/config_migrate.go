@@ -795,6 +795,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("s3_access_key", &c.S3.AccessKey)
 	apply("s3_secret_key", &c.S3.SecretKey)
 	apply("proxmox_secret", &c.Proxmox.Secret)
+	apply("frigate_api_token", &c.Frigate.APIToken)
 	apply("github_token", &c.GitHub.Token)
 	apply("rocketchat_auth_token", &c.RocketChat.AuthToken)
 	apply("mqtt_password", &c.MQTT.Password)
@@ -1084,6 +1085,7 @@ var plaintextSecretVaultPaths = map[string]string{
 	"s3.secret_key":                    "s3_secret_key",
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
 	"proxmox.secret":                   "proxmox_secret",
+	"frigate.api_token":                "frigate_api_token",
 	"github.token":                     "github_token",
 	"rocketchat.auth_token":            "rocketchat_auth_token",
 	"mqtt.password":                    "mqtt_password",

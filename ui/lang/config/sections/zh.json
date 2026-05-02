@@ -418,5 +418,7 @@
   "help.space_agent.container_name": "托管 Docker 容器名称。",
   "help.space_agent.image": "sidecar 的 Docker 镜像。",
   "help.space_agent.data_path": "数据的持久化主机路径。",
-  "help.space_agent.customware_path": "AuraGo bridge customware 的主机路径。"
+  "help.space_agent.customware_path": "AuraGo bridge customware 的主机路径。",
+  "config.section.frigate.label": "Frigate NVR",
+  "config.section.frigate.desc": "Frigate NVR 摄像头和检测事件"
 }

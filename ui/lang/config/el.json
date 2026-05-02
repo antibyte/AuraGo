@@ -162,5 +162,13 @@
   "config.yepapi.testing": "Έλεγχος...",
   "config.yepapi.test_success": "Επιτυχής σύνδεση — το κλειδί API είναι έγκυρο.",
   "config.yepapi.test_error": "Αποτυχία σύνδεσης — ελέγξτε το κλειδί API και τις ρυθμίσεις παρόχου.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Ενεργοποίηση Frigate",
+  "config.frigate_url": "URL Frigate",
+  "config.frigate_api_token": "API Token",
+  "config.frigate_default_camera": "Προεπιλεγμένη κάμερα",
+  "config.frigate_readonly": "Μόνο ανάγνωση",
+  "config.frigate_event_relay": "Προώθηση συμβάντων μέσω MQTT",
+  "config.frigate_test_connection": "Δοκιμή σύνδεσης"
 }

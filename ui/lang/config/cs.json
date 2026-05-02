@@ -162,5 +162,13 @@
   "config.yepapi.testing": "Testování...",
   "config.yepapi.test_success": "Připojení úspěšné — API klíč je platný.",
   "config.yepapi.test_error": "Připojení selhalo — zkontrolujte API klíč a nastavení poskytovatele.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Povolit Frigate",
+  "config.frigate_url": "URL Frigate",
+  "config.frigate_api_token": "API token",
+  "config.frigate_default_camera": "Výchozí kamera",
+  "config.frigate_readonly": "Jen pro čtení",
+  "config.frigate_event_relay": "Předávat události přes MQTT",
+  "config.frigate_test_connection": "Test připojení"
 }

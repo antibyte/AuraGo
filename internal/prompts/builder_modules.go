@@ -320,6 +320,10 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 			if flags.ProxmoxEnabled {
 				return true
 			}
+		case "frigate_enabled":
+			if flags.FrigateEnabled {
+				return true
+			}
 		case "ollama_enabled":
 			if flags.OllamaEnabled {
 				return true

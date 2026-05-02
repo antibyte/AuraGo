@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} eventos",
   "dashboard.quickstatus_appointments": "Compromissos",
   "dashboard.quickstatus_todos": "Tarefas",
-  "dashboard.quickstatus_plans": "Planos"
+  "dashboard.quickstatus_plans": "Planos",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

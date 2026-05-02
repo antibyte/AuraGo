@@ -1310,6 +1310,7 @@ var vaultKeyMap = map[string]string{
 	"s3.access_key":                    "s3_access_key",
 	"s3.secret_key":                    "s3_secret_key",
 	"proxmox.secret":                   "proxmox_secret",
+	"frigate.api_token":                "frigate_api_token",
 	"github.token":                     "github_token",
 	"rocketchat.auth_token":            "rocketchat_auth_token",
 	"mqtt.password":                    "mqtt_password",

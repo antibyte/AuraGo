@@ -162,5 +162,13 @@
   "config.yepapi.testing": "Teste...",
   "config.yepapi.test_success": "Verbindung erfolgreich — API-Schlüssel ist gültig.",
   "config.yepapi.test_error": "Verbindung fehlgeschlagen — überprüfen Sie API-Schlüssel und Anbieter.",
-  "config.yepapi.provider_info": "YepAPI kann auch als LLM-Provider genutzt werden. Konfiguriere es im Bereich Provider mit dem Typ 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI kann auch als LLM-Provider genutzt werden. Konfiguriere es im Bereich Provider mit dem Typ 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Frigate aktivieren",
+  "config.frigate_url": "Frigate-URL",
+  "config.frigate_api_token": "API-Token",
+  "config.frigate_default_camera": "Standardkamera",
+  "config.frigate_readonly": "Nur Lesen",
+  "config.frigate_event_relay": "Ereignisse per MQTT weiterleiten",
+  "config.frigate_test_connection": "Verbindung testen"
 }

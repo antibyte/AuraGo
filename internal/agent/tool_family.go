@@ -22,7 +22,7 @@ func classifyToolFamily(toolName string) string {
 		return "deployment"
 	case strings.Contains(name, "network") || strings.Contains(name, "dns_") || strings.Contains(name, "port_") || strings.Contains(name, "mdns_") || strings.Contains(name, "whois") || strings.Contains(name, "upnp") || strings.Contains(name, "wake_on_lan") || strings.Contains(name, "fritzbox"):
 		return "network"
-	case name == "docker" || name == "proxmox" || name == "tailscale" || name == "ansible" || name == "github" || name == "mcp_call" || strings.HasPrefix(name, "sql_") || name == "manage_sql_connections" || strings.Contains(name, "meshcentral") || strings.Contains(name, "remote_") || name == "invasion_control" || name == "home_assistant" || name == "ollama" || name == "adguard" || strings.HasPrefix(name, "mqtt_") || name == "s3_storage" || name == "jellyfin" || name == "truenas" || strings.HasPrefix(name, "jellyfin_") || strings.HasPrefix(name, "truenas_") || name == "koofr" || name == "onedrive" || strings.HasPrefix(name, "koofr_") || strings.HasPrefix(name, "onedrive_"):
+	case name == "docker" || name == "proxmox" || name == "frigate" || name == "tailscale" || name == "ansible" || name == "github" || name == "mcp_call" || strings.HasPrefix(name, "sql_") || name == "manage_sql_connections" || strings.Contains(name, "meshcentral") || strings.Contains(name, "remote_") || name == "invasion_control" || name == "home_assistant" || name == "ollama" || name == "adguard" || strings.HasPrefix(name, "mqtt_") || name == "s3_storage" || name == "jellyfin" || name == "truenas" || strings.HasPrefix(name, "jellyfin_") || strings.HasPrefix(name, "truenas_") || name == "koofr" || name == "onedrive" || strings.HasPrefix(name, "koofr_") || strings.HasPrefix(name, "onedrive_"):
 		return "infra"
 	case strings.Contains(name, "email") || strings.Contains(name, "webhook") || strings.Contains(name, "telnyx") || name == "address_book":
 		return "communication"
@@ -73,7 +73,7 @@ func inferToolFamilyFromQuery(query string) string {
 		return "web"
 	case strings.Contains(q, "network") || strings.Contains(q, "dns") || strings.Contains(q, "ping") || strings.Contains(q, "port") || strings.Contains(q, "scan") || strings.Contains(q, "fritz") || strings.Contains(q, "wake on lan"):
 		return "network"
-	case strings.Contains(q, "docker") || strings.Contains(q, "proxmox") || strings.Contains(q, "tailscale") || strings.Contains(q, "ansible") || strings.Contains(q, "github") || strings.Contains(q, "remote") || strings.Contains(q, "mqtt") || strings.Contains(q, "sql") || strings.Contains(q, "jellyfin") || strings.Contains(q, "truenas"):
+	case strings.Contains(q, "docker") || strings.Contains(q, "proxmox") || strings.Contains(q, "frigate") || strings.Contains(q, "nvr") || strings.Contains(q, "tailscale") || strings.Contains(q, "ansible") || strings.Contains(q, "github") || strings.Contains(q, "remote") || strings.Contains(q, "mqtt") || strings.Contains(q, "sql") || strings.Contains(q, "jellyfin") || strings.Contains(q, "truenas"):
 		return "infra"
 	case strings.Contains(q, "email") || strings.Contains(q, "webhook") || strings.Contains(q, "sms") || strings.Contains(q, "call") || strings.Contains(q, "contact"):
 		return "communication"

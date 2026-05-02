@@ -454,6 +454,70 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
 			}
 
+		case "frigate":
+			if !cfg.Frigate.Enabled {
+				return `Tool Output: {"status":"error","message":"Frigate integration is not enabled. Set frigate.enabled=true in config.yaml."}`
+			}
+			req := decodeFrigateArgs(tc)
+			if cfg.Frigate.ReadOnly {
+				switch req.Operation {
+				case "delete_event", "config_save":
+					return `Tool Output: {"status":"error","message":"Frigate is in read-only mode. Disable frigate.readonly to allow changes."}`
+				}
+			}
+			frCfg := tools.FrigateConfig{
+				URL:           cfg.Frigate.URL,
+				APIToken:      cfg.Frigate.APIToken,
+				InternalPort:  cfg.Frigate.InternalPort,
+				Insecure:      cfg.Frigate.Insecure,
+				DefaultCamera: cfg.Frigate.DefaultCamera,
+				ReadOnly:      cfg.Frigate.ReadOnly,
+			}
+			eventParams := tools.FrigateEventParams{Camera: req.Camera, EventID: req.EventID, Label: req.Label, Zone: req.Zone, After: req.After, Before: req.Before, MinScore: req.MinScore, HasClip: req.HasClip, HasSnapshot: req.HasSnapshot, Limit: req.Limit}
+			reviewParams := tools.FrigateReviewParams{Camera: req.Camera, After: req.After, Before: req.Before, Limit: req.Limit, InProgress: req.InProgress, Cameras: req.Cameras, Labels: req.Labels, Zones: req.Zones}
+			mediaParams := tools.FrigateMediaParams{Camera: req.Camera, EventID: req.EventID, StartTime: req.StartTime, EndTime: req.EndTime, Playback: req.Playback}
+			switch req.Operation {
+			case "status":
+				logger.Info("LLM requested Frigate status")
+				return "Tool Output: " + tools.FrigateStatus(frCfg)
+			case "cameras":
+				logger.Info("LLM requested Frigate cameras")
+				return "Tool Output: " + tools.FrigateCameras(frCfg)
+			case "events":
+				logger.Info("LLM requested Frigate events", "camera", req.Camera)
+				return "Tool Output: " + tools.FrigateEvents(frCfg, eventParams)
+			case "event":
+				logger.Info("LLM requested Frigate event", "event_id", req.EventID)
+				return "Tool Output: " + tools.FrigateEvent(frCfg, req.EventID)
+			case "reviews":
+				logger.Info("LLM requested Frigate reviews", "camera", req.Camera)
+				return "Tool Output: " + tools.FrigateReviews(frCfg, reviewParams)
+			case "review_summary":
+				logger.Info("LLM requested Frigate review summary")
+				return "Tool Output: " + tools.FrigateReviewSummary(frCfg, reviewParams)
+			case "review_activity":
+				logger.Info("LLM requested Frigate review activity")
+				return "Tool Output: " + tools.FrigateReviewActivity(frCfg, reviewParams)
+			case "recordings_summary":
+				logger.Info("LLM requested Frigate recordings summary", "camera", req.Camera)
+				return "Tool Output: " + tools.FrigateRecordingsSummary(frCfg, mediaParams)
+			case "event_snapshot", "event_clip", "latest_frame", "export_recording":
+				logger.Info("LLM requested Frigate media", "operation", req.Operation)
+				data, contentType, err := tools.FrigateMedia(frCfg, req.Operation, mediaParams)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"message":"Media fetched successfully. Use the Frigate UI or media storage flow for binary transfer."}`, contentType, len(data))
+			case "config":
+				logger.Info("LLM requested Frigate config")
+				return "Tool Output: " + tools.FrigateConfigRead(frCfg, false)
+			case "config_raw":
+				logger.Info("LLM requested Frigate raw config")
+				return "Tool Output: " + tools.FrigateConfigRead(frCfg, true)
+			default:
+				return `Tool Output: {"status":"error","message":"Unknown frigate operation. Use: status, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw"}`
+			}
+
 		case "ollama", "ollama_management":
 			if !cfg.Ollama.Enabled {
 				return `Tool Output: {"status":"error","message":"Ollama integration is not enabled. Set ollama.enabled=true in config.yaml."}`

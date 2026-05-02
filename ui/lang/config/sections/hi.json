@@ -418,5 +418,7 @@
   "help.space_agent.container_name": "Managed Docker container का नाम।",
   "help.space_agent.image": "Sidecar के लिए Docker image।",
   "help.space_agent.data_path": "Data के लिए persistent host path।",
-  "help.space_agent.customware_path": "AuraGo bridge customware के लिए host path।"
+  "help.space_agent.customware_path": "AuraGo bridge customware के लिए host path।",
+  "config.section.frigate.label": "Frigate NVR",
+  "config.section.frigate.desc": "Frigate NVR कैमरे और डिटेक्शन इवेंट"
 }

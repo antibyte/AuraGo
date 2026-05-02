@@ -418,5 +418,7 @@
   "help.space_agent.container_name": "Nombre del contenedor Docker gestionado.",
   "help.space_agent.image": "Imagen Docker para el sidecar.",
   "help.space_agent.data_path": "Ruta persistente del host para datos.",
-  "help.space_agent.customware_path": "Ruta del host para customware bridge de AuraGo."
+  "help.space_agent.customware_path": "Ruta del host para customware bridge de AuraGo.",
+  "config.section.frigate.label": "Frigate NVR",
+  "config.section.frigate.desc": "Cámaras Frigate NVR y eventos de detección"
 }

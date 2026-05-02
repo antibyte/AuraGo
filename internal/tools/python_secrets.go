@@ -66,6 +66,7 @@ var blockedSecretExact = map[string]struct{}{
 	"webdav_token":                {},
 	"koofr_password":              {},
 	"proxmox_secret":              {},
+	"frigate_api_token":           {},
 	"github_token":                {},
 	"rocketchat_auth_token":       {},
 	"mqtt_password":               {},

@@ -138,6 +138,7 @@ type ContextFlags struct {
 	ObsidianEnabled          bool
 	TrueNASEnabled           bool
 	ProxmoxEnabled           bool
+	FrigateEnabled           bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool
 	AnsibleEnabled           bool

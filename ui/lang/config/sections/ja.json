@@ -418,5 +418,7 @@
   "help.space_agent.container_name": "管理 Docker コンテナ名。",
   "help.space_agent.image": "サイドカー用 Docker イメージ。",
   "help.space_agent.data_path": "データ用の永続ホストパス。",
-  "help.space_agent.customware_path": "AuraGo bridge customware 用ホストパス。"
+  "help.space_agent.customware_path": "AuraGo bridge customware 用ホストパス。",
+  "config.section.frigate.label": "Frigate NVR",
+  "config.section.frigate.desc": "Frigate NVR カメラと検知イベント"
 }

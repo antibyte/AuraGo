@@ -162,5 +162,13 @@
   "config.yepapi.testing": "测试中...",
   "config.yepapi.test_success": "连接成功 — API 密钥有效。",
   "config.yepapi.test_error": "连接失败 — 请检查您的 API 密钥和提供商设置。",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "启用 Frigate",
+  "config.frigate_url": "Frigate URL",
+  "config.frigate_api_token": "API 令牌",
+  "config.frigate_default_camera": "默认摄像头",
+  "config.frigate_readonly": "只读",
+  "config.frigate_event_relay": "通过 MQTT 中继事件",
+  "config.frigate_test_connection": "测试连接"
 }

@@ -70,6 +70,7 @@ type ToolFeatureFlags struct {
 	SudoEnabled             bool
 	WebhooksEnabled         bool
 	ProxmoxEnabled          bool
+	FrigateEnabled          bool
 	OllamaEnabled           bool
 	TailscaleEnabled        bool
 	AnsibleEnabled          bool

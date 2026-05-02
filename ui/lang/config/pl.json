@@ -162,5 +162,13 @@
   "config.yepapi.testing": "Testowanie...",
   "config.yepapi.test_success": "Połączenie udane — klucz API jest ważny.",
   "config.yepapi.test_error": "Połączenie nieudane — sprawdź klucz API i ustawienia dostawcy.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.frigate_title": "Frigate NVR",
+  "config.frigate_enabled": "Włącz Frigate",
+  "config.frigate_url": "URL Frigate",
+  "config.frigate_api_token": "Token API",
+  "config.frigate_default_camera": "Domyślna kamera",
+  "config.frigate_readonly": "Tylko do odczytu",
+  "config.frigate_event_relay": "Przekazuj zdarzenia przez MQTT",
+  "config.frigate_test_connection": "Test połączenia"
 }

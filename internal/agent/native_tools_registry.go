@@ -63,7 +63,7 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
-		WebhooksEnabled: true, ProxmoxEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
+		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true,
@@ -116,6 +116,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("sudo", ff.SudoEnabled)
 	appendToolFeatureKeyPart("webhooks", ff.WebhooksEnabled)
 	appendToolFeatureKeyPart("proxmox", ff.ProxmoxEnabled)
+	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
 	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)
 	appendToolFeatureKeyPart("ansible", ff.AnsibleEnabled)

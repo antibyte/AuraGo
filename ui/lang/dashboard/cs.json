@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} událostí",
   "dashboard.quickstatus_appointments": "Schůzky",
   "dashboard.quickstatus_todos": "Úkoly",
-  "dashboard.quickstatus_plans": "Plány"
+  "dashboard.quickstatus_plans": "Plány",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-

@@ -593,8 +593,6 @@
   "dashboard.tooling_telemetry_total_events": "{{count}} συμβάντα",
   "dashboard.quickstatus_appointments": "Ραντεβού",
   "dashboard.quickstatus_todos": "Εργασίες",
-  "dashboard.quickstatus_plans": "Πλάνα"
+  "dashboard.quickstatus_plans": "Πλάνα",
+  "dashboard.integration_frigate": "Frigate"
 }
-
-
-
