@@ -627,6 +627,61 @@ func homepageWorkspaceRepairCommand(uidGid string) string {
 	return fmt.Sprintf("set -eu; mkdir -p /workspace; chown -R %s /workspace; chmod -R u+rwX,g+rwX /workspace", uidGid)
 }
 
+func homepageEnsureProjectNodeArtifactsWritable(dockerCfg DockerConfig, projectDir string, logger *slog.Logger) error {
+	if projectDir == "" {
+		projectDir = "."
+	}
+	checkCmd := homepageProjectNodeArtifactsCheckCommand(projectDir)
+	raw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, checkCmd, "", nil)
+	exitCode, checkOutput := homepageDockerExecResult(raw)
+	if exitCode == 0 {
+		return nil
+	}
+
+	uidGid, err := homepageDetectContainerUIDGID(dockerCfg)
+	if err != nil {
+		return err
+	}
+
+	repairCmd := homepageProjectNodeArtifactsRepairCommand(uidGid, projectDir)
+	repairRaw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, repairCmd, "0:0", nil)
+	repairCode, repairOutput := homepageDockerExecResult(repairRaw)
+	if repairCode != 0 {
+		return fmt.Errorf("project Node artifact permission repair failed with exit code %d: %s", repairCode, truncateStr(strings.TrimSpace(repairOutput), 500))
+	}
+
+	raw = homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, checkCmd, "", nil)
+	exitCode, recheckOutput := homepageDockerExecResult(raw)
+	if exitCode != 0 {
+		if strings.TrimSpace(recheckOutput) == "" {
+			recheckOutput = checkOutput
+		}
+		return fmt.Errorf("project Node artifacts are still not writable after permission repair: %s", truncateStr(strings.TrimSpace(recheckOutput), 500))
+	}
+
+	if logger != nil {
+		logger.Info("[Homepage] Repaired project Node artifact permissions", "project_dir", projectDir, "uid_gid", uidGid)
+	}
+	return nil
+}
+
+func homepageProjectNodeArtifactsCheckCommand(projectDir string) string {
+	projectPath := homepageContainerProjectPath(projectDir)
+	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; if [ ! -d node_modules ]; then exit 0; fi; touch node_modules/.aurago-write-test && rm -f node_modules/.aurago-write-test; mkdir -p node_modules/.vite-temp; touch node_modules/.vite-temp/.aurago-write-test && rm -f node_modules/.vite-temp/.aurago-write-test", projectPath, projectPath)
+}
+
+func homepageProjectNodeArtifactsRepairCommand(uidGid, projectDir string) string {
+	projectPath := homepageContainerProjectPath(projectDir)
+	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; for path in node_modules .vite .next dist build out package-lock.json npm-shrinkwrap.json yarn.lock pnpm-lock.yaml; do if [ -e \"$path\" ]; then chown -R %s \"$path\"; chmod -R u+rwX,g+rwX \"$path\"; fi; done", projectPath, projectPath, uidGid)
+}
+
+func homepageContainerProjectPath(projectDir string) string {
+	if projectDir == "" || projectDir == "." {
+		return homepageWorkspaceMount
+	}
+	return homepageWorkspaceMount + "/" + projectDir
+}
+
 func homepageDockerExecResult(raw string) (int, string) {
 	var resp map[string]interface{}
 	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
@@ -981,6 +1036,9 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
+	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
+		return errJSON("Homepage project %q has Node/Vite artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
+	}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && npm run build 2>&1", projectDir), "")
 }
 
@@ -1008,6 +1066,9 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
+	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
+		return errJSON("Homepage project %q has Node/npm artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
 	}
 
 	// Pre-check: verify the project directory exists to give a clear error

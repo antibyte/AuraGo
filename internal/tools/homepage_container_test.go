@@ -121,6 +121,84 @@ func TestHomepageExecRepairsWorkspaceBeforeRunningCommand(t *testing.T) {
 	}
 }
 
+func TestHomepageEnsureProjectNodeArtifactsWritableRepairsRootOwnedNodeModules(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+
+	type execCall struct {
+		cmd  string
+		user string
+	}
+	var calls []execCall
+	checks := 0
+
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+		calls = append(calls, execCall{cmd: cmd, user: user})
+		switch {
+		case strings.Contains(cmd, "node_modules/.vite-temp/.aurago-write-test"):
+			checks++
+			if checks == 1 {
+				return `{"status":"error","exit_code":1,"output":"touch: cannot touch 'node_modules/.vite-temp/.aurago-write-test': Permission denied"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(cmd, "id -u"):
+			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
+		case user == "0:0" && strings.Contains(cmd, `cd /workspace/ki-news`) && strings.Contains(cmd, `chown -R 1001:1001 "$path"`) && strings.Contains(cmd, `for path in node_modules`):
+			return `{"status":"ok","exit_code":0,"output":""}`
+		default:
+			t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)
+			return `{"status":"error","exit_code":1}`
+		}
+	}
+
+	if err := homepageEnsureProjectNodeArtifactsWritable(DockerConfig{}, "ki-news", slogDiscard()); err != nil {
+		t.Fatalf("homepageEnsureProjectNodeArtifactsWritable returned error: %v", err)
+	}
+
+	if checks < 2 {
+		t.Fatalf("expected node_modules writability to be rechecked after repair, got %d checks", checks)
+	}
+	foundRepair := false
+	for _, call := range calls {
+		if call.user == "0:0" &&
+			strings.Contains(call.cmd, `cd /workspace/ki-news`) &&
+			strings.Contains(call.cmd, `chown -R 1001:1001 "$path"`) &&
+			strings.Contains(call.cmd, `for path in node_modules`) &&
+			strings.Contains(call.cmd, `package-lock.json`) {
+			foundRepair = true
+			break
+		}
+	}
+	if !foundRepair {
+		t.Fatalf("expected root repair for project node artifacts, got %#v", calls)
+	}
+}
+
+func TestHomepageProjectNodeArtifactsCommandsUseProjectScopedPaths(t *testing.T) {
+	checkCmd := homepageProjectNodeArtifactsCheckCommand("ki-news")
+	for _, want := range []string{
+		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
+		"cd /workspace/ki-news",
+		"node_modules/.vite-temp/.aurago-write-test",
+	} {
+		if !strings.Contains(checkCmd, want) {
+			t.Fatalf("check command missing %q: %s", want, checkCmd)
+		}
+	}
+
+	repairCmd := homepageProjectNodeArtifactsRepairCommand("1001:1001", "ki-news")
+	for _, want := range []string{
+		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
+		"cd /workspace/ki-news",
+		`chown -R 1001:1001 "$path"`,
+		"node_modules .vite .next dist build out package-lock.json",
+	} {
+		if !strings.Contains(repairCmd, want) {
+			t.Fatalf("repair command missing %q: %s", want, repairCmd)
+		}
+	}
+}
+
 func TestHomepageExecRejectsDirectWriteToGeneratedOutput(t *testing.T) {
 	oldExec := homepageDockerExecInternalFunc
 	defer func() { homepageDockerExecInternalFunc = oldExec }()

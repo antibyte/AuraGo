@@ -297,6 +297,12 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 	}
 	logger.Info("[Homepage] Dev server start", "dir", projectDir, "port", port)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
+	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
+		return errJSON("Homepage project %q has Node/Vite artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
+	}
 
 	ensureHomepageNetwork(dockerCfg, logger)
 	connectContainerToNetwork(dockerCfg, homepageContainerName, logger)
