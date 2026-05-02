@@ -69,6 +69,20 @@ Create a skill from a template (api_client, file_processor, data_transformer, sc
 ### `golangci_lint`
 Run golangci-lint on Go code (code quality checks).
 
+### `get_skill_documentation`
+Retrieve documentation for a skill (description, parameters, examples).
+
+### `set_skill_documentation`
+Set or update documentation for a skill.
+
+### `invoke_tool`
+Invoke a dynamic tool or skill directly by name.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `tool_name` | string | Name of the tool/skill |
+| `arguments` | object | Arguments as JSON object |
+
 ---
 
 ## Filesystem
@@ -326,6 +340,31 @@ Generate AI music (text-to-music).
 ### `generate_video`
 Generate short AI videos from text prompts or provider-supported image guidance. Supports configured MiniMax Hailuo and Google Veo providers, async polling, provider-specific model options, daily limits, and automatic Media Registry registration.
 
+### `question_user`
+Ask the user a targeted question and wait for a response. Useful for unclear requirements or when a decision is needed.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `question` | string | The question to ask |
+| `options` | array | Optional choice options |
+
+### `send_telegram`
+Send a message or media via the configured Telegram bot.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `chat_id` | string | Target chat ID |
+| `message` | string | Message text |
+| `file_path` | string | Optional: file path to send |
+
+### `send_youtube_video`
+Search for and send a YouTube video to the user. Supports direct links or keyword search.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | Search term or YouTube URL |
+| `max_results` | integer | Maximum number of results |
+
 ---
 
 ## Device Management
@@ -429,6 +468,15 @@ NAS/Storage info, FTP server.
 
 ### `fritzbox_tv`
 Fritz!Box TV stations and streaming info.
+
+### `frigate`
+Frigate NVR (Network Video Recorder) integration. Reads camera streams, events, and detections from the Frigate instance.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | get_cameras, get_events, get_config, get_stats, snapshot |
+| `camera` | string | Camera name |
+| `event_id` | string | Event ID |
 
 ---
 
@@ -635,6 +683,16 @@ Automatically fill/submit web forms.
 | `fields` | string | JSON {selector: value} |
 | `selector` | string | CSS selector for click |
 
+### `browser_automation`
+Complex browser automation via a sidecar instance (Chrome/Chromium). Supports navigation, clicks, form input, screenshots, and JavaScript execution on remote pages.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | navigate, click, type, screenshot, evaluate, get_text, wait |
+| `url` | string | Target URL |
+| `selector` | string | CSS selector |
+| `text` | string | Input text |
+
 ### `site_monitor`
 Monitor websites for changes.
 
@@ -675,6 +733,25 @@ Process images (resize, convert, crop, rotate).
 | `height` | integer | Target height |
 | `quality_pct` | integer | 1-100 |
 | `angle` | integer | 90, 180, 270 |
+
+### `video_download`
+Download videos from supported platforms (YouTube, Vimeo, etc.). Optionally converts to different formats and saves to the Media Registry.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | string | Video URL |
+| `format` | string | Desired format (mp4, webm, audio) |
+| `quality` | string | Quality level |
+
+### `media_conversion`
+Convert media files between different formats (video, audio, images). Uses FFmpeg for transcoding.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input_path` | string | Input file |
+| `output_path` | string | Output file |
+| `output_format` | string | Target format |
+| `options` | object | Additional FFmpeg options |
 
 ---
 
@@ -776,6 +853,33 @@ Call external MCP (Model Context Protocol) servers.
 | `server` | string | MCP server name |
 | `tool_name` | string | Tool name |
 | `mcp_args` | object | Arguments |
+
+### `grafana`
+Query Grafana dashboards and data sources, create snapshots. Enables access to visualized metrics and panel data.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | search_dashboards, get_dashboard, get_panel_data, create_snapshot |
+| `dashboard_uid` | string | Dashboard UID |
+| `panel_id` | integer | Panel ID |
+
+### `space_agent`
+Manage and control Space Agents — specialized agent instances for distributed task processing.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, spawn, stop, status, send_task |
+| `agent_id` | string | Agent ID |
+| `task` | string | Task description |
+
+### `virtual_desktop`
+Control a virtual desktop environment (VNC/RDP). Enables remote access, screenshots, and input simulation on remote desktops.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | connect, screenshot, click, type, disconnect |
+| `host` | string | Server address |
+| `port` | integer | Port |
 
 ---
 

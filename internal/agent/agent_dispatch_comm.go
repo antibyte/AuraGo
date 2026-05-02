@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/contacts"
+	"aurago/internal/desktop"
 	"aurago/internal/inventory"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -921,6 +922,18 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Information: req.Information,
 				SessionID:   req.SessionID,
 			})
+
+		case "virtual_desktop":
+			logger.Info("LLM requested virtual desktop operation", "operation", tc.Operation)
+			exec := tools.ExecuteVirtualDesktop(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
 
 		case "web_performance_audit":
 			req := decodeWebPerformanceAuditArgs(tc)

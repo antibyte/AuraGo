@@ -152,6 +152,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"truenas", "Manage TrueNAS storage (pools, datasets, snapshots, shares)"},
 		{"netlify", "Deploy and manage sites on Netlify"},
 		{"homepage", "Manage homepage web projects (create, edit, deploy, preview)"},
+		{"virtual_desktop", "Control the browser desktop workspace, apps, files, and widgets"},
 		{"meshcentral", "Remote desktop via MeshCentral (screenshot, command, file transfer)"},
 		{"invasion_control", "Manage distributed egg/nest compute nodes"},
 		{"mcp_call", "Call tools on connected MCP (Model Context Protocol) servers"},

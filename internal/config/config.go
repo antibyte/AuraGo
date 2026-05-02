@@ -265,6 +265,14 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.AdminUser = "admin"
 	cfg.SpaceAgent.PublicURL = ""
 
+	// Virtual Desktop defaults: disabled by default, first-party browser desktop
+	// with a project-local persistent workspace when explicitly enabled.
+	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.MaxFileSizeMB = 50
+	cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
+	cfg.VirtualDesktop.MaxWSClients = 8
+	cfg.VirtualDesktop.AllowGeneratedApps = true
+
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
 	cfg.Tools.BackgroundTimeoutSeconds = 3600
@@ -491,6 +499,18 @@ func Load(path string) (*Config, error) {
 	if strings.TrimSpace(cfg.SpaceAgent.DataPath) == "" {
 		cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
 	}
+	if strings.TrimSpace(cfg.VirtualDesktop.WorkspaceDir) == "" {
+		cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	}
+	if cfg.VirtualDesktop.MaxFileSizeMB <= 0 {
+		cfg.VirtualDesktop.MaxFileSizeMB = 50
+	}
+	if strings.TrimSpace(cfg.VirtualDesktop.ControlLevel) == "" {
+		cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
+	}
+	if cfg.VirtualDesktop.MaxWSClients <= 0 {
+		cfg.VirtualDesktop.MaxWSClients = 8
+	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
@@ -505,6 +525,7 @@ func Load(path string) (*Config, error) {
 	cfg.Directories.VectorDBDir = resolvePath(configDir, cfg.Directories.VectorDBDir)
 	cfg.SpaceAgent.CustomwarePath = resolvePath(configDir, cfg.SpaceAgent.CustomwarePath)
 	cfg.SpaceAgent.DataPath = resolvePath(configDir, cfg.SpaceAgent.DataPath)
+	cfg.VirtualDesktop.WorkspaceDir = resolvePath(configDir, cfg.VirtualDesktop.WorkspaceDir)
 
 	// Resolve document creator output directory
 	cfg.Tools.DocumentCreator.OutputDir = resolvePath(configDir, cfg.Tools.DocumentCreator.OutputDir)
@@ -541,6 +562,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.PlannerPath = "./data/planner.db"
 	}
 	cfg.SQLite.PlannerPath = resolvePath(configDir, cfg.SQLite.PlannerPath)
+	if cfg.SQLite.VirtualDesktopPath == "" {
+		cfg.SQLite.VirtualDesktopPath = "./data/virtual_desktop.db"
+	}
+	cfg.SQLite.VirtualDesktopPath = resolvePath(configDir, cfg.SQLite.VirtualDesktopPath)
 	if cfg.SQLite.RemoteControlPath == "" {
 		cfg.SQLite.RemoteControlPath = "./data/remote_control.db"
 	}
@@ -1404,6 +1429,15 @@ func (c *Config) Save(path string) error {
 		{[]string{"space_agent", "data_path"}, c.SpaceAgent.DataPath},
 		{[]string{"space_agent", "admin_user"}, c.SpaceAgent.AdminUser},
 		{[]string{"space_agent", "public_url"}, c.SpaceAgent.PublicURL},
+		{[]string{"virtual_desktop", "enabled"}, c.VirtualDesktop.Enabled},
+		{[]string{"virtual_desktop", "readonly"}, c.VirtualDesktop.ReadOnly},
+		{[]string{"virtual_desktop", "allow_agent_control"}, c.VirtualDesktop.AllowAgentControl},
+		{[]string{"virtual_desktop", "allow_generated_apps"}, c.VirtualDesktop.AllowGeneratedApps},
+		{[]string{"virtual_desktop", "allow_python_jobs"}, c.VirtualDesktop.AllowPythonJobs},
+		{[]string{"virtual_desktop", "workspace_dir"}, c.VirtualDesktop.WorkspaceDir},
+		{[]string{"virtual_desktop", "max_file_size_mb"}, c.VirtualDesktop.MaxFileSizeMB},
+		{[]string{"virtual_desktop", "control_level"}, c.VirtualDesktop.ControlLevel},
+		{[]string{"virtual_desktop", "max_ws_clients"}, c.VirtualDesktop.MaxWSClients},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

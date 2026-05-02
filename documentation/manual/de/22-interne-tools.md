@@ -69,6 +69,20 @@ Erstellt einen Skill aus einem Template (api_client, file_processor, data_transf
 ### `golangci_lint`
 Führt golangci-lint auf Go-Code aus (Code-Qualitäts-Checks).
 
+### `get_skill_documentation`
+Ruft die Dokumentation eines Skills ab (Beschreibung, Parameter, Beispiele).
+
+### `set_skill_documentation`
+Legt oder aktualisiert die Dokumentation eines Skills fest.
+
+### `invoke_tool`
+Ruft ein dynamisches Tool oder einen Skill direkt per Name auf.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `tool_name` | string | Name des Tools/Skills |
+| `arguments` | object | Argumente als JSON-Objekt |
+
 ---
 
 ## Dateisystem
@@ -363,6 +377,31 @@ KI-Musik generieren (Text-zu-Musik).
 ### `generate_video`
 Kurze KI-Videos aus Text-Prompts oder provider-unterstützten Bildvorgaben generieren. Unterstützt konfigurierte MiniMax-Hailuo- und Google-Veo-Provider, asynchrones Polling, providerspezifische Modelloptionen, Tageslimits und automatische Registrierung in der Media Registry.
 
+### `question_user`
+Stellt dem Benutzer eine gezielte Frage und wartet auf die Antwort. Nützlich bei unklaren Anforderungen oder wenn eine Entscheidung benötigt wird.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `question` | string | Die Frage an den Benutzer |
+| `options` | array | Optionale Auswahlmöglichkeiten |
+
+### `send_telegram`
+Sendet eine Nachricht oder ein Medium über den konfigurierten Telegram-Bot.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `chat_id` | string | Ziel-Chat-ID |
+| `message` | string | Nachrichtentext |
+| `file_path` | string | Optional: Dateipfad zum Versenden |
+
+### `send_youtube_video`
+Sucht und sendet ein YouTube-Video an den Benutzer. Unterstützt direkte Links oder Keyword-Suche.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `query` | string | Suchbegriff oder YouTube-URL |
+| `max_results` | integer | Maximale Anzahl Ergebnisse |
+
 ---
 
 ## Geräteverwaltung
@@ -466,6 +505,15 @@ NAS/Storage Info, FTP-Server.
 
 ### `fritzbox_tv`
 Fritz!Box TV-Stationen und Streaming-Info.
+
+### `frigate`
+Frigate NVR (Network Video Recorder) Integration. Liest Kamera-Streams, Ereignisse und Erkennungen aus der Frigate-Instanz aus.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | get_cameras, get_events, get_config, get_stats, snapshot |
+| `camera` | string | Kamera-Name |
+| `event_id` | string | Ereignis-ID |
 
 ---
 
@@ -685,6 +733,16 @@ Web-Formulare automatisch ausfüllen/absenden.
 | `fields` | string | JSON {selector: value} |
 | `selector` | string | CSS-Selektor für Click |
 
+### `browser_automation`
+Komplexe Browser-Automatisierung über eine Sidecar-Instanz (Chrome/Chromium). Unterstützt Navigation, Klicks, Formulareingaben, Screenshots und JavaScript-Ausführung auf entfernten Seiten.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | navigate, click, type, screenshot, evaluate, get_text, wait |
+| `url` | string | Ziel-URL |
+| `selector` | string | CSS-Selektor |
+| `text` | string | Eingabetext |
+
 ### `site_monitor`
 Webseiten auf Änderungen überwachen.
 
@@ -725,6 +783,25 @@ Bilder verarbeiten (resize, convert, crop, rotate).
 | `height` | integer | Ziel-Höhe |
 | `quality_pct` | integer | 1-100 |
 | `angle` | integer | 90, 180, 270 |
+
+### `video_download`
+Lädt Videos von unterstützten Plattformen (YouTube, Vimeo, etc.) herunter. Konvertiert optional in verschiedene Formate und speichert sie in der Media Registry.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `url` | string | Video-URL |
+| `format` | string | Gewünschtes Format (mp4, webm, audio) |
+| `quality` | string | Qualitätsstufe |
+
+### `media_conversion`
+Konvertiert Mediendateien zwischen verschiedenen Formaten (Video, Audio, Bilder). Nutzt FFmpeg für die Transkodierung.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `input_path` | string | Eingabedatei |
+| `output_path` | string | Ausgabedatei |
+| `output_format` | string | Zielformat |
+| `options` | object | Zusätzliche FFmpeg-Optionen |
 
 ---
 
@@ -826,6 +903,33 @@ Externe MCP (Model Context Protocol) Server aufrufen.
 | `server` | string | MCP-Server-Name |
 | `tool_name` | string | Tool-Name |
 | `mcp_args` | object | Argumente |
+
+### `grafana`
+Grafana-Dashboards und -Datenquellen abfragen sowie Snapshots erstellen. Ermöglicht den Zugriff auf visualisierte Metriken und Panel-Daten.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search_dashboards, get_dashboard, get_panel_data, create_snapshot |
+| `dashboard_uid` | string | Dashboard-UID |
+| `panel_id` | integer | Panel-ID |
+
+### `space_agent`
+Verwaltet und steuert Space-Agents — spezialisierte Agent-Instanzen für verteilte Aufgabenbearbeitung.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, spawn, stop, status, send_task |
+| `agent_id` | string | Agent-ID |
+| `task` | string | Aufgabenbeschreibung |
+
+### `virtual_desktop`
+Steuert eine virtuelle Desktop-Umgebung (VNC/RDP). Ermöglicht Fernzugriff, Screenshots und Eingabe-Simulation auf entfernten Desktops.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | connect, screenshot, click, type, disconnect |
+| `host` | string | Server-Adresse |
+| `port` | integer | Port |
 
 ---
 

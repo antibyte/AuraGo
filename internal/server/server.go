@@ -26,6 +26,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/discord"
 	"aurago/internal/fritzbox"
 	"aurago/internal/heartbeat"
@@ -258,6 +259,9 @@ type Server struct {
 	PreparationService *services.MissionPreparationService
 	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor   *tools.DaemonSupervisor
+	DesktopService     *desktop.Service
+	DesktopHub         *desktop.Hub
+	DesktopMu          sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation

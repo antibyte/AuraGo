@@ -217,6 +217,19 @@ type SpaceAgentConfig struct {
 	BridgeToken    string `yaml:"-" json:"-"`                             // vault-only: space_agent_bridge_token
 }
 
+// VirtualDesktopConfig holds settings for AuraGo's browser-native virtual desktop.
+type VirtualDesktopConfig struct {
+	Enabled            bool   `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
+	ReadOnly           bool   `yaml:"readonly" json:"readonly"`                         // block writes while keeping the desktop browsable
+	AllowAgentControl  bool   `yaml:"allow_agent_control" json:"allow_agent_control"`   // expose the virtual_desktop tool to the agent
+	AllowGeneratedApps bool   `yaml:"allow_generated_apps" json:"allow_generated_apps"` // allow generated JS apps and widgets
+	AllowPythonJobs    bool   `yaml:"allow_python_jobs" json:"allow_python_jobs"`       // allow desktop apps to request backend Python jobs via the agent
+	WorkspaceDir       string `yaml:"workspace_dir" json:"workspace_dir"`               // persistent desktop workspace root
+	MaxFileSizeMB      int    `yaml:"max_file_size_mb" json:"max_file_size_mb"`         // max text file read/write size
+	ControlLevel       string `yaml:"control_level" json:"control_level"`               // "confirm_destructive" (default) or "trusted"
+	MaxWSClients       int    `yaml:"max_ws_clients" json:"max_ws_clients"`             // max concurrent desktop websocket clients
+}
+
 // MQTTTLS holds TLS configuration for MQTT connections.
 type MQTTTLS struct {
 	Enabled            bool   `yaml:"enabled"`              // enable TLS encryption
@@ -335,6 +348,7 @@ type Config struct {
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		PlannerPath          string `yaml:"planner_path"`
+		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 		SkillsPath           string `yaml:"skills_path"`
@@ -1085,6 +1099,7 @@ type Config struct {
 	} `yaml:"remote_control"`
 	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
 	SpaceAgent        SpaceAgentConfig        `yaml:"space_agent"`
+	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`
 		Domain       string `yaml:"domain"`      // primary domain for TLS (e.g. "aurago.example.com")
@@ -1287,6 +1302,9 @@ type Config struct {
 		BrowserAutomation struct {
 			Enabled bool `yaml:"enabled"` // enable browser_automation tool (Playwright sidecar driven browser sessions)
 		} `yaml:"browser_automation"`
+		VirtualDesktop struct {
+			Enabled bool `yaml:"enabled"` // enable virtual_desktop tool (browser desktop workspace control)
+		} `yaml:"virtual_desktop"`
 		NetworkPing struct {
 			Enabled bool `yaml:"enabled"` // enable network_ping tool (ICMP echo, default true)
 		} `yaml:"network_ping"`

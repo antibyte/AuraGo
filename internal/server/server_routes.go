@@ -47,6 +47,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		<-shutdownCh
 		serverCancel()
 	}()
+	go func() {
+		<-shutdownCh
+		s.DesktopMu.Lock()
+		if s.DesktopService != nil {
+			_ = s.DesktopService.Close()
+			s.DesktopService = nil
+		}
+		s.DesktopMu.Unlock()
+	}()
 
 	// Initialize Daemon Supervisor (long-running daemon skills)
 	if s.Cfg.Tools.DaemonSkills.Enabled {
@@ -434,6 +443,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/integrations/webhosts", handleIntegrationWebhosts(s))
 	mux.HandleFunc("/integrations/space-agent", handleSpaceAgentLegacyRedirect(s))
 	mux.HandleFunc("/integrations/space-agent/", handleSpaceAgentLegacyRedirect(s))
+	mux.HandleFunc("/api/desktop/bootstrap", handleDesktopBootstrap(s))
+	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
+	mux.HandleFunc("/api/desktop/file", handleDesktopFile(s))
+	mux.HandleFunc("/api/desktop/apps", handleDesktopApps(s))
+	mux.HandleFunc("/api/desktop/widgets", handleDesktopWidgets(s))
+	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
+	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 
 	s.registerConfigAPIRoutes(mux, sse)
 

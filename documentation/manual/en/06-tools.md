@@ -21,6 +21,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🌐 Network** | Ping, port scan, mDNS, UPnP | No |
 | **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Yes |
 | **📝 Documents** | PDF Creator/Extractor, Paperless NGX | No |
+| **🎬 Media Conversion** | FFmpeg, ImageMagick, Video Download | No |
 
 ---
 
@@ -268,6 +269,50 @@ Agent: 🎬 Generating video with the configured provider...
 
 You: Send the generated video to me
 Agent: ▶️ Video attached with an inline player
+```
+
+---
+
+## Media Conversion & Video Download
+
+Conversion of audio, video, and image files as well as video download from platforms like YouTube.
+
+### Configuration
+
+```yaml
+tools:
+  media_conversion:
+    enabled: true
+    ffmpeg_path: ""
+    imagemagick_path: ""
+  video_download:
+    enabled: true
+    mode: "docker"                # docker or native
+    download_dir: "data/downloads"
+    allow_transcribe: false
+  send_youtube_video:
+    enabled: true
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `media_conversion` | Convert files between formats (FFmpeg/ImageMagick) |
+| `video_download` | Download videos from YouTube and other platforms |
+| `send_youtube_video` | Send YouTube videos as embedded players |
+
+### Requirements
+
+- FFmpeg and/or ImageMagick (system-wide or paths configured)
+- For video download: yt-dlp (in Docker container or system-wide)
+
+### Examples in Chat
+
+```
+Convert video.mp4 to audio.mp3
+Download the YouTube video
+Send me the YouTube video as an embedded player
 ```
 
 ---

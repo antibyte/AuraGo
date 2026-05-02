@@ -35,6 +35,7 @@ const (
 	EventThinkingBlock     SSEEventType = "thinking_block"
 	EventCoAgentProgress   SSEEventType = "coagent_progress"
 	EventSpaceAgentMessage SSEEventType = "space_agent_message"
+	EventVirtualDesktop    SSEEventType = "virtual_desktop_event"
 	EventQuestionUser      SSEEventType = "question_user"
 )
 

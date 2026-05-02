@@ -21,6 +21,7 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 | **🌐 Netzwerk** | Ping, Port-Scan, mDNS, UPnP | Nein |
 | **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Ja |
 | **📝 Dokumente** | PDF Creator/Extractor, Paperless NGX | Nein |
+| **🎬 Medien-Konvertierung** | FFmpeg, ImageMagick, Video-Download | Nein |
 
 ---
 
@@ -344,6 +345,50 @@ tools:
 Erstelle einen Screenshot von google.com
 Speichere die Dokumentation als PDF
 Fülle das Kontaktformular auf example.com aus
+```
+
+---
+
+## Medien-Konvertierung & Video-Download
+
+Konvertierung von Audio-, Video- und Bilddateien sowie Video-Download von Plattformen wie YouTube.
+
+### Konfiguration
+
+```yaml
+tools:
+  media_conversion:
+    enabled: true
+    ffmpeg_path: ""
+    imagemagick_path: ""
+  video_download:
+    enabled: true
+    mode: "docker"                # docker oder native
+    download_dir: "data/downloads"
+    allow_transcribe: false
+  send_youtube_video:
+    enabled: true
+```
+
+### Verfügbare Tools
+
+| Tool | Beschreibung |
+|------|--------------|
+| `media_conversion` | Dateien zwischen Formaten konvertieren (FFmpeg/ImageMagick) |
+| `video_download` | Videos von YouTube und anderen Plattformen herunterladen |
+| `send_youtube_video` | YouTube-Videos als eingebetteten Player senden |
+
+### Anforderungen
+
+- FFmpeg und/oder ImageMagick (systemweit installiert oder Pfade konfiguriert)
+- Für Video-Download: yt-dlp (im Docker-Container oder systemweit)
+
+### Beispiele im Chat
+
+```
+Konvertiere video.mp4 in audio.mp3
+Lade das YouTube-Video herunter
+Sende mir das YouTube-Video als eingebetteten Player
 ```
 
 ---

@@ -41,6 +41,8 @@ var nativeJSONStringObjectArgNames = map[string]struct{}{
 	"config":             {},
 	"entry_attributes":   {},
 	"headers":            {},
+	"files":              {},
+	"manifest":           {},
 	"metadata":           {},
 	"mcp_args":           {},
 	"parameters":         {},
@@ -50,6 +52,7 @@ var nativeJSONStringObjectArgNames = map[string]struct{}{
 	"service_data":       {},
 	"skill_args":         {},
 	"tool_args":          {},
+	"widget":             {},
 	"webhook_parameters": {},
 }
 
@@ -152,6 +155,7 @@ type ToolFeatureFlags struct {
 	WebCaptureEnabled            bool
 	BrowserAutomationEnabled     bool
 	SpaceAgentEnabled            bool
+	VirtualDesktopEnabled        bool
 	NetworkPingEnabled           bool
 	WebScraperEnabled            bool
 	S3Enabled                    bool

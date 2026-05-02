@@ -1307,6 +1307,184 @@ tools:
 
 ---
 
+## Frigate Integration
+
+Videoüberwachung und NVR-Management über Frigate.
+
+**Web-UI:** Config → Integrationen → Frigate → URL und API-Token eingeben. Optional: Event-Relay, Review-Relay und Media-Speicherung aktivieren.
+
+### YAML-Referenz
+```yaml
+frigate:
+  enabled: true
+  readonly: false
+  url: "https://frigate.local:8971"
+  internal_port: false
+  insecure: false
+  default_camera: ""
+  event_relay: false
+  review_relay: false
+  store_media: false
+  mqtt_topic_prefix: "frigate"
+```
+
+## Grafana Integration
+
+Monitoring und Observability über Grafana.
+
+**Web-UI:** Config → Integrationen → Grafana → Base-URL eingeben. API-Key im Vault speichern.
+
+### YAML-Referenz
+```yaml
+grafana:
+  enabled: true
+  base_url: "http://grafana.local:3000"
+  readonly: false
+  insecure_ssl: false
+  request_timeout: 30
+```
+
+## Space Agent Integration
+
+Verwalteter Docker-Sidecar für den Space Agent – eine eigenständige AuraGo-Instanz für isolierte Aufgaben.
+
+**Web-UI:** Config → Integrationen → Space Agent → Repository-URL, Host, Port und HTTPS konfigurieren.
+
+### YAML-Referenz
+```yaml
+space_agent:
+  enabled: true
+  auto_start: true
+  repo_url: ""
+  git_ref: ""
+  container_name: ""
+  image: ""
+  host: ""
+  port: 0
+  https_enabled: false
+  https_port: 0
+  customware_path: ""
+  data_path: ""
+  admin_user: ""
+  public_url: ""
+```
+
+## Virtual Desktop Integration
+
+Verbindung mit virtuellen Desktop-Infrastrukturen für Remote-Zugriff und -Verwaltung.
+
+**Web-UI:** Config → Integrationen → Virtual Desktop → URL und Credentials konfigurieren.
+
+### YAML-Referenz
+```yaml
+virtual_desktop:
+  enabled: true
+  url: "https://vdi.example.com"
+```
+
+## Shell Sandbox Integration
+
+Linux-Landlock-basierte Sandbox für Shell-Befehle. Einschränkung von Dateisystemzugriffen, CPU-Zeit und Speicher für Shell-Operationen.
+
+**Web-UI:** Config → Integrationen → Shell Sandbox → aktivieren und Limits konfigurieren.
+
+> 💡 Nur auf Linux verfügbar. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`).
+
+### YAML-Referenz
+```yaml
+shell_sandbox:
+  enabled: false
+  allow_unsafe_fallback: false
+  max_memory_mb: 1024
+  max_cpu_seconds: 30
+  max_processes: 50
+  max_file_size_mb: 100
+  allowed_paths:
+    - path: "/tmp"
+      readonly: false
+```
+
+## Whisper Integration
+
+Spracherkennung (Speech-to-Text) über Whisper oder kompatible Provider.
+
+**Web-UI:** Config → Integrationen → Whisper → Provider und Modus konfigurieren.
+
+### YAML-Referenz
+```yaml
+whisper:
+  provider: ""
+  mode: "whisper"   # whisper, multimodal, local
+```
+
+## Media Conversion Integration
+
+Medienkonvertierung über FFmpeg und ImageMagick. Konvertiert Audio-, Video- und Bilddateien zwischen Formaten.
+
+**Web-UI:** Config → Integrationen → Media Conversion → Pfade zu FFmpeg/ImageMagick konfigurieren.
+
+### YAML-Referenz
+```yaml
+tools:
+  media_conversion:
+    enabled: true
+    readonly: false
+    ffmpeg_path: ""
+    imagemagick_path: ""
+    timeout_seconds: 0
+    max_file_size_mb: 0
+```
+
+## Video Download Integration
+
+Video-Download über yt-dlp (YouTube und andere Plattformen). Unterstützt Docker- und Native-Modus.
+
+**Web-UI:** Config → Integrationen → Video Download → Modus (docker/native) und Download-Verzeichnis konfigurieren.
+
+### YAML-Referenz
+```yaml
+tools:
+  video_download:
+    enabled: true
+    readonly: false
+    allow_download: true
+    allow_transcribe: false
+    mode: "docker"
+    yt_dlp_path: ""
+    download_dir: ""
+    max_file_size_mb: 0
+    timeout_seconds: 0
+    default_format: ""
+    max_search_results: 0
+    container_image: ""
+    auto_pull: false
+```
+
+## Send YouTube Video Integration
+
+Ermöglicht das Senden von YouTube-Videos als eingebettete Player in Chat-Nachrichten.
+
+**Web-UI:** Config → Integrationen → Send YouTube Video → aktivieren.
+
+### YAML-Referenz
+```yaml
+tools:
+  send_youtube_video:
+    enabled: true
+```
+
+## GolangciLint Integration
+
+Code-Qualitäts-Checks für Go-Code über golangci-lint.
+
+**Web-UI:** Config → Integrationen → GolangciLint → aktivieren.
+
+### YAML-Referenz
+```yaml
+golangci_lint:
+  enabled: true
+```
+
 ## Integrationen testen
 
 ### Test über Chat

@@ -1619,6 +1619,171 @@ agent:
 
 ---
 
+## Frigate Integration
+
+Video surveillance and NVR management via Frigate.
+
+**Web UI:** Config → Integrations → Frigate → Enter URL and API token. Optional: Enable event relay, review relay, and media storage.
+
+### YAML Reference
+```yaml
+frigate:
+  enabled: true
+  readonly: false
+  url: "https://frigate.local:8971"
+  internal_port: false
+  insecure: false
+  default_camera: ""
+  event_relay: false
+  review_relay: false
+  store_media: false
+  mqtt_topic_prefix: "frigate"
+```
+
+## Grafana Integration
+
+Monitoring and observability via Grafana.
+
+**Web UI:** Config → Integrations → Grafana → Enter base URL. Store API key in the Vault.
+
+### YAML Reference
+```yaml
+grafana:
+  enabled: true
+  base_url: "http://grafana.local:3000"
+  readonly: false
+  insecure_ssl: false
+  request_timeout: 30
+```
+
+## Space Agent Integration
+
+Managed Docker sidecar for the Space Agent — a standalone AuraGo instance for isolated tasks.
+
+**Web UI:** Config → Integrations → Space Agent → Configure repository URL, host, port, and HTTPS.
+
+### YAML Reference
+```yaml
+space_agent:
+  enabled: true
+  auto_start: true
+  repo_url: ""
+  git_ref: ""
+  container_name: ""
+  image: ""
+  host: ""
+  port: 0
+  https_enabled: false
+  https_port: 0
+  customware_path: ""
+  data_path: ""
+  admin_user: ""
+  public_url: ""
+```
+
+## Virtual Desktop Integration
+
+Connection to virtual desktop infrastructure for remote access and management.
+
+**Web UI:** Config → Integrations → Virtual Desktop → Configure URL and credentials.
+
+### YAML Reference
+```yaml
+virtual_desktop:
+  enabled: true
+  url: "https://vdi.example.com"
+```
+
+## Shell Sandbox Integration
+
+Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CPU time, and memory for shell operations.
+
+**Web UI:** Config → Integrations → Shell Sandbox → Enable and configure limits.
+
+> 💡 Linux only. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`.
+
+### YAML Reference
+```yaml
+shell_sandbox:
+  enabled: false
+  allow_unsafe_fallback: false
+  max_memory_mb: 1024
+  max_cpu_seconds: 30
+  max_processes: 50
+  max_file_size_mb: 100
+  allowed_paths:
+    - path: "/tmp"
+      readonly: false
+```
+
+## Media Conversion Integration
+
+Media conversion via FFmpeg and ImageMagick. Converts audio, video, and image files between formats.
+
+**Web UI:** Config → Integrations → Media Conversion → Configure paths to FFmpeg/ImageMagick.
+
+### YAML Reference
+```yaml
+tools:
+  media_conversion:
+    enabled: true
+    readonly: false
+    ffmpeg_path: ""
+    imagemagick_path: ""
+    timeout_seconds: 0
+    max_file_size_mb: 0
+```
+
+## Video Download Integration
+
+Video download via yt-dlp (YouTube and other platforms). Supports Docker and native mode.
+
+**Web UI:** Config → Integrations → Video Download → Configure mode (docker/native) and download directory.
+
+### YAML Reference
+```yaml
+tools:
+  video_download:
+    enabled: true
+    readonly: false
+    allow_download: true
+    allow_transcribe: false
+    mode: "docker"
+    yt_dlp_path: ""
+    download_dir: ""
+    max_file_size_mb: 0
+    timeout_seconds: 0
+    default_format: ""
+    max_search_results: 0
+    container_image: ""
+    auto_pull: false
+```
+
+## Send YouTube Video Integration
+
+Enables sending YouTube videos as embedded players in chat messages.
+
+**Web UI:** Config → Integrations → Send YouTube Video → Enable.
+
+### YAML Reference
+```yaml
+tools:
+  send_youtube_video:
+    enabled: true
+```
+
+## GolangciLint Integration
+
+Code quality checks for Go code via golangci-lint.
+
+**Web UI:** Config → Integrations → GolangciLint → Enable.
+
+### YAML Reference
+```yaml
+golangci_lint:
+  enabled: true
+```
+
 ## Testing Integrations
 
 ### Health Check Commands

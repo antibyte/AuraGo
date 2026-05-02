@@ -1104,6 +1104,40 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.VirtualDesktopEnabled {
+		tools = append(tools, tool("virtual_desktop",
+			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
+				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Virtual desktop operation to perform",
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "install_app", "upsert_widget", "open_app", "show_notification"},
+				},
+				"path":      prop("string", "Workspace-relative file or directory path for list_files/read_file/write_file, e.g. 'Documents/notes.md'."),
+				"file_path": prop("string", "Alias for path."),
+				"content":   prop("string", "Text file content for write_file, or notification message for show_notification."),
+				"title":     prop("string", "Notification title or widget title."),
+				"app_id":    prop("string", "Desktop app ID for open_app or widget ownership."),
+				"manifest": map[string]interface{}{
+					"type":                 "object",
+					"description":          "App manifest for install_app: id, name, version, icon, entry, description, permissions, metadata.",
+					"additionalProperties": true,
+				},
+				"files": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Generated app files for install_app, keyed by app-relative file path. Must include manifest.entry.",
+					"additionalProperties": map[string]interface{}{"type": "string"},
+				},
+				"widget": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Widget payload for upsert_widget: id, app_id, title, x, y, w, h, config.",
+					"additionalProperties": true,
+				},
+			}, "operation"),
+		))
+	}
+
 	if ff.NetworkPingEnabled {
 		tools = append(tools, tool("network_ping",
 			"Ping a host using ICMP echo requests and return latency statistics (min/avg/max RTT, packet loss). "+
