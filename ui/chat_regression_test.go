@@ -309,7 +309,7 @@ func TestChatFrontend_PersonaPreviewDescriptionsRemainLocalized(t *testing.T) {
 		`class="personality-preview-image-frame"`,
 		`id="personality-preview-description"`,
 		`/css/chat.css?v=20260502c`,
-		`/js/chat/chat-history.js?v=20260502b`,
+		`/js/chat/chat-history.js?v=20260502c`,
 	} {
 		if !strings.Contains(indexHTML, marker) {
 			t.Fatalf("index.html missing persona description marker %q", marker)
@@ -383,6 +383,34 @@ func TestChatFrontend_PersonaPreviewDescriptionsRemainLocalized(t *testing.T) {
 				t.Fatalf("%s has invalid persona description for %s", path, key)
 			}
 		}
+	}
+}
+
+func TestChatFrontend_PersonaPreviewHoverDoesNotResetSameImageSrc(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	historyContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-history.js"))
+	if err != nil {
+		t.Fatalf("read chat-history.js: %v", err)
+	}
+
+	historyJS := string(historyContent)
+	for _, marker := range []string{
+		`const url = personaImageUrl(key);`,
+		`if (img.dataset.personaPreviewKey !== key) {`,
+		`img.dataset.personaPreviewKey = key;`,
+		`img.src = url;`,
+	} {
+		if !strings.Contains(historyJS, marker) {
+			t.Fatalf("chat-history.js missing stable persona preview src marker %q", marker)
+		}
+	}
+	if !strings.Contains(string(indexContent), `/js/chat/chat-history.js?v=20260502c`) {
+		t.Fatal("index.html must bump chat-history.js cache version after stabilizing persona preview hover")
 	}
 }
 

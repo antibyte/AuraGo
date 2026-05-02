@@ -126,7 +126,11 @@ function showPersonaPreview(previewKey, descriptionKey) {
     const translated = t(textKey);
     const fallback = t('chat.persona_description_custom');
     const text = translated && translated !== textKey ? translated : fallback;
-    img.src = personaImageUrl(key);
+    const url = personaImageUrl(key);
+    if (img.dataset.personaPreviewKey !== key) {
+        img.dataset.personaPreviewKey = key;
+        img.src = url;
+    }
     if (description) description.textContent = text;
     personaPreview.hidden = false;
 }
