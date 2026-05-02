@@ -149,6 +149,13 @@
     backface-visibility: hidden;
 }
 
+[data-theme="threedee"] .msg-row.folding .bubble,
+[data-theme="threedee"] .msg-row.folded .bubble,
+[data-theme="threedee"] .msg-row.unfolding .bubble {
+    transform: translateZ(1px) rotateX(0.001deg);
+    backface-visibility: visible;
+}
+
 [data-theme="threedee"] .msg-row:hover .bubble {
     transform: translateZ(22px) rotateX(-2deg);
     box-shadow:

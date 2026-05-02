@@ -1609,6 +1609,7 @@ function initShared() {
     try { ensure8BitChatThemeOption(); } catch (e) { console.error('[AuraGo] ensure8BitChatThemeOption failed:', e); }
     try { injectRadialMenu(); } catch (e) { console.error('[AuraGo] injectRadialMenu failed:', e); }
     try { initRadialMenu(); } catch (e) { console.error('[AuraGo] initRadialMenu failed:', e); }
+    try { initHeaderTouchActivation(); } catch (e) { console.error('[AuraGo] initHeaderTouchActivation failed:', e); }
     try { initLogoutLinks(); } catch (e) { console.error('[AuraGo] initLogoutLinks failed:', e); }
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initToggles(); } catch (e) { console.error('[AuraGo] initToggles failed:', e); }
@@ -1622,6 +1623,64 @@ function initShared() {
     try { initTsnetLoginWatcher(); } catch (e) { console.error('[AuraGo] initTsnetLoginWatcher failed:', e); }
 
     console.log('[AuraGo] Shared components initialized');
+}
+
+function initHeaderTouchActivation() {
+    const controls = document.querySelectorAll('.app-header button, .app-header a, .cfg-header button, .cfg-header a');
+    const tapSlop = 10;
+
+    controls.forEach((control) => {
+        if (!control || control.dataset.headerTouchBound === 'true') return;
+        control.dataset.headerTouchBound = 'true';
+
+        let startX = 0;
+        let startY = 0;
+        let lastSyntheticClick = 0;
+
+        function isUsable() {
+            return !control.disabled && control.getAttribute('aria-disabled') !== 'true';
+        }
+
+        function rememberStart(clientX, clientY) {
+            startX = clientX;
+            startY = clientY;
+        }
+
+        function activateFromTouch(event, clientX, clientY) {
+            if (!isUsable()) return;
+            if (Math.abs(clientX - startX) > tapSlop || Math.abs(clientY - startY) > tapSlop) return;
+
+            const now = Date.now();
+            if (now - lastSyntheticClick < 350) return;
+            lastSyntheticClick = now;
+
+            event.preventDefault();
+            event.stopPropagation();
+            window.setTimeout(() => control.click(), 0);
+        }
+
+        if (window.PointerEvent) {
+            control.addEventListener('pointerdown', (event) => {
+                if (event.pointerType === 'mouse') return;
+                rememberStart(event.clientX, event.clientY);
+            }, { passive: true });
+            control.addEventListener('pointerup', (event) => {
+                if (event.pointerType === 'mouse') return;
+                activateFromTouch(event, event.clientX, event.clientY);
+            });
+        } else {
+            control.addEventListener('touchstart', (event) => {
+                const touch = event.changedTouches && event.changedTouches[0];
+                if (!touch) return;
+                rememberStart(touch.clientX, touch.clientY);
+            }, { passive: true });
+            control.addEventListener('touchend', (event) => {
+                const touch = event.changedTouches && event.changedTouches[0];
+                if (!touch) return;
+                activateFromTouch(event, touch.clientX, touch.clientY);
+            }, { passive: false });
+        }
+    });
 }
 
 /**

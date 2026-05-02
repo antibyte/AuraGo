@@ -62,20 +62,20 @@
             const partial = chatRect.top - rect.top;
 
             if (aboveBy > 0) {
-                const foldAngle = clamp(12, 45, aboveBy / 5);
+                const foldAngle = clamp(4, 14, aboveBy / 12);
                 row.classList.add('folding', 'folded');
                 row.classList.remove('unfolding');
-                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-10px)`;
-                row.style.opacity = String(clamp(0.28, 0.78, 1 - foldAngle / 58));
-                row.style.filter = `blur(${clamp(0.2, 1.2, foldAngle / 42).toFixed(2)}px)`;
+                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-6px) scale(0.985)`;
+                row.style.opacity = String(clamp(0.42, 0.86, 1 - foldAngle / 42));
+                row.style.filter = `blur(${clamp(0.1, 0.7, foldAngle / 32).toFixed(2)}px)`;
             } else if (partial > 0 && rect.height > 0) {
                 const progress = clamp(0, 1, partial / rect.height);
-                const foldAngle = progress * 30;
+                const foldAngle = progress * 10;
                 row.classList.add('folding');
                 row.classList.remove('folded', 'unfolding');
-                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg)`;
-                row.style.opacity = String(clamp(0.58, 1, 1 - progress * 0.32));
-                row.style.filter = progress > 0.55 ? `blur(${((progress - 0.55) * 1.3).toFixed(2)}px)` : '';
+                row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) scale(${(1 - progress * 0.008).toFixed(3)})`;
+                row.style.opacity = String(clamp(0.72, 1, 1 - progress * 0.18));
+                row.style.filter = progress > 0.6 ? `blur(${((progress - 0.6) * 0.8).toFixed(2)}px)` : '';
             } else {
                 const wasFolded = row.classList.contains('folded') || row.style.transform;
                 row.classList.remove('folding', 'folded');
