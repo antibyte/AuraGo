@@ -289,6 +289,21 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 			t.Fatalf("8Bit theme asset %s is empty", assetPath)
 		}
 	}
+
+	bitCSS, err := os.ReadFile(filepath.Join("css", "chat-8bit.css"))
+	if err != nil {
+		t.Fatalf("read chat-8bit.css: %v", err)
+	}
+	bitCSSString := string(bitCSS)
+	for _, marker := range []string{
+		`[data-theme="8bit"] #chat-box::after`,
+		`background-size: 192px auto;`,
+		`image-rendering: pixelated;`,
+	} {
+		if !strings.Contains(bitCSSString, marker) {
+			t.Fatalf("css/chat-8bit.css missing 8Bit background pixelation marker %q", marker)
+		}
+	}
 }
 
 func TestChatSmartScrollerIgnoresEmptyNonScrollableState(t *testing.T) {
