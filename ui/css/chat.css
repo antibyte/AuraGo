@@ -3886,17 +3886,51 @@
                 display: none;
             }
 
+            .pill-tokens,
+            .pill-budget,
+            .credits-pill-action,
+            .pill-debug,
+            #debug-pill,
+            #connectionPill {
+                display: none !important;
+            }
+
+            .personality-mobile-btn {
+                display: inline-flex !important;
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+                border-radius: 9px;
+            }
+
+            .personality-select-wrapper {
+                display: contents;
+            }
+
+            .select-personality {
+                display: none !important;
+            }
+
+            #logout-btn {
+                min-width: 0;
+                padding: 0.25rem 0.45rem;
+                font-size: 0.74rem;
+            }
+
             /* Very narrow phones (≤ 360px): collapse non-essential header elements */
             @media (max-width: 360px) {
                 .pill-tokens,
                 .pill-budget,
                 .credits-pill-action,
                 .select-personality,
-                .personality-select-wrapper,
-                .personality-dropdown,
                 .pill-debug,
+                #connectionPill,
                 #debug-pill {
                     display: none !important;
+                }
+
+                .personality-select-wrapper {
+                    display: contents !important;
                 }
 
                 .personality-mobile-btn {

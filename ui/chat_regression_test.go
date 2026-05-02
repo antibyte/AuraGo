@@ -196,6 +196,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		"pointer-events: auto;",
 		"touch-action: pan-x;",
 		"touch-action: manipulation;",
+		"overflow: visible;",
 	} {
 		if !strings.Contains(sharedCSS, marker) {
 			t.Fatalf("shared header CSS missing mobile tap safety marker %q", marker)
@@ -350,6 +351,15 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 			t.Fatalf("css/chat.css still gives the 8Bit picker option a custom font marker %q", marker)
 		}
 	}
+	for _, marker := range []string{
+		`.personality-select-wrapper {`,
+		`display: contents;`,
+		`#connectionPill`,
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css missing compact mobile header marker %q", marker)
+		}
+	}
 	papyrusContent, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
 	if err != nil {
 		t.Fatalf("read chat-papyrus.css: %v", err)
@@ -388,6 +398,8 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 		`[data-theme="8bit"] .radial-trigger,`,
 		`[data-theme="8bit"] .radial-item-label`,
 		`font-size: 0.58rem;`,
+		`.chat-theme-dropdown .chat-theme-option[data-theme="8bit"] .chat-theme-option-label`,
+		`font-family: inherit !important;`,
 	} {
 		if !strings.Contains(bitCSSString, marker) {
 			t.Fatalf("css/chat-8bit.css missing 8Bit background pixelation marker %q", marker)

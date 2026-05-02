@@ -429,6 +429,13 @@ html[data-theme="8bit"]::after {
     outline-offset: -2px;
 }
 
+.chat-theme-dropdown .chat-theme-option[data-theme="8bit"] .chat-theme-option-label {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    letter-spacing: inherit !important;
+}
+
 /* ── Input Area ─────────────────────────────────────────────────── */
 [data-theme="8bit"] .chat-input-area {
     border-width: 2px 0 0;
