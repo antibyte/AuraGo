@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Tillatte verktøy:",
+  "config.mcp.card_allowed_tools_all": "Alle oppdagede",
   "config.mcp.field_environment_secret_hint": "Lagre passord og tokener som MCP-hemmeligheter og referer til dem her med {{alias}} i stedet for klartekst.",
   "config.mcp.field_allowed_tools": "Tillatte runtime-verktøy",
-  "config.mcp.field_allowed_tools_hint": "Bare disse oppdagede MCP-serververktøyene kan kjøres og vises i rutingmenyen. Tom betyr at ingen verktøy er tillatt.",
+  "config.mcp.field_allowed_tools_hint": "Valgfri verktøybegrensning. La stå tomt for å tillate alle oppdagede verktøy; skriv inn verktøynavn for å begrense kjøring og ruting til bare disse.",
   "config.mcp.field_allow_destructive": "Tillat destruktive MCP-verktøy"
 }

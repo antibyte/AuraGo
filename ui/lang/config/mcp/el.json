@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Επιτρεπόμενα εργαλεία:",
+  "config.mcp.card_allowed_tools_all": "Όλα τα εντοπισμένα",
   "config.mcp.field_environment_secret_hint": "Αποθηκεύστε κωδικούς και token ως MCP secrets και αναφερθείτε σε αυτά εδώ με {{alias}} αντί για απλό κείμενο.",
   "config.mcp.field_allowed_tools": "Επιτρεπόμενα runtime εργαλεία",
-  "config.mcp.field_allowed_tools_hint": "Μόνο αυτά τα εντοπισμένα εργαλεία του MCP server μπορούν να εκτελούνται και να εμφανίζονται στο μενού δρομολόγησης. Κενό σημαίνει ότι δεν επιτρέπονται εργαλεία.",
+  "config.mcp.field_allowed_tools_hint": "Προαιρετικός περιορισμός εργαλείων. Αφήστε το κενό για να επιτρέπονται όλα τα εντοπισμένα εργαλεία· εισαγάγετε ονόματα εργαλείων για εκτέλεση και δρομολόγηση μόνο αυτών.",
   "config.mcp.field_allow_destructive": "Να επιτρέπονται καταστροφικά MCP εργαλεία"
 }

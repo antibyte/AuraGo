@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Dozwolone narzędzia:",
+  "config.mcp.card_allowed_tools_all": "Wszystkie wykryte",
   "config.mcp.field_environment_secret_hint": "Zapisuj hasła i tokeny jako sekrety MCP i odwołuj się do nich tutaj przez {{alias}} zamiast tekstem jawnym.",
   "config.mcp.field_allowed_tools": "Dozwolone narzędzia runtime",
-  "config.mcp.field_allowed_tools_hint": "Tylko te wykryte narzędzia serwera MCP mogą być uruchamiane i pokazywane w menu routingu. Puste oznacza brak dozwolonych narzędzi.",
+  "config.mcp.field_allowed_tools_hint": "Opcjonalne ograniczenie narzędzi. Pozostaw puste, aby zezwolić na wszystkie wykryte narzędzia; wpisz nazwy, aby ograniczyć uruchamianie i routing tylko do nich.",
   "config.mcp.field_allow_destructive": "Zezwalaj na destrukcyjne narzędzia MCP"
 }

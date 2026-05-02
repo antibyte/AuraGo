@@ -274,6 +274,39 @@ func TestMCPManagerCallToolEnforcesAllowedTools(t *testing.T) {
 	}
 }
 
+func TestMCPManagerCallToolAllowsAllWhenAllowlistEmpty(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	oldStart := startManagedMCPConn
+	oldInvoke := invokeMCPConnTool
+	t.Cleanup(func() {
+		startManagedMCPConn = oldStart
+		invokeMCPConnTool = oldInvoke
+	})
+
+	startManagedMCPConn = func(srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
+		return &mcpConn{name: srv.Name, ready: true}, nil
+	}
+	invokeMCPConnTool = func(conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
+		return "ok", nil
+	}
+
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", Command: "uvx", Enabled: true},
+		},
+		conns:  map[string]*mcpConn{},
+		logger: logger,
+	}
+
+	got, err := mgr.CallTool("safe", "any_safe_tool", nil)
+	if err != nil {
+		t.Fatalf("CallTool() error = %v, want empty allowed_tools to allow all non-destructive tools", err)
+	}
+	if got != "ok" {
+		t.Fatalf("CallTool() = %q, want ok", got)
+	}
+}
+
 func TestMCPManagerCallToolBlocksDestructiveToolsWithoutToggle(t *testing.T) {
 	mgr := &MCPManager{
 		configs: map[string]MCPServerConfig{
@@ -309,6 +342,31 @@ func TestMCPManagerListToolsOnlyExposesAllowedTools(t *testing.T) {
 	got := mgr.ListTools("safe")
 	if len(got) != 1 || got[0].Name != "allowed_tool" {
 		t.Fatalf("ListTools() = %+v, want only allowed_tool", got)
+	}
+}
+
+func TestMCPManagerListToolsExposesAllWhenAllowlistEmpty(t *testing.T) {
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{
+			"safe": {Name: "safe", Enabled: true, Command: "uvx"},
+		},
+		conns: map[string]*mcpConn{
+			"safe": {
+				name:  "safe",
+				ready: true,
+				tools: []MCPToolInfo{
+					{Server: "safe", Name: "first_tool"},
+					{Server: "safe", Name: "second_tool"},
+					{Server: "safe", Name: "delete_database"},
+				},
+			},
+		},
+		logger: slog.Default(),
+	}
+
+	got := mgr.ListTools("safe")
+	if len(got) != 2 || got[0].Name != "first_tool" || got[1].Name != "second_tool" {
+		t.Fatalf("ListTools() = %+v, want all non-destructive tools when allowed_tools is empty", got)
 	}
 }
 

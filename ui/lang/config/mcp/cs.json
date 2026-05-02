@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Povolené nástroje:",
+  "config.mcp.card_allowed_tools_all": "Všechny objevené",
   "config.mcp.field_environment_secret_hint": "Hesla a tokeny ukládejte jako MCP secrets a zde je odkazujte pomocí {{alias}} místo prostého textu.",
   "config.mcp.field_allowed_tools": "Povolené runtime nástroje",
-  "config.mcp.field_allowed_tools_hint": "Spouštět a zobrazovat v menu směrování lze jen tyto objevené nástroje MCP serveru. Prázdné znamená, že nejsou povoleny žádné nástroje.",
+  "config.mcp.field_allowed_tools_hint": "Volitelné omezení nástrojů. Prázdné povolí všechny objevené nástroje; zadané názvy omezí spouštění a směrování jen na tyto nástroje.",
   "config.mcp.field_allow_destructive": "Povolit destruktivní MCP nástroje"
 }

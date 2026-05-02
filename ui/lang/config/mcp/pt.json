@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Ferramentas permitidas:",
+  "config.mcp.card_allowed_tools_all": "Todos descobertos",
   "config.mcp.field_environment_secret_hint": "Guarde senhas e tokens como segredos MCP e referencie-os aqui com {{alias}} em vez de texto puro.",
   "config.mcp.field_allowed_tools": "Ferramentas runtime permitidas",
-  "config.mcp.field_allowed_tools_hint": "Só estas ferramentas descobertas do servidor MCP podem ser executadas e mostradas no menu de roteamento. Vazio significa que nenhuma ferramenta é permitida.",
+  "config.mcp.field_allowed_tools_hint": "Limite opcional de ferramentas. Deixe vazio para permitir todas as ferramentas descobertas; informe nomes para restringir execução e roteamento apenas a elas.",
   "config.mcp.field_allow_destructive": "Permitir ferramentas MCP destrutivas"
 }

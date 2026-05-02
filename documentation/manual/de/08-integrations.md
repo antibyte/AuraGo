@@ -490,16 +490,15 @@ Erlaubt dem Agenten, Tools von externen MCP-Servern zu nutzen.
 ```yaml
 mcp:
   enabled: true
-  allowed_tools:
-    - "fetch"
-    - "filesystem"
   servers:
     - name: "fetch-server"
       command: "uvx"
       args: ["mcp-server-fetch"]
-      allowed_tools: ["fetch"]
+      allowed_tools: []  # optionale Allowlist; leer bedeutet alle entdeckten nicht-destruktiven Tools
       allow_destructive: false
 ```
+
+Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglassen erlaubt alle entdeckten nicht-destruktiven Tools; trage Toolnamen nur ein, wenn Ausführung und Routing auf diese Teilmenge begrenzt werden sollen.
 
 ### MCP-Server
 Stellt AuraGo-Tools für externe Clients bereit.

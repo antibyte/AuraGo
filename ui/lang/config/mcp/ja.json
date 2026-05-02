@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "許可済みツール:",
+  "config.mcp.card_allowed_tools_all": "検出済みすべて",
   "config.mcp.field_environment_secret_hint": "パスワードやトークンはMCPシークレットとして保存し、平文ではなくここで{{alias}}として参照してください。",
   "config.mcp.field_allowed_tools": "許可済みランタイムツール",
-  "config.mcp.field_allowed_tools_hint": "ここにある検出済みMCPサーバーツールだけが実行され、ルーティングメニューに表示されます。空の場合、許可されるツールはありません。",
+  "config.mcp.field_allowed_tools_hint": "任意のツール制限です。空にすると検出済みの全ツールを許可します。ツール名を入力すると、実行とルーティングはそのツールだけに制限されます。",
   "config.mcp.field_allow_destructive": "破壊的なMCPツールを許可"
 }

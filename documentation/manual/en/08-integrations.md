@@ -485,7 +485,7 @@ Connect external MCP servers (client) or expose AuraGo itself as an MCP server.
 ### Web UI Setup
 1. Open **Config → Integrations → MCP**.
 2. Enable the client and/or server as needed.
-3. Add allowed tools and server commands.
+3. Add server commands and optional per-server tool limits.
 4. Save and restart.
 
 ### MCP Client
@@ -494,14 +494,15 @@ Allows the agent to use tools from external MCP servers.
 ```yaml
 mcp:
     enabled: true
-    allowed_tools: ["fetch", "filesystem"]
     servers:
         - name: "fetch-server"
           command: "uvx"
           args: ["mcp-server-fetch"]
-          allowed_tools: ["fetch"]
+          allowed_tools: []  # optional allowlist; empty means all discovered non-destructive tools
           allow_destructive: false
 ```
+
+For MCP clients, `allowed_tools` is optional per server. Leave it empty or omit it to allow all discovered non-destructive tools; add tool names only when you want to restrict execution and routing to that subset.
 
 ### MCP Server
 Exposes AuraGo tools to external clients.

@@ -1693,7 +1693,7 @@ type MCPServer struct {
 	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
 	HostWorkdir        string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
 	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
-	AllowedTools       []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // tool names this server may execute; empty = none
+	AllowedTools       []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // optional allowlist; empty = all discovered non-destructive tools
 	AllowDestructive   bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive"`
 }
 

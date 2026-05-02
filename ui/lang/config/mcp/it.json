@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Strumenti consentiti:",
+  "config.mcp.card_allowed_tools_all": "Tutti rilevati",
   "config.mcp.field_environment_secret_hint": "Salva password e token come secret MCP e referenziali qui con {{alias}} invece che in chiaro.",
   "config.mcp.field_allowed_tools": "Strumenti runtime consentiti",
-  "config.mcp.field_allowed_tools_hint": "Solo questi strumenti scoperti del server MCP possono essere eseguiti e mostrati nel menu di routing. Vuoto significa nessuno strumento consentito.",
+  "config.mcp.field_allowed_tools_hint": "Limite strumenti opzionale. Lascia vuoto per consentire tutti gli strumenti rilevati; inserisci i nomi per limitare esecuzione e routing solo a quelli.",
   "config.mcp.field_allow_destructive": "Consenti strumenti MCP distruttivi"
 }

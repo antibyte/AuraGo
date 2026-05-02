@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "अनुमत tools:",
+  "config.mcp.card_allowed_tools_all": "सभी खोजे गए",
   "config.mcp.field_environment_secret_hint": "Passwords और tokens को MCP secrets के रूप में सहेजें और plaintext के बजाय यहाँ {{alias}} से reference करें।",
   "config.mcp.field_allowed_tools": "अनुमत runtime tools",
-  "config.mcp.field_allowed_tools_hint": "सिर्फ ये discovered MCP server tools चलाए जा सकते हैं और routing menu में दिखाए जा सकते हैं। खाली का अर्थ है कोई tool अनुमत नहीं।",
+  "config.mcp.field_allowed_tools_hint": "वैकल्पिक tool सीमा। सभी discovered tools की अनुमति देने के लिए खाली छोड़ें; execution और routing को केवल उन्हीं tools तक सीमित करने के लिए tool names दर्ज करें।",
   "config.mcp.field_allow_destructive": "Destructive MCP tools की अनुमति दें"
 }

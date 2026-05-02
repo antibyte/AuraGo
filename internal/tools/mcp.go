@@ -897,17 +897,10 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 	if !ok {
 		return fmt.Errorf("MCP server %q not configured", serverName)
 	}
-	allowed := make(map[string]struct{}, len(cfg.AllowedTools))
-	for _, name := range cfg.AllowedTools {
-		if trimmed := strings.TrimSpace(name); trimmed != "" {
-			allowed[trimmed] = struct{}{}
+	if allowed, restricted := mcpAllowedToolSet(cfg); restricted {
+		if _, ok := allowed[toolName]; !ok {
+			return fmt.Errorf("MCP tool %q is not allowed for server %q", toolName, serverName)
 		}
-	}
-	if len(allowed) == 0 {
-		return fmt.Errorf("MCP tool calls are disabled for server %q because allowed_tools is empty", serverName)
-	}
-	if _, ok := allowed[toolName]; !ok {
-		return fmt.Errorf("MCP tool %q is not allowed for server %q", toolName, serverName)
 	}
 	if !cfg.AllowDestructive && isMCPToolNameDestructive(toolName) {
 		return fmt.Errorf("MCP tool %q is blocked for server %q because allow_destructive is false", toolName, serverName)
@@ -915,18 +908,21 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 	return nil
 }
 
-func mcpToolVisible(cfg MCPServerConfig, toolName string) bool {
+func mcpAllowedToolSet(cfg MCPServerConfig) (map[string]struct{}, bool) {
 	allowed := make(map[string]struct{}, len(cfg.AllowedTools))
 	for _, name := range cfg.AllowedTools {
 		if trimmed := strings.TrimSpace(name); trimmed != "" {
 			allowed[trimmed] = struct{}{}
 		}
 	}
-	if len(allowed) == 0 {
-		return false
-	}
-	if _, ok := allowed[toolName]; !ok {
-		return false
+	return allowed, len(allowed) > 0
+}
+
+func mcpToolVisible(cfg MCPServerConfig, toolName string) bool {
+	if allowed, restricted := mcpAllowedToolSet(cfg); restricted {
+		if _, ok := allowed[toolName]; !ok {
+			return false
+		}
 	}
 	return cfg.AllowDestructive || !isMCPToolNameDestructive(toolName)
 }

@@ -75,8 +75,9 @@
   "config.mcp.secret_saved": "MCP secret saved.",
   "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
   "config.mcp.card_allowed_tools": "Tillåtna verktyg:",
+  "config.mcp.card_allowed_tools_all": "Alla upptäckta",
   "config.mcp.field_environment_secret_hint": "Spara lösenord och tokens som MCP-hemligheter och referera till dem här med {{alias}} i stället för klartext.",
   "config.mcp.field_allowed_tools": "Tillåtna runtime-verktyg",
-  "config.mcp.field_allowed_tools_hint": "Endast dessa upptäckta MCP-serververktyg får köras och visas i routingmenyn. Tomt betyder att inga verktyg är tillåtna.",
+  "config.mcp.field_allowed_tools_hint": "Valfri verktygsbegränsning. Lämna tomt för att tillåta alla upptäckta verktyg; ange verktygsnamn för att begränsa körning och routing till endast dessa.",
   "config.mcp.field_allow_destructive": "Tillåt destruktiva MCP-verktyg"
 }

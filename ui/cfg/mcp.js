@@ -143,6 +143,7 @@ function mcpServerRenderCards() {
         const argsStr = (s.args || []).join(' ');
         const envCount = s.env ? Object.keys(s.env).length : 0;
         const allowedToolsCount = Array.isArray(s.allowed_tools) ? s.allowed_tools.length : 0;
+        const allowedToolsLabel = allowedToolsCount > 0 ? String(allowedToolsCount) : t('config.mcp.card_allowed_tools_all');
         const runtimeLabel = s.runtime === 'docker' ? t('config.mcp.runtime_docker') : t('config.mcp.runtime_local');
         const workdirLabel = s.host_workdir || '—';
 
@@ -162,7 +163,7 @@ function mcpServerRenderCards() {
                 <div><span class="mcp-grid-label">${t('config.mcp.card_args')}</span> ${argsStr ? '<code>' + escapeAttr(argsStr) + '</code>' : '—'}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_runtime')}</span> ${escapeAttr(runtimeLabel)}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_env_vars')}</span> ${envCount}</div>
-                <div><span class="mcp-grid-label">${t('config.mcp.card_allowed_tools')}</span> ${allowedToolsCount}</div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_allowed_tools')}</span> ${escapeAttr(allowedToolsLabel)}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_workdir')}</span> <code>${escapeAttr(workdirLabel)}</code></div>
             </div>
         </div>`;
