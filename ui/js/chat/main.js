@@ -559,6 +559,7 @@ async function changePersonality(newId, triggerSelect) {
 (function initPersonalityDropdown() {
     const btn = document.getElementById('personality-select');
     const dropdown = document.getElementById('personality-dropdown');
+    const mobilePersonalityBtn = document.getElementById('personality-mobile-btn');
     if (!btn || !dropdown) return;
 
     btn.addEventListener('click', (e) => {
@@ -572,7 +573,8 @@ async function changePersonality(newId, triggerSelect) {
     });
 
     document.addEventListener('click', (e) => {
-        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+        const clickedMobilePersonality = mobilePersonalityBtn && mobilePersonalityBtn.contains(e.target);
+        if (!btn.contains(e.target) && !dropdown.contains(e.target) && !clickedMobilePersonality) {
             dropdown.hidden = true;
             btn.setAttribute('aria-expanded', 'false');
             if (typeof window._hidePersonalityPreview === 'function') {
@@ -592,9 +594,9 @@ async function changePersonality(newId, triggerSelect) {
         }
     });
 
-    const mobilePersonalityBtn = document.getElementById('personality-mobile-btn');
     if (mobilePersonalityBtn) {
-        mobilePersonalityBtn.addEventListener('click', () => {
+        mobilePersonalityBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const willClose = !dropdown.hidden;
             dropdown.hidden = willClose;
             btn.setAttribute('aria-expanded', String(!dropdown.hidden));

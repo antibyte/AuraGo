@@ -1627,7 +1627,7 @@ function initShared() {
 
 function initHeaderTouchActivation() {
     const controls = document.querySelectorAll('.app-header button, .app-header a, .cfg-header button, .cfg-header a');
-    const tapSlop = 10;
+    const tapSlop = 14;
 
     controls.forEach((control) => {
         if (!control || control.dataset.headerTouchBound === 'true') return;
@@ -1637,6 +1637,7 @@ function initHeaderTouchActivation() {
         let startY = 0;
         let lastSyntheticClick = 0;
         let suppressTrustedClickUntil = 0;
+        let allowProgrammaticClick = false;
 
         function isUsable() {
             return !control.disabled && control.getAttribute('aria-disabled') !== 'true';
@@ -1658,10 +1659,18 @@ function initHeaderTouchActivation() {
 
             event.preventDefault();
             event.stopPropagation();
-            window.setTimeout(() => control.click(), 0);
+            window.setTimeout(() => {
+                allowProgrammaticClick = true;
+                try {
+                    control.click();
+                } finally {
+                    window.setTimeout(() => { allowProgrammaticClick = false; }, 0);
+                }
+            }, 0);
         }
 
         control.addEventListener('click', (event) => {
+            if (allowProgrammaticClick) return;
             if (event.isTrusted && Date.now() < suppressTrustedClickUntil) {
                 event.preventDefault();
                 event.stopImmediatePropagation();

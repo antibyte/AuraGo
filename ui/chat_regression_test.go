@@ -207,14 +207,38 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 	for _, marker := range []string{
 		"function initHeaderTouchActivation()",
 		".app-header button, .app-header a, .cfg-header button, .cfg-header a",
-		"const tapSlop = 10",
+		"const tapSlop = 14",
+		"let allowProgrammaticClick = false",
 		"suppressTrustedClickUntil",
+		"if (allowProgrammaticClick) return;",
+		"allowProgrammaticClick = true;",
 		"control.click()",
 		"stopImmediatePropagation()",
 		"initHeaderTouchActivation()",
 	} {
 		if !strings.Contains(sharedJS, marker) {
 			t.Fatalf("shared JS missing mobile header touch activation marker %q", marker)
+		}
+	}
+}
+
+func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
+	t.Parallel()
+
+	mainContent, err := os.ReadFile(filepath.Join("js", "chat", "main.js"))
+	if err != nil {
+		t.Fatalf("read chat main JS: %v", err)
+	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"mobilePersonalityBtn.addEventListener('click', (e) => {",
+		"e.stopPropagation();",
+		"const clickedMobilePersonality = mobilePersonalityBtn && mobilePersonalityBtn.contains(e.target);",
+		"!clickedMobilePersonality",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("chat main JS missing mobile personality dropdown marker %q", marker)
 		}
 	}
 }
@@ -270,6 +294,8 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 		"display: inline-grid !important;",
 		"pointer-events: auto !important;",
 		"z-index: 4;",
+		".chat-theme-dropdown .chat-theme-option[data-theme]",
+		"font-family: inherit !important;",
 	} {
 		if !strings.Contains(controlsCSS, marker) {
 			t.Fatalf("header controls CSS missing normalization marker %q", marker)

@@ -94,6 +94,14 @@
     pointer-events: auto !important;
 }
 
+.chat-theme-dropdown .chat-theme-option[data-theme],
+.chat-theme-dropdown .chat-theme-option[data-theme] .chat-theme-option-label {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    letter-spacing: inherit !important;
+}
+
 @media (max-width: 639px) {
     .app-header .header-actions .personality-mobile-btn {
         display: inline-grid !important;
@@ -107,4 +115,3 @@
         display: contents !important;
     }
 }
-
