@@ -328,8 +328,6 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .btn-warnings,
 [data-theme="8bit"] .btn-send,
 [data-theme="8bit"] .composer-tool-btn,
-[data-theme="8bit"] .session-edge-tab,
-[data-theme="8bit"] .integrations-edge-tab,
 [data-theme="8bit"] .modal-close {
     border: 2px solid var(--8bit-border);
     border-radius: 0;
@@ -476,7 +474,16 @@ html[data-theme="8bit"]::after {
 }
 
 /* ── Drawers & Edge Tabs (left session + right integrations) ─────── */
-[data-theme="8bit"] .session-edge-tab,
+[data-theme="8bit"] .session-edge-tab {
+    border: 2px solid var(--8bit-border);
+    border-left: 0;
+    border-radius: 0;
+    background: #2c3e50;
+    color: var(--8bit-text);
+    box-shadow: 3px 0 0 var(--8bit-shadow-color);
+    font-family: var(--font-ui);
+}
+
 [data-theme="8bit"] .integrations-edge-tab {
     border: 2px solid var(--8bit-border);
     border-right: 0;
