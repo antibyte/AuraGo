@@ -475,6 +475,162 @@ html[data-theme="8bit"]::after {
     line-height: 2;
 }
 
+/* ── Drawers & Edge Tabs (left session + right integrations) ─────── */
+[data-theme="8bit"] .session-edge-tab,
+[data-theme="8bit"] .integrations-edge-tab {
+    border: 2px solid var(--8bit-border);
+    border-right: 0;
+    border-radius: 0;
+    background: #2c3e50;
+    color: var(--8bit-text);
+    box-shadow: -3px 0 0 var(--8bit-shadow-color);
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .session-edge-tab:hover,
+[data-theme="8bit"] .session-edge-tab:focus-visible,
+[data-theme="8bit"] .integrations-edge-tab:hover,
+[data-theme="8bit"] .integrations-edge-tab:focus-visible {
+    background: var(--8bit-surface);
+    color: var(--8bit-white);
+    border-color: var(--8bit-blue);
+    box-shadow: -4px 0 0 var(--8bit-shadow-color);
+}
+
+/* Drawer headers */
+[data-theme="8bit"] .session-drawer-header,
+[data-theme="8bit"] .integrations-drawer-header {
+    border-bottom: 2px solid var(--8bit-border);
+    background: #1a252f;
+}
+
+[data-theme="8bit"] .session-drawer-title,
+[data-theme="8bit"] .integrations-drawer-title {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--8bit-blue-bright);
+    text-shadow: 1px 1px 0 #0d1520;
+}
+
+/* Close buttons in drawers */
+[data-theme="8bit"] .session-drawer-close,
+[data-theme="8bit"] .integrations-drawer-close {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #2c3e50;
+    color: var(--8bit-text);
+    box-shadow: 2px 2px 0 var(--8bit-shadow-color);
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .session-drawer-close:hover,
+[data-theme="8bit"] .integrations-drawer-close:hover {
+    background: var(--8bit-surface);
+    color: var(--8bit-white);
+    border-color: var(--8bit-blue);
+}
+
+/* Session items */
+[data-theme="8bit"] .session-item {
+    border-radius: 0;
+    border: 1px solid transparent;
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+}
+
+[data-theme="8bit"] .session-item:hover {
+    background: #1e3a5f;
+    color: var(--8bit-white);
+    border-color: var(--8bit-blue);
+}
+
+[data-theme="8bit"] .session-item.active {
+    background: #1e3a5f;
+    color: var(--8bit-white);
+    outline: 2px solid var(--8bit-blue);
+    outline-offset: -2px;
+}
+
+/* Integration items */
+[data-theme="8bit"] .integration-item {
+    border-radius: 0;
+    border: 1px solid transparent;
+    font-family: var(--font-ui);
+}
+
+[data-theme="8bit"] .integration-item:hover {
+    background: #1e3a5f;
+    border-color: var(--8bit-blue);
+}
+
+[data-theme="8bit"] .integration-icon {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: #1a252f;
+    color: var(--8bit-blue);
+    box-shadow: 2px 2px 0 var(--8bit-shadow-color);
+}
+
+[data-theme="8bit"] .integration-name {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--8bit-text);
+}
+
+[data-theme="8bit"] .integration-meta {
+    font-size: 0.55rem;
+    color: var(--8bit-text-dim);
+}
+
+[data-theme="8bit"] .integration-status {
+    border-radius: 0;
+    width: 6px;
+    height: 6px;
+}
+
+[data-theme="8bit"] .integration-status.running {
+    background: var(--8bit-green);
+    box-shadow: 0 0 4px var(--8bit-green);
+}
+
+[data-theme="8bit"] .integration-open {
+    border: 2px solid var(--8bit-blue);
+    border-radius: 0;
+    background: #1e3a5f;
+    color: var(--8bit-white);
+    font-family: var(--font-ui);
+    font-size: 0.6rem;
+    box-shadow: 2px 2px 0 var(--8bit-shadow-color);
+}
+
+[data-theme="8bit"] .integration-open:hover {
+    background: var(--8bit-surface);
+    border-color: var(--8bit-blue-bright);
+}
+
+[data-theme="8bit"] .integrations-empty {
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    color: var(--8bit-text-dim);
+}
+
+/* Scrollbars in drawers */
+[data-theme="8bit"] .session-drawer::-webkit-scrollbar,
+[data-theme="8bit"] .integrations-drawer::-webkit-scrollbar {
+    width: 8px;
+}
+
+[data-theme="8bit"] .session-drawer::-webkit-scrollbar-track,
+[data-theme="8bit"] .integrations-drawer::-webkit-scrollbar-track {
+    background: #1a252f;
+}
+
+[data-theme="8bit"] .session-drawer::-webkit-scrollbar-thumb,
+[data-theme="8bit"] .integrations-drawer::-webkit-scrollbar-thumb {
+    background: var(--8bit-surface);
+    border: 1px solid var(--8bit-border);
+    border-radius: 0;
+}
 /* ── Misc ────────────────────────────────────────────────────────── */
 [data-theme="8bit"] hr,
 [data-theme="8bit"] .divider {
