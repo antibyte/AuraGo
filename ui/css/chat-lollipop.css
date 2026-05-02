@@ -45,6 +45,7 @@
     --lollipop-pill: linear-gradient(180deg, rgba(235, 196, 219, 0.98), rgba(219, 204, 244, 0.98));
     --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 38%);
     --lollipop-font-display: 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;
+    --lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;
 }
 
 [data-theme="lollipop"] body {
@@ -338,6 +339,7 @@
 [data-theme="lollipop"] .bubble {
     opacity: 1;
     visibility: visible;
+    font-family: var(--lollipop-font-chat);
     border: 1px solid rgba(202, 132, 171, 0.62);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.96),
@@ -461,6 +463,10 @@
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.98),
         0 10px 20px rgba(179, 108, 145, 0.16);
+}
+
+[data-theme="lollipop"] .input-wrap textarea {
+    font-family: var(--lollipop-font-chat);
 }
 
 [data-theme="lollipop"] .input-wrap textarea:hover,

@@ -476,6 +476,61 @@ func TestChatFrontend_IntegrationsDrawerI18nKeysExist(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
+	t.Parallel()
+
+	fontsContent, err := os.ReadFile(filepath.Join("fonts", "fonts.css"))
+	if err != nil {
+		t.Fatalf("read fonts.css: %v", err)
+	}
+	lollipopContent, err := os.ReadFile(filepath.Join("css", "chat-lollipop.css"))
+	if err != nil {
+		t.Fatalf("read chat-lollipop.css: %v", err)
+	}
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+
+	fontsCSS := string(fontsContent)
+	for _, marker := range []string{
+		`font-family: 'Schoolbell';`,
+		`url(/fonts/schoolbell-latin-400-normal.woff2) format('woff2')`,
+	} {
+		if !strings.Contains(fontsCSS, marker) {
+			t.Fatalf("fonts.css missing local Schoolbell marker %q", marker)
+		}
+	}
+	for _, marker := range []string{"fonts.googleapis.com", "fonts.gstatic.com"} {
+		if strings.Contains(fontsCSS, marker) {
+			t.Fatalf("fonts.css must keep Schoolbell local, found external font host %q", marker)
+		}
+	}
+
+	lollipopCSS := string(lollipopContent)
+	for _, marker := range []string{
+		`--lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;`,
+		`[data-theme="lollipop"] .bubble {`,
+		`[data-theme="lollipop"] .input-wrap textarea,`,
+		`font-family: var(--lollipop-font-chat);`,
+	} {
+		if !strings.Contains(lollipopCSS, marker) {
+			t.Fatalf("css/chat-lollipop.css missing Schoolbell chat marker %q", marker)
+		}
+	}
+	if !strings.Contains(string(indexContent), `/fonts/fonts.css?v=20260502a`) {
+		t.Fatal("index.html must bump fonts.css cache version after adding Schoolbell")
+	}
+
+	info, err := os.Stat(filepath.Join("fonts", "schoolbell-latin-400-normal.woff2"))
+	if err != nil {
+		t.Fatalf("missing local Schoolbell font asset: %v", err)
+	}
+	if info.Size() < 1000 {
+		t.Fatalf("local Schoolbell font asset is unexpectedly small: %d bytes", info.Size())
+	}
+}
+
 func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	t.Parallel()
 
