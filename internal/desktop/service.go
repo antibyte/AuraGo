@@ -16,7 +16,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
@@ -152,6 +152,7 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			w INTEGER NOT NULL,
 			h INTEGER NOT NULL,
 			config_json TEXT NOT NULL,
+			widget_json TEXT NOT NULL DEFAULT '{}',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		)`,
@@ -168,13 +169,44 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			details_json TEXT NOT NULL,
 			created_at TEXT NOT NULL
 		)`,
-		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '1')
+		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '2')
 			ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("migrate desktop database: %w", err)
 		}
+	}
+	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "widget_json", "TEXT NOT NULL DEFAULT '{}'"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) ensureColumnLocked(ctx context.Context, table, column, definition string) error {
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return fmt.Errorf("inspect desktop table %s: %w", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull int
+		var defaultValue interface{}
+		var pk int
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("scan desktop table %s: %w", table, err)
+		}
+		if strings.EqualFold(name, column) {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("inspect desktop table %s: %w", table, err)
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition)); err != nil {
+		return fmt.Errorf("add desktop column %s.%s: %w", table, column, err)
 	}
 	return nil
 }
@@ -381,12 +413,19 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 		return fmt.Errorf("generated desktop apps are disabled")
 	}
 	manifest.ID = strings.ToLower(strings.TrimSpace(manifest.ID))
+	manifest.Name = strings.TrimSpace(manifest.Name)
+	manifest.Icon = strings.TrimSpace(manifest.Icon)
 	manifest.Entry = cleanDesktopPath(manifest.Entry)
+	manifest.Runtime = normalizeDesktopRuntime(manifest.Runtime)
+	manifest.Permissions = normalizeDesktopPermissions(manifest.Permissions)
 	if !desktopIDPattern.MatchString(manifest.ID) {
 		return fmt.Errorf("invalid desktop app id")
 	}
-	if strings.TrimSpace(manifest.Name) == "" {
+	if manifest.Name == "" {
 		return fmt.Errorf("desktop app name is required")
+	}
+	if manifest.Icon == "" {
+		return fmt.Errorf("desktop app icon is required")
 	}
 	if manifest.Version == "" {
 		manifest.Version = "1.0.0"
@@ -443,11 +482,35 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		return fmt.Errorf("virtual desktop is read-only")
 	}
 	widget.ID = strings.ToLower(strings.TrimSpace(widget.ID))
+	widget.AppID = strings.ToLower(strings.TrimSpace(widget.AppID))
+	widget.Title = strings.TrimSpace(widget.Title)
+	widget.Type = strings.ToLower(strings.TrimSpace(widget.Type))
+	widget.Icon = strings.TrimSpace(widget.Icon)
+	widget.Entry = cleanOptionalDesktopFile(widget.Entry)
+	widget.Runtime = normalizeDesktopRuntime(widget.Runtime)
+	widget.Permissions = normalizeDesktopPermissions(widget.Permissions)
 	if !desktopIDPattern.MatchString(widget.ID) {
 		return fmt.Errorf("invalid desktop widget id")
 	}
-	if strings.TrimSpace(widget.Title) == "" {
+	if widget.AppID != "" && !desktopIDPattern.MatchString(widget.AppID) {
+		return fmt.Errorf("invalid desktop widget app_id")
+	}
+	if widget.Title == "" {
 		return fmt.Errorf("desktop widget title is required")
+	}
+	if widget.Type == "" {
+		widget.Type = WidgetTypeCustom
+	}
+	if widget.Icon == "" {
+		widget.Icon = "widgets"
+	}
+	if widget.Entry != "" {
+		if widget.AppID == "" {
+			return fmt.Errorf("desktop widget entry requires app_id")
+		}
+		if widget.Entry == "." || strings.HasPrefix(widget.Entry, "..") || filepath.IsAbs(widget.Entry) {
+			return fmt.Errorf("desktop widget entry must be a relative file")
+		}
 	}
 	if widget.W <= 0 {
 		widget.W = 2
@@ -455,16 +518,25 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 	if widget.H <= 0 {
 		widget.H = 2
 	}
+	if widget.Config == nil {
+		widget.Config = map[string]interface{}{}
+	}
 	configJSON, err := json.Marshal(widget.Config)
 	if err != nil {
 		return fmt.Errorf("marshal desktop widget config: %w", err)
 	}
 	now := time.Now().UTC()
+	widget.CreatedAt = now
+	widget.UpdatedAt = now
+	widgetJSON, err := json.Marshal(widget)
+	if err != nil {
+		return fmt.Errorf("marshal desktop widget: %w", err)
+	}
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
-	_, err = db.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, created_at, updated_at)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err = db.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, created_at, updated_at)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			app_id = excluded.app_id,
 			title = excluded.title,
@@ -473,8 +545,9 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 			w = excluded.w,
 			h = excluded.h,
 			config_json = excluded.config_json,
+			widget_json = excluded.widget_json,
 			updated_at = excluded.updated_at`,
-		widget.ID, widget.AppID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+		widget.ID, widget.AppID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("save desktop widget: %w", err)
 	}
@@ -535,7 +608,7 @@ func (s *Service) listWidgets(ctx context.Context) ([]Widget, error) {
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
-	rows, err := db.QueryContext(ctx, `SELECT id, app_id, title, x, y, w, h, config_json, created_at, updated_at FROM desktop_widgets ORDER BY y, x, title COLLATE NOCASE`)
+	rows, err := db.QueryContext(ctx, `SELECT id, app_id, title, x, y, w, h, config_json, widget_json, created_at, updated_at FROM desktop_widgets ORDER BY y, x, title COLLATE NOCASE`)
 	if err != nil {
 		return nil, fmt.Errorf("list desktop widgets: %w", err)
 	}
@@ -543,12 +616,24 @@ func (s *Service) listWidgets(ctx context.Context) ([]Widget, error) {
 	var widgets []Widget
 	for rows.Next() {
 		var widget Widget
-		var configJSON, createdAt, updatedAt string
-		if err := rows.Scan(&widget.ID, &widget.AppID, &widget.Title, &widget.X, &widget.Y, &widget.W, &widget.H, &configJSON, &createdAt, &updatedAt); err != nil {
+		var configJSON, widgetJSON, createdAt, updatedAt string
+		if err := rows.Scan(&widget.ID, &widget.AppID, &widget.Title, &widget.X, &widget.Y, &widget.W, &widget.H, &configJSON, &widgetJSON, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan desktop widget: %w", err)
+		}
+		if strings.TrimSpace(widgetJSON) != "" && strings.TrimSpace(widgetJSON) != "{}" {
+			_ = json.Unmarshal([]byte(widgetJSON), &widget)
 		}
 		if strings.TrimSpace(configJSON) != "" {
 			_ = json.Unmarshal([]byte(configJSON), &widget.Config)
+		}
+		if widget.Type == "" {
+			widget.Type = WidgetTypeCustom
+		}
+		if widget.Icon == "" {
+			widget.Icon = "widgets"
+		}
+		if widget.Runtime == "" {
+			widget.Runtime = AuraDesktopRuntime
 		}
 		widget.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 		widget.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
@@ -575,4 +660,36 @@ func (s *Service) listSettings(ctx context.Context) (map[string]string, error) {
 		settings[key] = value
 	}
 	return settings, rows.Err()
+}
+
+func cleanOptionalDesktopFile(rawPath string) string {
+	if strings.TrimSpace(rawPath) == "" {
+		return ""
+	}
+	return cleanDesktopPath(rawPath)
+}
+
+func normalizeDesktopRuntime(runtime string) string {
+	runtime = strings.TrimSpace(runtime)
+	if runtime == "" {
+		return AuraDesktopRuntime
+	}
+	return runtime
+}
+
+func normalizeDesktopPermissions(permissions []string) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(permissions))
+	for _, permission := range permissions {
+		permission = strings.ToLower(strings.TrimSpace(permission))
+		if permission == "" {
+			continue
+		}
+		if _, ok := seen[permission]; ok {
+			continue
+		}
+		seen[permission] = struct{}{}
+		result = append(result, permission)
+	}
+	return result
 }

@@ -183,6 +183,9 @@ func virtualDesktopManifest(args map[string]interface{}) (desktop.AppManifest, e
 	if manifest.Icon == "" {
 		manifest.Icon = virtualDesktopString(args, "icon")
 	}
+	if manifest.Runtime == "" {
+		manifest.Runtime = virtualDesktopString(args, "runtime")
+	}
 	if manifest.Description == "" {
 		manifest.Description = virtualDesktopString(args, "description")
 	}
@@ -204,6 +207,18 @@ func virtualDesktopWidget(args map[string]interface{}) (desktop.Widget, error) {
 	}
 	if widget.Title == "" {
 		widget.Title = virtualDesktopString(args, "title", "name")
+	}
+	if widget.Type == "" {
+		widget.Type = virtualDesktopString(args, "type", "widget_type")
+	}
+	if widget.Icon == "" {
+		widget.Icon = virtualDesktopString(args, "icon")
+	}
+	if widget.Entry == "" {
+		widget.Entry = virtualDesktopString(args, "entry", "widget_entry")
+	}
+	if widget.Runtime == "" {
+		widget.Runtime = virtualDesktopString(args, "runtime")
 	}
 	return widget, nil
 }

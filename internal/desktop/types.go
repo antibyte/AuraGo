@@ -8,6 +8,10 @@ const (
 
 	SourceAgent = "agent"
 	SourceUser  = "user"
+
+	AuraDesktopRuntime = "aura-desktop-sdk@1"
+	BuiltinRuntime     = "builtin"
+	WidgetTypeCustom   = "custom"
 )
 
 // Config describes the runtime settings needed by the desktop service.
@@ -62,6 +66,7 @@ type AppManifest struct {
 	Version     string            `json:"version"`
 	Icon        string            `json:"icon"`
 	Entry       string            `json:"entry"`
+	Runtime     string            `json:"runtime,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Permissions []string          `json:"permissions,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
@@ -71,16 +76,22 @@ type AppManifest struct {
 
 // Widget describes a pinned desktop widget backed by a built-in or installed app.
 type Widget struct {
-	ID        string                 `json:"id"`
-	AppID     string                 `json:"app_id,omitempty"`
-	Title     string                 `json:"title"`
-	X         int                    `json:"x"`
-	Y         int                    `json:"y"`
-	W         int                    `json:"w"`
-	H         int                    `json:"h"`
-	Config    map[string]interface{} `json:"config,omitempty"`
-	CreatedAt time.Time              `json:"created_at,omitempty"`
-	UpdatedAt time.Time              `json:"updated_at,omitempty"`
+	ID          string                 `json:"id"`
+	AppID       string                 `json:"app_id,omitempty"`
+	Type        string                 `json:"type,omitempty"`
+	Title       string                 `json:"title"`
+	Icon        string                 `json:"icon,omitempty"`
+	Entry       string                 `json:"entry,omitempty"`
+	Runtime     string                 `json:"runtime,omitempty"`
+	Permissions []string               `json:"permissions,omitempty"`
+	X           int                    `json:"x"`
+	Y           int                    `json:"y"`
+	W           int                    `json:"w"`
+	H           int                    `json:"h"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Metadata    map[string]string      `json:"metadata,omitempty"`
+	CreatedAt   time.Time              `json:"created_at,omitempty"`
+	UpdatedAt   time.Time              `json:"updated_at,omitempty"`
 }
 
 // Event is sent over WebSocket/SSE when the desktop state changes.
@@ -98,10 +109,10 @@ func DefaultDirectories() []string {
 // BuiltinApps returns the first-party applications always available in the shell.
 func BuiltinApps() []AppManifest {
 	return []AppManifest{
-		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Description: "Browse and manage desktop workspace files."},
-		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Description: "Edit workspace text files."},
-		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Description: "Inspect virtual desktop settings."},
-		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Description: "Local calendar surface for the desktop."},
-		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "sparkles", Entry: "builtin://agent-chat", Description: "Ask AuraGo to create apps, widgets, and files."},
+		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
+		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
+		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Description: "Inspect virtual desktop settings."},
+		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
+		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "sparkles", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 	}
 }

@@ -1107,7 +1107,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.VirtualDesktopEnabled {
 		tools = append(tools, tool("virtual_desktop",
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
-				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
+				"Generated apps should use the Aura Desktop SDK runtime and include a sprite icon. All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1121,7 +1121,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"app_id":    prop("string", "Desktop app ID for open_app or widget ownership."),
 				"manifest": map[string]interface{}{
 					"type":                 "object",
-					"description":          "App manifest for install_app: id, name, version, icon, entry, description, permissions, metadata.",
+					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is required; runtime defaults to aura-desktop-sdk@1.",
 					"additionalProperties": true,
 				},
 				"files": map[string]interface{}{
@@ -1131,7 +1131,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"widget": map[string]interface{}{
 					"type":                 "object",
-					"description":          "Widget payload for upsert_widget: id, app_id, title, x, y, w, h, config.",
+					"description":          "Widget payload for upsert_widget: id, app_id, type, title, icon, entry, runtime, permissions, x, y, w, h, config.",
 					"additionalProperties": true,
 				},
 			}, "operation"),

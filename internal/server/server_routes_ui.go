@@ -482,7 +482,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'")
+		w.Header().Set("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'")
 		desktopFileHandler.ServeHTTP(w, r)
 	})
 

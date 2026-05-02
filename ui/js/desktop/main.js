@@ -12,6 +12,10 @@
         iconMap: new Map()
     };
 
+    const SDK_REQUEST_TYPE = 'aurago.desktop.request';
+    const SDK_RESPONSE_TYPE = 'aurago.desktop.response';
+    const SDK_RUNTIME = 'aura-desktop-sdk@1';
+
     const els = {};
     const directoryIconKeys = {
         Desktop: 'desktop',
@@ -222,16 +226,39 @@
         const summary = directories.length + ' ' + t('desktop.folder') + ' / ' + (boot.installed_apps || []).length + ' ' + t('desktop.setting_apps');
         const cards = [];
         cards.push(`<article class="vd-widget">
-            <div class="vd-widget-title">${esc(t('desktop.widget_system'))}</div>
-            <div class="vd-widget-body">${esc(summary)}</div>
+            <div class="vd-widget-head">
+                ${spriteMarkup('desktop', 'S', 'vd-sprite-file', 26)}
+                <div>
+                    <div class="vd-widget-title">${esc(t('desktop.widget_system'))}</div>
+                    <div class="vd-widget-body">${esc(summary)}</div>
+                </div>
+            </div>
         </article>`);
         widgets.slice(0, 4).forEach(widget => {
-            cards.push(`<article class="vd-widget">
-                <div class="vd-widget-title">${esc(widget.title || widget.id)}</div>
-                <div class="vd-widget-body">${esc(widget.app_id || t('desktop.widget_custom'))}</div>
+            const app = allApps().find(item => item.id === widget.app_id);
+            const iconKey = widget.icon || (app ? iconForApp(app) : 'widgets');
+            const widgetBody = widget.entry && widget.app_id
+                ? `<div class="vd-widget-frame-wrap"></div>`
+                : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
+            cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}">
+                <div class="vd-widget-head">
+                    ${spriteMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 26)}
+                    <div class="vd-widget-text">
+                        <div class="vd-widget-title">${esc(widget.title || widget.id)}</div>
+                        ${widget.entry && widget.app_id ? `<div class="vd-widget-kind">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>` : ''}
+                    </div>
+                </div>
+                ${widgetBody}
             </article>`);
         });
         host.innerHTML = cards.join('');
+        widgets.slice(0, 4).forEach(widget => {
+            if (!widget.entry || !widget.app_id) return;
+            const card = host.querySelector(`[data-widget-id="${widget.id}"] .vd-widget-frame-wrap`);
+            if (!card) return;
+            const src = desktopFileURL('Apps/' + widget.app_id + '/' + widget.entry) + '?widget_id=' + encodeURIComponent(widget.id);
+            card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
+        });
     }
 
     function renderStartApps() {
@@ -527,11 +554,158 @@
             return;
         }
         const src = desktopFileURL('Apps/' + app.id + '/' + app.entry);
-        host.innerHTML = `<iframe class="vd-generated-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups" src="${esc(src)}"></iframe>`;
+        host.replaceChildren(makeSandboxedFrame(src, app.id, '', id, 'vd-generated-frame', appName(app)));
+    }
+
+    function makeSandboxedFrame(src, appId, widgetId, windowId, className, title) {
+        const iframe = document.createElement('iframe');
+        iframe.className = className;
+        iframe.title = title || appId || 'Aura Desktop app';
+        iframe.src = src;
+        iframe.dataset.appId = appId || '';
+        iframe.dataset.widgetId = widgetId || '';
+        iframe.dataset.windowId = windowId || '';
+        iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+        return iframe;
     }
 
     function desktopFileURL(path) {
         return '/files/desktop/' + path.split('/').map(encodeURIComponent).join('/');
+    }
+
+    function findSDKClient(source) {
+        const frames = document.querySelectorAll('.vd-generated-frame, .vd-widget-frame');
+        for (const frame of frames) {
+            if (frame.contentWindow !== source) continue;
+            const app = allApps().find(item => item.id === frame.dataset.appId);
+            const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+            const widget = widgets.find(item => item.id === frame.dataset.widgetId);
+            return {
+                app,
+                widget,
+                appId: frame.dataset.appId || '',
+                widgetId: frame.dataset.widgetId || '',
+                windowId: frame.dataset.windowId || ''
+            };
+        }
+        return null;
+    }
+
+    function sendSDKResponse(source, id, ok, value) {
+        if (!source || !id) return;
+        source.postMessage(ok ? {
+            type: SDK_RESPONSE_TYPE,
+            id,
+            ok: true,
+            payload: value
+        } : {
+            type: SDK_RESPONSE_TYPE,
+            id,
+            ok: false,
+            error: value && value.message ? value.message : String(value || 'Desktop bridge request failed')
+        }, '*');
+    }
+
+    function declaredPermissions(client) {
+        const appPermissions = (client.app && client.app.permissions) || [];
+        const widgetPermissions = (client.widget && client.widget.permissions) || [];
+        return new Set([...appPermissions, ...widgetPermissions].map(item => String(item).toLowerCase().trim()).filter(Boolean));
+    }
+
+    function hasPermission(client, permission) {
+        if (!permission) return true;
+        const permissions = declaredPermissions(client);
+        const normalized = String(permission).toLowerCase();
+        const prefix = normalized.includes(':') ? normalized.split(':')[0] + ':*' : '';
+        return permissions.has('*') || permissions.has(normalized) || (prefix && permissions.has(prefix));
+    }
+
+    function requirePermission(client, permissions) {
+        const required = Array.isArray(permissions) ? permissions : [permissions];
+        if (required.some(permission => hasPermission(client, permission))) return;
+        throw new Error('Permission denied: ' + required.join(' or '));
+    }
+
+    async function handleSDKMessage(event) {
+        const msg = event.data;
+        if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
+        const client = findSDKClient(event.source);
+        if (!client || !client.app) return;
+        try {
+            const result = await runSDKAction(client, msg.action, msg.payload || {});
+            sendSDKResponse(event.source, msg.id, true, result);
+        } catch (err) {
+            sendSDKResponse(event.source, msg.id, false, err);
+        }
+    }
+
+    async function runSDKAction(client, action, payload) {
+        switch (action) {
+            case 'desktop:context':
+                return {
+                    runtime: SDK_RUNTIME,
+                    app: client.app,
+                    widget: client.widget || null,
+                    bootstrap: sdkBootstrap(),
+                    icon_manifest: state.iconManifest
+                };
+            case 'fs:list':
+                requirePermission(client, ['files:read', 'filesystem:read']);
+                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
+            case 'fs:read':
+                requirePermission(client, ['files:read', 'filesystem:read']);
+                return api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
+            case 'fs:write':
+                requirePermission(client, ['files:write', 'filesystem:write']);
+                await api('/api/desktop/file', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
+                });
+                await loadBootstrap();
+                return { status: 'ok' };
+            case 'app:open':
+                requirePermission(client, ['apps:open']);
+                openApp(payload.app_id || payload.id || client.appId);
+                return { status: 'ok' };
+            case 'notification:show':
+                requirePermission(client, ['notifications']);
+                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
+                return { status: 'ok' };
+            case 'widget:upsert': {
+                requirePermission(client, ['widgets:write']);
+                const widget = Object.assign({}, payload || {});
+                if (!widget.app_id) widget.app_id = client.appId;
+                if (!widget.icon && client.app && client.app.icon) widget.icon = client.app.icon;
+                await api('/api/desktop/widgets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(widget)
+                });
+                await loadBootstrap();
+                return { status: 'ok' };
+            }
+            default:
+                throw new Error('Unsupported desktop SDK action: ' + action);
+        }
+    }
+
+    function sdkBootstrap() {
+        const boot = state.bootstrap || {};
+        const workspace = boot.workspace || {};
+        return {
+            enabled: !!boot.enabled,
+            readonly: !!boot.readonly,
+            allow_generated_apps: !!boot.allow_generated_apps,
+            allow_python_jobs: !!boot.allow_python_jobs,
+            workspace: {
+                directories: workspace.directories || [],
+                max_file_size: workspace.max_file_size || 0
+            },
+            installed_apps: boot.installed_apps || [],
+            widgets: boot.widgets || [],
+            settings: boot.settings || {}
+        };
     }
 
     function connectWS() {
@@ -614,6 +788,7 @@
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
+        window.addEventListener('message', handleSDKMessage);
     }
 
     async function init() {

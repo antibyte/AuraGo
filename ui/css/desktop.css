@@ -216,16 +216,50 @@
     backdrop-filter: blur(20px);
 }
 
+.vd-widget-head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-widget-text {
+    min-width: 0;
+}
+
 .vd-widget-title {
     font-size: 0.82rem;
     font-weight: 800;
     margin-bottom: 8px;
 }
 
+.vd-widget-kind {
+    color: var(--vd-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+}
+
 .vd-widget-body {
     color: var(--vd-muted);
     font-size: 0.78rem;
     line-height: 1.5;
+}
+
+.vd-widget-frame-wrap {
+    height: 118px;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.14);
+}
+
+.vd-widget-frame {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
+    background: transparent;
 }
 
 .vd-window-layer {

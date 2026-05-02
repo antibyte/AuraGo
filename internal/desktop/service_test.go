@@ -129,3 +129,129 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 		t.Fatalf("installed app file missing: %v", err)
 	}
 }
+
+func TestServiceInstallAppRequiresIconAndRegistersSDKRuntime(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	manifest := AppManifest{
+		ID:      "sdk-notes",
+		Name:    "SDK Notes",
+		Version: "1.0.0",
+		Entry:   "index.html",
+	}
+	files := map[string]string{"index.html": "<main id=\"app\"></main>"}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err == nil {
+		t.Fatal("expected missing app icon to be rejected")
+	}
+
+	manifest.Icon = "note"
+	manifest.Permissions = []string{" files:read ", "", "widgets:write"}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var got AppManifest
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID == "sdk-notes" {
+			got = app
+			break
+		}
+	}
+	if got.ID == "" {
+		t.Fatalf("installed app was not registered: %+v", bootstrap.InstalledApps)
+	}
+	if got.Runtime != AuraDesktopRuntime {
+		t.Fatalf("runtime = %q, want %q", got.Runtime, AuraDesktopRuntime)
+	}
+	if got.Icon != "note" {
+		t.Fatalf("icon = %q, want note", got.Icon)
+	}
+	if len(got.Permissions) != 2 || got.Permissions[0] != "files:read" || got.Permissions[1] != "widgets:write" {
+		t.Fatalf("permissions were not normalized: %#v", got.Permissions)
+	}
+}
+
+func TestServiceUpsertWidgetRegistersRuntimeIconAndEntry(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	widget := Widget{
+		ID:          "today-widget",
+		AppID:       "calendar",
+		Title:       "Today",
+		Icon:        "calendar",
+		Entry:       "widget.html",
+		Permissions: []string{"notifications", " widgets:write "},
+		Config:      map[string]interface{}{"dense": true},
+	}
+	if err := svc.UpsertWidget(context.Background(), widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var got Widget
+	for _, item := range bootstrap.Widgets {
+		if item.ID == "today-widget" {
+			got = item
+			break
+		}
+	}
+	if got.ID == "" {
+		t.Fatalf("widget was not registered: %+v", bootstrap.Widgets)
+	}
+	if got.Type != "custom" {
+		t.Fatalf("type = %q, want custom", got.Type)
+	}
+	if got.Runtime != AuraDesktopRuntime {
+		t.Fatalf("runtime = %q, want %q", got.Runtime, AuraDesktopRuntime)
+	}
+	if got.Icon != "calendar" {
+		t.Fatalf("icon = %q, want calendar", got.Icon)
+	}
+	if got.Entry != "widget.html" {
+		t.Fatalf("entry = %q, want widget.html", got.Entry)
+	}
+	if len(got.Permissions) != 2 || got.Permissions[0] != "notifications" || got.Permissions[1] != "widgets:write" {
+		t.Fatalf("permissions were not normalized: %#v", got.Permissions)
+	}
+	if _, ok := got.Config["dense"]; !ok {
+		t.Fatalf("config was not preserved: %#v", got.Config)
+	}
+}
+
+func TestServiceUpsertWidgetRejectsUnsafeEntry(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.UpsertWidget(context.Background(), Widget{
+		ID:    "bad-widget",
+		AppID: "calendar",
+		Title: "Bad",
+		Icon:  "calendar",
+		Entry: "../widget.html",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected widget entry escape to be rejected")
+	}
+}
+
+func TestServiceUpsertWidgetRejectsUnsafeAppID(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.UpsertWidget(context.Background(), Widget{
+		ID:    "unsafe-widget",
+		AppID: "../apps",
+		Title: "Unsafe",
+		Icon:  "calendar",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected unsafe widget app_id to be rejected")
+	}
+}
