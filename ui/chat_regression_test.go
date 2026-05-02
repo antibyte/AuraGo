@@ -217,6 +217,10 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read index.html: %v", err)
 	}
+	chatCSSContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read chat.css: %v", err)
+	}
 	sharedContent, err := os.ReadFile("shared.js")
 	if err != nil {
 		t.Fatalf("read shared.js: %v", err)
@@ -251,6 +255,16 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 			if !strings.Contains(content, marker) {
 				t.Fatalf("%s missing 8Bit theme marker %q", path, marker)
 			}
+		}
+	}
+
+	chatCSS := string(chatCSSContent)
+	for _, marker := range []string{
+		`.chat-theme-option[data-theme="8bit"] .chat-theme-option-label`,
+		`font-family: 'Press Start 2P'`,
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css missing 8Bit theme picker font marker %q", marker)
 		}
 	}
 

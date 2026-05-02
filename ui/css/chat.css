@@ -126,6 +126,13 @@
             text-shadow: none !important;
         }
 
+        .chat-theme-option[data-theme="8bit"] .chat-theme-option-label {
+            font-family: 'Press Start 2P', ui-monospace, SFMono-Regular, Consolas, monospace !important;
+            font-size: 0.58rem;
+            line-height: 1.45;
+            letter-spacing: 0;
+        }
+
         .question-modal-overlay {
             position: fixed;
             inset: 0;
