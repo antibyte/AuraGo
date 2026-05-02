@@ -12,8 +12,8 @@
 (() => {
     'use strict';
 
-    const PIXEL_SMALL = 12;
-    const PIXEL_LARGE = 24;
+    const PIXEL_SMALL = 18;
+    const PIXEL_LARGE = 32;
 
     const _cache = new Map();
     const _observed = new WeakSet();
@@ -104,3 +104,4 @@
         init();
     }
 })();
+

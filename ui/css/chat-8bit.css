@@ -59,13 +59,13 @@
     --chat-copy-font-size: 1rem;
     --chat-input-font-size: 0.85rem;
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: 0.88rem;
 }
 
 /* ── Body & Background ─────────────────────────────────────────── */
 [data-theme="8bit"] body {
     color: var(--8bit-text);
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     background:
         radial-gradient(circle at 18% 18%, rgba(74, 158, 255, 0.06) 0 2px, transparent 3px 100%),
         radial-gradient(circle at 82% 28%, rgba(126, 200, 227, 0.06) 0 2px, transparent 3px 100%),
@@ -164,8 +164,7 @@ html[data-theme="8bit"]::after {
     box-shadow: var(--8bit-pixel-shadow);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
+    font-family: var(--font-ui);`n    font-size: 0.78rem;
 }
 
 /* ── Header ─────────────────────────────────────────────────────── */
@@ -180,7 +179,7 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .logo-wordmark-accent,
 [data-theme="8bit"] .logo-wordmark-base {
     font-family: var(--font-ui);
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     letter-spacing: 0.06em;
 }
 
@@ -193,6 +192,49 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .logo-wordmark-base {
     color: var(--8bit-cyan);
     text-shadow: 2px 2px 0 #0d1520;
+}
+/* Header buttons and icons larger */
+[data-theme="8bit"] .app-header .btn-header,
+[data-theme="8bit"] .app-header .btn-header-link,
+[data-theme="8bit"] .app-header .chat-theme-btn,
+[data-theme="8bit"] .app-header .btn-speaker,
+[data-theme="8bit"] .app-header .select-personality,
+[data-theme="8bit"] .app-header .mood-toggle,
+[data-theme="8bit"] .app-header .btn-warnings {
+    font-size: 0.72rem;
+    width: 38px;
+    height: 38px;
+}
+
+[data-theme="8bit"] .app-header .pill,
+[data-theme="8bit"] .app-header .status-pill {
+    font-size: 0.62rem;
+}
+
+[data-theme="8bit"] .personality-select-label {
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+}
+
+/* Footer / input area buttons and icons larger */
+[data-theme="8bit"] .app-footer {
+    border-top: 2px solid var(--8bit-border);
+}
+
+[data-theme="8bit"] .btn-send,
+[data-theme="8bit"] .btn-composer-primary,
+[data-theme="8bit"] .btn-stop,
+[data-theme="8bit"] .composer-tool-btn {
+    font-size: 0.72rem;
+    min-width: 42px;
+    min-height: 42px;
+}
+
+[data-theme="8bit"] .btn-send .chat-ui-icon,
+[data-theme="8bit"] .btn-stop .chat-ui-icon,
+[data-theme="8bit"] .btn-composer-primary .chat-ui-icon,
+[data-theme="8bit"] .composer-tool-btn .chat-ui-icon {
+    --chat-ui-icon-size: 1.4rem;
 }
 
 /* ── Chat Bubbles ───────────────────────────────────────────────── */
@@ -281,7 +323,7 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-text);
     box-shadow: 3px 3px 0 var(--8bit-shadow-color);
     font-family: var(--font-ui);
-    font-size: 0.65rem;
+    font-size: 0.72rem;
 }
 
 [data-theme="8bit"] button:hover,
@@ -327,7 +369,7 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-cyan);
     box-shadow: 2px 2px 0 var(--8bit-shadow-color);
     font-family: var(--font-ui);
-    font-size: 0.6rem;
+    font-size: 0.68rem;
 }
 
 /* ── Dropdowns & Menu Items ─────────────────────────────────────── */
@@ -339,7 +381,7 @@ html[data-theme="8bit"]::after {
     border-radius: 0;
     color: var(--8bit-text);
     font-family: var(--font-ui);
-    font-size: 0.65rem;
+    font-size: 0.72rem;
 }
 
 [data-theme="8bit"] .chat-theme-option:hover,
