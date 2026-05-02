@@ -425,6 +425,16 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		genVideoHandler.ServeHTTP(w, r)
 	})
 
+	// Serve stored Frigate snapshots, frames, and clips from data/frigate_media.
+	frigateMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "frigate_media")
+	os.MkdirAll(frigateMediaDir, 0755)
+	frigateMediaHandler := http.StripPrefix("/files/frigate_media/", http.FileServer(neuteredFileSystem{http.Dir(frigateMediaDir)}))
+	mux.HandleFunc("/files/frigate_media/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		frigateMediaHandler.ServeHTTP(w, r)
+	})
+
 	// Serve yt-dlp downloads from the configured video_download directory
 	downloadsDir, err := tools.ResolveVideoDownloadDir(s.Cfg)
 	if err != nil {

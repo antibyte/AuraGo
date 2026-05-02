@@ -66,6 +66,7 @@ func HomeLabIntegrationMatrix() []HomeLabIntegration {
 		{Name: "chromecast", ConfigGate: "tools.chromecast.enabled", CredentialSource: "none", AllowsLocalNetwork: true},
 		{Name: "docker", ConfigGate: "docker.enabled", CredentialSource: "docker socket", AllowsLocalNetwork: true, ReadOnlyGate: "docker.read_only", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "fritzbox", ConfigGate: "fritzbox.*.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
+		{Name: "frigate", ConfigGate: "frigate.enabled", CredentialSource: "config/vault", AllowsLocalNetwork: true, ReadOnlyGate: "frigate.readonly", HasTestEndpoint: true},
 		{Name: "home_assistant", ConfigGate: "home_assistant.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "home_assistant.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "jellyfin", ConfigGate: "jellyfin.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 		{Name: "meshcentral", ConfigGate: "meshcentral.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "meshcentral.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},

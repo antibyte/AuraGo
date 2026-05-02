@@ -459,12 +459,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Frigate integration is not enabled. Set frigate.enabled=true in config.yaml."}`
 			}
 			req := decodeFrigateArgs(tc)
-			if cfg.Frigate.ReadOnly {
-				switch req.Operation {
-				case "delete_event", "config_save":
-					return `Tool Output: {"status":"error","message":"Frigate is in read-only mode. Disable frigate.readonly to allow changes."}`
-				}
-			}
 			frCfg := tools.FrigateConfig{
 				URL:           cfg.Frigate.URL,
 				APIToken:      cfg.Frigate.APIToken,
@@ -473,11 +467,11 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				DefaultCamera: cfg.Frigate.DefaultCamera,
 				ReadOnly:      cfg.Frigate.ReadOnly,
 			}
-			eventParams := tools.FrigateEventParams{Camera: req.Camera, EventID: req.EventID, Label: req.Label, Zone: req.Zone, After: req.After, Before: req.Before, MinScore: req.MinScore, HasClip: req.HasClip, HasSnapshot: req.HasSnapshot, Limit: req.Limit}
-			reviewParams := tools.FrigateReviewParams{Camera: req.Camera, After: req.After, Before: req.Before, Limit: req.Limit, InProgress: req.InProgress, Cameras: req.Cameras, Labels: req.Labels, Zones: req.Zones}
+			eventParams := tools.FrigateEventParams{Camera: req.Camera, EventID: req.EventID, Label: req.Label, Zone: req.Zone, After: req.After, Before: req.Before, MinScore: req.MinScore, HasClip: req.HasClip, HasSnapshot: req.HasSnapshot, Limit: req.Limit, Offset: req.Offset}
+			reviewParams := tools.FrigateReviewParams{Camera: req.Camera, After: req.After, Before: req.Before, Limit: req.Limit, Offset: req.Offset, InProgress: req.InProgress, Cameras: req.Cameras, Labels: req.Labels, Zones: req.Zones}
 			mediaParams := tools.FrigateMediaParams{Camera: req.Camera, EventID: req.EventID, StartTime: req.StartTime, EndTime: req.EndTime, Playback: req.Playback}
 			switch req.Operation {
-			case "status":
+			case "status", "health":
 				logger.Info("LLM requested Frigate status")
 				return "Tool Output: " + tools.FrigateStatus(frCfg)
 			case "cameras":
@@ -507,7 +501,18 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"message":"Media fetched successfully. Use the Frigate UI or media storage flow for binary transfer."}`, contentType, len(data))
+				if !cfg.Frigate.StoreMedia {
+					return fmt.Sprintf(`Tool Output: {"status":"ok","content_type":%q,"bytes":%d,"stored":false,"message":"Media fetched successfully but frigate.store_media is disabled."}`, contentType, len(data))
+				}
+				result, err := tools.StoreFrigateMedia(cfg.Directories.DataDir, dc.MediaRegistryDB, req.Operation, mediaParams, data, contentType)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+				}
+				raw, err := json.Marshal(result)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"encode Frigate media result: %s"}`, err)
+				}
+				return "Tool Output: " + string(raw)
 			case "config":
 				logger.Info("LLM requested Frigate config")
 				return "Tool Output: " + tools.FrigateConfigRead(frCfg, false)
@@ -515,7 +520,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Frigate raw config")
 				return "Tool Output: " + tools.FrigateConfigRead(frCfg, true)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown frigate operation. Use: status, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw"}`
+				return `Tool Output: {"status":"error","message":"Unknown frigate operation. Use: status, health, cameras, events, event, event_snapshot, event_clip, reviews, review_summary, review_activity, latest_frame, recordings_summary, export_recording, config, config_raw"}`
 			}
 
 		case "ollama", "ollama_management":

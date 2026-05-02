@@ -248,6 +248,14 @@ func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
 		}
 		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
 	}
+	for _, topic := range FrigateRelayTopics(cfg) {
+		if err := validateTopicFilter(topic); err != nil {
+			atomic.AddUint64(&stats.subscribeErrors, 1)
+			logger.Warn("[MQTT] Skipping invalid Frigate relay topic", "topic", topic, "error", err)
+			continue
+		}
+		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
+	}
 	if len(topicMap) == 0 {
 		return
 	}

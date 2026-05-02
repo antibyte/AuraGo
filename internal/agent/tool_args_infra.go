@@ -88,6 +88,7 @@ type frigateArgs struct {
 	HasClip     *bool
 	HasSnapshot *bool
 	Limit       int
+	Offset      int
 	InProgress  *bool
 	StartTime   string
 	EndTime     string
@@ -590,6 +591,7 @@ func decodeFrigateArgs(tc ToolCall) frigateArgs {
 		HasClip:     toolArgBoolPtr(tc.Params, "has_clip"),
 		HasSnapshot: toolArgBoolPtr(tc.Params, "has_snapshot"),
 		Limit:       toolArgInt(tc.Params, tc.Limit, "limit"),
+		Offset:      toolArgInt(tc.Params, 0, "offset"),
 		InProgress:  toolArgBoolPtr(tc.Params, "in_progress"),
 		StartTime:   firstNonEmptyToolString(toolArgString(tc.Params, "start_time")),
 		EndTime:     firstNonEmptyToolString(toolArgString(tc.Params, "end_time")),

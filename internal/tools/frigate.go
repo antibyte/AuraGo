@@ -2,11 +2,16 @@ package tools
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +42,7 @@ type FrigateEventParams struct {
 	HasClip     *bool
 	HasSnapshot *bool
 	Limit       int
+	Offset      int
 }
 
 // FrigateReviewParams contains filters for review queries.
@@ -45,6 +51,7 @@ type FrigateReviewParams struct {
 	After      int64
 	Before     int64
 	Limit      int
+	Offset     int
 	InProgress *bool
 	Cameras    string
 	Labels     string
@@ -60,10 +67,28 @@ type FrigateMediaParams struct {
 	Playback  string
 }
 
+// FrigateMediaStoreResult describes a stored Frigate media asset.
+type FrigateMediaStoreResult struct {
+	Status      string `json:"status"`
+	ContentType string `json:"content_type"`
+	Bytes       int    `json:"bytes"`
+	Stored      bool   `json:"stored"`
+	LocalPath   string `json:"local_path,omitempty"`
+	WebPath     string `json:"web_path,omitempty"`
+	SHA256      string `json:"sha256,omitempty"`
+	MediaID     int64  `json:"media_id,omitempty"`
+	MediaType   string `json:"media_type,omitempty"`
+	Message     string `json:"message"`
+}
+
 var frigateClientCache sync.Map
 
 func getFrigateClient(cfg FrigateConfig) *http.Client {
-	cacheKey := cfg.URL + "|" + strconv.FormatBool(cfg.Insecure)
+	baseURL, err := frigateBaseURL(cfg)
+	if err != nil {
+		baseURL = strings.TrimRight(strings.TrimSpace(cfg.URL), "/")
+	}
+	cacheKey := baseURL + "|" + strconv.FormatBool(cfg.Insecure)
 	if cached, ok := frigateClientCache.Load(cacheKey); ok {
 		return cached.(*http.Client)
 	}
@@ -108,31 +133,57 @@ func frigateBaseURL(cfg FrigateConfig) (string, error) {
 
 // frigateRequest performs a generic HTTP request against the Frigate API.
 func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error) {
-	security.RegisterSensitive(cfg.APIToken)
+	if cfg.APIToken != "" {
+		security.RegisterSensitive(cfg.APIToken)
+	}
 	baseURL, err := frigateBaseURL(cfg)
 	if err != nil {
 		return nil, 0, err
 	}
-	req, err := http.NewRequest(method, baseURL+path, nil)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request: %w", err)
+	var lastData []byte
+	var lastCode int
+	var lastErr error
+	attempts := 1
+	if strings.EqualFold(method, http.MethodGet) {
+		attempts = 3
 	}
-	if cfg.APIToken != "" && !cfg.InternalPort {
-		req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
+	for attempt := 1; attempt <= attempts; attempt++ {
+		req, err := http.NewRequest(method, baseURL+path, nil)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to create request: %w", err)
+		}
+		if cfg.APIToken != "" && !cfg.InternalPort {
+			req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		resp, err := getFrigateClient(cfg).Do(req.WithContext(ctx))
+		cancel()
+		if err != nil {
+			lastErr = fmt.Errorf("request failed: %w", err)
+			if attempt < attempts {
+				time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
+				continue
+			}
+			return nil, 0, lastErr
+		}
+		data, readErr := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		_ = resp.Body.Close()
+		lastData = data
+		lastCode = resp.StatusCode
+		if readErr != nil {
+			return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", readErr)
+		}
+		if attempt < attempts && frigateRetryableStatus(resp.StatusCode) {
+			time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
+			continue
+		}
+		return data, resp.StatusCode, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req = req.WithContext(ctx)
-	resp, err := getFrigateClient(cfg).Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
-	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
-	}
-	return data, resp.StatusCode, nil
+	return lastData, lastCode, lastErr
+}
+
+func frigateRetryableStatus(code int) bool {
+	return code == http.StatusTooManyRequests || code >= 500
 }
 
 func frigateGetJSON(cfg FrigateConfig, path string) string {
@@ -197,6 +248,9 @@ func FrigateEvents(cfg FrigateConfig, params FrigateEventParams) string {
 	if params.Limit > 0 {
 		q.Set("limit", strconv.Itoa(params.Limit))
 	}
+	if params.Offset > 0 {
+		q.Set("offset", strconv.Itoa(params.Offset))
+	}
 	return frigateGetJSON(cfg, frigatePath("/api/events", q))
 }
 
@@ -218,6 +272,9 @@ func FrigateReviews(cfg FrigateConfig, params FrigateReviewParams) string {
 	addFrigateBoolQuery(q, "in_progress", params.InProgress)
 	if params.Limit > 0 {
 		q.Set("limit", strconv.Itoa(params.Limit))
+	}
+	if params.Offset > 0 {
+		q.Set("offset", strconv.Itoa(params.Offset))
 	}
 	return frigateGetJSON(cfg, frigatePath("/api/review", q))
 }
@@ -284,6 +341,126 @@ func FrigateMedia(cfg FrigateConfig, operation string, params FrigateMediaParams
 		return nil, "", fmt.Errorf("Frigate returned HTTP %d: %s", code, string(data))
 	}
 	return data, http.DetectContentType(data), nil
+}
+
+// StoreFrigateMedia persists a Frigate media response in the AuraGo data directory.
+func StoreFrigateMedia(dataDir string, mediaDB *sql.DB, operation string, params FrigateMediaParams, data []byte, contentType string) (FrigateMediaStoreResult, error) {
+	result := FrigateMediaStoreResult{
+		Status:      "ok",
+		ContentType: contentType,
+		Bytes:       len(data),
+		Stored:      false,
+		Message:     "Media fetched successfully but was not stored.",
+	}
+	if len(data) == 0 {
+		return result, fmt.Errorf("media data is empty")
+	}
+	dataDir = strings.TrimSpace(dataDir)
+	if dataDir == "" {
+		return result, fmt.Errorf("data directory is required")
+	}
+	now := time.Now().UTC()
+	relDir := filepath.Join("frigate_media", now.Format("2006"), now.Format("01"), now.Format("02"))
+	destDir := filepath.Join(dataDir, relDir)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return result, fmt.Errorf("create frigate media directory: %w", err)
+	}
+	hashBytes := sha256.Sum256(data)
+	hash := hex.EncodeToString(hashBytes[:])
+	ext := frigateMediaExtension(contentType, operation)
+	identity := firstNonEmptyString(params.EventID, params.Camera, "media")
+	filename := fmt.Sprintf("%s_%s_%s%s", sanitizeFrigateFileToken(operation), sanitizeFrigateFileToken(identity), now.Format("150405.000000000"), ext)
+	localPath := filepath.Join(destDir, filename)
+	if err := os.WriteFile(localPath, data, 0644); err != nil {
+		return result, fmt.Errorf("write frigate media: %w", err)
+	}
+	webPath := "/files/frigate_media/" + strings.ReplaceAll(filepath.ToSlash(filepath.Join(now.Format("2006"), now.Format("01"), now.Format("02"), filename)), " ", "%20")
+	mediaType := frigateMediaType(ext, contentType)
+	result.Stored = true
+	result.LocalPath = localPath
+	result.WebPath = webPath
+	result.SHA256 = hash
+	result.MediaType = mediaType
+	result.Message = "Media stored successfully."
+	if mediaDB != nil {
+		mediaID, _, err := RegisterMedia(mediaDB, MediaItem{
+			MediaType:   mediaType,
+			SourceTool:  "frigate",
+			Filename:    filename,
+			FilePath:    localPath,
+			WebPath:     webPath,
+			FileSize:    int64(len(data)),
+			Format:      strings.TrimPrefix(ext, "."),
+			Provider:    "frigate",
+			Description: fmt.Sprintf("Frigate %s media", operation),
+			Tags:        []string{"frigate", operation},
+			Hash:        hash,
+		})
+		if err != nil {
+			return result, fmt.Errorf("register frigate media: %w", err)
+		}
+		result.MediaID = mediaID
+	}
+	return result, nil
+}
+
+func frigateMediaExtension(contentType, operation string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0])) {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	case "video/mp4":
+		return ".mp4"
+	}
+	switch operation {
+	case "event_clip", "export_recording":
+		return ".mp4"
+	default:
+		return ".jpg"
+	}
+}
+
+func frigateMediaType(ext, contentType string) string {
+	if strings.HasPrefix(strings.ToLower(contentType), "video/") || ext == ".mp4" {
+		return "video"
+	}
+	return "image"
+}
+
+func sanitizeFrigateFileToken(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "media"
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range value {
+		allowed := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_'
+		if allowed {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	out := strings.Trim(b.String(), "_-.")
+	if out == "" {
+		return "media"
+	}
+	if len(out) > 80 {
+		out = out[:80]
+		out = strings.Trim(out, "_-.")
+	}
+	if out == "" {
+		return "media"
+	}
+	return out
 }
 
 // FrigateRecordingsSummary returns hourly recording availability.

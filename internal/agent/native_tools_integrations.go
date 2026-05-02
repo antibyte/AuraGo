@@ -428,7 +428,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum": []string{"status", "cameras", "events", "event", "event_snapshot", "event_clip",
+					"enum": []string{"status", "health", "cameras", "events", "event", "event_snapshot", "event_clip",
 						"reviews", "review_summary", "review_activity", "latest_frame",
 						"recordings_summary", "export_recording", "config", "config_raw"},
 				},
@@ -442,6 +442,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"has_clip":     prop("boolean", "Filter: only events with video clip"),
 				"has_snapshot": prop("boolean", "Filter: only events with snapshot"),
 				"limit":        prop("integer", "Max results to return (default 50)"),
+				"offset":       prop("integer", "Result offset for paginating events and reviews"),
 				"in_progress":  prop("boolean", "Filter reviews: only in-progress items"),
 				"start_time":   prop("string", "Export start time (ISO 8601 or Unix timestamp)"),
 				"end_time":     prop("string", "Export end time"),
