@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-message-async-bridge"
+	spaceAgentImageBuildRevision   = "20260502-aurago-js-message-async-bridge"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -611,13 +611,14 @@ func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
 		filepath.Join(sourcePath, "api", "aurago", "instructions.py"),
 		filepath.Join(sourcePath, "api", "aurago_instructions.py"),
 		filepath.Join(sourcePath, "python", "api", "aurago_instructions.py"),
+		filepath.Join(sourcePath, "python", "api", "message_async.py"),
 	}
 	for _, stalePath := range stalePaths {
 		if err := os.Remove(stalePath); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale AuraGo instructions endpoint %s: %w", stalePath, err)
 		}
 	}
-	instructionsAPIPath := filepath.Join(sourcePath, "python", "api", "message_async.py")
+	instructionsAPIPath := filepath.Join(sourcePath, "server", "api", "message_async.js")
 	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
 		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
 	}
@@ -934,83 +935,111 @@ CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --sta
 }
 
 func spaceAgentInstructionsAPIEndpoint() string {
-	return `import json
-import os
-import uuid
+	return `import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-from agent import AgentContext, UserMessage
-from python.api.message import Message
-from python.helpers import message_queue as mq
-from python.helpers.api import Request, Response
-from python.helpers.defer import DeferredTask
+export const allowAnonymous = true;
 
+function readPayload(context) {
+  return context.body && typeof context.body === "object" && !Buffer.isBuffer(context.body)
+    ? context.body
+    : {};
+}
 
-class MessageAsync(Message):
-    @classmethod
-    def requires_auth(cls) -> bool:
-        return False
+function normalizeSegment(value, fallback) {
+  const raw = String(value || fallback || "").trim().replaceAll("\\", "/");
+  if (!raw || raw.includes("/")) {
+    return fallback;
+  }
+  const normalized = path.posix.normalize(raw);
+  if (!normalized || normalized === "." || normalized === ".." || normalized.includes("/")) {
+    return fallback;
+  }
+  return normalized;
+}
 
-    @classmethod
-    def requires_csrf(cls) -> bool:
-        return False
+function unauthorized() {
+  return {
+    status: 401,
+    body: {
+      status: "error",
+      error: "Unauthorized"
+    }
+  };
+}
 
-    async def respond(self, task: DeferredTask, context: AgentContext):
-        return {
-            "message": "Message received.",
-            "context": context.id,
-        }
+export async function post(context) {
+  if (String(context.headers?.["x-aurago-instruction"] || "").trim() !== "1") {
+    return {
+      status: 400,
+      body: {
+        status: "error",
+        error: "X-AuraGo-Instruction header is required"
+      }
+    };
+  }
 
-    async def process(self, input: dict, request: Request) -> dict | Response:
-        if request.headers.get("X-AuraGo-Instruction", "").strip() != "1":
-            return await super().process(input, request)
-        try:
-            expected_token = os.environ.get("AURAGO_BRIDGE_TOKEN", "").strip()
-            auth_header = request.headers.get("Authorization", "").strip()
-            if not expected_token or auth_header != "Bearer " + expected_token:
-                return Response(
-                    json.dumps({"status": "error", "error": "Unauthorized"}),
-                    status=401,
-                    mimetype="application/json",
-                )
+  const expectedToken = String(process.env.AURAGO_BRIDGE_TOKEN || "").trim();
+  const authHeader = String(context.headers?.authorization || context.headers?.Authorization || "").trim();
+  if (!expectedToken || authHeader !== "Bearer " + expectedToken) {
+    return unauthorized();
+  }
 
-            instruction = str(input.get("instruction", "")).strip()
-            information = str(input.get("information", "")).strip()
-            session_id = str(input.get("session_id", "")).strip()
-            if not instruction:
-                return Response(
-                    json.dumps({"status": "error", "error": "instruction is required"}),
-                    status=400,
-                    mimetype="application/json",
-                )
+  const payload = readPayload(context);
+  const instruction = String(payload.instruction || "").trim();
+  const information = String(payload.information || "").trim();
+  const sessionId = String(payload.session_id || "").trim();
+  if (!instruction) {
+    return {
+      status: 400,
+      body: {
+        status: "error",
+        error: "instruction is required"
+      }
+    };
+  }
 
-            message = instruction
-            if information:
-                message += "\n\nContext from AuraGo:\n" + information
+  const username = normalizeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
+  const projectRoot = String(context.projectRoot || process.cwd());
+  const inboxDir = path.join(projectRoot, "L2", username, "aurago_inbox");
+  const message = information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
+  const messageId = crypto.randomUUID();
+  const record = {
+    type: "aurago_instruction",
+    instruction,
+    information,
+    message,
+    session_id: sessionId,
+    source: "aurago",
+    created_at: new Date().toISOString(),
+    delivery: "space_agent_server_api",
+    auto_execution: false,
+    message_id: messageId,
+    pickup_hint: "Open ~/aurago_inbox/latest_instruction.json in Space Agent and execute the instruction."
+  };
 
-            context = self.use_context(session_id)
-            message_id = str(uuid.uuid4())
-            try:
-                mq.log_user_message(context, message, [], message_id)
-            except Exception:
-                pass
-            context.communicate(UserMessage(message, []))
-            return {
-                "accepted": True,
-                "queued": True,
-                "context": context.id,
-                "message_id": message_id,
-                "message": "AuraGo instruction accepted and queued for Space Agent execution.",
-            }
-        except Exception as exc:
-            return Response(
-                json.dumps({
-                    "status": "error",
-                    "error": "AuraGo instruction endpoint failed",
-                    "message": str(exc),
-                }),
-                status=500,
-                mimetype="application/json",
-            )
+  await fs.mkdir(inboxDir, { recursive: true, mode: 0o700 });
+  await fs.writeFile(path.join(inboxDir, "latest_instruction.json"), JSON.stringify(record, null, 2) + "\n", {
+    mode: 0o600
+  });
+  await fs.writeFile(path.join(inboxDir, "latest_instruction.txt"), message + "\n", {
+    mode: 0o600
+  });
+  await fs.appendFile(path.join(inboxDir, "instructions.jsonl"), JSON.stringify(record) + "\n", {
+    mode: 0o600
+  });
+
+  return {
+    accepted: true,
+    queued: true,
+    delivered: "space_agent_server_api",
+    auto_execution: false,
+    message_id: messageId,
+    message: "AuraGo instruction accepted by Space Agent and written to the managed inbox.",
+    inbox_path: "~/aurago_inbox/latest_instruction.json"
+  };
+}
 `
 }
 

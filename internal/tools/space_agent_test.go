@@ -158,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -175,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -216,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -255,20 +255,17 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
-		"class MessageAsync(Message):",
-		"requires_auth",
-		"requires_csrf",
-		"return await super().process(input, request)",
+		"export const allowAnonymous = true;",
+		"export async function post(context)",
 		"AURAGO_BRIDGE_TOKEN",
 		"X-AuraGo-Instruction",
 		"Authorization",
 		"Bearer",
-		"UserMessage(message, [])",
 		"Context from AuraGo:",
-		"mq.log_user_message",
-		"context.communicate",
-		`"accepted": True`,
-		`"queued": True`,
+		"writeFile",
+		"aurago_inbox",
+		`accepted: true`,
+		`queued: true`,
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)
@@ -307,12 +304,16 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 		}
 	}
 	currentPath := filepath.Join(source, "python", "api", "message_async.py")
+	if _, err := os.Stat(currentPath); !os.IsNotExist(err) {
+		t.Fatalf("stale Python endpoint %s still exists or stat failed: %v", currentPath, err)
+	}
+	currentPath = filepath.Join(source, "server", "api", "message_async.js")
 	content, err := os.ReadFile(currentPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%s): %v", currentPath, err)
 	}
-	if !strings.Contains(string(content), "class MessageAsync") || !strings.Contains(string(content), "context.communicate") {
-		t.Fatalf("current endpoint content missing active Python handler: %s", string(content))
+	if !strings.Contains(string(content), "export async function post") || !strings.Contains(string(content), "aurago_inbox") {
+		t.Fatalf("current endpoint content missing active JS handler: %s", string(content))
 	}
 }
 
