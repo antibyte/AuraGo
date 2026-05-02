@@ -43,6 +43,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "truenas", ConfigGate: "truenas.enabled", ReadOnlyGate: "truenas.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "vercel", ConfigGate: "vercel.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
+		{Name: "virtual_desktop", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityHost}},
 		{Name: "xml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "yaml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 	}
@@ -123,11 +124,14 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/invasion/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-or-internal-token", Category: "invasion", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/truenas/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/containers", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/mcp", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "mcp", ContentTypes: []string{"application/json"}},
 		{Pattern: "/mcp", Methods: []string{"POST"}, Auth: "bearer-token", Category: "mcp"},
 		{Pattern: "/api/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "misc"},
+		{Pattern: "/desktop", Methods: []string{"GET"}, Auth: "session", Category: "desktop"},
+		{Pattern: "/files/desktop/", Methods: []string{"GET"}, Auth: "session", Category: "desktop"},
 		{Pattern: "/", Methods: []string{"GET"}, Auth: "public-static", Category: "ui"},
 		{Pattern: "/events", Methods: []string{"GET"}, Auth: "session", Category: "sse"},
 		{Pattern: "/history", Methods: []string{"GET"}, Auth: "session", Category: "chat"},
@@ -193,6 +197,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "media-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "skills-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "truenas-registry", PackagePath: "internal/truenas", SchemaVersioned: false, OwnsRuntimeData: true},
+		{Domain: "virtual-desktop", PackagePath: "internal/desktop", SchemaVersioned: true, OwnsRuntimeData: true},
 	}
 }
 

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="desktop.page_title">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>AuraGo Virtual Desktop</title>
+    <link href="/fonts/fonts.css" rel="stylesheet">
+    <link rel="stylesheet" href="/shared-variables.css">
+    <link rel="stylesheet" href="/shared-utilities.css">
+    <link rel="stylesheet" href="/shared-components.css?v=20260430a">
+    <link rel="stylesheet" href="/shared-animations.css">
+    <link rel="stylesheet" href="/css/desktop.css?v=1">
+    <script src="/shared.js?v=15"></script>
+    <script>
+        const SYSTEM_LANG = "{{.Lang}}";
+        (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
+        const I18N = {{.I18N}};
+    </script>
+</head>
+
+<body class="desktop-body">
+    <div id="radialMenuAnchor"></div>
+    <main id="desktop-root" class="vd-shell" aria-live="polite">
+        <section class="vd-topbar">
+            <div class="vd-brand">
+                <div class="vd-brand-mark">AG</div>
+                <div>
+                    <div class="vd-brand-title">AuraGo</div>
+                    <div class="vd-brand-subtitle" data-i18n="desktop.subtitle"></div>
+                </div>
+            </div>
+            <div class="vd-status-strip">
+                <span id="vd-ws-state" class="vd-status-dot" data-state="offline"></span>
+                <span id="vd-clock" class="vd-clock"></span>
+            </div>
+        </section>
+
+        <section class="vd-workspace" id="vd-workspace">
+            <div class="vd-icons" id="vd-icons"></div>
+            <div class="vd-widgets" id="vd-widgets"></div>
+            <div class="vd-window-layer" id="vd-window-layer"></div>
+            <div class="vd-disabled" id="vd-disabled" hidden>
+                <div class="vd-disabled-panel">
+                    <div class="vd-disabled-title" data-i18n="desktop.disabled_title"></div>
+                    <div class="vd-disabled-copy" data-i18n="desktop.disabled_copy"></div>
+                    <a href="/config#virtual_desktop" class="vd-button" data-i18n="desktop.open_config"></a>
+                </div>
+            </div>
+        </section>
+
+        <section class="vd-taskbar">
+            <button class="vd-start-button" id="vd-start-button" type="button" data-i18n-title="desktop.start_menu">
+                <span class="vd-start-glyph">A</span>
+                <span data-i18n="desktop.start_menu"></span>
+            </button>
+            <div class="vd-taskbar-apps" id="vd-taskbar-apps"></div>
+            <button class="vd-agent-button" id="vd-agent-button" type="button" data-i18n-title="desktop.agent_chat">
+                <span class="vd-agent-dot"></span>
+                <span data-i18n="desktop.agent_chat"></span>
+            </button>
+        </section>
+
+        <aside class="vd-start-menu" id="vd-start-menu" hidden>
+            <div class="vd-start-search">
+                <input id="vd-start-search" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.search_placeholder">
+            </div>
+            <div id="vd-start-apps" class="vd-start-apps"></div>
+        </aside>
+    </main>
+
+    <script src="/js/desktop/main.js?v=1"></script>
+</body>
+
+</html>

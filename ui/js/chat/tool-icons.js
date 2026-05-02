@@ -58,7 +58,7 @@
         { slot: 55, key: 'web_scraper', label: 'Web scraper', row: 5, col: 5, aliases: Object.freeze([]) },
         { slot: 56, key: 'web_capture', label: 'Web capture', row: 5, col: 6, aliases: Object.freeze([]) },
         { slot: 57, key: 'web_performance_audit', label: 'Performance', row: 5, col: 7, aliases: Object.freeze(['web_performance']) },
-        { slot: 58, key: 'browser_automation', label: 'Browser', row: 5, col: 8, aliases: Object.freeze(['space_agent']) },
+        { slot: 58, key: 'browser_automation', label: 'Browser', row: 5, col: 8, aliases: Object.freeze(['space_agent', 'virtual_desktop']) },
         { slot: 59, key: 'api_request', label: 'API request', row: 5, col: 9, aliases: Object.freeze(['call_webhook', 'manage_webhooks', 'manage_outgoing_webhooks']) },
         { slot: 60, key: 'brave_search', label: 'Search', row: 6, col: 0, aliases: Object.freeze(['ddg_search']) },
         { slot: 61, key: 'wikipedia_search', label: 'Wikipedia', row: 6, col: 1, aliases: Object.freeze([]) },

@@ -886,6 +886,44 @@
       "description": "Uses HTTPS for the connection to the TrueNAS server (recommended)."
     }
   },
+  "virtual_desktop": {
+    "enabled": {
+      "title": "Enable Virtual Desktop",
+      "description": "Enables the browser-native desktop page, REST API, WebSocket channel, and persistent workspace."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "Allows browsing the desktop workspace while blocking file, app, and widget changes."
+    },
+    "allow_agent_control": {
+      "title": "Allow Agent Control",
+      "description": "Exposes the virtual_desktop tool so the agent can create desktop files, generated apps, and widgets."
+    },
+    "allow_generated_apps": {
+      "title": "Allow Generated Apps",
+      "description": "Allows the agent or UI to install JavaScript apps into the desktop Apps directory."
+    },
+    "allow_python_jobs": {
+      "title": "Allow Python-Backed Jobs",
+      "description": "Reserves backend execution for future desktop app data jobs mediated by the agent."
+    },
+    "workspace_dir": {
+      "title": "Workspace Directory",
+      "description": "Persistent directory used as the virtual desktop root."
+    },
+    "max_file_size_mb": {
+      "title": "Max File Size",
+      "description": "Maximum text file size the desktop API will read or write."
+    },
+    "control_level": {
+      "title": "Control Level",
+      "description": "Controls how much confirmation is expected for destructive desktop actions."
+    },
+    "max_ws_clients": {
+      "title": "Max WebSocket Clients",
+      "description": "Maximum number of browser desktop sessions connected at the same time."
+    }
+  },
   "heartbeat": {
     "enabled": {
       "title": "Enable Heartbeat",

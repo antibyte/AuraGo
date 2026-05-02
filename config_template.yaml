@@ -383,6 +383,8 @@ tools:
         auto_pull: true                                   # automatically pull the container image when missing
     browser_automation:
         enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
+    virtual_desktop:
+        enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     skill_manager:
         enabled: true                                       # enable the Skill Manager Web UI
         allow_uploads: true                                 # allow users to upload new Python skills
@@ -490,6 +492,7 @@ sqlite:
     homepage_registry_path: ./data/homepage_registry.db
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db
+    virtual_desktop_path: ./data/virtual_desktop.db
     site_monitor_path: ./data/site_monitor.db
     sql_connections_path: ./data/sql_connections.db
     skills_path: ./data/skills.db
@@ -597,6 +600,16 @@ space_agent:
     data_path: data/sidecars/space-agent/data
     admin_user: admin
     public_url: ""                                        # Optional browser URL; empty derives https://<AuraGo-server-host>:3101 when https_enabled is true
+virtual_desktop:
+    enabled: false
+    readonly: false
+    allow_agent_control: false                            # exposes the virtual_desktop tool when tools.virtual_desktop.enabled is also true
+    allow_generated_apps: true
+    allow_python_jobs: false
+    workspace_dir: agent_workspace/virtual_desktop
+    max_file_size_mb: 50
+    control_level: confirm_destructive                    # confirm_destructive or trusted
+    max_ws_clients: 8
 indexing:
     enabled: true
     directories:

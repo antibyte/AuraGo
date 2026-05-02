@@ -291,6 +291,7 @@ func searchPlannerMemory(db *sql.DB, query, timeRange string, now time.Time, tod
 		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 		from = start
 		to = start.Add(24 * time.Hour)
+		includePastAppointments = true
 	case "last_week":
 		from = now.AddDate(0, 0, -7)
 		to = now

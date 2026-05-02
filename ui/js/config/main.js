@@ -80,6 +80,7 @@ const SECTIONS = [
             { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' },
             { key: 'browser_automation', icon: '🌐', label: t('config.section.browser_automation.label'), desc: t('config.section.browser_automation.desc') },
             { key: 'space_agent', icon: '🛰️', label: t('config.section.space_agent.label'), desc: t('config.section.space_agent.desc') },
+            { key: 'virtual_desktop', icon: '▣', label: t('config.section.virtual_desktop.label'), desc: t('config.section.virtual_desktop.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
             { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
@@ -221,7 +222,7 @@ const helpTexts = new Proxy({}, {
     }
 });
 let schema = [];
-let activeSection = localStorage.getItem('aurago-cfg-section') || 'server';
+let activeSection = (window.location.hash || '').replace(/^#/, '') || localStorage.getItem('aurago-cfg-section') || 'server';
 let isDirty = false;
 let configSaveInFlight = false;
 let restartInFlight = false;
@@ -648,6 +649,9 @@ async function selectSection(key, options = {}) {
     if (shouldBlockUnavailableSection(key) && sectionBlockedReason(key)) key = 'server';
     activeSection = key;
     localStorage.setItem('aurago-cfg-section', key);
+    if (window.location.hash !== '#' + key) {
+        history.replaceState(null, '', '#' + key);
+    }
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.section === key));
     // Auto-expand the group containing this section if it is collapsed
     let expandedTargetGroup = false;
@@ -789,6 +793,7 @@ async function renderSection(key) {
         'web_capture',    // → Network Tools section
         'form_automation',// → Network Tools section
         'upnp_scan',      // → Network Tools section
+        'virtual_desktop',// → Virtual Desktop section
         'media_conversion',// → Media Conversion section
         'video_download', // → Video Download section
         'send_youtube_video', // → Video Download section
@@ -1760,6 +1765,7 @@ const SECTION_MODULES = {
     web_scraper: { m: 'scraper', fn: 'renderWebScraperSection' },
     browser_automation: { m: 'browser_automation', fn: 'renderBrowserAutomationSection' },
     space_agent: { m: 'space_agent', fn: 'renderSpaceAgentSection' },
+    virtual_desktop: { m: 'virtual_desktop', fn: 'renderVirtualDesktopSection' },
     media_conversion: { m: 'media_conversion', fn: 'renderMediaConversionSection' },
     video_download: { m: 'video_download', fn: 'renderVideoDownloadSection' },
     webhooks: { m: 'webhooks', fn: 'renderWebhooksSection' },

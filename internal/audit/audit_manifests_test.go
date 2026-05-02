@@ -22,7 +22,7 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		"execute_shell", "execute_sudo", "file_editor", "filesystem", "home_assistant",
 		"homepage", "invasion_control", "json_editor", "manage_outgoing_webhooks",
 		"meshcentral", "netlify", "remote_execution", "secrets_vault",
-		"transfer_remote_file", "truenas", "vercel", "video_download", "xml_editor", "yaml_editor",
+		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}
 	matrix := ToolPermissionMatrix()
 	byName := map[string]ToolPermission{}

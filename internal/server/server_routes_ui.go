@@ -97,6 +97,27 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		})
 		s.Logger.Info("Dashboard UI enabled at /dashboard")
 
+		desktopTmpl, desktopErr := template.ParseFS(uiFS, "desktop.html")
+		if desktopErr != nil {
+			s.Logger.Error("Failed to parse desktop UI template", "error", desktopErr)
+		}
+		mux.HandleFunc("/desktop", func(w http.ResponseWriter, r *http.Request) {
+			if desktopTmpl == nil {
+				http.Error(w, "Desktop template error", http.StatusInternalServerError)
+				return
+			}
+			lang := normalizeLang(s.Cfg.Server.UILanguage)
+			data := map[string]interface{}{
+				"Lang": lang,
+				"I18N": getI18NJSON(lang),
+			}
+			if err := desktopTmpl.Execute(w, data); err != nil {
+				s.Logger.Error("Failed to execute desktop template", "error", err)
+				http.Error(w, "Template render error", http.StatusInternalServerError)
+			}
+		})
+		s.Logger.Info("Virtual Desktop UI enabled at /desktop")
+
 		plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")
 		if plansErr != nil {
 			s.Logger.Error("Failed to parse plans UI template", "error", plansErr)
@@ -449,6 +470,22 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	})
 
 	// Serve static files securely from the workspace directory
+	desktopDir := s.Cfg.VirtualDesktop.WorkspaceDir
+	if strings.TrimSpace(desktopDir) == "" {
+		desktopDir = filepath.Join(s.Cfg.Directories.WorkspaceDir, "virtual_desktop")
+	}
+	os.MkdirAll(desktopDir, 0755)
+	desktopFileHandler := http.StripPrefix("/files/desktop/", http.FileServer(neuteredFileSystem{http.Dir(desktopDir)}))
+	mux.HandleFunc("/files/desktop/", func(w http.ResponseWriter, r *http.Request) {
+		if !s.Cfg.VirtualDesktop.Enabled {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self'")
+		desktopFileHandler.ServeHTTP(w, r)
+	})
+
 	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")

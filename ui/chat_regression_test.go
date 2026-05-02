@@ -1260,8 +1260,8 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	iconsJS := string(iconsContent)
-	if got := strings.Count(iconsJS, "slot: "); got != 100 {
-		t.Fatalf("%s has %d sprite slots, want 100", iconsPath, got)
+	if got := strings.Count(iconsJS, "slot: "); got != 101 {
+		t.Fatalf("%s has %d icon definitions, want 101", iconsPath, got)
 	}
 	requiredIconMarkers := []string{
 		"key: 'execute_shell'",
@@ -1271,6 +1271,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"key: 'github'",
 		"key: 'cloudflare_tunnel'",
 		"key: 'truenas'",
+		"'virtual_desktop'",
 		"'send_youtube_video'",
 		"key: 'generic_tool'",
 		"window.AuraToolIcons",
