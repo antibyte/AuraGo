@@ -73,4 +73,10 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_allowed_tools": "許可済みツール:",
+  "config.mcp.field_environment_secret_hint": "パスワードやトークンはMCPシークレットとして保存し、平文ではなくここで{{alias}}として参照してください。",
+  "config.mcp.field_allowed_tools": "許可済みランタイムツール",
+  "config.mcp.field_allowed_tools_hint": "ここにある検出済みMCPサーバーツールだけが実行され、ルーティングメニューに表示されます。空の場合、許可されるツールはありません。",
+  "config.mcp.field_allow_destructive": "破壊的なMCPツールを許可"
+}

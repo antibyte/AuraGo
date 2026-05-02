@@ -73,4 +73,10 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_allowed_tools": "允许的工具：",
+  "config.mcp.field_environment_secret_hint": "将密码和令牌保存为 MCP 密钥，并在此使用 {{alias}} 引用，避免明文。",
+  "config.mcp.field_allowed_tools": "允许的运行时工具",
+  "config.mcp.field_allowed_tools_hint": "只有这些已发现的 MCP 服务器工具可以执行并显示在路由菜单中。留空表示不允许任何工具。",
+  "config.mcp.field_allow_destructive": "允许破坏性 MCP 工具"
+}

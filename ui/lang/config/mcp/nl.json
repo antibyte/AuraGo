@@ -73,4 +73,10 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_allowed_tools": "Toegestane tools:",
+  "config.mcp.field_environment_secret_hint": "Sla wachtwoorden en tokens op als MCP-secrets en verwijs hier met {{alias}} in plaats van platte tekst.",
+  "config.mcp.field_allowed_tools": "Toegestane runtime-tools",
+  "config.mcp.field_allowed_tools_hint": "Alleen deze ontdekte MCP-servertools mogen worden uitgevoerd en in het routingmenu worden getoond. Leeg betekent dat er geen tools zijn toegestaan.",
+  "config.mcp.field_allow_destructive": "Destructieve MCP-tools toestaan"
+}

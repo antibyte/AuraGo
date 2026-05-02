@@ -216,6 +216,162 @@ func TestHandlePutMCPServersReinitializesRuntimeManager(t *testing.T) {
 	}
 }
 
+func TestHandlePutMCPServersPreservesHiddenSecurityFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	initial := `agent:
+  allow_mcp: true
+mcp:
+  enabled: true
+  servers:
+    - name: minimax
+      command: uvx
+      args: ["old-package"]
+      enabled: true
+      allowed_tools:
+        - understand_image
+        - text_to_audio
+      allow_destructive: true
+`
+	if err := os.WriteFile(configPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("9", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+
+	oldInit := initExternalMCPManager
+	oldShutdown := shutdownExternalMCPManager
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+		return nil
+	}
+	shutdownExternalMCPManager = func() {}
+	defer func() {
+		initExternalMCPManager = oldInit
+		shutdownExternalMCPManager = oldShutdown
+	}()
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	cfg.ConfigPath = configPath
+	s := &Server{
+		Cfg:    cfg,
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-servers", strings.NewReader(`{
+		"enabled": true,
+		"servers": [{
+			"name": "minimax",
+			"command": "uvx",
+			"args": ["new-package"],
+			"enabled": true
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPServers(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	reloaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if len(reloaded.MCP.Servers) != 1 {
+		t.Fatalf("server count = %d, want 1", len(reloaded.MCP.Servers))
+	}
+	got := reloaded.MCP.Servers[0]
+	if strings.Join(got.AllowedTools, ",") != "understand_image,text_to_audio" {
+		t.Fatalf("AllowedTools = %#v, want preserved values", got.AllowedTools)
+	}
+	if !got.AllowDestructive {
+		t.Fatal("AllowDestructive was not preserved")
+	}
+}
+
+func TestHandlePutMCPServersAllowsClearingSecurityFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	initial := `agent:
+  allow_mcp: true
+mcp:
+  enabled: true
+  servers:
+    - name: minimax
+      command: uvx
+      enabled: true
+      allowed_tools:
+        - understand_image
+      allow_destructive: true
+`
+	if err := os.WriteFile(configPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("8", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+
+	oldInit := initExternalMCPManager
+	oldShutdown := shutdownExternalMCPManager
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+		return nil
+	}
+	shutdownExternalMCPManager = func() {}
+	defer func() {
+		initExternalMCPManager = oldInit
+		shutdownExternalMCPManager = oldShutdown
+	}()
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	cfg.ConfigPath = configPath
+	s := &Server{Cfg: cfg, Logger: logger, Vault: vault}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-servers", strings.NewReader(`{
+		"enabled": true,
+		"servers": [{
+			"name": "minimax",
+			"command": "uvx",
+			"enabled": true,
+			"allowed_tools": [],
+			"allow_destructive": false
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPServers(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	reloaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	got := reloaded.MCP.Servers[0]
+	if len(got.AllowedTools) != 0 {
+		t.Fatalf("AllowedTools = %#v, want empty after explicit clear", got.AllowedTools)
+	}
+	if got.AllowDestructive {
+		t.Fatal("AllowDestructive should be false after explicit clear")
+	}
+}
+
 func TestHandlePutMCPPreferencesPersistsCapabilitySelections(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

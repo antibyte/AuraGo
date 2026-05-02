@@ -19,6 +19,11 @@ var (
 	shutdownExternalMCPManager = tools.ShutdownMCPManager
 )
 
+type mcpIncomingServerFieldPresence struct {
+	AllowedTools     bool
+	AllowDestructive bool
+}
+
 func syncExternalMCPRuntime(cfg *config.Config, vault config.SecretReader, logger *slog.Logger) {
 	shutdownExternalMCPManager()
 	if cfg == nil || logger == nil {
@@ -152,11 +157,33 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+	fieldPresence := mcpIncomingServerFieldPresenceByName(body)
+
+	s.CfgMu.RLock()
+	existingByName := make(map[string]config.MCPServer, len(s.Cfg.MCP.Servers))
+	for _, srv := range s.Cfg.MCP.Servers {
+		name := strings.TrimSpace(srv.Name)
+		if name != "" {
+			existingByName[name] = srv
+		}
+	}
+	s.CfgMu.RUnlock()
 
 	// Build servers list for YAML
 	err = persistMCPSectionUpdate(s, func(mcpSection map[string]interface{}) error {
 		serversList := make([]interface{}, len(incoming))
 		for i, srv := range incoming {
+			serverName := strings.TrimSpace(srv.Name)
+			existing := existingByName[serverName]
+			presence := fieldPresence[serverName]
+			allowedTools := append([]string(nil), srv.AllowedTools...)
+			if !presence.AllowedTools && len(allowedTools) == 0 && len(existing.AllowedTools) > 0 {
+				allowedTools = append([]string(nil), existing.AllowedTools...)
+			}
+			allowDestructive := srv.AllowDestructive
+			if !presence.AllowDestructive {
+				allowDestructive = existing.AllowDestructive
+			}
 			m := map[string]interface{}{
 				"name":    srv.Name,
 				"command": srv.Command,
@@ -184,6 +211,12 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(srv.ContainerWorkdir) != "" {
 				m["container_workdir"] = strings.TrimSpace(srv.ContainerWorkdir)
 			}
+			if len(allowedTools) > 0 {
+				m["allowed_tools"] = allowedTools
+			}
+			if allowDestructive {
+				m["allow_destructive"] = true
+			}
 			serversList[i] = m
 		}
 		mcpSection["servers"] = serversList
@@ -205,6 +238,36 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		"status": "ok",
 		"count":  len(incoming),
 	})
+}
+
+func mcpIncomingServerFieldPresenceByName(body []byte) map[string]mcpIncomingServerFieldPresence {
+	result := map[string]mcpIncomingServerFieldPresence{}
+	var rawServers []map[string]interface{}
+	trimmed := strings.TrimSpace(string(body))
+	if strings.HasPrefix(trimmed, "[") {
+		_ = json.Unmarshal(body, &rawServers)
+	} else {
+		var payload struct {
+			Servers []map[string]interface{} `json:"servers"`
+		}
+		if err := json.Unmarshal(body, &payload); err == nil {
+			rawServers = payload.Servers
+		}
+	}
+	for _, raw := range rawServers {
+		name, _ := raw["name"].(string)
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		_, hasAllowedTools := raw["allowed_tools"]
+		_, hasAllowDestructive := raw["allow_destructive"]
+		result[name] = mcpIncomingServerFieldPresence{
+			AllowedTools:     hasAllowedTools,
+			AllowDestructive: hasAllowDestructive,
+		}
+	}
+	return result
 }
 
 func handleMCPSecrets(s *Server) http.HandlerFunc {

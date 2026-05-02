@@ -142,6 +142,7 @@ function mcpServerRenderCards() {
             : `<span class="mcp-badge mcp-badge-inactive">⏸ ${t('config.mcp.inactive_badge')}</span>`;
         const argsStr = (s.args || []).join(' ');
         const envCount = s.env ? Object.keys(s.env).length : 0;
+        const allowedToolsCount = Array.isArray(s.allowed_tools) ? s.allowed_tools.length : 0;
         const runtimeLabel = s.runtime === 'docker' ? t('config.mcp.runtime_docker') : t('config.mcp.runtime_local');
         const workdirLabel = s.host_workdir || '—';
 
@@ -161,6 +162,7 @@ function mcpServerRenderCards() {
                 <div><span class="mcp-grid-label">${t('config.mcp.card_args')}</span> ${argsStr ? '<code>' + escapeAttr(argsStr) + '</code>' : '—'}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_runtime')}</span> ${escapeAttr(runtimeLabel)}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_env_vars')}</span> ${envCount}</div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_allowed_tools')}</span> ${allowedToolsCount}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_workdir')}</span> <code>${escapeAttr(workdirLabel)}</code></div>
             </div>
         </div>`;
@@ -348,6 +350,7 @@ function mcpServerShowModal(data, idx) {
     const isEdit = idx >= 0;
     const argsStr = (data.args || []).join('\n');
     const envStr = data.env ? Object.entries(data.env).map(([k, v]) => k + '=' + v).join('\n') : '';
+    const allowedToolsStr = Array.isArray(data.allowed_tools) ? data.allowed_tools.join('\n') : '';
     const runtime = data.runtime || 'local';
 
     const overlay = document.createElement('div');
@@ -377,6 +380,12 @@ function mcpServerShowModal(data, idx) {
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.field_environment')} <small class="mcp-modal-hint">(KEY=VALUE, ${t('config.mcp.env_hint')}; {{alias}}, {{workdir}})</small></span>
             <textarea id="mcp-m-env" class="field-input mcp-modal-textarea" rows="4" placeholder="API_KEY={{api-token}}\nBASE_PATH={{workdir}}">${escapeAttr(envStr)}</textarea>
+            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_environment_secret_hint')}</div>
+        </label>
+        <label class="mcp-modal-label">
+            <span class="mcp-modal-label-text">${t('config.mcp.field_allowed_tools')} <small class="mcp-modal-hint">(${t('config.mcp.args_hint')})</small></span>
+            <textarea id="mcp-m-allowed-tools" class="field-input mcp-modal-textarea" rows="3" placeholder="understand_image\ntext_to_audio">${escapeAttr(allowedToolsStr)}</textarea>
+            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_allowed_tools_hint')}</div>
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_image')}</span>
@@ -402,6 +411,10 @@ function mcpServerShowModal(data, idx) {
             <input id="mcp-m-local-fallback" type="checkbox" ${data.allow_local_fallback ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_local_fallback')}</span>
         </label>
+        <label class="mcp-modal-check-row">
+            <input id="mcp-m-allow-destructive" type="checkbox" ${data.allow_destructive ? 'checked' : ''}>
+            <span class="mcp-modal-check-text">${t('config.mcp.field_allow_destructive')}</span>
+        </label>
         <div class="mcp-modal-footer">
             <button class="btn-save mcp-btn-cancel" onclick="this.closest('.mcp-modal-overlay').remove()">${t('config.mcp.cancel')}</button>
             <button class="btn-save mcp-btn-save" id="mcp-m-save">${t('config.mcp.save')}</button>
@@ -421,6 +434,8 @@ function mcpServerShowModal(data, idx) {
             docker_image: document.getElementById('mcp-m-docker-image').value.trim(),
             docker_command: document.getElementById('mcp-m-docker-command').value.trim(),
             allow_local_fallback: document.getElementById('mcp-m-local-fallback').checked,
+            allowed_tools: document.getElementById('mcp-m-allowed-tools').value.split('\n').map(l => l.trim()).filter(Boolean),
+            allow_destructive: document.getElementById('mcp-m-allow-destructive').checked,
             host_workdir: document.getElementById('mcp-m-host-workdir').value.trim(),
             container_workdir: document.getElementById('mcp-m-container-workdir').value.trim()
         };

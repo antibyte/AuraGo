@@ -73,4 +73,10 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_allowed_tools": "Herramientas permitidas:",
+  "config.mcp.field_environment_secret_hint": "Guarda contraseñas y tokens como secretos MCP y referencia aquí {{alias}} en lugar de texto claro.",
+  "config.mcp.field_allowed_tools": "Herramientas runtime permitidas",
+  "config.mcp.field_allowed_tools_hint": "Solo estas herramientas descubiertas del servidor MCP se pueden ejecutar y mostrar en el menú de routing. Vacío significa que no hay herramientas permitidas.",
+  "config.mcp.field_allow_destructive": "Permitir herramientas MCP destructivas"
+}

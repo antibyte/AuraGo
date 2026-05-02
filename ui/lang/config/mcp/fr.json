@@ -73,4 +73,10 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_allowed_tools": "Outils autorisés :",
+  "config.mcp.field_environment_secret_hint": "Stockez les mots de passe et jetons comme secrets MCP et référencez-les ici avec {{alias}} au lieu de texte en clair.",
+  "config.mcp.field_allowed_tools": "Outils runtime autorisés",
+  "config.mcp.field_allowed_tools_hint": "Seuls ces outils découverts du serveur MCP peuvent être exécutés et affichés dans le menu de routage. Vide signifie qu'aucun outil n'est autorisé.",
+  "config.mcp.field_allow_destructive": "Autoriser les outils MCP destructifs"
+}

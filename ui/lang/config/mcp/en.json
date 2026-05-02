@@ -20,12 +20,16 @@
   "config.mcp.card_command": "Command:",
   "config.mcp.card_args": "Args:",
   "config.mcp.card_env_vars": "Env vars:",
+  "config.mcp.card_allowed_tools": "Allowed tools:",
   "config.mcp.card_edit_tooltip": "Edit",
   "config.mcp.card_delete_tooltip": "Delete",
   "config.mcp.field_name": "Name",
   "config.mcp.field_command": "Command",
   "config.mcp.field_args_label": "Args",
   "config.mcp.field_environment": "Environment Variables",
+  "config.mcp.field_environment_secret_hint": "Store passwords and tokens as MCP secrets and reference them here with {{alias}} instead of plaintext.",
+  "config.mcp.field_allowed_tools": "Allowed Runtime Tools",
+  "config.mcp.field_allowed_tools_hint": "Only these discovered MCP server tools may be executed and shown in the routing menu. Empty means no tools are allowed.",
   "config.mcp.save_failed": "MCP save failed: ",
   "config.mcp.routing_title": "Tool Routing",
   "config.mcp.routing_desc": "Choose which connected MCP tool AuraGo should use for built-in web search and image analysis.",
@@ -58,6 +62,7 @@
   "config.mcp.field_host_workdir": "Host workdir",
   "config.mcp.field_container_workdir": "Container workdir",
   "config.mcp.field_allow_local_fallback": "Allow local fallback if Docker start fails",
+  "config.mcp.field_allow_destructive": "Allow destructive MCP tools",
   "config.mcp.secret_status_set": "Stored",
   "config.mcp.secret_status_missing": "Missing",
   "config.mcp.secret_alias": "Alias",
@@ -73,4 +78,5 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "}
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: "
+}

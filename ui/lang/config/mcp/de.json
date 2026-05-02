@@ -20,12 +20,16 @@
   "config.mcp.card_command": "Befehl:",
   "config.mcp.card_args": "Argumente:",
   "config.mcp.card_env_vars": "Umgebungsvariablen:",
+  "config.mcp.card_allowed_tools": "Erlaubte Tools:",
   "config.mcp.card_edit_tooltip": "Bearbeiten",
   "config.mcp.card_delete_tooltip": "Löschen",
   "config.mcp.field_name": "Name",
   "config.mcp.field_command": "Befehl",
   "config.mcp.field_args_label": "Argumente",
   "config.mcp.field_environment": "Umgebungsvariablen",
+  "config.mcp.field_environment_secret_hint": "Speichere Passwörter und Tokens als MCP-Secrets und verwende hier {{alias}} statt Klartext.",
+  "config.mcp.field_allowed_tools": "Erlaubte Runtime-Tools",
+  "config.mcp.field_allowed_tools_hint": "Nur diese vom MCP-Server entdeckten Tools dürfen ausgeführt und im Routing-Menü angezeigt werden. Leer bedeutet: keine Tools erlaubt.",
   "config.mcp.save_failed": "MCP-Speichern fehlgeschlagen: ",
   "config.mcp.routing_title": "Tool-Zuordnung",
   "config.mcp.routing_desc": "Wähle aus, welches verbundene MCP-Tool AuraGo für die integrierte Websuche und Bildanalyse verwenden soll.",
@@ -58,6 +62,7 @@
   "config.mcp.field_host_workdir": "Host-Arbeitsverzeichnis",
   "config.mcp.field_container_workdir": "Container-Arbeitsverzeichnis",
   "config.mcp.field_allow_local_fallback": "Lokalen Fallback erlauben, wenn Docker fehlschlägt",
+  "config.mcp.field_allow_destructive": "Destruktive MCP-Tools erlauben",
   "config.mcp.secret_status_set": "Gesetzt",
   "config.mcp.secret_status_missing": "Fehlt",
   "config.mcp.secret_alias": "Alias",
@@ -73,4 +78,5 @@
   "config.mcp.secret_alias_required": "Ein Secret-Alias ist erforderlich.",
   "config.mcp.secret_delete_confirm": "MCP-Secret \"{name}\" wirklich löschen?",
   "config.mcp.secret_saved": "MCP-Secret gespeichert.",
-  "config.mcp.secret_save_failed": "Speichern des MCP-Secrets fehlgeschlagen: "}
+  "config.mcp.secret_save_failed": "Speichern des MCP-Secrets fehlgeschlagen: "
+}
