@@ -153,7 +153,7 @@ func isPythonTool(name string) bool {
 func isAPITool(name string) bool {
 	switch name {
 	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
-		"kubernetes", "api_request", "github", "sql_query",
+		"kubernetes", "api_request", "github", "sql_query", "koofr", "koofr_api", "koofr_op",
 		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
 		"list_processes", "read_process_logs",
 		"manage_daemon", "manage_plan",
@@ -176,6 +176,11 @@ func isGitHubTool(name string) bool {
 // isSQLTool returns true for SQL query tool names.
 func isSQLTool(name string) bool {
 	return name == "sql_query"
+}
+
+// isKoofrTool returns true for Koofr cloud storage tool names.
+func isKoofrTool(name string) bool {
+	return name == "koofr" || name == "koofr_api" || name == "koofr_op"
 }
 
 // isFilesystemTool returns true for filesystem tool names.
@@ -220,6 +225,11 @@ func compressAPIOutput(toolName, output string) (string, string) {
 	// SQL query has dedicated compressors
 	if isSQLTool(toolName) {
 		return compressSQLOutput(output)
+	}
+
+	// Koofr has dedicated compressors
+	if isKoofrTool(toolName) {
+		return compressKoofrOutput(output)
 	}
 
 	// Filesystem tool has dedicated compressor

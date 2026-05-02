@@ -110,6 +110,7 @@ agent:
 | Home Assistant | Service list | Groups by domain, shows service count per domain |
 | GitHub | Repos/issues/PRs/commits | Tabular with key fields, truncates long lists |
 | SQL query | Result table | Shows column headers + rows, truncates large results |
+| Koofr | Directory list | Summarizes item counts, directories, file types, and first files; drops hashes/tags |
 | `filesystem` | list_dir | Groups dirs first, shows file sizes, truncates at 50 entries |
 | `filesystem` | read_file | Preserves content, compacts wrapper metadata |
 | `filesystem` | batch | Summarizes succeeded items, details failed items |
@@ -212,6 +213,7 @@ internal/tools/outputcompress/
 ├── agent_status.go    # Agent status compressors (manage_daemon, manage_plan)
 ├── github.go          # GitHub API compressors (repos, issues, PRs, commits, workflows)
 ├── sql.go             # SQL query result compressors
+├── koofr.go           # Koofr cloud storage compressors (directory lists)
 ├── homeassistant.go   # Home Assistant compressors (states, services)
 ├── analytics.go       # Thread-safe stats aggregator for dashboard
 └── compressor_test.go # 180+ tests
