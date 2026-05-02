@@ -450,6 +450,11 @@ func parseSpaceAgentInstructionResponseBody(statusCode int, body []byte) map[str
 			if _, ok := parsed["http_status"]; !ok {
 				parsed["http_status"] = statusCode
 			}
+			if statusCode >= 200 && statusCode < 300 {
+				if _, ok := parsed["status"]; !ok {
+					parsed["status"] = "ok"
+				}
+			}
 			return parsed
 		}
 	}
@@ -922,7 +927,7 @@ async function handleInstruction(context = {}) {
     };
     const inbox = await appendInstructionRecord(context, record);
     return {
-      status: "ok",
+      accepted: true,
       delivered: "inbox",
       inbox,
       message: "AuraGo instruction accepted and written to the managed Space Agent inbox.",

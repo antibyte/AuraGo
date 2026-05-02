@@ -262,10 +262,14 @@ func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 		"HOME",
 		"latest_instruction.json",
 		"instructions.jsonl",
+		"accepted: true",
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)
 		}
+	}
+	if strings.Contains(endpoint, `status: "ok"`) {
+		t.Fatalf("instructions api endpoint must not return top-level string status values because Space Agent treats status as an HTTP status code:\n%s", endpoint)
 	}
 }
 
@@ -341,6 +345,17 @@ func TestParseSpaceAgentInstructionResponseBodyPreservesJSONErrors(t *testing.T)
 	}
 	if got["http_status"] != 500 {
 		t.Fatalf("http_status = %#v, want 500", got["http_status"])
+	}
+}
+
+func TestParseSpaceAgentInstructionResponseBodyAddsOKStatusForSuccessfulEndpointShape(t *testing.T) {
+	got := parseSpaceAgentInstructionResponseBody(200, []byte(`{"accepted":true,"delivered":"inbox"}`))
+
+	if got["status"] != "ok" {
+		t.Fatalf("status = %#v, want ok in AuraGo tool result: %#v", got["status"], got)
+	}
+	if got["accepted"] != true || got["delivered"] != "inbox" {
+		t.Fatalf("endpoint payload not preserved: %#v", got)
 	}
 }
 
