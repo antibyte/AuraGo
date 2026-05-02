@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-onscreen-history-bridge"
+	spaceAgentImageBuildRevision   = "20260502-aurago-live-inbox-poller"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -759,7 +759,11 @@ func ensureSpaceAgentWorkspaceFiles(homePath string) error {
 		filepath.Join(homePath, "AGENTS.md"):                        spaceAgentAuraGoAgentsMarkdown(),
 		filepath.Join(homePath, "conf", "aurago.system.include.md"): spaceAgentAuraGoSystemInclude(),
 		filepath.Join(homePath, "docs", "aurago-bridge.md"):         spaceAgentAuraGoBridgeReadme(),
+		filepath.Join(homePath, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"): spaceAgentInboxPollerJS(),
 	} {
+		if mkdirErr := os.MkdirAll(filepath.Dir(path), 0o750); mkdirErr != nil {
+			return fmt.Errorf("create Space Agent managed file dir %s: %w", filepath.Dir(path), mkdirErr)
+		}
 		if writeErr := os.WriteFile(path, []byte(content), 0o600); writeErr != nil {
 			return fmt.Errorf("write Space Agent managed file %s: %w", path, writeErr)
 		}
@@ -832,6 +836,100 @@ On every fresh user interaction:
 ## Bridge
 
 Read docs/aurago-bridge.md for the structured bridge contract.
+`
+}
+
+func spaceAgentInboxPollerJS() string {
+	return `const POLL_INTERVAL_MS = 3000;
+const STORAGE_KEY = "aurago.inbox.lastMessageId";
+let pollerStarted = false;
+
+function getRuntime() {
+  return globalThis.space && typeof globalThis.space === "object" ? globalThis.space : null;
+}
+
+function getLastMessageId() {
+  try {
+    return String(globalThis.localStorage?.getItem(STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function setLastMessageId(messageId) {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, String(messageId || "").trim());
+  } catch {
+    // Ignore storage failures; duplicate protection is best-effort.
+  }
+}
+
+function buildPrompt(record) {
+  const instruction = String(record?.instruction || "").trim();
+  const information = String(record?.information || "").trim();
+  return information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
+}
+
+async function markProcessed(runtime, record, messageId) {
+  try {
+    await runtime.api.fileWrite(
+      "~/aurago_inbox/latest_instruction.json",
+      JSON.stringify({
+        ...record,
+        processed_by_user: true,
+        processed_at: new Date().toISOString()
+      }, null, 2) + "\n",
+      "utf8"
+    );
+  } catch {
+    // Keep the prompt submission as the authoritative delivery step.
+  }
+  setLastMessageId(messageId);
+}
+
+async function pollAuraGoInbox() {
+  const runtime = getRuntime();
+  if (!runtime?.api?.fileRead || !runtime?.onscreenAgent?.submitPrompt) {
+    return;
+  }
+  let result;
+  try {
+    result = await runtime.api.fileRead("~/aurago_inbox/latest_instruction.json");
+  } catch {
+    return;
+  }
+  let record;
+  try {
+    record = JSON.parse(String(result?.content || "{}"));
+  } catch {
+    return;
+  }
+  if (record?.type !== "aurago_instruction" || record.processed_by_user === true) {
+    return;
+  }
+  const messageId = String(record.message_id || record.created_at || "").trim();
+  if (!messageId || messageId === getLastMessageId()) {
+    return;
+  }
+  const prompt = buildPrompt(record);
+  if (!prompt) {
+    return;
+  }
+  await runtime.onscreenAgent.submitPrompt(prompt, {
+    focusInput: false,
+    show: true
+  });
+  await markProcessed(runtime, record, messageId);
+}
+
+export default async function auragoInboxPoller() {
+  if (pollerStarted) {
+    return;
+  }
+  pollerStarted = true;
+  setTimeout(() => void pollAuraGoInbox(), 1000);
+  setInterval(() => void pollAuraGoInbox(), POLL_INTERVAL_MS);
+}
 `
 }
 
@@ -1266,6 +1364,7 @@ function seedWorkspaceFiles(rootPath) {
   writeFile(path.join(rootPath, "AGENTS.md"), ` + strconv.Quote(spaceAgentAuraGoAgentsMarkdown()) + `);
   writeFile(path.join(rootPath, "conf", "aurago.system.include.md"), ` + strconv.Quote(spaceAgentAuraGoSystemInclude()) + `);
   writeFile(path.join(rootPath, "docs", "aurago-bridge.md"), ` + strconv.Quote(spaceAgentAuraGoBridgeReadme()) + `);
+  writeFile(path.join(rootPath, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"), ` + strconv.Quote(spaceAgentInboxPollerJS()) + `);
   writeFile(path.join(rootPath, "aurago_bridge.js"), bridgeHelperContent(bridgeHelperESMTemplate));
   writeFile(path.join(rootPath, "aurago_bridge.cjs"), bridgeHelperContent(bridgeHelperCJSTemplate));
   writeFile(path.join(rootPath, "aurago_bridge_config.json"), bridgeConfigJSON());

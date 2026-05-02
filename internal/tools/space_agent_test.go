@@ -158,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-poller"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -175,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-poller"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -216,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-poller"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -546,6 +546,7 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, \"L2\", normalizedUsername))",
 		"writeFile(path.join(rootPath, \"AGENTS.md\")",
 		"writeFile(path.join(rootPath, \"docs\", \"aurago-bridge.md\")",
+		"writeFile(path.join(rootPath, \"ext\", \"js\", \"_core\", \"framework\", \"initializer.js\", \"initialize\", \"end\", \"aurago-inbox-poller.js\")",
 		"writeFile(path.join(process.env.CUSTOMWARE_PATH, \"aurago_bridge.js\")",
 		"writeFile(path.join(rootPath, \"aurago_bridge.js\")",
 		"aurago_inbox",
@@ -627,16 +628,17 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		t.Fatalf("login_hooks.json = %q, want []", string(content))
 	}
 	for path, want := range map[string]string{
-		filepath.Join(home, "dashboard", "prefs.json"):               "{}",
-		filepath.Join(home, "conf", "dashboard.yaml"):                "{}",
-		filepath.Join(home, "conf", "onscreen-agent.yaml"):           "{}",
-		filepath.Join(home, "hist", "onscreen-agent.json"):           "[]",
-		filepath.Join(home, "docs", "aurago-bridge.md"):              "contains:AuraGo Bridge",
-		filepath.Join(home, "conf", "aurago.system.include.md"):      "contains:latest_instruction.json",
-		filepath.Join(home, "onscreen-agent", "config.json"):         "{}",
-		filepath.Join(home, "onscreen-agent", "history.json"):        "[]",
-		filepath.Join(home, "meta", "dashboard-prefs.json"):          "{}",
-		filepath.Join(home, ".config", "onscreen-agent-config.json"): "{}",
+		filepath.Join(home, "dashboard", "prefs.json"):                                                                          "{}",
+		filepath.Join(home, "conf", "dashboard.yaml"):                                                                           "{}",
+		filepath.Join(home, "conf", "onscreen-agent.yaml"):                                                                      "{}",
+		filepath.Join(home, "hist", "onscreen-agent.json"):                                                                      "[]",
+		filepath.Join(home, "docs", "aurago-bridge.md"):                                                                         "contains:AuraGo Bridge",
+		filepath.Join(home, "conf", "aurago.system.include.md"):                                                                 "contains:latest_instruction.json",
+		filepath.Join(home, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"): "contains:submitPrompt",
+		filepath.Join(home, "onscreen-agent", "config.json"):                                                                    "{}",
+		filepath.Join(home, "onscreen-agent", "history.json"):                                                                   "[]",
+		filepath.Join(home, "meta", "dashboard-prefs.json"):                                                                     "{}",
+		filepath.Join(home, ".config", "onscreen-agent-config.json"):                                                            "{}",
 	} {
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -661,16 +663,17 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 	}
 	userHome := filepath.Join(customware, "L2", "admin")
 	for path, want := range map[string]string{
-		filepath.Join(userHome, "meta", "login_hooks.json"):          "[]",
-		filepath.Join(userHome, "conf", "dashboard.yaml"):            "{}",
-		filepath.Join(userHome, "conf", "onscreen-agent.yaml"):       "{}",
-		filepath.Join(userHome, "hist", "onscreen-agent.json"):       "[]",
-		filepath.Join(userHome, "docs", "aurago-bridge.md"):          "contains:AuraGo Bridge",
-		filepath.Join(userHome, "conf", "aurago.system.include.md"):  "contains:latest_instruction.json",
-		filepath.Join(userHome, ".config", "dashboard-prefs.json"):   "{}",
-		filepath.Join(userHome, "onscreen-agent", "config.json"):     "{}",
-		filepath.Join(userHome, "onscreen-agent", "history.json"):    "[]",
-		filepath.Join(userHome, "dashboard", "dashboard-prefs.json"): "{}",
+		filepath.Join(userHome, "meta", "login_hooks.json"):                                                                         "[]",
+		filepath.Join(userHome, "conf", "dashboard.yaml"):                                                                           "{}",
+		filepath.Join(userHome, "conf", "onscreen-agent.yaml"):                                                                      "{}",
+		filepath.Join(userHome, "hist", "onscreen-agent.json"):                                                                      "[]",
+		filepath.Join(userHome, "docs", "aurago-bridge.md"):                                                                         "contains:AuraGo Bridge",
+		filepath.Join(userHome, "conf", "aurago.system.include.md"):                                                                 "contains:latest_instruction.json",
+		filepath.Join(userHome, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"): "contains:submitPrompt",
+		filepath.Join(userHome, ".config", "dashboard-prefs.json"):                                                                  "{}",
+		filepath.Join(userHome, "onscreen-agent", "config.json"):                                                                    "{}",
+		filepath.Join(userHome, "onscreen-agent", "history.json"):                                                                   "[]",
+		filepath.Join(userHome, "dashboard", "dashboard-prefs.json"):                                                                "{}",
 	} {
 		content, err := os.ReadFile(path)
 		if err != nil {
