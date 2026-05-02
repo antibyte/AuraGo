@@ -473,12 +473,15 @@ func TestSendSpaceAgentInstructionWritesMailboxWhenInboundAPIIsMissing(t *testin
 	defer func() { spaceAgentHTTPClient = originalClient }()
 
 	dataPath := t.TempDir()
+	customwarePath := t.TempDir()
 	cfg := &config.Config{}
 	cfg.SpaceAgent.Enabled = true
 	cfg.SpaceAgent.Host = "127.0.0.1"
 	cfg.SpaceAgent.Port = 3100
 	cfg.SpaceAgent.BridgeToken = "bridge-token"
 	cfg.SpaceAgent.DataPath = dataPath
+	cfg.SpaceAgent.CustomwarePath = customwarePath
+	cfg.SpaceAgent.AdminUser = "admin"
 
 	got := SendSpaceAgentInstruction(context.Background(), cfg, SpaceAgentInstruction{
 		Instruction: "build a weather widget",
@@ -499,6 +502,14 @@ func TestSendSpaceAgentInstructionWritesMailboxWhenInboundAPIIsMissing(t *testin
 	}
 	if !strings.Contains(string(content), "build a weather widget") || !strings.Contains(string(content), `"auto_execution": false`) {
 		t.Fatalf("mailbox content missing instruction details: %s", string(content))
+	}
+	userLatest := filepath.Join(customwarePath, "L2", "admin", "aurago_inbox", "latest_instruction.json")
+	userContent, err := os.ReadFile(userLatest)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", userLatest, err)
+	}
+	if !strings.Contains(string(userContent), "build a weather widget") || !strings.Contains(string(userContent), `"session_id": "sess-1"`) {
+		t.Fatalf("user mailbox content missing latest instruction details: %s", string(userContent))
 	}
 }
 

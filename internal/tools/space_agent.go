@@ -503,10 +503,6 @@ func writeSpaceAgentInstructionMailbox(cfg *config.Config, req SpaceAgentInstruc
 	if dataPath == "" {
 		return nil
 	}
-	inboxDir := filepath.Join(dataPath, "home", "aurago_inbox")
-	if err := os.MkdirAll(inboxDir, 0o700); err != nil {
-		return nil
-	}
 	record := map[string]interface{}{
 		"type":              "aurago_instruction",
 		"instruction":       strings.TrimSpace(req.Instruction),
@@ -520,23 +516,18 @@ func writeSpaceAgentInstructionMailbox(cfg *config.Config, req SpaceAgentInstruc
 		"pickup_hint":       "Open ~/aurago_inbox/latest_instruction.json in Space Agent and execute the instruction.",
 		"processed_by_user": false,
 	}
-	serialized, err := json.Marshal(record)
-	if err != nil {
-		return nil
+	inboxDirs := []string{filepath.Join(dataPath, "home", "aurago_inbox")}
+	if userInboxDir := spaceAgentCustomwareInboxDir(cfg); userInboxDir != "" {
+		inboxDirs = append(inboxDirs, userInboxDir)
 	}
-	pretty, _ := json.MarshalIndent(record, "", "  ")
-	if err := os.WriteFile(filepath.Join(inboxDir, "latest_instruction.json"), append(pretty, '\n'), 0o600); err != nil {
-		return nil
+	written := make([]string, 0, len(inboxDirs))
+	for _, inboxDir := range inboxDirs {
+		if err := writeSpaceAgentInstructionMailboxRecord(inboxDir, record); err != nil {
+			continue
+		}
+		written = append(written, filepath.Join(inboxDir, "latest_instruction.json"))
 	}
-	if err := os.WriteFile(filepath.Join(inboxDir, "latest_instruction.txt"), []byte(strings.TrimSpace(req.Instruction)+"\n"), 0o600); err != nil {
-		return nil
-	}
-	logFile, err := os.OpenFile(filepath.Join(inboxDir, "instructions.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-	if err != nil {
-		return nil
-	}
-	defer logFile.Close()
-	if _, err := logFile.Write(append(serialized, '\n')); err != nil {
+	if len(written) == 0 {
 		return nil
 	}
 	return map[string]interface{}{
@@ -546,9 +537,56 @@ func writeSpaceAgentInstructionMailbox(cfg *config.Config, req SpaceAgentInstruc
 		"auto_execution":              false,
 		"requires_space_agent_pickup": true,
 		"message":                     "Space Agent has no inbound HTTP instruction API. AuraGo wrote the instruction to the managed Space Agent mailbox.",
-		"mailbox_path":                filepath.Join(inboxDir, "latest_instruction.json"),
+		"mailbox_path":                written[0],
+		"mailbox_paths":               written,
 		"endpoint_result":             endpointResult,
 	}
+}
+
+func spaceAgentCustomwareInboxDir(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	customwarePath := strings.TrimSpace(cfg.SpaceAgent.CustomwarePath)
+	if customwarePath == "" {
+		return ""
+	}
+	username := strings.TrimSpace(cfg.SpaceAgent.AdminUser)
+	if username == "" {
+		username = "admin"
+	}
+	normalizedUser, err := normalizeSpaceAgentEntityID(username)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(customwarePath, "L2", normalizedUser, "aurago_inbox")
+}
+
+func writeSpaceAgentInstructionMailboxRecord(inboxDir string, record map[string]interface{}) error {
+	if err := os.MkdirAll(inboxDir, 0o700); err != nil {
+		return err
+	}
+	serialized, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	pretty, _ := json.MarshalIndent(record, "", "  ")
+	if err := os.WriteFile(filepath.Join(inboxDir, "latest_instruction.json"), append(pretty, '\n'), 0o600); err != nil {
+		return err
+	}
+	instruction, _ := record["instruction"].(string)
+	if err := os.WriteFile(filepath.Join(inboxDir, "latest_instruction.txt"), []byte(strings.TrimSpace(instruction)+"\n"), 0o600); err != nil {
+		return err
+	}
+	logFile, err := os.OpenFile(filepath.Join(inboxDir, "instructions.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
+	if _, err := logFile.Write(append(serialized, '\n')); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ExecuteSpaceAgent is the agent-facing wrapper for Space Agent communication.
