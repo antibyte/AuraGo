@@ -25,10 +25,10 @@ func TestDesktopIconSpriteSheetContract(t *testing.T) {
 		t.Fatalf("decode %s: %v", spritePath, err)
 	}
 	bounds := img.Bounds()
-	if bounds.Dx() != 768 || bounds.Dy() != 768 {
-		t.Fatalf("%s size = %dx%d, want 768x768", spritePath, bounds.Dx(), bounds.Dy())
+	if bounds.Dx() != 1536 || bounds.Dy() != 1536 {
+		t.Fatalf("%s size = %dx%d, want 1536x1536", spritePath, bounds.Dx(), bounds.Dy())
 	}
-	for _, point := range [][2]int{{0, 0}, {767, 0}, {0, 767}, {767, 767}} {
+	for _, point := range [][2]int{{0, 0}, {1535, 0}, {0, 1535}, {1535, 1535}} {
 		_, _, _, a := img.At(point[0], point[1]).RGBA()
 		if a != 0 {
 			t.Fatalf("%s corner %v alpha = %d, want transparent", spritePath, point, a)
@@ -59,8 +59,8 @@ func TestDesktopIconSpriteSheetContract(t *testing.T) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatalf("parse %s: %v", manifestPath, err)
 	}
-	if manifest.Columns != 12 || manifest.Rows != 12 || manifest.IconSize != 64 || manifest.Width != 768 || manifest.Height != 768 {
-		t.Fatalf("manifest grid = %+v, want 12x12 64px 768x768", manifest)
+	if manifest.Columns != 12 || manifest.Rows != 12 || manifest.IconSize != 128 || manifest.Width != 1536 || manifest.Height != 1536 {
+		t.Fatalf("manifest grid = %+v, want 12x12 128px 1536x1536", manifest)
 	}
 	if manifest.Background != "transparent" {
 		t.Fatalf("manifest background = %q, want transparent", manifest.Background)
@@ -80,8 +80,8 @@ func TestDesktopIconSpriteSheetContract(t *testing.T) {
 		if icon.Row < 0 || icon.Row >= 12 || icon.Col < 0 || icon.Col >= 12 {
 			t.Fatalf("icon %q has out-of-range cell row=%d col=%d", icon.Name, icon.Row, icon.Col)
 		}
-		if icon.X != icon.Col*64 || icon.Y != icon.Row*64 || icon.Width != 64 || icon.Height != 64 {
-			t.Fatalf("icon %q coordinates = %+v, want 64px grid alignment", icon.Name, icon)
+		if icon.X != icon.Col*128 || icon.Y != icon.Row*128 || icon.Width != 128 || icon.Height != 128 {
+			t.Fatalf("icon %q coordinates = %+v, want 128px grid alignment", icon.Name, icon)
 		}
 	}
 	for _, required := range []string{"desktop", "folder", "javascript", "pdf", "copy", "paste", "trash", "arrow_right", "search", "settings", "agent_chat"} {

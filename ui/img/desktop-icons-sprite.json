@@ -1,12 +1,12 @@
 {
   "name": "AuraGo Desktop Icons",
-  "version": 1,
+  "version": 3,
   "image": "/img/desktop-icons-sprite.png",
   "columns": 12,
   "rows": 12,
-  "icon_size": 64,
-  "width": 768,
-  "height": 768,
+  "icon_size": 128,
+  "width": 1536,
+  "height": 1536,
   "background": "transparent",
   "icons": [
     {
@@ -17,8 +17,8 @@
       "col": 0,
       "x": 0,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "laptop",
@@ -26,10 +26,10 @@
       "category": "desktop",
       "row": 0,
       "col": 1,
-      "x": 64,
+      "x": 128,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "folder",
@@ -37,10 +37,10 @@
       "category": "desktop",
       "row": 0,
       "col": 2,
-      "x": 128,
+      "x": 256,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "documents",
@@ -48,10 +48,10 @@
       "category": "desktop",
       "row": 0,
       "col": 3,
-      "x": 192,
+      "x": 384,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "downloads",
@@ -59,10 +59,10 @@
       "category": "desktop",
       "row": 0,
       "col": 4,
-      "x": 256,
+      "x": 512,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "apps",
@@ -70,10 +70,10 @@
       "category": "desktop",
       "row": 0,
       "col": 5,
-      "x": 320,
+      "x": 640,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "widgets",
@@ -81,10 +81,10 @@
       "category": "desktop",
       "row": 0,
       "col": 6,
-      "x": 384,
+      "x": 768,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "settings",
@@ -92,10 +92,10 @@
       "category": "desktop",
       "row": 0,
       "col": 7,
-      "x": 448,
+      "x": 896,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "calendar",
@@ -103,10 +103,10 @@
       "category": "desktop",
       "row": 0,
       "col": 8,
-      "x": 512,
+      "x": 1024,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "agent_chat",
@@ -114,10 +114,10 @@
       "category": "desktop",
       "row": 0,
       "col": 9,
-      "x": 576,
+      "x": 1152,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "browser",
@@ -125,10 +125,10 @@
       "category": "desktop",
       "row": 0,
       "col": 10,
-      "x": 640,
+      "x": 1280,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "terminal",
@@ -136,10 +136,10 @@
       "category": "desktop",
       "row": 0,
       "col": 11,
-      "x": 704,
+      "x": 1408,
       "y": 0,
-      "width": 64,
-      "height": 64
+      "width": 128,
+      "height": 128
     },
     {
       "name": "file",
@@ -148,9 +148,9 @@
       "row": 1,
       "col": 0,
       "x": 0,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "text",
@@ -158,10 +158,10 @@
       "category": "filetype",
       "row": 1,
       "col": 1,
-      "x": 64,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "markdown",
@@ -169,10 +169,10 @@
       "category": "filetype",
       "row": 1,
       "col": 2,
-      "x": 128,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "code",
@@ -180,10 +180,10 @@
       "category": "filetype",
       "row": 1,
       "col": 3,
-      "x": 192,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "javascript",
@@ -191,10 +191,10 @@
       "category": "filetype",
       "row": 1,
       "col": 4,
-      "x": 256,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "html",
@@ -202,10 +202,10 @@
       "category": "filetype",
       "row": 1,
       "col": 5,
-      "x": 320,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "css",
@@ -213,10 +213,10 @@
       "category": "filetype",
       "row": 1,
       "col": 6,
-      "x": 384,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "json",
@@ -224,10 +224,10 @@
       "category": "filetype",
       "row": 1,
       "col": 7,
-      "x": 448,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "yaml",
@@ -235,10 +235,10 @@
       "category": "filetype",
       "row": 1,
       "col": 8,
-      "x": 512,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "xml",
@@ -246,10 +246,10 @@
       "category": "filetype",
       "row": 1,
       "col": 9,
-      "x": 576,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "python",
@@ -257,10 +257,10 @@
       "category": "filetype",
       "row": 1,
       "col": 10,
-      "x": 640,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "go",
@@ -268,10 +268,10 @@
       "category": "filetype",
       "row": 1,
       "col": 11,
-      "x": 704,
-      "y": 64,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 128,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "pdf",
@@ -280,9 +280,9 @@
       "row": 2,
       "col": 0,
       "x": 0,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "image",
@@ -290,10 +290,10 @@
       "category": "filetype",
       "row": 2,
       "col": 1,
-      "x": 64,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "audio",
@@ -301,10 +301,10 @@
       "category": "filetype",
       "row": 2,
       "col": 2,
-      "x": 128,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "video",
@@ -312,10 +312,10 @@
       "category": "filetype",
       "row": 2,
       "col": 3,
-      "x": 192,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "archive",
@@ -323,10 +323,10 @@
       "category": "filetype",
       "row": 2,
       "col": 4,
-      "x": 256,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "database",
@@ -334,10 +334,10 @@
       "category": "filetype",
       "row": 2,
       "col": 5,
-      "x": 320,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "spreadsheet",
@@ -345,10 +345,10 @@
       "category": "filetype",
       "row": 2,
       "col": 6,
-      "x": 384,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "presentation",
@@ -356,10 +356,10 @@
       "category": "filetype",
       "row": 2,
       "col": 7,
-      "x": 448,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "font",
@@ -367,10 +367,10 @@
       "category": "filetype",
       "row": 2,
       "col": 8,
-      "x": 512,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "shortcut",
@@ -378,10 +378,10 @@
       "category": "filetype",
       "row": 2,
       "col": 9,
-      "x": 576,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "executable",
@@ -389,10 +389,10 @@
       "category": "filetype",
       "row": 2,
       "col": 10,
-      "x": 640,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "binary",
@@ -400,10 +400,10 @@
       "category": "filetype",
       "row": 2,
       "col": 11,
-      "x": 704,
-      "y": 128,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 256,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "arrow_up",
@@ -412,9 +412,9 @@
       "row": 3,
       "col": 0,
       "x": 0,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "arrow_down",
@@ -422,10 +422,10 @@
       "category": "navigation",
       "row": 3,
       "col": 1,
-      "x": 64,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "arrow_left",
@@ -433,10 +433,10 @@
       "category": "navigation",
       "row": 3,
       "col": 2,
-      "x": 128,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "arrow_right",
@@ -444,10 +444,10 @@
       "category": "navigation",
       "row": 3,
       "col": 3,
-      "x": 192,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "chevron_up",
@@ -455,10 +455,10 @@
       "category": "navigation",
       "row": 3,
       "col": 4,
-      "x": 256,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "chevron_down",
@@ -466,10 +466,10 @@
       "category": "navigation",
       "row": 3,
       "col": 5,
-      "x": 320,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "chevron_left",
@@ -477,10 +477,10 @@
       "category": "navigation",
       "row": 3,
       "col": 6,
-      "x": 384,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "chevron_right",
@@ -488,10 +488,10 @@
       "category": "navigation",
       "row": 3,
       "col": 7,
-      "x": 448,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "undo",
@@ -499,10 +499,10 @@
       "category": "navigation",
       "row": 3,
       "col": 8,
-      "x": 512,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "redo",
@@ -510,10 +510,10 @@
       "category": "navigation",
       "row": 3,
       "col": 9,
-      "x": 576,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "refresh",
@@ -521,10 +521,10 @@
       "category": "navigation",
       "row": 3,
       "col": 10,
-      "x": 640,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "home",
@@ -532,10 +532,10 @@
       "category": "navigation",
       "row": 3,
       "col": 11,
-      "x": 704,
-      "y": 192,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 384,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "add",
@@ -544,9 +544,9 @@
       "row": 4,
       "col": 0,
       "x": 0,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "remove",
@@ -554,10 +554,10 @@
       "category": "action",
       "row": 4,
       "col": 1,
-      "x": 64,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "close",
@@ -565,10 +565,10 @@
       "category": "action",
       "row": 4,
       "col": 2,
-      "x": 128,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "check",
@@ -576,10 +576,10 @@
       "category": "action",
       "row": 4,
       "col": 3,
-      "x": 192,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "edit",
@@ -587,10 +587,10 @@
       "category": "action",
       "row": 4,
       "col": 4,
-      "x": 256,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "copy",
@@ -598,10 +598,10 @@
       "category": "action",
       "row": 4,
       "col": 5,
-      "x": 320,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "paste",
@@ -609,10 +609,10 @@
       "category": "action",
       "row": 4,
       "col": 6,
-      "x": 384,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "cut",
@@ -620,10 +620,10 @@
       "category": "action",
       "row": 4,
       "col": 7,
-      "x": 448,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "save",
@@ -631,10 +631,10 @@
       "category": "action",
       "row": 4,
       "col": 8,
-      "x": 512,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "trash",
@@ -642,10 +642,10 @@
       "category": "action",
       "row": 4,
       "col": 9,
-      "x": 576,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "upload",
@@ -653,10 +653,10 @@
       "category": "action",
       "row": 4,
       "col": 10,
-      "x": 640,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "download",
@@ -664,10 +664,10 @@
       "category": "action",
       "row": 4,
       "col": 11,
-      "x": 704,
-      "y": 256,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 512,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "search",
@@ -676,9 +676,9 @@
       "row": 5,
       "col": 0,
       "x": 0,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "filter",
@@ -686,10 +686,10 @@
       "category": "view",
       "row": 5,
       "col": 1,
-      "x": 64,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "sort_asc",
@@ -697,10 +697,10 @@
       "category": "view",
       "row": 5,
       "col": 2,
-      "x": 128,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "sort_desc",
@@ -708,10 +708,10 @@
       "category": "view",
       "row": 5,
       "col": 3,
-      "x": 192,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "grid",
@@ -719,10 +719,10 @@
       "category": "view",
       "row": 5,
       "col": 4,
-      "x": 256,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "list",
@@ -730,10 +730,10 @@
       "category": "view",
       "row": 5,
       "col": 5,
-      "x": 320,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "table",
@@ -741,10 +741,10 @@
       "category": "view",
       "row": 5,
       "col": 6,
-      "x": 384,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "columns",
@@ -752,10 +752,10 @@
       "category": "view",
       "row": 5,
       "col": 7,
-      "x": 448,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "zoom_in",
@@ -763,10 +763,10 @@
       "category": "view",
       "row": 5,
       "col": 8,
-      "x": 512,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "zoom_out",
@@ -774,10 +774,10 @@
       "category": "view",
       "row": 5,
       "col": 9,
-      "x": 576,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "eye",
@@ -785,10 +785,10 @@
       "category": "view",
       "row": 5,
       "col": 10,
-      "x": 640,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "eye_off",
@@ -796,10 +796,10 @@
       "category": "view",
       "row": 5,
       "col": 11,
-      "x": 704,
-      "y": 320,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 640,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "info",
@@ -808,9 +808,9 @@
       "row": 6,
       "col": 0,
       "x": 0,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "warning",
@@ -818,10 +818,10 @@
       "category": "status",
       "row": 6,
       "col": 1,
-      "x": 64,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "error",
@@ -829,10 +829,10 @@
       "category": "status",
       "row": 6,
       "col": 2,
-      "x": 128,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "success",
@@ -840,10 +840,10 @@
       "category": "status",
       "row": 6,
       "col": 3,
-      "x": 192,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "help",
@@ -851,10 +851,10 @@
       "category": "status",
       "row": 6,
       "col": 4,
-      "x": 256,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "lock",
@@ -862,10 +862,10 @@
       "category": "status",
       "row": 6,
       "col": 5,
-      "x": 320,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "unlock",
@@ -873,10 +873,10 @@
       "category": "status",
       "row": 6,
       "col": 6,
-      "x": 384,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "shield",
@@ -884,10 +884,10 @@
       "category": "status",
       "row": 6,
       "col": 7,
-      "x": 448,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "key",
@@ -895,10 +895,10 @@
       "category": "status",
       "row": 6,
       "col": 8,
-      "x": 512,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "user",
@@ -906,10 +906,10 @@
       "category": "status",
       "row": 6,
       "col": 9,
-      "x": 576,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "users",
@@ -917,10 +917,10 @@
       "category": "status",
       "row": 6,
       "col": 10,
-      "x": 640,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "notification",
@@ -928,10 +928,10 @@
       "category": "status",
       "row": 6,
       "col": 11,
-      "x": 704,
-      "y": 384,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 768,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "link",
@@ -940,9 +940,9 @@
       "row": 7,
       "col": 0,
       "x": 0,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "unlink",
@@ -950,10 +950,10 @@
       "category": "network",
       "row": 7,
       "col": 1,
-      "x": 64,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "wifi",
@@ -961,10 +961,10 @@
       "category": "network",
       "row": 7,
       "col": 2,
-      "x": 128,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "cloud",
@@ -972,10 +972,10 @@
       "category": "network",
       "row": 7,
       "col": 3,
-      "x": 192,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "sync",
@@ -983,10 +983,10 @@
       "category": "network",
       "row": 7,
       "col": 4,
-      "x": 256,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "share",
@@ -994,10 +994,10 @@
       "category": "network",
       "row": 7,
       "col": 5,
-      "x": 320,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "send",
@@ -1005,10 +1005,10 @@
       "category": "network",
       "row": 7,
       "col": 6,
-      "x": 384,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "inbox",
@@ -1016,10 +1016,10 @@
       "category": "network",
       "row": 7,
       "col": 7,
-      "x": 448,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "mail",
@@ -1027,10 +1027,10 @@
       "category": "network",
       "row": 7,
       "col": 8,
-      "x": 512,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "globe",
@@ -1038,10 +1038,10 @@
       "category": "network",
       "row": 7,
       "col": 9,
-      "x": 576,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "server",
@@ -1049,10 +1049,10 @@
       "category": "network",
       "row": 7,
       "col": 10,
-      "x": 640,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "cloud_database",
@@ -1060,10 +1060,10 @@
       "category": "network",
       "row": 7,
       "col": 11,
-      "x": 704,
-      "y": 448,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 896,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "play",
@@ -1072,9 +1072,9 @@
       "row": 8,
       "col": 0,
       "x": 0,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "pause",
@@ -1082,10 +1082,10 @@
       "category": "media",
       "row": 8,
       "col": 1,
-      "x": 64,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "stop",
@@ -1093,10 +1093,10 @@
       "category": "media",
       "row": 8,
       "col": 2,
-      "x": 128,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "record",
@@ -1104,10 +1104,10 @@
       "category": "media",
       "row": 8,
       "col": 3,
-      "x": 192,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "skip_back",
@@ -1115,10 +1115,10 @@
       "category": "media",
       "row": 8,
       "col": 4,
-      "x": 256,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "skip_forward",
@@ -1126,10 +1126,10 @@
       "category": "media",
       "row": 8,
       "col": 5,
-      "x": 320,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "volume",
@@ -1137,10 +1137,10 @@
       "category": "media",
       "row": 8,
       "col": 6,
-      "x": 384,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "mute",
@@ -1148,10 +1148,10 @@
       "category": "media",
       "row": 8,
       "col": 7,
-      "x": 448,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "camera",
@@ -1159,10 +1159,10 @@
       "category": "media",
       "row": 8,
       "col": 8,
-      "x": 512,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "microphone",
@@ -1170,10 +1170,10 @@
       "category": "media",
       "row": 8,
       "col": 9,
-      "x": 576,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "fullscreen",
@@ -1181,10 +1181,10 @@
       "category": "media",
       "row": 8,
       "col": 10,
-      "x": 640,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "window",
@@ -1192,10 +1192,10 @@
       "category": "media",
       "row": 8,
       "col": 11,
-      "x": 704,
-      "y": 512,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 1024,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "cpu",
@@ -1204,9 +1204,9 @@
       "row": 9,
       "col": 0,
       "x": 0,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "memory",
@@ -1214,10 +1214,10 @@
       "category": "system",
       "row": 9,
       "col": 1,
-      "x": 64,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "disk",
@@ -1225,10 +1225,10 @@
       "category": "system",
       "row": 9,
       "col": 2,
-      "x": 128,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "docker",
@@ -1236,10 +1236,10 @@
       "category": "system",
       "row": 9,
       "col": 3,
-      "x": 192,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "package",
@@ -1247,10 +1247,10 @@
       "category": "system",
       "row": 9,
       "col": 4,
-      "x": 256,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "git_branch",
@@ -1258,10 +1258,10 @@
       "category": "system",
       "row": 9,
       "col": 5,
-      "x": 320,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "bug",
@@ -1269,10 +1269,10 @@
       "category": "system",
       "row": 9,
       "col": 6,
-      "x": 384,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "wrench",
@@ -1280,10 +1280,10 @@
       "category": "system",
       "row": 9,
       "col": 7,
-      "x": 448,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "lightning",
@@ -1291,10 +1291,10 @@
       "category": "system",
       "row": 9,
       "col": 8,
-      "x": 512,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "robot",
@@ -1302,10 +1302,10 @@
       "category": "system",
       "row": 9,
       "col": 9,
-      "x": 576,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "api",
@@ -1313,10 +1313,10 @@
       "category": "system",
       "row": 9,
       "col": 10,
-      "x": 640,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "logs",
@@ -1324,10 +1324,10 @@
       "category": "system",
       "row": 9,
       "col": 11,
-      "x": 704,
-      "y": 576,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 1152,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "clock",
@@ -1336,9 +1336,9 @@
       "row": 10,
       "col": 0,
       "x": 0,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "map",
@@ -1346,10 +1346,10 @@
       "category": "widget",
       "row": 10,
       "col": 1,
-      "x": 64,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "chart",
@@ -1357,10 +1357,10 @@
       "category": "widget",
       "row": 10,
       "col": 2,
-      "x": 128,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "calculator",
@@ -1368,10 +1368,10 @@
       "category": "widget",
       "row": 10,
       "col": 3,
-      "x": 192,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "notes",
@@ -1379,10 +1379,10 @@
       "category": "widget",
       "row": 10,
       "col": 4,
-      "x": 256,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "tasks",
@@ -1390,10 +1390,10 @@
       "category": "widget",
       "row": 10,
       "col": 5,
-      "x": 320,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "pin",
@@ -1401,10 +1401,10 @@
       "category": "widget",
       "row": 10,
       "col": 6,
-      "x": 384,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "bookmark",
@@ -1412,10 +1412,10 @@
       "category": "widget",
       "row": 10,
       "col": 7,
-      "x": 448,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "star",
@@ -1423,10 +1423,10 @@
       "category": "widget",
       "row": 10,
       "col": 8,
-      "x": 512,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "favorite",
@@ -1434,10 +1434,10 @@
       "category": "widget",
       "row": 10,
       "col": 9,
-      "x": 576,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "palette",
@@ -1445,10 +1445,10 @@
       "category": "widget",
       "row": 10,
       "col": 10,
-      "x": 640,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "theme",
@@ -1456,10 +1456,10 @@
       "category": "widget",
       "row": 10,
       "col": 11,
-      "x": 704,
-      "y": 640,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 1280,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "menu",
@@ -1468,9 +1468,9 @@
       "row": 11,
       "col": 0,
       "x": 0,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "more",
@@ -1478,10 +1478,10 @@
       "category": "ui",
       "row": 11,
       "col": 1,
-      "x": 64,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 128,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "kebab",
@@ -1489,10 +1489,10 @@
       "category": "ui",
       "row": 11,
       "col": 2,
-      "x": 128,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 256,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "command",
@@ -1500,10 +1500,10 @@
       "category": "ui",
       "row": 11,
       "col": 3,
-      "x": 192,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 384,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "drag",
@@ -1511,10 +1511,10 @@
       "category": "ui",
       "row": 11,
       "col": 4,
-      "x": 256,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 512,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "resize",
@@ -1522,10 +1522,10 @@
       "category": "ui",
       "row": 11,
       "col": 5,
-      "x": 320,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 640,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "maximize",
@@ -1533,10 +1533,10 @@
       "category": "ui",
       "row": 11,
       "col": 6,
-      "x": 384,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 768,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "minimize",
@@ -1544,10 +1544,10 @@
       "category": "ui",
       "row": 11,
       "col": 7,
-      "x": 448,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 896,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "restore",
@@ -1555,10 +1555,10 @@
       "category": "ui",
       "row": 11,
       "col": 8,
-      "x": 512,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 1024,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "external",
@@ -1566,10 +1566,10 @@
       "category": "ui",
       "row": 11,
       "col": 9,
-      "x": 576,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 1152,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "print",
@@ -1577,10 +1577,10 @@
       "category": "ui",
       "row": 11,
       "col": 10,
-      "x": 640,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 1280,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     },
     {
       "name": "clipboard_check",
@@ -1588,10 +1588,12 @@
       "category": "ui",
       "row": 11,
       "col": 11,
-      "x": 704,
-      "y": 704,
-      "width": 64,
-      "height": 64
+      "x": 1408,
+      "y": 1408,
+      "width": 128,
+      "height": 128
     }
-  ]
+  ],
+  "style_reference": "inspired_by_ui_img_icons_sprite_transparent_cleaner_1280_without_crops",
+  "style": "fresh_glossy_3d_vector"
 }
