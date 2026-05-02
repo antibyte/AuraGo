@@ -932,9 +932,20 @@ mcp:
     enabled: false
     secrets: []
     servers: []
-    # example:
+    # local stdio example (default transport, backward-compatible):
+    # - name: local-fetch
+    #   enabled: true
+    #   transport: stdio
+    #   runtime: local
+    #   command: uvx
+    #   args:
+    #     - mcp-server-fetch
+    #   allowed_tools: []        # optional external tool allowlist; empty = all discovered non-destructive tools
+    #   allow_destructive: false # allow external MCP tools with destructive names such as delete/remove/destroy
+    # docker stdio example:
     # - name: minimax
     #   enabled: true
+    #   transport: stdio
     #   runtime: docker
     #   command: uvx
     #   args:
@@ -949,6 +960,16 @@ mcp:
     #   container_workdir: /workspace
     #   allowed_tools: []        # optional external tool allowlist; empty = all discovered non-destructive tools
     #   allow_destructive: false # allow external MCP tools with destructive names such as delete/remove/destroy
+    # network MCP example:
+    # - name: remote-tools
+    #   enabled: true
+    #   transport: streamable_http # stdio | streamable_http | sse | websocket
+    #   url: https://example.com/mcp
+    #   headers:
+    #     Authorization: "Bearer {{remote-mcp-token}}"
+    #     X-Custom-Header: "{{custom-secret}}"
+    #   allowed_tools: []
+    #   allow_destructive: false
     preferred_capabilities:
         web_search:
             server: ""

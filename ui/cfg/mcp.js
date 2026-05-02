@@ -142,10 +142,15 @@ function mcpServerRenderCards() {
             : `<span class="mcp-badge mcp-badge-inactive">⏸ ${t('config.mcp.inactive_badge')}</span>`;
         const argsStr = (s.args || []).join(' ');
         const envCount = s.env ? Object.keys(s.env).length : 0;
+        const headersCount = s.headers ? Object.keys(s.headers).length : 0;
         const allowedToolsCount = Array.isArray(s.allowed_tools) ? s.allowed_tools.length : 0;
         const allowedToolsLabel = allowedToolsCount > 0 ? String(allowedToolsCount) : t('config.mcp.card_allowed_tools_all');
+        const transport = s.transport || 'stdio';
+        const transportLabel = mcpTransportLabel(transport);
         const runtimeLabel = s.runtime === 'docker' ? t('config.mcp.runtime_docker') : t('config.mcp.runtime_local');
         const workdirLabel = s.host_workdir || '—';
+        const endpointLabel = transport === 'stdio' ? (s.command || '—') : (s.url || '—');
+        const endpointKey = transport === 'stdio' ? 'config.mcp.card_command' : 'config.mcp.card_url';
 
         html += `
         <div class="mcp-card" data-idx="${idx}">
@@ -159,10 +164,11 @@ function mcpServerRenderCards() {
                 </div>
             </div>
             <div class="mcp-card-grid">
-                <div><span class="mcp-grid-label">${t('config.mcp.card_command')}</span> <code>${escapeAttr(s.command || '—')}</code></div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_transport')}</span> ${escapeAttr(transportLabel)}</div>
+                <div><span class="mcp-grid-label">${t(endpointKey)}</span> <code>${escapeAttr(endpointLabel)}</code></div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_args')}</span> ${argsStr ? '<code>' + escapeAttr(argsStr) + '</code>' : '—'}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_runtime')}</span> ${escapeAttr(runtimeLabel)}</div>
-                <div><span class="mcp-grid-label">${t('config.mcp.card_env_vars')}</span> ${envCount}</div>
+                <div><span class="mcp-grid-label">${t(transport === 'stdio' ? 'config.mcp.card_env_vars' : 'config.mcp.card_headers')}</span> ${transport === 'stdio' ? envCount : headersCount}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_allowed_tools')}</span> ${escapeAttr(allowedToolsLabel)}</div>
                 <div><span class="mcp-grid-label">${t('config.mcp.card_workdir')}</span> <code>${escapeAttr(workdirLabel)}</code></div>
             </div>
@@ -320,6 +326,9 @@ async function mcpPreferenceToolChanged(capabilityKey, toolName) {
 function mcpServerAdd() {
     mcpServerShowModal({
         name: '',
+        transport: 'stdio',
+        url: '',
+        headers: {},
         command: '',
         args: [],
         env: {},
@@ -351,7 +360,9 @@ function mcpServerShowModal(data, idx) {
     const isEdit = idx >= 0;
     const argsStr = (data.args || []).join('\n');
     const envStr = data.env ? Object.entries(data.env).map(([k, v]) => k + '=' + v).join('\n') : '';
+    const headersStr = data.headers ? Object.entries(data.headers).map(([k, v]) => k + '=' + v).join('\n') : '';
     const allowedToolsStr = Array.isArray(data.allowed_tools) ? data.allowed_tools.join('\n') : '';
+    const transport = data.transport || 'stdio';
     const runtime = data.runtime || 'local';
 
     const overlay = document.createElement('div');
@@ -364,21 +375,39 @@ function mcpServerShowModal(data, idx) {
             <input id="mcp-m-name" class="field-input cfg-input-full" value="${escapeAttr(data.name || '')}" placeholder="my-server">
         </label>
         <label class="mcp-modal-label">
+            <span class="mcp-modal-label-text">${t('config.mcp.field_transport')}</span>
+            <select id="mcp-m-transport" class="field-input cfg-input-full">
+                <option value="stdio" ${transport === 'stdio' ? 'selected' : ''}>${t('config.mcp.transport_stdio')}</option>
+                <option value="streamable_http" ${transport === 'streamable_http' ? 'selected' : ''}>${t('config.mcp.transport_streamable_http')}</option>
+                <option value="sse" ${transport === 'sse' ? 'selected' : ''}>${t('config.mcp.transport_sse')}</option>
+                <option value="websocket" ${transport === 'websocket' ? 'selected' : ''}>${t('config.mcp.transport_websocket')}</option>
+            </select>
+        </label>
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_command')}</span>
             <input id="mcp-m-command" class="field-input cfg-input-full" value="${escapeAttr(data.command || '')}" placeholder="npx">
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-network-fields">
+            <span class="mcp-modal-label-text">${t('config.mcp.field_url')}</span>
+            <input id="mcp-m-url" class="field-input cfg-input-full" value="${escapeAttr(data.url || '')}" placeholder="https://example.com/mcp">
+        </label>
+        <label class="mcp-modal-label mcp-network-fields">
+            <span class="mcp-modal-label-text">${t('config.mcp.field_headers')} <small class="mcp-modal-hint">(KEY=VALUE, {{alias}})</small></span>
+            <textarea id="mcp-m-headers" class="field-input mcp-modal-textarea" rows="4" placeholder="Authorization=Bearer {{remote-token}}">${escapeAttr(headersStr)}</textarea>
+            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.headers_hint')}</div>
+        </label>
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_runtime')}</span>
             <select id="mcp-m-runtime" class="field-input cfg-input-full">
                 <option value="local" ${runtime === 'local' ? 'selected' : ''}>${t('config.mcp.runtime_local')}</option>
                 <option value="docker" ${runtime === 'docker' ? 'selected' : ''}>${t('config.mcp.runtime_docker')}</option>
             </select>
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_args_label')} <small class="mcp-modal-hint">(${t('config.mcp.args_hint')})</small></span>
             <textarea id="mcp-m-args" class="field-input mcp-modal-textarea" rows="3" placeholder="-y\n@my/mcp-server">${escapeAttr(argsStr)}</textarea>
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_environment')} <small class="mcp-modal-hint">(KEY=VALUE, ${t('config.mcp.env_hint')}; {{alias}}, {{workdir}})</small></span>
             <textarea id="mcp-m-env" class="field-input mcp-modal-textarea" rows="4" placeholder="API_KEY={{api-token}}\nBASE_PATH={{workdir}}">${escapeAttr(envStr)}</textarea>
             <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_environment_secret_hint')}</div>
@@ -388,19 +417,19 @@ function mcpServerShowModal(data, idx) {
             <textarea id="mcp-m-allowed-tools" class="field-input mcp-modal-textarea" rows="3" placeholder="understand_image\ntext_to_audio">${escapeAttr(allowedToolsStr)}</textarea>
             <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_allowed_tools_hint')}</div>
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_image')}</span>
             <input id="mcp-m-docker-image" class="field-input cfg-input-full" value="${escapeAttr(data.docker_image || '')}" placeholder="ghcr.io/astral-sh/uv:latest">
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_command')}</span>
             <input id="mcp-m-docker-command" class="field-input cfg-input-full" value="${escapeAttr(data.docker_command || '')}" placeholder="uvx">
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_host_workdir')}</span>
             <input id="mcp-m-host-workdir" class="field-input cfg-input-full" value="${escapeAttr(data.host_workdir || '')}" placeholder="agent_workspace/mcp/${escapeAttr(data.name || 'server')}">
         </label>
-        <label class="mcp-modal-label">
+        <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_container_workdir')}</span>
             <input id="mcp-m-container-workdir" class="field-input cfg-input-full" value="${escapeAttr(data.container_workdir || '/workspace')}" placeholder="/workspace">
         </label>
@@ -408,7 +437,7 @@ function mcpServerShowModal(data, idx) {
             <input id="mcp-m-enabled" type="checkbox" ${data.enabled ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.enabled_checkbox')}</span>
         </label>
-        <label class="mcp-modal-check-row">
+        <label class="mcp-modal-check-row mcp-stdio-fields">
             <input id="mcp-m-local-fallback" type="checkbox" ${data.allow_local_fallback ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_local_fallback')}</span>
         </label>
@@ -418,34 +447,18 @@ function mcpServerShowModal(data, idx) {
         </label>
         <div class="mcp-modal-footer">
             <button class="btn-save mcp-btn-cancel" onclick="this.closest('.mcp-modal-overlay').remove()">${t('config.mcp.cancel')}</button>
+            <button class="btn-save mcp-btn-cancel" id="mcp-m-test">${t('config.mcp.test_connection')}</button>
             <button class="btn-save mcp-btn-save" id="mcp-m-save">${t('config.mcp.save')}</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('mcp-m-transport').addEventListener('change', mcpUpdateTransportFields);
+    mcpUpdateTransportFields();
 
     document.getElementById('mcp-m-save').addEventListener('click', async () => {
-        const entry = {
-            name: document.getElementById('mcp-m-name').value.trim(),
-            command: document.getElementById('mcp-m-command').value.trim(),
-            runtime: document.getElementById('mcp-m-runtime').value,
-            args: document.getElementById('mcp-m-args').value.split('\n').map(l => l.trim()).filter(Boolean),
-            env: {},
-            enabled: document.getElementById('mcp-m-enabled').checked,
-            docker_image: document.getElementById('mcp-m-docker-image').value.trim(),
-            docker_command: document.getElementById('mcp-m-docker-command').value.trim(),
-            allow_local_fallback: document.getElementById('mcp-m-local-fallback').checked,
-            allowed_tools: document.getElementById('mcp-m-allowed-tools').value.split('\n').map(l => l.trim()).filter(Boolean),
-            allow_destructive: document.getElementById('mcp-m-allow-destructive').checked,
-            host_workdir: document.getElementById('mcp-m-host-workdir').value.trim(),
-            container_workdir: document.getElementById('mcp-m-container-workdir').value.trim()
-        };
-        document.getElementById('mcp-m-env').value.split('\n').forEach(line => {
-            const eq = line.indexOf('=');
-            if (eq > 0) entry.env[line.substring(0, eq).trim()] = line.substring(eq + 1).trim();
-        });
-        if (!entry.name || !entry.command) {
-            showToast(t('config.mcp.name_command_required'), 'warn');
+        const entry = mcpCollectServerModalEntry();
+        if (!mcpValidateServerEntry(entry)) {
             return;
         }
         if (isEdit) {
@@ -463,6 +476,91 @@ function mcpServerShowModal(data, idx) {
         mcpRuntimeToolsCache = {};
         await mcpRenderRoutingCards();
     });
+    document.getElementById('mcp-m-test').addEventListener('click', async () => {
+        const entry = mcpCollectServerModalEntry();
+        if (!mcpValidateServerEntry(entry)) {
+            return;
+        }
+        await mcpTestServerConnection(entry);
+    });
+}
+
+function mcpTransportLabel(transport) {
+    const key = {
+        stdio: 'config.mcp.transport_stdio',
+        streamable_http: 'config.mcp.transport_streamable_http',
+        sse: 'config.mcp.transport_sse',
+        websocket: 'config.mcp.transport_websocket'
+    }[transport || 'stdio'];
+    return t(key || 'config.mcp.transport_stdio');
+}
+
+function mcpUpdateTransportFields() {
+    const transportEl = document.getElementById('mcp-m-transport');
+    if (!transportEl) return;
+    const isStdio = transportEl.value === 'stdio';
+    document.querySelectorAll('.mcp-stdio-fields').forEach(el => {
+        el.style.display = isStdio ? '' : 'none';
+    });
+    document.querySelectorAll('.mcp-network-fields').forEach(el => {
+        el.style.display = isStdio ? 'none' : '';
+    });
+}
+
+function mcpParseKeyValueTextarea(id) {
+    const result = {};
+    const el = document.getElementById(id);
+    if (!el) return result;
+    el.value.split('\n').forEach(line => {
+        const eq = line.indexOf('=');
+        if (eq > 0) result[line.substring(0, eq).trim()] = line.substring(eq + 1).trim();
+    });
+    return result;
+}
+
+function mcpCollectServerModalEntry() {
+    const transport = document.getElementById('mcp-m-transport').value || 'stdio';
+    return {
+        name: document.getElementById('mcp-m-name').value.trim(),
+        transport,
+        url: document.getElementById('mcp-m-url').value.trim(),
+        headers: mcpParseKeyValueTextarea('mcp-m-headers'),
+        command: document.getElementById('mcp-m-command').value.trim(),
+        runtime: document.getElementById('mcp-m-runtime').value,
+        args: document.getElementById('mcp-m-args').value.split('\n').map(l => l.trim()).filter(Boolean),
+        env: mcpParseKeyValueTextarea('mcp-m-env'),
+        enabled: document.getElementById('mcp-m-enabled').checked,
+        docker_image: document.getElementById('mcp-m-docker-image').value.trim(),
+        docker_command: document.getElementById('mcp-m-docker-command').value.trim(),
+        allow_local_fallback: document.getElementById('mcp-m-local-fallback').checked,
+        allowed_tools: document.getElementById('mcp-m-allowed-tools').value.split('\n').map(l => l.trim()).filter(Boolean),
+        allow_destructive: document.getElementById('mcp-m-allow-destructive').checked,
+        host_workdir: document.getElementById('mcp-m-host-workdir').value.trim(),
+        container_workdir: document.getElementById('mcp-m-container-workdir').value.trim()
+    };
+}
+
+function mcpValidateServerEntry(entry) {
+    if (!entry.name || (entry.transport === 'stdio' && !entry.command) || (entry.transport !== 'stdio' && !entry.url)) {
+        showToast(t('config.mcp.name_command_or_url_required'), 'warn');
+        return false;
+    }
+    return true;
+}
+
+async function mcpTestServerConnection(entry) {
+    try {
+        const resp = await fetch('/api/mcp-runtime/test-connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entry)
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || data.message || resp.statusText);
+        showToast(t('config.mcp.test_connection_success', { count: data.tool_count || 0 }), 'success');
+    } catch (e) {
+        showToast(t('config.mcp.test_connection_failed') + e.message, 'error');
+    }
 }
 
 function mcpSecretAdd() {

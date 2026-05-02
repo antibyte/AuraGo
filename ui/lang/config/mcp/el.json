@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Αποθηκεύστε κωδικούς και token ως MCP secrets και αναφερθείτε σε αυτά εδώ με {{alias}} αντί για απλό κείμενο.",
   "config.mcp.field_allowed_tools": "Επιτρεπόμενα runtime εργαλεία",
   "config.mcp.field_allowed_tools_hint": "Προαιρετικός περιορισμός εργαλείων. Αφήστε το κενό για να επιτρέπονται όλα τα εντοπισμένα εργαλεία· εισαγάγετε ονόματα εργαλείων για εκτέλεση και δρομολόγηση μόνο αυτών.",
-  "config.mcp.field_allow_destructive": "Να επιτρέπονται καταστροφικά MCP εργαλεία"
+  "config.mcp.field_allow_destructive": "Να επιτρέπονται καταστροφικά MCP εργαλεία",
+  "config.mcp.card_transport": "Μεταφορά:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Κεφαλίδες:",
+  "config.mcp.field_transport": "Μεταφορά",
+  "config.mcp.transport_stdio": "Τοπική διεργασία (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL διακομιστή",
+  "config.mcp.field_headers": "Κεφαλίδες HTTP",
+  "config.mcp.headers_hint": "Μία κεφαλίδα ανά γραμμή. Τα alias Vault όπως {{remote-token}} επιλύονται κατά την εκτέλεση και αποκρύπτονται από τα logs.",
+  "config.mcp.test_connection": "Δοκιμή σύνδεσης",
+  "config.mcp.test_connection_success": "Η σύνδεση είναι OK. Βρέθηκαν {count} εργαλεία.",
+  "config.mcp.test_connection_failed": "Η δοκιμή σύνδεσης MCP απέτυχε: ",
+  "config.mcp.name_command_or_url_required": "Απαιτούνται όνομα και εντολή ή URL."
 }

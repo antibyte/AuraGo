@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Guarde senhas e tokens como segredos MCP e referencie-os aqui com {{alias}} em vez de texto puro.",
   "config.mcp.field_allowed_tools": "Ferramentas runtime permitidas",
   "config.mcp.field_allowed_tools_hint": "Limite opcional de ferramentas. Deixe vazio para permitir todas as ferramentas descobertas; informe nomes para restringir execução e roteamento apenas a elas.",
-  "config.mcp.field_allow_destructive": "Permitir ferramentas MCP destrutivas"
+  "config.mcp.field_allow_destructive": "Permitir ferramentas MCP destrutivas",
+  "config.mcp.card_transport": "Transporte:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Cabecalhos:",
+  "config.mcp.field_transport": "Transporte",
+  "config.mcp.transport_stdio": "Processo local (stdio)",
+  "config.mcp.transport_streamable_http": "HTTP streamable",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL do servidor",
+  "config.mcp.field_headers": "Cabecalhos HTTP",
+  "config.mcp.headers_hint": "Um cabecalho por linha. Aliases do Vault como {{remote-token}} sao resolvidos em tempo de execucao e removidos dos logs.",
+  "config.mcp.test_connection": "Testar conexao",
+  "config.mcp.test_connection_success": "Conexao OK. {count} ferramentas encontradas.",
+  "config.mcp.test_connection_failed": "Falha no teste de conexao MCP: ",
+  "config.mcp.name_command_or_url_required": "Nome e comando ou URL sao obrigatorios."
 }

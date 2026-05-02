@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Passwords और tokens को MCP secrets के रूप में सहेजें और plaintext के बजाय यहाँ {{alias}} से reference करें।",
   "config.mcp.field_allowed_tools": "अनुमत runtime tools",
   "config.mcp.field_allowed_tools_hint": "वैकल्पिक tool सीमा। सभी discovered tools की अनुमति देने के लिए खाली छोड़ें; execution और routing को केवल उन्हीं tools तक सीमित करने के लिए tool names दर्ज करें।",
-  "config.mcp.field_allow_destructive": "Destructive MCP tools की अनुमति दें"
+  "config.mcp.field_allow_destructive": "Destructive MCP tools की अनुमति दें",
+  "config.mcp.card_transport": "ट्रांसपोर्ट:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "हेडर:",
+  "config.mcp.field_transport": "ट्रांसपोर्ट",
+  "config.mcp.transport_stdio": "स्थानीय प्रोसेस (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "सर्वर URL",
+  "config.mcp.field_headers": "HTTP हेडर",
+  "config.mcp.headers_hint": "प्रति पंक्ति एक हेडर। {{remote-token}} जैसे Vault alias रनटाइम पर हल होते हैं और लॉग से छिपाए जाते हैं।",
+  "config.mcp.test_connection": "कनेक्शन टेस्ट करें",
+  "config.mcp.test_connection_success": "कनेक्शन OK. {count} टूल मिले।",
+  "config.mcp.test_connection_failed": "MCP कनेक्शन टेस्ट विफल: ",
+  "config.mcp.name_command_or_url_required": "नाम और कमांड या URL आवश्यक हैं।"
 }

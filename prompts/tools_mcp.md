@@ -20,4 +20,4 @@ conditions: ["mcp_enabled"]
 - Always call `list_servers` first to discover which MCP servers are available
 - Then use `list_tools` with a server name to see what tools the server offers
 - Tool arguments (`mcp_args`) depend on the specific tool — check `input_schema` from `list_tools`
-- MCP servers are external processes — responses may be slow depending on the server
+- MCP servers may be local/Docker stdio processes or remote streamable HTTP, SSE, or WebSocket endpoints. Responses may be slow depending on the server and network.

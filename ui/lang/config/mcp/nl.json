@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Sla wachtwoorden en tokens op als MCP-secrets en verwijs hier met {{alias}} in plaats van platte tekst.",
   "config.mcp.field_allowed_tools": "Toegestane runtime-tools",
   "config.mcp.field_allowed_tools_hint": "Optionele toolbeperking. Laat leeg om alle ontdekte tools toe te staan; vul toolnamen in om uitvoering en routing tot alleen die tools te beperken.",
-  "config.mcp.field_allow_destructive": "Destructieve MCP-tools toestaan"
+  "config.mcp.field_allow_destructive": "Destructieve MCP-tools toestaan",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Headers:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Lokaal proces (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "Server-URL",
+  "config.mcp.field_headers": "HTTP-headers",
+  "config.mcp.headers_hint": "Een header per regel. Vault-aliassen zoals {{remote-token}} worden tijdens runtime opgelost en uit logs gefilterd.",
+  "config.mcp.test_connection": "Verbinding testen",
+  "config.mcp.test_connection_success": "Verbinding OK. {count} tools gevonden.",
+  "config.mcp.test_connection_failed": "MCP-verbindingstest mislukt: ",
+  "config.mcp.name_command_or_url_required": "Naam en opdracht of URL zijn verplicht."
 }

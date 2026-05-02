@@ -492,11 +492,22 @@ mcp:
   enabled: true
   servers:
     - name: "fetch-server"
+      transport: stdio
       command: "uvx"
       args: ["mcp-server-fetch"]
       allowed_tools: []  # optionale Allowlist; leer bedeutet alle entdeckten nicht-destruktiven Tools
       allow_destructive: false
+
+    - name: "remote-tools"
+      transport: streamable_http # stdio | streamable_http | sse | websocket
+      url: "https://example.com/mcp"
+      headers:
+        Authorization: "Bearer {{remote-mcp-token}}"
+      allowed_tools: []
+      allow_destructive: false
 ```
+
+Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte koennen MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prueft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
 
 Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglassen erlaubt alle entdeckten nicht-destruktiven Tools; trage Toolnamen nur ein, wenn Ausführung und Routing auf diese Teilmenge begrenzt werden sollen.
 

@@ -26,6 +26,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/mcp-preferences", handleMCPPreferences(s))
 	mux.HandleFunc("/api/mcp-runtime/servers", handleMCPRuntimeServers(s))
 	mux.HandleFunc("/api/mcp-runtime/tools", handleMCPRuntimeTools(s))
+	mux.HandleFunc("/api/mcp-runtime/test-connection", handleMCPRuntimeTestConnection(s))
 	mux.HandleFunc("/api/outgoing-webhooks", handleOutgoingWebhooks(s))
 	mux.HandleFunc("/api/sandbox/status", handleSandboxStatus(s))
 	mux.HandleFunc("/api/sandbox/shell-status", handleShellSandboxStatus(s))

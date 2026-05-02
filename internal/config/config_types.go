@@ -1683,6 +1683,9 @@ type A2ARemoteAgent struct {
 // MCPServer describes one external MCP server in the config.
 type MCPServer struct {
 	Name               string            `yaml:"name"                    json:"name"`
+	Transport          string            `yaml:"transport,omitempty"     json:"transport"`
+	URL                string            `yaml:"url,omitempty"           json:"url"`
+	Headers            map[string]string `yaml:"headers,omitempty"       json:"headers"`
 	Command            string            `yaml:"command"                 json:"command"`
 	Args               []string          `yaml:"args"                    json:"args"`
 	Env                map[string]string `yaml:"env"                     json:"env"`

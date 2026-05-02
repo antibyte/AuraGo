@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "将密码和令牌保存为 MCP 密钥，并在此使用 {{alias}} 引用，避免明文。",
   "config.mcp.field_allowed_tools": "允许的运行时工具",
   "config.mcp.field_allowed_tools_hint": "可选工具限制。留空表示允许所有已发现的工具；填写工具名称后，仅这些工具可执行并显示在路由菜单中。",
-  "config.mcp.field_allow_destructive": "允许破坏性 MCP 工具"
+  "config.mcp.field_allow_destructive": "允许破坏性 MCP 工具",
+  "config.mcp.card_transport": "传输:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "请求头:",
+  "config.mcp.field_transport": "传输",
+  "config.mcp.transport_stdio": "本地进程 (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "服务器 URL",
+  "config.mcp.field_headers": "HTTP 请求头",
+  "config.mcp.headers_hint": "每行一个请求头。像 {{remote-token}} 这样的 Vault 别名会在运行时解析，并从日志中脱敏。",
+  "config.mcp.test_connection": "测试连接",
+  "config.mcp.test_connection_success": "连接正常。发现 {count} 个工具。",
+  "config.mcp.test_connection_failed": "MCP 连接测试失败: ",
+  "config.mcp.name_command_or_url_required": "需要名称以及命令或 URL。"
 }

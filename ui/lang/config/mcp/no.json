@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Lagre passord og tokener som MCP-hemmeligheter og referer til dem her med {{alias}} i stedet for klartekst.",
   "config.mcp.field_allowed_tools": "Tillatte runtime-verktøy",
   "config.mcp.field_allowed_tools_hint": "Valgfri verktøybegrensning. La stå tomt for å tillate alle oppdagede verktøy; skriv inn verktøynavn for å begrense kjøring og ruting til bare disse.",
-  "config.mcp.field_allow_destructive": "Tillat destruktive MCP-verktøy"
+  "config.mcp.field_allow_destructive": "Tillat destruktive MCP-verktøy",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Headere:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Lokal prosess (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "Server-URL",
+  "config.mcp.field_headers": "HTTP-headere",
+  "config.mcp.headers_hint": "En header per linje. Vault-aliaser som {{remote-token}} loses ved kjoring og skjules i logger.",
+  "config.mcp.test_connection": "Test tilkobling",
+  "config.mcp.test_connection_success": "Tilkobling OK. {count} verktoy funnet.",
+  "config.mcp.test_connection_failed": "MCP-tilkoblingstest mislyktes: ",
+  "config.mcp.name_command_or_url_required": "Navn og kommando eller URL kreves."
 }

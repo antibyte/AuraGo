@@ -89,6 +89,9 @@ func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logge
 	for _, srv := range cfg.MCP.Servers {
 		runtimeConfigs = append(runtimeConfigs, tools.MCPServerConfig{
 			Name:               srv.Name,
+			Transport:          strings.ToLower(strings.TrimSpace(srv.Transport)),
+			URL:                strings.TrimSpace(srv.URL),
+			Headers:            mapsCloneStringString(srv.Headers),
 			Command:            srv.Command,
 			Args:               append([]string(nil), srv.Args...),
 			Env:                mapsCloneStringString(srv.Env),

@@ -42,8 +42,8 @@ Response contains the tool's output text.
 - MCP must be explicitly enabled in two places:
   1. **Danger Zone**: `agent.allow_mcp: true` (capability gate)
   2. **MCP Section**: `mcp.enabled: true` (feature toggle)
-- MCP servers run as child processes via stdio — they can execute arbitrary code
-- Only add trusted MCP servers
+- MCP clients can connect to local/Docker stdio servers or to network servers via streamable HTTP, SSE, or WebSocket.
+- Local and Docker stdio servers can execute arbitrary code; network servers can expose remote capabilities. Only add trusted MCP servers.
 
 ## Configuration
 ```yaml
@@ -54,9 +54,17 @@ mcp:
   enabled: true
   servers:
     - name: "my-server"
+      transport: stdio
       command: "npx"
       args: ["-y", "@my/mcp-server"]
       env:
-        API_KEY: "xxx"
+        API_KEY: "{{api-token}}"
       enabled: true
+    - name: "remote-tools"
+      transport: streamable_http
+      url: "https://example.com/mcp"
+      headers:
+        Authorization: "Bearer {{remote-mcp-token}}"
+      allowed_tools: []
+      allow_destructive: false
 ```

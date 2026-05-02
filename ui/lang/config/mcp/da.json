@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Gem adgangskoder og tokens som MCP-hemmeligheder, og henvis til dem her med {{alias}} i stedet for klartekst.",
   "config.mcp.field_allowed_tools": "Tilladte runtime-værktøjer",
   "config.mcp.field_allowed_tools_hint": "Valgfri værktøjsbegrænsning. Lad feltet være tomt for at tillade alle fundne værktøjer; angiv værktøjsnavne for kun at tillade dem til kørsel og routing.",
-  "config.mcp.field_allow_destructive": "Tillad destruktive MCP-værktøjer"
+  "config.mcp.field_allow_destructive": "Tillad destruktive MCP-værktøjer",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Headere:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Lokal proces (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "Server-URL",
+  "config.mcp.field_headers": "HTTP-headere",
+  "config.mcp.headers_hint": "En header pr. linje. Vault-aliaser som {{remote-token}} oploses ved korsel og fjernes fra logs.",
+  "config.mcp.test_connection": "Test forbindelse",
+  "config.mcp.test_connection_success": "Forbindelse OK. {count} vaerktojer fundet.",
+  "config.mcp.test_connection_failed": "MCP-forbindelsestest mislykkedes: ",
+  "config.mcp.name_command_or_url_required": "Navn og kommando eller URL er pakraevet."
 }

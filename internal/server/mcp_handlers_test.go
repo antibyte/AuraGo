@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -90,6 +91,132 @@ func TestHandlePutMCPServersPersistsEnabledAndAllFields(t *testing.T) {
 	}
 	if got.Env["API_KEY"] != "secret" || got.Env["MODE"] != "debug" {
 		t.Fatalf("env = %#v, want full roundtrip", got.Env)
+	}
+}
+
+func TestHandlePutMCPServersPersistsNetworkFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("mcp:\n  enabled: false\n  servers: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("e", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-servers", strings.NewReader(`{
+		"enabled": true,
+		"servers": [{
+			"name": "remote-tools",
+			"transport": "streamable_http",
+			"url": "https://example.com/mcp",
+			"headers": {
+				"Authorization": "Bearer {{remote-token}}",
+				"X-Custom-Header": "{{custom-secret}}"
+			},
+			"enabled": true
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPServers(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	got := cfg.MCP.Servers[0]
+	if got.Transport != "streamable_http" || got.URL != "https://example.com/mcp" {
+		t.Fatalf("network fields = transport %q url %q", got.Transport, got.URL)
+	}
+	if got.Headers["Authorization"] != "Bearer {{remote-token}}" || got.Headers["X-Custom-Header"] != "{{custom-secret}}" {
+		t.Fatalf("headers = %#v, want template headers", got.Headers)
+	}
+}
+
+func TestBuildRuntimeMCPConfigsResolvesNetworkSecrets(t *testing.T) {
+	tmpDir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("f", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+	if err := vault.WriteSecret(mcpSecretVaultKey("remote-token"), "dummy-token-value"); err != nil {
+		t.Fatalf("write secret: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = tmpDir
+	cfg.MCP.Secrets = []config.MCPSecret{{Alias: "remote-token"}}
+	cfg.MCP.Servers = []config.MCPServer{{
+		Name:      "remote-tools",
+		Enabled:   true,
+		Transport: "streamable_http",
+		URL:       "https://example.com/{{remote-token}}/mcp",
+		Headers:   map[string]string{"Authorization": "Bearer {{remote-token}}"},
+	}}
+
+	runtimeConfigs := buildRuntimeMCPConfigs(cfg, vault, logger)
+	if len(runtimeConfigs) != 1 {
+		t.Fatalf("runtime config count = %d, want 1", len(runtimeConfigs))
+	}
+	if runtimeConfigs[0].URL != "https://example.com/{{remote-token}}/mcp" {
+		t.Fatalf("URL should stay templated until tools runtime resolves it, got %q", runtimeConfigs[0].URL)
+	}
+	if runtimeConfigs[0].Headers["Authorization"] != "Bearer {{remote-token}}" {
+		t.Fatalf("header template was not preserved: %#v", runtimeConfigs[0].Headers)
+	}
+	if runtimeConfigs[0].Secrets["remote-token"] != "dummy-token-value" {
+		t.Fatalf("runtime secret not loaded: %#v", runtimeConfigs[0].Secrets)
+	}
+}
+
+func TestHandleMCPRuntimeTestConnection(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	oldTest := testExternalMCPServer
+	testExternalMCPServer = func(cfg tools.MCPServerConfig, _ *slog.Logger) (tools.MCPConnectionTestResult, error) {
+		if cfg.Transport != "websocket" || cfg.URL != "ws://example.test/mcp" {
+			t.Fatalf("unexpected runtime config: %+v", cfg)
+		}
+		return tools.MCPConnectionTestResult{Status: "ok", Server: cfg.Name, ToolCount: 3}, nil
+	}
+	defer func() { testExternalMCPServer = oldTest }()
+
+	s := &Server{
+		Cfg:    &config.Config{},
+		Logger: logger,
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/mcp-runtime/test-connection", strings.NewReader(`{
+		"name": "remote-tools",
+		"transport": "websocket",
+		"url": "ws://example.test/mcp",
+		"enabled": true
+	}`))
+	rec := httptest.NewRecorder()
+
+	handleMCPRuntimeTestConnection(s)(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var got tools.MCPConnectionTestResult
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.ToolCount != 3 || got.Status != "ok" {
+		t.Fatalf("response = %+v, want ok with 3 tools", got)
 	}
 }
 

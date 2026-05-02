@@ -17,6 +17,7 @@ import (
 var (
 	initExternalMCPManager     = tools.InitMCPManager
 	shutdownExternalMCPManager = tools.ShutdownMCPManager
+	testExternalMCPServer      = tools.TestMCPServerConnection
 )
 
 type mcpIncomingServerFieldPresence struct {
@@ -185,10 +186,17 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 				allowDestructive = existing.AllowDestructive
 			}
 			m := map[string]interface{}{
-				"name":    srv.Name,
-				"command": srv.Command,
-				"enabled": srv.Enabled,
-				"runtime": strings.TrimSpace(srv.Runtime),
+				"name":      srv.Name,
+				"transport": strings.TrimSpace(srv.Transport),
+				"command":   srv.Command,
+				"enabled":   srv.Enabled,
+				"runtime":   strings.TrimSpace(srv.Runtime),
+			}
+			if strings.TrimSpace(srv.URL) != "" {
+				m["url"] = strings.TrimSpace(srv.URL)
+			}
+			if len(srv.Headers) > 0 {
+				m["headers"] = srv.Headers
 			}
 			if len(srv.Args) > 0 {
 				m["args"] = srv.Args
@@ -495,5 +503,46 @@ func handleMCPRuntimeTools(s *Server) http.HandlerFunc {
 			"status": "ok",
 			"tools":  mcpTools,
 		})
+	}
+}
+
+func handleMCPRuntimeTestConnection(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var srv config.MCPServer
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&srv); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(srv.Name) == "" {
+			jsonError(w, "MCP server name is required", http.StatusBadRequest)
+			return
+		}
+
+		s.CfgMu.RLock()
+		cfgCopy := *s.Cfg
+		s.CfgMu.RUnlock()
+		cfgCopy.MCP.Servers = []config.MCPServer{srv}
+		runtimeConfigs := buildRuntimeMCPConfigs(&cfgCopy, s.Vault, s.Logger)
+		if len(runtimeConfigs) != 1 {
+			jsonError(w, "MCP server config is invalid", http.StatusBadRequest)
+			return
+		}
+
+		result, err := testExternalMCPServer(runtimeConfigs[0], s.Logger)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "error",
+				"error":  err.Error(),
+			})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
 	}
 }

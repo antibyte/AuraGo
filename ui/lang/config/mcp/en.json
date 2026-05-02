@@ -79,5 +79,20 @@
   "config.mcp.secret_alias_required": "Secret alias is required.",
   "config.mcp.secret_delete_confirm": "Really delete MCP secret \"{name}\"?",
   "config.mcp.secret_saved": "MCP secret saved.",
-  "config.mcp.secret_save_failed": "Saving MCP secret failed: "
+  "config.mcp.secret_save_failed": "Saving MCP secret failed: ",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Headers:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Local process (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "Server URL",
+  "config.mcp.field_headers": "HTTP headers",
+  "config.mcp.headers_hint": "Use one header per line. Vault aliases such as {{remote-token}} are resolved at runtime and scrubbed from logs.",
+  "config.mcp.test_connection": "Test connection",
+  "config.mcp.test_connection_success": "Connection OK. {count} tools discovered.",
+  "config.mcp.test_connection_failed": "MCP connection test failed: ",
+  "config.mcp.name_command_or_url_required": "Name plus command or URL are required."
 }

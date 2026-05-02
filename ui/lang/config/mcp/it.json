@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Salva password e token come secret MCP e referenziali qui con {{alias}} invece che in chiaro.",
   "config.mcp.field_allowed_tools": "Strumenti runtime consentiti",
   "config.mcp.field_allowed_tools_hint": "Limite strumenti opzionale. Lascia vuoto per consentire tutti gli strumenti rilevati; inserisci i nomi per limitare esecuzione e routing solo a quelli.",
-  "config.mcp.field_allow_destructive": "Consenti strumenti MCP distruttivi"
+  "config.mcp.field_allow_destructive": "Consenti strumenti MCP distruttivi",
+  "config.mcp.card_transport": "Trasporto:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Header:",
+  "config.mcp.field_transport": "Trasporto",
+  "config.mcp.transport_stdio": "Processo locale (stdio)",
+  "config.mcp.transport_streamable_http": "HTTP streamable",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL server",
+  "config.mcp.field_headers": "Header HTTP",
+  "config.mcp.headers_hint": "Un header per riga. Gli alias Vault come {{remote-token}} vengono risolti a runtime e rimossi dai log.",
+  "config.mcp.test_connection": "Test connessione",
+  "config.mcp.test_connection_success": "Connessione OK. {count} strumenti trovati.",
+  "config.mcp.test_connection_failed": "Test connessione MCP non riuscito: ",
+  "config.mcp.name_command_or_url_required": "Nome e comando o URL sono obbligatori."
 }

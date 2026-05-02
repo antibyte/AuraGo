@@ -119,6 +119,33 @@ func resolveMCPLaunchArgsAndEnv(server MCPServerConfig, useContainerPaths bool) 
 	return args, env, nil
 }
 
+func resolveMCPNetworkURLAndHeaders(server MCPServerConfig) (string, map[string]string, error) {
+	resolvedURL, err := resolveMCPTemplateValue(strings.TrimSpace(server.URL), server, false)
+	if err != nil {
+		return "", nil, err
+	}
+	if strings.Contains(resolvedURL, "{{") {
+		return "", nil, fmt.Errorf("unresolved placeholder in MCP url")
+	}
+
+	headers := make(map[string]string, len(server.Headers))
+	for key, value := range server.Headers {
+		headerName := strings.TrimSpace(key)
+		if headerName == "" {
+			continue
+		}
+		resolved, err := resolveMCPTemplateValue(value, server, false)
+		if err != nil {
+			return "", nil, err
+		}
+		if strings.Contains(resolved, "{{") {
+			return "", nil, fmt.Errorf("unresolved placeholder in MCP header %q", headerName)
+		}
+		headers[headerName] = resolved
+	}
+	return resolvedURL, headers, nil
+}
+
 func normalizeMCPResultText(text, hostWorkdir, containerWorkdir string) string {
 	hostWorkdir = strings.TrimSpace(hostWorkdir)
 	containerWorkdir = strings.TrimSpace(containerWorkdir)

@@ -1,11 +1,9 @@
 package tools
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -13,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"aurago/internal/sandbox"
@@ -27,6 +24,9 @@ import (
 // MCPServerConfig describes one MCP server from the config.
 type MCPServerConfig struct {
 	Name               string            `yaml:"name"                     json:"name"`
+	Transport          string            `yaml:"transport,omitempty"      json:"transport"`
+	URL                string            `yaml:"url,omitempty"            json:"url"`
+	Headers            map[string]string `yaml:"headers,omitempty"        json:"headers"`
 	Command            string            `yaml:"command"                  json:"command"`
 	Args               []string          `yaml:"args"                     json:"args"`
 	Env                map[string]string `yaml:"env"                      json:"env"`
@@ -48,6 +48,12 @@ type MCPToolInfo struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description,omitempty"`
 	InputSchema map[string]interface{} `json:"input_schema,omitempty"`
+}
+
+type MCPConnectionTestResult struct {
+	Status    string `json:"status"`
+	Server    string `json:"server"`
+	ToolCount int    `json:"tool_count"`
 }
 
 // ── JSON-RPC 2.0 types ─────────────────────────────────────────────────────
@@ -80,6 +86,12 @@ type jsonRPCError struct {
 
 // ── Single MCP server connection ────────────────────────────────────────────
 
+type mcpTransport interface {
+	Send(method string, params interface{}) (*jsonRPCResponse, error)
+	Notify(method string, params interface{}) error
+	Close()
+}
+
 // safeBuffer is a thread-safe wrapper around bytes.Buffer for capturing
 // process stderr without data races.
 type safeBuffer struct {
@@ -107,15 +119,12 @@ func (b *safeBuffer) Len() int {
 
 type mcpConn struct {
 	name      string
-	cmd       *exec.Cmd
-	stdin     io.WriteCloser
-	stdout    *bufio.Reader
+	transport mcpTransport
 	mu        sync.Mutex
-	nextID    int64
 	tools     []MCPToolInfo
 	ready     bool
-	closeOnce sync.Once   // ensures close() is idempotent
-	stderrBuf *safeBuffer // captures MCP server stderr for diagnostics
+	closeOnce sync.Once
+	stderrBuf *safeBuffer // captures local MCP server stderr for diagnostics
 	runtime   string
 	hostDir   string
 	contDir   string
@@ -300,11 +309,13 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	}
 
 	conn := &mcpConn{
-		name:   name,
-		cmd:    cmd,
-		stdin:  stdinPipe,
-		stdout: bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
-
+		name: name,
+		transport: newStdioMCPTransport(
+			cmd,
+			stdinPipe,
+			stdoutPipe,
+			stderrBuf,
+		),
 		stderrBuf: stderrBuf,
 		runtime:   runtimeName,
 		hostDir:   hostWorkdir,
@@ -360,19 +371,53 @@ func newDockerMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error
 	return newMCPConn(srv.Name, "docker", dockerArgs, nil, logger, "docker", srv.HostWorkdir, containerWorkdir)
 }
 
+func mcpTransportMode(srv MCPServerConfig) string {
+	switch strings.ToLower(strings.TrimSpace(srv.Transport)) {
+	case "streamable_http", "http":
+		return "streamable_http"
+	case "sse":
+		return "sse"
+	case "websocket", "ws":
+		return "websocket"
+	case "stdio", "":
+		return "stdio"
+	default:
+		return strings.ToLower(strings.TrimSpace(srv.Transport))
+	}
+}
+
+func mcpUsesNetworkTransport(srv MCPServerConfig) bool {
+	switch mcpTransportMode(srv) {
+	case "streamable_http", "sse", "websocket":
+		return true
+	default:
+		return false
+	}
+}
+
 func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
 	var (
 		conn *mcpConn
 		err  error
 	)
-	if mcpRuntimeMode(srv.Runtime) == "docker" {
-		conn, err = newDockerMCPConn(srv, logger)
-		if err != nil && srv.AllowLocalFallback {
-			logger.Warn("[MCP] Docker runtime failed, falling back to local execution", "server", srv.Name, "error", err)
+	switch mcpTransportMode(srv) {
+	case "stdio":
+		if mcpRuntimeMode(srv.Runtime) == "docker" {
+			conn, err = newDockerMCPConn(srv, logger)
+			if err != nil && srv.AllowLocalFallback {
+				logger.Warn("[MCP] Docker runtime failed, falling back to local execution", "server", srv.Name, "error", err)
+				conn, err = newLocalMCPConn(srv, logger)
+			}
+		} else {
+			if strings.TrimSpace(srv.Command) == "" {
+				return nil, fmt.Errorf("command is required for MCP server %q when transport=stdio", srv.Name)
+			}
 			conn, err = newLocalMCPConn(srv, logger)
 		}
-	} else {
-		conn, err = newLocalMCPConn(srv, logger)
+	case "streamable_http", "sse", "websocket":
+		conn, err = newNetworkMCPConn(srv, logger)
+	default:
+		err = fmt.Errorf("unsupported MCP transport %q for server %q", srv.Transport, srv.Name)
 	}
 	if err != nil {
 		return nil, err
@@ -389,57 +434,28 @@ func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpCon
 	return conn, nil
 }
 
+func TestMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (MCPConnectionTestResult, error) {
+	conn, err := startMCPServerConnection(srv, logger)
+	if err != nil {
+		return MCPConnectionTestResult{
+			Status: "error",
+			Server: srv.Name,
+		}, err
+	}
+	defer closeManagedMCPConn(conn)
+	return MCPConnectionTestResult{
+		Status:    "ok",
+		Server:    srv.Name,
+		ToolCount: conn.toolCount(),
+	}, nil
+}
+
 // send writes a JSON-RPC request and reads the response.
 func (c *mcpConn) send(method string, params interface{}) (*jsonRPCResponse, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	id := atomic.AddInt64(&c.nextID, 1)
-	req := jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      id,
-		Method:  method,
-		Params:  params,
+	if c.transport == nil {
+		return nil, fmt.Errorf("MCP transport is not initialized")
 	}
-
-	data, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	// Write request + newline delimiter
-	if _, err := c.stdin.Write(append(data, '\n')); err != nil {
-		return nil, fmt.Errorf("write to stdin: %w", err)
-	}
-
-	// Read responses until we find the one with our ID (skip notifications)
-	for {
-		line, err := c.stdout.ReadBytes('\n')
-		if err != nil {
-			if c.stderrBuf != nil && c.stderrBuf.Len() > 0 {
-				return nil, fmt.Errorf("read from stdout: %w (stderr: %s)", err, mcpStderrSnippet(c.stderrBuf))
-			}
-			return nil, fmt.Errorf("read from stdout: %w", err)
-		}
-		line = []byte(strings.TrimSpace(string(line)))
-		if len(line) == 0 {
-			continue
-		}
-
-		var resp jsonRPCResponse
-		if err := json.Unmarshal(line, &resp); err != nil {
-			continue // skip malformed lines
-		}
-
-		// Skip notifications (no ID)
-		if resp.ID == nil {
-			continue
-		}
-
-		if *resp.ID == id {
-			return &resp, nil
-		}
-	}
+	return c.transport.Send(method, params)
 }
 
 // initialize performs the MCP initialize handshake + notifications/initialized.
@@ -472,22 +488,8 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 		logger.Info("[MCP] Server identified", "name", c.name, "server", result.ServerInfo.Name, "version", result.ServerInfo.Version)
 	}
 
-	// Send notifications/initialized (no response expected).
-	// Per MCP/JSON-RPC spec, notifications MUST NOT include an ID.
-	notif := jsonRPCNotification{
-		JSONRPC: "2.0",
-		Method:  "notifications/initialized",
-	}
-	data, err := json.Marshal(notif)
-	if err != nil {
-		logger.Warn("[MCP] Failed to marshal notifications/initialized", "name", c.name, "error", err)
-		return nil // non-fatal: server already initialized
-	}
-	c.mu.Lock()
-	_, writeErr := c.stdin.Write(append(data, '\n'))
-	c.mu.Unlock()
-	if writeErr != nil {
-		logger.Warn("[MCP] Failed to send notifications/initialized", "name", c.name, "error", writeErr)
+	if err := c.transport.Notify("notifications/initialized", nil); err != nil {
+		logger.Warn("[MCP] Failed to send notifications/initialized", "name", c.name, "error", err)
 	}
 
 	return nil
@@ -583,16 +585,8 @@ func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (s
 
 func (c *mcpConn) close() {
 	c.closeOnce.Do(func() {
-		c.stdin.Close()
-		// Give the process a moment to exit gracefully
-		done := make(chan error, 1)
-		go func() { done <- c.cmd.Wait() }()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			if c.cmd.Process != nil {
-				c.cmd.Process.Kill()
-			}
+		if c.transport != nil {
+			c.transport.Close()
 		}
 	})
 }
@@ -627,7 +621,7 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 		}
 		hasCmd := strings.TrimSpace(srv.Command) != ""
 		hasDockerCmd := strings.TrimSpace(srv.DockerCommand) != ""
-		if !hasCmd && (mcpRuntimeMode(srv.Runtime) != "docker" || !hasDockerCmd) {
+		if !hasCmd && !mcpUsesNetworkTransport(srv) && (mcpRuntimeMode(srv.Runtime) != "docker" || !hasDockerCmd) {
 			continue
 		}
 		mgr.configs[srv.Name] = srv
@@ -664,7 +658,7 @@ func (m *MCPManager) configuredServerNames() []string {
 
 	names := make([]string, 0, len(m.configs))
 	for name, cfg := range m.configs {
-		if cfg.Enabled && cfg.Name != "" && cfg.Command != "" {
+		if cfg.Enabled && cfg.Name != "" && (cfg.Command != "" || mcpUsesNetworkTransport(cfg)) {
 			names = append(names, name)
 		}
 	}
@@ -697,7 +691,7 @@ func (m *MCPManager) ensureServerConnected(serverName string) (*mcpConn, error) 
 	}
 	cfg, ok := m.configs[serverName]
 	m.mu.RUnlock()
-	if !ok || !cfg.Enabled || cfg.Name == "" || cfg.Command == "" {
+	if !ok || !cfg.Enabled || cfg.Name == "" || (cfg.Command == "" && !mcpUsesNetworkTransport(cfg)) {
 		return nil, fmt.Errorf("MCP server %q not found or not connected", serverName)
 	}
 

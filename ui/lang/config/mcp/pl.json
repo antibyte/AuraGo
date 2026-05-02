@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Zapisuj hasła i tokeny jako sekrety MCP i odwołuj się do nich tutaj przez {{alias}} zamiast tekstem jawnym.",
   "config.mcp.field_allowed_tools": "Dozwolone narzędzia runtime",
   "config.mcp.field_allowed_tools_hint": "Opcjonalne ograniczenie narzędzi. Pozostaw puste, aby zezwolić na wszystkie wykryte narzędzia; wpisz nazwy, aby ograniczyć uruchamianie i routing tylko do nich.",
-  "config.mcp.field_allow_destructive": "Zezwalaj na destrukcyjne narzędzia MCP"
+  "config.mcp.field_allow_destructive": "Zezwalaj na destrukcyjne narzędzia MCP",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Naglowki:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Proces lokalny (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL serwera",
+  "config.mcp.field_headers": "Naglowki HTTP",
+  "config.mcp.headers_hint": "Jeden naglowek w wierszu. Aliasy Vault, np. {{remote-token}}, sa rozwiazywane w czasie dzialania i maskowane w logach.",
+  "config.mcp.test_connection": "Testuj polaczenie",
+  "config.mcp.test_connection_success": "Polaczenie OK. Wykryto {count} narzedzi.",
+  "config.mcp.test_connection_failed": "Test polaczenia MCP nie powiodl sie: ",
+  "config.mcp.name_command_or_url_required": "Wymagana jest nazwa oraz polecenie lub URL."
 }

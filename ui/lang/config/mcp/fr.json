@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Stockez les mots de passe et jetons comme secrets MCP et référencez-les ici avec {{alias}} au lieu de texte en clair.",
   "config.mcp.field_allowed_tools": "Outils runtime autorisés",
   "config.mcp.field_allowed_tools_hint": "Limite d’outils facultative. Laissez vide pour autoriser tous les outils détectés ; indiquez des noms d’outils pour limiter l’exécution et le routage à ceux-ci.",
-  "config.mcp.field_allow_destructive": "Autoriser les outils MCP destructifs"
+  "config.mcp.field_allow_destructive": "Autoriser les outils MCP destructifs",
+  "config.mcp.card_transport": "Transport :",
+  "config.mcp.card_url": "URL :",
+  "config.mcp.card_headers": "En-tetes :",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Processus local (stdio)",
+  "config.mcp.transport_streamable_http": "HTTP streamable",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL du serveur",
+  "config.mcp.field_headers": "En-tetes HTTP",
+  "config.mcp.headers_hint": "Un en-tete par ligne. Les alias Vault comme {{remote-token}} sont resolus a l execution et masques dans les journaux.",
+  "config.mcp.test_connection": "Tester la connexion",
+  "config.mcp.test_connection_success": "Connexion OK. {count} outils detectes.",
+  "config.mcp.test_connection_failed": "Echec du test de connexion MCP : ",
+  "config.mcp.name_command_or_url_required": "Le nom et la commande ou l URL sont requis."
 }

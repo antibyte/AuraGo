@@ -79,5 +79,20 @@
   "config.mcp.field_environment_secret_hint": "Hesla a tokeny ukládejte jako MCP secrets a zde je odkazujte pomocí {{alias}} místo prostého textu.",
   "config.mcp.field_allowed_tools": "Povolené runtime nástroje",
   "config.mcp.field_allowed_tools_hint": "Volitelné omezení nástrojů. Prázdné povolí všechny objevené nástroje; zadané názvy omezí spouštění a směrování jen na tyto nástroje.",
-  "config.mcp.field_allow_destructive": "Povolit destruktivní MCP nástroje"
+  "config.mcp.field_allow_destructive": "Povolit destruktivní MCP nástroje",
+  "config.mcp.card_transport": "Transport:",
+  "config.mcp.card_url": "URL:",
+  "config.mcp.card_headers": "Hlavicky:",
+  "config.mcp.field_transport": "Transport",
+  "config.mcp.transport_stdio": "Lokalni proces (stdio)",
+  "config.mcp.transport_streamable_http": "Streamable HTTP",
+  "config.mcp.transport_sse": "SSE",
+  "config.mcp.transport_websocket": "WebSocket",
+  "config.mcp.field_url": "URL serveru",
+  "config.mcp.field_headers": "HTTP hlavicky",
+  "config.mcp.headers_hint": "Jedna hlavicka na radek. Aliasy Vaultu jako {{remote-token}} se vyresi za behu a odstrani z logu.",
+  "config.mcp.test_connection": "Otestovat pripojeni",
+  "config.mcp.test_connection_success": "Pripojeni OK. Nalezeno {count} nastroju.",
+  "config.mcp.test_connection_failed": "Test pripojeni MCP selhal: ",
+  "config.mcp.name_command_or_url_required": "Je vyzadovan nazev a prikaz nebo URL."
 }
