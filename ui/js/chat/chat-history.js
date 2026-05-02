@@ -85,6 +85,9 @@ const PERSONA_PREVIEW_KEYS = new Set([
     'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
     'punk', 'secretary', 'servant', 'terminator', 'thinker',
 ]);
+function personaImageUrl(key) {
+    return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
+}
 
 function personaPreviewKey(name, isCore) {
     const key = String(name || '').toLowerCase();
@@ -96,9 +99,9 @@ function setActivePersonaIconKey(previewKey) {
     const key = previewKey || PERSONA_PREVIEW_FALLBACK;
     window._activePersonaIconKey = key;
     const currentIcon = document.getElementById('personality-current-icon');
-    if (currentIcon) currentIcon.src = `/img/persona-icons/${key}.png`;
+    if (currentIcon) currentIcon.src = personaIconUrl(key);
     document.querySelectorAll('.avatar.bot .persona-avatar-img').forEach(img => {
-        img.src = `/img/persona-icons/${key}.png`;
+        img.src = personaIconUrl(key);
         img.dataset.personaIcon = key;
     });
 }
@@ -108,7 +111,7 @@ function showPersonaPreview(previewKey) {
     const img = document.getElementById('personality-preview-image');
     if (!personaPreview || !img) return;
     const key = previewKey || PERSONA_PREVIEW_FALLBACK;
-    img.src = `/img/personas/${key}.png`;
+    img.src = personaImageUrl(key);
     personaPreview.hidden = false;
 }
 
@@ -227,7 +230,7 @@ async function initPage() {
                     opt.setAttribute('role', 'option');
                     const icon = document.createElement('img');
                     icon.className = 'personality-option-icon persona-option-avatar';
-                    icon.src = `/img/persona-icons/${previewKey}.png`;
+                    icon.src = `/img/persona-icons/${previewKey}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
                     icon.alt = '';
                     icon.width = 32;
                     icon.height = 32;

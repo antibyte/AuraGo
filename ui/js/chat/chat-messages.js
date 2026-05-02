@@ -1,5 +1,14 @@
 // AuraGo Chat — Message rendering & DOM utilities
 
+window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
+
+function personaIconUrl(key) {
+    if (key === 'user') {
+        return `/img/persona-icons/user.png?v=${window.PERSONA_ASSET_VERSION}`;
+    }
+    return `/img/persona-icons/${key}.png?v=${window.PERSONA_ASSET_VERSION}`;
+}
+
 function containsLeakedToolMarkup(text) {
     if (!text || typeof text !== 'string') return false;
     return [
@@ -44,10 +53,10 @@ function stripLeakedToolMarkup(text) {
 
 function personaAvatarMarkup(role) {
     if (role === 'user') {
-        return '<img class="persona-avatar-img" src="/img/persona-icons/user.png" alt="" width="32" height="32" decoding="async">';
+        return `<img class="persona-avatar-img" src="${personaIconUrl('user')}" alt="" width="32" height="32" decoding="async">`;
     }
     const key = window._activePersonaIconKey || 'custom';
-    return `<img class="persona-avatar-img" data-persona-icon="${key}" src="/img/persona-icons/${key}.png" alt="" width="32" height="32" decoding="async">`;
+    return `<img class="persona-avatar-img" data-persona-icon="${key}" src="${personaIconUrl(key)}" alt="" width="32" height="32" decoding="async">`;
 }
 
 function appendMessage(role, text) {
