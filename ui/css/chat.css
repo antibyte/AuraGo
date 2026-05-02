@@ -909,12 +909,15 @@
 
         #chat-content {
             max-width: var(--chat-lane-max-width);
+            width: 100%;
             margin: 0 auto;
             padding: 1.5rem 1rem 2rem 1rem;
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
             min-height: 100%;
+            min-width: 0;
+            box-sizing: border-box;
             justify-content: flex-end;
             position: relative;
             z-index: 1;
@@ -1021,6 +1024,8 @@
             gap: 0.6rem;
             animation: msgIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
             margin-bottom: 0.5rem;
+            min-width: 0;
+            max-width: 100%;
         }
 
         .msg-row.user {
@@ -1085,10 +1090,18 @@
             position: relative;
             padding: 0.8rem 1rem;
             max-width: var(--chat-bubble-max-width);
+            min-width: 0;
+            box-sizing: border-box;
             line-height: 1.6;
             font-size: var(--chat-copy-font-size);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            hyphens: auto;
+        }
+
+        .bubble > * {
+            max-width: 100%;
+            min-width: 0;
         }
 
         /* Bot ─ square corner at BOTTOM-LEFT (near avatar) */
@@ -1204,6 +1217,8 @@
             border: 1px solid var(--border-accent);
             background: var(--code-bg);
             overflow: hidden;
+            max-width: 100%;
+            min-width: 0;
         }
 
         .code-header {
@@ -1226,6 +1241,8 @@
         .code-content {
             display: flex;
             background: var(--code-bg);
+            min-width: 0;
+            max-width: 100%;
         }
 
         .line-numbers {
@@ -1243,6 +1260,7 @@
 
         .code-content pre {
             flex: 1;
+            min-width: 0;
             margin: 0;
             padding: 0.75rem;
             overflow-x: auto;
@@ -2093,6 +2111,7 @@
             border-top: 1px solid var(--border-subtle);
             max-height: 300px;
             overflow-y: auto;
+            overflow-wrap: anywhere;
             line-height: 1.5;
         }
 
@@ -2203,6 +2222,8 @@
             background: var(--inline-code-bg);
             padding: 0.15em 0.4em;
             border-radius: 5px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .bubble pre {
@@ -2212,12 +2233,15 @@
             padding: 0.8rem 1rem;
             overflow-x: auto;
             margin: 0.6rem 0;
+            max-width: 100%;
         }
 
         .bubble pre code {
             background: none;
             padding: 0;
             font-size: 0.8em;
+            overflow-wrap: normal;
+            word-break: normal;
         }
 
         .bubble blockquote {
@@ -2300,6 +2324,8 @@
             color: var(--accent);
             text-decoration: underline;
             text-underline-offset: 2px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .bubble strong {
@@ -3516,7 +3542,8 @@
             border-radius: 8px;
             overflow-x: auto;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             margin-top: 0.75rem;
             color: var(--text-primary);
         }

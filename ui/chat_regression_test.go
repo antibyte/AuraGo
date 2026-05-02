@@ -293,6 +293,33 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_LongBubbleTextWrapsWithinBubble(t *testing.T) {
+	t.Parallel()
+
+	chatContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read css/chat.css: %v", err)
+	}
+
+	chatCSS := string(chatContent)
+	for _, marker := range []string{
+		"#chat-content {\n            max-width: var(--chat-lane-max-width);\n            width: 100%;",
+		".msg-row {\n            display: flex;",
+		"min-width: 0;\n            max-width: 100%;",
+		"overflow-wrap: anywhere;\n            word-break: normal;\n            hyphens: auto;",
+		".bubble > * {\n            max-width: 100%;\n            min-width: 0;",
+		".bubble a {\n            color: var(--accent);\n            text-decoration: underline;\n            text-underline-offset: 2px;\n            overflow-wrap: anywhere;",
+		".code-block-wrapper {\n            margin: 0.75rem 0;",
+		".code-content {\n            display: flex;\n            background: var(--code-bg);\n            min-width: 0;",
+		".thinking-content {\n            padding: 0.7rem 1rem;",
+		".tool-output-content {\n            font-family: 'SF Mono', 'Fira Code', monospace;",
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css missing long bubble wrapping marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
 	t.Parallel()
 
