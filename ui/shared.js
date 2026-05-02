@@ -1636,6 +1636,7 @@ function initHeaderTouchActivation() {
         let startX = 0;
         let startY = 0;
         let lastSyntheticClick = 0;
+        let suppressTrustedClickUntil = 0;
 
         function isUsable() {
             return !control.disabled && control.getAttribute('aria-disabled') !== 'true';
@@ -1653,11 +1654,19 @@ function initHeaderTouchActivation() {
             const now = Date.now();
             if (now - lastSyntheticClick < 350) return;
             lastSyntheticClick = now;
+            suppressTrustedClickUntil = now + 450;
 
             event.preventDefault();
             event.stopPropagation();
             window.setTimeout(() => control.click(), 0);
         }
+
+        control.addEventListener('click', (event) => {
+            if (event.isTrusted && Date.now() < suppressTrustedClickUntil) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }, true);
 
         if (window.PointerEvent) {
             control.addEventListener('pointerdown', (event) => {

@@ -2679,14 +2679,15 @@ div.toggle.toggle-sm.on::before {
         display: none !important;
     }
 
-    /* Keep mobile header controls directly tappable; non-essential pills collapse in chat.css. */
+    /* Keep the header actions scrollable in one row on small screens */
     .app-header .header-actions,
     .cfg-header .header-actions {
-        overflow: visible;
+        overflow-x: auto;
+        overflow-y: hidden;
         flex-wrap: nowrap;
         justify-content: flex-start;
         padding-right: 54px;
-        touch-action: manipulation;
+        touch-action: pan-x;
     }
 
     .app-header .header-actions > *,

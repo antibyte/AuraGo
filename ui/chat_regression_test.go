@@ -196,7 +196,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		"pointer-events: auto;",
 		"touch-action: pan-x;",
 		"touch-action: manipulation;",
-		"overflow: visible;",
+		"overflow-x: auto;",
 	} {
 		if !strings.Contains(sharedCSS, marker) {
 			t.Fatalf("shared header CSS missing mobile tap safety marker %q", marker)
@@ -208,7 +208,9 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		"function initHeaderTouchActivation()",
 		".app-header button, .app-header a, .cfg-header button, .cfg-header a",
 		"const tapSlop = 10",
+		"suppressTrustedClickUntil",
 		"control.click()",
+		"stopImmediatePropagation()",
 		"initHeaderTouchActivation()",
 	} {
 		if !strings.Contains(sharedJS, marker) {
@@ -231,9 +233,9 @@ func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 
 	foldJS := string(foldContent)
 	for _, marker := range []string{
-		"clamp(4, 14, aboveBy / 12)",
-		"progress * 10",
-		"scale(0.985)",
+		"clamp(2, 6, aboveBy / 22)",
+		"progress * 4",
+		"scale(0.995)",
 	} {
 		if !strings.Contains(foldJS, marker) {
 			t.Fatalf("threedee fold JS missing readable fold marker %q", marker)
