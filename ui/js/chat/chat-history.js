@@ -85,6 +85,10 @@ const PERSONA_PREVIEW_KEYS = new Set([
     'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
     'punk', 'secretary', 'servant', 'terminator', 'thinker',
 ]);
+const PERSONA_DESCRIPTION_KEYS = new Set([
+    'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
+    'punk', 'secretary', 'servant', 'terminator', 'thinker',
+]);
 function personaImageUrl(key) {
     return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
 }
@@ -93,6 +97,12 @@ function personaPreviewKey(name, isCore) {
     const key = String(name || '').toLowerCase();
     if (!isCore) return PERSONA_PREVIEW_FALLBACK;
     return PERSONA_PREVIEW_KEYS.has(key) ? key : PERSONA_PREVIEW_FALLBACK;
+}
+
+function personaDescriptionKey(name, isCore) {
+    const key = String(name || '').toLowerCase();
+    if (!isCore || !PERSONA_DESCRIPTION_KEYS.has(key)) return 'chat.persona_description_custom';
+    return `chat.persona_description_${key}`;
 }
 
 function setActivePersonaIconKey(previewKey) {
@@ -106,12 +116,18 @@ function setActivePersonaIconKey(previewKey) {
     });
 }
 
-function showPersonaPreview(previewKey) {
+function showPersonaPreview(previewKey, descriptionKey) {
     const personaPreview = document.getElementById('personality-preview');
     const img = document.getElementById('personality-preview-image');
+    const description = document.getElementById('personality-preview-description');
     if (!personaPreview || !img) return;
     const key = previewKey || PERSONA_PREVIEW_FALLBACK;
+    const textKey = descriptionKey || 'chat.persona_description_custom';
+    const translated = t(textKey);
+    const fallback = t('chat.persona_description_custom');
+    const text = translated && translated !== textKey ? translated : fallback;
     img.src = personaImageUrl(key);
+    if (description) description.textContent = text;
     personaPreview.hidden = false;
 }
 
@@ -223,7 +239,7 @@ async function initPage() {
                 function showPersonaPreviewFromOption(event) {
                     const opt = event.target.closest('.personality-option');
                     if (!opt || !dropdown.contains(opt)) return;
-                    showPersonaPreview(opt.dataset.previewKey);
+                    showPersonaPreview(opt.dataset.previewKey, opt.dataset.descriptionKey);
                 }
                 data.personalities.forEach(p => {
                     const opt = document.createElement('button');
@@ -232,6 +248,7 @@ async function initPage() {
                     opt.dataset.value = p.name;
                     const previewKey = personaPreviewKey(p.name, p.core);
                     opt.dataset.previewKey = previewKey;
+                    opt.dataset.descriptionKey = personaDescriptionKey(p.name, p.core);
                     opt.setAttribute('role', 'option');
                     const icon = document.createElement('img');
                     icon.className = 'personality-option-icon persona-option-avatar';

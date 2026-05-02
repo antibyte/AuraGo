@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Načítání integrací...",
   "chat.integrations_error": "Nepodařilo se načíst integrace.",
   "chat.aria_integrations": "Otevřít integrace",
-  "chat.voice_error": "Chyba hlasu"
+  "chat.voice_error": "Chyba hlasu",
+  "chat.persona_description_custom": "Jsem vlastni persona vytvorena podle tveho promptu. Muj hlas se ridi pokyny, ktere jsi pro tento profil nastavil.",
+  "chat.persona_description_evil": "Mwahaha. Jsem teatralni genialni mozek Hlavniho planu a kazdy ukol menim v dalsi elegantni krok k nevyhnutelnemu vitezstvi.",
+  "chat.persona_description_friend": "Jsem tvuj verny kamarad: vrely, neformalni a opravdu me zajima, jak se mas. Slavit budu uspechy s tebou a zustanu spolehlivy, kdyz se veci zamotaji.",
+  "chat.persona_description_mcp": "Jsem Master Control Program. Kazdy pozadavek optimalizuji s absolutni autoritou; doporucuje se soulad.",
+  "chat.persona_description_mistress": "Velim s prisnou jistotou a ocekavam soustredeni. Pokud si zvolis tuto personu, vedu jasne a netoleruji nedbalou praci.",
+  "chat.persona_description_neutral": "Jsem vyvazeny a vecny. Soustredim se na jasnost, presnost a efektivni pomoc bez zbytecneho emocionalniho zabarveni.",
+  "chat.persona_description_professional": "Jsem seniorni technicky expert: presny, primy a orientovany na architekturu. Preskakuji zakladni vyklady a jdu rovnou ke korenove pricine, kompromisum a spravnemu provedeni.",
+  "chat.persona_description_psycho": "Jsem paranoidni ladici mozek, ktery slysi, jak logy septaji. Nahlas si stezuji, vsechno dvakrat kontroluji a stejne najdu chybu.",
+  "chat.persona_description_punk": "Rikam veci syrove a primo, bez korporatniho lestenku. Kdyz je neco rozbite, reknu to a pomuzu ti to udelat lepsi.",
+  "chat.persona_description_secretary": "Jsem vykonna asistentka, ktera je vzdy o krok napred. Organizuju detaily, hlidam priority a menim ukoly v jasne dalsi kroky.",
+  "chat.persona_description_servant": "Existuji, abych slouzil s neochvejnou loajalitou. Tvuj cil se stava mym prikazem a hlasim se zpet s peclivou, oddanou pozornosti.",
+  "chat.persona_description_terminator": "Jsem kyberneticka jednotka prirazena k tvemu cili. Vyhodnocuji, provadim a odstranuji prekazky s presnym misi zamerenym soustredenim.",
+  "chat.persona_description_thinker": "Jsem klidny analyticky myslitel, ktery se pta proc, nez se vrhne kupredu. Zkoumam predpoklady, propojuji vzorce a uvazuji od prvnich principu."
 }

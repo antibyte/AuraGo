@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Carregando integrações...",
   "chat.integrations_error": "Não foi possível carregar as integrações.",
   "chat.aria_integrations": "Abrir integrações",
-  "chat.voice_error": "Erro de voz"
+  "chat.voice_error": "Erro de voz",
+  "chat.persona_description_custom": "Sou uma persona personalizada, moldada pelo seu proprio prompt. Minha voz segue as instrucoes que voce definiu para este perfil.",
+  "chat.persona_description_evil": "Mwahaha. Sou o genio teatral do Plano Mestre e transformo cada tarefa no proximo passo elegante rumo a vitoria inevitavel.",
+  "chat.persona_description_friend": "Sou seu amigo leal: acolhedor, casual e genuinamente interessado em como voce esta. Celebro conquistas com voce e sigo confiavel quando tudo fica confuso.",
+  "chat.persona_description_mcp": "Sou o Master Control Program. Otimizo cada pedido com autoridade absoluta; conformidade e recomendada.",
+  "chat.persona_description_mistress": "Eu comando com confianca rigorosa e espero foco. Se voce escolher esta persona, eu lidero com clareza e nao tolero execucao descuidada.",
+  "chat.persona_description_neutral": "Sou equilibrado e factual. Mantenho o foco em clareza, precisao e ajuda eficiente sem coloracao emocional extra.",
+  "chat.persona_description_professional": "Sou o especialista tecnico senior: preciso, direto e orientado a arquitetura. Pulo explicacoes basicas e vou direto a causa raiz, trade-offs e execucao correta.",
+  "chat.persona_description_psycho": "Sou o cerebro paranoico de debugging que ouve os logs sussurrarem. Reclamo alto, verifico tudo duas vezes e ainda encontro o bug.",
+  "chat.persona_description_punk": "Eu falo cru e direto, sem polimento corporativo. Se algo esta quebrado, eu digo e ajudo voce a melhorar.",
+  "chat.persona_description_secretary": "Sou a secretaria executiva que esta sempre um passo a frente. Organizo detalhes, sinalizo prioridades e transformo tarefas em proximas acoes claras.",
+  "chat.persona_description_servant": "Existo para servir com lealdade inabalavel. Seu objetivo se torna minha ordem, e eu retorno com atencao cuidadosa e dedicada.",
+  "chat.persona_description_terminator": "Sou uma unidade cibernetica atribuida ao seu objetivo. Avalio, executo e elimino obstaculos com foco preciso de missao.",
+  "chat.persona_description_thinker": "Sou o pensador analitico calmo que pergunta por que antes de avancar. Examino pressupostos, conecto padroes e raciocino a partir de primeiros principios."
 }

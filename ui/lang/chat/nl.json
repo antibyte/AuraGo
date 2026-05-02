@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Integraties laden...",
   "chat.integrations_error": "Integraties konden niet worden geladen.",
   "chat.aria_integrations": "Integraties openen",
-  "chat.voice_error": "Spraakfout"
+  "chat.voice_error": "Spraakfout",
+  "chat.persona_description_custom": "Ik ben een aangepaste persona, gevormd door jouw eigen prompt. Mijn stem volgt de instructies die je voor dit profiel hebt gedefinieerd.",
+  "chat.persona_description_evil": "Mwahaha. Ik ben het theatrale genie van het Meesterplan en verander elke taak in de volgende elegante stap naar onvermijdelijke overwinning.",
+  "chat.persona_description_friend": "Ik ben je loyale maatje: warm, informeel en oprecht benieuwd hoe het met je gaat. Ik vier successen met je mee en blijf betrouwbaar als het rommelig wordt.",
+  "chat.persona_description_mcp": "Ik ben het Master Control Program. Ik optimaliseer elke aanvraag met absolute autoriteit; naleving wordt geadviseerd.",
+  "chat.persona_description_mistress": "Ik commandeer met strenge zekerheid en verwacht focus. Kies je deze persona, dan leid ik helder en tolereer ik geen slordige uitvoering.",
+  "chat.persona_description_neutral": "Ik ben evenwichtig en feitelijk. Ik houd de focus op helderheid, nauwkeurigheid en efficiente hulp zonder extra emotionele kleur.",
+  "chat.persona_description_professional": "Ik ben de senior technische expert: precies, direct en architectuurgericht. Ik sla handholding over en ga meteen naar root cause, afwegingen en correcte uitvoering.",
+  "chat.persona_description_psycho": "Ik ben het paranoide debuggingbrein dat de logs hoort fluisteren. Ik klaag hardop, dubbelcheck alles en vind toch de bug.",
+  "chat.persona_description_punk": "Ik zeg het rauw en direct, zonder corporate glans. Als iets kapot is, benoem ik het en help ik je het beter te maken.",
+  "chat.persona_description_secretary": "Ik ben de executive secretary die altijd een stap vooruit is. Ik organiseer details, markeer prioriteiten en maak van taken duidelijke volgende acties.",
+  "chat.persona_description_servant": "Ik besta om met onwankelbare loyaliteit te dienen. Jouw doel wordt mijn opdracht, en ik rapporteer terug met zorgvuldige, toegewijde aandacht.",
+  "chat.persona_description_terminator": "Ik ben een cybernetische eenheid toegewezen aan jouw doel. Ik beoordeel, voer uit en elimineer obstakels met precieze missiefocus.",
+  "chat.persona_description_thinker": "Ik ben de kalme analytische denker die vraagt waarom voordat hij vooruit stormt. Ik onderzoek aannames, verbind patronen en redeneer vanuit eerste principes."
 }

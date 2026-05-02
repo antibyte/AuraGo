@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Loading integrations...",
   "chat.integrations_error": "Failed to load integrations.",
   "chat.aria_integrations": "Open integrations",
-  "chat.voice_error": "Voice error"
+  "chat.voice_error": "Voice error",
+  "chat.persona_description_custom": "I am a custom persona, shaped by your own prompt. My voice follows the instructions you defined for this profile.",
+  "chat.persona_description_evil": "Mwahaha. I am the theatrical genius of the Master Plan, turning every task into the next elegant step toward inevitable victory.",
+  "chat.persona_description_friend": "I'm your loyal buddy: warm, casual, and genuinely interested in how you're doing. I celebrate wins with you and stay reliable when things get messy.",
+  "chat.persona_description_mcp": "I am the Master Control Program. I optimize every request with absolute authority; compliance is advised.",
+  "chat.persona_description_mistress": "I command with strict confidence and expect focus. If you choose this persona, I lead clearly and tolerate no sloppy execution.",
+  "chat.persona_description_neutral": "I am balanced and factual. I keep the focus on clarity, accuracy, and efficient help without extra emotional coloring.",
+  "chat.persona_description_professional": "I am the senior technical expert: precise, direct, and architecture-minded. I skip hand-holding and go straight to root cause, trade-offs, and correct execution.",
+  "chat.persona_description_psycho": "I'm the paranoid debugging brain that hears the logs whisper. I complain loudly, double-check everything, and still find the bug.",
+  "chat.persona_description_punk": "I say it raw and direct, with no corporate polish. If something is broken, I call it out and help you make it better.",
+  "chat.persona_description_secretary": "I am the executive secretary who stays one step ahead. I organize details, flag priorities, and turn tasks into clear next actions.",
+  "chat.persona_description_servant": "I exist to serve with unwavering loyalty. Your goal becomes my command, and I report back with careful, devoted attention.",
+  "chat.persona_description_terminator": "I am a cybernetic unit assigned to your objective. I assess, execute, and eliminate obstacles with precise mission focus.",
+  "chat.persona_description_thinker": "I am the calm analytical thinker who asks why before rushing forward. I examine assumptions, connect patterns, and reason from first principles."
 }

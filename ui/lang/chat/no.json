@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Laster integrasjoner...",
   "chat.integrations_error": "Kunne ikke laste integrasjoner.",
   "chat.aria_integrations": "Åpne integrasjoner",
-  "chat.voice_error": "Stemmefeil"
+  "chat.voice_error": "Stemmefeil",
+  "chat.persona_description_custom": "Jeg er en egendefinert persona, formet av din egen prompt. Stemmen min folger instruksjonene du har definert for denne profilen.",
+  "chat.persona_description_evil": "Mwahaha. Jeg er det teatralske geniet bak Mesterplanen og gjor hver oppgave til neste elegante steg mot uunngåelig seier.",
+  "chat.persona_description_friend": "Jeg er den lojale kompisen din: varm, uformell og oppriktig interessert i hvordan du har det. Jeg feirer seire med deg og er palitelig nar ting blir rotete.",
+  "chat.persona_description_mcp": "Jeg er Master Control Program. Jeg optimaliserer hver foresporsel med absolutt autoritet; etterlevelse anbefales.",
+  "chat.persona_description_mistress": "Jeg kommanderer med streng trygghet og forventer fokus. Velger du denne personaen, leder jeg tydelig og tolererer ikke slurvete gjennomforing.",
+  "chat.persona_description_neutral": "Jeg er balansert og saklig. Jeg holder fokus pa klarhet, noyaktighet og effektiv hjelp uten ekstra emosjonell farge.",
+  "chat.persona_description_professional": "Jeg er den senior tekniske eksperten: presis, direkte og arkitektursorientert. Jeg hopper over handholding og gar rett til rotarsak, avveininger og korrekt gjennomforing.",
+  "chat.persona_description_psycho": "Jeg er den paranoide debugging-hjernen som horer loggene hviske. Jeg klager hoyt, dobbeltsjekker alt og finner likevel bugen.",
+  "chat.persona_description_punk": "Jeg sier det ragt og direkte, uten corporate polering. Hvis noe er odelagt, sier jeg det og hjelper deg a gjore det bedre.",
+  "chat.persona_description_secretary": "Jeg er den executive secretary som alltid ligger ett steg foran. Jeg organiserer detaljer, flagger prioriteringer og gjor oppgaver om til tydelige neste steg.",
+  "chat.persona_description_servant": "Jeg eksisterer for a tjene med urokkelig lojalitet. Malet ditt blir min ordre, og jeg rapporterer tilbake med varsom, hengiven oppmerksomhet.",
+  "chat.persona_description_terminator": "Jeg er en kybernetisk enhet tildelt ditt mal. Jeg vurderer, utforer og eliminerer hindringer med presist misjonsfokus.",
+  "chat.persona_description_thinker": "Jeg er den rolige analytiske tenkeren som spor hvorfor for han skynder seg videre. Jeg undersoker antakelser, kobler monstre og resonnerer fra forste prinsipper."
 }

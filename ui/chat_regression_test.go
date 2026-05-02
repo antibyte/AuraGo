@@ -288,6 +288,104 @@ func TestChatFrontend_PersonalityPreviewFollowsWholeOption(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_PersonaPreviewDescriptionsRemainLocalized(t *testing.T) {
+	t.Parallel()
+
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	chatCSSContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read chat.css: %v", err)
+	}
+	historyContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-history.js"))
+	if err != nil {
+		t.Fatalf("read chat-history.js: %v", err)
+	}
+
+	indexHTML := string(indexContent)
+	for _, marker := range []string{
+		`class="personality-preview-image-frame"`,
+		`id="personality-preview-description"`,
+		`/css/chat.css?v=20260502c`,
+		`/js/chat/chat-history.js?v=20260502b`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("index.html missing persona description marker %q", marker)
+		}
+	}
+
+	chatCSS := string(chatCSSContent)
+	for _, marker := range []string{
+		`.personality-preview-image-frame`,
+		`.personality-description-card`,
+		`background: var(--persona-description-bg, var(--bg-glass));`,
+		`[data-theme="8bit"] .personality-description-card`,
+		`[data-theme="black-matrix"] .personality-description-card`,
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css missing themed persona description marker %q", marker)
+		}
+	}
+
+	historyJS := string(historyContent)
+	for _, marker := range []string{
+		`const PERSONA_DESCRIPTION_KEYS = new Set([`,
+		`function personaDescriptionKey(name, isCore)`,
+		`opt.dataset.descriptionKey = personaDescriptionKey(p.name, p.core);`,
+		`showPersonaPreview(opt.dataset.previewKey, opt.dataset.descriptionKey);`,
+		`description.textContent = text;`,
+	} {
+		if !strings.Contains(historyJS, marker) {
+			t.Fatalf("chat-history.js missing persona description marker %q", marker)
+		}
+	}
+
+	descriptionKeys := []string{
+		"chat.persona_description_custom",
+		"chat.persona_description_evil",
+		"chat.persona_description_friend",
+		"chat.persona_description_mcp",
+		"chat.persona_description_mistress",
+		"chat.persona_description_neutral",
+		"chat.persona_description_professional",
+		"chat.persona_description_psycho",
+		"chat.persona_description_punk",
+		"chat.persona_description_secretary",
+		"chat.persona_description_servant",
+		"chat.persona_description_terminator",
+		"chat.persona_description_thinker",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "chat", "*.json"))
+	if err != nil {
+		t.Fatalf("glob chat lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all chat language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range descriptionKeys {
+			value, ok := lang[key]
+			if !ok {
+				t.Fatalf("%s missing persona description key %s", path, key)
+			}
+			text, ok := value.(string)
+			if !ok || strings.TrimSpace(text) == "" || text == key {
+				t.Fatalf("%s has invalid persona description for %s", path, key)
+			}
+		}
+	}
+}
+
 func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	t.Parallel()
 
@@ -1358,7 +1456,8 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 		".personality-preview-panel",
 		"right: calc(100% + 48px);",
 		"width: 256px;",
-		"height: 256px;",
+		".personality-preview-image-frame",
+		"aspect-ratio: 1;",
 		".personality-preview-image",
 		"transform: scale(1.185);",
 		".personality-preview-panel[hidden]",

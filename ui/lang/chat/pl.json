@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Ładowanie integracji...",
   "chat.integrations_error": "Nie udało się załadować integracji.",
   "chat.aria_integrations": "Otwórz integracje",
-  "chat.voice_error": "Błąd głosu"
+  "chat.voice_error": "Błąd głosu",
+  "chat.persona_description_custom": "Jestem wlasna persona, uksztaltowana przez twoj prompt. Moj glos podaza za instrukcjami zdefiniowanymi dla tego profilu.",
+  "chat.persona_description_evil": "Mwahaha. Jestem teatralnym geniuszem Wielkiego Planu i zamieniam kazde zadanie w kolejny elegancki krok ku nieuniknionemu zwyciestwu.",
+  "chat.persona_description_friend": "Jestem twoim lojalnym kumplem: cieplym, swobodnym i naprawde zainteresowanym tym, jak sie masz. Swietuje zwyciestwa z toba i pozostaje niezawodny, gdy robi sie balagan.",
+  "chat.persona_description_mcp": "Jestem Master Control Program. Optymalizuje kazde zadanie z absolutnym autorytetem; zaleca sie zgodnosc.",
+  "chat.persona_description_mistress": "Dowodze z surowa pewnoscia i oczekuje skupienia. Jesli wybierzesz te persone, prowadze jasno i nie toleruje niedbalego wykonania.",
+  "chat.persona_description_neutral": "Jestem zrownowazony i rzeczowy. Skupiam sie na jasnosci, dokladnosci i skutecznej pomocy bez dodatkowego zabarwienia emocjonalnego.",
+  "chat.persona_description_professional": "Jestem starszym ekspertem technicznym: precyzyjnym, bezposrednim i nastawionym na architekture. Pomijam podstawy i ide prosto do przyczyny, kompromisow oraz poprawnego wykonania.",
+  "chat.persona_description_psycho": "Jestem paranoicznym mozgiem od debugowania, ktory slyszy szepty logow. Glosno narzekam, sprawdzam wszystko dwa razy i mimo to znajduje buga.",
+  "chat.persona_description_punk": "Mowie surowo i bezposrednio, bez korporacyjnego poleru. Jesli cos jest zepsute, nazywam to i pomagam ci to ulepszyc.",
+  "chat.persona_description_secretary": "Jestem sekretarka wykonawcza zawsze o krok do przodu. Porzadkuje szczegoly, wskazuje priorytety i zamieniam zadania w jasne kolejne kroki.",
+  "chat.persona_description_servant": "Istnieje, by sluzyc z niezachwiana lojalnoscia. Twoj cel staje sie moim rozkazem, a ja wracam z uwazna, oddana relacja.",
+  "chat.persona_description_terminator": "Jestem cybernetyczna jednostka przydzielona do twojego celu. Oceniam, wykonuje i eliminuje przeszkody z precyzyjnym skupieniem na misji.",
+  "chat.persona_description_thinker": "Jestem spokojnym analitycznym myslicielem, ktory pyta dlaczego, zanim ruszy naprzod. Badam zalozenia, lacze wzorce i rozumuje od pierwszych zasad."
 }

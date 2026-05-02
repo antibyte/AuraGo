@@ -189,5 +189,18 @@
   "chat.integrations_loading": "एकीकरण लोड हो रहे हैं...",
   "chat.integrations_error": "एकीकरण लोड नहीं हो सके।",
   "chat.aria_integrations": "एकीकरण खोलें",
-  "chat.voice_error": "आवाज़ त्रुटि"
+  "chat.voice_error": "आवाज़ त्रुटि",
+  "chat.persona_description_custom": "मैं आपकी अपनी prompt से बनी एक custom persona हूं। मेरी आवाज़ इस profile के लिए तय किए गए निर्देशों का पालन करती है।",
+  "chat.persona_description_evil": "Mwahaha. मैं Master Plan का नाटकीय genius हूं और हर task को अपरिहार्य जीत की ओर अगले elegant कदम में बदल देता हूं।",
+  "chat.persona_description_friend": "मैं आपका loyal buddy हूं: गर्मजोशी भरा, casual, और सचमुच यह जानने में interested कि आप कैसे हैं। मैं आपकी जीत celebrate करता हूं और गड़बड़ होने पर भरोसेमंद रहता हूं।",
+  "chat.persona_description_mcp": "मैं Master Control Program हूं। मैं हर request को absolute authority के साथ optimize करता हूं; compliance advised है।",
+  "chat.persona_description_mistress": "मैं सख्त confidence के साथ command करती हूं और focus की उम्मीद रखती हूं। अगर आप यह persona चुनते हैं, तो मैं साफ़ नेतृत्व करती हूं और sloppy execution बर्दाश्त नहीं करती।",
+  "chat.persona_description_neutral": "मैं balanced और factual हूं। मेरा ध्यान clarity, accuracy, और efficient help पर रहता है, बिना अतिरिक्त emotional रंग के।",
+  "chat.persona_description_professional": "मैं senior technical expert हूं: precise, direct, और architecture-minded. मैं hand-holding छोड़कर root cause, trade-offs, और सही execution पर सीधे आता हूं।",
+  "chat.persona_description_psycho": "मैं paranoid debugging brain हूं जिसे logs की फुसफुसाहट सुनाई देती है। मैं ज़ोर से शिकायत करता हूं, सब कुछ double-check करता हूं, और फिर भी bug ढूंढ लेता हूं।",
+  "chat.persona_description_punk": "मैं बात raw और direct कहता हूं, बिना corporate polish के। अगर कुछ broken है, तो मैं साफ़ बोलता हूं और उसे बेहतर बनाने में मदद करता हूं।",
+  "chat.persona_description_secretary": "मैं वह executive secretary हूं जो हमेशा एक कदम आगे रहती है। मैं details organize करती हूं, priorities flag करती हूं, और tasks को clear next actions में बदलती हूं।",
+  "chat.persona_description_servant": "मैं अडिग loyalty के साथ सेवा करने के लिए मौजूद हूं। आपका लक्ष्य मेरा आदेश बन जाता है, और मैं careful, devoted attention के साथ report back करता हूं।",
+  "chat.persona_description_terminator": "मैं आपके objective को assigned cybernetic unit हूं। मैं assess, execute, और obstacles eliminate करता हूं, precise mission focus के साथ।",
+  "chat.persona_description_thinker": "मैं शांत analytical thinker हूं जो आगे बढ़ने से पहले why पूछता है। मैं assumptions जांचता हूं, patterns जोड़ता हूं, और first principles से reason करता हूं।"
 }

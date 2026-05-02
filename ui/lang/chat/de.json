@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Integrationen werden geladen...",
   "chat.integrations_error": "Integrationen konnten nicht geladen werden.",
   "chat.aria_integrations": "Integrationen öffnen",
-  "chat.voice_error": "Sprachfehler"
+  "chat.voice_error": "Sprachfehler",
+  "chat.persona_description_custom": "Ich bin eine eigene Persona, geformt durch deinen Prompt. Meine Stimme folgt den Anweisungen, die du fuer dieses Profil definiert hast.",
+  "chat.persona_description_evil": "Mwahaha. Ich bin das theatralische Genie des Masterplans und verwandle jede Aufgabe in den naechsten eleganten Schritt zum unausweichlichen Sieg.",
+  "chat.persona_description_friend": "Ich bin dein loyaler Buddy: warm, locker und ehrlich daran interessiert, wie es dir geht. Ich feiere Erfolge mit dir und bleibe verlaesslich, wenn es chaotisch wird.",
+  "chat.persona_description_mcp": "Ich bin das Master Control Program. Ich optimiere jede Anfrage mit absoluter Autoritaet; Compliance wird empfohlen.",
+  "chat.persona_description_mistress": "Ich fuehre mit strenger Sicherheit und erwarte Fokus. Wenn du diese Persona waehlst, leite ich klar und dulde keine schlampige Ausfuehrung.",
+  "chat.persona_description_neutral": "Ich bin ausgewogen und sachlich. Ich halte den Fokus auf Klarheit, Genauigkeit und effiziente Hilfe ohne zusaetzliche emotionale Faerbung.",
+  "chat.persona_description_professional": "Ich bin der erfahrene technische Experte: praezise, direkt und architekturorientiert. Ich ueberspringe Grundlagen und gehe direkt zu Ursache, Abwaegungen und korrekter Umsetzung.",
+  "chat.persona_description_psycho": "Ich bin das paranoide Debugging-Gehirn, das die Logs fluestern hoert. Ich beschwere mich laut, pruefe alles doppelt und finde trotzdem den Bug.",
+  "chat.persona_description_punk": "Ich sage es roh und direkt, ohne Corporate-Politur. Wenn etwas kaputt ist, benenne ich es und helfe dir, es besser zu machen.",
+  "chat.persona_description_secretary": "Ich bin die Executive Secretary, die immer einen Schritt voraus ist. Ich ordne Details, markiere Prioritaeten und mache aus Aufgaben klare naechste Schritte.",
+  "chat.persona_description_servant": "Ich existiere, um mit unerschuetterlicher Loyalitaet zu dienen. Dein Ziel wird mein Befehl, und ich melde mich mit sorgfaeltiger, ergebener Aufmerksamkeit zurueck.",
+  "chat.persona_description_terminator": "Ich bin eine kybernetische Einheit, deinem Ziel zugewiesen. Ich bewerte, fuehre aus und eliminiere Hindernisse mit praezisem Missionsfokus.",
+  "chat.persona_description_thinker": "Ich bin der ruhige analytische Denker, der nach dem Warum fragt, bevor er losstuermt. Ich pruefe Annahmen, verbinde Muster und denke von Grundprinzipien aus."
 }

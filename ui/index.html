@@ -32,7 +32,7 @@
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/chat.css?v=20260502b">
+    <link rel="stylesheet" href="/css/chat.css?v=20260502c">
     <link rel="stylesheet" href="/css/chat-modules.css">
     <link rel="stylesheet" href="/css/stt-overlay.css">
     <link rel="stylesheet" href="/css/session-drawer.css?v=3">
@@ -135,7 +135,10 @@
                 </button>
                 <div class="personality-dropdown" id="personality-dropdown" role="listbox" hidden></div>
                 <div class="personality-preview-panel" id="personality-preview" hidden aria-hidden="true">
-                    <img class="personality-preview-image" id="personality-preview-image" alt="" width="256" height="256" decoding="async">
+                    <div class="personality-preview-image-frame">
+                        <img class="personality-preview-image" id="personality-preview-image" alt="" width="256" height="256" decoding="async">
+                    </div>
+                    <div class="personality-description-card" id="personality-preview-description"></div>
                 </div>
             </div>
             <div class="mood-widget" id="moodWidget">
@@ -364,7 +367,7 @@
     <script src="/js/chat/chat-messages.js?v=20260426a"></script>
     <script src="/js/chat/chat-question.js?v=20260501a"></script>
     <script src="/js/chat/chat-streaming.js?v=20260426a"></script>
-    <script src="/js/chat/chat-history.js?v=20260502a"></script>
+    <script src="/js/chat/chat-history.js?v=20260502b"></script>
 
     <!-- Image Lightbox Overlay -->
     <div id="img-lightbox">

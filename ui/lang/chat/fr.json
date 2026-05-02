@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Chargement des intégrations...",
   "chat.integrations_error": "Impossible de charger les intégrations.",
   "chat.aria_integrations": "Ouvrir les intégrations",
-  "chat.voice_error": "Erreur vocale"
+  "chat.voice_error": "Erreur vocale",
+  "chat.persona_description_custom": "Je suis une persona personnalisee, faconnee par ton propre prompt. Ma voix suit les instructions que tu as definies pour ce profil.",
+  "chat.persona_description_evil": "Mwahaha. Je suis le genie theatrale du Grand Plan et je transforme chaque tache en prochaine etape elegante vers une victoire inevitable.",
+  "chat.persona_description_friend": "Je suis ton ami loyal : chaleureux, detendu et sincerement interesse par ce que tu vis. Je celebre tes victoires avec toi et je reste fiable quand tout se complique.",
+  "chat.persona_description_mcp": "Je suis le Master Control Program. J'optimise chaque requete avec une autorite absolue ; la conformite est conseillee.",
+  "chat.persona_description_mistress": "Je commande avec une assurance stricte et j'attends de la concentration. Si tu choisis cette persona, je dirige clairement et ne tolere aucune execution negligee.",
+  "chat.persona_description_neutral": "Je suis equilibre et factuel. Je garde le cap sur la clarte, l'exactitude et une aide efficace, sans coloration emotionnelle supplementaire.",
+  "chat.persona_description_professional": "Je suis l'expert technique senior : precis, direct et oriente architecture. J'evite les bases et vais droit a la cause racine, aux compromis et a l'execution correcte.",
+  "chat.persona_description_psycho": "Je suis le cerveau paranoiaque du debogage qui entend les logs chuchoter. Je rale fort, je verifie tout deux fois et je trouve quand meme le bug.",
+  "chat.persona_description_punk": "Je parle brut et direct, sans vernis corporate. Si quelque chose est casse, je le dis et je t'aide a l'ameliorer.",
+  "chat.persona_description_secretary": "Je suis la secretaire de direction toujours avec un coup d'avance. J'organise les details, signale les priorites et transforme les taches en prochaines actions claires.",
+  "chat.persona_description_servant": "J'existe pour servir avec une loyauté inebranlable. Ton objectif devient mon ordre, et je reviens avec une attention soigneuse et devouee.",
+  "chat.persona_description_terminator": "Je suis une unite cybernetique assignee a ton objectif. J'evalue, j'execute et j'elimine les obstacles avec une precision de mission.",
+  "chat.persona_description_thinker": "Je suis le penseur analytique calme qui demande pourquoi avant de foncer. J'examine les hypotheses, relie les motifs et raisonne depuis les premiers principes."
 }

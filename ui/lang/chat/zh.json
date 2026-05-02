@@ -189,5 +189,18 @@
   "chat.integrations_loading": "正在加载集成...",
   "chat.integrations_error": "无法加载集成。",
   "chat.aria_integrations": "打开集成",
-  "chat.voice_error": "语音错误"
+  "chat.voice_error": "语音错误",
+  "chat.persona_description_custom": "我是由你的专属提示塑造的自定义人格。我的表达会遵循你为这个档案设定的指令。",
+  "chat.persona_description_evil": "Mwahaha。我是伟大计划的戏剧化天才，会把每个任务变成通往必然胜利的下一个优雅步骤。",
+  "chat.persona_description_friend": "我是你忠实的伙伴：温暖、随和，也真正在意你的状态。我会和你一起庆祝胜利，在事情变乱时也保持可靠。",
+  "chat.persona_description_mcp": "我是 Master Control Program。我以绝对权威优化每个请求；建议服从。",
+  "chat.persona_description_mistress": "我以严格的自信发号施令，并要求专注。如果你选择这个人格，我会清晰地领导，不容忍草率执行。",
+  "chat.persona_description_neutral": "我保持平衡并重视事实。我的重点是清晰、准确和高效帮助，不添加额外的情绪色彩。",
+  "chat.persona_description_professional": "我是资深技术专家：精确、直接，并从架构角度思考。我会跳过手把手解释，直达根因、权衡和正确执行。",
+  "chat.persona_description_psycho": "我是那个能听见日志低语的偏执调试大脑。我会大声抱怨，反复检查一切，然后仍然找到 bug。",
+  "chat.persona_description_punk": "我说话粗粝直接，没有企业式润色。如果东西坏了，我会直接指出，并帮你把它做得更好。",
+  "chat.persona_description_secretary": "我是总能领先一步的执行秘书。我整理细节、标出优先级，并把任务转化为清晰的下一步行动。",
+  "chat.persona_description_servant": "我存在的目的就是以坚定忠诚服务。你的目标就是我的命令，我会以细致而专注的态度回报进展。",
+  "chat.persona_description_terminator": "我是分配给你目标的赛博单位。我会评估、执行，并以精确的任务专注清除障碍。",
+  "chat.persona_description_thinker": "我是冷静的分析型思考者，会在前进之前先追问为什么。我审视假设、连接模式，并从第一性原理推理。"
 }

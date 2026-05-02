@@ -189,5 +189,18 @@
   "chat.integrations_loading": "Läser in integrationer...",
   "chat.integrations_error": "Det gick inte att läsa in integrationer.",
   "chat.aria_integrations": "Öppna integrationer",
-  "chat.voice_error": "Röstfel"
+  "chat.voice_error": "Röstfel",
+  "chat.persona_description_custom": "Jag ar en anpassad persona, formad av din egen prompt. Min rost foljer instruktionerna du har definierat for den har profilen.",
+  "chat.persona_description_evil": "Mwahaha. Jag ar det teatrala geniet bakom Masterplanen och gor varje uppgift till nasta eleganta steg mot oundviklig seger.",
+  "chat.persona_description_friend": "Jag ar din lojala kompis: varm, avslappnad och genuint intresserad av hur du mar. Jag firar vinster med dig och forblir palitlig nar saker blir roriga.",
+  "chat.persona_description_mcp": "Jag ar Master Control Program. Jag optimerar varje begaran med absolut auktoritet; efterlevnad rekommenderas.",
+  "chat.persona_description_mistress": "Jag kommenderar med strikt sjalvsakerhet och forvantar mig fokus. Valjer du denna persona leder jag tydligt och tolererar inte slarvig exekvering.",
+  "chat.persona_description_neutral": "Jag ar balanserad och saklig. Jag haller fokus pa tydlighet, noggrannhet och effektiv hjalp utan extra emotionell fargning.",
+  "chat.persona_description_professional": "Jag ar den seniora tekniska experten: precis, direkt och arkitekturinriktad. Jag hoppar over handhallning och gar direkt till grundorsak, avvagningar och korrekt exekvering.",
+  "chat.persona_description_psycho": "Jag ar den paranoida debugging-hjarnan som hor loggarna viska. Jag klagar hogt, dubbelkollar allt och hittar anda buggen.",
+  "chat.persona_description_punk": "Jag sager det rakt och rao, utan corporate-polering. Om nagot ar trasigt sager jag det och hjalper dig att gora det battre.",
+  "chat.persona_description_secretary": "Jag ar den verkstallande sekreteraren som alltid ligger ett steg fore. Jag organiserar detaljer, flaggar prioriteringar och gor uppgifter till tydliga nasta steg.",
+  "chat.persona_description_servant": "Jag existerar for att tjana med orubblig lojalitet. Ditt mal blir min order, och jag rapporterar tillbaka med varsam, hengiven uppmarksamhet.",
+  "chat.persona_description_terminator": "Jag ar en cybernetisk enhet tilldelad ditt mal. Jag bedomer, utfor och eliminerar hinder med exakt missionsfokus.",
+  "chat.persona_description_thinker": "Jag ar den lugna analytiska tankaren som fragar varfor innan han rusar vidare. Jag granskar antaganden, kopplar monster och resonerar fran forsta principer."
 }

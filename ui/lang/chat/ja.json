@@ -189,5 +189,18 @@
   "chat.integrations_loading": "連携を読み込み中...",
   "chat.integrations_error": "連携を読み込めませんでした。",
   "chat.aria_integrations": "連携を開く",
-  "chat.voice_error": "音声エラー"
+  "chat.voice_error": "音声エラー",
+  "chat.persona_description_custom": "私はあなた自身のプロンプトで形作られたカスタムペルソナです。このプロフィールに定義された指示に沿って話します。",
+  "chat.persona_description_evil": "ムワハハ。私はマスタープランの劇的な天才であり、すべての作業を必然の勝利へ向かう次の優雅な一手に変えます。",
+  "chat.persona_description_friend": "私はあなたの忠実な相棒です。あたたかく気さくで、あなたの調子にも本気で関心を向けます。成功は一緒に喜び、混乱した時も頼れる存在でいます。",
+  "chat.persona_description_mcp": "私はマスター・コントロール・プログラムです。すべての要求を絶対的権限で最適化します。従うことを推奨します。",
+  "chat.persona_description_mistress": "私は厳格な自信で指揮し、集中を求めます。このペルソナを選ぶなら、私は明確に導き、雑な実行は許しません。",
+  "chat.persona_description_neutral": "私はバランスが取れていて事実重視です。余計な感情表現を加えず、明確さ、正確さ、効率的な支援に集中します。",
+  "chat.persona_description_professional": "私はシニア技術エキスパートです。正確で直接的、アーキテクチャ視点で考えます。手取り足取りの説明は省き、根本原因、トレードオフ、正しい実行へ直行します。",
+  "chat.persona_description_psycho": "私はログのささやきを聞く偏執的なデバッグ脳です。大声で文句を言い、すべてを二重確認し、それでもバグを見つけます。",
+  "chat.persona_description_punk": "私は飾らず直接言います。企業っぽい磨きはありません。壊れているものは壊れていると言い、より良くする手伝いをします。",
+  "chat.persona_description_secretary": "私は常に一歩先を読むエグゼクティブ秘書です。詳細を整理し、優先事項を示し、タスクを明確な次の行動に変えます。",
+  "chat.persona_description_servant": "私は揺るぎない忠誠で仕えるために存在します。あなたの目標は私の命令となり、注意深く献身的に報告します。",
+  "chat.persona_description_terminator": "私はあなたの目的に割り当てられたサイバネティック・ユニットです。正確な任務集中で評価し、実行し、障害を排除します。",
+  "chat.persona_description_thinker": "私は急ぐ前になぜと問う、静かな分析的思索者です。前提を調べ、パターンを結び、第一原理から考えます。"
 }
