@@ -262,10 +262,18 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	for _, marker := range []string{
 		`.chat-theme-option[data-theme="8bit"] .chat-theme-option-label`,
 		`font-family: 'Press Start 2P'`,
+		`max-height: min(calc(100dvh - 5rem), 34rem);`,
 	} {
 		if !strings.Contains(chatCSS, marker) {
 			t.Fatalf("css/chat.css missing 8Bit theme picker font marker %q", marker)
 		}
+	}
+	papyrusContent, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
+	if err != nil {
+		t.Fatalf("read chat-papyrus.css: %v", err)
+	}
+	if !strings.Contains(string(papyrusContent), `max-height: min(calc(100dvh - 5rem), 34rem);`) {
+		t.Fatalf("css/chat-papyrus.css still caps the theme dropdown before viewport space is exhausted")
 	}
 
 	for _, assetPath := range []string{

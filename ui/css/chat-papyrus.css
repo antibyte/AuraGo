@@ -351,7 +351,7 @@
     overflow-y: auto;
     z-index: 1300;
 }
-[data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(70vh, 30rem); }
+[data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(calc(100dvh - 5rem), 34rem); }
 
 [data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
 [data-theme="papyrus"] .integrations-drawer,
