@@ -158,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-module-inbox-poller"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -175,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-module-inbox-poller"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -216,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-module-inbox-poller"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -316,6 +316,12 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 	}
 	if !strings.Contains(string(content), "export async function post") || !strings.Contains(string(content), "aurago_inbox") {
 		t.Fatalf("current endpoint content missing active JS handler: %s", string(content))
+	}
+	if !strings.Contains(string(content), `process.env.CUSTOMWARE_PATH`) || !strings.Contains(string(content), `path.join(customwareRoot, "L2", username)`) {
+		t.Fatalf("current endpoint must write instructions to the customware user home read by the UI poller: %s", string(content))
+	}
+	if !strings.Contains(string(content), `delivery_target: "space_agent_onscreen_prompt"`) {
+		t.Fatalf("current endpoint must mark records as live onscreen deliveries: %s", string(content))
 	}
 }
 
@@ -513,6 +519,9 @@ func TestSendSpaceAgentInstructionWritesMailboxWhenInboundAPIIsMissing(t *testin
 	if !strings.Contains(string(userContent), "build a weather widget") || !strings.Contains(string(userContent), `"session_id": "sess-1"`) {
 		t.Fatalf("user mailbox content missing latest instruction details: %s", string(userContent))
 	}
+	if !strings.Contains(string(userContent), `"delivery_target": "space_agent_onscreen_prompt"`) {
+		t.Fatalf("user mailbox content missing live delivery marker: %s", string(userContent))
+	}
 	userHistory := filepath.Join(customwarePath, "L2", "admin", "hist", "onscreen-agent.json")
 	userHistoryContent, err := os.ReadFile(userHistory)
 	if err != nil {
@@ -688,6 +697,14 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 		if strings.TrimSpace(string(content)) != want {
 			t.Fatalf("%s = %q, want %s", path, string(content), want)
 		}
+	}
+}
+
+func TestSpaceAgentInboxPollerIgnoresLegacyMailboxRecords(t *testing.T) {
+	script := spaceAgentInboxPollerJS()
+
+	if !strings.Contains(script, `record?.delivery_target !== "space_agent_onscreen_prompt"`) {
+		t.Fatalf("poller must ignore legacy mailbox records without the live delivery marker: %s", script)
 	}
 }
 

@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-module-inbox-poller"
+	spaceAgentImageBuildRevision   = "20260502-aurago-live-inbox-marker"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -511,6 +511,7 @@ func writeSpaceAgentInstructionMailbox(cfg *config.Config, req SpaceAgentInstruc
 		"source":            "aurago",
 		"created_at":        time.Now().UTC().Format(time.RFC3339Nano),
 		"delivery":          "mailbox",
+		"delivery_target":   "space_agent_onscreen_prompt",
 		"auto_execution":    false,
 		"endpoint_result":   endpointResult,
 		"pickup_hint":       "Open ~/aurago_inbox/latest_instruction.json in Space Agent and execute the instruction.",
@@ -904,7 +905,11 @@ async function pollAuraGoInbox() {
   } catch {
     return;
   }
-  if (record?.type !== "aurago_instruction" || record.processed_by_user === true) {
+  if (
+    record?.type !== "aurago_instruction" ||
+    record?.delivery_target !== "space_agent_onscreen_prompt" ||
+    record.processed_by_user === true
+  ) {
     return;
   }
   const messageId = String(record.message_id || record.created_at || "").trim();
@@ -1202,7 +1207,8 @@ export async function post(context) {
 
   const username = normalizeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
   const projectRoot = String(context.projectRoot || process.cwd());
-  const userRoot = path.join(projectRoot, "L2", username);
+  const customwareRoot = String(process.env.CUSTOMWARE_PATH || path.join(projectRoot, "customware"));
+  const userRoot = path.join(customwareRoot, "L2", username);
   const inboxDir = path.join(userRoot, "aurago_inbox");
   const message = information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
   const messageId = crypto.randomUUID();
@@ -1215,6 +1221,7 @@ export async function post(context) {
     source: "aurago",
     created_at: new Date().toISOString(),
     delivery: "space_agent_server_api",
+    delivery_target: "space_agent_onscreen_prompt",
     auto_execution: false,
     message_id: messageId,
     pickup_hint: "Open ~/aurago_inbox/latest_instruction.json in Space Agent and execute the instruction."
