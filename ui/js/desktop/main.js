@@ -7,10 +7,71 @@
         z: 40,
         ws: null,
         chatBusy: false,
-        startQuery: ''
+        startQuery: '',
+        iconManifest: null,
+        iconMap: new Map()
     };
 
     const els = {};
+    const directoryIconKeys = {
+        Desktop: 'desktop',
+        Documents: 'documents',
+        Downloads: 'downloads',
+        Apps: 'apps',
+        Widgets: 'widgets',
+        Data: 'database',
+        Pictures: 'image',
+        Trash: 'trash',
+        Shared: 'share'
+    };
+    const appIconKeys = {
+        files: 'folder',
+        editor: 'edit',
+        settings: 'settings',
+        calendar: 'calendar',
+        'agent-chat': 'agent_chat',
+        terminal: 'terminal',
+        browser: 'browser'
+    };
+    const extensionIconKeys = {
+        txt: 'text',
+        log: 'text',
+        md: 'markdown',
+        js: 'javascript',
+        mjs: 'javascript',
+        html: 'html',
+        htm: 'html',
+        css: 'css',
+        json: 'json',
+        yaml: 'yaml',
+        yml: 'yaml',
+        xml: 'xml',
+        py: 'python',
+        go: 'go',
+        pdf: 'pdf',
+        png: 'image',
+        jpg: 'image',
+        jpeg: 'image',
+        gif: 'image',
+        webp: 'image',
+        svg: 'image',
+        mp3: 'audio',
+        wav: 'audio',
+        flac: 'audio',
+        mp4: 'video',
+        webm: 'video',
+        mov: 'video',
+        zip: 'archive',
+        tar: 'archive',
+        gz: 'archive',
+        db: 'database',
+        sqlite: 'database',
+        csv: 'spreadsheet',
+        xlsx: 'spreadsheet',
+        pptx: 'presentation',
+        exe: 'executable',
+        bin: 'binary'
+    };
 
     function $(id) {
         return document.getElementById(id);
@@ -37,6 +98,51 @@
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
 
+    async function loadIconManifest() {
+        try {
+            const manifest = await api('/img/desktop-icons-sprite.json');
+            state.iconManifest = manifest;
+            state.iconMap = new Map((manifest.icons || []).map(icon => [icon.name, icon]));
+        } catch (_) {
+            state.iconManifest = null;
+            state.iconMap = new Map();
+        }
+    }
+
+    function iconExists(key) {
+        return key && state.iconMap.has(key);
+    }
+
+    function spriteMarkup(key, fallback, className, size) {
+        const manifest = state.iconManifest;
+        const icon = iconExists(key) ? state.iconMap.get(key) : null;
+        if (!manifest || !icon) {
+            return `<span class="${esc(className)} vd-icon-letter">${esc(String(fallback || 'D').slice(0, 2).toUpperCase())}</span>`;
+        }
+        const scale = (size || 42) / (manifest.icon_size || 64);
+        const sheetW = Math.round((manifest.width || 768) * scale * 1000) / 1000;
+        const sheetH = Math.round((manifest.height || 768) * scale * 1000) / 1000;
+        const x = Math.round(-(icon.x || 0) * scale * 1000) / 1000;
+        const y = Math.round(-(icon.y || 0) * scale * 1000) / 1000;
+        return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
+    }
+
+    function iconForApp(app) {
+        if (!app) return 'apps';
+        return appIconKeys[app.id] || app.icon || 'apps';
+    }
+
+    function iconForDirectory(name) {
+        return directoryIconKeys[name] || 'folder';
+    }
+
+    function iconForFile(file) {
+        if (file.type === 'directory') return 'folder';
+        const ext = String(file.name || '').split('.').pop().toLowerCase();
+        if (!ext || ext === String(file.name || '').toLowerCase()) return 'file';
+        return extensionIconKeys[ext] || 'file';
+    }
+
     function appName(app) {
         const key = 'desktop.app_' + String(app.id || '').replaceAll('-', '_');
         const translated = t(key);
@@ -58,7 +164,8 @@
     async function api(url, options) {
         const resp = await fetch(url, options);
         const contentType = resp.headers.get('content-type') || '';
-        const body = contentType.includes('application/json') ? await resp.json() : {};
+        const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
+        const body = shouldParseJSON ? await resp.json() : {};
         if (!resp.ok) {
             throw new Error(body.error || body.message || ('HTTP ' + resp.status));
         }
@@ -86,9 +193,10 @@
         const appItems = allApps().map(app => ({ id: app.id, name: appName(app), type: 'app', app }));
         const items = [...appItems, ...directoryItems];
         icons.innerHTML = items.map(item => {
-            const glyph = item.type === 'directory' ? 'D' : iconGlyph(item.app);
+            const iconKey = item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
+            const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
             return `<button class="vd-icon" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}">
-                <span class="vd-icon-glyph">${esc(glyph)}</span>
+                ${spriteMarkup(iconKey, fallback, 'vd-sprite-icon', 42)}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
         }).join('');
@@ -130,7 +238,7 @@
         const query = state.startQuery.trim().toLowerCase();
         const apps = allApps().filter(app => !query || appName(app).toLowerCase().includes(query));
         $('vd-start-apps').innerHTML = apps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
-            <span class="vd-icon-glyph">${esc(iconGlyph(app))}</span>
+            ${spriteMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}</span>
         </button>`).join('');
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
@@ -271,7 +379,7 @@
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}">
-                <span class="vd-file-glyph">${file.type === 'directory' ? 'D' : 'T'}</span>
+                ${spriteMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
             </div>`).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
@@ -495,6 +603,8 @@
             state.startQuery = event.target.value;
             renderStartApps();
         });
+        const startGlyph = $('vd-start-button').querySelector('.vd-start-glyph');
+        if (startGlyph) startGlyph.outerHTML = spriteMarkup('apps', 'A', 'vd-sprite-start', 28);
         document.addEventListener('click', (event) => {
             const menu = $('vd-start-menu');
             if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
@@ -508,6 +618,7 @@
 
     async function init() {
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
+        await loadIconManifest();
         wireChrome();
         updateClock();
         setInterval(updateClock, 15000);

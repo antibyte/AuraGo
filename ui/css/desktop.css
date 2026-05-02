@@ -140,13 +140,48 @@
     outline: none;
 }
 
-.vd-icon-glyph,
-.vd-start-glyph,
-.vd-file-glyph {
-    display: grid;
-    place-items: center;
+.vd-sprite-icon,
+.vd-sprite-start,
+.vd-sprite-start-item,
+.vd-sprite-file {
+    display: block;
+    flex: 0 0 auto;
+    background-image: url('/img/desktop-icons-sprite.png');
+    background-repeat: no-repeat;
+    background-position: var(--vd-sprite-x) var(--vd-sprite-y);
+    background-size: var(--vd-sprite-sheet);
+}
+
+.vd-sprite-icon,
+.vd-icon-letter {
     width: 42px;
     height: 42px;
+}
+
+.vd-sprite-start {
+    width: 28px;
+    height: 28px;
+}
+
+.vd-start-glyph {
+    width: 28px;
+    height: 28px;
+}
+
+.vd-sprite-start-item {
+    width: 30px;
+    height: 30px;
+}
+
+.vd-sprite-file {
+    width: 26px;
+    height: 26px;
+}
+
+.vd-icon-letter,
+.vd-start-glyph {
+    display: grid;
+    place-items: center;
     border-radius: 8px;
     background: linear-gradient(135deg, rgba(39, 199, 166, 0.96), rgba(242, 184, 75, 0.94));
     color: #071014;
@@ -315,12 +350,6 @@
 
 .vd-file-row:hover {
     background: rgba(255, 255, 255, 0.08);
-}
-
-.vd-file-glyph {
-    width: 30px;
-    height: 30px;
-    font-size: 0.72rem;
 }
 
 .vd-file-name {
