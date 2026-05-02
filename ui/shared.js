@@ -1635,6 +1635,9 @@ function initHeaderTouchActivation() {
 
         let startX = 0;
         let startY = 0;
+        let startScroll = 0;
+        let touchMoved = false;
+        let trackingTouch = false;
         let lastSyntheticClick = 0;
         let suppressTrustedClickUntil = 0;
         let allowProgrammaticClick = false;
@@ -1643,14 +1646,43 @@ function initHeaderTouchActivation() {
             return !control.disabled && control.getAttribute('aria-disabled') !== 'true';
         }
 
+        function headerScrollPosition() {
+            const scroller = document.getElementById('chat-box');
+            return (window.scrollY || 0)
+                + (document.documentElement ? document.documentElement.scrollTop || 0 : 0)
+                + (document.body ? document.body.scrollTop || 0 : 0)
+                + (scroller ? scroller.scrollTop || 0 : 0);
+        }
+
         function rememberStart(clientX, clientY) {
+            trackingTouch = true;
+            touchMoved = false;
             startX = clientX;
             startY = clientY;
+            startScroll = headerScrollPosition();
+        }
+
+        function markMove(clientX, clientY) {
+            if (!trackingTouch) return;
+            if (
+                Math.abs(clientX - startX) > tapSlop ||
+                Math.abs(clientY - startY) > tapSlop ||
+                Math.abs(headerScrollPosition() - startScroll) > 2
+            ) {
+                touchMoved = true;
+                suppressTrustedClickUntil = Date.now() + 500;
+            }
         }
 
         function activateFromTouch(event, clientX, clientY) {
             if (!isUsable()) return;
-            if (Math.abs(clientX - startX) > tapSlop || Math.abs(clientY - startY) > tapSlop) return;
+            markMove(clientX, clientY);
+            const moved = touchMoved || Math.abs(headerScrollPosition() - startScroll) > 2;
+            trackingTouch = false;
+            if (moved) {
+                suppressTrustedClickUntil = Date.now() + 500;
+                return;
+            }
 
             const now = Date.now();
             if (now - lastSyntheticClick < 350) return;
@@ -1682,21 +1714,40 @@ function initHeaderTouchActivation() {
                 if (event.pointerType === 'mouse') return;
                 rememberStart(event.clientX, event.clientY);
             }, { passive: true });
+            control.addEventListener('pointermove', (event) => {
+                if (event.pointerType === 'mouse') return;
+                markMove(event.clientX, event.clientY);
+            }, { passive: true });
             control.addEventListener('pointerup', (event) => {
                 if (event.pointerType === 'mouse') return;
                 activateFromTouch(event, event.clientX, event.clientY);
             });
+            control.addEventListener('pointercancel', () => {
+                trackingTouch = false;
+                touchMoved = true;
+                suppressTrustedClickUntil = Date.now() + 500;
+            }, { passive: true });
         } else {
             control.addEventListener('touchstart', (event) => {
                 const touch = event.changedTouches && event.changedTouches[0];
                 if (!touch) return;
                 rememberStart(touch.clientX, touch.clientY);
             }, { passive: true });
+            control.addEventListener('touchmove', (event) => {
+                const touch = event.changedTouches && event.changedTouches[0];
+                if (!touch) return;
+                markMove(touch.clientX, touch.clientY);
+            }, { passive: true });
             control.addEventListener('touchend', (event) => {
                 const touch = event.changedTouches && event.changedTouches[0];
                 if (!touch) return;
                 activateFromTouch(event, touch.clientX, touch.clientY);
             }, { passive: false });
+            control.addEventListener('touchcancel', () => {
+                trackingTouch = false;
+                touchMoved = true;
+                suppressTrustedClickUntil = Date.now() + 500;
+            }, { passive: true });
         }
     });
 }

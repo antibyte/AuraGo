@@ -38,7 +38,7 @@
     position: relative;
     z-index: 4;
     cursor: pointer;
-    touch-action: manipulation;
+    touch-action: pan-y;
 }
 
 .app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn, .personality-mobile-btn) {
@@ -66,7 +66,7 @@
     place-items: center;
     padding: 0 !important;
     cursor: pointer;
-    touch-action: manipulation;
+    touch-action: pan-y;
 }
 
 .app-header .header-actions .personality-mobile-btn:hover,
