@@ -878,10 +878,11 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 	css := string(cssContent)
 	for _, marker := range []string{
 		".personality-preview-panel",
-		"right: calc(100% + 172px);",
+		"right: calc(100% + 12px);",
 		"width: 256px;",
 		"height: 256px;",
 		".personality-preview-image",
+		"transform: scale(1.185);",
 		".personality-preview-panel[hidden]",
 	} {
 		if !strings.Contains(css, marker) {
