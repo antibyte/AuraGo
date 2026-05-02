@@ -211,6 +211,17 @@ html[data-theme="8bit"]::after {
     height: 38px;
 }
 
+[data-theme="8bit"] .app-header #logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: max-content;
+    height: 38px;
+    line-height: 1;
+    padding: 0 0.7rem;
+}
+
 /* Personality select: contains img + label, no fixed size */
 [data-theme="8bit"] .app-header .select-personality {
     font-size: 0.72rem;

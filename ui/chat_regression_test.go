@@ -299,6 +299,9 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 		`[data-theme="8bit"] #chat-box::after`,
 		`background-size: 192px auto;`,
 		`image-rendering: pixelated;`,
+		`[data-theme="8bit"] .app-header #logout-btn`,
+		`align-items: center;`,
+		`min-width: max-content;`,
 	} {
 		if !strings.Contains(bitCSSString, marker) {
 			t.Fatalf("css/chat-8bit.css missing 8Bit background pixelation marker %q", marker)
