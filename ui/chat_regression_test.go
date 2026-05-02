@@ -253,6 +253,46 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 	}
 }
 
+func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
+	t.Parallel()
+
+	sharedContent, err := os.ReadFile("shared-components.css")
+	if err != nil {
+		t.Fatalf("read shared-components.css: %v", err)
+	}
+	knowledgeContent, err := os.ReadFile(filepath.Join("css", "knowledge.css"))
+	if err != nil {
+		t.Fatalf("read css/knowledge.css: %v", err)
+	}
+
+	sharedCSS := string(sharedContent)
+	for _, marker := range []string{
+		"align-items: flex-end;",
+		"width: max-content;",
+		"transform: scale(0.96) translateY(-6px);",
+		".radial-menu.open .radial-item {\n        transform: scale(1) translateY(0);",
+	} {
+		if !strings.Contains(sharedCSS, marker) {
+			t.Fatalf("shared-components.css missing mobile radial linear layout marker %q", marker)
+		}
+	}
+
+	knowledgeCSS := string(knowledgeContent)
+	for _, marker := range []string{
+		"width: calc(100% + 24px);",
+		"overflow-y: hidden;",
+		"overscroll-behavior-x: contain;",
+		"touch-action: pan-x;",
+		"flex: 0 0 auto;",
+		"min-width: max-content;",
+		"white-space: nowrap;",
+	} {
+		if !strings.Contains(knowledgeCSS, marker) {
+			t.Fatalf("css/knowledge.css missing mobile tab scroll marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
 	t.Parallel()
 

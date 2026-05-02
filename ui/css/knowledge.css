@@ -446,11 +446,18 @@
 @media (max-width: 768px) {
     .kc-container {
         padding: 16px 12px 60px;
-        overflow-x: hidden;
+        overflow-x: visible;
     }
 
     .kc-tabs {
+        width: calc(100% + 24px);
+        margin-inline: -12px;
+        padding-inline: 12px;
+        flex-wrap: nowrap;
         overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         -ms-overflow-style: none;
@@ -497,8 +504,15 @@
     }
 
     .kc-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        min-width: max-content;
         padding: 8px 14px;
         font-size: 0.85rem;
+        line-height: 1;
+        white-space: nowrap;
     }
 
     .kc-preview-modal {

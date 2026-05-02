@@ -2561,7 +2561,9 @@ div.toggle.toggle-sm.on::before {
         right: 0;
         display: flex;
         flex-direction: column;
+        align-items: flex-end;
         gap: 8px;
+        width: max-content;
         max-height: calc(100dvh - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -2586,6 +2588,13 @@ div.toggle.toggle-sm.on::before {
         position: static;
         top: auto;
         right: auto;
+        width: max-content;
+        transform: scale(0.96) translateY(-6px);
+        transform-origin: right top;
+    }
+
+    .radial-menu.open .radial-item {
+        transform: scale(1) translateY(0);
     }
 }
 
