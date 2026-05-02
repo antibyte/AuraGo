@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-live-inbox-poller"
+	spaceAgentImageBuildRevision   = "20260502-aurago-module-inbox-poller"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -759,7 +759,7 @@ func ensureSpaceAgentWorkspaceFiles(homePath string) error {
 		filepath.Join(homePath, "AGENTS.md"):                        spaceAgentAuraGoAgentsMarkdown(),
 		filepath.Join(homePath, "conf", "aurago.system.include.md"): spaceAgentAuraGoSystemInclude(),
 		filepath.Join(homePath, "docs", "aurago-bridge.md"):         spaceAgentAuraGoBridgeReadme(),
-		filepath.Join(homePath, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"): spaceAgentInboxPollerJS(),
+		spaceAgentInboxPollerPath(homePath):                         spaceAgentInboxPollerJS(),
 	} {
 		if mkdirErr := os.MkdirAll(filepath.Dir(path), 0o750); mkdirErr != nil {
 			return fmt.Errorf("create Space Agent managed file dir %s: %w", filepath.Dir(path), mkdirErr)
@@ -931,6 +931,10 @@ export default async function auragoInboxPoller() {
   setInterval(() => void pollAuraGoInbox(), POLL_INTERVAL_MS);
 }
 `
+}
+
+func spaceAgentInboxPollerPath(homePath string) string {
+	return filepath.Join(homePath, "mod", "aurago", "inbox_poller", "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js")
 }
 
 func spaceAgentAuraGoSystemInclude() string {
@@ -1364,7 +1368,7 @@ function seedWorkspaceFiles(rootPath) {
   writeFile(path.join(rootPath, "AGENTS.md"), ` + strconv.Quote(spaceAgentAuraGoAgentsMarkdown()) + `);
   writeFile(path.join(rootPath, "conf", "aurago.system.include.md"), ` + strconv.Quote(spaceAgentAuraGoSystemInclude()) + `);
   writeFile(path.join(rootPath, "docs", "aurago-bridge.md"), ` + strconv.Quote(spaceAgentAuraGoBridgeReadme()) + `);
-  writeFile(path.join(rootPath, "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"), ` + strconv.Quote(spaceAgentInboxPollerJS()) + `);
+  writeFile(path.join(rootPath, "mod", "aurago", "inbox_poller", "ext", "js", "_core", "framework", "initializer.js", "initialize", "end", "aurago-inbox-poller.js"), ` + strconv.Quote(spaceAgentInboxPollerJS()) + `);
   writeFile(path.join(rootPath, "aurago_bridge.js"), bridgeHelperContent(bridgeHelperESMTemplate));
   writeFile(path.join(rootPath, "aurago_bridge.cjs"), bridgeHelperContent(bridgeHelperCJSTemplate));
   writeFile(path.join(rootPath, "aurago_bridge_config.json"), bridgeConfigJSON());
