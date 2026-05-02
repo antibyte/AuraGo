@@ -793,15 +793,6 @@
 
 /* ── Integrations Drawer (mirrored from session drawer) ── */
 [data-theme="lollipop"] .integrations-edge-tab {
-    font-family: var(--lollipop-font-display);
-    letter-spacing: 0.01em;
-}
-
-[data-theme="lollipop"] .integrations-edge-tab {
-    font-size: 1.18rem;
-}
-
-[data-theme="lollipop"] .integrations-edge-tab {
     background:
     var(--lollipop-gloss),
     var(--lollipop-pill);
@@ -811,15 +802,6 @@
     inset 0 -1px 0 rgba(171, 109, 146, 0.12),
     0 6px 16px rgba(216, 179, 202, 0.18);
     color: var(--text-primary);
-}
-
-[data-theme="lollipop"] .integrations-edge-tab {
-    border-color: rgba(239, 131, 188, 0.62);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(171, 109, 146, 0.14),
-    0 8px 20px rgba(216, 179, 202, 0.22);
-    color: var(--strong-color);
 }
 
 [data-theme="lollipop"] .integrations-edge-tab:hover {
@@ -836,18 +818,6 @@
     letter-spacing: 0.01em;
 }
 
-[data-theme="lollipop"] .integrations-drawer-title {
-    font-size: 1.45rem;
-}
-
-[data-theme="lollipop"] .integrations-drawer-title {
-    color: var(--text-primary);
-}
-
-[data-theme="lollipop"] .integrations-drawer-close {
-    font-size: 1.18rem;
-}
-
 [data-theme="lollipop"] .integrations-drawer-close {
     background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 38%),
@@ -860,17 +830,7 @@
     color: var(--strong-color);
 }
 
-[data-theme="lollipop"] .integrations-drawer-close {
-    transform: translateY(-1px);
-    border-color: rgba(230, 92, 165, 0.54);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    inset 0 -1px 0 rgba(158, 96, 133, 0.16),
-    0 12px 24px rgba(179, 108, 145, 0.22);
-}
-
 [data-theme="lollipop"] .integrations-drawer-close:hover {
-    transform: translateY(-1px);
     border-color: rgba(230, 92, 165, 0.54);
     box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.88),
@@ -890,78 +850,12 @@
 }
 
 [data-theme="lollipop"] .integrations-drawer {
-    font-family: var(--lollipop-font-display);
-    letter-spacing: 0.01em;
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    font-size: 1.45rem;
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    font-size: 1.18rem;
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 38%),
-    linear-gradient(180deg, rgba(240, 205, 224, 0.99), rgba(224, 194, 214, 0.98));
-    border: 1px solid rgba(198, 114, 161, 0.62);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    inset 0 -1px 0 rgba(158, 96, 133, 0.12),
-    0 8px 18px rgba(179, 108, 145, 0.16);
-    color: var(--strong-color);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    transform: translateY(-1px);
-    border-color: rgba(230, 92, 165, 0.54);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    inset 0 -1px 0 rgba(158, 96, 133, 0.16),
-    0 12px 24px rgba(179, 108, 145, 0.22);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    overflow: hidden;
     background: linear-gradient(180deg, rgba(255, 253, 255, 0.98), rgba(255, 245, 251, 0.96));
     border: 1px solid rgba(233, 170, 210, 0.54);
     box-shadow:
-    0 28px 58px rgba(206, 166, 190, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.98);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 32%);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    border-bottom-color: rgba(233, 170, 210, 0.4);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    color: var(--text-primary);
-}
-
-[data-theme="lollipop"] .integrations-drawer {
-    width: 10px;
-    height: 10px;
-}
-
-[data-theme="lollipop"] .integrations-drawer {
     background: linear-gradient(180deg, rgba(214, 123, 176, 0.4), rgba(199, 162, 255, 0.45));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
-}
-
-[data-theme="lollipop"] .integrations-drawer {
     background: rgba(214, 123, 176, 0.08);
 }

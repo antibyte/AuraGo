@@ -859,14 +859,6 @@
 
 /* ── Integrations Drawer (mirrored from session drawer) ── */
 [data-theme="dark-sun"] .integrations-edge-tab {
-    font-family: var(--darksun-font-ui);
-}
-
-[data-theme="dark-sun"] .integrations-edge-tab {
-    font-size: 1.14rem;
-}
-
-[data-theme="dark-sun"] .integrations-edge-tab {
     background: var(--darksun-matte);
     border: 1px solid rgba(132, 58, 28, 0.48);
     box-shadow:
@@ -877,17 +869,6 @@
     color: var(--text-primary);
 }
 
-[data-theme="dark-sun"] .integrations-edge-tab {
-    border-color: rgba(240, 92, 43, 0.64);
-    color: var(--strong-color);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 190, 122, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.38),
-    0 14px 28px rgba(0, 0, 0, 0.34),
-    0 0 28px rgba(240, 92, 43, 0.12);
-    transform: translateY(-1px);
-}
-
 [data-theme="dark-sun"] .integrations-edge-tab:hover {
     border-color: rgba(240, 92, 43, 0.64);
     color: var(--strong-color);
@@ -896,23 +877,10 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.38),
     0 14px 28px rgba(0, 0, 0, 0.34),
     0 0 28px rgba(240, 92, 43, 0.12);
-    transform: translateY(-1px);
 }
 
 [data-theme="dark-sun"] .integrations-drawer-title {
     font-family: var(--darksun-font-ui);
-}
-
-[data-theme="dark-sun"] .integrations-drawer-title {
-    font-size: 1.4rem;
-}
-
-[data-theme="dark-sun"] .integrations-drawer-title {
-    color: var(--text-primary);
-}
-
-[data-theme="dark-sun"] .integrations-drawer-close {
-    font-size: 1.14rem;
 }
 
 [data-theme="dark-sun"] .integrations-drawer-close {
@@ -925,17 +893,7 @@
     color: var(--text-primary);
 }
 
-[data-theme="dark-sun"] .integrations-drawer-close {
-    transform: translateY(-2px) scale(1.01);
-    border-color: rgba(240, 92, 43, 0.72);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 186, 104, 0.08),
-    0 18px 34px rgba(0, 0, 0, 0.36),
-    0 0 40px rgba(240, 92, 43, 0.16);
-}
-
 [data-theme="dark-sun"] .integrations-drawer-close:hover {
-    transform: translateY(-2px) scale(1.01);
     border-color: rgba(240, 92, 43, 0.72);
     box-shadow:
     inset 0 1px 0 rgba(255, 186, 104, 0.08),
@@ -955,77 +913,12 @@
 }
 
 [data-theme="dark-sun"] .integrations-drawer {
-    font-family: var(--darksun-font-ui);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    font-size: 1.4rem;
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    font-size: 1.14rem;
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    background: linear-gradient(180deg, rgba(33, 18, 13, 0.98), rgba(11, 6, 5, 0.98));
-    border: 1px solid rgba(132, 58, 28, 0.54);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 181, 104, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.36),
-    0 10px 22px rgba(0, 0, 0, 0.32);
-    color: var(--text-primary);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    transform: translateY(-2px) scale(1.01);
-    border-color: rgba(240, 92, 43, 0.72);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 186, 104, 0.08),
-    0 18px 34px rgba(0, 0, 0, 0.36),
-    0 0 40px rgba(240, 92, 43, 0.16);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    overflow: hidden;
     background: linear-gradient(180deg, rgba(19, 10, 8, 0.98), rgba(8, 5, 4, 0.99));
     border: 1px solid rgba(132, 58, 28, 0.5);
     box-shadow:
-    0 34px 78px rgba(0, 0, 0, 0.58),
-    inset 0 1px 0 rgba(255, 176, 98, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    background:
-    linear-gradient(180deg, rgba(255, 183, 104, 0.05), transparent 18%),
-    linear-gradient(90deg, rgba(255, 122, 42, 0.03), transparent 22%);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    border-bottom-color: rgba(132, 58, 28, 0.36);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    color: var(--text-primary);
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
-    width: 10px;
-    height: 10px;
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
     background: linear-gradient(180deg, rgba(143, 63, 30, 0.4), rgba(100, 42, 18, 0.55));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
-}
-
-[data-theme="dark-sun"] .integrations-drawer {
     background: rgba(143, 63, 30, 0.06);
 }

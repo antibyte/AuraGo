@@ -709,17 +709,6 @@
     color: var(--text-primary);
 }
 
-[data-theme="ocean"] .integrations-edge-tab {
-    border-color: rgba(118, 198, 223, 0.48);
-    box-shadow:
-    inset 0 1px 0 rgba(229, 243, 248, 0.08),
-    inset 0 -1px 0 rgba(8, 19, 29, 0.24),
-    0 12px 22px rgba(2, 10, 18, 0.22),
-    0 0 0 1px rgba(118, 198, 223, 0.06);
-    color: var(--strong-color);
-    transform: translateY(-1px);
-}
-
 [data-theme="ocean"] .integrations-edge-tab:hover {
     border-color: rgba(118, 198, 223, 0.48);
     box-shadow:
@@ -728,7 +717,6 @@
     0 12px 22px rgba(2, 10, 18, 0.22),
     0 0 0 1px rgba(118, 198, 223, 0.06);
     color: var(--strong-color);
-    transform: translateY(-1px);
 }
 
 [data-theme="ocean"] .integrations-drawer-title {
@@ -747,17 +735,7 @@
     color: var(--text-primary);
 }
 
-[data-theme="ocean"] .integrations-drawer-close {
-    transform: translateY(-1px);
-    border-color: rgba(118, 198, 223, 0.5);
-    box-shadow:
-    inset 0 1px 0 rgba(226, 241, 248, 0.08),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.24),
-    0 12px 24px rgba(2, 10, 18, 0.22);
-}
-
 [data-theme="ocean"] .integrations-drawer-close:hover {
-    transform: translateY(-1px);
     border-color: rgba(118, 198, 223, 0.5);
     box-shadow:
     inset 0 1px 0 rgba(226, 241, 248, 0.08),
@@ -777,66 +755,12 @@
 }
 
 [data-theme="ocean"] .integrations-drawer {
-    background:
-    var(--ocean-sheen),
-    linear-gradient(180deg, rgba(22, 51, 76, 0.99), rgba(11, 28, 43, 0.98));
-    border: 1px solid rgba(91, 135, 162, 0.4);
-    box-shadow:
-    inset 0 1px 0 rgba(226, 241, 248, 0.06),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.22),
-    0 10px 20px rgba(2, 10, 18, 0.2);
-    color: var(--text-primary);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    transform: translateY(-1px);
-    border-color: rgba(118, 198, 223, 0.5);
-    box-shadow:
-    inset 0 1px 0 rgba(226, 241, 248, 0.08),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.24),
-    0 12px 24px rgba(2, 10, 18, 0.22);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    overflow: hidden;
     background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 36, 0.99));
     border: 1px solid rgba(91, 135, 162, 0.34);
     box-shadow:
-    0 26px 62px rgba(2, 10, 18, 0.3),
-    inset 0 1px 0 rgba(226, 241, 248, 0.05);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    background:
-    linear-gradient(180deg, rgba(232, 245, 251, 0.04), rgba(232, 245, 251, 0) 24%),
-    linear-gradient(90deg, rgba(117, 194, 220, 0.03), transparent 22%);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    border-bottom-color: rgba(91, 135, 162, 0.26);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    color: var(--text-primary);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    width: 10px;
-    height: 10px;
-}
-
-[data-theme="ocean"] .integrations-drawer {
     background: linear-gradient(180deg, rgba(91, 135, 162, 0.4), rgba(60, 100, 130, 0.55));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
-}
-
-[data-theme="ocean"] .integrations-drawer {
     background: rgba(91, 135, 162, 0.08);
 }
