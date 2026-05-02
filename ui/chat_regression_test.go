@@ -576,6 +576,37 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
+	t.Parallel()
+
+	pixelatorContent, err := os.ReadFile(filepath.Join("js", "chat", "8bit-pixelate.js"))
+	if err != nil {
+		t.Fatalf("read 8bit-pixelate.js: %v", err)
+	}
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+
+	pixelatorJS := string(pixelatorContent)
+	for _, marker := range []string{
+		"data-aurago8bit-src",
+		"data-aurago8bit-pixelated",
+		"function restoreImage(img)",
+		"window.addEventListener('aurago:themechange', sync)",
+		"else restoreAll();",
+		"img.removeAttribute('srcset');",
+	} {
+		if !strings.Contains(pixelatorJS, marker) {
+			t.Fatalf("8bit-pixelate.js missing image restore marker %q", marker)
+		}
+	}
+
+	if !strings.Contains(string(indexContent), `/js/chat/8bit-pixelate.js?v=20260502h`) {
+		t.Fatal("index.html must bump 8bit pixelator cache version after restore fix")
+	}
+}
+
 func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 	t.Parallel()
 
