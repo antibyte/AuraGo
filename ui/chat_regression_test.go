@@ -186,6 +186,10 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read shared.js: %v", err)
 	}
+	mainContent, err := os.ReadFile(filepath.Join("js", "chat", "main.js"))
+	if err != nil {
+		t.Fatalf("read chat main JS: %v", err)
+	}
 
 	sharedCSS := string(sharedContent)
 	for _, marker := range []string{
@@ -220,6 +224,23 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 			t.Fatalf("shared JS missing mobile header touch activation marker %q", marker)
 		}
 	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"function bindHeaderActivation(el, handler)",
+		"el.dataset.headerTouchBound = 'true';",
+		"el.addEventListener('pointerup', activate);",
+		"el.addEventListener('touchend', activate, { passive: false });",
+		"bindHeaderActivation(document.getElementById('speaker-toggle'), toggleSpeakerMode);",
+		"bindHeaderActivation(btn, toggleChatThemeDropdown);",
+		"bindHeaderActivation(opt, () => {",
+		"bindHeaderActivation(mobilePersonalityBtn, togglePersonalityDropdown);",
+		"bindHeaderActivation(document.getElementById('moodToggle'), toggleMoodPanel);",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("chat main JS missing direct mobile header activation marker %q", marker)
+		}
+	}
 }
 
 func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
@@ -232,8 +253,10 @@ func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
 
 	mainJS := string(mainContent)
 	for _, marker := range []string{
-		"mobilePersonalityBtn.addEventListener('click', (e) => {",
+		"function togglePersonalityDropdown(e) {",
 		"e.stopPropagation();",
+		"bindHeaderActivation(btn, togglePersonalityDropdown);",
+		"bindHeaderActivation(mobilePersonalityBtn, togglePersonalityDropdown);",
 		"const clickedMobilePersonality = mobilePersonalityBtn && mobilePersonalityBtn.contains(e.target);",
 		"!clickedMobilePersonality",
 	} {

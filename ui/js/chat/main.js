@@ -54,6 +54,40 @@ function setIconPillText(el, iconName, text) {
     el.appendChild(document.createTextNode(text));
 }
 
+function bindHeaderActivation(el, handler) {
+    if (!el || el.dataset.chatHeaderActivationBound === 'true') return;
+    el.dataset.chatHeaderActivationBound = 'true';
+    el.dataset.headerTouchBound = 'true';
+
+    let lastDirectActivation = 0;
+
+    function preventDuplicate(event) {
+        if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
+    }
+
+    function activate(event) {
+        const now = Date.now();
+        if (event.type === 'pointerup' && (!event.pointerType || event.pointerType === 'mouse')) return;
+        const isDirectTouch = event.type === 'touchend' || event.type === 'pointerup';
+
+        if (isDirectTouch) {
+            preventDuplicate(event);
+            if (now - lastDirectActivation < 450) return;
+            lastDirectActivation = now;
+        } else if (event.type === 'click' && now - lastDirectActivation < 450) {
+            preventDuplicate(event);
+            return;
+        }
+
+        handler(event);
+    }
+
+    el.addEventListener('click', activate);
+    el.addEventListener('pointerup', activate);
+    el.addEventListener('touchend', activate, { passive: false });
+}
+
 
 /* ── Mood Feedback Buttons ── */
 const moodEmojiMap = {
@@ -360,7 +394,7 @@ function updateDebugPill() {
     else { pill.classList.remove('debug-on'); pill.textContent = t('chat.debug_pill'); }
 }
 updateDebugPill();
-document.getElementById('debug-pill').addEventListener('click', () => {
+function toggleDebugMode() {
     debugMode = !debugMode;
     localStorage.setItem('aurago-debug', debugMode);
     updateDebugPill();
@@ -371,7 +405,8 @@ document.getElementById('debug-pill').addEventListener('click', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'aurago', messages: [{ role: 'user', content: cmd }] })
     }).catch(() => { }); // fire-and-forget
-});
+}
+bindHeaderActivation(document.getElementById('debug-pill'), toggleDebugMode);
 
 /* ── Speaker mode (TTS auto-play) ── */
 let speakerMode = localStorage.getItem('aurago-speaker') === 'true';
@@ -394,7 +429,7 @@ fetch('/api/preferences', {
     body: JSON.stringify({ speaker_mode: speakerMode })
 }).catch(() => { });
 
-document.getElementById('speaker-toggle').addEventListener('click', () => {
+function toggleSpeakerMode() {
     speakerMode = !speakerMode;
     localStorage.setItem('aurago-speaker', speakerMode);
     updateSpeakerButton();
@@ -404,7 +439,8 @@ document.getElementById('speaker-toggle').addEventListener('click', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ speaker_mode: speakerMode })
     }).catch(() => { });
-});
+}
+bindHeaderActivation(document.getElementById('speaker-toggle'), toggleSpeakerMode);
 
 function _playNextInQueue() {
     if (_audioQueue.length === 0) { _audioPlaying = false; return; }
@@ -562,7 +598,7 @@ async function changePersonality(newId, triggerSelect) {
     const mobilePersonalityBtn = document.getElementById('personality-mobile-btn');
     if (!btn || !dropdown) return;
 
-    btn.addEventListener('click', (e) => {
+    function togglePersonalityDropdown(e) {
         e.stopPropagation();
         const isOpen = !dropdown.hidden;
         dropdown.hidden = isOpen;
@@ -570,7 +606,9 @@ async function changePersonality(newId, triggerSelect) {
         if (isOpen && typeof window._hidePersonalityPreview === 'function') {
             window._hidePersonalityPreview();
         }
-    });
+    }
+
+    bindHeaderActivation(btn, togglePersonalityDropdown);
 
     document.addEventListener('click', (e) => {
         const clickedMobilePersonality = mobilePersonalityBtn && mobilePersonalityBtn.contains(e.target);
@@ -595,15 +633,7 @@ async function changePersonality(newId, triggerSelect) {
     });
 
     if (mobilePersonalityBtn) {
-        mobilePersonalityBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const willClose = !dropdown.hidden;
-            dropdown.hidden = willClose;
-            btn.setAttribute('aria-expanded', String(!dropdown.hidden));
-            if (willClose && typeof window._hidePersonalityPreview === 'function') {
-                window._hidePersonalityPreview();
-            }
-        });
+        bindHeaderActivation(mobilePersonalityBtn, togglePersonalityDropdown);
     }
 })();
 
@@ -1130,9 +1160,10 @@ function updateBudgetPills(b) {
     }
 }
 
-document.getElementById('budgetPill').addEventListener('click', () => {
+function refreshBudgetPills() {
     fetch('/api/budget').then(r => r.json()).then(updateBudgetPills).catch(() => { });
-});
+}
+bindHeaderActivation(document.getElementById('budgetPill'), refreshBudgetPills);
 // Fetch initial budget status on page load
 fetch('/api/budget').then(r => r.json()).then(updateBudgetPills).catch(() => { });
 
@@ -1156,9 +1187,10 @@ function updateCreditsPills(c) {
         }
     }
 }
-document.getElementById('creditsPill').addEventListener('click', () => {
+function refreshCreditsPills() {
     fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => { });
-});
+}
+bindHeaderActivation(document.getElementById('creditsPill'), refreshCreditsPills);
 fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => { });
 
 /* ── Mood Widget ── */
@@ -1229,11 +1261,12 @@ if (PERSONALITY_ENABLED) {
         updateMoodWidget(payload);
     });
 
-    document.getElementById('moodToggle').addEventListener('click', (e) => {
+    function toggleMoodPanel(e) {
         e.stopPropagation();
         document.getElementById('moodPanel').classList.toggle('open');
         document.getElementById('moodToggle').classList.toggle('open');
-    });
+    }
+    bindHeaderActivation(document.getElementById('moodToggle'), toggleMoodPanel);
     document.addEventListener('click', (e) => {
         const panel = document.getElementById('moodPanel');
         if (panel.classList.contains('open') && !e.target.closest('.mood-widget')) {
@@ -1459,15 +1492,16 @@ function initChatThemePicker() {
         });
     }
 
-    btn.addEventListener('click', (e) => {
+    function toggleChatThemeDropdown(e) {
         e.stopPropagation();
         const isOpen = !dropdown.hidden;
         dropdown.hidden = isOpen;
         btn.setAttribute('aria-expanded', String(!isOpen));
-    });
+    }
+    bindHeaderActivation(btn, toggleChatThemeDropdown);
 
     dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
-        opt.addEventListener('click', () => {
+        bindHeaderActivation(opt, () => {
             const theme = opt.dataset.theme;
             if (theme) _selectOption(theme);
         });
