@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Schakelt de Frigate NVR-integratie in zodat de agent camera’s, gebeurtenissen, reviews, media en systeemstatus kan inspecteren.",
+  "help.frigate.readonly": "Houdt Frigate-toegang alleen-lezen. Dit blokkeert toekomstige wijzigingen zoals gebeurtenissen verwijderen of configuratie opslaan.",
+  "help.frigate.url": "Basis-URL van je Frigate-instantie, bijvoorbeeld https://frigate.local:8971 of http://frigate:5000 op een intern Docker-netwerk.",
+  "help.frigate.api_token": "Bearer API-token voor geauthenticeerde Frigate-toegang. Wordt veilig opgeslagen in de versleutelde vault en nooit in config.yaml.",
+  "help.frigate.internal_port": "Gebruik Frigates interne niet-geauthenticeerde poort 5000. Alleen inschakelen op vertrouwde Docker-interne netwerken.",
+  "help.frigate.insecure": "Sla TLS-certificaatverificatie over voor zelfondertekende certificaten. Alleen gebruiken in vertrouwde lokale netwerken.",
+  "help.frigate.default_camera": "Optionele cameranaam die wordt gebruikt wanneer de agent cameraspecifieke data opvraagt zonder camera te specificeren.",
+  "help.frigate.event_relay": "Abonneert op Frigate MQTT-gebeurtenissen en stuurt ze door naar de agent wanneer MQTT relay is geconfigureerd.",
+  "help.frigate.review_relay": "Abonneert op Frigate MQTT-reviewberichten en stuurt updates door naar de agent wanneer MQTT relay is geconfigureerd.",
+  "help.frigate.store_media": "Staat AuraGo toe opgehaalde snapshots of clips op te slaan in het mediaregister wanneer mediaopslag wordt gebruikt.",
+  "help.frigate.mqtt_topic_prefix": "MQTT-topicprefix gebruikt door Frigate. Standaard is frigate, met topics zoals frigate/events en frigate/reviews."
+}

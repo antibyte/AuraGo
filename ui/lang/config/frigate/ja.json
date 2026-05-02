@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Frigate NVR 連携を有効にし、エージェントがカメラ、イベント、レビュー、メディア、システム状態を確認できるようにします。",
+  "help.frigate.readonly": "Frigate アクセスを読み取り専用にします。イベント削除や設定保存などの将来的な変更操作をブロックします。",
+  "help.frigate.url": "Frigate インスタンスのベース URL です。例: https://frigate.local:8971 または Docker 内部ネットワークの http://frigate:5000。",
+  "help.frigate.api_token": "認証済み Frigate アクセス用の Bearer API トークンです。暗号化 vault に安全に保存され、config.yaml には書き込まれません。",
+  "help.frigate.internal_port": "Frigate の内部未認証ポート 5000 を使用します。信頼できる Docker 内部ネットワークでのみ有効にしてください。",
+  "help.frigate.insecure": "自己署名証明書の TLS 証明書検証をスキップします。信頼できるローカルネットワーク内でのみ使用してください。",
+  "help.frigate.default_camera": "エージェントがカメラ指定なしでカメラ固有データを問い合わせる場合に使う任意のカメラ名です。",
+  "help.frigate.event_relay": "MQTT relay が設定されている場合、Frigate MQTT イベントを購読してエージェントに中継します。",
+  "help.frigate.review_relay": "MQTT relay が設定されている場合、Frigate MQTT レビューメッセージを購読してエージェントに中継します。",
+  "help.frigate.store_media": "メディア保存機能を使用する場合、取得したスナップショットやクリップをメディアレジストリに保存できます。",
+  "help.frigate.mqtt_topic_prefix": "Frigate が使用する MQTT topic prefix です。既定値は frigate で、frigate/events や frigate/reviews になります。"
+}

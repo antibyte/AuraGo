@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Zapne integraci Frigate NVR, aby agent mohl kontrolovat kamery, události, revize, média a stav systému.",
+  "help.frigate.readonly": "Ponechá přístup k Frigate jen pro čtení. Blokuje budoucí změny, například mazání událostí nebo ukládání konfigurace.",
+  "help.frigate.url": "Základní URL instance Frigate, například https://frigate.local:8971 nebo http://frigate:5000 v interní síti Docker.",
+  "help.frigate.api_token": "Bearer API token pro ověřený přístup k Frigate. Ukládá se bezpečně do šifrovaného vaultu a nikdy do config.yaml.",
+  "help.frigate.internal_port": "Použije interní neověřený port Frigate 5000. Zapínejte pouze v důvěryhodných interních sítích Docker.",
+  "help.frigate.insecure": "Přeskočí ověření TLS certifikátu u self-signed certifikátů. Používejte pouze v důvěryhodných lokálních sítích.",
+  "help.frigate.default_camera": "Volitelný název kamery použitý, když agent žádá data pro kameru bez uvedení konkrétní kamery.",
+  "help.frigate.event_relay": "Odebírá MQTT události Frigate a předává je agentovi, pokud je nakonfigurován MQTT relay.",
+  "help.frigate.review_relay": "Odebírá MQTT revize Frigate a předává aktualizace agentovi, pokud je nakonfigurován MQTT relay.",
+  "help.frigate.store_media": "Umožní AuraGo ukládat stažené snímky nebo klipy do mediálního registru, pokud je použito ukládání médií.",
+  "help.frigate.mqtt_topic_prefix": "Prefix MQTT témat používaný Frigate. Výchozí je frigate, například frigate/events a frigate/reviews."
+}

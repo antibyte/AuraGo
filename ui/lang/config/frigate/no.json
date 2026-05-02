@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Aktiverer Frigate NVR-integrasjonen slik at agenten kan inspisere kameraer, hendelser, reviews, medier og systemhelse.",
+  "help.frigate.readonly": "Holder Frigate-tilgang skrivebeskyttet. Dette blokkerer fremtidige endringer som sletting av hendelser eller lagring av konfigurasjon.",
+  "help.frigate.url": "Basis-URL for Frigate-instansen, for eksempel https://frigate.local:8971 eller http://frigate:5000 på et internt Docker-nettverk.",
+  "help.frigate.api_token": "Bearer API-token for autentisert Frigate-tilgang. Lagres sikkert i kryptert vault og aldri i config.yaml.",
+  "help.frigate.internal_port": "Bruk Frigates interne uautentiserte port 5000. Aktiver kun på betrodde Docker-interne nettverk.",
+  "help.frigate.insecure": "Hopp over TLS-sertifikatkontroll for selvsignerte sertifikater. Bruk kun i betrodde lokale nettverk.",
+  "help.frigate.default_camera": "Valgfritt kameranavn som brukes når agenten spør etter kameraspesifikke data uten å angi kamera.",
+  "help.frigate.event_relay": "Abonnerer på Frigate MQTT-hendelser og videresender dem til agenten når MQTT-relay er konfigurert.",
+  "help.frigate.review_relay": "Abonnerer på Frigate MQTT-reviewmeldinger og videresender oppdateringer til agenten når MQTT-relay er konfigurert.",
+  "help.frigate.store_media": "Lar AuraGo lagre hentede snapshots eller klipp i medieregisteret når medielagring brukes.",
+  "help.frigate.mqtt_topic_prefix": "MQTT-topic-prefiks brukt av Frigate. Standard er frigate, med topics som frigate/events og frigate/reviews."
+}

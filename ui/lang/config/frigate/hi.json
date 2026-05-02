@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Frigate NVR इंटीग्रेशन सक्षम करता है ताकि एजेंट कैमरे, इवेंट, समीक्षा, मीडिया और सिस्टम स्वास्थ्य देख सके।",
+  "help.frigate.readonly": "Frigate एक्सेस को केवल-पढ़ें रखता है। इससे इवेंट हटाने या कॉन्फ़िगरेशन सेव करने जैसी भविष्य की बदलाव कार्रवाइयाँ रुकती हैं।",
+  "help.frigate.url": "आपके Frigate इंस्टेंस का बेस URL, जैसे https://frigate.local:8971 या Docker आंतरिक नेटवर्क में http://frigate:5000।",
+  "help.frigate.api_token": "प्रमाणित Frigate एक्सेस के लिए Bearer API टोकन। यह एन्क्रिप्टेड vault में सुरक्षित रहता है और config.yaml में नहीं लिखा जाता।",
+  "help.frigate.internal_port": "Frigate का आंतरिक बिना-प्रमाणीकरण पोर्ट 5000 उपयोग करें। इसे केवल विश्वसनीय Docker-आंतरिक नेटवर्क में सक्षम करें।",
+  "help.frigate.insecure": "स्व-हस्ताक्षरित प्रमाणपत्रों के लिए TLS प्रमाणपत्र जाँच छोड़ें। केवल विश्वसनीय स्थानीय नेटवर्क में उपयोग करें।",
+  "help.frigate.default_camera": "वैकल्पिक कैमरा नाम, जब एजेंट कैमरा-विशिष्ट डेटा बिना कैमरा बताए पूछता है।",
+  "help.frigate.event_relay": "MQTT relay कॉन्फ़िगर होने पर Frigate MQTT इवेंट संदेशों को एजेंट तक पहुँचाता है।",
+  "help.frigate.review_relay": "MQTT relay कॉन्फ़िगर होने पर Frigate MQTT review संदेशों और अपडेट को एजेंट तक पहुँचाता है।",
+  "help.frigate.store_media": "मीडिया स्टोरेज उपयोग होने पर AuraGo को snapshots या clips मीडिया रजिस्ट्री में सहेजने देता है।",
+  "help.frigate.mqtt_topic_prefix": "Frigate द्वारा उपयोग किया गया MQTT topic prefix। डिफ़ॉल्ट frigate है, जैसे frigate/events और frigate/reviews।"
+}

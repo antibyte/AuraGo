@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "启用 Frigate NVR 集成，让代理可以查看摄像头、事件、review、媒体和系统健康状态。",
+  "help.frigate.readonly": "保持 Frigate 只读访问。会阻止未来的修改操作，例如删除事件或保存配置。",
+  "help.frigate.url": "Frigate 实例的基础 URL，例如 https://frigate.local:8971，或内部 Docker 网络中的 http://frigate:5000。",
+  "help.frigate.api_token": "用于 Frigate 认证访问的 Bearer API 令牌。安全存储在加密 vault 中，绝不写入 config.yaml。",
+  "help.frigate.internal_port": "使用 Frigate 内部未认证的 5000 端口。仅在可信的 Docker 内部网络中启用。",
+  "help.frigate.insecure": "跳过自签名证书的 TLS 证书验证。仅在可信本地网络中使用。",
+  "help.frigate.default_camera": "可选摄像头名称。当代理查询摄像头数据但未指定摄像头时使用。",
+  "help.frigate.event_relay": "订阅 Frigate MQTT 事件消息，并在配置 MQTT relay 时转发给代理。",
+  "help.frigate.review_relay": "订阅 Frigate MQTT review 消息，并在配置 MQTT relay 时将更新转发给代理。",
+  "help.frigate.store_media": "使用媒体存储时，允许 AuraGo 将获取的快照或剪辑保存到媒体注册表。",
+  "help.frigate.mqtt_topic_prefix": "Frigate 使用的 MQTT topic 前缀。默认是 frigate，例如 frigate/events 和 frigate/reviews。"
+}

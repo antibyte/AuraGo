@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Activa la integración Frigate NVR para que el agente pueda inspeccionar cámaras, eventos, revisiones, medios y estado del sistema.",
+  "help.frigate.readonly": "Mantiene el acceso a Frigate en solo lectura. Bloquea futuras acciones de cambio como borrar eventos o guardar configuración.",
+  "help.frigate.url": "URL base de tu instancia Frigate, por ejemplo https://frigate.local:8971 o http://frigate:5000 en una red Docker interna.",
+  "help.frigate.api_token": "Token API Bearer para acceso autenticado a Frigate. Se guarda de forma segura en el vault cifrado y nunca en config.yaml.",
+  "help.frigate.internal_port": "Usa el puerto interno no autenticado 5000 de Frigate. Actívalo solo en redes internas Docker de confianza.",
+  "help.frigate.insecure": "Omite la verificación del certificado TLS para certificados autofirmados. Úsalo solo en redes locales de confianza.",
+  "help.frigate.default_camera": "Nombre opcional de cámara usado cuando el agente consulta datos específicos sin indicar una cámara.",
+  "help.frigate.event_relay": "Suscribe eventos MQTT de Frigate y los reenvía al agente cuando el relay MQTT está configurado.",
+  "help.frigate.review_relay": "Suscribe mensajes MQTT de revisión de Frigate y reenvía actualizaciones al agente cuando el relay MQTT está configurado.",
+  "help.frigate.store_media": "Permite a AuraGo guardar snapshots o clips obtenidos en el registro multimedia cuando se usa almacenamiento multimedia.",
+  "help.frigate.mqtt_topic_prefix": "Prefijo de temas MQTT usado por Frigate. El valor predeterminado es frigate, como frigate/events y frigate/reviews."
+}

@@ -1,0 +1,13 @@
+{
+  "help.frigate.enabled": "Ενεργοποιεί την ενσωμάτωση Frigate NVR ώστε ο agent να ελέγχει κάμερες, συμβάντα, reviews, πολυμέσα και υγεία συστήματος.",
+  "help.frigate.readonly": "Διατηρεί την πρόσβαση στο Frigate μόνο για ανάγνωση. Μπλοκάρει μελλοντικές αλλαγές όπως διαγραφή συμβάντων ή αποθήκευση ρυθμίσεων.",
+  "help.frigate.url": "Βασικό URL της εγκατάστασης Frigate, π.χ. https://frigate.local:8971 ή http://frigate:5000 σε εσωτερικό δίκτυο Docker.",
+  "help.frigate.api_token": "Bearer API token για πιστοποιημένη πρόσβαση στο Frigate. Αποθηκεύεται με ασφάλεια στο κρυπτογραφημένο vault και ποτέ στο config.yaml.",
+  "help.frigate.internal_port": "Χρήση της εσωτερικής μη πιστοποιημένης θύρας 5000 του Frigate. Ενεργοποιήστε μόνο σε αξιόπιστα εσωτερικά δίκτυα Docker.",
+  "help.frigate.insecure": "Παράκαμψη ελέγχου πιστοποιητικού TLS για αυτοϋπογεγραμμένα πιστοποιητικά. Χρήση μόνο σε αξιόπιστα τοπικά δίκτυα.",
+  "help.frigate.default_camera": "Προαιρετικό όνομα κάμερας που χρησιμοποιείται όταν ο agent ζητά δεδομένα κάμερας χωρίς συγκεκριμένη κάμερα.",
+  "help.frigate.event_relay": "Εγγραφή σε MQTT συμβάντα Frigate και προώθησή τους στον agent όταν έχει ρυθμιστεί MQTT relay.",
+  "help.frigate.review_relay": "Εγγραφή σε MQTT review μηνύματα Frigate και προώθηση ενημερώσεων στον agent όταν έχει ρυθμιστεί MQTT relay.",
+  "help.frigate.store_media": "Επιτρέπει στο AuraGo να αποθηκεύει snapshots ή clips στο media registry όταν χρησιμοποιείται αποθήκευση πολυμέσων.",
+  "help.frigate.mqtt_topic_prefix": "Πρόθεμα MQTT topic που χρησιμοποιεί το Frigate. Προεπιλογή: frigate, όπως frigate/events και frigate/reviews."
+}
