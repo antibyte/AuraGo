@@ -457,6 +457,50 @@ func TestSendSpaceAgentInstructionFallsBackToMessageEndpointOn404(t *testing.T) 
 	}
 }
 
+func TestSendSpaceAgentInstructionWritesMailboxWhenInboundAPIIsMissing(t *testing.T) {
+	var gotPaths []string
+	originalClient := spaceAgentHTTPClient
+	spaceAgentHTTPClient = &http.Client{Transport: spaceAgentRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotPaths = append(gotPaths, r.URL.Path)
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(bytes.NewBufferString(`{"status":"error","error":"File not found"}`)),
+			Request:    r,
+		}, nil
+	})}
+	defer func() { spaceAgentHTTPClient = originalClient }()
+
+	dataPath := t.TempDir()
+	cfg := &config.Config{}
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.Host = "127.0.0.1"
+	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.BridgeToken = "bridge-token"
+	cfg.SpaceAgent.DataPath = dataPath
+
+	got := SendSpaceAgentInstruction(context.Background(), cfg, SpaceAgentInstruction{
+		Instruction: "build a weather widget",
+		Information: "Pforzheim",
+		SessionID:   "sess-1",
+	})
+
+	if got["status"] != "ok" || got["delivered"] != "mailbox" || got["auto_execution"] != false {
+		t.Fatalf("unexpected mailbox result: %#v", got)
+	}
+	if strings.Join(gotPaths, ",") != "/api/message_async,/api/message" {
+		t.Fatalf("paths = %#v", gotPaths)
+	}
+	latest := filepath.Join(dataPath, "home", "aurago_inbox", "latest_instruction.json")
+	content, err := os.ReadFile(latest)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", latest, err)
+	}
+	if !strings.Contains(string(content), "build a weather widget") || !strings.Contains(string(content), `"auto_execution": false`) {
+		t.Fatalf("mailbox content missing instruction details: %s", string(content))
+	}
+}
+
 type spaceAgentRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f spaceAgentRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -482,6 +526,7 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"writeFile(path.join(rootPath, \"docs\", \"aurago-bridge.md\")",
 		"writeFile(path.join(process.env.CUSTOMWARE_PATH, \"aurago_bridge.js\")",
 		"writeFile(path.join(rootPath, \"aurago_bridge.js\")",
+		"aurago_inbox",
 		"clearInvalidatedUserCrypto(normalizedUsername)",
 		"createUser(projectRoot, username, password",
 		"setUserPassword(projectRoot, username, password",
@@ -565,7 +610,7 @@ func TestEnsureSpaceAgentHomeSeedsExpectedWorkspaceFiles(t *testing.T) {
 		filepath.Join(home, "conf", "onscreen-agent.yaml"):           "{}",
 		filepath.Join(home, "hist", "onscreen-agent.json"):           "[]",
 		filepath.Join(home, "docs", "aurago-bridge.md"):              "contains:AuraGo Bridge",
-		filepath.Join(home, "conf", "aurago.system.include.md"):      "contains:AuraGo",
+		filepath.Join(home, "conf", "aurago.system.include.md"):      "contains:latest_instruction.json",
 		filepath.Join(home, "onscreen-agent", "config.json"):         "{}",
 		filepath.Join(home, "onscreen-agent", "history.json"):        "[]",
 		filepath.Join(home, "meta", "dashboard-prefs.json"):          "{}",
@@ -599,7 +644,7 @@ func TestEnsureSpaceAgentCustomwareUserHomeSeedsL2WorkspaceFiles(t *testing.T) {
 		filepath.Join(userHome, "conf", "onscreen-agent.yaml"):       "{}",
 		filepath.Join(userHome, "hist", "onscreen-agent.json"):       "[]",
 		filepath.Join(userHome, "docs", "aurago-bridge.md"):          "contains:AuraGo Bridge",
-		filepath.Join(userHome, "conf", "aurago.system.include.md"):  "contains:AuraGo",
+		filepath.Join(userHome, "conf", "aurago.system.include.md"):  "contains:latest_instruction.json",
 		filepath.Join(userHome, ".config", "dashboard-prefs.json"):   "{}",
 		filepath.Join(userHome, "onscreen-agent", "config.json"):     "{}",
 		filepath.Join(userHome, "onscreen-agent", "history.json"):    "[]",
