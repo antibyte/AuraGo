@@ -324,9 +324,6 @@ func TestAnnotateSpaceAgentInstructionHTTPErrorExplainsMissingEndpoint(t *testin
 	if result["requires_recreate"] != true {
 		t.Fatalf("requires_recreate = %#v, want true", result["requires_recreate"])
 	}
-	if result["missing_endpoint"] != spaceAgentInstructionEndpoint {
-		t.Fatalf("missing_endpoint = %#v", result["missing_endpoint"])
-	}
 	message, _ := result["message"].(string)
 	if !strings.Contains(message, "reachable") || !strings.Contains(message, "Recreate") {
 		t.Fatalf("message does not explain missing endpoint: %q", message)
@@ -403,6 +400,9 @@ func TestSendSpaceAgentInstructionUsesMessageAsyncBridgeHeaders(t *testing.T) {
 	if got["status"] != "ok" || got["accepted"] != true || got["queued"] != true {
 		t.Fatalf("unexpected tool result: %#v", got)
 	}
+	if got["endpoint"] != "/api/message_async" {
+		t.Fatalf("endpoint = %#v, want /api/message_async", got["endpoint"])
+	}
 	if gotPath != "/api/message_async" {
 		t.Fatalf("path = %q, want /api/message_async", gotPath)
 	}
@@ -414,6 +414,46 @@ func TestSendSpaceAgentInstructionUsesMessageAsyncBridgeHeaders(t *testing.T) {
 	}
 	if gotBody.Instruction != "build a weather widget" || gotBody.Information != "Pforzheim" || gotBody.SessionID != "sess-1" {
 		t.Fatalf("request body = %#v", gotBody)
+	}
+}
+
+func TestSendSpaceAgentInstructionFallsBackToMessageEndpointOn404(t *testing.T) {
+	var gotPaths []string
+	originalClient := spaceAgentHTTPClient
+	spaceAgentHTTPClient = &http.Client{Transport: spaceAgentRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotPaths = append(gotPaths, r.URL.Path)
+		if r.URL.Path == "/api/message_async" {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(bytes.NewBufferString(`{"status":"error","error":"File not found"}`)),
+				Request:    r,
+			}, nil
+		}
+		if r.Header.Get("X-AuraGo-Instruction") != "1" {
+			t.Fatalf("fallback request missing bridge header")
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(bytes.NewBufferString(`{"accepted":true,"queued":true}`)),
+			Request:    r,
+		}, nil
+	})}
+	defer func() { spaceAgentHTTPClient = originalClient }()
+
+	cfg := &config.Config{}
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.Host = "127.0.0.1"
+	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.BridgeToken = "bridge-token"
+
+	got := SendSpaceAgentInstruction(context.Background(), cfg, SpaceAgentInstruction{Instruction: "build a weather widget"})
+
+	if got["status"] != "ok" || got["endpoint"] != "/api/message" {
+		t.Fatalf("unexpected fallback result: %#v", got)
+	}
+	if strings.Join(gotPaths, ",") != "/api/message_async,/api/message" {
+		t.Fatalf("paths = %#v", gotPaths)
 	}
 }
 

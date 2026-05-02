@@ -34,8 +34,9 @@ const (
 	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
-	spaceAgentInstructionEndpoint  = "/api/message_async"
 )
+
+var spaceAgentInstructionEndpoints = []string{"/api/message_async", "/api/message"}
 
 // SpaceAgentSidecarConfig is the resolved runtime configuration for the managed sidecar.
 type SpaceAgentSidecarConfig struct {
@@ -417,30 +418,41 @@ func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req Spac
 		Host: cfg.SpaceAgent.Host,
 		Port: cfg.SpaceAgent.Port,
 	}), "/")
-	body, _ := json.Marshal(req)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+spaceAgentInstructionEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return map[string]interface{}{"status": "error", "message": err.Error()}
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	if cfg.SpaceAgent.BridgeToken != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+cfg.SpaceAgent.BridgeToken)
-	}
-	httpReq.Header.Set("X-AuraGo-Instruction", "1")
-	client := spaceAgentHTTPClient
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return map[string]interface{}{"status": "error", "message": err.Error()}
-	}
-	defer resp.Body.Close()
-	rawBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	parsed := parseSpaceAgentInstructionResponseBody(resp.StatusCode, rawBody)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	var last map[string]interface{}
+	var tried []string
+	for _, endpoint := range spaceAgentInstructionEndpoints {
+		tried = append(tried, endpoint)
+		body, _ := json.Marshal(req)
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+endpoint, bytes.NewReader(body))
+		if err != nil {
+			return map[string]interface{}{"status": "error", "message": err.Error()}
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		if cfg.SpaceAgent.BridgeToken != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+cfg.SpaceAgent.BridgeToken)
+		}
+		httpReq.Header.Set("X-AuraGo-Instruction", "1")
+		resp, err := spaceAgentHTTPClient.Do(httpReq)
+		if err != nil {
+			return map[string]interface{}{"status": "error", "message": err.Error(), "endpoint": endpoint, "tried_endpoints": tried}
+		}
+		rawBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		_ = resp.Body.Close()
+		parsed := parseSpaceAgentInstructionResponseBody(resp.StatusCode, rawBody)
+		parsed["endpoint"] = endpoint
+		parsed["tried_endpoints"] = append([]string(nil), tried...)
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return parsed
+		}
 		parsed["status"] = "error"
 		parsed["http_status"] = resp.StatusCode
-		annotateSpaceAgentInstructionHTTPError(parsed, resp.StatusCode)
+		last = parsed
+		if resp.StatusCode != http.StatusNotFound {
+			return parsed
+		}
 	}
-	return parsed
+	annotateSpaceAgentInstructionHTTPError(last, http.StatusNotFound)
+	return last
 }
 
 var spaceAgentHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -473,9 +485,11 @@ func annotateSpaceAgentInstructionHTTPError(result map[string]interface{}, statu
 	if result == nil || statusCode != http.StatusNotFound {
 		return
 	}
-	result["message"] = "Space Agent is reachable, but the AuraGo instruction endpoint is missing. This is not an offline/network error. Recreate the managed Space Agent sidecar from the current AuraGo build so /api/aurago_instructions is injected. If this persists after a fresh recreate, the running Space Agent image does not expose AuraGo's injected instruction API and only the Space-Agent-to-AuraGo bridge fast path is currently available."
+	result["message"] = "Space Agent is reachable, but none of AuraGo's instruction endpoints are available. This is not an offline/network error. Recreate the managed Space Agent sidecar from the current AuraGo build so the message_async bridge is injected. If this persists after a fresh recreate, the running Space Agent image does not expose the expected message API and only the Space-Agent-to-AuraGo bridge fast path is currently available."
 	result["requires_recreate"] = true
-	result["missing_endpoint"] = spaceAgentInstructionEndpoint
+	if endpoint, _ := result["endpoint"].(string); endpoint != "" {
+		result["missing_endpoint"] = endpoint
+	}
 }
 
 // ExecuteSpaceAgent is the agent-facing wrapper for Space Agent communication.
