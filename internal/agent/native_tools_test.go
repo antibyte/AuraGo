@@ -872,6 +872,65 @@ func TestBuildNativeToolSchemasSkipsCustomToolCollidingWithBuiltinTool(t *testin
 	}
 }
 
+func TestBuildNativeToolSchemasSkipsProviderInvalidDynamicShortcutNames(t *testing.T) {
+	skillsDir := t.TempDir()
+	badSkillManifest := `{
+  "name": "bad skill",
+  "description": "Invalid native shortcut name",
+  "executable": "bad_skill.py",
+  "parameters": {}
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "bad_skill.json"), []byte(badSkillManifest), 0o644); err != nil {
+		t.Fatalf("write bad skill manifest: %v", err)
+	}
+	goodSkillManifest := `{
+  "name": "good_skill",
+  "description": "Valid native shortcut name",
+  "executable": "good_skill.py",
+  "parameters": {}
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "good_skill.json"), []byte(goodSkillManifest), 0o644); err != nil {
+		t.Fatalf("write good skill manifest: %v", err)
+	}
+
+	toolsDir := t.TempDir()
+	manifestJSON := `{
+  "version": 2,
+  "tools": {
+    "bad tool.py": "Invalid native shortcut name",
+    "good_tool.py": "Valid native shortcut name"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(toolsDir, "manifest.json"), []byte(manifestJSON), 0o600); err != nil {
+		t.Fatalf("write custom tool manifest: %v", err)
+	}
+
+	schemas := BuildNativeToolSchemas(skillsDir, tools.NewManifest(toolsDir), ToolFeatureFlags{}, nil)
+	names := make(map[string]bool, len(schemas))
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		if !providerNativeToolNamePattern.MatchString(toolSchema.Function.Name) {
+			t.Fatalf("provider-invalid function name emitted: %q", toolSchema.Function.Name)
+		}
+		names[toolSchema.Function.Name] = true
+	}
+
+	if names["skill__bad skill"] {
+		t.Fatal("did not expect provider-invalid skill shortcut")
+	}
+	if names["tool__bad tool.py"] {
+		t.Fatal("did not expect provider-invalid custom tool shortcut")
+	}
+	if !names["skill__good_skill"] {
+		t.Fatal("expected valid skill shortcut to remain")
+	}
+	if !names["tool__good_tool.py"] {
+		t.Fatal("expected valid custom tool shortcut to remain")
+	}
+}
+
 func TestBuildNativeToolSchemasSortsCustomToolsByName(t *testing.T) {
 	toolsDir := t.TempDir()
 	manifest := tools.NewManifest(toolsDir)

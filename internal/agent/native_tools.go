@@ -20,6 +20,7 @@ import (
 )
 
 var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+var providerNativeToolNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$`)
 
 var builtinToolSchemaCache sync.Map
 
@@ -433,6 +434,15 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 				}
 			}
 			schemaName := "skill__" + skill.Name
+			if !isProviderSafeNativeToolName(schemaName) {
+				if logger != nil {
+					logger.Warn("[NativeTools] Skipping skill shortcut with provider-invalid function name",
+						"skill", skill.Name,
+						"schema_name", schemaName,
+					)
+				}
+				continue
+			}
 			if _, exists := emittedNames[schemaName]; exists {
 				continue
 			}
@@ -467,6 +477,15 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 					continue
 				}
 				schemaName := "tool__" + name
+				if !isProviderSafeNativeToolName(schemaName) {
+					if logger != nil {
+						logger.Warn("[NativeTools] Skipping custom tool shortcut with provider-invalid function name",
+							"tool", name,
+							"schema_name", schemaName,
+						)
+					}
+					continue
+				}
 				if _, exists := emittedNames[schemaName]; exists {
 					continue
 				}
@@ -501,6 +520,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	sort.SliceStable(allTools, func(i, j int) bool {
 		return nativeToolSortName(allTools[i]) < nativeToolSortName(allTools[j])
 	})
+	allTools = filterProviderSafeNativeToolSchemas(allTools, logger)
 
 	// Inject _todo property into every tool schema so the agent can piggyback
 	// a session-scoped task list on each tool call.
@@ -554,6 +574,29 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	}
 
 	return allTools
+}
+
+func isProviderSafeNativeToolName(name string) bool {
+	return providerNativeToolNamePattern.MatchString(strings.TrimSpace(name))
+}
+
+func filterProviderSafeNativeToolSchemas(schemas []openai.Tool, logger *slog.Logger) []openai.Tool {
+	if len(schemas) == 0 {
+		return schemas
+	}
+	filtered := schemas[:0]
+	for _, schema := range schemas {
+		if schema.Function == nil || isProviderSafeNativeToolName(schema.Function.Name) {
+			filtered = append(filtered, schema)
+			continue
+		}
+		if logger != nil {
+			logger.Warn("[NativeTools] Dropping provider-invalid function name",
+				"name", schema.Function.Name,
+			)
+		}
+	}
+	return filtered
 }
 
 func nativeToolSortName(schema openai.Tool) string {
