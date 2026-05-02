@@ -47,6 +47,23 @@ func TestClassifyError_RateLimit(t *testing.T) {
 	}
 }
 
+func TestClassifyError_QuotaExceededNonRetryable(t *testing.T) {
+	apiErr := &openai.APIError{
+		HTTPStatusCode: http.StatusTooManyRequests,
+		Message:        `geminiException - {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000, model: gemma-4-31b","status":"RESOURCE_EXHAUSTED"}}`,
+	}
+	cat := ClassifyError(apiErr)
+	if cat != ErrCategoryQuotaExceeded {
+		t.Errorf("ClassifyError(Gemini quota 429) = %v, want %v", cat, ErrCategoryQuotaExceeded)
+	}
+	if IsRetryable(apiErr) {
+		t.Error("IsRetryable(Gemini quota 429) = true, want false")
+	}
+	if !IsQuotaExceeded(apiErr) {
+		t.Error("IsQuotaExceeded(Gemini quota 429) = false, want true")
+	}
+}
+
 func TestClassifyError_TemporaryTransport(t *testing.T) {
 	apiErr := &openai.APIError{HTTPStatusCode: http.StatusServiceUnavailable}
 	cat := ClassifyError(apiErr)

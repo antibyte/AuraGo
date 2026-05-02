@@ -546,11 +546,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
-				if llm.IsImageNotSupportedError(err) {
-					errMsg := i18n.T(s.Cfg.Server.UILanguage, "backend.handler_image_not_supported")
-					broker.SendLLMStreamDelta(errMsg, "", "", 0, "")
-					broker.SendLLMStreamDone("stop")
-				}
+				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
+				broker.SendLLMStreamDelta(errMsg, "", "", 0, "")
+				broker.SendLLMStreamDone("stop")
+				broker.Send("done", i18n.T(s.Cfg.Server.UILanguage, "backend.stream_done"))
 				return
 			}
 
@@ -568,44 +567,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
-				if llm.IsImageNotSupportedError(err) {
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(openai.ChatCompletionResponse{
-						ID:      "err-" + sessionID,
-						Object:  "chat.completion",
-						Created: time.Now().Unix(),
-						Model:   "aurago",
-						Choices: []openai.ChatCompletionChoice{{
-							Index: 0,
-							Message: openai.ChatCompletionMessage{
-								Role:    openai.ChatMessageRoleAssistant,
-								Content: i18n.T(s.Cfg.Server.UILanguage, "backend.handler_image_not_supported"),
-							},
-							FinishReason: openai.FinishReasonStop,
-						}},
-					})
-					return
-				}
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500
-				errMsg := i18n.T(s.Cfg.Server.UILanguage, "backend.handler_timeout_error")
-				if !strings.Contains(err.Error(), "context deadline exceeded") && !strings.Contains(err.Error(), "context canceled") {
-					errMsg = i18n.T(s.Cfg.Server.UILanguage, "backend.handler_sync_error")
-				}
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(openai.ChatCompletionResponse{
-					ID:      "err-" + sessionID,
-					Object:  "chat.completion",
-					Created: time.Now().Unix(),
-					Model:   "aurago",
-					Choices: []openai.ChatCompletionChoice{{
-						Index: 0,
-						Message: openai.ChatCompletionMessage{
-							Role:    openai.ChatMessageRoleAssistant,
-							Content: errMsg,
-						},
-						FinishReason: openai.FinishReasonStop,
-					}},
-				})
+				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
+				writeChatCompletionErrorResponse(w, sessionID, errMsg)
 				return
 			}
 			// Scrub any sensitive values from the response content before sending.

@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -77,6 +78,23 @@ func TestExecuteWithRetry_NonRetryableError(t *testing.T) {
 	}
 	if client.callCount != 1 {
 		t.Errorf("callCount = %d, want 1 (should not retry non-retryable)", client.callCount)
+	}
+}
+
+func TestExecuteWithRetry_QuotaExceededDoesNotRetry(t *testing.T) {
+	client := &mockRetryClient{
+		shouldRetry: []error{&openai.APIError{
+			HTTPStatusCode: http.StatusTooManyRequests,
+			Message:        `geminiException - {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000, model: gemma-4-31b","status":"RESOURCE_EXHAUSTED"}}`,
+		}},
+	}
+
+	_, err := ExecuteWithCustomRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil, []time.Duration{time.Hour}, time.Hour)
+	if err == nil {
+		t.Fatal("ExecuteWithRetry should return quota error")
+	}
+	if client.callCount != 1 {
+		t.Errorf("callCount = %d, want 1 (should not retry quota exhaustion)", client.callCount)
 	}
 }
 

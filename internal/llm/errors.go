@@ -18,6 +18,7 @@ const (
 	ErrCategoryNonRetryableConfig ErrorCategory = "non_retryable_config"
 	ErrCategoryAuthError          ErrorCategory = "auth_error"
 	ErrCategoryRateLimit          ErrorCategory = "rate_limit"
+	ErrCategoryQuotaExceeded      ErrorCategory = "quota_exceeded"
 	ErrCategoryTemporaryTransport ErrorCategory = "temporary_transport"
 	ErrCategoryProviderValidation ErrorCategory = "provider_validation"
 	ErrCategoryProbeInconclusive  ErrorCategory = "probe_inconclusive"
@@ -70,6 +71,9 @@ func ClassifyError(err error) ErrorCategory {
 	}
 
 	msg := strings.ToLower(err.Error())
+	if isQuotaExceededByString(msg) {
+		return ErrCategoryQuotaExceeded
+	}
 	if isNonRetryableByString(msg) {
 		return ErrCategoryNonRetryableConfig
 	}
@@ -85,6 +89,9 @@ func ClassifyError(err error) ErrorCategory {
 }
 
 func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
+	if statusCode == http.StatusTooManyRequests && isQuotaExceededByString(strings.ToLower(errMsg)) {
+		return ErrCategoryQuotaExceeded
+	}
 	switch {
 	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
 		return ErrCategoryAuthError
@@ -133,7 +140,7 @@ func IsRetryable(err error) bool {
 	switch cat {
 	case ErrCategoryContextCanceled, ErrCategoryContextDeadline:
 		return false
-	case ErrCategoryNonRetryableConfig, ErrCategoryAuthError:
+	case ErrCategoryNonRetryableConfig, ErrCategoryAuthError, ErrCategoryQuotaExceeded:
 		return false
 	case ErrCategoryRateLimit, ErrCategoryTemporaryTransport, ErrCategoryProviderValidation:
 		return true
@@ -152,6 +159,10 @@ func IsRateLimit(err error) bool {
 
 func IsAuthError(err error) bool {
 	return ClassifyError(err) == ErrCategoryAuthError
+}
+
+func IsQuotaExceeded(err error) bool {
+	return ClassifyError(err) == ErrCategoryQuotaExceeded
 }
 
 func IsProbeInconclusive(err error) bool {
@@ -199,6 +210,16 @@ func isNonRetryableByString(lowerErr string) bool {
 		strings.Contains(lowerErr, "unauthorized") ||
 		strings.Contains(lowerErr, "permission denied") ||
 		strings.Contains(lowerErr, "access denied")
+}
+
+func isQuotaExceededByString(lowerErr string) bool {
+	return strings.Contains(lowerErr, "quota exceeded") ||
+		strings.Contains(lowerErr, "exceeded your current quota") ||
+		strings.Contains(lowerErr, "resource_exhausted") ||
+		strings.Contains(lowerErr, "billing details") ||
+		strings.Contains(lowerErr, "quotaMetric") ||
+		strings.Contains(lowerErr, "quotametric") ||
+		strings.Contains(lowerErr, "input_token_count")
 }
 
 func isTransientByString(lowerErr string) bool {
