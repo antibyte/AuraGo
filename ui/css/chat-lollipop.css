@@ -95,8 +95,8 @@
     [data-theme="lollipop"] .integrations-drawer-title,
 [data-theme="lollipop"] .modal-title,
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab,
-    [data-theme="lollipop"] .integrations-edge-tab,
+[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
 [data-theme="lollipop"] .select-personality,
@@ -120,8 +120,8 @@
 
 [data-theme="lollipop"] .app-header .pill,
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab,
-    [data-theme="lollipop"] .integrations-edge-tab,
+[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
 [data-theme="lollipop"] .select-personality,
@@ -152,8 +152,8 @@
 }
 
 [data-theme="lollipop"] .chat-theme-btn,
-[data-theme="lollipop"] .session-edge-tab,
-    [data-theme="lollipop"] .integrations-edge-tab,
+[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker,
 [data-theme="lollipop"] .btn-warnings,
 [data-theme="lollipop"] .select-personality,
@@ -173,8 +173,8 @@
 }
 
 [data-theme="lollipop"] .chat-theme-btn:hover,
-[data-theme="lollipop"] .session-edge-tab,
-    [data-theme="lollipop"] .integrations-edge-tab:hover,
+[data-theme="lollipop"] .session-edge-tab
+[data-theme="lollipop"] .integrations-edge-tab,
 [data-theme="lollipop"] .btn-speaker:hover,
 [data-theme="lollipop"] .btn-warnings:hover,
 [data-theme="lollipop"] .select-personality:hover,
@@ -548,8 +548,7 @@
     backdrop-filter: blur(8px);
 }
 
-[data-theme="lollipop"] .session-drawer,
-    [data-theme="lollipop"] .integrations-drawer,
+[data-theme="lollipop"] .session-drawer
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {
     overflow: hidden;
@@ -748,11 +747,13 @@
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="lollipop"] #chat-content::-webkit-scrollbar,
 [data-theme="lollipop"] .session-drawer ::-webkit-scrollbar {
+[data-theme="lollipop"] .integrations-drawer,
     width: 10px;
     height: 10px;
 }
 [data-theme="lollipop"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-thumb {
+[data-theme="lollipop"] .integrations-drawer,
     background: linear-gradient(180deg, rgba(214, 123, 176, 0.4), rgba(199, 162, 255, 0.45));
     border-radius: 8px;
     border: 2px solid transparent;
@@ -760,6 +761,7 @@
 }
 [data-theme="lollipop"] #chat-content::-webkit-scrollbar-track,
 [data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-track {
+[data-theme="lollipop"] .integrations-drawer,
     background: rgba(214, 123, 176, 0.08);
 }
 

@@ -107,8 +107,8 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-btn,
-[data-theme="sandstorm"] .session-edge-tab,
-    [data-theme="sandstorm"] .integrations-edge-tab,
+[data-theme="sandstorm"] .session-edge-tab
+[data-theme="sandstorm"] .integrations-edge-tab,
 [data-theme="sandstorm"] .btn-speaker,
 [data-theme="sandstorm"] .btn-warnings,
 [data-theme="sandstorm"] .select-personality,
@@ -126,8 +126,8 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-btn:hover,
-[data-theme="sandstorm"] .session-edge-tab,
-    [data-theme="sandstorm"] .integrations-edge-tab:hover,
+[data-theme="sandstorm"] .session-edge-tab
+[data-theme="sandstorm"] .integrations-edge-tab,
 [data-theme="sandstorm"] .btn-speaker:hover,
 [data-theme="sandstorm"] .btn-warnings:hover,
 [data-theme="sandstorm"] .select-personality:hover,
@@ -453,8 +453,7 @@
     backdrop-filter: blur(8px);
 }
 
-[data-theme="sandstorm"] .session-drawer,
-    [data-theme="sandstorm"] .integrations-drawer,
+[data-theme="sandstorm"] .session-drawer
 [data-theme="sandstorm"] .modal-card,
 [data-theme="sandstorm"] .mermaid-modal-content {
     overflow: hidden;
@@ -601,11 +600,13 @@
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar {
+[data-theme="sandstorm"] .integrations-drawer,
     width: 10px;
     height: 10px;
 }
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-thumb {
+[data-theme="sandstorm"] .integrations-drawer,
     background: linear-gradient(180deg, rgba(155, 117, 70, 0.45), rgba(96, 70, 40, 0.6));
     border-radius: 8px;
     border: 2px solid transparent;
@@ -613,6 +614,7 @@
 }
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar-track,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-track {
+[data-theme="sandstorm"] .integrations-drawer,
     background: rgba(30, 63, 102, 0.06);
 }
 

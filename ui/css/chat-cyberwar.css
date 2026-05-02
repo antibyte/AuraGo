@@ -113,8 +113,8 @@
 [data-theme="cyberwar"] .modal-title,
 [data-theme="cyberwar"] .app-header .pill,
 [data-theme="cyberwar"] .chat-theme-btn,
-[data-theme="cyberwar"] .session-edge-tab,
-    [data-theme="cyberwar"] .integrations-edge-tab,
+[data-theme="cyberwar"] .session-edge-tab
+[data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
 [data-theme="cyberwar"] .select-personality,
@@ -126,8 +126,8 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-btn,
-[data-theme="cyberwar"] .session-edge-tab,
-    [data-theme="cyberwar"] .integrations-edge-tab,
+[data-theme="cyberwar"] .session-edge-tab
+[data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
 [data-theme="cyberwar"] .select-personality,
@@ -147,8 +147,8 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-btn:hover,
-[data-theme="cyberwar"] .session-edge-tab,
-    [data-theme="cyberwar"] .integrations-edge-tab:hover,
+[data-theme="cyberwar"] .session-edge-tab
+[data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker:hover,
 [data-theme="cyberwar"] .btn-warnings:hover,
 [data-theme="cyberwar"] .select-personality:hover,
@@ -565,8 +565,7 @@
     backdrop-filter: blur(10px);
 }
 
-[data-theme="cyberwar"] .session-drawer,
-    [data-theme="cyberwar"] .integrations-drawer,
+[data-theme="cyberwar"] .session-drawer
 [data-theme="cyberwar"] .modal-card,
 [data-theme="cyberwar"] .mermaid-modal-content {
     overflow: hidden;
@@ -823,11 +822,13 @@
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="cyberwar"] #chat-content::-webkit-scrollbar,
 [data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar {
+[data-theme="cyberwar"] .integrations-drawer,
     width: 10px;
     height: 10px;
 }
 [data-theme="cyberwar"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar-thumb {
+[data-theme="cyberwar"] .integrations-drawer,
     background: linear-gradient(180deg, rgba(84, 247, 255, 0.28), rgba(139, 125, 255, 0.32));
     border-radius: 8px;
     border: 2px solid transparent;
@@ -835,6 +836,7 @@
 }
 [data-theme="cyberwar"] #chat-content::-webkit-scrollbar-track,
 [data-theme="cyberwar"] .session-drawer ::-webkit-scrollbar-track {
+[data-theme="cyberwar"] .integrations-drawer,
     background: rgba(84, 247, 255, 0.04);
 }
 

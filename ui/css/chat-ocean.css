@@ -100,8 +100,8 @@
 }
 
 [data-theme="ocean"] .chat-theme-btn,
-[data-theme="ocean"] .session-edge-tab,
-    [data-theme="ocean"] .integrations-edge-tab,
+[data-theme="ocean"] .session-edge-tab
+[data-theme="ocean"] .integrations-edge-tab,
 [data-theme="ocean"] .btn-speaker,
 [data-theme="ocean"] .btn-warnings,
 [data-theme="ocean"] .select-personality,
@@ -121,8 +121,8 @@
 }
 
 [data-theme="ocean"] .chat-theme-btn:hover,
-[data-theme="ocean"] .session-edge-tab,
-    [data-theme="ocean"] .integrations-edge-tab:hover,
+[data-theme="ocean"] .session-edge-tab
+[data-theme="ocean"] .integrations-edge-tab,
 [data-theme="ocean"] .btn-speaker:hover,
 [data-theme="ocean"] .btn-warnings:hover,
 [data-theme="ocean"] .select-personality:hover,
@@ -474,8 +474,7 @@
     backdrop-filter: blur(8px);
 }
 
-[data-theme="ocean"] .session-drawer,
-    [data-theme="ocean"] .integrations-drawer,
+[data-theme="ocean"] .session-drawer
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
     overflow: hidden;
@@ -648,11 +647,13 @@
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="ocean"] #chat-content::-webkit-scrollbar,
 [data-theme="ocean"] .session-drawer ::-webkit-scrollbar {
+[data-theme="ocean"] .integrations-drawer,
     width: 10px;
     height: 10px;
 }
 [data-theme="ocean"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="ocean"] .session-drawer ::-webkit-scrollbar-thumb {
+[data-theme="ocean"] .integrations-drawer,
     background: linear-gradient(180deg, rgba(91, 135, 162, 0.4), rgba(60, 100, 130, 0.55));
     border-radius: 8px;
     border: 2px solid transparent;
@@ -660,6 +661,7 @@
 }
 [data-theme="ocean"] #chat-content::-webkit-scrollbar-track,
 [data-theme="ocean"] .session-drawer ::-webkit-scrollbar-track {
+[data-theme="ocean"] .integrations-drawer,
     background: rgba(91, 135, 162, 0.08);
 }
 

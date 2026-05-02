@@ -269,8 +269,8 @@
 
 /* ── Header buttons / pills ─────────────────────────────────────────────────── */
 [data-theme="papyrus"] .chat-theme-btn,
-[data-theme="papyrus"] .session-edge-tab,
-    [data-theme="papyrus"] .integrations-edge-tab,
+[data-theme="papyrus"] .session-edge-tab
+[data-theme="papyrus"] .integrations-edge-tab,
 [data-theme="papyrus"] .btn-speaker,
 [data-theme="papyrus"] .btn-warnings,
 [data-theme="papyrus"] .select-personality,
@@ -294,8 +294,8 @@
 }
 
 [data-theme="papyrus"] .chat-theme-btn:hover,
-[data-theme="papyrus"] .session-edge-tab,
-    [data-theme="papyrus"] .integrations-edge-tab:hover,
+[data-theme="papyrus"] .session-edge-tab
+[data-theme="papyrus"] .integrations-edge-tab,
 [data-theme="papyrus"] .btn-speaker:hover,
 [data-theme="papyrus"] .btn-warnings:hover,
 [data-theme="papyrus"] .select-personality:hover,
@@ -324,8 +324,7 @@
 /* ── Drawers, dropdowns, modals (parchment notes) ──────────────────────────── */
 [data-theme="papyrus"] .chat-theme-dropdown,
 [data-theme="papyrus"] .mood-panel,
-[data-theme="papyrus"] .session-drawer,
-    [data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .session-drawer
 [data-theme="papyrus"] .modal-card,
 [data-theme="papyrus"] .mermaid-modal-content,
 [data-theme="papyrus"] .personality-dropdown,
@@ -355,6 +354,7 @@
 [data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(70vh, 30rem); }
 
 [data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
+[data-theme="papyrus"] .integrations-drawer,
 
 /* Parchment fiber overlay */
 [data-theme="papyrus"] .chat-theme-dropdown::before,
@@ -384,6 +384,7 @@
 [data-theme="papyrus"] .chat-theme-dropdown > *,
 [data-theme="papyrus"] .mood-panel > *,
 [data-theme="papyrus"] .session-drawer > *,
+[data-theme="papyrus"] .integrations-drawer,
 [data-theme="papyrus"] .modal-card > *,
 [data-theme="papyrus"] .voice-recorder-panel > *,
 [data-theme="papyrus"] .personality-dropdown > * { position: relative; z-index: 1; }
@@ -842,11 +843,13 @@
 /* ── Scrollbars on parchment ───────────────────────────────────────────────── */
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar {
+[data-theme="papyrus"] .integrations-drawer,
     width: 10px;
     height: 10px;
 }
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-thumb {
+[data-theme="papyrus"] .integrations-drawer,
     background: linear-gradient(180deg, rgba(155, 117, 70, 0.55), rgba(96, 70, 40, 0.7));
     border-radius: 8px;
     border: 2px solid transparent;
@@ -854,6 +857,7 @@
 }
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-track,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-track {
+[data-theme="papyrus"] .integrations-drawer,
     background: rgba(30, 63, 102, 0.06);
 }
 
