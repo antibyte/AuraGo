@@ -266,6 +266,28 @@ func TestChatFrontend_MobilePersonalityButtonKeepsDropdownOpen(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_PersonalityPreviewFollowsWholeOption(t *testing.T) {
+	t.Parallel()
+
+	historyContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-history.js"))
+	if err != nil {
+		t.Fatalf("read chat history JS: %v", err)
+	}
+
+	historyJS := string(historyContent)
+	for _, marker := range []string{
+		"function showPersonaPreviewFromOption(event) {",
+		"event.target.closest('.personality-option')",
+		"dropdown.addEventListener('mouseover', showPersonaPreviewFromOption);",
+		"dropdown.addEventListener('mousemove', showPersonaPreviewFromOption);",
+		"dropdown.addEventListener('focusin', showPersonaPreviewFromOption);",
+	} {
+		if !strings.Contains(historyJS, marker) {
+			t.Fatalf("chat history JS missing full-option persona preview marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	t.Parallel()
 
@@ -321,6 +343,10 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 		".app-header .header-actions :where(.chat-theme-dropdown, .personality-dropdown, .mood-panel)",
 		"position: fixed !important;",
 		"top: 64px !important;",
+		"@media (hover: none), (pointer: coarse)",
+		"[data-theme=\"threedee\"] .app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn, .personality-mobile-btn)",
+		"transform-style: flat !important;",
+		"transform: none !important;",
 		"pointer-events: auto !important;",
 		"z-index: 4;",
 		".chat-theme-dropdown .chat-theme-option[data-theme]",

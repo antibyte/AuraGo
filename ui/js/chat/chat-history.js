@@ -220,6 +220,11 @@ async function initPage() {
             const label = document.getElementById('personality-label');
             if (btn && dropdown) {
                 dropdown.innerHTML = '';
+                function showPersonaPreviewFromOption(event) {
+                    const opt = event.target.closest('.personality-option');
+                    if (!opt || !dropdown.contains(opt)) return;
+                    showPersonaPreview(opt.dataset.previewKey);
+                }
                 data.personalities.forEach(p => {
                     const opt = document.createElement('button');
                     opt.type = 'button';
@@ -251,10 +256,11 @@ async function initPage() {
                             window._selectPersonality(p.name);
                         }
                     });
-                    opt.addEventListener('mouseenter', () => showPersonaPreview(opt.dataset.previewKey));
-                    opt.addEventListener('focus', () => showPersonaPreview(opt.dataset.previewKey));
                     dropdown.appendChild(opt);
                 });
+                dropdown.addEventListener('mouseover', showPersonaPreviewFromOption);
+                dropdown.addEventListener('mousemove', showPersonaPreviewFromOption);
+                dropdown.addEventListener('focusin', showPersonaPreviewFromOption);
                 dropdown.addEventListener('mouseleave', hidePersonaPreview);
             }
         }
