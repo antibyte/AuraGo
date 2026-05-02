@@ -46,4 +46,7 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 	if !strings.Contains(string(shell), "aurago.desktop.request") {
 		t.Fatal("desktop shell does not handle SDK bridge requests")
 	}
+	if !strings.Contains(string(shell), "/api/desktop/embed-token") {
+		t.Fatal("desktop shell does not request embed tokens for generated iframes")
+	}
 }

@@ -10,11 +10,13 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
 	"net/url"
+	pathpkg "path"
 	"strings"
 	"sync"
 	"time"
@@ -107,6 +109,13 @@ func CheckPassword(password, hash string) bool {
 // ── Session Cookies (HMAC-SHA256, stateless) ────────────────────────────────
 
 const sessionCookieName = "aurago_session"
+const desktopEmbedTokenParam = "desktop_token"
+const desktopEmbedTokenTTL = 5 * time.Minute
+
+type desktopEmbedTokenPayload struct {
+	Path    string `json:"path"`
+	Expires int64  `json:"exp"`
+}
 
 // createSessionValue produces a tamper-proof session token.
 // Format: base64url(payload) + "." + hmac_hex
@@ -146,6 +155,88 @@ func validateSessionValue(secret, value string) bool {
 		return false
 	}
 	return time.Now().Unix() < expires
+}
+
+func issueDesktopEmbedToken(secret, rawPath string, now time.Time) (string, error) {
+	if strings.TrimSpace(secret) == "" {
+		return "", fmt.Errorf("desktop embed token secret is required")
+	}
+	normalizedPath, err := normalizeDesktopEmbedPath(rawPath)
+	if err != nil {
+		return "", err
+	}
+	payload := desktopEmbedTokenPayload{
+		Path:    normalizedPath,
+		Expires: now.Add(desktopEmbedTokenTTL).Unix(),
+	}
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("marshal desktop embed token: %w", err)
+	}
+	payloadPart := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(payloadPart))
+	signaturePart := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return payloadPart + "." + signaturePart, nil
+}
+
+func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool {
+	if r == nil || strings.TrimSpace(secret) == "" || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
+		return false
+	}
+	token := strings.TrimSpace(r.URL.Query().Get(desktopEmbedTokenParam))
+	if token == "" {
+		return false
+	}
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(parts[0]))
+	wantSig := mac.Sum(nil)
+	gotSig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || !hmac.Equal(gotSig, wantSig) {
+		return false
+	}
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+	var payload desktopEmbedTokenPayload
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		return false
+	}
+	if payload.Expires <= now.Unix() {
+		return false
+	}
+	requestPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
+	if err != nil {
+		return false
+	}
+	return payload.Path == requestPath
+}
+
+func normalizeDesktopEmbedPath(rawPath string) (string, error) {
+	p := strings.TrimSpace(rawPath)
+	if p == "" {
+		return "", fmt.Errorf("desktop embed path is required")
+	}
+	p = strings.TrimPrefix(p, "/files/desktop/")
+	unescaped, err := url.PathUnescape(strings.ReplaceAll(p, "\\", "/"))
+	if err != nil {
+		return "", fmt.Errorf("decode desktop embed path: %w", err)
+	}
+	for _, segment := range strings.Split(unescaped, "/") {
+		if segment == ".." {
+			return "", fmt.Errorf("desktop embed path escapes workspace")
+		}
+	}
+	cleaned := strings.TrimPrefix(pathpkg.Clean("/"+unescaped), "/")
+	if cleaned == "" || cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
+		return "", fmt.Errorf("desktop embed path escapes workspace")
+	}
+	return cleaned, nil
 }
 
 // SetSessionCookie writes a signed, HttpOnly session cookie to the response.
@@ -606,6 +697,11 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		}
 
 		if !enabled || isAuthBypassed(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if validDesktopEmbedToken(r, secret, time.Now()) {
 			next.ServeHTTP(w, r)
 			return
 		}

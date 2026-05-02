@@ -219,6 +219,54 @@ func handleDesktopWidgets(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleDesktopEmbedToken(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, _, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		rawPath := strings.TrimSpace(r.URL.Query().Get("path"))
+		if rawPath == "" {
+			jsonError(w, "path is required", http.StatusBadRequest)
+			return
+		}
+		if _, err := svc.ResolvePath(rawPath); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		normalizedPath, err := normalizeDesktopEmbedPath(rawPath)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		s.CfgMu.RLock()
+		authEnabled := s.Cfg.Auth.Enabled
+		secret := s.Cfg.Auth.SessionSecret
+		s.CfgMu.RUnlock()
+		now := time.Now().UTC()
+		token := ""
+		if authEnabled {
+			var err error
+			token, err = issueDesktopEmbedToken(secret, normalizedPath, now)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":     "ok",
+			"token":      token,
+			"expires_at": now.Add(desktopEmbedTokenTTL).Format(time.RFC3339Nano),
+		})
+	}
+}
+
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

@@ -256,9 +256,19 @@
             if (!widget.entry || !widget.app_id) return;
             const card = host.querySelector(`[data-widget-id="${widget.id}"] .vd-widget-frame-wrap`);
             if (!card) return;
-            const src = desktopFileURL('Apps/' + widget.app_id + '/' + widget.entry) + '?widget_id=' + encodeURIComponent(widget.id);
-            card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
+            renderWidgetFrame(card, widget);
         });
+    }
+
+    async function renderWidgetFrame(card, widget) {
+        card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.loading'))}</div>`;
+        const path = 'Apps/' + widget.app_id + '/' + widget.entry;
+        try {
+            const src = await desktopEmbedURL(path, { widget_id: widget.id });
+            card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
+        } catch (err) {
+            card.innerHTML = `<div class="vd-widget-body">${esc(err.message)}</div>`;
+        }
     }
 
     function renderStartApps() {
@@ -553,8 +563,17 @@
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
             return;
         }
-        const src = desktopFileURL('Apps/' + app.id + '/' + app.entry);
-        host.replaceChildren(makeSandboxedFrame(src, app.id, '', id, 'vd-generated-frame', appName(app)));
+        const path = 'Apps/' + app.id + '/' + app.entry;
+        host.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
+        desktopEmbedURL(path)
+            .then(src => {
+                if (!contentEl(id)) return;
+                host.replaceChildren(makeSandboxedFrame(src, app.id, '', id, 'vd-generated-frame', appName(app)));
+            })
+            .catch(err => {
+                if (!contentEl(id)) return;
+                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            });
     }
 
     function makeSandboxedFrame(src, appId, widgetId, windowId, className, title) {
@@ -571,6 +590,14 @@
 
     function desktopFileURL(path) {
         return '/files/desktop/' + path.split('/').map(encodeURIComponent).join('/');
+    }
+
+    async function desktopEmbedURL(path, params) {
+        const body = await api('/api/desktop/embed-token?path=' + encodeURIComponent(path));
+        const query = new URLSearchParams(params || {});
+        if (body.token) query.set('desktop_token', body.token);
+        const suffix = query.toString();
+        return desktopFileURL(path) + (suffix ? '?' + suffix : '');
     }
 
     function findSDKClient(source) {

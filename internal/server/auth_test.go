@@ -465,6 +465,91 @@ func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsDesktopFileWithEmbedTokenWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	path := "Apps/weather_pforzheim/Widgets/weather_pforzheim.html"
+	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, path, time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/"+path+"?desktop_token="+url.QueryEscape(token), nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("desktop file with embed token status = %d, want 204", rec.Code)
+	}
+}
+
+func TestAuthMiddlewareRejectsDesktopFileWithWrongEmbedTokenPath(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/weather/main.html", time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/weather/Widgets/widget.html?desktop_token="+url.QueryEscape(token), nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("desktop file with wrong embed token path status = %d, want 307", rec.Code)
+	}
+}
+
+func TestAuthMiddlewareRejectsDesktopFileWithoutEmbedTokenOrSession(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/weather/Widgets/widget.html", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("desktop file without embed token status = %d, want 307", rec.Code)
+	}
+}
+
+func TestDesktopEmbedTokenRejectsEscapingPath(t *testing.T) {
+	t.Parallel()
+
+	if _, err := issueDesktopEmbedToken("0123456789abcdef0123456789abcdef", "../config.yaml", time.Now()); err == nil {
+		t.Fatal("expected parent-directory path to be rejected")
+	}
+	if _, err := issueDesktopEmbedToken("0123456789abcdef0123456789abcdef", "%2e%2e/config.yaml", time.Now()); err == nil {
+		t.Fatal("expected encoded parent-directory path to be rejected")
+	}
+}
+
 func TestAuthMiddlewareAllowsSetupAssetsWhenPasswordMissing(t *testing.T) {
 	t.Parallel()
 
