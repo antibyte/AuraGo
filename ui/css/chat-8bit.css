@@ -193,27 +193,41 @@ html[data-theme="8bit"]::after {
     color: var(--8bit-cyan);
     text-shadow: 2px 2px 0 #0d1520;
 }
-/* Header buttons and icons larger */
+/* Header icon-only buttons larger */
 [data-theme="8bit"] .app-header .btn-header,
 [data-theme="8bit"] .app-header .btn-header-link,
 [data-theme="8bit"] .app-header .chat-theme-btn,
 [data-theme="8bit"] .app-header .btn-speaker,
-[data-theme="8bit"] .app-header .select-personality,
-[data-theme="8bit"] .app-header .mood-toggle,
 [data-theme="8bit"] .app-header .btn-warnings {
     font-size: 0.72rem;
     width: 38px;
     height: 38px;
 }
 
-[data-theme="8bit"] .app-header .pill,
-[data-theme="8bit"] .app-header .status-pill {
-    font-size: 0.62rem;
+/* Personality select: contains img + label, no fixed size */
+[data-theme="8bit"] .app-header .select-personality {
+    font-size: 0.72rem;
+    height: 38px;
+    padding: 0 0.5rem;
+    gap: 0.4rem;
 }
 
 [data-theme="8bit"] .personality-select-label {
     font-family: var(--font-ui);
     font-size: 0.68rem;
+}
+
+/* Mood toggle: contains icon + text, no fixed width */
+[data-theme="8bit"] .app-header .mood-toggle {
+    font-size: 0.68rem;
+    height: 38px;
+    padding: 0 0.5rem;
+    gap: 0.4rem;
+}
+
+[data-theme="8bit"] .app-header .pill,
+[data-theme="8bit"] .app-header .status-pill {
+    font-size: 0.62rem;
 }
 
 /* Footer / input area buttons and icons larger */
