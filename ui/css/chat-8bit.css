@@ -1,61 +1,63 @@
 /* ═══════════════════════════════════════════════════════════════════
-   8Bit Theme - C64 home-computer pixels, scanlines, and hard edges
+   8Bit Theme — Grey/Blue retro pixel aesthetic
    ═══════════════════════════════════════════════════════════════════ */
 
 [data-theme="8bit"] {
     color-scheme: dark;
-    --8bit-bg: #40318d;
-    --8bit-bg-dark: #2b1a5e;
-    --8bit-surface: #5b4aa0;
-    --8bit-border: #a0a0ff;
-    --8bit-text: #a0a0ff;
-    --8bit-text-dim: #786cc0;
-    --8bit-accent: #6c63ff;
-    --8bit-green: #6dff3a;
-    --8bit-cyan: #6cffff;
-    --8bit-yellow: #ffff3a;
-    --8bit-red: #ff3a3a;
-    --8bit-white: #ffffff;
-    --8bit-orange: #ff8a3a;
-    --8bit-user-bubble: #1a1a6c;
-    --8bit-bot-bubble: #5b4aa0;
-    --8bit-pixel-shadow: 4px 4px 0 #160f3f;
+    --8bit-bg: #2c3e50;
+    --8bit-bg-dark: #1a252f;
+    --8bit-surface: #34495e;
+    --8bit-border: #5b8abf;
+    --8bit-text: #b0c4de;
+    --8bit-text-dim: #7a94ad;
+    --8bit-accent: #3498db;
+    --8bit-blue: #4a9eff;
+    --8bit-blue-bright: #6cb4ff;
+    --8bit-cyan: #7ec8e3;
+    --8bit-yellow: #f0c040;
+    --8bit-green: #5dbe5d;
+    --8bit-red: #e05050;
+    --8bit-white: #e8edf2;
+    --8bit-user-bubble: #1e3a5f;
+    --8bit-bot-bubble: #2c3e50;
+    --8bit-pixel-shadow: 4px 4px 0 #0d1520;
+    --8bit-shadow-color: #0d1520;
 
-    --accent: var(--8bit-cyan);
-    --accent-secondary: var(--8bit-green);
+    --accent: var(--8bit-blue);
+    --accent-secondary: var(--8bit-cyan);
     --bg-primary: var(--8bit-bg-dark);
     --bg-secondary: var(--8bit-bg);
     --bg-tertiary: var(--8bit-surface);
-    --bg-glass: #40318d;
-    --header-bg: #2b1a5e;
-    --modal-bg: rgba(12, 8, 40, 0.82);
-    --modal-surface: #40318d;
+    --bg-glass: #2c3e50;
+    --header-bg: #1a252f;
+    --modal-bg: rgba(10, 18, 28, 0.85);
+    --modal-surface: #2c3e50;
     --modal-border: var(--8bit-border);
-    --sidebar-bg: #2b1a5e;
-    --card-bg: #40318d;
-    --code-bg: #151044;
-    --inline-code-bg: #1a1a6c;
-    --input-bg: #151044;
+    --sidebar-bg: #1a252f;
+    --card-bg: #2c3e50;
+    --code-bg: #141e28;
+    --inline-code-bg: #1e3a5f;
+    --input-bg: #141e28;
     --input-border: var(--8bit-border);
     --text-primary: var(--8bit-text);
     --text-secondary: var(--8bit-text-dim);
     --strong-color: var(--8bit-white);
-    --border-subtle: rgba(160, 160, 255, 0.55);
+    --border-subtle: rgba(91, 138, 191, 0.45);
     --border-accent: var(--8bit-border);
     --user-bubble: var(--8bit-user-bubble);
     --user-bubble-tail: var(--8bit-user-bubble);
-    --user-bubble-shadow: rgba(0, 0, 0, 0.48);
+    --user-bubble-shadow: rgba(0, 0, 0, 0.42);
     --bot-bubble: var(--8bit-bot-bubble);
     --bot-bubble-tail: var(--8bit-bot-bubble);
-    --surface-shadow: 4px 4px 0 #160f3f;
-    --surface-shadow-strong: 6px 6px 0 #160f3f;
+    --surface-shadow: 4px 4px 0 var(--8bit-shadow-color);
+    --surface-shadow-strong: 6px 6px 0 var(--8bit-shadow-color);
     --page-orb-opacity: 0;
     --chat-image-opacity: 0.025;
-    --bg-logo-filter: saturate(1.35) contrast(1.25);
+    --bg-logo-filter: saturate(1.2) contrast(1.15);
 
     --font-ui: 'Press Start 2P', ui-monospace, SFMono-Regular, Consolas, monospace;
-    --chat-copy-font-size: 0.88rem;
-    --chat-input-font-size: 0.8rem;
+    --chat-copy-font-size: 1rem;
+    --chat-input-font-size: 0.85rem;
     font-family: var(--font-ui);
     font-size: 0.8rem;
 }
@@ -65,17 +67,17 @@
     color: var(--8bit-text);
     font-size: 0.8rem;
     background:
-        radial-gradient(circle at 18% 18%, rgba(108, 255, 255, 0.08) 0 2px, transparent 3px 100%),
-        radial-gradient(circle at 82% 28%, rgba(255, 255, 58, 0.08) 0 2px, transparent 3px 100%),
-        linear-gradient(180deg, #40318d 0%, #332478 52%, #2b1a5e 100%);
-    text-shadow: 1px 0 0 rgba(255, 58, 58, 0.22), -1px 0 0 rgba(108, 255, 255, 0.18);
+        radial-gradient(circle at 18% 18%, rgba(74, 158, 255, 0.06) 0 2px, transparent 3px 100%),
+        radial-gradient(circle at 82% 28%, rgba(126, 200, 227, 0.06) 0 2px, transparent 3px 100%),
+        linear-gradient(180deg, #2c3e50 0%, #243442 52%, #1a252f 100%);
+    text-shadow: 1px 0 0 rgba(74, 158, 255, 0.18), -1px 0 0 rgba(126, 200, 227, 0.12);
 }
 
 [data-theme="8bit"] body::before {
-    opacity: 0.28;
+    opacity: 0.22;
     background:
-        linear-gradient(45deg, rgba(160, 160, 255, 0.18) 25%, transparent 25% 75%, rgba(160, 160, 255, 0.18) 75%),
-        linear-gradient(45deg, rgba(0, 0, 0, 0.18) 25%, transparent 25% 75%, rgba(0, 0, 0, 0.18) 75%);
+        linear-gradient(45deg, rgba(91, 138, 191, 0.14) 25%, transparent 25% 75%, rgba(91, 138, 191, 0.14) 75%),
+        linear-gradient(45deg, rgba(0, 0, 0, 0.14) 25%, transparent 25% 75%, rgba(0, 0, 0, 0.14) 75%);
     background-position: 0 0, 2px 2px;
     background-size: 4px 4px;
 }
@@ -87,8 +89,48 @@ html[data-theme="8bit"]::after {
     inset: 0;
     z-index: 999999;
     pointer-events: none;
-    background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 4px);
+    background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 4px);
     mix-blend-mode: multiply;
+}
+
+/* ── Pixelation support (see 8bit-pixelate.js) ──────────────────── */
+[data-theme="8bit"] .chat-ui-icon,
+[data-theme="8bit"] img.persona-avatar-img,
+[data-theme="8bit"] img.personality-current-icon,
+[data-theme="8bit"] img.personality-preview-image,
+[data-theme="8bit"] .persona-icon,
+[data-theme="8bit"] img[class*="persona"],
+[data-theme="8bit"] .personality-option img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+[data-theme="8bit"] .avatar {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 3px 3px 0 var(--8bit-shadow-color);
+    overflow: hidden;
+}
+
+[data-theme="8bit"] .personality-current-icon {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 2px 2px 0 var(--8bit-shadow-color);
+}
+
+[data-theme="8bit"] .personality-preview-image {
+    border: 2px solid var(--8bit-border);
+    border-radius: 0;
+    background: var(--8bit-bg-dark);
+    box-shadow: 3px 3px 0 var(--8bit-shadow-color);
+}
+
+/* Robot sprite: pixelated rendering only, no canvas replacement */
+[data-theme="8bit"] .chat-robot-sprite {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 /* ── Shared panel overrides ─────────────────────────────────────── */
@@ -114,7 +156,7 @@ html[data-theme="8bit"]::after {
 
 /* ── Header ─────────────────────────────────────────────────────── */
 [data-theme="8bit"] .app-header {
-    background: #2b1a5e;
+    background: #1a252f;
     border-width: 0 0 2px;
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
@@ -129,53 +171,14 @@ html[data-theme="8bit"]::after {
 }
 
 [data-theme="8bit"] .logo-wordmark-accent {
-    color: var(--8bit-yellow);
+    color: var(--8bit-blue-bright);
     -webkit-text-fill-color: currentColor;
-    text-shadow: 2px 2px 0 #1a1a6c;
+    text-shadow: 2px 2px 0 #0d1520;
 }
 
 [data-theme="8bit"] .logo-wordmark-base {
     color: var(--8bit-cyan);
-    text-shadow: 2px 2px 0 #1a1a6c;
-}
-
-/* ── Pixelation: images are replaced by canvas-downscaled versions ── */
-/* See 8bit-pixelate.js — it draws each image onto a tiny canvas and
-   replaces the src/background-image with the low-res data-URL.
-   CSS just needs pixelated rendering for the upscaling step. */
-
-[data-theme="8bit"] .chat-ui-icon,
-[data-theme="8bit"] .chat-robot-sprite,
-[data-theme="8bit"] img.persona-avatar-img,
-[data-theme="8bit"] img.personality-current-icon,
-[data-theme="8bit"] img.personality-preview-image,
-[data-theme="8bit"] .persona-icon,
-[data-theme="8bit"] img[class*="persona"],
-[data-theme="8bit"] .personality-option img {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-}
-
-[data-theme="8bit"] .avatar {
-    border: 2px solid var(--8bit-border);
-    border-radius: 0;
-    background: var(--8bit-bg-dark);
-    box-shadow: 3px 3px 0 #160f3f;
-    overflow: hidden;
-}
-
-[data-theme="8bit"] .personality-current-icon {
-    border: 2px solid var(--8bit-border);
-    border-radius: 0;
-    background: var(--8bit-bg-dark);
-    box-shadow: 2px 2px 0 #160f3f;
-}
-
-[data-theme="8bit"] .personality-preview-image {
-    border: 2px solid var(--8bit-border);
-    border-radius: 0;
-    background: var(--8bit-bg-dark);
-    box-shadow: 3px 3px 0 #160f3f;
+    text-shadow: 2px 2px 0 #0d1520;
 }
 
 /* ── Chat Bubbles ───────────────────────────────────────────────── */
@@ -186,10 +189,10 @@ html[data-theme="8bit"]::after {
     font-size: var(--chat-copy-font-size);
     line-height: 2;
     letter-spacing: 0.01em;
-    box-shadow: var(--8bit-pixel-shadow), inset 2px 2px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: var(--8bit-pixel-shadow), inset 2px 2px 0 rgba(255, 255, 255, 0.06);
     background-image:
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent);
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 4px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
 }
 
 [data-theme="8bit"] .bubble.bot {
@@ -200,7 +203,7 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .bubble.user {
     color: var(--8bit-white);
     background-color: var(--8bit-user-bubble);
-    border-color: var(--8bit-cyan);
+    border-color: var(--8bit-blue);
 }
 
 [data-theme="8bit"] .bubble::before,
@@ -209,7 +212,7 @@ html[data-theme="8bit"]::after {
 }
 
 [data-theme="8bit"] .bubble a {
-    color: var(--8bit-yellow);
+    color: var(--8bit-blue-bright);
     text-decoration: underline;
     text-decoration-thickness: 2px;
 }
@@ -221,15 +224,15 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .bubble h1,
 [data-theme="8bit"] .bubble h2,
 [data-theme="8bit"] .bubble h3 {
-    color: var(--8bit-yellow);
-    text-shadow: 1px 1px 0 #1a1a6c;
+    color: var(--8bit-blue-bright);
+    text-shadow: 1px 1px 0 #0d1520;
 }
 
 [data-theme="8bit"] .bubble code,
 [data-theme="8bit"] code {
     border: 1px solid var(--8bit-green);
     border-radius: 0;
-    background: #151044;
+    background: #141e28;
     color: var(--8bit-green);
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: 0.78em;
@@ -239,9 +242,9 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] pre {
     border: 2px solid var(--8bit-green);
     border-radius: 0;
-    background: #101035;
+    background: #0f1820;
     color: var(--8bit-green);
-    box-shadow: inset 2px 2px 0 rgba(109, 255, 58, 0.12);
+    box-shadow: inset 2px 2px 0 rgba(93, 190, 93, 0.1);
 }
 
 /* ── Buttons ────────────────────────────────────────────────────── */
@@ -260,9 +263,9 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .modal-close {
     border: 2px solid var(--8bit-border);
     border-radius: 0;
-    background: #40318d;
+    background: #2c3e50;
     color: var(--8bit-text);
-    box-shadow: 3px 3px 0 #160f3f;
+    box-shadow: 3px 3px 0 var(--8bit-shadow-color);
     font-family: var(--font-ui);
     font-size: 0.65rem;
 }
@@ -279,13 +282,13 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .modal-close:hover {
     background: var(--8bit-surface);
     color: var(--8bit-white);
-    border-color: var(--8bit-cyan);
+    border-color: var(--8bit-blue);
 }
 
 [data-theme="8bit"] button:active,
 [data-theme="8bit"] .btn-send:active,
 [data-theme="8bit"] .composer-tool-btn:active {
-    box-shadow: 1px 1px 0 #160f3f;
+    box-shadow: 1px 1px 0 var(--8bit-shadow-color);
     translate: 2px 2px;
 }
 
@@ -295,7 +298,7 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .integrations-edge-tab:focus-visible {
     background: var(--8bit-surface);
     color: var(--8bit-white);
-    border-color: var(--8bit-cyan);
+    border-color: var(--8bit-blue);
 }
 
 /* ── Pills & Status ─────────────────────────────────────────────── */
@@ -306,9 +309,9 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .typing-indicator {
     border: 2px solid var(--8bit-border);
     border-radius: 0;
-    background: #151044;
+    background: #141e28;
     color: var(--8bit-cyan);
-    box-shadow: 2px 2px 0 #160f3f;
+    box-shadow: 2px 2px 0 var(--8bit-shadow-color);
     font-family: var(--font-ui);
     font-size: 0.6rem;
 }
@@ -331,17 +334,17 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .personality-option.active,
 [data-theme="8bit"] .session-item:hover,
 [data-theme="8bit"] .integration-item:hover {
-    background: #1a1a6c;
+    background: #1e3a5f;
     color: var(--8bit-white);
-    outline: 2px solid var(--8bit-cyan);
+    outline: 2px solid var(--8bit-blue);
     outline-offset: -2px;
 }
 
 /* ── Input Area ─────────────────────────────────────────────────── */
 [data-theme="8bit"] .chat-input-area {
     border-width: 2px 0 0;
-    background: #2b1a5e;
-    box-shadow: 0 -4px 0 #160f3f;
+    background: #1a252f;
+    box-shadow: 0 -4px 0 var(--8bit-shadow-color);
     padding-top: 0.6rem;
     padding-bottom: 0.6rem;
 }
@@ -354,13 +357,13 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] #chat-input {
     border: 2px solid var(--8bit-border);
     border-radius: 0;
-    background: #151044;
+    background: #141e28;
     color: var(--8bit-white);
-    caret-color: var(--8bit-yellow);
+    caret-color: var(--8bit-blue-bright);
     font-family: var(--font-ui);
     font-size: var(--chat-input-font-size);
     line-height: 1.8;
-    box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14);
+    box-shadow: inset 2px 2px 0 rgba(91, 138, 191, 0.12);
 }
 
 [data-theme="8bit"] textarea:focus,
@@ -369,7 +372,7 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .message-input:focus,
 [data-theme="8bit"] #message-input:focus,
 [data-theme="8bit"] #chat-input:focus {
-    outline: 2px solid var(--8bit-yellow);
+    outline: 2px solid var(--8bit-blue-bright);
     outline-offset: 2px;
     animation: eightbitCaretBlink 1s steps(2, end) infinite;
 }
@@ -379,22 +382,22 @@ html[data-theme="8bit"]::after {
 [data-theme="8bit"] .session-drawer,
 [data-theme="8bit"] .integrations-drawer {
     background:
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4px),
-        #40318d;
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 4px),
+        #2c3e50;
 }
 
 [data-theme="8bit"] .modal-backdrop,
 [data-theme="8bit"] .session-backdrop,
 [data-theme="8bit"] .integrations-backdrop {
-    background: rgba(12, 8, 40, 0.78);
+    background: rgba(10, 18, 28, 0.78);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
 [data-theme="8bit"] .modal-title {
     font-size: 0.85rem;
-    color: var(--8bit-yellow);
-    text-shadow: 1px 1px 0 #1a1a6c;
+    color: var(--8bit-blue-bright);
+    text-shadow: 1px 1px 0 #0d1520;
 }
 
 [data-theme="8bit"] .modal-body {
@@ -409,19 +412,19 @@ html[data-theme="8bit"]::after {
 }
 
 [data-theme="8bit"] ::selection {
-    background: var(--8bit-yellow);
-    color: #151044;
+    background: var(--8bit-blue);
+    color: #e8edf2;
 }
 
 [data-theme="8bit"] .greeting-text {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     line-height: 2.2;
 }
 
 /* ── Animations ──────────────────────────────────────────────────── */
 @keyframes eightbitCaretBlink {
-    0%, 49% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px var(--8bit-yellow); }
-    50%, 100% { box-shadow: inset 2px 2px 0 rgba(160, 160, 255, 0.14), 0 0 0 2px transparent; }
+    0%, 49% { box-shadow: inset 2px 2px 0 rgba(91, 138, 191, 0.12), 0 0 0 2px var(--8bit-blue-bright); }
+    50%, 100% { box-shadow: inset 2px 2px 0 rgba(91, 138, 191, 0.12), 0 0 0 2px transparent; }
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────── */
@@ -433,7 +436,7 @@ html[data-theme="8bit"]::after {
         font-size: 0.7rem;
     }
     [data-theme="8bit"] .bubble {
-        font-size: 0.76rem;
+        font-size: 0.88rem;
         line-height: 1.9;
     }
     [data-theme="8bit"] .logo,
@@ -454,7 +457,7 @@ html[data-theme="8bit"]::after {
     [data-theme="8bit"] textarea,
     [data-theme="8bit"] input,
     [data-theme="8bit"] #message-input {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
     }
 }
 

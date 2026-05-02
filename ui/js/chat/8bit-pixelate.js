@@ -1,30 +1,36 @@
 /**
- * 8Bit Theme — Canvas-based real pixelation
+ * 8Bit Theme — Canvas-based real pixelation for <img> elements.
  *
- * Draws each target image onto a tiny canvas (e.g. 16×16),
+ * Draws each target image onto a tiny canvas (e.g. 8×8),
  * then replaces the src with the low-res data-URL.
- * The browser upscales the tiny raster with image-rendering:pixelated
- * → nearest-neighbor = visible pixel blocks from actual source pixels.
+ * image-rendering:pixelated on the element does nearest-neighbor
+ * upscaling = visible pixel blocks from actual source pixels.
  *
- * Also handles background-image elements (chat-ui-icons, robot sprite)
- * by replacing the background-image URL with a pixelated canvas version.
+ * NOTE: Does NOT touch the robot mascot sprite — it uses a CSS
+ * background-position animation that breaks if the image is replaced.
  */
 (() => {
     'use strict';
 
-    const PIXEL_SIZE = 8;   // target pixel resolution for small icons
-    const PIXEL_SIZE_LG = 12; // target pixel resolution for larger images
-    const PIXEL_SIZE_XL = 16; // target pixel resolution for preview images
+    const PIXEL_SMALL = 8;
+    const PIXEL_LARGE = 16;
 
     const _cache = new Map();
+    const _processing = new WeakSet();
 
     function pixelateImage(img, px) {
-        if (!img || !img.complete || !img.naturalWidth) return;
+        if (!img || _processing.has(img)) return;
         const src = img.currentSrc || img.src;
-        if (!src || src.startsWith('data:')) return;
+        if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
         const key = src + '@' + px;
         if (_cache.has(key)) {
-            if (img.src !== _cache.get(key)) img.src = _cache.get(key);
+            img.src = _cache.get(key);
+            return;
+        }
+        // Wait for image to load if not ready
+        if (!img.complete || !img.naturalWidth) {
+            _processing.add(img);
+            img.addEventListener('load', () => { _processing.delete(img); pixelateImage(img, px); }, { once: true });
             return;
         }
         try {
@@ -37,86 +43,52 @@
             const dataURL = c.toDataURL('image/png');
             _cache.set(key, dataURL);
             img.src = dataURL;
-        } catch (_) {
-            // CORS or tainted canvas — skip
-        }
+        } catch (_) { /* CORS / tainted canvas */ }
     }
 
-    function pixelateBackground(el, px) {
-        if (!el) return;
-        const style = getComputedStyle(el);
-        const bg = style.backgroundImage;
-        if (!bg || bg === 'none' || bg.includes('data:')) return;
-        const urlMatch = bg.match(/url\(["']?([^"')]+)["']?\)/);
-        if (!urlMatch) return;
-        const src = urlMatch[1];
-        const key = src + '@bg@' + px;
-        if (_cache.has(key)) {
-            el.style.backgroundImage = 'url(' + _cache.get(key) + ')';
-            return;
-        }
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const c = document.createElement('canvas');
-                c.width = px;
-                c.height = px;
-                const ctx = c.getContext('2d');
-                ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(img, 0, 0, px, px);
-                const dataURL = c.toDataURL('image/png');
-                _cache.set(key, dataURL);
-                el.style.backgroundImage = 'url(' + dataURL + ')';
-            } catch (_) { }
-        };
-        img.src = src;
-    }
-
-    function runPixelation() {
-        // Avatar <img> elements inside .avatar containers
+    function pixelateAll() {
+        // Avatar <img> inside .avatar containers
         document.querySelectorAll('.avatar img, .avatar .persona-avatar-img').forEach(img => {
-            pixelateImage(img, PIXEL_SIZE);
+            pixelateImage(img, PIXEL_SMALL);
         });
 
-        // Personality current icon
+        // Personality current icon (standalone <img>)
         const currentIcon = document.getElementById('personality-current-icon');
-        if (currentIcon) pixelateImage(currentIcon, PIXEL_SIZE);
+        if (currentIcon) pixelateImage(currentIcon, PIXEL_SMALL);
 
-        // Personality preview image
+        // Personality preview image (appears on hover)
         const previewImg = document.getElementById('personality-preview-image');
-        if (previewImg) pixelateImage(previewImg, PIXEL_SIZE_XL);
+        if (previewImg) pixelateImage(previewImg, PIXEL_LARGE);
 
-        // Robot mascot sprite (background-image)
-        const sprite = document.querySelector('.chat-robot-sprite');
-        if (sprite) pixelateBackground(sprite, PIXEL_SIZE_LG);
-
-        // Chat UI icons with background-image
-        document.querySelectorAll('.chat-ui-icon').forEach(icon => {
-            pixelateBackground(icon, PIXEL_SIZE);
+        // Any persona images in personality options / drawers
+        document.querySelectorAll('.personality-option img, .personality-option .chat-ui-icon, img[class*="persona"]').forEach(img => {
+            pixelateImage(img, PIXEL_SMALL);
         });
     }
 
     function init() {
         if (document.documentElement.getAttribute('data-theme') !== '8bit') return;
 
-        // Run once after a short delay so images have started loading
-        setTimeout(runPixelation, 300);
+        // Initial pass
+        setTimeout(pixelateAll, 400);
 
-        // Re-run when new messages are added (MutationObserver)
+        // MutationObserver for new chat messages
         const chatBox = document.getElementById('chat-content') || document.getElementById('chat-box');
         if (chatBox && typeof MutationObserver !== 'undefined') {
-            const observer = new MutationObserver(() => {
-                setTimeout(runPixelation, 50);
-            });
-            observer.observe(chatBox, { childList: true, subtree: true });
+            new MutationObserver(() => setTimeout(pixelateAll, 80))
+                .observe(chatBox, { childList: true, subtree: true });
+        }
+
+        // Also observe the personality dropdown for preview image changes
+        const personalityDropdown = document.querySelector('.personality-dropdown') || document.getElementById('personality-picker');
+        if (personalityDropdown && typeof MutationObserver !== 'undefined') {
+            new MutationObserver(() => setTimeout(pixelateAll, 50))
+                .observe(personalityDropdown, { childList: true, subtree: true, attributes: true });
         }
 
         // Re-run on theme change
         window.addEventListener('aurago:themechange', (e) => {
-            if (e.detail && e.detail.theme === '8bit') {
-                setTimeout(runPixelation, 300);
-            }
+            if (e.detail && e.detail.theme === '8bit') setTimeout(pixelateAll, 400);
         });
     }
 

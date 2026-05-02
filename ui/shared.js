@@ -449,7 +449,7 @@ var THEME_COLORS = {
     'papyrus': '#bca784',
     'threedee': '#070b14',
     'black-matrix': '#030404',
-    '8bit': '#40318d'
+    '8bit': '#1a252f'
 };
 
 function ensure8BitChatThemeOption() {
@@ -1793,3 +1793,4 @@ if (!window._auragoSharedInitialized) {
     window._auragoSharedInitialized = true;
     scheduleInit();
 }
+
