@@ -87,6 +87,14 @@
     align-items: center;
 }
 
+[data-theme="8bit"] .app-header .header-actions {
+    --chat-header-control-radius: 0;
+}
+
+[data-theme="8bit"] .app-header .header-actions :where(.chat-theme-btn, .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn, .personality-mobile-btn) {
+    border-radius: 0 !important;
+}
+
 .app-header .header-actions .chat-theme-dropdown,
 .app-header .header-actions .personality-dropdown,
 .app-header .header-actions .mood-panel {
