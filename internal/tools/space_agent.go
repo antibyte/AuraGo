@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-js-instructions-api-v3"
+	spaceAgentImageBuildRevision   = "20260502-aurago-python-active-instructions-api"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -404,7 +404,7 @@ func spaceAgentLocalPortReachable(cfg SpaceAgentSidecarConfig) bool {
 	return true
 }
 
-// SendSpaceAgentInstruction forwards an AuraGo instruction to the Space Agent bridge customware endpoint.
+// SendSpaceAgentInstruction forwards an AuraGo instruction to the managed Space Agent instruction endpoint.
 func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req SpaceAgentInstruction) map[string]interface{} {
 	if cfg == nil || !cfg.SpaceAgent.Enabled {
 		return map[string]interface{}{"status": "disabled", "message": "Space Agent integration is disabled"}
@@ -531,6 +531,7 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 
 func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
 	stalePaths := []string{
+		filepath.Join(sourcePath, "server", "api", "aurago_instructions.js"),
 		filepath.Join(sourcePath, "api", "aurago", "instructions.py"),
 		filepath.Join(sourcePath, "api", "aurago_instructions.py"),
 	}
@@ -539,7 +540,7 @@ func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
 			return fmt.Errorf("remove stale AuraGo instructions endpoint %s: %w", stalePath, err)
 		}
 	}
-	instructionsAPIPath := filepath.Join(sourcePath, "server", "api", "aurago_instructions.js")
+	instructionsAPIPath := filepath.Join(sourcePath, "python", "api", "aurago_instructions.py")
 	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
 		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
 	}
@@ -840,121 +841,73 @@ CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --sta
 }
 
 func spaceAgentInstructionsAPIEndpoint() string {
-	return `import fs from "node:fs/promises";
-import path from "node:path";
+	return `import json
+import os
+import uuid
 
-export const allowAnonymous = true;
+from agent import UserMessage
+from python.helpers import message_queue as mq
+from python.helpers.api import ApiHandler, Request, Response
 
-function readPayload(context = {}) {
-  return context.body && typeof context.body === "object" && !Buffer.isBuffer(context.body)
-    ? context.body
-    : {};
-}
 
-function unauthorized() {
-  return {
-    status: 401,
-    body: { status: "error", error: "Unauthorized" },
-  };
-}
+class AuragoInstructions(ApiHandler):
+    @classmethod
+    def requires_auth(cls) -> bool:
+        return False
 
-function badRequest(message) {
-  return {
-    status: 400,
-    body: { status: "error", error: message },
-  };
-}
+    @classmethod
+    def requires_csrf(cls) -> bool:
+        return False
 
-function safeSegment(value, fallback) {
-  const normalized = String(value || fallback || "").trim().replace(/[^A-Za-z0-9._-]+/g, "_");
-  return normalized || String(fallback || "default");
-}
+    async def process(self, input: dict, request: Request) -> dict | Response:
+        try:
+            expected_token = os.environ.get("AURAGO_BRIDGE_TOKEN", "").strip()
+            auth_header = request.headers.get("Authorization", "").strip()
+            if not expected_token or auth_header != "Bearer " + expected_token:
+                return Response(
+                    json.dumps({"status": "error", "error": "Unauthorized"}),
+                    status=401,
+                    mimetype="application/json",
+                )
 
-function headerValue(context = {}, name) {
-  const wanted = String(name || "").toLowerCase();
-  const headers = context.headers || context.request?.headers || {};
-  if (typeof headers.get === "function") {
-    return String(headers.get(name) || headers.get(wanted) || "").trim();
-  }
-  for (const [key, value] of Object.entries(headers)) {
-    if (String(key).toLowerCase() === wanted) {
-      return Array.isArray(value) ? String(value[0] || "").trim() : String(value || "").trim();
-    }
-  }
-  return "";
-}
+            instruction = str(input.get("instruction", "")).strip()
+            information = str(input.get("information", "")).strip()
+            session_id = str(input.get("session_id", "")).strip()
+            if not instruction:
+                return Response(
+                    json.dumps({"status": "error", "error": "instruction is required"}),
+                    status=400,
+                    mimetype="application/json",
+                )
 
-async function appendInstructionRecord(context, record) {
-  const username = safeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
-  const homePath = String(process.env.HOME || "/app/home").trim() || "/app/home";
-  const inboxDir = path.join(homePath, "aurago_inbox");
-  await fs.mkdir(inboxDir, { recursive: true, mode: 0o700 });
-  const latestPath = path.join(inboxDir, "latest_instruction.json");
-  const logPath = path.join(inboxDir, "instructions.jsonl");
-  const serialized = JSON.stringify(record);
-  await fs.writeFile(latestPath, JSON.stringify(record, null, 2) + "\n", { mode: 0o600 });
-  await fs.appendFile(logPath, serialized + "\n", { mode: 0o600 });
-  return {
-    latest: "/L2/" + username + "/aurago_inbox/latest_instruction.json",
-    host_path: latestPath,
-    log_path: logPath,
-  };
-}
+            message = instruction
+            if information:
+                message += "\n\nContext from AuraGo:\n" + information
 
-async function handleInstruction(context = {}) {
-  try {
-    const expectedToken = String(process.env.AURAGO_BRIDGE_TOKEN || "").trim();
-    const authHeader = headerValue(context, "authorization");
-    if (!expectedToken || authHeader !== "Bearer " + expectedToken) {
-      return unauthorized();
-    }
-
-    const payload = readPayload(context);
-    const instruction = String(payload.instruction || "").trim();
-    const information = String(payload.information || "").trim();
-    const sessionId = String(payload.session_id || "").trim();
-    if (!instruction) {
-      return badRequest("instruction is required");
-    }
-
-    const record = {
-      type: "aurago_instruction",
-      instruction,
-      information,
-      session_id: sessionId,
-      source: "aurago",
-      created_at: new Date().toISOString(),
-    };
-    const inbox = await appendInstructionRecord(context, record);
-    return {
-      accepted: true,
-      delivered: "inbox",
-      inbox,
-      message: "AuraGo instruction accepted and written to the managed Space Agent inbox.",
-    };
-  } catch (error) {
-    return {
-      status: 500,
-      body: {
-        status: "error",
-        error: "AuraGo instruction endpoint failed",
-        message: error && error.message ? error.message : String(error),
-      },
-    };
-  }
-}
-
-export async function post(context) {
-  return handleInstruction(context);
-}
-
-export async function POST(context) {
-  return handleInstruction(context);
-}
-
-export default async function auragoInstructions(context) {
-  return handleInstruction(context);
-}
+            context = self.use_context(session_id)
+            message_id = str(uuid.uuid4())
+            try:
+                mq.log_user_message(context, message, [], message_id)
+            except Exception:
+                pass
+            context.communicate(UserMessage(message, []))
+            return {
+                "accepted": True,
+                "queued": True,
+                "context": context.id,
+                "message_id": message_id,
+                "message": "AuraGo instruction accepted and queued for Space Agent execution.",
+            }
+        except Exception as exc:
+            return Response(
+                json.dumps({
+                    "status": "error",
+                    "error": "AuraGo instruction endpoint failed",
+                    "message": str(exc),
+                }),
+                status=500,
+                mimetype="application/json",
+            )
 `
 }
 

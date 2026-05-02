@@ -152,7 +152,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +169,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +210,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-instructions-api-v3"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -249,33 +249,29 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
+		"class AuragoInstructions(ApiHandler):",
+		"requires_auth",
+		"requires_csrf",
 		"AURAGO_BRIDGE_TOKEN",
-		"authorization",
+		"Authorization",
 		"Bearer",
-		"export const allowAnonymous = true;",
-		"export async function post(context)",
-		"export async function POST(context)",
-		"export default async function auragoInstructions(context)",
-		"handleInstruction",
-		"appendInstructionRecord",
-		"aurago_inbox",
-		"HOME",
-		"latest_instruction.json",
-		"instructions.jsonl",
-		"accepted: true",
+		"UserMessage(message, [])",
+		"Context from AuraGo:",
+		"mq.log_user_message",
+		"context.communicate",
+		`"accepted": True`,
+		`"queued": True`,
 	} {
 		if !strings.Contains(endpoint, want) {
 			t.Fatalf("instructions api endpoint missing %q:\n%s", want, endpoint)
 		}
-	}
-	if strings.Contains(endpoint, `status: "ok"`) {
-		t.Fatalf("instructions api endpoint must not return top-level string status values because Space Agent treats status as an HTTP status code:\n%s", endpoint)
 	}
 }
 
 func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T) {
 	source := t.TempDir()
 	for _, stalePath := range []string{
+		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
 		filepath.Join(source, "api", "aurago_instructions.py"),
 	} {
@@ -292,6 +288,7 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 	}
 
 	for _, stalePath := range []string{
+		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
 		filepath.Join(source, "api", "aurago_instructions.py"),
 	} {
@@ -299,13 +296,13 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 			t.Fatalf("stale endpoint %s still exists or stat failed: %v", stalePath, err)
 		}
 	}
-	currentPath := filepath.Join(source, "server", "api", "aurago_instructions.js")
+	currentPath := filepath.Join(source, "python", "api", "aurago_instructions.py")
 	content, err := os.ReadFile(currentPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%s): %v", currentPath, err)
 	}
-	if !strings.Contains(string(content), "export async function post") || !strings.Contains(string(content), "handleInstruction") {
-		t.Fatalf("current endpoint content missing JS handlers: %s", string(content))
+	if !strings.Contains(string(content), "class AuragoInstructions") || !strings.Contains(string(content), "context.communicate") {
+		t.Fatalf("current endpoint content missing active Python handler: %s", string(content))
 	}
 }
 
