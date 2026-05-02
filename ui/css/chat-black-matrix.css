@@ -213,6 +213,7 @@
 [data-theme="black-matrix"] .chat-theme-dropdown,
 [data-theme="black-matrix"] .mood-panel,
 [data-theme="black-matrix"] .session-drawer,
+    [data-theme="black-matrix"] .integrations-drawer,
 [data-theme="black-matrix"] .modal-card,
 [data-theme="black-matrix"] .personality-dropdown,
 [data-theme="black-matrix"] .voice-recorder-panel {

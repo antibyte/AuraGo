@@ -566,6 +566,7 @@
 }
 
 [data-theme="cyberwar"] .session-drawer,
+    [data-theme="cyberwar"] .integrations-drawer,
 [data-theme="cyberwar"] .modal-card,
 [data-theme="cyberwar"] .mermaid-modal-content {
     overflow: hidden;
@@ -578,7 +579,8 @@
         0 0 0 1px rgba(84, 247, 255, 0.06);
 }
 
-[data-theme="cyberwar"] .session-drawer {
+[data-theme="cyberwar"] .session-drawer,
+    [data-theme="cyberwar"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;

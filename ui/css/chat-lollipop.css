@@ -549,6 +549,7 @@
 }
 
 [data-theme="lollipop"] .session-drawer,
+    [data-theme="lollipop"] .integrations-drawer,
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {
     overflow: hidden;
@@ -559,7 +560,8 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.98);
 }
 
-[data-theme="lollipop"] .session-drawer {
+[data-theme="lollipop"] .session-drawer,
+    [data-theme="lollipop"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;

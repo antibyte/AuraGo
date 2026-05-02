@@ -475,6 +475,7 @@
 }
 
 [data-theme="ocean"] .session-drawer,
+    [data-theme="ocean"] .integrations-drawer,
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
     overflow: hidden;
@@ -485,7 +486,8 @@
         inset 0 1px 0 rgba(226, 241, 248, 0.05);
 }
 
-[data-theme="ocean"] .session-drawer {
+[data-theme="ocean"] .session-drawer,
+    [data-theme="ocean"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;

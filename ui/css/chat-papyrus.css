@@ -325,6 +325,7 @@
 [data-theme="papyrus"] .chat-theme-dropdown,
 [data-theme="papyrus"] .mood-panel,
 [data-theme="papyrus"] .session-drawer,
+    [data-theme="papyrus"] .integrations-drawer,
 [data-theme="papyrus"] .modal-card,
 [data-theme="papyrus"] .mermaid-modal-content,
 [data-theme="papyrus"] .personality-dropdown,
@@ -353,7 +354,8 @@
 }
 [data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(70vh, 30rem); }
 
-[data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
+[data-theme="papyrus"] .session-drawer,
+    [data-theme="papyrus"] .integrations-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
 
 /* Parchment fiber overlay */
 [data-theme="papyrus"] .chat-theme-dropdown::before,

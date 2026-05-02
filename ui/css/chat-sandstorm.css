@@ -454,6 +454,7 @@
 }
 
 [data-theme="sandstorm"] .session-drawer,
+    [data-theme="sandstorm"] .integrations-drawer,
 [data-theme="sandstorm"] .modal-card,
 [data-theme="sandstorm"] .mermaid-modal-content {
     overflow: hidden;
@@ -464,7 +465,8 @@
         inset 0 1px 0 rgba(246, 228, 198, 0.05);
 }
 
-[data-theme="sandstorm"] .session-drawer {
+[data-theme="sandstorm"] .session-drawer,
+    [data-theme="sandstorm"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
