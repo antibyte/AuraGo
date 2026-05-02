@@ -309,6 +309,65 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	papyrusPath := filepath.Join("css", "chat-papyrus.css")
+	papyrusContent, err := os.ReadFile(papyrusPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", papyrusPath, err)
+	}
+	papyrusCSS := string(papyrusContent)
+	for _, marker := range []string{
+		`[data-theme="papyrus"] .session-drawer,`,
+		`[data-theme="papyrus"] .integrations-drawer,`,
+		`[data-theme="papyrus"] .integrations-drawer { position: fixed; top: 0; right: 0;`,
+		`[data-theme="papyrus"] .integrations-drawer::before`,
+		`[data-theme="papyrus"] .integrations-drawer > *`,
+		`[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar`,
+	} {
+		if !strings.Contains(papyrusCSS, marker) {
+			t.Fatalf("%s missing drawer selector marker %q", papyrusPath, marker)
+		}
+	}
+	for _, broken := range []string{
+		"[data-theme=\"papyrus\"] .session-drawer\n[data-theme=\"papyrus\"] .modal-card",
+		"[data-theme=\"papyrus\"] .integrations-drawer,\n\n/* Parchment fiber overlay */",
+		"[data-theme=\"papyrus\"] .session-drawer ::-webkit-scrollbar {\n[data-theme=\"papyrus\"] .integrations-drawer,",
+	} {
+		if strings.Contains(papyrusCSS, broken) {
+			t.Fatalf("%s still contains broken drawer selector fragment %q", papyrusPath, broken)
+		}
+	}
+
+	matrixPath := filepath.Join("css", "chat-black-matrix.css")
+	matrixContent, err := os.ReadFile(matrixPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", matrixPath, err)
+	}
+	matrixCSS := string(matrixContent)
+	for _, marker := range []string{
+		`[data-theme="black-matrix"] .session-drawer,`,
+		`[data-theme="black-matrix"] .integrations-drawer,`,
+		`repeating-linear-gradient(135deg,`,
+		`[data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar`,
+		`[data-theme="black-matrix"] .integrations-edge-tab:hover`,
+	} {
+		if !strings.Contains(matrixCSS, marker) {
+			t.Fatalf("%s missing drawer selector marker %q", matrixPath, marker)
+		}
+	}
+	for _, broken := range []string{
+		"[data-theme=\"black-matrix\"] .session-drawer\n[data-theme=\"black-matrix\"] .integrations-drawer",
+		"[data-theme=\"black-matrix\"] .session-edge-tab\n[data-theme=\"black-matrix\"] .integrations-edge-tab",
+		"[data-theme=\"black-matrix\"] .session-drawer ::-webkit-scrollbar {\n[data-theme=\"black-matrix\"] .integrations-drawer,",
+	} {
+		if strings.Contains(matrixCSS, broken) {
+			t.Fatalf("%s still contains broken drawer selector fragment %q", matrixPath, broken)
+		}
+	}
+}
+
 func TestChatSmartScrollerIgnoresEmptyNonScrollableState(t *testing.T) {
 	t.Parallel()
 

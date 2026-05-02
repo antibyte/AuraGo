@@ -324,7 +324,8 @@
 /* ── Drawers, dropdowns, modals (parchment notes) ──────────────────────────── */
 [data-theme="papyrus"] .chat-theme-dropdown,
 [data-theme="papyrus"] .mood-panel,
-[data-theme="papyrus"] .session-drawer
+[data-theme="papyrus"] .session-drawer,
+[data-theme="papyrus"] .integrations-drawer,
 [data-theme="papyrus"] .modal-card,
 [data-theme="papyrus"] .mermaid-modal-content,
 [data-theme="papyrus"] .personality-dropdown,
@@ -354,12 +355,13 @@
 [data-theme="papyrus"] .chat-theme-dropdown { min-width: 220px; max-height: min(calc(100dvh - 5rem), 34rem); }
 
 [data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
-[data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .integrations-drawer { position: fixed; top: 0; right: 0; overflow: hidden; overflow-y: auto; }
 
 /* Parchment fiber overlay */
 [data-theme="papyrus"] .chat-theme-dropdown::before,
 [data-theme="papyrus"] .mood-panel::before,
 [data-theme="papyrus"] .session-drawer::before,
+[data-theme="papyrus"] .integrations-drawer::before,
 [data-theme="papyrus"] .modal-card::before,
 [data-theme="papyrus"] .mermaid-modal-content::before,
 [data-theme="papyrus"] .personality-dropdown::before,
@@ -384,7 +386,7 @@
 [data-theme="papyrus"] .chat-theme-dropdown > *,
 [data-theme="papyrus"] .mood-panel > *,
 [data-theme="papyrus"] .session-drawer > *,
-[data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .integrations-drawer > *,
 [data-theme="papyrus"] .modal-card > *,
 [data-theme="papyrus"] .voice-recorder-panel > *,
 [data-theme="papyrus"] .personality-dropdown > * { position: relative; z-index: 1; }
@@ -842,22 +844,22 @@
 
 /* ── Scrollbars on parchment ───────────────────────────────────────────────── */
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar,
-[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar {
-[data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar,
+[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-thumb,
-[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-thumb {
-[data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-thumb,
+[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(155, 117, 70, 0.55), rgba(96, 70, 40, 0.7));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-track,
-[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-track {
-[data-theme="papyrus"] .integrations-drawer,
+[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-track,
+[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar-track {
     background: rgba(30, 63, 102, 0.06);
 }
 

@@ -118,11 +118,11 @@
 
 [data-theme="black-matrix"] .logo .logo-wordmark-accent,
 [data-theme="black-matrix"] .session-drawer-title,
-    [data-theme="black-matrix"] .integrations-drawer-title,
+[data-theme="black-matrix"] .integrations-drawer-title,
 [data-theme="black-matrix"] .modal-title,
 [data-theme="black-matrix"] .app-header .pill,
 [data-theme="black-matrix"] .chat-theme-btn,
-[data-theme="black-matrix"] .session-edge-tab
+[data-theme="black-matrix"] .session-edge-tab,
 [data-theme="black-matrix"] .integrations-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
@@ -133,7 +133,7 @@
 [data-theme="black-matrix"] #logout-btn,
 [data-theme="black-matrix"] .session-new-btn,
 [data-theme="black-matrix"] .session-drawer-close,
-    [data-theme="black-matrix"] .integrations-drawer-close,
+[data-theme="black-matrix"] .integrations-drawer-close,
 [data-theme="black-matrix"] .btn-send,
 [data-theme="black-matrix"] .btn-voice,
 [data-theme="black-matrix"] .btn-more,
@@ -147,7 +147,7 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-btn,
-[data-theme="black-matrix"] .session-edge-tab
+[data-theme="black-matrix"] .session-edge-tab,
 [data-theme="black-matrix"] .integrations-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
@@ -158,7 +158,7 @@
 [data-theme="black-matrix"] #logout-btn,
 [data-theme="black-matrix"] .session-new-btn,
 [data-theme="black-matrix"] .session-drawer-close,
-    [data-theme="black-matrix"] .integrations-drawer-close,
+[data-theme="black-matrix"] .integrations-drawer-close,
 [data-theme="black-matrix"] .btn-send,
 [data-theme="black-matrix"] .btn-voice,
 [data-theme="black-matrix"] .btn-more,
@@ -176,8 +176,8 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-btn:hover,
-[data-theme="black-matrix"] .session-edge-tab
-[data-theme="black-matrix"] .integrations-edge-tab,
+[data-theme="black-matrix"] .session-edge-tab:hover,
+[data-theme="black-matrix"] .integrations-edge-tab:hover,
 [data-theme="black-matrix"] .btn-speaker:hover,
 [data-theme="black-matrix"] .btn-warnings:hover,
 [data-theme="black-matrix"] .select-personality:hover,
@@ -186,8 +186,8 @@
 [data-theme="black-matrix"] .btn-header-link:hover,
 [data-theme="black-matrix"] #logout-btn:hover,
 [data-theme="black-matrix"] .session-new-btn:hover,
-[data-theme="black-matrix"] .session-drawer-close,
-    [data-theme="black-matrix"] .integrations-drawer-close:hover,
+[data-theme="black-matrix"] .session-drawer-close:hover,
+[data-theme="black-matrix"] .integrations-drawer-close:hover,
 [data-theme="black-matrix"] .btn-send:hover,
 [data-theme="black-matrix"] .btn-voice:hover,
 [data-theme="black-matrix"] .btn-more:hover,
@@ -212,7 +212,7 @@
 
 [data-theme="black-matrix"] .chat-theme-dropdown,
 [data-theme="black-matrix"] .mood-panel,
-[data-theme="black-matrix"] .session-drawer
+[data-theme="black-matrix"] .session-drawer,
 [data-theme="black-matrix"] .integrations-drawer,
 [data-theme="black-matrix"] .modal-card,
 [data-theme="black-matrix"] .personality-dropdown,
@@ -511,22 +511,22 @@
 
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar,
-[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar {
-[data-theme="black-matrix"] .integrations-drawer,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar,
+[data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar-thumb,
-[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-thumb {
-[data-theme="black-matrix"] .integrations-drawer,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-thumb,
+[data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(126, 134, 129, 0.28), rgba(100, 110, 104, 0.4));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar-track,
-[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-track {
-[data-theme="black-matrix"] .integrations-drawer,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-track,
+[data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar-track {
     background: rgba(126, 134, 129, 0.06);
 }
 
