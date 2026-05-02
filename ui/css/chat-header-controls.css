@@ -95,6 +95,25 @@
     border-radius: 0 !important;
 }
 
+[data-theme="dark-sun"] .session-edge-tab:hover,
+[data-theme="dark-sun"] .session-edge-tab:focus-visible,
+[data-theme="dark-sun"] .integrations-edge-tab:hover,
+[data-theme="dark-sun"] .integrations-edge-tab:focus-visible,
+[data-theme="ocean"] .session-edge-tab:hover,
+[data-theme="ocean"] .session-edge-tab:focus-visible,
+[data-theme="ocean"] .integrations-edge-tab:hover,
+[data-theme="ocean"] .integrations-edge-tab:focus-visible,
+[data-theme="sandstorm"] .session-edge-tab:hover,
+[data-theme="sandstorm"] .session-edge-tab:focus-visible,
+[data-theme="sandstorm"] .integrations-edge-tab:hover,
+[data-theme="sandstorm"] .integrations-edge-tab:focus-visible,
+[data-theme="papyrus"] .session-edge-tab:hover,
+[data-theme="papyrus"] .session-edge-tab:focus-visible,
+[data-theme="papyrus"] .integrations-edge-tab:hover,
+[data-theme="papyrus"] .integrations-edge-tab:focus-visible {
+    transform: translateY(-50%) !important;
+}
+
 .app-header .header-actions .chat-theme-dropdown,
 .app-header .header-actions .personality-dropdown,
 .app-header .header-actions .mood-panel.open {

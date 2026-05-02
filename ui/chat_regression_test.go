@@ -310,6 +310,32 @@ func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
+	t.Parallel()
+
+	controlsContent, err := os.ReadFile(filepath.Join("css", "chat-header-controls.css"))
+	if err != nil {
+		t.Fatalf("read header controls CSS: %v", err)
+	}
+
+	controlsCSS := string(controlsContent)
+	for _, theme := range []string{"dark-sun", "ocean", "sandstorm", "papyrus"} {
+		for _, marker := range []string{
+			`[data-theme="` + theme + `"] .session-edge-tab:hover`,
+			`[data-theme="` + theme + `"] .session-edge-tab:focus-visible`,
+			`[data-theme="` + theme + `"] .integrations-edge-tab:hover`,
+			`[data-theme="` + theme + `"] .integrations-edge-tab:focus-visible`,
+		} {
+			if !strings.Contains(controlsCSS, marker) {
+				t.Fatalf("header controls CSS missing anchored %s edge tab marker %q", theme, marker)
+			}
+		}
+	}
+	if !strings.Contains(controlsCSS, `transform: translateY(-50%) !important;`) {
+		t.Fatal("header controls CSS must keep themed edge tabs vertically anchored on hover")
+	}
+}
+
 func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	t.Parallel()
 
