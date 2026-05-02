@@ -555,11 +555,11 @@
 }
 
 [data-theme="dark-sun"] .session-drawer,
-    [data-theme="dark-sun"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
+
 
 [data-theme="dark-sun"] .modal-card,
 [data-theme="dark-sun"] .mermaid-modal-content {

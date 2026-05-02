@@ -561,11 +561,11 @@
 }
 
 [data-theme="lollipop"] .session-drawer,
-    [data-theme="lollipop"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
+
 
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {

@@ -580,11 +580,11 @@
 }
 
 [data-theme="cyberwar"] .session-drawer,
-    [data-theme="cyberwar"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
+
 
 [data-theme="cyberwar"] .modal-card,
 [data-theme="cyberwar"] .mermaid-modal-content {

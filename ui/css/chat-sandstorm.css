@@ -466,11 +466,11 @@
 }
 
 [data-theme="sandstorm"] .session-drawer,
-    [data-theme="sandstorm"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
+
 
 [data-theme="sandstorm"] .modal-card,
 [data-theme="sandstorm"] .mermaid-modal-content {

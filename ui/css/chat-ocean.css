@@ -487,11 +487,11 @@
 }
 
 [data-theme="ocean"] .session-drawer,
-    [data-theme="ocean"] .integrations-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
+
 
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
