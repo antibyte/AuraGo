@@ -175,6 +175,30 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
+	t.Parallel()
+
+	sharedContent, err := os.ReadFile("shared-components.css")
+	if err != nil {
+		t.Fatalf("read shared-components.css: %v", err)
+	}
+
+	sharedCSS := string(sharedContent)
+	for _, marker := range []string{
+		".app-header::before,\n.app-header::after,\n.cfg-header::before,\n.cfg-header::after",
+		"pointer-events: none;",
+		".radial-menu.open",
+		".radial-trigger",
+		"pointer-events: auto;",
+		"touch-action: pan-x;",
+		"touch-action: manipulation;",
+	} {
+		if !strings.Contains(sharedCSS, marker) {
+			t.Fatalf("shared header CSS missing mobile tap safety marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_IntegrationsDrawerI18nKeysExist(t *testing.T) {
 	t.Parallel()
 
@@ -247,8 +271,8 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	}
 
 	for path, content := range map[string]string{
-		"shared.js":          string(sharedContent),
-		"js/chat/main.js":    string(mainContent),
+		"shared.js":           string(sharedContent),
+		"js/chat/main.js":     string(mainContent),
 		"js/chat/ui-icons.js": string(iconsContent),
 	} {
 		for _, marker := range []string{"8bit", "theme-8bit"} {

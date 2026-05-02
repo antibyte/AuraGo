@@ -112,6 +112,13 @@
     box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
+.app-header::before,
+.app-header::after,
+.cfg-header::before,
+.cfg-header::after {
+    pointer-events: none;
+}
+
 .logo {
     font-weight: 700;
     font-size: 1.25rem;
@@ -181,6 +188,8 @@ a.logo {
     align-items: center;
     gap: 0.5rem;
     min-width: 0;
+    position: relative;
+    z-index: 2;
 }
 
 
@@ -2085,6 +2094,11 @@ div.toggle.toggle-sm.on::before {
     top: 0.65rem;
     right: 1rem;
     z-index: 9999;
+    pointer-events: none;
+}
+
+.radial-menu.open {
+    pointer-events: auto;
 }
 
 .radial-trigger {
@@ -2105,6 +2119,7 @@ div.toggle.toggle-sm.on::before {
     padding: 0;
     font-size: 0;
     outline: none;
+    pointer-events: auto;
 }
 
 .radial-trigger::before {
@@ -2628,6 +2643,7 @@ div.toggle.toggle-sm.on::before {
         scroll-snap-type: x proximity;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        touch-action: pan-x;
     }
 
     .app-header .header-actions::-webkit-scrollbar,
@@ -2639,6 +2655,8 @@ div.toggle.toggle-sm.on::before {
     .cfg-header .header-actions > * {
         flex: 0 0 auto;
         scroll-snap-align: start;
+        pointer-events: auto;
+        touch-action: manipulation;
     }
 
     .app-header .header-actions::after,
@@ -2647,6 +2665,7 @@ div.toggle.toggle-sm.on::before {
         display: block;
         min-width: 54px;
         flex-shrink: 0;
+        pointer-events: none;
     }
 }
 
@@ -2682,6 +2701,7 @@ div.toggle.toggle-sm.on::before {
         display: block;
         min-width: 54px;
         flex-shrink: 0;
+        pointer-events: none;
     }
 
     .app-header,
