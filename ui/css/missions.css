@@ -29,16 +29,16 @@
 
 /* Status Bar */
 .status-bar {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 24px;
 }
 
 .status-card {
     background: var(--card-bg);
-    border-radius: 16px;
-    padding: 16px 20px;
+    border-radius: 14px;
+    padding: 12px 16px;
     border: 1px solid var(--border-subtle);
     position: relative;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -50,6 +50,9 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 100px;
+    max-width: 140px;
+    flex: 0 1 auto;
 }
 
 .status-card::before {
@@ -101,15 +104,15 @@
 /* pulse keyframe moved to animations.css */
 
 .status-icon {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     line-height: 1;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     opacity: 0.72;
     display: block;
 }
 
 .status-value {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-weight: 700;
     line-height: 1;
     margin-bottom: 2px;
@@ -1135,12 +1138,14 @@
 
 @media (max-width: 480px) {
     .status-bar {
-        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
     .status-card {
         padding: 10px 12px;
         border-radius: 12px;
+        min-width: 80px;
+        max-width: none;
+        flex: 1 1 calc(50% - 4px);
     }
     .status-icon {
         font-size: 1.2rem;
