@@ -564,3 +564,147 @@
     background: #94f26d;
     box-shadow: 0 0 8px rgba(148, 242, 109, 0.4);
 }
+
+/* ── Integrations Drawer (mirrored from session drawer) ── */
+[data-theme="black-matrix"] .integrations-edge-tab {
+    font-family: var(--matrix-font-ui);
+    text-shadow: var(--matrix-emboss);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="black-matrix"] .integrations-edge-tab {
+    background: var(--matrix-metal);
+    border: 1px solid rgba(154, 161, 156, 0.22);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+    0 12px 26px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+}
+
+[data-theme="black-matrix"] .integrations-edge-tab {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+    0 16px 34px rgba(0, 0, 0, 0.38),
+    0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .integrations-edge-tab:hover {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+    0 16px 34px rgba(0, 0, 0, 0.38),
+    0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .integrations-drawer-title {
+    font-family: var(--matrix-font-ui);
+    text-shadow: var(--matrix-emboss);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="black-matrix"] .integrations-drawer-close {
+    font-family: var(--matrix-font-ui);
+    text-shadow: var(--matrix-emboss);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="black-matrix"] .integrations-drawer-close {
+    background: var(--matrix-metal);
+    border: 1px solid rgba(154, 161, 156, 0.22);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+    0 12px 26px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+}
+
+[data-theme="black-matrix"] .integrations-drawer-close {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+    0 16px 34px rgba(0, 0, 0, 0.38),
+    0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .integrations-drawer-close:hover {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+    0 16px 34px rgba(0, 0, 0, 0.38),
+    0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    font-family: var(--matrix-font-ui);
+    text-shadow: var(--matrix-emboss);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    background: var(--matrix-metal);
+    border: 1px solid rgba(154, 161, 156, 0.22);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+    0 12px 26px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+    0 16px 34px rgba(0, 0, 0, 0.38),
+    0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    --theme-option-color: #eef4ef;
+    background:
+    repeating-linear-gradient(135deg,
+    rgba(255, 255, 255, 0.028) 0 2px,
+    rgba(0, 0, 0, 0) 2px 10px),
+    linear-gradient(180deg, rgba(29, 32, 30, 0.98), rgba(7, 8, 8, 0.98));
+    border: 1px solid rgba(164, 171, 166, 0.2);
+    box-shadow:
+    0 22px 58px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    width: 10px;
+    height: 10px;
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    background: linear-gradient(180deg, rgba(126, 134, 129, 0.28), rgba(100, 110, 104, 0.4));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+[data-theme="black-matrix"] .integrations-drawer {
+    background: rgba(126, 134, 129, 0.06);
+}
