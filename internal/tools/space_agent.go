@@ -28,13 +28,13 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-python-active-instructions-api"
+	spaceAgentImageBuildRevision   = "20260502-aurago-message-async-bridge"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
 	spaceAgentBridgeEndpoint       = "/api/space-agent/bridge/messages"
-	spaceAgentInstructionEndpoint  = "/api/aurago_instructions"
+	spaceAgentInstructionEndpoint  = "/api/message_async"
 )
 
 // SpaceAgentSidecarConfig is the resolved runtime configuration for the managed sidecar.
@@ -426,7 +426,8 @@ func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req Spac
 	if cfg.SpaceAgent.BridgeToken != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+cfg.SpaceAgent.BridgeToken)
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
+	httpReq.Header.Set("X-AuraGo-Instruction", "1")
+	client := spaceAgentHTTPClient
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return map[string]interface{}{"status": "error", "message": err.Error()}
@@ -441,6 +442,8 @@ func SendSpaceAgentInstruction(ctx context.Context, cfg *config.Config, req Spac
 	}
 	return parsed
 }
+
+var spaceAgentHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 func parseSpaceAgentInstructionResponseBody(statusCode int, body []byte) map[string]interface{} {
 	var parsed map[string]interface{}
@@ -534,13 +537,14 @@ func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
 		filepath.Join(sourcePath, "server", "api", "aurago_instructions.js"),
 		filepath.Join(sourcePath, "api", "aurago", "instructions.py"),
 		filepath.Join(sourcePath, "api", "aurago_instructions.py"),
+		filepath.Join(sourcePath, "python", "api", "aurago_instructions.py"),
 	}
 	for _, stalePath := range stalePaths {
 		if err := os.Remove(stalePath); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale AuraGo instructions endpoint %s: %w", stalePath, err)
 		}
 	}
-	instructionsAPIPath := filepath.Join(sourcePath, "python", "api", "aurago_instructions.py")
+	instructionsAPIPath := filepath.Join(sourcePath, "python", "api", "message_async.py")
 	if err := os.MkdirAll(filepath.Dir(instructionsAPIPath), 0o750); err != nil {
 		return fmt.Errorf("create AuraGo instructions api dir: %w", err)
 	}
@@ -845,12 +849,14 @@ func spaceAgentInstructionsAPIEndpoint() string {
 import os
 import uuid
 
-from agent import UserMessage
+from agent import AgentContext, UserMessage
+from python.api.message import Message
 from python.helpers import message_queue as mq
-from python.helpers.api import ApiHandler, Request, Response
+from python.helpers.api import Request, Response
+from python.helpers.defer import DeferredTask
 
 
-class AuragoInstructions(ApiHandler):
+class MessageAsync(Message):
     @classmethod
     def requires_auth(cls) -> bool:
         return False
@@ -859,7 +865,15 @@ class AuragoInstructions(ApiHandler):
     def requires_csrf(cls) -> bool:
         return False
 
+    async def respond(self, task: DeferredTask, context: AgentContext):
+        return {
+            "message": "Message received.",
+            "context": context.id,
+        }
+
     async def process(self, input: dict, request: Request) -> dict | Response:
+        if request.headers.get("X-AuraGo-Instruction", "").strip() != "1":
+            return await super().process(input, request)
         try:
             expected_token = os.environ.get("AURAGO_BRIDGE_TOKEN", "").strip()
             auth_header = request.headers.get("Authorization", "").strip()

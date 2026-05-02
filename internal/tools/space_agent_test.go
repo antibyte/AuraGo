@@ -1,11 +1,17 @@
 package tools
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestBuildSpaceAgentCreatePayload(t *testing.T) {
@@ -152,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -169,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -210,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-python-active-instructions-api"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-message-async-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -249,10 +255,12 @@ func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 	endpoint := spaceAgentInstructionsAPIEndpoint()
 	for _, want := range []string{
-		"class AuragoInstructions(ApiHandler):",
+		"class MessageAsync(Message):",
 		"requires_auth",
 		"requires_csrf",
+		"return await super().process(input, request)",
 		"AURAGO_BRIDGE_TOKEN",
+		"X-AuraGo-Instruction",
 		"Authorization",
 		"Bearer",
 		"UserMessage(message, [])",
@@ -274,6 +282,7 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
 		filepath.Join(source, "api", "aurago_instructions.py"),
+		filepath.Join(source, "python", "api", "aurago_instructions.py"),
 	} {
 		if err := os.MkdirAll(filepath.Dir(stalePath), 0o750); err != nil {
 			t.Fatalf("MkdirAll(%s): %v", stalePath, err)
@@ -291,17 +300,18 @@ func TestWriteSpaceAgentInstructionsAPIEndpointRemovesStaleVariants(t *testing.T
 		filepath.Join(source, "server", "api", "aurago_instructions.js"),
 		filepath.Join(source, "api", "aurago", "instructions.py"),
 		filepath.Join(source, "api", "aurago_instructions.py"),
+		filepath.Join(source, "python", "api", "aurago_instructions.py"),
 	} {
 		if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
 			t.Fatalf("stale endpoint %s still exists or stat failed: %v", stalePath, err)
 		}
 	}
-	currentPath := filepath.Join(source, "python", "api", "aurago_instructions.py")
+	currentPath := filepath.Join(source, "python", "api", "message_async.py")
 	content, err := os.ReadFile(currentPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%s): %v", currentPath, err)
 	}
-	if !strings.Contains(string(content), "class AuragoInstructions") || !strings.Contains(string(content), "context.communicate") {
+	if !strings.Contains(string(content), "class MessageAsync") || !strings.Contains(string(content), "context.communicate") {
 		t.Fatalf("current endpoint content missing active Python handler: %s", string(content))
 	}
 }
@@ -354,6 +364,63 @@ func TestParseSpaceAgentInstructionResponseBodyAddsOKStatusForSuccessfulEndpoint
 	if got["accepted"] != true || got["delivered"] != "inbox" {
 		t.Fatalf("endpoint payload not preserved: %#v", got)
 	}
+}
+
+func TestSendSpaceAgentInstructionUsesMessageAsyncBridgeHeaders(t *testing.T) {
+	var gotPath string
+	var gotAuth string
+	var gotBridgeHeader string
+	var gotBody SpaceAgentInstruction
+	originalClient := spaceAgentHTTPClient
+	spaceAgentHTTPClient = &http.Client{Transport: spaceAgentRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		gotBridgeHeader = r.Header.Get("X-AuraGo-Instruction")
+		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(bytes.NewBufferString(`{"accepted":true,"queued":true}`)),
+			Request:    r,
+		}, nil
+	})}
+	defer func() { spaceAgentHTTPClient = originalClient }()
+
+	cfg := &config.Config{}
+	cfg.SpaceAgent.Enabled = true
+	cfg.SpaceAgent.Host = "127.0.0.1"
+	cfg.SpaceAgent.Port = 3100
+	cfg.SpaceAgent.BridgeToken = "bridge-token"
+
+	got := SendSpaceAgentInstruction(context.Background(), cfg, SpaceAgentInstruction{
+		Instruction: "build a weather widget",
+		Information: "Pforzheim",
+		SessionID:   "sess-1",
+	})
+
+	if got["status"] != "ok" || got["accepted"] != true || got["queued"] != true {
+		t.Fatalf("unexpected tool result: %#v", got)
+	}
+	if gotPath != "/api/message_async" {
+		t.Fatalf("path = %q, want /api/message_async", gotPath)
+	}
+	if gotAuth != "Bearer bridge-token" {
+		t.Fatalf("Authorization = %q", gotAuth)
+	}
+	if gotBridgeHeader != "1" {
+		t.Fatalf("X-AuraGo-Instruction = %q", gotBridgeHeader)
+	}
+	if gotBody.Instruction != "build a weather widget" || gotBody.Information != "Pforzheim" || gotBody.SessionID != "sess-1" {
+		t.Fatalf("request body = %#v", gotBody)
+	}
+}
+
+type spaceAgentRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f spaceAgentRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
