@@ -543,6 +543,46 @@ func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptAddsChineseDriftGuardForNonChineseLanguage(t *testing.T) {
+	flags := ContextFlags{
+		Tier:           "full",
+		SystemLanguage: "de",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "do not insert Chinese words") {
+		t.Fatalf("expected anti-Chinese language drift guard in prompt")
+	}
+}
+
+func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T) {
+	for _, language := range []string{"zh", "zh-CN", "Chinese", "中文"} {
+		t.Run(language, func(t *testing.T) {
+			flags := ContextFlags{
+				Tier:           "full",
+				SystemLanguage: language,
+			}
+
+			prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+			if strings.Contains(prompt, "do not insert Chinese words") {
+				t.Fatalf("did not expect anti-Chinese language drift guard for %q", language)
+			}
+		})
+	}
+}
+
+func TestFallbackSystemPromptAddsChineseDriftGuardForNonChineseLanguage(t *testing.T) {
+	flags := ContextFlags{SystemLanguage: "en"}
+
+	prompt, _ := fallbackSystemPrompt("", &flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "do not insert Chinese words") {
+		t.Fatalf("expected anti-Chinese language drift guard in fallback prompt")
+	}
+}
+
 func TestCountTokensRetriesAfterTimeoutAndUsesLateSuccess(t *testing.T) {
 	block := make(chan struct{})
 	callCount := 0

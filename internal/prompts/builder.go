@@ -342,6 +342,10 @@ const buildPromptTimeout = 30 * time.Second
 func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	var sb strings.Builder
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
+	if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
+		sb.WriteString(instruction)
+		sb.WriteString("\n")
+	}
 	now := time.Now().Format(time.RFC1123)
 	sb.WriteString("Current time: " + now + "\n")
 	if identity := loadCriticalFallbackModule(promptsDir, fallbackIdentityModule(flags), logger); identity != "" {
@@ -524,7 +528,12 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	// Language Instruction
 	if flags.SystemLanguage != "" {
-		finalPrompt.WriteString(fmt.Sprintf("# LANGUAGE\nRespond in %s.\n\n", flags.SystemLanguage))
+		finalPrompt.WriteString(fmt.Sprintf("# LANGUAGE\nRespond in %s.\n", flags.SystemLanguage))
+		if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
+			finalPrompt.WriteString(instruction)
+			finalPrompt.WriteString("\n")
+		}
+		finalPrompt.WriteString("\n")
 	}
 
 	// Surgery Plan injection (always inject when present, regardless of maintenance module)
@@ -853,6 +862,29 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	})
 
 	return optimized, finalTokens
+}
+
+func antiChineseLanguageDriftInstruction(systemLanguage string) string {
+	lang := strings.ToLower(strings.TrimSpace(systemLanguage))
+	if lang == "" || isChineseLanguage(lang) {
+		return ""
+	}
+	return "When the target language is not Chinese, do not insert Chinese words, Chinese phrases, or Chinese script into your own prose. Exceptions: the user explicitly asks for Chinese, you are translating or quoting external content, or a proper noun/title requires it. If the target language normally uses Han characters (for example Japanese), use that language's normal orthography but avoid Chinese-language phrasing."
+}
+
+func isChineseLanguage(lang string) bool {
+	normalized := strings.NewReplacer("_", "-", " ", "", "(", "", ")", "").Replace(lang)
+	if normalized == "zh" ||
+		strings.HasPrefix(normalized, "zh-") ||
+		strings.Contains(normalized, "chinese") ||
+		strings.Contains(normalized, "中文") ||
+		strings.Contains(normalized, "汉语") ||
+		strings.Contains(normalized, "漢語") ||
+		strings.Contains(normalized, "mandarin") ||
+		strings.Contains(normalized, "cantonese") {
+		return true
+	}
+	return false
 }
 
 func stripTextJSONToolProtocolForNative(content string) string {
