@@ -118,10 +118,12 @@
 
 [data-theme="black-matrix"] .logo .logo-wordmark-accent,
 [data-theme="black-matrix"] .session-drawer-title,
+    [data-theme="black-matrix"] .integrations-drawer-title,
 [data-theme="black-matrix"] .modal-title,
 [data-theme="black-matrix"] .app-header .pill,
 [data-theme="black-matrix"] .chat-theme-btn,
 [data-theme="black-matrix"] .session-edge-tab,
+    [data-theme="black-matrix"] .integrations-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
 [data-theme="black-matrix"] .select-personality,
@@ -131,6 +133,7 @@
 [data-theme="black-matrix"] #logout-btn,
 [data-theme="black-matrix"] .session-new-btn,
 [data-theme="black-matrix"] .session-drawer-close,
+    [data-theme="black-matrix"] .integrations-drawer-close,
 [data-theme="black-matrix"] .btn-send,
 [data-theme="black-matrix"] .btn-voice,
 [data-theme="black-matrix"] .btn-more,
@@ -145,6 +148,7 @@
 
 [data-theme="black-matrix"] .chat-theme-btn,
 [data-theme="black-matrix"] .session-edge-tab,
+    [data-theme="black-matrix"] .integrations-edge-tab,
 [data-theme="black-matrix"] .btn-speaker,
 [data-theme="black-matrix"] .btn-warnings,
 [data-theme="black-matrix"] .select-personality,
@@ -154,6 +158,7 @@
 [data-theme="black-matrix"] #logout-btn,
 [data-theme="black-matrix"] .session-new-btn,
 [data-theme="black-matrix"] .session-drawer-close,
+    [data-theme="black-matrix"] .integrations-drawer-close,
 [data-theme="black-matrix"] .btn-send,
 [data-theme="black-matrix"] .btn-voice,
 [data-theme="black-matrix"] .btn-more,
@@ -171,7 +176,8 @@
 }
 
 [data-theme="black-matrix"] .chat-theme-btn:hover,
-[data-theme="black-matrix"] .session-edge-tab:hover,
+[data-theme="black-matrix"] .session-edge-tab,
+    [data-theme="black-matrix"] .integrations-edge-tab:hover,
 [data-theme="black-matrix"] .btn-speaker:hover,
 [data-theme="black-matrix"] .btn-warnings:hover,
 [data-theme="black-matrix"] .select-personality:hover,
@@ -180,7 +186,8 @@
 [data-theme="black-matrix"] .btn-header-link:hover,
 [data-theme="black-matrix"] #logout-btn:hover,
 [data-theme="black-matrix"] .session-new-btn:hover,
-[data-theme="black-matrix"] .session-drawer-close:hover,
+[data-theme="black-matrix"] .session-drawer-close,
+    [data-theme="black-matrix"] .integrations-drawer-close:hover,
 [data-theme="black-matrix"] .btn-send:hover,
 [data-theme="black-matrix"] .btn-voice:hover,
 [data-theme="black-matrix"] .btn-more:hover,
@@ -563,65 +570,4 @@
 [data-theme="black-matrix"] .typing-indicator .dot {
     background: #94f26d;
     box-shadow: 0 0 8px rgba(148, 242, 109, 0.4);
-}
-
-/* ── Integrations Drawer (mirrored from session drawer) ── */
-[data-theme="black-matrix"] .integrations-edge-tab {
-    background: var(--matrix-metal);
-    border: 1px solid rgba(154, 161, 156, 0.22);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
-    0 12px 26px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(255, 255, 255, 0.03);
-    color: var(--text-primary);
-}
-
-[data-theme="black-matrix"] .integrations-edge-tab:hover {
-    border-color: rgba(148, 242, 109, 0.44);
-    color: #ffffff;
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
-    0 16px 34px rgba(0, 0, 0, 0.38),
-    0 0 20px rgba(148, 242, 109, 0.09);
-}
-
-[data-theme="black-matrix"] .integrations-drawer-title {
-    font-family: var(--matrix-font-ui);
-    text-shadow: var(--matrix-emboss);
-    letter-spacing: 0.03em;
-}
-
-[data-theme="black-matrix"] .integrations-drawer-close {
-    background: var(--matrix-metal);
-    border: 1px solid rgba(154, 161, 156, 0.22);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.55),
-    0 12px 26px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(255, 255, 255, 0.03);
-    color: var(--text-primary);
-}
-
-[data-theme="black-matrix"] .integrations-drawer-close:hover {
-    border-color: rgba(148, 242, 109, 0.44);
-    color: #ffffff;
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.64),
-    0 16px 34px rgba(0, 0, 0, 0.38),
-    0 0 20px rgba(148, 242, 109, 0.09);
-}
-
-[data-theme="black-matrix"] .integrations-drawer {
-    --theme-option-color: #eef4ef;
-    background:
-    border: 1px solid rgba(164, 171, 166, 0.2);
-    box-shadow:
-    background: linear-gradient(180deg, rgba(126, 134, 129, 0.28), rgba(100, 110, 104, 0.4));
-    border-radius: 8px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    background: rgba(126, 134, 129, 0.06);
 }

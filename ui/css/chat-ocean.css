@@ -101,6 +101,7 @@
 
 [data-theme="ocean"] .chat-theme-btn,
 [data-theme="ocean"] .session-edge-tab,
+    [data-theme="ocean"] .integrations-edge-tab,
 [data-theme="ocean"] .btn-speaker,
 [data-theme="ocean"] .btn-warnings,
 [data-theme="ocean"] .select-personality,
@@ -120,7 +121,8 @@
 }
 
 [data-theme="ocean"] .chat-theme-btn:hover,
-[data-theme="ocean"] .session-edge-tab:hover,
+[data-theme="ocean"] .session-edge-tab,
+    [data-theme="ocean"] .integrations-edge-tab:hover,
 [data-theme="ocean"] .btn-speaker:hover,
 [data-theme="ocean"] .btn-warnings:hover,
 [data-theme="ocean"] .select-personality:hover,
@@ -408,6 +410,7 @@
 [data-theme="ocean"] .mood-btn,
 [data-theme="ocean"] .session-new-btn,
 [data-theme="ocean"] .session-drawer-close,
+    [data-theme="ocean"] .integrations-drawer-close,
 [data-theme="ocean"] #img-lightbox-close,
 [data-theme="ocean"] .modal-btn,
 [data-theme="ocean"] .scroll-to-bottom-btn {
@@ -440,7 +443,8 @@
 [data-theme="ocean"] .composer-tool-btn:hover,
 [data-theme="ocean"] .mood-btn:hover,
 [data-theme="ocean"] .session-new-btn:hover,
-[data-theme="ocean"] .session-drawer-close:hover,
+[data-theme="ocean"] .session-drawer-close,
+    [data-theme="ocean"] .integrations-drawer-close:hover,
 [data-theme="ocean"] #img-lightbox-close:hover,
 [data-theme="ocean"] .modal-btn:hover,
 [data-theme="ocean"] .scroll-to-bottom-btn:hover {
@@ -460,6 +464,7 @@
 }
 
 [data-theme="ocean"] .session-backdrop,
+    [data-theme="ocean"] .integrations-backdrop,
 [data-theme="ocean"] .mermaid-modal-overlay,
 [data-theme="ocean"] #img-lightbox,
 [data-theme="ocean"] .modal-overlay {
@@ -505,6 +510,7 @@
 }
 
 [data-theme="ocean"] .session-drawer-header,
+    [data-theme="ocean"] .integrations-drawer-header,
 [data-theme="ocean"] .modal-title {
     border-bottom-color: rgba(91, 135, 162, 0.26);
 }
@@ -527,6 +533,7 @@
 
 [data-theme="ocean"] .session-item-preview,
 [data-theme="ocean"] .session-drawer-title,
+    [data-theme="ocean"] .integrations-drawer-title,
 [data-theme="ocean"] .modal-title,
 [data-theme="ocean"] .modal-body,
 [data-theme="ocean"] .mermaid-error .error-title,
@@ -694,73 +701,4 @@
 [data-theme="ocean"] .btn-more:active:not(:disabled),
 [data-theme="ocean"] .composer-tool-btn:active:not(:disabled) {
     transform: scale(0.96) !important;
-}
-
-/* ── Integrations Drawer (mirrored from session drawer) ── */
-[data-theme="ocean"] .integrations-edge-tab {
-    background:
-    var(--ocean-sheen),
-    var(--ocean-button);
-    border: 1px solid rgba(91, 135, 162, 0.36);
-    box-shadow:
-    inset 0 1px 0 rgba(225, 241, 248, 0.06),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.22),
-    0 8px 18px rgba(2, 10, 18, 0.18);
-    color: var(--text-primary);
-}
-
-[data-theme="ocean"] .integrations-edge-tab:hover {
-    border-color: rgba(118, 198, 223, 0.48);
-    box-shadow:
-    inset 0 1px 0 rgba(229, 243, 248, 0.08),
-    inset 0 -1px 0 rgba(8, 19, 29, 0.24),
-    0 12px 22px rgba(2, 10, 18, 0.22),
-    0 0 0 1px rgba(118, 198, 223, 0.06);
-    color: var(--strong-color);
-}
-
-[data-theme="ocean"] .integrations-drawer-title {
-    color: var(--text-primary);
-}
-
-[data-theme="ocean"] .integrations-drawer-close {
-    background:
-    var(--ocean-sheen),
-    linear-gradient(180deg, rgba(22, 51, 76, 0.99), rgba(11, 28, 43, 0.98));
-    border: 1px solid rgba(91, 135, 162, 0.4);
-    box-shadow:
-    inset 0 1px 0 rgba(226, 241, 248, 0.06),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.22),
-    0 10px 20px rgba(2, 10, 18, 0.2);
-    color: var(--text-primary);
-}
-
-[data-theme="ocean"] .integrations-drawer-close:hover {
-    border-color: rgba(118, 198, 223, 0.5);
-    box-shadow:
-    inset 0 1px 0 rgba(226, 241, 248, 0.08),
-    inset 0 -1px 0 rgba(6, 16, 26, 0.24),
-    0 12px 24px rgba(2, 10, 18, 0.22);
-}
-
-[data-theme="ocean"] .integrations-drawer-header {
-    border-bottom-color: rgba(91, 135, 162, 0.26);
-}
-
-[data-theme="ocean"] .integrations-backdrop {
-    background:
-    radial-gradient(circle at top, rgba(113, 188, 214, 0.08), transparent 28%),
-    rgba(4, 12, 20, 0.68);
-    backdrop-filter: blur(8px);
-}
-
-[data-theme="ocean"] .integrations-drawer {
-    background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 36, 0.99));
-    border: 1px solid rgba(91, 135, 162, 0.34);
-    box-shadow:
-    background: linear-gradient(180deg, rgba(91, 135, 162, 0.4), rgba(60, 100, 130, 0.55));
-    border-radius: 8px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    background: rgba(91, 135, 162, 0.08);
 }

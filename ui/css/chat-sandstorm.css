@@ -108,6 +108,7 @@
 
 [data-theme="sandstorm"] .chat-theme-btn,
 [data-theme="sandstorm"] .session-edge-tab,
+    [data-theme="sandstorm"] .integrations-edge-tab,
 [data-theme="sandstorm"] .btn-speaker,
 [data-theme="sandstorm"] .btn-warnings,
 [data-theme="sandstorm"] .select-personality,
@@ -125,7 +126,8 @@
 }
 
 [data-theme="sandstorm"] .chat-theme-btn:hover,
-[data-theme="sandstorm"] .session-edge-tab:hover,
+[data-theme="sandstorm"] .session-edge-tab,
+    [data-theme="sandstorm"] .integrations-edge-tab:hover,
 [data-theme="sandstorm"] .btn-speaker:hover,
 [data-theme="sandstorm"] .btn-warnings:hover,
 [data-theme="sandstorm"] .select-personality:hover,
@@ -389,6 +391,7 @@
 [data-theme="sandstorm"] .mood-btn,
 [data-theme="sandstorm"] .session-new-btn,
 [data-theme="sandstorm"] .session-drawer-close,
+    [data-theme="sandstorm"] .integrations-drawer-close,
 [data-theme="sandstorm"] #img-lightbox-close,
 [data-theme="sandstorm"] .modal-btn,
 [data-theme="sandstorm"] .scroll-to-bottom-btn {
@@ -419,7 +422,8 @@
 [data-theme="sandstorm"] .composer-tool-btn:hover,
 [data-theme="sandstorm"] .mood-btn:hover,
 [data-theme="sandstorm"] .session-new-btn:hover,
-[data-theme="sandstorm"] .session-drawer-close:hover,
+[data-theme="sandstorm"] .session-drawer-close,
+    [data-theme="sandstorm"] .integrations-drawer-close:hover,
 [data-theme="sandstorm"] #img-lightbox-close:hover,
 [data-theme="sandstorm"] .modal-btn:hover,
 [data-theme="sandstorm"] .scroll-to-bottom-btn:hover {
@@ -439,6 +443,7 @@
 }
 
 [data-theme="sandstorm"] .session-backdrop,
+    [data-theme="sandstorm"] .integrations-backdrop,
 [data-theme="sandstorm"] .mermaid-modal-overlay,
 [data-theme="sandstorm"] #img-lightbox,
 [data-theme="sandstorm"] .modal-overlay {
@@ -471,6 +476,7 @@
 }
 
 [data-theme="sandstorm"] .session-drawer-header,
+    [data-theme="sandstorm"] .integrations-drawer-header,
 [data-theme="sandstorm"] .modal-title {
     border-bottom-color: rgba(189, 144, 88, 0.2);
 }
@@ -493,6 +499,7 @@
 
 [data-theme="sandstorm"] .session-item-preview,
 [data-theme="sandstorm"] .session-drawer-title,
+    [data-theme="sandstorm"] .integrations-drawer-title,
 [data-theme="sandstorm"] .modal-title,
 [data-theme="sandstorm"] .modal-body,
 [data-theme="sandstorm"] .mermaid-error .error-title,
@@ -649,68 +656,4 @@
 [data-theme="sandstorm"] .btn-more:active:not(:disabled),
 [data-theme="sandstorm"] .composer-tool-btn:active:not(:disabled) {
     transform: scale(0.96) !important;
-}
-
-/* ── Integrations Drawer (mirrored from session drawer) ── */
-[data-theme="sandstorm"] .integrations-edge-tab {
-    background: var(--sandstorm-button);
-    border: 1px solid rgba(189, 144, 88, 0.34);
-    box-shadow:
-    inset 0 1px 0 rgba(245, 227, 198, 0.05),
-    inset 0 -1px 0 rgba(25, 17, 11, 0.24),
-    0 8px 18px rgba(11, 8, 5, 0.18);
-    color: var(--text-primary);
-}
-
-[data-theme="sandstorm"] .integrations-edge-tab:hover {
-    border-color: rgba(215, 173, 117, 0.48);
-    box-shadow:
-    inset 0 1px 0 rgba(248, 233, 207, 0.07),
-    inset 0 -1px 0 rgba(27, 18, 12, 0.26),
-    0 12px 24px rgba(11, 8, 5, 0.22);
-    color: var(--strong-color);
-}
-
-[data-theme="sandstorm"] .integrations-drawer-title {
-    color: var(--text-primary);
-}
-
-[data-theme="sandstorm"] .integrations-drawer-close {
-    background: linear-gradient(180deg, rgba(76, 54, 33, 0.99), rgba(41, 29, 18, 0.98));
-    border: 1px solid rgba(190, 146, 91, 0.38);
-    box-shadow:
-    inset 0 1px 0 rgba(246, 228, 198, 0.06),
-    inset 0 -1px 0 rgba(24, 16, 10, 0.22),
-    0 10px 20px rgba(11, 8, 5, 0.2);
-    color: var(--text-primary);
-}
-
-[data-theme="sandstorm"] .integrations-drawer-close:hover {
-    border-color: rgba(214, 173, 117, 0.5);
-    box-shadow:
-    inset 0 1px 0 rgba(246, 228, 198, 0.08),
-    inset 0 -1px 0 rgba(24, 16, 10, 0.24),
-    0 12px 24px rgba(11, 8, 5, 0.22);
-}
-
-[data-theme="sandstorm"] .integrations-drawer-header {
-    border-bottom-color: rgba(189, 144, 88, 0.2);
-}
-
-[data-theme="sandstorm"] .integrations-backdrop {
-    background:
-    radial-gradient(circle at top, rgba(219, 182, 130, 0.06), transparent 28%),
-    rgba(12, 8, 5, 0.72);
-    backdrop-filter: blur(8px);
-}
-
-[data-theme="sandstorm"] .integrations-drawer {
-    background: linear-gradient(180deg, rgba(54, 38, 24, 0.98), rgba(29, 20, 13, 0.99));
-    border: 1px solid rgba(189, 144, 88, 0.3);
-    box-shadow:
-    background: linear-gradient(180deg, rgba(155, 117, 70, 0.45), rgba(96, 70, 40, 0.6));
-    border-radius: 8px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    background: rgba(30, 63, 102, 0.06);
 }

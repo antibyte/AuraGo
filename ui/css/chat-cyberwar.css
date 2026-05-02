@@ -109,10 +109,12 @@
 
 [data-theme="cyberwar"] .logo .logo-wordmark-accent,
 [data-theme="cyberwar"] .session-drawer-title,
+    [data-theme="cyberwar"] .integrations-drawer-title,
 [data-theme="cyberwar"] .modal-title,
 [data-theme="cyberwar"] .app-header .pill,
 [data-theme="cyberwar"] .chat-theme-btn,
 [data-theme="cyberwar"] .session-edge-tab,
+    [data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
 [data-theme="cyberwar"] .select-personality,
@@ -125,6 +127,7 @@
 
 [data-theme="cyberwar"] .chat-theme-btn,
 [data-theme="cyberwar"] .session-edge-tab,
+    [data-theme="cyberwar"] .integrations-edge-tab,
 [data-theme="cyberwar"] .btn-speaker,
 [data-theme="cyberwar"] .btn-warnings,
 [data-theme="cyberwar"] .select-personality,
@@ -144,7 +147,8 @@
 }
 
 [data-theme="cyberwar"] .chat-theme-btn:hover,
-[data-theme="cyberwar"] .session-edge-tab:hover,
+[data-theme="cyberwar"] .session-edge-tab,
+    [data-theme="cyberwar"] .integrations-edge-tab:hover,
 [data-theme="cyberwar"] .btn-speaker:hover,
 [data-theme="cyberwar"] .btn-warnings:hover,
 [data-theme="cyberwar"] .select-personality:hover,
@@ -463,6 +467,7 @@
 [data-theme="cyberwar"] .mood-btn,
 [data-theme="cyberwar"] .session-new-btn,
 [data-theme="cyberwar"] .session-drawer-close,
+    [data-theme="cyberwar"] .integrations-drawer-close,
 [data-theme="cyberwar"] #img-lightbox-close,
 [data-theme="cyberwar"] .modal-btn {
     position: relative;
@@ -510,7 +515,8 @@
 [data-theme="cyberwar"] .composer-tool-btn:hover,
 [data-theme="cyberwar"] .mood-btn:hover,
 [data-theme="cyberwar"] .session-new-btn:hover,
-[data-theme="cyberwar"] .session-drawer-close:hover,
+[data-theme="cyberwar"] .session-drawer-close,
+    [data-theme="cyberwar"] .integrations-drawer-close:hover,
 [data-theme="cyberwar"] #img-lightbox-close:hover,
 [data-theme="cyberwar"] .modal-btn:hover,
 [data-theme="cyberwar"] .scroll-to-bottom-btn:hover {
@@ -549,6 +555,7 @@
 }
 
 [data-theme="cyberwar"] .session-backdrop,
+    [data-theme="cyberwar"] .integrations-backdrop,
 [data-theme="cyberwar"] .mermaid-modal-overlay,
 [data-theme="cyberwar"] #img-lightbox,
 [data-theme="cyberwar"] .modal-overlay {
@@ -596,6 +603,7 @@
 }
 
 [data-theme="cyberwar"] .session-drawer-header,
+    [data-theme="cyberwar"] .integrations-drawer-header,
 [data-theme="cyberwar"] .modal-title {
     border-bottom-color: rgba(104, 241, 255, 0.14);
 }
@@ -625,6 +633,7 @@
 
 [data-theme="cyberwar"] .session-item-preview,
 [data-theme="cyberwar"] .session-drawer-title,
+    [data-theme="cyberwar"] .integrations-drawer-title,
 [data-theme="cyberwar"] .modal-title,
 [data-theme="cyberwar"] .modal-body,
 [data-theme="cyberwar"] .mermaid-error .error-title,
@@ -875,74 +884,4 @@
 [data-theme="cyberwar"] .composer-tool-btn:active:not(:disabled) {
     transform: scale(0.95) !important;
     filter: brightness(0.9);
-}
-
-/* ── Integrations Drawer (mirrored from session drawer) ── */
-[data-theme="cyberwar"] .integrations-edge-tab {
-    background:
-    var(--cyber-gloss),
-    linear-gradient(180deg, rgba(18, 35, 78, 0.64), rgba(6, 14, 31, 0.84));
-    border: 1px solid rgba(104, 241, 255, 0.18);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(84, 247, 255, 0.08),
-    0 10px 24px rgba(0, 0, 0, 0.28);
-    color: var(--text-primary);
-}
-
-[data-theme="cyberwar"] .integrations-edge-tab:hover {
-    border-color: rgba(104, 241, 255, 0.45);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(84, 247, 255, 0.14),
-    0 0 0 1px rgba(84, 247, 255, 0.1),
-    0 0 22px rgba(84, 247, 255, 0.18),
-    0 14px 30px rgba(0, 0, 0, 0.34);
-    color: #ffffff;
-}
-
-[data-theme="cyberwar"] .integrations-drawer-title {
-    font-family: var(--cyber-font-ui);
-}
-
-[data-theme="cyberwar"] .integrations-drawer-close {
-    background:
-    var(--cyber-gloss),
-    linear-gradient(180deg, rgba(19, 37, 82, 0.82), rgba(8, 16, 38, 0.94));
-    border: 1px solid rgba(104, 241, 255, 0.2);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(84, 247, 255, 0.08),
-    0 12px 26px rgba(0, 0, 0, 0.28);
-    color: #f6fbff;
-}
-
-[data-theme="cyberwar"] .integrations-drawer-close:hover {
-    border-color: rgba(104, 241, 255, 0.5);
-    box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 0 26px rgba(84, 247, 255, 0.18),
-    0 16px 30px rgba(0, 0, 0, 0.34);
-}
-
-[data-theme="cyberwar"] .integrations-drawer-header {
-    border-bottom-color: rgba(104, 241, 255, 0.14);
-}
-
-[data-theme="cyberwar"] .integrations-backdrop {
-    background:
-    radial-gradient(circle at top, rgba(84, 247, 255, 0.08), transparent 32%),
-    rgba(2, 6, 18, 0.74);
-    backdrop-filter: blur(10px);
-}
-
-[data-theme="cyberwar"] .integrations-drawer {
-    background:
-    border: 1px solid rgba(104, 241, 255, 0.18);
-    box-shadow:
-    background: linear-gradient(180deg, rgba(84, 247, 255, 0.28), rgba(139, 125, 255, 0.32));
-    border-radius: 8px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    background: rgba(84, 247, 255, 0.04);
 }
