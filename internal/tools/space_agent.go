@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-js-message-async-bridge"
+	spaceAgentImageBuildRevision   = "20260502-aurago-onscreen-history-bridge"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -586,7 +586,42 @@ func writeSpaceAgentInstructionMailboxRecord(inboxDir string, record map[string]
 	if _, err := logFile.Write(append(serialized, '\n')); err != nil {
 		return err
 	}
+	if err := appendSpaceAgentOnscreenHistory(filepath.Dir(inboxDir), record); err != nil {
+		return err
+	}
 	return nil
+}
+
+func appendSpaceAgentOnscreenHistory(userRoot string, record map[string]interface{}) error {
+	historyDir := filepath.Join(userRoot, "hist")
+	if err := os.MkdirAll(historyDir, 0o700); err != nil {
+		return err
+	}
+	historyPath := filepath.Join(historyDir, "onscreen-agent.json")
+	var history []map[string]interface{}
+	if data, err := os.ReadFile(historyPath); err == nil && len(bytes.TrimSpace(data)) > 0 {
+		_ = json.Unmarshal(data, &history)
+	}
+	messageID, _ := record["message_id"].(string)
+	if strings.TrimSpace(messageID) == "" {
+		messageID = strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	content, _ := record["message"].(string)
+	if strings.TrimSpace(content) == "" {
+		content, _ = record["instruction"].(string)
+	}
+	history = append(history, map[string]interface{}{
+		"attachments": []interface{}{},
+		"content":     strings.TrimSpace(content),
+		"id":          "user-" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "-aurago-" + strings.TrimSpace(messageID),
+		"kind":        "aurago-instruction",
+		"role":        "user",
+	})
+	pretty, err := json.MarshalIndent(history, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(historyPath, append(pretty, '\n'), 0o600)
 }
 
 // ExecuteSpaceAgent is the agent-facing wrapper for Space Agent communication.
@@ -1007,6 +1042,31 @@ function unauthorized() {
   };
 }
 
+async function appendOnscreenAgentHistory(userRoot, record) {
+  const historyDir = path.join(userRoot, "hist");
+  const historyPath = path.join(historyDir, "onscreen-agent.json");
+  let history = [];
+  try {
+    const rawHistory = await fs.readFile(historyPath, "utf8");
+    const parsed = JSON.parse(rawHistory);
+    history = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    history = [];
+  }
+  history.push({
+    attachments: [],
+    content: String(record.message || record.instruction || "").trim(),
+    id: "user-" + Date.now() + "-aurago-" + String(record.message_id || "").trim(),
+    kind: "aurago-instruction",
+    role: "user"
+  });
+  await fs.mkdir(historyDir, { recursive: true, mode: 0o700 });
+  await fs.writeFile(historyPath, JSON.stringify(history, null, 2) + "\n", {
+    mode: 0o600
+  });
+  return historyPath;
+}
+
 export async function post(context) {
   if (String(context.headers?.["x-aurago-instruction"] || "").trim() !== "1") {
     return {
@@ -1040,7 +1100,8 @@ export async function post(context) {
 
   const username = normalizeSegment(process.env.SPACE_AGENT_ADMIN_USER, "admin");
   const projectRoot = String(context.projectRoot || process.cwd());
-  const inboxDir = path.join(projectRoot, "L2", username, "aurago_inbox");
+  const userRoot = path.join(projectRoot, "L2", username);
+  const inboxDir = path.join(userRoot, "aurago_inbox");
   const message = information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
   const messageId = crypto.randomUUID();
   const record = {
@@ -1067,6 +1128,7 @@ export async function post(context) {
   await fs.appendFile(path.join(inboxDir, "instructions.jsonl"), JSON.stringify(record) + "\n", {
     mode: 0o600
   });
+  const onscreenHistoryPath = await appendOnscreenAgentHistory(userRoot, record);
 
   return {
     accepted: true,
@@ -1074,8 +1136,9 @@ export async function post(context) {
     delivered: "space_agent_server_api",
     auto_execution: false,
     message_id: messageId,
-    message: "AuraGo instruction accepted by Space Agent and written to the managed inbox.",
-    inbox_path: "~/aurago_inbox/latest_instruction.json"
+    message: "AuraGo instruction accepted by Space Agent and written to the managed inbox and onscreen history.",
+    inbox_path: "~/aurago_inbox/latest_instruction.json",
+    onscreen_history_path: onscreenHistoryPath
   };
 }
 `

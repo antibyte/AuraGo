@@ -158,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -175,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -216,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-js-message-async-bridge"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-history-bridge"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -264,6 +264,8 @@ func TestSpaceAgentInstructionsAPIEndpointRequiresBridgeToken(t *testing.T) {
 		"Context from AuraGo:",
 		"writeFile",
 		"aurago_inbox",
+		"appendOnscreenAgentHistory",
+		"onscreen-agent.json",
 		`accepted: true`,
 		`queued: true`,
 	} {
@@ -510,6 +512,14 @@ func TestSendSpaceAgentInstructionWritesMailboxWhenInboundAPIIsMissing(t *testin
 	}
 	if !strings.Contains(string(userContent), "build a weather widget") || !strings.Contains(string(userContent), `"session_id": "sess-1"`) {
 		t.Fatalf("user mailbox content missing latest instruction details: %s", string(userContent))
+	}
+	userHistory := filepath.Join(customwarePath, "L2", "admin", "hist", "onscreen-agent.json")
+	userHistoryContent, err := os.ReadFile(userHistory)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", userHistory, err)
+	}
+	if !strings.Contains(string(userHistoryContent), "build a weather widget") || !strings.Contains(string(userHistoryContent), `"role": "user"`) {
+		t.Fatalf("user onscreen history missing delivered instruction: %s", string(userHistoryContent))
 	}
 }
 
