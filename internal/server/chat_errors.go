@@ -33,6 +33,7 @@ func chatCompletionErrorMessage(lang string, err error) string {
 
 func writeChatCompletionErrorResponse(w http.ResponseWriter, sessionID, content string) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Aurago-Agent-Error", "true")
 	_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{
 		ID:      "err-" + sessionID,
 		Object:  "chat.completion",

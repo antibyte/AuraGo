@@ -661,6 +661,12 @@ func Start(opts StartOptions) error {
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				// Extract the assistant's text from the OpenAI-format response
 				output := extractAssistantContent(respBody)
+				if strings.EqualFold(resp.Header.Get("X-Aurago-Agent-Error"), "true") {
+					logger.Error("[MissionV2] Mission agent loop returned an error response",
+						"mission_id", missionID)
+					setMissionError("Mission agent loop failed", output)
+					return
+				}
 				toolResultCount, _ := strconv.Atoi(resp.Header.Get("X-Aurago-Mission-Tool-Results"))
 				suspiciousCompletion := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true") ||
 					missionResponseLooksIncomplete(output, toolResultCount)

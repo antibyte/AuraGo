@@ -34,6 +34,25 @@ var nativeMalformedArgFieldPatterns = map[string]*regexp.Regexp{
 	"skill":     regexp.MustCompile(`"skill"\s*:\s*"((?:[^"\\]|\\.)*)`),
 }
 
+var nativeJSONStringObjectArgNames = map[string]struct{}{
+	"action_input":       {},
+	"arguments":          {},
+	"changes":            {},
+	"config":             {},
+	"entry_attributes":   {},
+	"headers":            {},
+	"metadata":           {},
+	"mcp_args":           {},
+	"parameters":         {},
+	"params":             {},
+	"ports":              {},
+	"properties":         {},
+	"service_data":       {},
+	"skill_args":         {},
+	"tool_args":          {},
+	"webhook_parameters": {},
+}
+
 // prop creates a JSON Schema property entry.
 func prop(typ, description string) map[string]interface{} {
 	return map[string]interface{}{"type": typ, "description": description}
@@ -233,6 +252,91 @@ func injectAdditionalPropertiesRecWithVisited(m map[string]interface{}, visited 
 	}
 }
 
+func normalizeProviderFragileObjectSchemas(m map[string]interface{}) {
+	normalizeProviderFragileObjectSchemasWithVisited(m, make(map[uintptr]struct{}), true, "")
+}
+
+func normalizeProviderFragileObjectSchemasWithVisited(m map[string]interface{}, visited map[uintptr]struct{}, isRoot bool, fieldName string) {
+	if len(m) == 0 {
+		return
+	}
+	ptr := reflect.ValueOf(m).Pointer()
+	if _, seen := visited[ptr]; seen {
+		return
+	}
+	visited[ptr] = struct{}{}
+
+	if props, ok := m["properties"].(map[string]interface{}); ok {
+		for name, raw := range props {
+			child, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if schemaObjectNeedsJSONString(child, false) {
+				props[name] = jsonObjectStringSchema(name, child)
+				continue
+			}
+			normalizeProviderFragileObjectSchemasWithVisited(child, visited, false, name)
+		}
+	}
+	if items, ok := m["items"].(map[string]interface{}); ok {
+		if schemaObjectNeedsJSONString(items, false) {
+			m["items"] = jsonObjectStringSchema(fieldName+" item", items)
+		} else {
+			normalizeProviderFragileObjectSchemasWithVisited(items, visited, false, fieldName+" item")
+		}
+	}
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if arr, ok := m[key].([]interface{}); ok {
+			for i, raw := range arr {
+				child, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if schemaObjectNeedsJSONString(child, isRoot) {
+					arr[i] = jsonObjectStringSchema(fieldName, child)
+					continue
+				}
+				normalizeProviderFragileObjectSchemasWithVisited(child, visited, false, fieldName)
+			}
+		}
+	}
+}
+
+func schemaObjectNeedsJSONString(m map[string]interface{}, isRoot bool) bool {
+	if isRoot || m["type"] != "object" {
+		return false
+	}
+	props, hasProps := m["properties"].(map[string]interface{})
+	if !hasProps || len(props) == 0 {
+		return true
+	}
+	if ap, ok := m["additionalProperties"]; ok && ap != false {
+		return true
+	}
+	return false
+}
+
+func jsonObjectStringSchema(name string, original map[string]interface{}) map[string]interface{} {
+	description, _ := original["description"].(string)
+	description = strings.TrimSpace(description)
+	if description == "" {
+		description = strings.TrimSpace(name)
+	}
+	if description == "" {
+		description = "JSON object"
+	}
+	if !strings.Contains(strings.ToLower(description), "json") {
+		description += ". Provide as a JSON object string."
+	} else {
+		description += ". Provide as a JSON string."
+	}
+	return map[string]interface{}{
+		"type":        "string",
+		"description": description,
+	}
+}
+
 func extractMalformedJSONStringField(rawArgs, key string) string {
 	re, ok := nativeMalformedArgFieldPatterns[key]
 	if !ok {
@@ -291,6 +395,10 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	var rawMap map[string]interface{}
 	rawMapOK := json.Unmarshal([]byte(normalizedArgs), &rawMap) == nil
 	if rawMapOK {
+		decodeNativeJSONStringObjectArgs(rawMap)
+		if normalizedBytes, err := json.Marshal(rawMap); err == nil {
+			normalizedArgs = string(normalizedBytes)
+		}
 		tc.Params = rawMap
 		if decoded, ok := decodeExecuteSkillNativeToolCall(tc, normalizedArgs); ok {
 			return decoded
@@ -356,6 +464,45 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	}
 
 	return tc
+}
+
+func decodeNativeJSONStringObjectArgs(m map[string]interface{}) {
+	for key, raw := range m {
+		switch value := raw.(type) {
+		case string:
+			if !isNativeJSONStringObjectArg(key) {
+				continue
+			}
+			if decoded := decodeJSONStringObject(value); decoded != nil {
+				m[key] = decoded
+			}
+		case map[string]interface{}:
+			decodeNativeJSONStringObjectArgs(value)
+		case []interface{}:
+			for _, item := range value {
+				if child, ok := item.(map[string]interface{}); ok {
+					decodeNativeJSONStringObjectArgs(child)
+				}
+			}
+		}
+	}
+}
+
+func isNativeJSONStringObjectArg(name string) bool {
+	_, ok := nativeJSONStringObjectArgNames[strings.ToLower(strings.TrimSpace(name))]
+	return ok
+}
+
+func decodeJSONStringObject(raw string) map[string]interface{} {
+	trimmed := strings.TrimSpace(raw)
+	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
+		return nil
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil || len(obj) == 0 {
+		return nil
+	}
+	return obj
 }
 
 func decodeExecuteSkillNativeToolCall(base ToolCall, normalizedArgs string) (ToolCall, bool) {
@@ -566,6 +713,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		// CHANGE LOG 2026-04-11: OpenAI strict mode requires additionalProperties: false
 		// on every object schema. The go-openai library does not auto-add this, so we
 		// inject it here. Only affects strict-mode requests; non-strict calls ignore it.
+		normalizeProviderFragileObjectSchemas(params)
 		injectAdditionalPropertiesRec(params)
 	}
 

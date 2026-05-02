@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -523,6 +524,33 @@ func TestNativeToolCallToToolCallExecuteSkillUsesRawEnvelope(t *testing.T) {
 	}
 }
 
+func TestNativeToolCallToToolCallDecodesJSONStringObjectArgs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_execute_skill",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "execute_skill",
+			Arguments: `{"skill":"paperless","skill_args":"{\"operation\":\"search\",\"name\":\"Invoices\",\"limit\":3}"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.NativeArgsMalformed {
+		t.Fatalf("did not expect malformed args: %s", tc.NativeArgsError)
+	}
+	if tc.Action != "execute_skill" {
+		t.Fatalf("Action = %q, want execute_skill", tc.Action)
+	}
+	if got, _ := tc.SkillArgs["name"].(string); got != "Invoices" {
+		t.Fatalf("SkillArgs[name] = %q, want Invoices", got)
+	}
+	if got, _ := tc.Params["operation"].(string); got != "search" {
+		t.Fatalf("Params[operation] = %q, want search", got)
+	}
+}
+
 func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -974,6 +1002,55 @@ func TestBuildNativeToolSchemasReturnsGloballySortedTools(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasDoesNotExposeFreeObjectArguments(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	var violations []string
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		params, ok := toolSchema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		collectFreeObjectSchemaViolations(toolSchema.Function.Name+".parameters", params, true, &violations)
+	}
+	if len(violations) > 0 {
+		t.Fatalf("native tool schemas expose provider-fragile free object arguments:\n%s", strings.Join(violations, "\n"))
+	}
+}
+
+func collectFreeObjectSchemaViolations(path string, node map[string]interface{}, isRoot bool, violations *[]string) {
+	if node["type"] == "object" {
+		props, _ := node["properties"].(map[string]interface{})
+		if !isRoot {
+			if len(props) == 0 {
+				*violations = append(*violations, path+" has no concrete properties")
+			}
+			if ap, ok := node["additionalProperties"]; ok && ap != false {
+				*violations = append(*violations, path+" allows additionalProperties")
+			}
+		}
+		for name, raw := range props {
+			if child, ok := raw.(map[string]interface{}); ok {
+				collectFreeObjectSchemaViolations(path+"."+name, child, false, violations)
+			}
+		}
+	}
+	if items, ok := node["items"].(map[string]interface{}); ok {
+		collectFreeObjectSchemaViolations(path+"[]", items, false, violations)
+	}
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if arr, ok := node[key].([]interface{}); ok {
+			for i, raw := range arr {
+				if child, ok := raw.(map[string]interface{}); ok {
+					collectFreeObjectSchemaViolations(fmt.Sprintf("%s.%s[%d]", path, key, i), child, false, violations)
+				}
+			}
+		}
+	}
+}
+
 func TestToolFeatureFlagsKeyChangesWhenFlagsChange(t *testing.T) {
 	base := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
 	same := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
@@ -1033,6 +1110,37 @@ func TestInjectAdditionalPropertiesRecPreservesSchemaObject(t *testing.T) {
 	headers := schema["properties"].(map[string]interface{})["headers"].(map[string]interface{})
 	if _, ok := headers["additionalProperties"].(map[string]interface{}); !ok {
 		t.Fatalf("expected additionalProperties schema object to be preserved, got %v", headers["additionalProperties"])
+	}
+}
+
+func TestNormalizeProviderFragileObjectSchemasConvertsFreeObjectFields(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"parameters": map[string]interface{}{
+				"type":                 "object",
+				"description":          "Webhook parameters",
+				"additionalProperties": true,
+			},
+			"known": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"name": map[string]interface{}{"type": "string"},
+				},
+			},
+		},
+	}
+
+	normalizeProviderFragileObjectSchemas(schema)
+
+	props := schema["properties"].(map[string]interface{})
+	parameters := props["parameters"].(map[string]interface{})
+	if parameters["type"] != "string" {
+		t.Fatalf("free object field type = %v, want string", parameters["type"])
+	}
+	known := props["known"].(map[string]interface{})
+	if known["type"] != "object" {
+		t.Fatalf("concrete object field type = %v, want object", known["type"])
 	}
 }
 

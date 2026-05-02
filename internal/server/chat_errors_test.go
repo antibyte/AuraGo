@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -43,5 +44,18 @@ func TestChatCompletionErrorMessageProviderConfig(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(msg), "provider") || !strings.Contains(strings.ToLower(msg), "configuration") {
 		t.Fatalf("config error message should mention provider configuration, got %q", msg)
+	}
+}
+
+func TestWriteChatCompletionErrorResponseMarksAgentError(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	writeChatCompletionErrorResponse(rec, "session-1", "provider error")
+
+	if got := rec.Header().Get("X-Aurago-Agent-Error"); got != "true" {
+		t.Fatalf("X-Aurago-Agent-Error = %q, want true", got)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 }
