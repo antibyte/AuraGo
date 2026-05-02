@@ -158,7 +158,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -175,7 +175,7 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	inspect := []byte(`{
 		"Config": {
 			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -216,7 +216,7 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-live-inbox-marker"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -705,6 +705,22 @@ func TestSpaceAgentInboxPollerIgnoresLegacyMailboxRecords(t *testing.T) {
 
 	if !strings.Contains(script, `record?.delivery_target !== "space_agent_onscreen_prompt"`) {
 		t.Fatalf("poller must ignore legacy mailbox records without the live delivery marker: %s", script)
+	}
+}
+
+func TestSpaceAgentInboxPollerResetsOnscreenAgentBeforeSubmittingAuraGoTask(t *testing.T) {
+	script := spaceAgentInboxPollerJS()
+
+	for _, want := range []string{
+		`import { getStore } from "/mod/_core/framework/js/AlpineStore.js";`,
+		`await resetOnscreenAgentSession();`,
+		`store.handleClearClick`,
+		`Keep each executable JavaScript block small`,
+		`await markFailed(runtime, record, messageId, error);`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("poller missing %q:\n%s", want, script)
+		}
 	}
 }
 

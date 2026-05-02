@@ -28,7 +28,7 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-live-inbox-marker"
+	spaceAgentImageBuildRevision   = "20260502-aurago-onscreen-reset"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
@@ -841,7 +841,9 @@ Read docs/aurago-bridge.md for the structured bridge contract.
 }
 
 func spaceAgentInboxPollerJS() string {
-	return `const POLL_INTERVAL_MS = 3000;
+	return `import { getStore } from "/mod/_core/framework/js/AlpineStore.js";
+
+const POLL_INTERVAL_MS = 3000;
 const STORAGE_KEY = "aurago.inbox.lastMessageId";
 let pollerStarted = false;
 
@@ -868,7 +870,25 @@ function setLastMessageId(messageId) {
 function buildPrompt(record) {
   const instruction = String(record?.instruction || "").trim();
   const information = String(record?.information || "").trim();
-  return information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
+  const guard = [
+    "AuraGo delivered this as a fresh task. Start from a clean execution context.",
+    "Keep each executable JavaScript block small. Do not emit one huge renderer or minified bundle.",
+    "For widget work, create or update files incrementally, then run a small verification step."
+  ].join("\n");
+  const task = information ? instruction + "\n\nContext from AuraGo:\n" + information : instruction;
+  return guard + "\n\nTask:\n" + task;
+}
+
+async function resetOnscreenAgentSession() {
+  const store = getStore("onscreenAgent");
+  if (!store || typeof store.handleClearClick !== "function") {
+    return;
+  }
+  try {
+    await store.handleClearClick();
+  } catch {
+    // A reset is best-effort; the next prompt is still a newer AuraGo instruction.
+  }
 }
 
 async function markProcessed(runtime, record, messageId) {
@@ -884,6 +904,25 @@ async function markProcessed(runtime, record, messageId) {
     );
   } catch {
     // Keep the prompt submission as the authoritative delivery step.
+  }
+  setLastMessageId(messageId);
+}
+
+async function markFailed(runtime, record, messageId, error) {
+  try {
+    await runtime.api.fileWrite(
+      "~/aurago_inbox/latest_instruction.json",
+      JSON.stringify({
+        ...record,
+        processed_by_user: true,
+        failed_by_user: true,
+        failed_at: new Date().toISOString(),
+        failure_message: String(error?.message || error || "Unknown Space Agent delivery error")
+      }, null, 2) + "\n",
+      "utf8"
+    );
+  } catch {
+    // If failure recording fails, localStorage still prevents an immediate retry loop.
   }
   setLastMessageId(messageId);
 }
@@ -920,11 +959,16 @@ async function pollAuraGoInbox() {
   if (!prompt) {
     return;
   }
-  await runtime.onscreenAgent.submitPrompt(prompt, {
-    focusInput: false,
-    show: true
-  });
-  await markProcessed(runtime, record, messageId);
+  try {
+    await resetOnscreenAgentSession();
+    await runtime.onscreenAgent.submitPrompt(prompt, {
+      focusInput: false,
+      show: true
+    });
+    await markProcessed(runtime, record, messageId);
+  } catch (error) {
+    await markFailed(runtime, record, messageId, error);
+  }
 }
 
 export default async function auragoInboxPoller() {
