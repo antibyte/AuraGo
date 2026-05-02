@@ -127,7 +127,21 @@ html[data-theme="8bit"]::after {
     box-shadow: 3px 3px 0 var(--8bit-shadow-color);
 }
 
-/* Robot sprite: pixelated rendering only, no canvas replacement */
+/* Robot mascot pixelation via CSS:
+   The sprite div has background-size:600% and the parent gets
+   positioned/sized by JS (inline width/height).
+   We keep the parent at its JS-set size but apply a CSS filter
+   that creates a discrete pixel look: contrast boost + the
+   image-rendering:pixelated handles nearest-neighbor on the
+   background-image rasterization. Combined with a slight
+   desaturation this gives the 8bit look without breaking
+   the sprite animation. */
+[data-theme="8bit"] .chat-robot-mascot {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: contrast(1.4) saturate(1.5) brightness(1.1);
+}
+
 [data-theme="8bit"] .chat-robot-sprite {
     image-rendering: pixelated;
     image-rendering: crisp-edges;

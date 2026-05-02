@@ -6,8 +6,8 @@
  * image-rendering:pixelated on the element does nearest-neighbor
  * upscaling = visible pixel blocks from actual source pixels.
  *
- * NOTE: Does NOT touch the robot mascot sprite — it uses a CSS
- * background-position animation that breaks if the image is replaced.
+ * Monitors img.src changes via load events and MutationObserver
+ * so dynamically loaded persona images get pixelated too.
  */
 (() => {
     'use strict';
@@ -16,23 +16,19 @@
     const PIXEL_LARGE = 16;
 
     const _cache = new Map();
-    const _processing = new WeakSet();
+    const _observed = new WeakSet();
 
     function pixelateImage(img, px) {
-        if (!img || _processing.has(img)) return;
+        if (!img) return;
         const src = img.currentSrc || img.src;
         if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
         const key = src + '@' + px;
         if (_cache.has(key)) {
-            img.src = _cache.get(key);
+            const dataURL = _cache.get(key);
+            if (img.src !== dataURL) img.src = dataURL;
             return;
         }
-        // Wait for image to load if not ready
-        if (!img.complete || !img.naturalWidth) {
-            _processing.add(img);
-            img.addEventListener('load', () => { _processing.delete(img); pixelateImage(img, px); }, { once: true });
-            return;
-        }
+        if (!img.complete || !img.naturalWidth) return;
         try {
             const c = document.createElement('canvas');
             c.width = px;
@@ -46,22 +42,31 @@
         } catch (_) { /* CORS / tainted canvas */ }
     }
 
+    function watchImage(img, px) {
+        if (!img || _observed.has(img)) return;
+        _observed.add(img);
+        // Pixelate on every load (covers dynamic src changes)
+        img.addEventListener('load', () => pixelateImage(img, px));
+    }
+
     function pixelateAll() {
         // Avatar <img> inside .avatar containers
         document.querySelectorAll('.avatar img, .avatar .persona-avatar-img').forEach(img => {
+            watchImage(img, PIXEL_SMALL);
             pixelateImage(img, PIXEL_SMALL);
         });
 
         // Personality current icon (standalone <img>)
         const currentIcon = document.getElementById('personality-current-icon');
-        if (currentIcon) pixelateImage(currentIcon, PIXEL_SMALL);
+        if (currentIcon) { watchImage(currentIcon, PIXEL_SMALL); pixelateImage(currentIcon, PIXEL_SMALL); }
 
         // Personality preview image (appears on hover)
         const previewImg = document.getElementById('personality-preview-image');
-        if (previewImg) pixelateImage(previewImg, PIXEL_LARGE);
+        if (previewImg) { watchImage(previewImg, PIXEL_LARGE); pixelateImage(previewImg, PIXEL_LARGE); }
 
         // Any persona images in personality options / drawers
-        document.querySelectorAll('.personality-option img, .personality-option .chat-ui-icon, img[class*="persona"]').forEach(img => {
+        document.querySelectorAll('.personality-option img, img[class*="persona"]').forEach(img => {
+            watchImage(img, PIXEL_SMALL);
             pixelateImage(img, PIXEL_SMALL);
         });
     }
@@ -69,7 +74,7 @@
     function init() {
         if (document.documentElement.getAttribute('data-theme') !== '8bit') return;
 
-        // Initial pass
+        // Initial pass — delayed so images start loading
         setTimeout(pixelateAll, 400);
 
         // MutationObserver for new chat messages
@@ -79,11 +84,12 @@
                 .observe(chatBox, { childList: true, subtree: true });
         }
 
-        // Also observe the personality dropdown for preview image changes
-        const personalityDropdown = document.querySelector('.personality-dropdown') || document.getElementById('personality-picker');
-        if (personalityDropdown && typeof MutationObserver !== 'undefined') {
+        // Observe personality dropdown and preview panel for src changes
+        const personalityPicker = document.querySelector('.personality-select-wrapper')
+            || document.getElementById('personality-dropdown');
+        if (personalityPicker && typeof MutationObserver !== 'undefined') {
             new MutationObserver(() => setTimeout(pixelateAll, 50))
-                .observe(personalityDropdown, { childList: true, subtree: true, attributes: true });
+                .observe(personalityPicker, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
         }
 
         // Re-run on theme change
