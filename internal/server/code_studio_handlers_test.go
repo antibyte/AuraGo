@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -144,6 +145,22 @@ func TestBuildCodeStudioSearchCommandEscapesUserInput(t *testing.T) {
 	}
 	if got := cmd[len(cmd)-1]; got != "/workspace/src" {
 		t.Fatalf("path arg = %q, want sanitized path", got)
+	}
+}
+
+func TestCodeStudioDockerfileDoesNotSelfUpdateNPM(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.code-studio"))
+	if err != nil {
+		t.Fatalf("read code studio Dockerfile: %v", err)
+	}
+	dockerfile := string(content)
+	if strings.Contains(dockerfile, "npm@latest") {
+		t.Fatal("Dockerfile must not self-update npm during image build")
+	}
+	for _, tool := range []string{"pnpm", "yarn", "typescript", "tsx"} {
+		if !strings.Contains(dockerfile, tool) {
+			t.Fatalf("Dockerfile should still install %s", tool)
+		}
 	}
 }
 
