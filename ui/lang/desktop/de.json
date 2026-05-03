@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Server zum Verbinden auswählen",
   "desktop.qc_connecting": "Verbinde...",
   "desktop.qc_disconnected": "Verbindung geschlossen",
-  "desktop.qc_connection_error": "Verbindungsfehler"
+  "desktop.qc_connection_error": "Verbindungsfehler",
+  "desktop.app_gallery": "Galerie",
+  "desktop.gallery_title": "Galerie",
+  "desktop.gallery_photos": "Fotos",
+  "desktop.gallery_videos": "Videos",
+  "desktop.gallery_refresh": "Aktualisieren",
+  "desktop.gallery_open": "Oeffnen",
+  "desktop.gallery_download": "Herunterladen",
+  "desktop.gallery_rename": "Umbenennen",
+  "desktop.gallery_delete": "Loeschen",
+  "desktop.gallery_empty": "Keine Dateien",
+  "desktop.media_open": "Medium oeffnen",
+  "desktop.media_download": "Herunterladen"
 }

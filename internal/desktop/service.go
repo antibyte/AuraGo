@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"mime"
+	"net/url"
 	"os"
 	slashpath "path"
 	"path/filepath"
@@ -20,6 +22,13 @@ import (
 const SchemaVersion = 2
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
+
+type mediaMount struct {
+	Name      string
+	Dir       string
+	WebPrefix string
+	Kind      string
+}
 
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
@@ -55,6 +64,38 @@ func normalizeConfig(cfg Config) (Config, error) {
 	}
 	cfg.WorkspaceDir = filepath.Clean(workspaceDir)
 	cfg.DBPath = filepath.Clean(dbPath)
+	if strings.TrimSpace(cfg.DataDir) == "" {
+		cfg.DataDir = filepath.Join(filepath.Dir(cfg.DBPath), "data")
+	}
+	dataDir, err := filepath.Abs(cfg.DataDir)
+	if err != nil {
+		return cfg, fmt.Errorf("resolve data directory: %w", err)
+	}
+	cfg.DataDir = filepath.Clean(dataDir)
+	if strings.TrimSpace(cfg.DocumentDir) == "" {
+		cfg.DocumentDir = filepath.Join(cfg.DataDir, "documents")
+	}
+	documentDir, err := filepath.Abs(cfg.DocumentDir)
+	if err != nil {
+		return cfg, fmt.Errorf("resolve document directory: %w", err)
+	}
+	cfg.DocumentDir = filepath.Clean(documentDir)
+	if strings.TrimSpace(cfg.MediaRegistryPath) == "" {
+		cfg.MediaRegistryPath = filepath.Join(cfg.DataDir, "media_registry.db")
+	}
+	mediaRegistryPath, err := filepath.Abs(cfg.MediaRegistryPath)
+	if err != nil {
+		return cfg, fmt.Errorf("resolve media registry database path: %w", err)
+	}
+	cfg.MediaRegistryPath = filepath.Clean(mediaRegistryPath)
+	if strings.TrimSpace(cfg.ImageGalleryPath) == "" {
+		cfg.ImageGalleryPath = filepath.Join(cfg.DataDir, "image_gallery.db")
+	}
+	imageGalleryPath, err := filepath.Abs(cfg.ImageGalleryPath)
+	if err != nil {
+		return cfg, fmt.Errorf("resolve image gallery database path: %w", err)
+	}
+	cfg.ImageGalleryPath = filepath.Clean(imageGalleryPath)
 	if cfg.MaxFileSizeMB <= 0 {
 		cfg.MaxFileSizeMB = 50
 	}
@@ -85,8 +126,16 @@ func (s *Service) Init(ctx context.Context) error {
 		return fmt.Errorf("create desktop workspace: %w", err)
 	}
 	for _, dir := range DefaultDirectories() {
+		if isMediaMountName(dir) {
+			continue
+		}
 		if err := os.MkdirAll(filepath.Join(s.cfg.WorkspaceDir, dir), 0o755); err != nil {
 			return fmt.Errorf("create desktop directory %s: %w", dir, err)
+		}
+	}
+	for _, mount := range s.mediaMountsLocked() {
+		if err := os.MkdirAll(mount.Dir, 0o755); err != nil {
+			return fmt.Errorf("create desktop media mount %s: %w", mount.Name, err)
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(s.cfg.DBPath), 0o755); err != nil {
@@ -212,6 +261,31 @@ func (s *Service) ensureColumnLocked(ctx context.Context, table, column, definit
 	return nil
 }
 
+func isMediaMountName(name string) bool {
+	for _, mountName := range []string{"Music", "Photos", "Videos", "AuraGo Documents"} {
+		if strings.EqualFold(name, mountName) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) mediaMountsLocked() []mediaMount {
+	cfg := s.cfg
+	return []mediaMount{
+		{Name: "Music", Dir: filepath.Join(cfg.DataDir, "audio"), WebPrefix: "/files/audio/", Kind: "audio"},
+		{Name: "Photos", Dir: filepath.Join(cfg.DataDir, "generated_images"), WebPrefix: "/files/generated_images/", Kind: "image"},
+		{Name: "Videos", Dir: filepath.Join(cfg.DataDir, "generated_videos"), WebPrefix: "/files/generated_videos/", Kind: "video"},
+		{Name: "AuraGo Documents", Dir: cfg.DocumentDir, WebPrefix: "/files/documents/", Kind: "document"},
+	}
+}
+
+func (s *Service) mediaMounts() []mediaMount {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]mediaMount(nil), s.mediaMountsLocked()...)
+}
+
 // Bootstrap returns all state needed to render the virtual desktop shell.
 func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	if err := s.ensureReady(ctx); err != nil {
@@ -286,6 +360,25 @@ func cleanDesktopPath(rawPath string) string {
 	return filepath.Clean(filepath.FromSlash(p))
 }
 
+func cleanDesktopPathSlash(rawPath string) string {
+	p := strings.TrimSpace(rawPath)
+	if p == "" || p == "/" || p == `\` {
+		return "."
+	}
+	p = strings.ReplaceAll(p, "\\", "/")
+	return slashpath.Clean(p)
+}
+
+func desktopPathHasParentSegment(rawPath string) bool {
+	p := strings.ReplaceAll(strings.TrimSpace(rawPath), "\\", "/")
+	for _, part := range strings.Split(p, "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 func isStandaloneWidgetHTMLPath(rawPath string) bool {
 	p := filepath.ToSlash(cleanDesktopPath(rawPath))
 	return strings.EqualFold(slashpath.Dir(p), "Widgets") && strings.EqualFold(slashpath.Ext(p), ".html")
@@ -308,10 +401,142 @@ func (s *Service) relativePath(absPath string) string {
 	return filepath.ToSlash(rel)
 }
 
+func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string, bool, error) {
+	cleanSlash := cleanDesktopPathSlash(rawPath)
+	if cleanSlash == "." {
+		return mediaMount{}, "", "", false, nil
+	}
+	parts := strings.Split(cleanSlash, "/")
+	mountName := parts[0]
+	for _, mount := range s.mediaMounts() {
+		if !strings.EqualFold(mount.Name, mountName) {
+			continue
+		}
+		if desktopPathHasParentSegment(rawPath) {
+			return mount, "", "", true, fmt.Errorf("desktop media path escapes mount")
+		}
+		rel := ""
+		if len(parts) > 1 {
+			rel = strings.Join(parts[1:], "/")
+		}
+		candidate := mount.Dir
+		if rel != "" {
+			candidate = filepath.Join(mount.Dir, filepath.FromSlash(rel))
+		}
+		candidateAbs, err := filepath.Abs(candidate)
+		if err != nil {
+			return mount, "", "", true, fmt.Errorf("resolve desktop media path: %w", err)
+		}
+		if !isWithinPath(mount.Dir, candidateAbs) {
+			return mount, "", "", true, fmt.Errorf("desktop media path escapes mount")
+		}
+		if evaluated, err := filepath.EvalSymlinks(candidateAbs); err == nil && !isWithinPath(mount.Dir, evaluated) {
+			return mount, "", "", true, fmt.Errorf("desktop media path follows symlink outside mount")
+		}
+		return mount, filepath.Clean(candidateAbs), filepath.ToSlash(rel), true, nil
+	}
+	return mediaMount{}, "", "", false, nil
+}
+
+func mediaRelativePath(mount mediaMount, absPath string) string {
+	rel, err := filepath.Rel(mount.Dir, absPath)
+	if err != nil {
+		return filepath.Base(absPath)
+	}
+	return filepath.ToSlash(rel)
+}
+
+func mediaDesktopPath(mount mediaMount, rel string) string {
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	if rel == "" || rel == "." {
+		return mount.Name
+	}
+	return mount.Name + "/" + rel
+}
+
+func mediaWebPath(mount mediaMount, rel string) string {
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	if rel == "" || rel == "." {
+		return ""
+	}
+	parts := strings.Split(rel, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return mount.WebPrefix + strings.Join(parts, "/")
+}
+
+func mediaMIMEType(name string) string {
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext == ".mp3" {
+		return "audio/mpeg"
+	}
+	if ext == ".m4a" {
+		return "audio/mp4"
+	}
+	if ext == ".flac" {
+		return "audio/flac"
+	}
+	if ext == ".opus" {
+		return "audio/ogg"
+	}
+	if ext == ".mp4" {
+		return "video/mp4"
+	}
+	if mt := mime.TypeByExtension(ext); mt != "" {
+		if idx := strings.Index(mt, ";"); idx >= 0 {
+			return mt[:idx]
+		}
+		return mt
+	}
+	return "application/octet-stream"
+}
+
+func mediaFileEntry(mount mediaMount, absPath string, info os.FileInfo) FileEntry {
+	itemType := "file"
+	if info.IsDir() {
+		itemType = "directory"
+	}
+	rel := mediaRelativePath(mount, absPath)
+	entry := FileEntry{
+		Name:      info.Name(),
+		Path:      mediaDesktopPath(mount, rel),
+		Type:      itemType,
+		Size:      info.Size(),
+		ModTime:   info.ModTime(),
+		MediaKind: mount.Kind,
+		Mount:     mount.Name,
+	}
+	if itemType == "file" {
+		entry.WebPath = mediaWebPath(mount, rel)
+		entry.MIMEType = mediaMIMEType(info.Name())
+	}
+	return entry
+}
+
 // ListFiles lists one workspace directory.
 func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, error) {
 	if err := s.ensureReady(ctx); err != nil {
 		return nil, err
+	}
+	if mount, dirPath, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return nil, fmt.Errorf("list desktop media files: %w", err)
+		}
+		result := make([]FileEntry, 0, len(entries))
+		for _, entry := range entries {
+			info, statErr := entry.Info()
+			if statErr != nil {
+				return nil, fmt.Errorf("stat desktop media file %s: %w", entry.Name(), statErr)
+			}
+			result = append(result, mediaFileEntry(mount, filepath.Join(dirPath, entry.Name()), info))
+		}
+		sortFileEntries(result)
+		return result, nil
 	}
 	dirPath, err := s.ResolvePath(rawPath)
 	if err != nil {
@@ -339,19 +564,63 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 			ModTime: info.ModTime(),
 		})
 	}
+	if cleanDesktopPathSlash(rawPath) == "." {
+		for _, mount := range s.mediaMounts() {
+			if info, err := os.Stat(mount.Dir); err == nil {
+				result = append(result, FileEntry{
+					Name:      mount.Name,
+					Path:      mount.Name,
+					Type:      "directory",
+					Size:      info.Size(),
+					ModTime:   info.ModTime(),
+					MediaKind: mount.Kind,
+					Mount:     mount.Name,
+				})
+			}
+		}
+	}
+	sortFileEntries(result)
+	return result, nil
+}
+
+func sortFileEntries(result []FileEntry) {
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Type != result[j].Type {
 			return result[i].Type == "directory"
 		}
 		return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
 	})
-	return result, nil
 }
 
 // ReadFile reads a UTF-8 text file from the workspace.
 func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEntry, error) {
 	if err := s.ensureReady(ctx); err != nil {
 		return "", FileEntry{}, err
+	}
+	if mount, path, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return "", FileEntry{}, err
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", FileEntry{}, fmt.Errorf("stat desktop media file: %w", err)
+		}
+		if info.IsDir() {
+			return "", FileEntry{}, fmt.Errorf("desktop media path is a directory")
+		}
+		entry := mediaFileEntry(mount, path, info)
+		if strings.HasPrefix(entry.MIMEType, "image/") || strings.HasPrefix(entry.MIMEType, "audio/") || strings.HasPrefix(entry.MIMEType, "video/") || entry.MIMEType == "application/pdf" {
+			return "", entry, fmt.Errorf("desktop media file is binary; use web_path")
+		}
+		maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
+		if info.Size() > maxBytes {
+			return "", FileEntry{}, fmt.Errorf("desktop media file exceeds max size")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", FileEntry{}, fmt.Errorf("read desktop media file: %w", err)
+		}
+		return string(data), entry, nil
 	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {
@@ -396,6 +665,11 @@ func (s *Service) WriteFile(ctx context.Context, rawPath, content, source string
 	if isStandaloneWidgetHTMLPath(rawPath) && strings.TrimSpace(content) == "" {
 		return fmt.Errorf("desktop widget HTML file must not be empty")
 	}
+	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
+		return err
+	} else if ok {
+		return fmt.Errorf("desktop media mounts are read-only for text writes")
+	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {
 		return err
@@ -418,6 +692,11 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
+		return err
+	} else if ok {
+		return fmt.Errorf("desktop media mount directories are managed by AuraGo")
+	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {
 		return err
@@ -436,6 +715,41 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	}
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
+	}
+	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(oldPath); fromOK || err != nil {
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(fromRel) == "" {
+			return fmt.Errorf("cannot move desktop media mount root")
+		}
+		toMount, to, toRel, toOK, err := s.resolveMediaMount(newPath)
+		if err != nil {
+			return err
+		}
+		if !toOK || !strings.EqualFold(fromMount.Name, toMount.Name) {
+			return fmt.Errorf("desktop media paths cannot move across mounts")
+		}
+		if strings.TrimSpace(toRel) == "" {
+			return fmt.Errorf("desktop media destination must be inside the mount")
+		}
+		if strings.EqualFold(from, to) {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return fmt.Errorf("create desktop media destination directory: %w", err)
+		}
+		if err := os.Rename(from, to); err != nil {
+			return fmt.Errorf("move desktop media path: %w", err)
+		}
+		s.updateMediaRegistriesAfterMove(ctx, fromMount, from, to)
+		_ = s.Audit(ctx, "move_path", mediaDesktopPath(fromMount, fromRel), map[string]interface{}{"new_path": mediaDesktopPath(toMount, toRel)}, source)
+		return nil
+	}
+	if _, _, _, toOK, err := s.resolveMediaMount(newPath); err != nil {
+		return err
+	} else if toOK {
+		return fmt.Errorf("desktop workspace paths cannot move into media mounts")
 	}
 	from, err := s.ResolvePath(oldPath)
 	if err != nil {
@@ -466,6 +780,20 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	if mount, path, rel, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(rel) == "" {
+			return fmt.Errorf("cannot delete desktop media mount root")
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("delete desktop media path: %w", err)
+		}
+		s.softDeleteMediaRegistries(ctx, mount, path)
+		_ = s.Audit(ctx, "delete_path", mediaDesktopPath(mount, rel), map[string]interface{}{}, source)
+		return nil
+	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {
 		return err
@@ -478,6 +806,70 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	}
 	_ = s.Audit(ctx, "delete_path", s.relativePath(path), map[string]interface{}{}, source)
 	return nil
+}
+
+func (s *Service) updateMediaRegistriesAfterMove(ctx context.Context, mount mediaMount, oldAbs, newAbs string) {
+	cfg := s.Config()
+	oldBase := filepath.Base(oldAbs)
+	newBase := filepath.Base(newAbs)
+	newWebPath := mediaWebPath(mount, mediaRelativePath(mount, newAbs))
+	withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+		_, _ = db.ExecContext(ctx, `UPDATE media_items
+			SET filename = ?, file_path = ?, web_path = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR filename = ?)`,
+			newBase, newAbs, newWebPath, oldAbs, oldBase)
+	})
+	if mount.Kind == "image" {
+		withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
+			_, _ = db.ExecContext(ctx, "UPDATE generated_images SET filename = ? WHERE filename = ?", newBase, oldBase)
+		})
+	}
+}
+
+func (s *Service) softDeleteMediaRegistries(ctx context.Context, mount mediaMount, absPath string) {
+	cfg := s.Config()
+	base := filepath.Base(absPath)
+	prefix := filepath.Clean(absPath) + string(os.PathSeparator) + "%"
+	withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+		_, _ = db.ExecContext(ctx, `UPDATE media_items
+			SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR file_path LIKE ? OR filename = ?)`,
+			absPath, prefix, base)
+	})
+	if mount.Kind == "image" {
+		withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
+			_, _ = db.ExecContext(ctx, "DELETE FROM generated_images WHERE filename = ?", base)
+		})
+	}
+}
+
+func withMediaRegistryDB(ctx context.Context, dbPath string, fn func(*sql.DB)) {
+	dbPath = strings.TrimSpace(dbPath)
+	if dbPath == "" {
+		return
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return
+	}
+	fn(db)
+}
+
+func mediaTypeSQLClause(kind string) string {
+	switch kind {
+	case "audio":
+		return "media_type IN ('audio', 'music')"
+	case "document":
+		return "media_type = 'document'"
+	case "video":
+		return "media_type = 'video'"
+	default:
+		return "media_type = 'image'"
+	}
 }
 
 // InstallApp stores a generated app manifest and writes its files under Apps/<id>.

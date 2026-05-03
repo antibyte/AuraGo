@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Select a server to connect",
   "desktop.qc_connecting": "Connecting...",
   "desktop.qc_disconnected": "Connection closed",
-  "desktop.qc_connection_error": "Connection error"
+  "desktop.qc_connection_error": "Connection error",
+  "desktop.app_gallery": "Gallery",
+  "desktop.gallery_title": "Gallery",
+  "desktop.gallery_photos": "Photos",
+  "desktop.gallery_videos": "Videos",
+  "desktop.gallery_refresh": "Refresh",
+  "desktop.gallery_open": "Open",
+  "desktop.gallery_download": "Download",
+  "desktop.gallery_rename": "Rename",
+  "desktop.gallery_delete": "Delete",
+  "desktop.gallery_empty": "No media files",
+  "desktop.media_open": "Open media",
+  "desktop.media_download": "Download"
 }

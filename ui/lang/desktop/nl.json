@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Selecteer een server om verbinding te maken",
   "desktop.qc_connecting": "Verbinden...",
   "desktop.qc_disconnected": "Verbinding verbroken",
-  "desktop.qc_connection_error": "Verbindingsfout"
+  "desktop.qc_connection_error": "Verbindingsfout",
+  "desktop.app_gallery": "Galerij",
+  "desktop.gallery_title": "Galerij",
+  "desktop.gallery_photos": "Foto's",
+  "desktop.gallery_videos": "Video's",
+  "desktop.gallery_refresh": "Vernieuwen",
+  "desktop.gallery_open": "Openen",
+  "desktop.gallery_download": "Downloaden",
+  "desktop.gallery_rename": "Hernoemen",
+  "desktop.gallery_delete": "Verwijderen",
+  "desktop.gallery_empty": "Geen bestanden",
+  "desktop.media_open": "Media openen",
+  "desktop.media_download": "Downloaden"
 }

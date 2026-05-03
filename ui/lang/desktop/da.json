@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Vælg en server at forbinde til",
   "desktop.qc_connecting": "Forbinder...",
   "desktop.qc_disconnected": "Forbindelse lukket",
-  "desktop.qc_connection_error": "Forbindelsesfejl"
+  "desktop.qc_connection_error": "Forbindelsesfejl",
+  "desktop.app_gallery": "Galleri",
+  "desktop.gallery_title": "Galleri",
+  "desktop.gallery_photos": "Fotos",
+  "desktop.gallery_videos": "Videoer",
+  "desktop.gallery_refresh": "Opdater",
+  "desktop.gallery_open": "Aabn",
+  "desktop.gallery_download": "Download",
+  "desktop.gallery_rename": "Omdob",
+  "desktop.gallery_delete": "Slet",
+  "desktop.gallery_empty": "Ingen filer",
+  "desktop.media_open": "Aabn medie",
+  "desktop.media_download": "Download"
 }

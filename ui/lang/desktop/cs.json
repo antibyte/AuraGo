@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Vyberte server pro připojení",
   "desktop.qc_connecting": "Připojování...",
   "desktop.qc_disconnected": "Spojení ukončeno",
-  "desktop.qc_connection_error": "Chyba připojení"
+  "desktop.qc_connection_error": "Chyba připojení",
+  "desktop.app_gallery": "Galerie",
+  "desktop.gallery_title": "Galerie",
+  "desktop.gallery_photos": "Fotky",
+  "desktop.gallery_videos": "Videa",
+  "desktop.gallery_refresh": "Obnovit",
+  "desktop.gallery_open": "Otevrit",
+  "desktop.gallery_download": "Stahnout",
+  "desktop.gallery_rename": "Prejmenovat",
+  "desktop.gallery_delete": "Smazat",
+  "desktop.gallery_empty": "Zadne soubory",
+  "desktop.media_open": "Otevrit medium",
+  "desktop.media_download": "Stahnout"
 }

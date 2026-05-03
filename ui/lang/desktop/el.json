@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Επιλέξτε διακομιστή για σύνδεση",
   "desktop.qc_connecting": "Σύνδεση...",
   "desktop.qc_disconnected": "Η σύνδεση έκλεισε",
-  "desktop.qc_connection_error": "Σφάλμα σύνδεσης"
+  "desktop.qc_connection_error": "Σφάλμα σύνδεσης",
+  "desktop.app_gallery": "Syllogi",
+  "desktop.gallery_title": "Syllogi",
+  "desktop.gallery_photos": "Fotografies",
+  "desktop.gallery_videos": "Vinteo",
+  "desktop.gallery_refresh": "Ananeosi",
+  "desktop.gallery_open": "Anoigma",
+  "desktop.gallery_download": "Lipsi",
+  "desktop.gallery_rename": "Metonomasia",
+  "desktop.gallery_delete": "Diagrafi",
+  "desktop.gallery_empty": "Kanena arxeio",
+  "desktop.media_open": "Anoigma mesou",
+  "desktop.media_download": "Lipsi"
 }

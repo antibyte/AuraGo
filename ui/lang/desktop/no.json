@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Velg en server å koble til",
   "desktop.qc_connecting": "Kobler til...",
   "desktop.qc_disconnected": "Tilkobling lukket",
-  "desktop.qc_connection_error": "Tilkoblingsfeil"
+  "desktop.qc_connection_error": "Tilkoblingsfeil",
+  "desktop.app_gallery": "Galleri",
+  "desktop.gallery_title": "Galleri",
+  "desktop.gallery_photos": "Bilder",
+  "desktop.gallery_videos": "Videoer",
+  "desktop.gallery_refresh": "Oppdater",
+  "desktop.gallery_open": "Apne",
+  "desktop.gallery_download": "Last ned",
+  "desktop.gallery_rename": "Gi nytt navn",
+  "desktop.gallery_delete": "Slett",
+  "desktop.gallery_empty": "Ingen filer",
+  "desktop.media_open": "Apne media",
+  "desktop.media_download": "Last ned"
 }

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,34 @@ func testService(t *testing.T) *Service {
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
 		ControlLevel:       ControlConfirmDestructive,
+	})
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	if err := svc.Init(context.Background()); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	return svc
+}
+
+func testMediaService(t *testing.T) *Service {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "workspace")
+	dataDir := filepath.Join(t.TempDir(), "data")
+	dbPath := filepath.Join(t.TempDir(), "desktop.db")
+	mediaDBPath := filepath.Join(t.TempDir(), "media_registry.db")
+	imageDBPath := filepath.Join(t.TempDir(), "image_gallery.db")
+	svc, err := NewService(Config{
+		Enabled:           true,
+		WorkspaceDir:      root,
+		DBPath:            dbPath,
+		DataDir:           dataDir,
+		DocumentDir:       filepath.Join(dataDir, "documents"),
+		MediaRegistryPath: mediaDBPath,
+		ImageGalleryPath:  imageDBPath,
+		MaxFileSizeMB:     1,
+		ControlLevel:      ControlConfirmDestructive,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -51,13 +80,40 @@ func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
 	if !bootstrap.Enabled {
 		t.Fatal("desktop should be enabled")
 	}
-	for _, name := range DefaultDirectories() {
+	for _, name := range workspaceDirectories() {
 		if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, name)); err != nil {
 			t.Fatalf("expected workspace directory %s: %v", name, err)
 		}
 	}
 	if len(bootstrap.BuiltinApps) < 4 {
 		t.Fatalf("expected builtin desktop apps, got %d", len(bootstrap.BuiltinApps))
+	}
+}
+
+func TestServiceBootstrapIncludesMediaMountsAndGalleryApp(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, name := range []string{"Music", "Photos", "Videos", "AuraGo Documents"} {
+		if !stringSliceContains(bootstrap.Workspace.Directories, name) {
+			t.Fatalf("bootstrap directories missing media mount %q: %+v", name, bootstrap.Workspace.Directories)
+		}
+		if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, name)); err == nil {
+			t.Fatalf("media mount %q must not be created as a workspace folder", name)
+		}
+	}
+	var foundGallery bool
+	for _, app := range bootstrap.BuiltinApps {
+		if app.ID == "gallery" {
+			foundGallery = app.Icon == "image" && app.Entry == "builtin://gallery"
+		}
+	}
+	if !foundGallery {
+		t.Fatalf("builtin apps missing gallery app: %+v", bootstrap.BuiltinApps)
 	}
 }
 
@@ -119,6 +175,139 @@ func TestServiceWritesAndReadsFilesInsideWorkspace(t *testing.T) {
 	}
 	if entry.Path != "Documents/hello.txt" {
 		t.Fatalf("entry path = %q", entry.Path)
+	}
+}
+
+func TestServiceListFilesExposesMediaMountMetadata(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	fixtures := []struct {
+		mount      string
+		subdir     string
+		filename   string
+		wantKind   string
+		wantWeb    string
+		wantMIME   string
+		baseOnDisk string
+	}{
+		{"Music", "mixes", "track.mp3", "audio", "/files/audio/mixes/track.mp3", "audio/mpeg", filepath.Join(cfg.DataDir, "audio")},
+		{"Photos", "", "sunset.png", "image", "/files/generated_images/sunset.png", "image/png", filepath.Join(cfg.DataDir, "generated_images")},
+		{"Videos", "", "clip.mp4", "video", "/files/generated_videos/clip.mp4", "video/mp4", filepath.Join(cfg.DataDir, "generated_videos")},
+		{"AuraGo Documents", "", "report.pdf", "document", "/files/documents/report.pdf", "application/pdf", cfg.DocumentDir},
+	}
+	for _, fixture := range fixtures {
+		dir := filepath.Join(fixture.baseOnDisk, filepath.FromSlash(fixture.subdir))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir fixture %s: %v", fixture.mount, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, fixture.filename), []byte("data"), 0o644); err != nil {
+			t.Fatalf("write fixture %s: %v", fixture.mount, err)
+		}
+		rawPath := fixture.mount
+		if fixture.subdir != "" {
+			rawPath += "/" + fixture.subdir
+		}
+		files, err := svc.ListFiles(ctx, rawPath)
+		if err != nil {
+			t.Fatalf("ListFiles(%q): %v", rawPath, err)
+		}
+		var got FileEntry
+		for _, entry := range files {
+			if entry.Name == fixture.filename {
+				got = entry
+				break
+			}
+		}
+		if got.Name == "" {
+			t.Fatalf("ListFiles(%q) missing %s: %+v", rawPath, fixture.filename, files)
+		}
+		if got.Mount != fixture.mount || got.MediaKind != fixture.wantKind || got.WebPath != fixture.wantWeb || got.MIMEType != fixture.wantMIME {
+			t.Fatalf("media metadata for %s = %+v", fixture.mount, got)
+		}
+	}
+}
+
+func TestServiceMovePathWithinMediaMountRenamesOriginalAndUpdatesRegistries(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	oldAbs := filepath.Join(cfg.DataDir, "generated_images", "old.png")
+	newAbs := filepath.Join(cfg.DataDir, "generated_images", "new.png")
+	if err := os.WriteFile(oldAbs, []byte("png"), 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	mediaDB := openTestSQLite(t, cfg.MediaRegistryPath)
+	initMediaRegistrySchema(t, mediaDB)
+	insertMediaItem(t, mediaDB, "image", "old.png", oldAbs, "/files/generated_images/old.png")
+	imageDB := openTestSQLite(t, cfg.ImageGalleryPath)
+	initImageGallerySchema(t, imageDB)
+	insertGeneratedImage(t, imageDB, "old.png")
+
+	if err := svc.MovePath(ctx, "Photos/old.png", "Photos/new.png", SourceUser); err != nil {
+		t.Fatalf("MovePath media mount: %v", err)
+	}
+	if _, err := os.Stat(newAbs); err != nil {
+		t.Fatalf("renamed original file missing: %v", err)
+	}
+	if _, err := os.Stat(oldAbs); !os.IsNotExist(err) {
+		t.Fatalf("old original still exists or unexpected error: %v", err)
+	}
+	assertSingleString(t, mediaDB, "SELECT filename FROM media_items WHERE file_path = ?", newAbs, "new.png")
+	assertSingleString(t, mediaDB, "SELECT web_path FROM media_items WHERE file_path = ?", newAbs, "/files/generated_images/new.png")
+	assertSingleString(t, imageDB, "SELECT filename FROM generated_images LIMIT 1", nil, "new.png")
+}
+
+func TestServiceDeletePathWithinMediaMountDeletesOriginalAndSoftDeletesRegistry(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	absPath := filepath.Join(cfg.DataDir, "generated_videos", "clip.mp4")
+	if err := os.WriteFile(absPath, []byte("mp4"), 0o644); err != nil {
+		t.Fatalf("write video: %v", err)
+	}
+	mediaDB := openTestSQLite(t, cfg.MediaRegistryPath)
+	initMediaRegistrySchema(t, mediaDB)
+	insertMediaItem(t, mediaDB, "video", "clip.mp4", absPath, "/files/generated_videos/clip.mp4")
+
+	if err := svc.DeletePath(ctx, "Videos/clip.mp4", SourceUser); err != nil {
+		t.Fatalf("DeletePath media mount: %v", err)
+	}
+	if _, err := os.Stat(absPath); !os.IsNotExist(err) {
+		t.Fatalf("video still exists or unexpected error: %v", err)
+	}
+	var deleted int
+	if err := mediaDB.QueryRow("SELECT deleted FROM media_items WHERE filename = 'clip.mp4'").Scan(&deleted); err != nil {
+		t.Fatalf("query media deletion flag: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+}
+
+func TestServiceRejectsMediaMountTraversalAndCrossMountRename(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	if err := os.WriteFile(filepath.Join(cfg.DataDir, "audio", "song.mp3"), []byte("mp3"), 0o644); err != nil {
+		t.Fatalf("write song: %v", err)
+	}
+	if _, err := svc.ListFiles(ctx, "Music/../../"); err == nil {
+		t.Fatal("expected media mount traversal to be rejected")
+	}
+	if err := svc.MovePath(ctx, "Music/song.mp3", "Photos/song.mp3", SourceUser); err == nil {
+		t.Fatal("expected cross-mount rename to be rejected")
+	}
+	if err := svc.DeletePath(ctx, "Music", SourceUser); err == nil {
+		t.Fatal("expected deleting media mount root to be rejected")
 	}
 }
 
@@ -648,5 +837,73 @@ func TestServiceUpsertWidgetRejectsUnsafeAppID(t *testing.T) {
 	}, SourceAgent)
 	if err == nil {
 		t.Fatal("expected unsafe widget app_id to be rejected")
+	}
+}
+
+func openTestSQLite(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open sqlite %s: %v", path, err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
+func initMediaRegistrySchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS media_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		media_type TEXT NOT NULL DEFAULT 'image',
+		filename TEXT NOT NULL,
+		file_path TEXT NOT NULL DEFAULT '',
+		web_path TEXT NOT NULL DEFAULT '',
+		deleted INTEGER DEFAULT 0
+	)`)
+	if err != nil {
+		t.Fatalf("init media registry schema: %v", err)
+	}
+}
+
+func initImageGallerySchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS generated_images (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		filename TEXT NOT NULL
+	)`)
+	if err != nil {
+		t.Fatalf("init image gallery schema: %v", err)
+	}
+}
+
+func insertMediaItem(t *testing.T, db *sql.DB, mediaType, filename, filePath, webPath string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO media_items(media_type, filename, file_path, web_path, deleted) VALUES (?, ?, ?, ?, 0)`, mediaType, filename, filePath, webPath); err != nil {
+		t.Fatalf("insert media item: %v", err)
+	}
+}
+
+func insertGeneratedImage(t *testing.T, db *sql.DB, filename string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO generated_images(filename) VALUES (?)`, filename); err != nil {
+		t.Fatalf("insert generated image: %v", err)
+	}
+}
+
+func assertSingleString(t *testing.T, db *sql.DB, query string, arg interface{}, want string) {
+	t.Helper()
+	var got string
+	var err error
+	if arg == nil {
+		err = db.QueryRow(query).Scan(&got)
+	} else {
+		err = db.QueryRow(query, arg).Scan(&got)
+	}
+	if err != nil {
+		t.Fatalf("query %q: %v", query, err)
+	}
+	if got != want {
+		t.Fatalf("%q returned %q, want %q", query, got, want)
 	}
 }

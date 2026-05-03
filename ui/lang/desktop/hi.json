@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "कनेक्ट करने के लिए सर्वर चुनें",
   "desktop.qc_connecting": "कनेक्ट हो रहा है...",
   "desktop.qc_disconnected": "कनेक्शन बंद",
-  "desktop.qc_connection_error": "कनेक्शन त्रुटि"
+  "desktop.qc_connection_error": "कनेक्शन त्रुटि",
+  "desktop.app_gallery": "गैलरी",
+  "desktop.gallery_title": "गैलरी",
+  "desktop.gallery_photos": "फोटो",
+  "desktop.gallery_videos": "वीडियो",
+  "desktop.gallery_refresh": "रीफ्रेश",
+  "desktop.gallery_open": "खोलें",
+  "desktop.gallery_download": "डाउनलोड",
+  "desktop.gallery_rename": "नाम बदलें",
+  "desktop.gallery_delete": "हटाएं",
+  "desktop.gallery_empty": "कोई फाइल नहीं",
+  "desktop.media_open": "मीडिया खोलें",
+  "desktop.media_download": "डाउनलोड"
 }

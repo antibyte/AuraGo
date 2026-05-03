@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "接続するサーバーを選択",
   "desktop.qc_connecting": "接続中...",
   "desktop.qc_disconnected": "接続が切断されました",
-  "desktop.qc_connection_error": "接続エラー"
+  "desktop.qc_connection_error": "接続エラー",
+  "desktop.app_gallery": "ギャラリー",
+  "desktop.gallery_title": "ギャラリー",
+  "desktop.gallery_photos": "写真",
+  "desktop.gallery_videos": "動画",
+  "desktop.gallery_refresh": "更新",
+  "desktop.gallery_open": "開く",
+  "desktop.gallery_download": "ダウンロード",
+  "desktop.gallery_rename": "名前変更",
+  "desktop.gallery_delete": "削除",
+  "desktop.gallery_empty": "ファイルがありません",
+  "desktop.media_open": "メディアを開く",
+  "desktop.media_download": "ダウンロード"
 }

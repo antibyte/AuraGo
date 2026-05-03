@@ -37,6 +37,14 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 	if dbPath == "" {
 		dbPath = filepath.Join(cfg.Directories.DataDir, "virtual_desktop.db")
 	}
+	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
+	if dataDir == "" {
+		dataDir = "data"
+	}
+	documentDir := strings.TrimSpace(cfg.Tools.DocumentCreator.OutputDir)
+	if documentDir == "" {
+		documentDir = filepath.Join(dataDir, "documents")
+	}
 	return Config{
 		Enabled:            desktopCfg.Enabled,
 		ReadOnly:           desktopCfg.ReadOnly,
@@ -45,6 +53,10 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
 		WorkspaceDir:       workspaceDir,
 		DBPath:             dbPath,
+		DataDir:            dataDir,
+		DocumentDir:        documentDir,
+		MediaRegistryPath:  strings.TrimSpace(cfg.SQLite.MediaRegistryPath),
+		ImageGalleryPath:   strings.TrimSpace(cfg.SQLite.ImageGalleryPath),
 		MaxFileSizeMB:      maxFileSizeMB,
 		ControlLevel:       controlLevel,
 		MaxWSClients:       maxWSClients,

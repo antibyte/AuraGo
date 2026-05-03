@@ -32,6 +32,10 @@
         Widgets: 'widgets',
         Data: 'database',
         Pictures: 'image',
+        Music: 'audio',
+        Photos: 'image',
+        Videos: 'video',
+        'AuraGo Documents': 'documents',
         Trash: 'trash',
         Shared: 'share'
     };
@@ -41,6 +45,7 @@
         settings: 'settings',
         calendar: 'calendar',
         calculator: 'calculator',
+        gallery: 'image',
         'music-player': 'audio',
         todo: 'notes',
         'agent-chat': 'agent_chat',
@@ -72,6 +77,9 @@
         mp3: 'audio',
         wav: 'audio',
         flac: 'audio',
+        ogg: 'audio',
+        m4a: 'audio',
+        opus: 'audio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -129,6 +137,7 @@
             'music-player': 'MP',
             todo: 'Td',
             'agent-chat': 'A',
+            gallery: 'G',
             'quick-connect': 'QC'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
@@ -216,7 +225,11 @@
     }
 
     function iconForFile(file) {
-        if (file.type === 'directory') return 'folder';
+        if (file.type === 'directory') return iconForDirectory(file.name);
+        if (file.media_kind === 'image') return 'image';
+        if (file.media_kind === 'audio') return 'audio';
+        if (file.media_kind === 'video') return 'video';
+        if (file.media_kind === 'document') return 'documents';
         const ext = String(file.name || '').split('.').pop().toLowerCase();
         if (!ext || ext === String(file.name || '').toLowerCase()) return 'file';
         return extensionIconKeys[ext] || 'file';
@@ -1051,6 +1064,7 @@
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);
         if (appId === 'todo') return renderTodo(id);
+        if (appId === 'gallery') return renderGallery(id);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
@@ -1080,7 +1094,7 @@
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
-            host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}">
+            host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
@@ -1088,20 +1102,26 @@
             host.querySelectorAll('.vd-file-row').forEach(row => {
                 row.addEventListener('dblclick', () => {
                     if (row.dataset.type === 'directory') renderFiles(id, row.dataset.path);
-                    else openEditorFile(row.dataset.path);
+                    else openDesktopFileEntry(row);
                 });
                 row.addEventListener('click', () => {
                     host.querySelectorAll('.vd-file-row').forEach(item => item.classList.toggle('selected', item === row));
                 });
                 row.addEventListener('contextmenu', event => {
                     event.preventDefault();
-                    showContextMenu(event.clientX, event.clientY, [
-                        { label: t('desktop.context_open'), icon: '↗', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openEditorFile(row.dataset.path) },
+                    const actions = [
+                        { label: t('desktop.context_open'), icon: '↗', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
                         { label: t('desktop.context_rename'), icon: '✎', action: () => renamePath(row.dataset.path) },
                         { label: t('desktop.context_delete'), icon: '×', action: () => deletePath(row.dataset.path) },
+                    ];
+                    if (row.dataset.webPath) {
+                        actions.push({ label: t('desktop.media_download'), icon: '↓', action: () => downloadMediaPath(row.dataset.webPath, row.querySelector('.vd-file-name').textContent) });
+                    }
+                    actions.push(
                         { separator: true },
                         { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, row.dataset.path) }
-                    ]);
+                    );
+                    showContextMenu(event.clientX, event.clientY, actions);
                 });
             });
         } catch (err) {
@@ -1115,6 +1135,63 @@
 
     function openEditorFile(path) {
         openApp('editor', { path });
+    }
+
+    function openDesktopFileEntry(row) {
+        const entry = {
+            name: row.querySelector('.vd-file-name') ? row.querySelector('.vd-file-name').textContent : row.dataset.path,
+            path: row.dataset.path,
+            web_path: row.dataset.webPath,
+            media_kind: row.dataset.mediaKind,
+            mime_type: row.dataset.mimeType
+        };
+        if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
+        openEditorFile(entry.path);
+    }
+
+    function downloadMediaPath(webPath, filename) {
+        if (!webPath) return;
+        const link = document.createElement('a');
+        link.href = webPath;
+        link.download = filename || '';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
+    function openMediaPreview(file) {
+        if (!file || !file.web_path) {
+            if (file && file.path) openEditorFile(file.path);
+            return;
+        }
+        const kind = file.media_kind || '';
+        if (kind === 'document' && !String(file.mime_type || '').startsWith('text/')) {
+            window.open(file.web_path, '_blank', 'noopener');
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-modal-backdrop vd-media-preview-backdrop';
+        const body = kind === 'video'
+            ? `<video controls autoplay src="${esc(file.web_path)}"></video>`
+            : kind === 'audio'
+                ? `<audio controls autoplay src="${esc(file.web_path)}"></audio>`
+                : kind === 'image'
+                    ? `<img src="${esc(file.web_path)}" alt="${esc(file.name || '')}">`
+                    : `<iframe src="${esc(file.web_path)}" title="${esc(file.name || '')}"></iframe>`;
+        overlay.innerHTML = `<div class="vd-media-preview" role="dialog" aria-modal="true">
+            <div class="vd-media-preview-bar">
+                <strong>${esc(file.name || file.path || t('desktop.media_open'))}</strong>
+                <div>
+                    <a class="vd-button" href="${esc(file.web_path)}" download="${esc(file.name || '')}">${esc(t('desktop.media_download'))}</a>
+                    <button class="vd-button vd-button-primary" type="button" data-close>${esc(t('desktop.close'))}</button>
+                </div>
+            </div>
+            <div class="vd-media-preview-body">${body}</div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.querySelector('[data-close]').addEventListener('click', close);
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
     }
 
     async function renderEditor(id, path, initialContent) {
@@ -1565,6 +1642,77 @@
         });
     }
 
+    async function renderGallery(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.dataset.galleryTab = host.dataset.galleryTab || 'Photos';
+        host.innerHTML = `<div class="vd-gallery">
+            <div class="vd-toolbar vd-gallery-toolbar">
+                <div class="vd-segmented">
+                    <button class="vd-tool-button" type="button" data-gallery-tab="Photos">${esc(t('desktop.gallery_photos'))}</button>
+                    <button class="vd-tool-button" type="button" data-gallery-tab="Videos">${esc(t('desktop.gallery_videos'))}</button>
+                </div>
+                <button class="vd-tool-button" type="button" data-gallery-refresh>${esc(t('desktop.gallery_refresh'))}</button>
+                <span class="vd-path">${esc(t('desktop.gallery_title'))}</span>
+            </div>
+            <div class="vd-gallery-grid" data-gallery-grid>${esc(t('desktop.loading'))}</div>
+        </div>`;
+
+        const grid = host.querySelector('[data-gallery-grid]');
+        const loadGallery = async () => {
+            const tab = host.dataset.galleryTab || 'Photos';
+            host.querySelectorAll('[data-gallery-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.galleryTab === tab));
+            grid.innerHTML = esc(t('desktop.loading'));
+            try {
+                const body = await api('/api/desktop/files?path=' + encodeURIComponent(tab));
+                const kind = tab === 'Videos' ? 'video' : 'image';
+                const items = (body.files || []).filter(file => file.type === 'file' && file.web_path && (!file.media_kind || file.media_kind === kind));
+                grid.innerHTML = items.length ? items.map(file => {
+                    const preview = kind === 'video'
+                        ? `<video src="${esc(file.web_path)}" preload="metadata" muted></video>`
+                        : `<img src="${esc(file.web_path)}" alt="${esc(file.name)}" loading="lazy">`;
+                    return `<article class="vd-gallery-card" data-gallery-item data-path="${esc(file.path)}" data-web-path="${esc(file.web_path)}" data-media-kind="${esc(file.media_kind || kind)}" data-mime-type="${esc(file.mime_type || '')}" data-name="${esc(file.name)}">
+                        <button type="button" class="vd-gallery-preview" data-gallery-open>${preview}</button>
+                        <div class="vd-gallery-card-meta">
+                            <span>${esc(file.name)}</span>
+                            <div class="vd-gallery-actions">
+                                <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">↗</button>
+                                <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">↓</a>
+                                <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">✎</button>
+                                <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">×</button>
+                            </div>
+                        </div>
+                    </article>`;
+                }).join('') : `<div class="vd-empty">${esc(t('desktop.gallery_empty'))}</div>`;
+                grid.querySelectorAll('[data-gallery-item]').forEach(card => {
+                    const file = {
+                        name: card.dataset.name,
+                        path: card.dataset.path,
+                        web_path: card.dataset.webPath,
+                        media_kind: card.dataset.mediaKind,
+                        mime_type: card.dataset.mimeType
+                    };
+                    card.querySelectorAll('[data-gallery-open]').forEach(btn => btn.addEventListener('click', () => openMediaPreview(file)));
+                    const rename = card.querySelector('[data-gallery-rename]');
+                    if (rename) rename.addEventListener('click', async () => { await renamePath(file.path); await loadGallery(); });
+                    const del = card.querySelector('[data-gallery-delete]');
+                    if (del) del.addEventListener('click', async () => { await deletePath(file.path); await loadGallery(); });
+                });
+            } catch (err) {
+                grid.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            }
+        };
+
+        host.querySelectorAll('[data-gallery-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                host.dataset.galleryTab = btn.dataset.galleryTab;
+                loadGallery();
+            });
+        });
+        host.querySelector('[data-gallery-refresh]').addEventListener('click', loadGallery);
+        await loadGallery();
+    }
+
     async function renderMusicPlayer(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -1697,8 +1845,9 @@
             if (audioContext && audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
-            audio.src = await desktopEmbedURL(tracks[i].path);
-            titleEl.textContent = tracks[i].name;
+            const track = tracks[i];
+            audio.src = track.web_path || await desktopEmbedURL(track.path);
+            titleEl.textContent = track.name;
             renderPlaylist();
             await audio.play().catch(err => showDesktopNotification({ title: t('desktop.notification'), message: err.message }));
             setupAudio();
@@ -1709,18 +1858,22 @@
             const files = body.files || [];
             for (const file of files) {
                 if (file.type === 'directory') await scan(file.path);
-                else if (/\.(mp3|wav|flac|ogg|m4a)$/i.test(file.name)) tracks.push({ name: file.name, path: file.path });
+                else if (/\.(mp3|wav|flac|ogg|m4a|opus)$/i.test(file.name)) tracks.push({ name: file.name, path: file.path, web_path: file.web_path || '' });
             }
+        };
+
+        const loadMusicLibrary = async (folder, autoplay) => {
+            tracks = [];
+            await scan(folder);
+            index = 0;
+            renderPlaylist();
+            if (autoplay && tracks[0]) playTrack(0);
         };
 
         const loadFolder = async () => {
             const folder = await promptDialog(t('desktop.winamp_load_folder'), 'Music');
             if (folder == null) return;
-            tracks = [];
-            await scan(folder);
-            index = 0;
-            renderPlaylist();
-            if (tracks[0]) playTrack(0);
+            await loadMusicLibrary(folder, true);
         };
 
         host.querySelector('[data-load]').addEventListener('click', loadFolder);
@@ -1773,6 +1926,7 @@
 
         startTitleScroll(titleEl);
         renderPlaylist();
+        loadMusicLibrary('Music').catch(err => showDesktopNotification({ title: t('desktop.notification'), message: err.message }));
         animateWinampCanvas(host.querySelector('canvas'), audio, () => analyser);
     }
 

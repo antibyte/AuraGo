@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "选择要连接的服务器",
   "desktop.qc_connecting": "连接中...",
   "desktop.qc_disconnected": "连接已关闭",
-  "desktop.qc_connection_error": "连接错误"
+  "desktop.qc_connection_error": "连接错误",
+  "desktop.app_gallery": "图库",
+  "desktop.gallery_title": "图库",
+  "desktop.gallery_photos": "照片",
+  "desktop.gallery_videos": "视频",
+  "desktop.gallery_refresh": "刷新",
+  "desktop.gallery_open": "打开",
+  "desktop.gallery_download": "下载",
+  "desktop.gallery_rename": "重命名",
+  "desktop.gallery_delete": "删除",
+  "desktop.gallery_empty": "没有文件",
+  "desktop.media_open": "打开媒体",
+  "desktop.media_download": "下载"
 }

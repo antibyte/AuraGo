@@ -28,6 +28,10 @@ type Config struct {
 	AllowPythonJobs    bool
 	WorkspaceDir       string
 	DBPath             string
+	DataDir            string
+	DocumentDir        string
+	MediaRegistryPath  string
+	ImageGalleryPath   string
 	MaxFileSizeMB      int
 	ControlLevel       string
 	MaxWSClients       int
@@ -68,11 +72,15 @@ type IconCatalogInfo struct {
 
 // FileEntry describes one file or directory in the desktop workspace.
 type FileEntry struct {
-	Name    string    `json:"name"`
-	Path    string    `json:"path"`
-	Type    string    `json:"type"`
-	Size    int64     `json:"size"`
-	ModTime time.Time `json:"mod_time"`
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	Type      string    `json:"type"`
+	Size      int64     `json:"size"`
+	ModTime   time.Time `json:"mod_time"`
+	WebPath   string    `json:"web_path,omitempty"`
+	MediaKind string    `json:"media_kind,omitempty"`
+	MIMEType  string    `json:"mime_type,omitempty"`
+	Mount     string    `json:"mount,omitempty"`
 }
 
 // AppManifest describes a browser-side desktop application.
@@ -308,6 +316,10 @@ func desktopIconInferenceCandidates(raw string) []string {
 
 // DefaultDirectories returns the persistent workspace folders exposed by the desktop.
 func DefaultDirectories() []string {
+	return append(workspaceDirectories(), "Music", "Photos", "Videos", "AuraGo Documents")
+}
+
+func workspaceDirectories() []string {
 	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Data", "Pictures", "Trash", "Shared"}
 }
 
@@ -320,6 +332,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
 		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Description: "Scientific calculator with standard and advanced modes."},
 		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Description: "Task management connected to the backend planner."},
+		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "image", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
 		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "sparkles", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH servers with an interactive terminal."},

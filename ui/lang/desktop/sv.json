@@ -226,5 +226,17 @@
   "desktop.qc_select_device": "Välj en server att ansluta till",
   "desktop.qc_connecting": "Ansluter...",
   "desktop.qc_disconnected": "Anslutning stängd",
-  "desktop.qc_connection_error": "Anslutningsfel"
+  "desktop.qc_connection_error": "Anslutningsfel",
+  "desktop.app_gallery": "Galleri",
+  "desktop.gallery_title": "Galleri",
+  "desktop.gallery_photos": "Foton",
+  "desktop.gallery_videos": "Videor",
+  "desktop.gallery_refresh": "Uppdatera",
+  "desktop.gallery_open": "Oppna",
+  "desktop.gallery_download": "Ladda ner",
+  "desktop.gallery_rename": "Byt namn",
+  "desktop.gallery_delete": "Ta bort",
+  "desktop.gallery_empty": "Inga filer",
+  "desktop.media_open": "Oppna media",
+  "desktop.media_download": "Ladda ner"
 }
