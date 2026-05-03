@@ -86,6 +86,7 @@ func TestDesktopSDKResolvesPapirusIcons(t *testing.T) {
 		"ui.icon = function icon",
 		"resolve: name =>",
 		"ad-papirus-icon",
+		"appearance.icon_theme",
 		"sprite:",
 		"papirus:",
 	} {

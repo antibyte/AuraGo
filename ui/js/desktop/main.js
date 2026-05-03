@@ -87,6 +87,7 @@
         'appearance.wallpaper': 'aurora',
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
+        'appearance.icon_theme': 'papirus',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
@@ -166,7 +167,7 @@
     function resolveIconSource(key) {
         const normalized = normalizeIconName(key);
         if (!normalized) return { type: 'fallback' };
-        if (!normalized.startsWith('sprite:')) {
+        if (settingValue('appearance.icon_theme') !== 'aurago' && !normalized.startsWith('sprite:')) {
             const papirusPath = papirusIconPath(normalized);
             if (papirusPath) return { type: 'papirus', path: papirusPath };
         }
@@ -250,6 +251,7 @@
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
+        body.dataset.iconTheme = settingValue('appearance.icon_theme');
         body.dataset.animations = settingValue('windows.animations');
         body.dataset.widgets = settingValue('desktop.show_widgets');
         body.dataset.iconSize = settingValue('desktop.icon_size');
@@ -1136,6 +1138,9 @@
                     ]),
                     settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
+                    ]),
+                    settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['aurago', 'desktop.settings_icon_theme_aurago']
                     ])
                 ]
             },

@@ -132,8 +132,14 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["appearance.wallpaper"] != "aurora" {
 		t.Fatalf("default wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
 	}
+	if bootstrap.Settings["appearance.icon_theme"] != "papirus" {
+		t.Fatalf("default icon theme = %q", bootstrap.Settings["appearance.icon_theme"])
+	}
 	if err := svc.SetSetting(ctx, "appearance.wallpaper", "forest", SourceUser); err != nil {
 		t.Fatalf("SetSetting valid: %v", err)
+	}
+	if err := svc.SetSetting(ctx, "appearance.icon_theme", "aurago", SourceUser); err != nil {
+		t.Fatalf("SetSetting icon theme valid: %v", err)
 	}
 	bootstrap, err = svc.Bootstrap(ctx)
 	if err != nil {
@@ -142,8 +148,14 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["appearance.wallpaper"] != "forest" {
 		t.Fatalf("stored wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
 	}
+	if bootstrap.Settings["appearance.icon_theme"] != "aurago" {
+		t.Fatalf("stored icon theme = %q", bootstrap.Settings["appearance.icon_theme"])
+	}
 	if err := svc.SetSetting(ctx, "appearance.wallpaper", "../../bad", SourceUser); err == nil {
 		t.Fatal("expected invalid setting value to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "appearance.icon_theme", "unknown", SourceUser); err == nil {
+		t.Fatal("expected invalid icon theme to be rejected")
 	}
 	if err := svc.SetSetting(ctx, "unknown.setting", "true", SourceUser); err == nil {
 		t.Fatal("expected unknown setting key to be rejected")

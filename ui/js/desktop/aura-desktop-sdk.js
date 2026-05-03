@@ -90,9 +90,10 @@
             iconContextPromise = context()
                 .then(ctx => ({
                     sprite: ctx && ctx.icon_manifest ? ctx.icon_manifest : null,
-                    papirus: ctx && ctx.papirus_icon_manifest ? ctx.papirus_icon_manifest : null
+                    papirus: ctx && ctx.papirus_icon_manifest ? ctx.papirus_icon_manifest : null,
+                    theme: ctx && ctx.bootstrap && ctx.bootstrap.settings ? ctx.bootstrap.settings['appearance.icon_theme'] || 'papirus' : 'papirus'
                 }))
-                .catch(() => ({ sprite: null, papirus: null }));
+                .catch(() => ({ sprite: null, papirus: null, theme: 'papirus' }));
         }
         return iconContextPromise;
     }
@@ -128,7 +129,7 @@
         iconContext = iconContext || {};
         const normalized = normalizeIconName(name);
         if (!normalized) return { type: 'fallback' };
-        if (!normalized.startsWith('sprite:')) {
+        if (iconContext.theme !== 'aurago' && !normalized.startsWith('sprite:')) {
             const path = papirusIconPath(iconContext.papirus, normalized);
             if (path) return { type: 'papirus', path };
         }
