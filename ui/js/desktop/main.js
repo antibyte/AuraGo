@@ -20,7 +20,9 @@
     const SDK_RESPONSE_TYPE = 'aurago.desktop.response';
     const SDK_RUNTIME = 'aura-desktop-sdk@1';
     const WEBAMP_MODULE_PATH = '/js/vendor/webamp/webamp.bundle.min.mjs';
-    const WEBAMP_AUDIO_PATTERN = /\\.(mp3|wav|flac|ogg|m4a|opus)$/i;
+    const WEBAMP_AUDIO_PATTERN = /\.(mp3|wav|flac|ogg|m4a|opus)$/i;
+    const WEBAMP_TRACK_SCAN_LIMIT = 1000;
+    const GALLERY_PAGE_SIZE = 80;
     const ICON_POSITIONS_KEY = 'aurago.desktop.iconPositions.v1';
     const WINDOW_MIN_W = 360;
     const WINDOW_MIN_H = 280;
@@ -1649,6 +1651,7 @@
         const host = contentEl(id);
         if (!host) return;
         host.dataset.galleryTab = host.dataset.galleryTab || 'Photos';
+        host.dataset.galleryOffset = '0';
         host.innerHTML = `<div class="vd-gallery">
             <div class="vd-toolbar vd-gallery-toolbar">
                 <div class="vd-segmented">
@@ -1659,48 +1662,64 @@
                 <span class="vd-path">${esc(t('desktop.gallery_title'))}</span>
             </div>
             <div class="vd-gallery-grid" data-gallery-grid>${esc(t('desktop.loading'))}</div>
+            <div class="vd-gallery-footer">
+                <button class="vd-button" type="button" data-gallery-more hidden>${esc(t('desktop.gallery_load_more'))}</button>
+            </div>
         </div>`;
 
         const grid = host.querySelector('[data-gallery-grid]');
-        const loadGallery = async () => {
+        const moreButton = host.querySelector('[data-gallery-more]');
+        let visibleItems = [];
+
+        const renderItems = (items, kind) => {
+            grid.innerHTML = items.length ? items.map(file => {
+                const preview = kind === 'video'
+                    ? `<video src="${esc(file.web_path)}" preload="metadata" muted></video>`
+                    : `<img src="${esc(file.web_path)}" alt="${esc(file.name)}" loading="lazy" decoding="async">`;
+                return `<article class="vd-gallery-card" data-gallery-item data-path="${esc(file.path)}" data-web-path="${esc(file.web_path)}" data-media-kind="${esc(file.media_kind || kind)}" data-mime-type="${esc(file.mime_type || '')}" data-name="${esc(file.name)}">
+                    <button type="button" class="vd-gallery-preview" data-gallery-open>${preview}</button>
+                    <div class="vd-gallery-card-meta">
+                        <span>${esc(file.name)}</span>
+                        <div class="vd-gallery-actions">
+                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">↗</button>
+                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">↓</a>
+                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">✎</button>
+                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">×</button>
+                        </div>
+                    </div>
+                </article>`;
+            }).join('') : `<div class="vd-empty">${esc(t('desktop.gallery_empty'))}</div>`;
+            grid.querySelectorAll('[data-gallery-item]').forEach(card => {
+                const file = {
+                    name: card.dataset.name,
+                    path: card.dataset.path,
+                    web_path: card.dataset.webPath,
+                    media_kind: card.dataset.mediaKind,
+                    mime_type: card.dataset.mimeType
+                };
+                card.querySelectorAll('[data-gallery-open]').forEach(btn => btn.addEventListener('click', () => openMediaPreview(file)));
+                const rename = card.querySelector('[data-gallery-rename]');
+                if (rename) rename.addEventListener('click', async () => { await renamePath(file.path); await loadGallery(false); });
+                const del = card.querySelector('[data-gallery-delete]');
+                if (del) del.addEventListener('click', async () => { await deletePath(file.path); await loadGallery(false); });
+            });
+        };
+
+        const loadGallery = async (append) => {
             const tab = host.dataset.galleryTab || 'Photos';
             host.querySelectorAll('[data-gallery-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.galleryTab === tab));
-            grid.innerHTML = esc(t('desktop.loading'));
+            const offset = append ? Number(host.dataset.galleryOffset || 0) : 0;
+            if (!append) grid.innerHTML = esc(t('desktop.loading'));
+            moreButton.hidden = true;
             try {
-                const body = await api('/api/desktop/files?path=' + encodeURIComponent(tab));
                 const kind = tab === 'Videos' ? 'video' : 'image';
+                const params = new URLSearchParams({ path: tab, recursive: 'true', limit: String(GALLERY_PAGE_SIZE), offset: String(offset) });
+                const body = await api('/api/desktop/files?' + params.toString());
                 const items = (body.files || []).filter(file => file.type === 'file' && file.web_path && (!file.media_kind || file.media_kind === kind));
-                grid.innerHTML = items.length ? items.map(file => {
-                    const preview = kind === 'video'
-                        ? `<video src="${esc(file.web_path)}" preload="metadata" muted></video>`
-                        : `<img src="${esc(file.web_path)}" alt="${esc(file.name)}" loading="lazy">`;
-                    return `<article class="vd-gallery-card" data-gallery-item data-path="${esc(file.path)}" data-web-path="${esc(file.web_path)}" data-media-kind="${esc(file.media_kind || kind)}" data-mime-type="${esc(file.mime_type || '')}" data-name="${esc(file.name)}">
-                        <button type="button" class="vd-gallery-preview" data-gallery-open>${preview}</button>
-                        <div class="vd-gallery-card-meta">
-                            <span>${esc(file.name)}</span>
-                            <div class="vd-gallery-actions">
-                                <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">↗</button>
-                                <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">↓</a>
-                                <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">✎</button>
-                                <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">×</button>
-                            </div>
-                        </div>
-                    </article>`;
-                }).join('') : `<div class="vd-empty">${esc(t('desktop.gallery_empty'))}</div>`;
-                grid.querySelectorAll('[data-gallery-item]').forEach(card => {
-                    const file = {
-                        name: card.dataset.name,
-                        path: card.dataset.path,
-                        web_path: card.dataset.webPath,
-                        media_kind: card.dataset.mediaKind,
-                        mime_type: card.dataset.mimeType
-                    };
-                    card.querySelectorAll('[data-gallery-open]').forEach(btn => btn.addEventListener('click', () => openMediaPreview(file)));
-                    const rename = card.querySelector('[data-gallery-rename]');
-                    if (rename) rename.addEventListener('click', async () => { await renamePath(file.path); await loadGallery(); });
-                    const del = card.querySelector('[data-gallery-delete]');
-                    if (del) del.addEventListener('click', async () => { await deletePath(file.path); await loadGallery(); });
-                });
+                visibleItems = append ? visibleItems.concat(items) : items;
+                host.dataset.galleryOffset = String(offset + GALLERY_PAGE_SIZE);
+                renderItems(visibleItems, kind);
+                moreButton.hidden = !body.has_more;
             } catch (err) {
                 grid.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
             }
@@ -1709,11 +1728,18 @@
         host.querySelectorAll('[data-gallery-tab]').forEach(btn => {
             btn.addEventListener('click', () => {
                 host.dataset.galleryTab = btn.dataset.galleryTab;
-                loadGallery();
+                host.dataset.galleryOffset = '0';
+                visibleItems = [];
+                loadGallery(false);
             });
         });
-        host.querySelector('[data-gallery-refresh]').addEventListener('click', loadGallery);
-        await loadGallery();
+        host.querySelector('[data-gallery-refresh]').addEventListener('click', () => {
+            host.dataset.galleryOffset = '0';
+            visibleItems = [];
+            loadGallery(false);
+        });
+        moreButton.addEventListener('click', () => loadGallery(true));
+        await loadGallery(false);
     }
 
     function webampHostNode() {
@@ -1795,13 +1821,12 @@
         };
 
         const scanMusicFolder = async folder => {
-            const body = await api('/api/desktop/files?path=' + encodeURIComponent(folder));
+            const params = new URLSearchParams({ path: folder, recursive: 'true', limit: String(WEBAMP_TRACK_SCAN_LIMIT) });
+            const body = await api('/api/desktop/files?' + params.toString());
             const files = body.files || [];
             const tracks = [];
             for (const file of files) {
-                if (file.type === 'directory') {
-                    tracks.push(...await scanMusicFolder(file.path));
-                } else if (WEBAMP_AUDIO_PATTERN.test(file.name)) {
+                if (file.type === 'file' && WEBAMP_AUDIO_PATTERN.test(file.name)) {
                     tracks.push({
                         url: file.web_path || await desktopEmbedURL(file.path),
                         metaData: { title: webampTrackTitle(file.name) }

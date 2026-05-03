@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "Byt namn",
   "desktop.gallery_delete": "Ta bort",
   "desktop.gallery_empty": "Inga filer",
+  "desktop.gallery_load_more": "Ladda fler",
   "desktop.media_open": "Oppna media",
   "desktop.media_download": "Ladda ner"
 }

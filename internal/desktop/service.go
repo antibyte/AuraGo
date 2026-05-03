@@ -583,6 +583,71 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 	return result, nil
 }
 
+// ListFilesRecursive lists files below one desktop directory or media mount.
+func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset, limit int) ([]FileEntry, bool, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return nil, false, err
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	var result []FileEntry
+	if mount, dirPath, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return nil, false, err
+		}
+		if err := filepath.WalkDir(dirPath, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == dirPath || entry.IsDir() {
+				return nil
+			}
+			info, statErr := entry.Info()
+			if statErr != nil {
+				return fmt.Errorf("stat desktop media file %s: %w", entry.Name(), statErr)
+			}
+			result = append(result, mediaFileEntry(mount, path, info))
+			return nil
+		}); err != nil {
+			return nil, false, fmt.Errorf("list desktop media files recursively: %w", err)
+		}
+		sortFileEntriesByNewest(result)
+		return pageFileEntries(result, offset, limit)
+	}
+	dirPath, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := filepath.WalkDir(dirPath, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == dirPath || entry.IsDir() {
+			return nil
+		}
+		info, statErr := entry.Info()
+		if statErr != nil {
+			return fmt.Errorf("stat desktop file %s: %w", entry.Name(), statErr)
+		}
+		result = append(result, FileEntry{
+			Name:    entry.Name(),
+			Path:    s.relativePath(path),
+			Type:    "file",
+			Size:    info.Size(),
+			ModTime: info.ModTime(),
+		})
+		return nil
+	}); err != nil {
+		return nil, false, fmt.Errorf("list desktop files recursively: %w", err)
+	}
+	sortFileEntriesByNewest(result)
+	return pageFileEntries(result, offset, limit)
+}
+
 func sortFileEntries(result []FileEntry) {
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Type != result[j].Type {
@@ -590,6 +655,29 @@ func sortFileEntries(result []FileEntry) {
 		}
 		return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
 	})
+}
+
+func sortFileEntriesByNewest(result []FileEntry) {
+	sort.Slice(result, func(i, j int) bool {
+		if !result[i].ModTime.Equal(result[j].ModTime) {
+			return result[i].ModTime.After(result[j].ModTime)
+		}
+		return strings.ToLower(result[i].Path) < strings.ToLower(result[j].Path)
+	})
+}
+
+func pageFileEntries(result []FileEntry, offset, limit int) ([]FileEntry, bool, error) {
+	if offset >= len(result) {
+		return []FileEntry{}, false, nil
+	}
+	if limit == 0 {
+		return result[offset:], false, nil
+	}
+	end := offset + limit
+	if end >= len(result) {
+		return result[offset:], false, nil
+	}
+	return result[offset:end], true, nil
 }
 
 // ReadFile reads a UTF-8 text file from the workspace.

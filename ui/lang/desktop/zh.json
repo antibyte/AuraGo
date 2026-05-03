@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "重命名",
   "desktop.gallery_delete": "删除",
   "desktop.gallery_empty": "没有文件",
+  "desktop.gallery_load_more": "加载更多",
   "desktop.media_open": "打开媒体",
   "desktop.media_download": "下载"
 }

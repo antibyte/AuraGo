@@ -26,6 +26,9 @@ func TestDesktopMediaGalleryAssets(t *testing.T) {
 		"data-gallery-rename",
 		"data-gallery-delete",
 		"data-gallery-download",
+		"data-gallery-more",
+		"GALLERY_PAGE_SIZE",
+		"desktop.gallery_load_more",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("desktop shell missing media gallery marker %q", want)
@@ -57,6 +60,7 @@ func TestDesktopTranslationsIncludeMediaGalleryKeys(t *testing.T) {
 		"desktop.gallery_rename",
 		"desktop.gallery_delete",
 		"desktop.gallery_empty",
+		"desktop.gallery_load_more",
 		"desktop.media_open",
 		"desktop.media_download",
 	}

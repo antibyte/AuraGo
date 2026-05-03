@@ -230,6 +230,50 @@ func TestServiceListFilesExposesMediaMountMetadata(t *testing.T) {
 	}
 }
 
+func TestServiceListFilesRecursivePaginatesMediaMounts(t *testing.T) {
+	t.Parallel()
+
+	svc := testMediaService(t)
+	cfg := svc.Config()
+	ctx := context.Background()
+	audioDir := filepath.Join(cfg.DataDir, "audio")
+	if err := os.MkdirAll(filepath.Join(audioDir, "mixes"), 0o755); err != nil {
+		t.Fatalf("mkdir nested audio: %v", err)
+	}
+	for _, path := range []string{"root.mp3", "mixes/nested.ogg", "mixes/voice.opus"} {
+		if err := os.WriteFile(filepath.Join(audioDir, filepath.FromSlash(path)), []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	first, hasMore, err := svc.ListFilesRecursive(ctx, "Music", 0, 2)
+	if err != nil {
+		t.Fatalf("ListFilesRecursive first page: %v", err)
+	}
+	if len(first) != 2 || !hasMore {
+		t.Fatalf("first page len=%d hasMore=%v entries=%+v", len(first), hasMore, first)
+	}
+	second, hasMore, err := svc.ListFilesRecursive(ctx, "Music", 2, 2)
+	if err != nil {
+		t.Fatalf("ListFilesRecursive second page: %v", err)
+	}
+	if len(second) != 1 || hasMore {
+		t.Fatalf("second page len=%d hasMore=%v entries=%+v", len(second), hasMore, second)
+	}
+	seen := map[string]bool{}
+	for _, entry := range append(first, second...) {
+		seen[entry.Path] = true
+		if entry.Mount != "Music" || entry.MediaKind != "audio" || entry.WebPath == "" {
+			t.Fatalf("recursive media metadata missing: %+v", entry)
+		}
+	}
+	for _, want := range []string{"Music/root.mp3", "Music/mixes/nested.ogg", "Music/mixes/voice.opus"} {
+		if !seen[want] {
+			t.Fatalf("recursive listing missing %s in %+v %+v", want, first, second)
+		}
+	}
+}
+
 func TestServiceMovePathWithinMediaMountRenamesOriginalAndUpdatesRegistries(t *testing.T) {
 	t.Parallel()
 

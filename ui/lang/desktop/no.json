@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "Gi nytt navn",
   "desktop.gallery_delete": "Slett",
   "desktop.gallery_empty": "Ingen filer",
+  "desktop.gallery_load_more": "Last inn flere",
   "desktop.media_open": "Apne media",
   "desktop.media_download": "Last ned"
 }

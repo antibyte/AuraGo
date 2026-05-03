@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "Renombrar",
   "desktop.gallery_delete": "Eliminar",
   "desktop.gallery_empty": "Sin archivos",
+  "desktop.gallery_load_more": "Cargar mas",
   "desktop.media_open": "Abrir medio",
   "desktop.media_download": "Descargar"
 }

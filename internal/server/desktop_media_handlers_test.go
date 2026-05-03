@@ -54,6 +54,59 @@ func TestDesktopMediaMountFilesAPI(t *testing.T) {
 	}
 }
 
+func TestDesktopMediaMountFilesAPIRecursivePagination(t *testing.T) {
+	t.Parallel()
+
+	srv, dataDir := testDesktopMediaServer(t)
+	audioDir := filepath.Join(dataDir, "audio")
+	if err := os.MkdirAll(filepath.Join(audioDir, "sets"), 0o755); err != nil {
+		t.Fatalf("mkdir nested audio: %v", err)
+	}
+	for _, path := range []string{"song.mp3", "sets/live.ogg", "sets/demo.opus"} {
+		if err := os.WriteFile(filepath.Join(audioDir, filepath.FromSlash(path)), []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/files?path=Music&recursive=true&limit=2", nil)
+	rr := httptest.NewRecorder()
+	handleDesktopFiles(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		Files   []struct{ Path string } `json:"files"`
+		HasMore bool                    `json:"has_more"`
+		Limit   int                     `json:"limit"`
+		Offset  int                     `json:"offset"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Files) != 2 || !resp.HasMore || resp.Limit != 2 || resp.Offset != 0 {
+		t.Fatalf("unexpected first page: %+v", resp)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/files?path=Music&recursive=true&limit=2&offset=2", nil)
+	rr = httptest.NewRecorder()
+	handleDesktopFiles(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	resp = struct {
+		Files   []struct{ Path string } `json:"files"`
+		HasMore bool                    `json:"has_more"`
+		Limit   int                     `json:"limit"`
+		Offset  int                     `json:"offset"`
+	}{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Files) != 1 || resp.HasMore || resp.Offset != 2 {
+		t.Fatalf("unexpected second page: %+v", resp)
+	}
+}
+
 func TestDesktopMediaMountFilePatchAndDeleteAPI(t *testing.T) {
 	t.Parallel()
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -112,7 +113,23 @@ func handleDesktopFiles(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		files, err := svc.ListFiles(r.Context(), r.URL.Query().Get("path"))
+		query := r.URL.Query()
+		if query.Get("recursive") == "true" {
+			offset := parseDesktopFilesInt(query.Get("offset"), 0)
+			limit := parseDesktopFilesInt(query.Get("limit"), 500)
+			if limit > 1000 {
+				limit = 1000
+			}
+			files, hasMore, err := svc.ListFilesRecursive(r.Context(), query.Get("path"), offset, limit)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "files": files, "offset": offset, "limit": limit, "has_more": hasMore})
+			return
+		}
+		files, err := svc.ListFiles(r.Context(), query.Get("path"))
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -120,6 +137,17 @@ func handleDesktopFiles(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "files": files})
 	}
+}
+
+func parseDesktopFilesInt(raw string, fallback int) int {
+	if strings.TrimSpace(raw) == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		return fallback
+	}
+	return n
 }
 
 func handleDesktopFile(s *Server) http.HandlerFunc {

@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "Rinomina",
   "desktop.gallery_delete": "Elimina",
   "desktop.gallery_empty": "Nessun file",
+  "desktop.gallery_load_more": "Carica altro",
   "desktop.media_open": "Apri media",
   "desktop.media_download": "Scarica"
 }

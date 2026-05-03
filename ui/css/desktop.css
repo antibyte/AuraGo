@@ -1864,6 +1864,12 @@
     padding: 12px;
 }
 
+.vd-gallery-footer {
+    display: flex;
+    justify-content: center;
+    padding: 0 12px 12px;
+}
+
 .vd-gallery-card {
     min-width: 0;
     overflow: hidden;
@@ -1875,6 +1881,7 @@
 .vd-gallery-preview {
     display: block;
     width: 100%;
+    min-height: 104px;
     aspect-ratio: 16 / 10;
     padding: 0;
     border: 0;

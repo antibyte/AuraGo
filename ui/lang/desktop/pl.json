@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "Zmien nazwe",
   "desktop.gallery_delete": "Usun",
   "desktop.gallery_empty": "Brak plikow",
+  "desktop.gallery_load_more": "Zaladuj wiecej",
   "desktop.media_open": "Otworz media",
   "desktop.media_download": "Pobierz"
 }

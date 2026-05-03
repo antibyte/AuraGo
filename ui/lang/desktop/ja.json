@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "名前変更",
   "desktop.gallery_delete": "削除",
   "desktop.gallery_empty": "ファイルがありません",
+  "desktop.gallery_load_more": "さらに読み込む",
   "desktop.media_open": "メディアを開く",
   "desktop.media_download": "ダウンロード"
 }

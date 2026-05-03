@@ -237,6 +237,7 @@
   "desktop.gallery_rename": "नाम बदलें",
   "desktop.gallery_delete": "हटाएं",
   "desktop.gallery_empty": "कोई फाइल नहीं",
+  "desktop.gallery_load_more": "और लोड करें",
   "desktop.media_open": "मीडिया खोलें",
   "desktop.media_download": "डाउनलोड"
 }

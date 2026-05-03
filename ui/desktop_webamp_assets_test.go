@@ -70,6 +70,8 @@ func TestDesktopMusicPlayerUsesLocalWebamp(t *testing.T) {
 		"renderWhenReady(webampHostNode())",
 		"setTracksToPlay(tracks)",
 		"loadMusicLibrary('Music')",
+		"WEBAMP_TRACK_SCAN_LIMIT",
+		"recursive: 'true'",
 		"url: file.web_path || await desktopEmbedURL(file.path)",
 		"/\\.(mp3|wav|flac|ogg|m4a|opus)$/i",
 	} {
@@ -77,7 +79,7 @@ func TestDesktopMusicPlayerUsesLocalWebamp(t *testing.T) {
 			t.Fatalf("desktop shell missing Webamp marker %q", want)
 		}
 	}
-	for _, forbidden := range []string{"cdn.jsdelivr", "unpkg.com", "https://docs.webamp.org", "https://github.com/captbaritone/webamp"} {
+	for _, forbidden := range []string{"cdn.jsdelivr", "unpkg.com", "https://docs.webamp.org", "https://github.com/captbaritone/webamp", "const WEBAMP_AUDIO_PATTERN = /\\\\."} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("desktop shell must not reference remote Webamp asset %q", forbidden)
 		}
