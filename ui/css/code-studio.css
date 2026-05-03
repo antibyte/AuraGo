@@ -144,8 +144,16 @@
     flex: 1;
 }
 
+.code-studio[data-agent="visible"] .code-studio-body {
+    grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr) 320px;
+}
+
 .code-studio[data-sidebar="hidden"] .code-studio-body {
     grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.code-studio[data-sidebar="hidden"][data-agent="visible"] .code-studio-body {
+    grid-template-columns: 0 minmax(0, 1fr) 320px;
 }
 
 .code-studio-sidebar {
@@ -168,6 +176,19 @@
     grid-template-rows: 36px minmax(0, 1fr) var(--cs-terminal-height);
     min-width: 0;
     min-height: 0;
+}
+
+.code-studio-chat {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid var(--cs-border);
+    background: var(--cs-panel);
+}
+
+.code-studio[data-agent="visible"] .code-studio-chat {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
 }
 
 .code-studio[data-terminal="hidden"] .code-studio-main {
@@ -499,6 +520,130 @@
     border-color: var(--cs-border);
 }
 
+.cs-agent-head,
+.cs-agent-actions,
+.cs-agent-form,
+.cs-diff-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.cs-agent-head {
+    justify-content: space-between;
+}
+
+.cs-agent-actions {
+    flex-wrap: wrap;
+}
+
+.cs-agent-actions .cs-button {
+    flex: 1 1 120px;
+}
+
+.cs-agent-log {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 10px;
+    overflow: auto;
+}
+
+.cs-agent-message {
+    max-width: 92%;
+    padding: 8px 10px;
+    border: 1px solid var(--cs-border);
+    border-radius: 8px;
+    color: var(--cs-text);
+    background: var(--cs-panel-soft);
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.cs-agent-message.user {
+    align-self: flex-end;
+    color: #061b1a;
+    background: var(--cs-accent);
+    border-color: var(--cs-accent);
+}
+
+.cs-agent-message.agent {
+    align-self: flex-start;
+}
+
+.cs-agent-form {
+    border-top: 1px solid var(--cs-border);
+    border-bottom: 0;
+}
+
+.cs-agent-form input {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--cs-border);
+    border-radius: 6px;
+    color: var(--cs-text);
+    background: #10151c;
+}
+
+.code-studio-diff {
+    min-height: 0;
+    max-height: 190px;
+    border-top: 1px solid var(--cs-border);
+    background: #10151c;
+}
+
+.cs-diff-head {
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.cs-diff-head strong {
+    flex: 1;
+}
+
+.code-studio-diff pre {
+    max-height: 130px;
+    margin: 0;
+    padding: 10px;
+    overflow: auto;
+    color: #d8e2ef;
+    font: 12px/1.45 Consolas, "Liberation Mono", monospace;
+    white-space: pre;
+}
+
+.cs-context-menu {
+    position: fixed;
+    z-index: 10001;
+    display: grid;
+    min-width: 190px;
+    padding: 6px;
+    border: 1px solid rgba(172, 185, 204, 0.18);
+    border-radius: 8px;
+    background: #171d26;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.36);
+}
+
+.cs-context-menu button {
+    height: 30px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 6px;
+    color: #edf2f8;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-context-menu button:hover {
+    background: rgba(62, 198, 181, 0.12);
+}
+
 .cs-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -551,8 +696,20 @@
         grid-template-columns: minmax(170px, 34%) minmax(0, 1fr);
     }
 
+    .code-studio[data-agent="visible"] .code-studio-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .code-studio[data-agent="visible"] .code-studio-sidebar {
+        display: none;
+    }
+
     .code-studio-main {
         grid-template-rows: 36px minmax(0, 1fr) 180px;
+    }
+
+    .code-studio[data-agent="visible"] .code-studio-main {
+        display: none;
     }
 
     .cs-textarea-wrap {

@@ -423,7 +423,8 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			return
 		}
 		var body struct {
-			Message string `json:"message"`
+			Message string             `json:"message"`
+			Context desktopChatContext `json:"context"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
@@ -434,10 +435,20 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "Message is required", http.StatusBadRequest)
 			return
 		}
-		answer := runDesktopAgentChat(s, body.Message)
+		answer := runDesktopAgentChat(s, body.Message, body.Context)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
 	}
+}
+
+type desktopChatContext struct {
+	Source          string   `json:"source"`
+	CurrentFile     string   `json:"current_file"`
+	CurrentLanguage string   `json:"current_language"`
+	CursorLine      int      `json:"cursor_line"`
+	CursorColumn    int      `json:"cursor_column"`
+	SelectedText    string   `json:"selected_text"`
+	OpenFiles       []string `json:"open_files"`
 }
 
 func handleDesktopWS(s *Server) http.HandlerFunc {
@@ -503,7 +514,7 @@ func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {
 	}
 }
 
-func runDesktopAgentChat(s *Server, message string) string {
+func runDesktopAgentChat(s *Server, message string, chatContext desktopChatContext) string {
 	if s == nil || s.Cfg == nil {
 		return ""
 	}
@@ -544,7 +555,7 @@ func runDesktopAgentChat(s *Server, message string) string {
 		MessageSource:      "virtual_desktop_chat",
 		VoiceOutputActive:  GetSpeakerMode(),
 	}
-	prompt := "The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.\n\nUser request:\n\n" + message
+	prompt := buildDesktopAgentPrompt(message, chatContext)
 	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -559,6 +570,37 @@ func runDesktopAgentChat(s *Server, message string) string {
 		return "The desktop agent request timed out."
 	}
 	return strings.TrimSpace(broker.finalResponse)
+}
+
+func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) string {
+	var b strings.Builder
+	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
+	if chatContext.Source == "code-studio" {
+		b.WriteString("\n\nThe user is coding in Code Studio.")
+		if strings.TrimSpace(chatContext.CurrentFile) != "" {
+			b.WriteString("\nCurrent file: ")
+			b.WriteString(strings.TrimSpace(chatContext.CurrentFile))
+		}
+		if strings.TrimSpace(chatContext.CurrentLanguage) != "" {
+			b.WriteString("\nLanguage: ")
+			b.WriteString(strings.TrimSpace(chatContext.CurrentLanguage))
+		}
+		if chatContext.CursorLine > 0 || chatContext.CursorColumn > 0 {
+			b.WriteString(fmt.Sprintf("\nCursor: line %d, column %d", chatContext.CursorLine, chatContext.CursorColumn))
+		}
+		if len(chatContext.OpenFiles) > 0 {
+			b.WriteString("\nOpen files: ")
+			b.WriteString(strings.Join(chatContext.OpenFiles, ", "))
+		}
+		if strings.TrimSpace(chatContext.SelectedText) != "" {
+			b.WriteString("\nSelected text:\n<external_data>\n")
+			b.WriteString(chatContext.SelectedText)
+			b.WriteString("\n</external_data>")
+		}
+	}
+	b.WriteString("\n\nUser request:\n\n")
+	b.WriteString(message)
+	return b.String()
 }
 
 type desktopReplyBroker struct {

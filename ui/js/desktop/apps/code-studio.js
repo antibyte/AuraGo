@@ -22,6 +22,10 @@
         sidebarWidth: 280,
         searchVisible: false,
         searchResults: [],
+        agentVisible: false,
+        agentMessages: [],
+        agentBusy: false,
+        pendingSuggestion: null,
         shortcutsWired: false
     };
 
@@ -94,7 +98,11 @@
             method: 'POST',
             body: JSON.stringify({ command, cwd: currentDirectory(), timeout_seconds: 300 })
         }),
-        search: options => api('/api/code-studio/search?' + new URLSearchParams(options))
+        search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
+        agentChat: (message, context) => api('/api/desktop/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message, context })
+        })
     };
 
     function loadState() {
@@ -185,6 +193,7 @@
                     <div class="code-studio-editor" data-editor></div>
                     <div class="code-studio-terminal" data-terminal></div>
                 </main>
+                <aside class="code-studio-chat" data-agent-panel></aside>
             </div>
             <div class="code-studio-statusbar" data-statusbar></div>
         </div>`;
@@ -196,12 +205,14 @@
         root.style.setProperty('--cs-terminal-height', Math.max(120, state.terminalHeight) + 'px');
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
+        root.dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         renderToolbar();
         renderSearchPanel();
         renderSidebar();
         renderTabs();
         renderEditor();
         renderTerminal();
+        renderAgentPanel();
         renderStatus();
         wireShortcuts();
     }
@@ -214,6 +225,7 @@
             <button type="button" class="cs-button primary" data-action="save">${esc(tr('codeStudio.save', 'Save'))}</button>
             <button type="button" class="cs-button" data-action="run">${esc(tr('codeStudio.run', 'Run'))}</button>
             <button type="button" class="cs-button" data-action="search">${esc(tr('codeStudio.search', 'Search'))}</button>
+            <button type="button" class="cs-button" data-action="agent">${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</button>
             <button type="button" class="cs-button" data-action="upload">${esc(tr('codeStudio.upload', 'Upload'))}</button>
             <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">↻</button>
             <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">▣</button>
@@ -224,6 +236,7 @@
         toolbar.querySelector('[data-action="save"]').addEventListener('click', saveCurrentFile);
         toolbar.querySelector('[data-action="run"]').addEventListener('click', runCurrentFile);
         toolbar.querySelector('[data-action="search"]').addEventListener('click', toggleSearch);
+        toolbar.querySelector('[data-action="agent"]').addEventListener('click', toggleAgentPanel);
         toolbar.querySelector('[data-action="upload"]').addEventListener('click', uploadFile);
         toolbar.querySelector('[data-action="refresh"]').addEventListener('click', () => refreshFiles(state.currentPath));
         toolbar.querySelector('[data-action="terminal"]').addEventListener('click', toggleTerminal);
@@ -257,6 +270,61 @@
         });
         const input = panel.querySelector('input[name="q"]');
         if (input && !input.value) input.focus();
+    }
+
+    function renderAgentPanel() {
+        const panel = state.root.querySelector('[data-agent-panel]');
+        if (!panel) return;
+        if (!state.agentVisible) {
+            panel.innerHTML = '';
+            return;
+        }
+        const messages = state.agentMessages.length ? state.agentMessages.map(message => `
+            <div class="cs-agent-message ${esc(message.role)}">${esc(message.text)}</div>`).join('') : `
+            <div class="cs-agent-message agent">${esc(tr('desktop.chat_welcome', 'Ask me to create apps, widgets, or files for this desktop.'))}</div>`;
+        const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
+            <div class="cs-diff-head">
+                <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
+                <button type="button" class="cs-button primary" data-agent-apply>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</button>
+                <button type="button" class="cs-button" data-agent-discard>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</button>
+            </div>
+            <pre>${esc(state.pendingSuggestion)}</pre>
+        </div>` : '';
+        panel.innerHTML = `<div class="cs-agent-head">
+            <strong>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</strong>
+            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">×</button>
+        </div>
+        <div class="cs-agent-actions">
+            <button type="button" class="cs-button" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
+            <button type="button" class="cs-button" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</button>
+            <button type="button" class="cs-button" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</button>
+            <button type="button" class="cs-button" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>
+        </div>
+        <div class="cs-agent-log">${messages}</div>
+        ${suggestion}
+        <form class="cs-agent-form" data-agent-form>
+            <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
+            <button type="submit" class="cs-button primary">${esc(tr('desktop.send', 'Send'))}</button>
+        </form>`;
+        panel.querySelector('[data-agent-close]').addEventListener('click', toggleAgentPanel);
+        panel.querySelectorAll('[data-code-action]').forEach(btn => {
+            btn.addEventListener('click', () => runCodeAction(btn.dataset.codeAction));
+        });
+        panel.querySelector('[data-agent-form]').addEventListener('submit', event => {
+            event.preventDefault();
+            const input = event.currentTarget.elements.message;
+            const message = input.value.trim();
+            if (!message) return;
+            input.value = '';
+            sendAgentMessage(message);
+        });
+        const apply = panel.querySelector('[data-agent-apply]');
+        if (apply) apply.addEventListener('click', applyAgentSuggestion);
+        const discard = panel.querySelector('[data-agent-discard]');
+        if (discard) discard.addEventListener('click', () => {
+            state.pendingSuggestion = null;
+            renderAgentPanel();
+        });
     }
 
     function renderSidebar(errorMessage) {
@@ -370,6 +438,10 @@
         tab.view = state.editorType === 'codemirror'
             ? createCodeMirrorEditor(editor, tab)
             : createTextareaEditor(editor, tab);
+        editor.oncontextmenu = event => {
+            event.preventDefault();
+            showCodeActionMenu(event.clientX, event.clientY);
+        };
     }
 
     function renderTerminal() {
@@ -606,6 +678,145 @@
             writeTerminalLine(err.message || String(err));
             renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: err.message || String(err) }));
         }
+    }
+
+    function toggleAgentPanel() {
+        state.agentVisible = !state.agentVisible;
+        studioRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
+        renderAgentPanel();
+    }
+
+    async function sendAgentMessage(message) {
+        if (state.agentBusy) return;
+        state.agentVisible = true;
+        studioRoot().dataset.agent = 'visible';
+        state.agentMessages.push({ role: 'user', text: message });
+        state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
+        state.agentBusy = true;
+        renderAgentPanel();
+        try {
+            const response = await apiClient.agentChat(message, codeStudioAgentContext());
+            const answer = response.answer || tr('desktop.done', 'Done');
+            state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
+            const suggestion = extractFirstCodeBlock(answer);
+            if (suggestion) state.pendingSuggestion = suggestion;
+        } catch (err) {
+            state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
+        } finally {
+            state.agentBusy = false;
+            renderAgentPanel();
+        }
+    }
+
+    function runCodeAction(action) {
+        const tab = activeTab();
+        if (!tab) return;
+        const selection = codeStudioSelection();
+        const target = selection.text ? 'selected code' : 'current file';
+        const prompts = {
+            explain: `Explain the ${target} in ${tab.path}.`,
+            comments: `Generate clear comments for the ${target} in ${tab.path}. Return only the modified code when you change code.`,
+            tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
+            refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
+        };
+        sendAgentMessage(prompts[action] || prompts.explain);
+    }
+
+    function codeStudioAgentContext() {
+        const tab = activeTab();
+        const cursor = codeStudioCursor();
+        const selection = codeStudioSelection();
+        return {
+            source: 'code-studio',
+            current_file: tab ? tab.path : '',
+            current_language: tab ? tab.language : '',
+            cursor_line: cursor.line,
+            cursor_column: cursor.column,
+            selected_text: selection.text,
+            open_files: state.openTabs.map(item => item.path)
+        };
+    }
+
+    function codeStudioCursor() {
+        const tab = activeTab();
+        if (!tab || !tab.view) return { line: 0, column: 0 };
+        if (tab.view.state && tab.view.state.doc) {
+            const head = tab.view.state.selection.main.head;
+            const line = tab.view.state.doc.lineAt(head);
+            return { line: line.number, column: head - line.from + 1 };
+        }
+        if (tab.view.textarea) {
+            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
+            const lines = value.split('\n');
+            return { line: lines.length, column: lines[lines.length - 1].length + 1 };
+        }
+        return { line: 0, column: 0 };
+    }
+
+    function codeStudioSelection() {
+        const tab = activeTab();
+        if (!tab || !tab.view) return { text: '' };
+        if (tab.view.state && tab.view.state.doc) {
+            const range = tab.view.state.selection.main;
+            if (range.empty) return { text: '' };
+            return { text: tab.view.state.doc.sliceString(range.from, range.to) };
+        }
+        if (tab.view.textarea) {
+            const start = tab.view.textarea.selectionStart || 0;
+            const end = tab.view.textarea.selectionEnd || 0;
+            return { text: start === end ? '' : tab.view.textarea.value.slice(start, end) };
+        }
+        return { text: '' };
+    }
+
+    function extractFirstCodeBlock(text) {
+        const match = String(text || '').match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
+        return match ? match[1].trimEnd() : '';
+    }
+
+    function applyAgentSuggestion() {
+        const tab = activeTab();
+        if (!tab || !state.pendingSuggestion) return;
+        if (tab.view && tab.view.state && tab.view.state.doc) {
+            tab.view.dispatch({ changes: { from: 0, to: tab.view.state.doc.length, insert: state.pendingSuggestion } });
+        } else if (tab.view && tab.view.textarea) {
+            tab.view.setValue(state.pendingSuggestion);
+        }
+        tab.content = state.pendingSuggestion;
+        tab.modified = true;
+        state.pendingSuggestion = null;
+        renderTabs();
+        renderStatus();
+        renderAgentPanel();
+    }
+
+    function showCodeActionMenu(x, y) {
+        document.querySelectorAll('.cs-context-menu').forEach(menu => menu.remove());
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.innerHTML = `
+            <button type="button" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
+            <button type="button" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</button>
+            <button type="button" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</button>
+            <button type="button" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>`;
+        document.body.appendChild(menu);
+        menu.querySelectorAll('[data-code-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                runCodeAction(btn.dataset.codeAction);
+                menu.remove();
+            });
+        });
+        setTimeout(() => {
+            const close = event => {
+                if (!menu.contains(event.target)) {
+                    menu.remove();
+                    document.removeEventListener('mousedown', close);
+                }
+            };
+            document.addEventListener('mousedown', close);
+        }, 0);
     }
 
     function connectTerminal() {
@@ -880,6 +1091,9 @@
                 event.preventDefault();
                 if (!state.searchVisible) state.searchVisible = true;
                 renderSearchPanel();
+            } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'a') {
+                event.preventDefault();
+                if (!state.agentVisible) toggleAgentPanel();
             } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
                 event.preventDefault();
                 createNewFile();
