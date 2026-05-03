@@ -164,6 +164,22 @@ func TestCodeStudioDockerfileDoesNotSelfUpdateNPM(t *testing.T) {
 	}
 }
 
+func TestCodeStudioDockerfileHandlesExistingUID1000User(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.code-studio"))
+	if err != nil {
+		t.Fatalf("read code studio Dockerfile: %v", err)
+	}
+	dockerfile := string(content)
+	if strings.Contains(dockerfile, "RUN useradd -m -u 1000 -s /bin/bash developer") {
+		t.Fatal("Dockerfile must not assume UID 1000 is unused")
+	}
+	for _, want := range []string{"getent passwd 1000", "usermod -l developer", "id -gn developer"} {
+		if !strings.Contains(dockerfile, want) {
+			t.Fatalf("Dockerfile should handle existing UID 1000 user with %q", want)
+		}
+	}
+}
+
 func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	s := testCodeStudioServer(t)
 	handler := codeStudioHandlers{server: s, docker: fakeCodeStudioDockerAPI{}}

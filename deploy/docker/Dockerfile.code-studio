@@ -70,10 +70,18 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
         | sh -s -- -y --no-modify-path \
     && rustup component add rustfmt clippy
 
-RUN useradd -m -u 1000 -s /bin/bash developer \
+RUN if getent passwd developer >/dev/null; then \
+        usermod -u 1000 -d /home/developer -s /bin/bash developer; \
+    elif getent passwd 1000 >/dev/null; then \
+        existing_user="$(getent passwd 1000 | cut -d: -f1)" \
+        && usermod -l developer -d /home/developer -m -s /bin/bash "${existing_user}"; \
+    else \
+        useradd -m -u 1000 -s /bin/bash developer; \
+    fi \
+    && developer_group="$(id -gn developer)" \
     && mkdir -p /workspace /home/developer/.cache /home/developer/go \
-    && install -d -o developer -g developer /home/developer/.npm /home/developer/.local/bin \
-    && chown -R developer:developer \
+    && install -d -o developer -g "${developer_group}" /home/developer/.npm /home/developer/.local/bin \
+    && chown -R developer:"${developer_group}" \
         /workspace \
         /home/developer \
         /usr/local/cargo \
