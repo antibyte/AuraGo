@@ -135,3 +135,53 @@ func TestExecuteVirtualDesktopStatusExposesIconCatalog(t *testing.T) {
 		t.Fatalf("widgets alias = %q, want apps", payload.Data.IconCatalog.Aliases["widgets"])
 	}
 }
+
+func TestExecuteVirtualDesktopInstallAppNormalizesIconAlias(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output = %s", payload.Status, exec.Output)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var bootstrap struct {
+		Data struct {
+			InstalledApps []struct {
+				ID   string `json:"id"`
+				Icon string `json:"icon"`
+			} `json:"installed_apps"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(status.Output), &bootstrap); err != nil {
+		t.Fatalf("unmarshal status: %v\n%s", err, status.Output)
+	}
+	for _, app := range bootstrap.Data.InstalledApps {
+		if app.ID == "todo-board" {
+			if app.Icon != "notes" {
+				t.Fatalf("icon = %q, want notes", app.Icon)
+			}
+			return
+		}
+	}
+	t.Fatalf("todo-board not installed: %+v", bootstrap.Data.InstalledApps)
+}

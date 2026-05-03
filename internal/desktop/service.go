@@ -504,9 +504,11 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	if manifest.Name == "" {
 		return fmt.Errorf("desktop app name is required")
 	}
-	if manifest.Icon == "" {
-		return fmt.Errorf("desktop app icon is required")
+	icon, err := NormalizeDesktopIconName(manifest.Icon, "desktop app")
+	if err != nil {
+		return err
 	}
+	manifest.Icon = icon
 	if manifest.Version == "" {
 		manifest.Version = "1.0.0"
 	}
@@ -588,6 +590,11 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 	if widget.Icon == "" {
 		widget.Icon = "widgets"
 	}
+	icon, err := NormalizeDesktopIconName(widget.Icon, "desktop widget")
+	if err != nil {
+		return err
+	}
+	widget.Icon = icon
 	if widget.Entry != "" {
 		if widget.Entry == "." || strings.HasPrefix(widget.Entry, "..") || filepath.IsAbs(widget.Entry) {
 			return fmt.Errorf("desktop widget entry must be a relative file")

@@ -1,6 +1,11 @@
 package desktop
 
-import "time"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+)
 
 const (
 	ControlConfirmDestructive = "confirm_destructive"
@@ -184,6 +189,7 @@ var desktopPreferredIconNames = []string{
 var desktopIconAliases = map[string]string{
 	"agent_chat":   "apps",
 	"binary":       "code",
+	"calc":         "calculator",
 	"calculator":   "calculator",
 	"cloud":        "network",
 	"csv":          "spreadsheet",
@@ -192,6 +198,7 @@ var desktopIconAliases = map[string]string{
 	"file":         "text",
 	"music":        "audio",
 	"music-player": "audio",
+	"note":         "notes",
 	"pictures":     "image",
 	"presentation": "documents",
 	"search":       "folder",
@@ -200,6 +207,8 @@ var desktopIconAliases = map[string]string{
 	"todo":         "notes",
 	"widgets":      "apps",
 }
+
+var desktopIconTokenPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // DesktopIconCatalog returns a copy of the public icon catalog for generated apps.
 func DesktopIconCatalog(settings map[string]string) IconCatalogInfo {
@@ -223,6 +232,35 @@ func DesktopIconCatalog(settings map[string]string) IconCatalogInfo {
 		Aliases:            aliases,
 		LegacySpritePrefix: "sprite:",
 	}
+}
+
+// NormalizeDesktopIconName canonicalizes generated app/widget icon names against
+// the semantic Papirus catalog while preserving explicit legacy sprite icons.
+func NormalizeDesktopIconName(raw, label string) (string, error) {
+	icon := strings.ToLower(strings.TrimSpace(raw))
+	if icon == "" {
+		return "", fmt.Errorf("%s icon is required", label)
+	}
+	icon = strings.ReplaceAll(icon, " ", "_")
+	if strings.HasPrefix(icon, "papirus:") {
+		icon = strings.TrimPrefix(icon, "papirus:")
+	}
+	if strings.HasPrefix(icon, "sprite:") {
+		spriteName := strings.TrimPrefix(icon, "sprite:")
+		if !desktopIconTokenPattern.MatchString(spriteName) {
+			return "", fmt.Errorf("%s icon must use icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>", label)
+		}
+		return "sprite:" + spriteName, nil
+	}
+	if alias, ok := desktopIconAliases[icon]; ok {
+		icon = alias
+	}
+	for _, preferred := range desktopPreferredIconNames {
+		if icon == preferred {
+			return icon, nil
+		}
+	}
+	return "", fmt.Errorf("%s icon must use icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>", label)
 }
 
 // DefaultDirectories returns the persistent workspace folders exposed by the desktop.

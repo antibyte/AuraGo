@@ -292,11 +292,58 @@ func TestServiceInstallAppRequiresIconAndRegistersSDKRuntime(t *testing.T) {
 	if got.Runtime != AuraDesktopRuntime {
 		t.Fatalf("runtime = %q, want %q", got.Runtime, AuraDesktopRuntime)
 	}
-	if got.Icon != "note" {
-		t.Fatalf("icon = %q, want note", got.Icon)
+	if got.Icon != "notes" {
+		t.Fatalf("icon = %q, want notes", got.Icon)
 	}
 	if len(got.Permissions) != 2 || got.Permissions[0] != "files:read" || got.Permissions[1] != "widgets:write" {
 		t.Fatalf("permissions were not normalized: %#v", got.Permissions)
+	}
+}
+
+func TestServiceInstallAppNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	files := map[string]string{"index.html": "<main id=\"app\"></main>"}
+	manifest := AppManifest{
+		ID:      "spark-app",
+		Name:    "Spark App",
+		Version: "1.0.0",
+		Icon:    "sparkles",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp alias: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var got AppManifest
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID == "spark-app" {
+			got = app
+			break
+		}
+	}
+	if got.Icon != "apps" {
+		t.Fatalf("normalized icon = %q, want apps", got.Icon)
+	}
+
+	manifest.ID = "emoji-app"
+	manifest.Icon = "📝"
+	err = svc.InstallApp(context.Background(), manifest, files, SourceAgent)
+	if err == nil {
+		t.Fatal("expected emoji app icon to be rejected")
+	}
+	if !strings.Contains(err.Error(), "desktop app icon must use") {
+		t.Fatalf("error = %q, want icon catalog guidance", err)
+	}
+
+	manifest.ID = "sprite-app"
+	manifest.Icon = "sprite:terminal"
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp sprite icon: %v", err)
 	}
 }
 
@@ -382,6 +429,44 @@ func TestServiceUpsertWidgetRegistersRuntimeIconAndEntry(t *testing.T) {
 	}
 	if _, ok := got.Config["dense"]; !ok {
 		t.Fatalf("config was not preserved: %#v", got.Config)
+	}
+}
+
+func TestServiceUpsertWidgetNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	widget := Widget{
+		ID:    "music-widget",
+		Title: "Music Widget",
+		Icon:  "music-player",
+	}
+	if err := svc.UpsertWidget(context.Background(), widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget alias: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var got Widget
+	for _, item := range bootstrap.Widgets {
+		if item.ID == "music-widget" {
+			got = item
+			break
+		}
+	}
+	if got.Icon != "audio" {
+		t.Fatalf("normalized widget icon = %q, want audio", got.Icon)
+	}
+
+	widget.ID = "emoji-widget"
+	widget.Icon = "🎵"
+	err = svc.UpsertWidget(context.Background(), widget, SourceAgent)
+	if err == nil {
+		t.Fatal("expected emoji widget icon to be rejected")
+	}
+	if !strings.Contains(err.Error(), "desktop widget icon must use") {
+		t.Fatalf("error = %q, want icon catalog guidance", err)
 	}
 }
 
