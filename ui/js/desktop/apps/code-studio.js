@@ -151,6 +151,7 @@
         try {
             await prepareContainer();
             await loadEditorModule();
+            container.innerHTML = shellMarkup();
             renderShell();
             await refreshFiles(context && context.path ? context.path : state.currentPath);
             await restoreTabs();
@@ -200,7 +201,7 @@
     }
 
     function renderShell() {
-        const root = studioRoot();
+        const root = ensureShellRoot();
         root.style.setProperty('--cs-sidebar-width', Math.max(220, state.sidebarWidth) + 'px');
         root.style.setProperty('--cs-terminal-height', Math.max(120, state.terminalHeight) + 'px');
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
@@ -955,6 +956,15 @@
 
     function studioRoot() {
         return state.root.querySelector('[data-code-studio]');
+    }
+
+    function ensureShellRoot() {
+        let root = studioRoot();
+        if (!root) {
+            state.root.innerHTML = shellMarkup();
+            root = studioRoot();
+        }
+        return root;
     }
 
     function toggleTerminal() {
