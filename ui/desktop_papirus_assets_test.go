@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"aurago/internal/desktop"
 )
 
 func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
@@ -53,7 +55,7 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 	}
 
 	for _, key := range []string{
-		"apps", "archive", "audio", "browser", "calendar", "code", "css", "database",
+		"apps", "archive", "audio", "browser", "calendar", "calculator", "code", "css", "database",
 		"desktop", "documents", "downloads", "editor", "folder", "go", "html", "image",
 		"javascript", "json", "markdown", "network", "notes", "pdf", "python", "settings",
 		"spreadsheet", "terminal", "text", "trash", "video", "weather", "xml", "yaml",
@@ -77,6 +79,44 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 	for alias, target := range manifest.Aliases {
 		if _, ok := manifest.Icons[target]; !ok {
 			t.Fatalf("Papirus alias %q targets missing icon %q", alias, target)
+		}
+	}
+}
+
+func TestDesktopPapirusManifestMatchesBackendIconCatalog(t *testing.T) {
+	t.Parallel()
+
+	data, err := Content.ReadFile("img/papirus/manifest.json")
+	if err != nil {
+		t.Fatalf("Papirus manifest missing from embedded UI: %v", err)
+	}
+	var manifest struct {
+		Icons   map[string]string `json:"icons"`
+		Aliases map[string]string `json:"aliases"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse Papirus manifest: %v", err)
+	}
+
+	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
+	for _, icon := range catalog.Preferred {
+		if _, ok := manifest.Icons[icon]; !ok {
+			t.Fatalf("backend icon catalog preferred icon %q is missing from Papirus manifest", icon)
+		}
+	}
+	for icon := range manifest.Icons {
+		if !containsString(catalog.Preferred, icon) {
+			t.Fatalf("Papirus manifest icon %q is missing from backend icon catalog", icon)
+		}
+	}
+	for alias, target := range catalog.Aliases {
+		if got := manifest.Aliases[alias]; got != target {
+			t.Fatalf("Papirus manifest alias %q = %q, want backend target %q", alias, got, target)
+		}
+	}
+	for alias, target := range manifest.Aliases {
+		if got := catalog.Aliases[alias]; got != target {
+			t.Fatalf("backend icon catalog alias %q = %q, want Papirus target %q", alias, got, target)
 		}
 	}
 }

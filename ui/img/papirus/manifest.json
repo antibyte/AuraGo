@@ -58,6 +58,7 @@
     "file": "text",
     "music": "audio",
     "music-player": "audio",
+    "note": "notes",
     "pictures": "image",
     "presentation": "documents",
     "search": "folder",
