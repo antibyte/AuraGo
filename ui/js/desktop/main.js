@@ -128,7 +128,8 @@
             calculator: 'Ca',
             'music-player': 'MP',
             todo: 'Td',
-            'agent-chat': 'A'
+            'agent-chat': 'A',
+            'quick-connect': 'QC'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -616,7 +617,7 @@
         const presets = {
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
-            'music-player': { width: 580, height: 360 },
+            'music-player': { width: 880, height: 520 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 }
         };
@@ -1051,6 +1052,7 @@
         if (appId === 'todo') return renderTodo(id);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'agent-chat') return renderChat(id);
+        if (appId === 'quick-connect') return renderQuickConnect(id);
         return renderGeneratedApp(id, appId);
     }
 
@@ -1567,8 +1569,8 @@
         if (!host) return;
         const win = state.windows.get(id);
         if (win && win.element) {
-            win.element.style.minWidth = '480px';
-            win.element.style.minHeight = '280px';
+            win.element.style.minWidth = '720px';
+            win.element.style.minHeight = '400px';
         }
 
         let audioContext = null;
@@ -1612,7 +1614,7 @@
                         <span class="vd-winamp-time" data-time>00:00</span>
                         <span class="vd-winamp-display-meta">128 KBPS <span class="vd-winamp-stereo">STEREO</span> 44 KHZ</span>
                     </div>
-                    <canvas width="280" height="54"></canvas>
+                    <canvas width="420" height="110"></canvas>
                 </div>
                 <div class="vd-winamp-controls">
                     <button data-prev title="Previous">|◄◄</button>
@@ -1903,6 +1905,200 @@
             }
         };
         draw();
+    }
+
+    function renderQuickConnect(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.innerHTML = `<div class="vd-quick-connect">
+            <div class="vd-qc-sidebar">
+                <div class="vd-qc-sidebar-header">
+                    <span class="vd-qc-title">${esc(t('desktop.qc_title'))}</span>
+                    <button class="vd-tool-button" type="button" data-action="refresh">${esc(t('desktop.qc_refresh'))}</button>
+                </div>
+                <div class="vd-qc-search">
+                    <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
+                </div>
+                <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
+            </div>
+            <div class="vd-qc-terminal-area" data-terminal-area>
+                <div class="vd-qc-placeholder">
+                    <span class="vd-qc-placeholder-icon">⌨</span>
+                    <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
+                </div>
+            </div>
+        </div>`;
+
+        const searchInput = host.querySelector('.vd-qc-search input');
+        searchInput.placeholder = t('desktop.qc_search_placeholder');
+        const deviceList = host.querySelector('[data-device-list]');
+        const terminalArea = host.querySelector('[data-terminal-area]');
+        let activeWS = null;
+        let activeTerm = null;
+        let activeFitAddon = null;
+        let cachedDevices = null;
+
+        loadDevices();
+
+        host.querySelector('[data-action="refresh"]').addEventListener('click', loadDevices);
+        searchInput.addEventListener('input', () => filterDevices());
+
+        async function loadDevices() {
+            deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
+            try {
+                const body = await api('/api/devices');
+                const devices = (body.devices || body || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type);
+                cachedDevices = devices;
+                if (!devices.length) {
+                    deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
+                    return;
+                }
+                renderDeviceList(devices);
+            } catch (err) {
+                deviceList.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            }
+        }
+
+        function renderDeviceList(devices) {
+            const query = searchInput.value.trim().toLowerCase();
+            const filtered = query ? devices.filter(d =>
+                (d.name || '').toLowerCase().includes(query) ||
+                (d.ip_address || '').toLowerCase().includes(query) ||
+                (d.description || '').toLowerCase().includes(query)
+            ) : devices;
+            if (!filtered.length) {
+                deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
+                return;
+            }
+            deviceList.innerHTML = filtered.map(d => `<button class="vd-qc-device" type="button" data-device-id="${esc(d.id)}">
+                <div class="vd-qc-device-name">${esc(d.name)}</div>
+                <div class="vd-qc-device-meta">${esc(d.ip_address || d.host || '')}${d.port && d.port !== 22 ? ':' + d.port : ''}</div>
+            </button>`).join('');
+            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => {
+                btn.addEventListener('click', () => connectToDevice(btn.dataset.deviceId));
+            });
+        }
+
+        function filterDevices() {
+            if (cachedDevices) {
+                renderDeviceList(cachedDevices);
+            }
+        }
+
+        async function connectToDevice(deviceId) {
+            // Highlight active device
+            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
+
+            // Disconnect existing session
+            if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+
+            // Show connecting state
+            terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
+
+            // Create terminal
+            const term = new Terminal({
+                theme: {
+                    background: '#0d1117',
+                    foreground: '#c9d1d9',
+                    cursor: '#58a6ff',
+                    selectionBackground: 'rgba(88, 166, 255, 0.3)',
+                    black: '#0d1117',
+                    red: '#ff7b72',
+                    green: '#3fb950',
+                    yellow: '#d29922',
+                    blue: '#58a6ff',
+                    magenta: '#bc8cff',
+                    cyan: '#39c5cf',
+                    white: '#c9d1d9',
+                    brightBlack: '#484f58',
+                    brightRed: '#ffa198',
+                    brightGreen: '#56d364',
+                    brightYellow: '#e3b341',
+                    brightBlue: '#79c0ff',
+                    brightMagenta: '#d2a8ff',
+                    brightCyan: '#56d4dd',
+                    brightWhite: '#f0f6fc'
+                },
+                fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                fontSize: 14,
+                cursorBlink: true,
+                cursorStyle: 'bar',
+                scrollback: 5000,
+                convertEol: true
+            });
+            const fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+
+            const termContainer = document.createElement('div');
+            termContainer.className = 'vd-qc-term-container';
+            terminalArea.replaceChildren(termContainer);
+            term.open(termContainer);
+
+            activeTerm = term;
+            activeFitAddon = fitAddon;
+
+            // Fit after open
+            setTimeout(() => {
+                try { fitAddon.fit(); } catch(_) {}
+            }, 50);
+
+            // Resize observer
+            const resizeObserver = new ResizeObserver(() => {
+                if (activeTerm === term) {
+                    try { fitAddon.fit(); } catch(_) {}
+                }
+            });
+            resizeObserver.observe(termContainer);
+
+            // WebSocket connection
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = proto + '//' + location.host + '/api/desktop/ssh?device_id=' + encodeURIComponent(deviceId) + '&cols=' + term.cols + '&rows=' + term.rows;
+            const ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+            activeWS = ws;
+
+            term.onData(data => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(new TextEncoder().encode(data));
+                }
+            });
+
+            // Send resize events
+            term.onResize(({ cols, rows }) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+                }
+            });
+
+            ws.onmessage = (event) => {
+                if (typeof event.data === 'string') {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === 'error') {
+                            term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
+                        } else if (msg.type === 'disconnected') {
+                            term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
+                        }
+                    } catch(_) {}
+                } else {
+                    // Binary data = terminal output
+                    const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : new TextEncoder().encode(event.data);
+                    term.write(bytes);
+                }
+            };
+
+            ws.onclose = () => {
+                if (activeWS === ws) {
+                    term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
+                    activeWS = null;
+                }
+            };
+
+            ws.onerror = () => {
+                term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
+            };
+        }
     }
 
     function renderChat(id) {
