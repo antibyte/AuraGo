@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Spellista",
   "desktop.winamp_load_folder": "Läs in mapp",
   "desktop.winamp_no_tracks": "Inga spår inlästa",
+  "desktop.winamp_tracks": "spår",
   "desktop.winamp_shuffle": "Blanda",
   "desktop.winamp_repeat": "Upprepa",
   "desktop.cal_status_overdue": "Försenad",
   "desktop.settings_icon_catalog": "Ikonkatalog",
   "desktop.settings_icon_catalog_desc": "Semantiska namn for genererade appar och widgetar.",
   "desktop.settings_icon_catalog_aliases": "Alias",
-  "desktop.settings_icon_catalog_empty": "Ingen ikonkatalog ar tillganglig."
+  "desktop.settings_icon_catalog_empty": "Ingen ikonkatalog ar tillganglig.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpgryning",
+  "desktop.settings_wallpaper_city_rain": "Stadsregn",
+  "desktop.settings_wallpaper_ocean_cliff": "Havsklippa",
+  "desktop.settings_wallpaper_aurora_glass": "Auroraglas",
+  "desktop.settings_wallpaper_nebula_flow": "Nebulosaflöde",
+  "desktop.settings_wallpaper_paper_waves": "Pappersvågor"
 }

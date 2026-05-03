@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Playlist",
   "desktop.winamp_load_folder": "Načíst složku",
   "desktop.winamp_no_tracks": "Nejsou načteny žádné skladby",
+  "desktop.winamp_tracks": "skladeb",
   "desktop.winamp_shuffle": "Náhodně",
   "desktop.winamp_repeat": "Opakovat",
   "desktop.cal_status_overdue": "Po termínu",
   "desktop.settings_icon_catalog": "Katalog ikon",
   "desktop.settings_icon_catalog_desc": "Semanticke nazvy dostupne pro generovane aplikace a widgety.",
   "desktop.settings_icon_catalog_aliases": "Aliasy",
-  "desktop.settings_icon_catalog_empty": "Zadny katalog ikon neni dostupny."
+  "desktop.settings_icon_catalog_empty": "Zadny katalog ikon neni dostupny.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpske svitani",
+  "desktop.settings_wallpaper_city_rain": "Mestsky dest",
+  "desktop.settings_wallpaper_ocean_cliff": "Oceansky utes",
+  "desktop.settings_wallpaper_aurora_glass": "Aurora sklo",
+  "desktop.settings_wallpaper_nebula_flow": "Tok mlhoviny",
+  "desktop.settings_wallpaper_paper_waves": "Papirove vlny"
 }

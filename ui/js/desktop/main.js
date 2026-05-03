@@ -1158,7 +1158,9 @@
             {
                 id: 'appearance', icon: '◐', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
                     settingSelect('appearance.wallpaper', 'desktop.settings_wallpaper', 'desktop.settings_wallpaper_desc', [
-                        ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest']
+                        ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
+                        ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
+                        ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
                     ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']

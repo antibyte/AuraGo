@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Lista de reproducción",
   "desktop.winamp_load_folder": "Cargar carpeta",
   "desktop.winamp_no_tracks": "No hay pistas cargadas",
+  "desktop.winamp_tracks": "pistas",
   "desktop.winamp_shuffle": "Aleatorio",
   "desktop.winamp_repeat": "Repetir",
   "desktop.cal_status_overdue": "Vencida",
   "desktop.settings_icon_catalog": "Catalogo de iconos",
   "desktop.settings_icon_catalog_desc": "Nombres semanticos disponibles para apps y widgets generados.",
   "desktop.settings_icon_catalog_aliases": "Alias",
-  "desktop.settings_icon_catalog_empty": "No hay catalogo de iconos disponible."
+  "desktop.settings_icon_catalog_empty": "No hay catalogo de iconos disponible.",
+  "desktop.settings_wallpaper_alpine_dawn": "Amanecer alpino",
+  "desktop.settings_wallpaper_city_rain": "Lluvia urbana",
+  "desktop.settings_wallpaper_ocean_cliff": "Acantilado oceanico",
+  "desktop.settings_wallpaper_aurora_glass": "Cristal aurora",
+  "desktop.settings_wallpaper_nebula_flow": "Flujo nebular",
+  "desktop.settings_wallpaper_paper_waves": "Ondas de papel"
 }

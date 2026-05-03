@@ -39,6 +39,41 @@
     background: radial-gradient(circle at 16% 16%, rgba(68, 207, 142, 0.18), transparent 32%), linear-gradient(145deg, #07120f, #111c19 62%, #071014);
 }
 
+.desktop-body[data-wallpaper="alpine_dawn"],
+.desktop-body[data-wallpaper="city_rain"],
+.desktop-body[data-wallpaper="ocean_cliff"],
+.desktop-body[data-wallpaper="aurora_glass"],
+.desktop-body[data-wallpaper="nebula_flow"],
+.desktop-body[data-wallpaper="paper_waves"] {
+    background-position: center;
+    background-size: cover;
+    background-attachment: fixed;
+}
+
+.desktop-body[data-wallpaper="alpine_dawn"] {
+    background-image: linear-gradient(180deg, rgba(5, 8, 12, 0.08), rgba(5, 8, 12, 0.28)), url('/img/wallpapers/alpine_dawn.jpg');
+}
+
+.desktop-body[data-wallpaper="city_rain"] {
+    background-image: linear-gradient(180deg, rgba(3, 5, 12, 0.08), rgba(3, 5, 12, 0.38)), url('/img/wallpapers/city_rain.jpg');
+}
+
+.desktop-body[data-wallpaper="ocean_cliff"] {
+    background-image: linear-gradient(180deg, rgba(6, 16, 22, 0.04), rgba(6, 16, 22, 0.26)), url('/img/wallpapers/ocean_cliff.jpg');
+}
+
+.desktop-body[data-wallpaper="aurora_glass"] {
+    background-image: linear-gradient(180deg, rgba(3, 6, 14, 0.04), rgba(3, 6, 14, 0.32)), url('/img/wallpapers/aurora_glass.jpg');
+}
+
+.desktop-body[data-wallpaper="nebula_flow"] {
+    background-image: linear-gradient(180deg, rgba(4, 5, 13, 0.04), rgba(4, 5, 13, 0.34)), url('/img/wallpapers/nebula_flow.jpg');
+}
+
+.desktop-body[data-wallpaper="paper_waves"] {
+    background-image: linear-gradient(180deg, rgba(4, 7, 12, 0.06), rgba(4, 7, 12, 0.24)), url('/img/wallpapers/paper_waves.jpg');
+}
+
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
 }

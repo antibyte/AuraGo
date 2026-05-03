@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Λίστα αναπαραγωγής",
   "desktop.winamp_load_folder": "Φόρτωση φακέλου",
   "desktop.winamp_no_tracks": "Δεν φορτώθηκαν κομμάτια",
+  "desktop.winamp_tracks": "tracs",
   "desktop.winamp_shuffle": "Τυχαία",
   "desktop.winamp_repeat": "Επανάληψη",
   "desktop.cal_status_overdue": "Εκπρόθεσμο",
   "desktop.settings_icon_catalog": "Katalogos eikonidion",
   "desktop.settings_icon_catalog_desc": "Simasiologika onomata gia dimiourgimenes efarmoges kai widget.",
   "desktop.settings_icon_catalog_aliases": "Pseudonyma",
-  "desktop.settings_icon_catalog_empty": "Den yparchei katalogos eikonidion."
+  "desktop.settings_icon_catalog_empty": "Den yparchei katalogos eikonidion.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpiko ximeroma",
+  "desktop.settings_wallpaper_city_rain": "Vrochi polis",
+  "desktop.settings_wallpaper_ocean_cliff": "Okeanios gkremos",
+  "desktop.settings_wallpaper_aurora_glass": "Gyali auroras",
+  "desktop.settings_wallpaper_nebula_flow": "Roi nefelomatos",
+  "desktop.settings_wallpaper_paper_waves": "Hartina kymata"
 }

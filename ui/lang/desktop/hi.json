@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "प्लेलिस्ट",
   "desktop.winamp_load_folder": "फ़ोल्डर लोड करें",
   "desktop.winamp_no_tracks": "कोई ट्रैक लोड नहीं",
+  "desktop.winamp_tracks": "ट्रैक",
   "desktop.winamp_shuffle": "शफल",
   "desktop.winamp_repeat": "दोहराएँ",
   "desktop.cal_status_overdue": "समय से अधिक",
   "desktop.settings_icon_catalog": "Icon catalog",
   "desktop.settings_icon_catalog_desc": "Generated apps aur widgets ke liye semantic names.",
   "desktop.settings_icon_catalog_aliases": "Aliases",
-  "desktop.settings_icon_catalog_empty": "Koi icon catalog uplabdh nahi hai."
+  "desktop.settings_icon_catalog_empty": "Koi icon catalog uplabdh nahi hai.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpine Dawn",
+  "desktop.settings_wallpaper_city_rain": "City Rain",
+  "desktop.settings_wallpaper_ocean_cliff": "Ocean Cliff",
+  "desktop.settings_wallpaper_aurora_glass": "Aurora Glass",
+  "desktop.settings_wallpaper_nebula_flow": "Nebula Flow",
+  "desktop.settings_wallpaper_paper_waves": "Paper Waves"
 }

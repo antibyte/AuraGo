@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Afspeellijst",
   "desktop.winamp_load_folder": "Map laden",
   "desktop.winamp_no_tracks": "Geen nummers geladen",
+  "desktop.winamp_tracks": "nummers",
   "desktop.winamp_shuffle": "Willekeurig",
   "desktop.winamp_repeat": "Herhalen",
   "desktop.cal_status_overdue": "Te laat",
   "desktop.settings_icon_catalog": "Iconencatalogus",
   "desktop.settings_icon_catalog_desc": "Semantische namen voor gegenereerde apps en widgets.",
   "desktop.settings_icon_catalog_aliases": "Aliassen",
-  "desktop.settings_icon_catalog_empty": "Geen iconencatalogus beschikbaar."
+  "desktop.settings_icon_catalog_empty": "Geen iconencatalogus beschikbaar.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpenochtend",
+  "desktop.settings_wallpaper_city_rain": "Stadsregen",
+  "desktop.settings_wallpaper_ocean_cliff": "Oceaanklif",
+  "desktop.settings_wallpaper_aurora_glass": "Auroraglas",
+  "desktop.settings_wallpaper_nebula_flow": "Nevelstroom",
+  "desktop.settings_wallpaper_paper_waves": "Papiergolven"
 }

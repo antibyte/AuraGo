@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "Afspilningsliste",
   "desktop.winamp_load_folder": "Indlæs mappe",
   "desktop.winamp_no_tracks": "Ingen spor indlæst",
+  "desktop.winamp_tracks": "spor",
   "desktop.winamp_shuffle": "Bland",
   "desktop.winamp_repeat": "Gentag",
   "desktop.cal_status_overdue": "Forsinket",
   "desktop.settings_icon_catalog": "Ikonkatalog",
   "desktop.settings_icon_catalog_desc": "Semantiske navne til genererede apps og widgets.",
   "desktop.settings_icon_catalog_aliases": "Aliasser",
-  "desktop.settings_icon_catalog_empty": "Intet ikonkatalog er tilgaengeligt."
+  "desktop.settings_icon_catalog_empty": "Intet ikonkatalog er tilgaengeligt.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpegry",
+  "desktop.settings_wallpaper_city_rain": "Byregn",
+  "desktop.settings_wallpaper_ocean_cliff": "Havklint",
+  "desktop.settings_wallpaper_aurora_glass": "Auroraglas",
+  "desktop.settings_wallpaper_nebula_flow": "Taagestrøm",
+  "desktop.settings_wallpaper_paper_waves": "Papirbølger"
 }

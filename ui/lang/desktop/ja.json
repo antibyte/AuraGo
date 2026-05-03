@@ -204,11 +204,18 @@
   "desktop.winamp_playlist": "プレイリスト",
   "desktop.winamp_load_folder": "フォルダーを読み込む",
   "desktop.winamp_no_tracks": "トラックがありません",
+  "desktop.winamp_tracks": "トラック",
   "desktop.winamp_shuffle": "シャッフル",
   "desktop.winamp_repeat": "リピート",
   "desktop.cal_status_overdue": "期限切れ",
   "desktop.settings_icon_catalog": "Icon catalog",
   "desktop.settings_icon_catalog_desc": "Generated apps to widgets de tsukaeru semantic names.",
   "desktop.settings_icon_catalog_aliases": "Aliases",
-  "desktop.settings_icon_catalog_empty": "Icon catalog wa riyou dekimasen."
+  "desktop.settings_icon_catalog_empty": "Icon catalog wa riyou dekimasen.",
+  "desktop.settings_wallpaper_alpine_dawn": "Alpine Dawn",
+  "desktop.settings_wallpaper_city_rain": "City Rain",
+  "desktop.settings_wallpaper_ocean_cliff": "Ocean Cliff",
+  "desktop.settings_wallpaper_aurora_glass": "Aurora Glass",
+  "desktop.settings_wallpaper_nebula_flow": "Nebula Flow",
+  "desktop.settings_wallpaper_paper_waves": "Paper Waves"
 }
