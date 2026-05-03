@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Cerca",
   "desktop.launchpad_tab_url": "URL personalizzato",
   "desktop.launchpad_save_error": "Impossibile salvare il link",
+  "desktop.launchpad_icon_no_results": "Nessuna icona trovata",
+  "desktop.launchpad_icon_search_error": "Ricerca icone fallita",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "IDE completo con file browser, editor e terminale",
   "codeStudio.newFile": "Nuovo file",

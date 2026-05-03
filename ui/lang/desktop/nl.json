@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Zoeken",
   "desktop.launchpad_tab_url": "Aangepaste URL",
   "desktop.launchpad_save_error": "Link opslaan mislukt",
+  "desktop.launchpad_icon_no_results": "Geen pictogrammen gevonden",
+  "desktop.launchpad_icon_search_error": "Pictogrammen zoeken mislukt",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "Volwaardige code-IDE met bestandsbrowser, editor en terminal",
   "codeStudio.newFile": "Nieuw bestand",

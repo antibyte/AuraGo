@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "खोजें",
   "desktop.launchpad_tab_url": "कस्टम URL",
   "desktop.launchpad_save_error": "लिंक सहेजने में विफल",
+  "desktop.launchpad_icon_no_results": "कोई आइकन नहीं मिला",
+  "desktop.launchpad_icon_search_error": "आइकन खोज विफल",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "फ़ाइल ब्राउज़र, एडिटर और टर्मिनल वाला पूरा coding IDE",
   "codeStudio.newFile": "नई फ़ाइल",

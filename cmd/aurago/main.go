@@ -512,6 +512,14 @@ func main() {
 		} else {
 			defer launchpadDB.Close()
 			appLog.Info("Launchpad DB initialized", "path", cfg.SQLite.LaunchpadPath)
+			// Pre-warm icon cache in background so first user search is instant
+			go func(db *sql.DB) {
+				if _, err := launchpad.SearchIcons(db, ""); err != nil {
+					appLog.Warn("Launchpad icon cache pre-warm failed", "error", err)
+				} else {
+					appLog.Info("Launchpad icon cache pre-warmed")
+				}
+			}(launchpadDB)
 		}
 	}
 

@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Søk",
   "desktop.launchpad_tab_url": "Egendefinert URL",
   "desktop.launchpad_save_error": "Kunne ikke lagre lenken",
+  "desktop.launchpad_icon_no_results": "Ingen ikoner funnet",
+  "desktop.launchpad_icon_search_error": "Ikon-søk feilet",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "Fullverdig kode-IDE med filutforsker, editor og terminal",
   "codeStudio.newFile": "Ny fil",

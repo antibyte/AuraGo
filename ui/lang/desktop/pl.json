@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Szukaj",
   "desktop.launchpad_tab_url": "Niestandardowy URL",
   "desktop.launchpad_save_error": "Nie udało się zapisać linku",
+  "desktop.launchpad_icon_no_results": "Nie znaleziono ikon",
+  "desktop.launchpad_icon_search_error": "Wyszukiwanie ikon nie powiodło się",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "Pełne IDE z przeglądarką plików, edytorem i terminalem",
   "codeStudio.newFile": "Nowy plik",

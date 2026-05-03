@@ -672,6 +672,7 @@
 
     function appWindowSize(appId) {
         const presets = {
+            files: { width: 920, height: 600 },
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
@@ -687,7 +688,13 @@
         const existing = [...state.windows.values()].find(win => win.appId === appId && appId !== 'editor');
         if (existing) {
             focusWindow(existing.id);
-            if (appId === 'files' && context && context.path != null) renderFiles(existing.id, context.path);
+            if (appId === 'files' && context && context.path != null) {
+                if (window.FileManager && typeof window.FileManager.navigateTo === 'function') {
+                    window.FileManager.navigateTo(existing.id, context.path);
+                } else {
+                    renderFiles(existing.id, context.path);
+                }
+            }
             return;
         }
         const title = windowTitle(appId);
@@ -1135,7 +1142,15 @@
     }
 
     function renderAppContent(id, appId, context) {
-        if (appId === 'files') return renderFiles(id, context.path || settingValue('files.default_folder') || '');
+        if (appId === 'files') {
+            const path = context.path || settingValue('files.default_folder') || '';
+            const item = state.windows.get(id);
+            if (item) {
+                const subtitle = item.element.querySelector('.vd-window-subtitle');
+                if (subtitle) subtitle.textContent = path || t('desktop.workspace_root');
+            }
+            return renderFiles(id, path);
+        }
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'calendar') return renderCalendar(id);
@@ -1156,6 +1171,39 @@
         const host = contentEl(id);
         if (!host) return;
         state.filesPath = path || '';
+        if (window.FileManager && typeof window.FileManager.render === 'function') {
+            window.FileManager.render(host, id, state.filesPath, {
+                esc,
+                api,
+                t,
+                fmtBytes,
+                iconMarkup,
+                iconForFile,
+                iconForDirectory,
+                showContextMenu,
+                closeContextMenu,
+                promptDialog,
+                confirmDialog,
+                showNotification: showDesktopNotification,
+                openFile: (entry) => {
+                    if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
+                    openEditorFile(entry.path);
+                },
+                openMedia: (entry) => openMediaPreview(entry),
+                refreshDesktop: loadBootstrap,
+                onPathChange: (newPath) => {
+                    state.filesPath = newPath;
+                    const item = state.windows.get(id);
+                    if (item) {
+                        const subtitle = item.element.querySelector('.vd-window-subtitle');
+                        if (subtitle) subtitle.textContent = newPath || t('desktop.workspace_root');
+                    }
+                },
+                directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []
+            });
+            return;
+        }
+        // Fallback: old file browser if FileManager module is not loaded
         host.innerHTML = `<div class="vd-panel">
             <div class="vd-toolbar">
                 <button class="vd-tool-button" type="button" data-action="up">${esc(t('desktop.up'))}</button>
@@ -2498,9 +2546,14 @@
             resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
             try {
                 const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
-                resultsEl.innerHTML = (results || []).map(r => {
+                const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
+                if (!items.length) {
+                    resultsEl.innerHTML = '<div class="lp-icon-msg" style="color:var(--vd-muted);">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
+                    return;
+                }
+                resultsEl.innerHTML = items.map(r => {
                     const img = r.url_png || r.url_webp || r.url_svg;
-                    return '<div class="lp-icon-result" data-url="' + esc(img) + '"><img src="' + esc(img) + '" alt=""><span>' + esc(r.name) + '</span></div>';
+                    return '<div class="lp-icon-result" data-url="' + esc(img) + '"><img src="' + esc(img) + '" alt="" loading="lazy"><span>' + esc(r.name) + '</span></div>';
                 }).join('');
                 resultsEl.querySelectorAll('.lp-icon-result').forEach(el => {
                     el.addEventListener('click', () => {
@@ -2509,7 +2562,9 @@
                         selectedIconURL = el.dataset.url;
                     });
                 });
-            } catch (e) { resultsEl.innerHTML = ''; }
+            } catch (e) {
+                resultsEl.innerHTML = '<div class="lp-icon-msg" style="color:var(--vd-coral);">' + esc(t('desktop.launchpad_icon_search_error')) + '</div>';
+            }
         }
 
         async function saveLink(modal, linkId) {

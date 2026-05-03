@@ -201,6 +201,7 @@ func handleSearchLaunchpadIcons(s *Server) http.HandlerFunc {
 		query := r.URL.Query().Get("q")
 		results, err := launchpad.SearchIcons(s.LaunchpadDB, query)
 		if err != nil {
+			s.Logger.Warn("Launchpad icon search failed", "query", query, "error", err)
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "failed to search icons", "launchpad icon search failed", err)
 			return
 		}

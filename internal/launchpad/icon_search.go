@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	metadataURL      = "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/metadata.json"
-	iconCDNBaseSVG   = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg"
-	iconCDNBasePNG   = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png"
-	iconCDNBaseWEBP  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp"
-	cacheMaxAge      = 24 * time.Hour
-	httpTimeout      = 30 * time.Second
+	metadataURL     = "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/metadata.json"
+	iconCDNBaseSVG  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg"
+	iconCDNBasePNG  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png"
+	iconCDNBaseWEBP = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp"
+	cacheMaxAge     = 24 * time.Hour
+	httpTimeout     = 30 * time.Second
 )
 
 // IconSearchResult represents a single icon match from the Homarr database.
@@ -27,17 +27,11 @@ type IconSearchResult struct {
 	URLWEBP string `json:"url_webp,omitempty"`
 }
 
-// metadataEntry mirrors the structure of a single icon in metadata.json.
-type metadataEntry struct {
-	Name   string   `json:"name"`
-	Formats []string `json:"formats"`
-	Light  bool     `json:"light,omitempty"`
-	Dark   bool     `json:"dark,omitempty"`
-}
-
-// metadataRoot is the top-level structure of metadata.json.
-type metadataRoot struct {
-	Icons []metadataEntry `json:"icons"`
+// metadataEntryV2 mirrors the new metadata.json structure where keys are icon names.
+type metadataEntryV2 struct {
+	Base    string              `json:"base"`
+	Aliases []string            `json:"aliases"`
+	Colors  map[string]string   `json:"colors,omitempty"`
 }
 
 // SearchIcons searches the cached Homarr icon database.
@@ -116,12 +110,13 @@ func ensureIconCache(db *sql.DB) error {
 		return fmt.Errorf("metadata fetch returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20)) // 10 MB limit
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20)) // 20 MB limit
 	if err != nil {
 		return fmt.Errorf("failed to read metadata body: %w", err)
 	}
 
-	var root metadataRoot
+	// New format: top-level object where keys are icon names
+	var root map[string]metadataEntryV2
 	if err := json.Unmarshal(body, &root); err != nil {
 		return fmt.Errorf("failed to parse metadata JSON: %w", err)
 	}
@@ -143,29 +138,40 @@ func ensureIconCache(db *sql.DB) error {
 	defer stmt.Close()
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	for _, entry := range root.Icons {
-		if entry.Name == "" {
+	for name, entry := range root {
+		if name == "" {
 			continue
 		}
+		// Most icons in the repo have all three formats generated;
+		// base tells us the source format but CDN usually serves svg/png/webp.
+		// We mark all formats as available – the CDN will 404 if one is missing.
 		hasSVG, hasPNG, hasWEBP := 0, 0, 0
-		for _, f := range entry.Formats {
-			switch strings.ToLower(f) {
-			case "svg":
-				hasSVG = 1
-			case "png":
-				hasPNG = 1
-			case "webp":
-				hasWEBP = 1
-			}
+		switch strings.ToLower(entry.Base) {
+		case "svg":
+			hasSVG = 1
+			// fallthrough: assume png/webp also exist on CDN
+			hasPNG = 1
+			hasWEBP = 1
+		case "png":
+			hasPNG = 1
+			hasSVG = 1
+			hasWEBP = 1
+		default:
+			// Unknown base – mark all and let CDN handle it
+			hasSVG = 1
+			hasPNG = 1
+			hasWEBP = 1
 		}
 		hasLight, hasDark := 0, 0
-		if entry.Light {
-			hasLight = 1
+		if entry.Colors != nil {
+			if _, ok := entry.Colors["light"]; ok {
+				hasLight = 1
+			}
+			if _, ok := entry.Colors["dark"]; ok {
+				hasDark = 1
+			}
 		}
-		if entry.Dark {
-			hasDark = 1
-		}
-		if _, err := stmt.Exec(entry.Name, hasSVG, hasPNG, hasWEBP, hasLight, hasDark, now); err != nil {
+		if _, err := stmt.Exec(name, hasSVG, hasPNG, hasWEBP, hasLight, hasDark, now); err != nil {
 			return err
 		}
 	}

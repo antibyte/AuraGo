@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "検索",
   "desktop.launchpad_tab_url": "カスタムURL",
   "desktop.launchpad_save_error": "リンクの保存に失敗しました",
+  "desktop.launchpad_icon_no_results": "アイコンが見つかりません",
+  "desktop.launchpad_icon_search_error": "アイコン検索に失敗しました",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "ファイルブラウザー、エディター、ターミナルを備えたIDE",
   "codeStudio.newFile": "新規ファイル",

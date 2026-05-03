@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "搜索",
   "desktop.launchpad_tab_url": "自定义 URL",
   "desktop.launchpad_save_error": "保存链接失败",
+  "desktop.launchpad_icon_no_results": "未找到图标",
+  "desktop.launchpad_icon_search_error": "图标搜索失败",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "带文件浏览器、编辑器和终端的完整编码 IDE",
   "codeStudio.newFile": "新建文件",

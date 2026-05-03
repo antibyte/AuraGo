@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Αναζήτηση",
   "desktop.launchpad_tab_url": "Προσαρμοσμένο URL",
   "desktop.launchpad_save_error": "Αποτυχία αποθήκευσης συνδέσμου",
+  "desktop.launchpad_icon_no_results": "Δεν βρέθηκαν εικονίδια",
+  "desktop.launchpad_icon_search_error": "Η αναζήτηση εικονιδίων απέτυχε",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "Πλήρες IDE με περιηγητή αρχείων, editor και τερματικό",
   "codeStudio.newFile": "Νέο αρχείο",

@@ -288,6 +288,8 @@
   "desktop.launchpad_tab_search": "Sök",
   "desktop.launchpad_tab_url": "Anpassad URL",
   "desktop.launchpad_save_error": "Kunde inte spara länk",
+  "desktop.launchpad_icon_no_results": "Inga ikoner hittades",
+  "desktop.launchpad_icon_search_error": "Ikon-sökning misslyckades",
   "codeStudio.title": "Code Studio",
   "codeStudio.description": "Fullständig kod-IDE med filbläddrare, editor och terminal",
   "codeStudio.newFile": "Ny fil",
