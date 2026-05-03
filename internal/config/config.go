@@ -620,6 +620,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.PushPath = "./data/push.db"
 	}
 	cfg.SQLite.PushPath = resolvePath(configDir, cfg.SQLite.PushPath)
+	if cfg.SQLite.LaunchpadPath == "" {
+		cfg.SQLite.LaunchpadPath = "./data/launchpad.db"
+	}
+	cfg.SQLite.LaunchpadPath = resolvePath(configDir, cfg.SQLite.LaunchpadPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

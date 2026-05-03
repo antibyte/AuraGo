@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.nav_launchpad">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="AuraGo" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <title id="page-title">AuraGo - Launchpad</title>
+    <link rel="stylesheet" href="/shared-variables.css">
+    <link rel="stylesheet" href="/shared-utilities.css">
+    <link rel="stylesheet" href="/shared-components.css?v=20260425a">
+    <link rel="stylesheet" href="/shared-animations.css">
+    <link rel="stylesheet" href="/css/tokens.css">
+    <script src="/shared.js?v=15"></script>
+    <script>
+        (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/launchpad.css">
+    <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link href="/fonts/fonts.css" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <div class="logo-icon">🥚</div>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+                <span class="logo-subtitle" data-i18n="launchpad.subtitle">Launchpad</span>
+            </a>
+        </div>
+        <div class="header-actions">
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
+        </div>
+    </header>
+
+    <div id="radialMenuAnchor"></div>
+
+    <div class="lp-container">
+        <!-- Toolbar -->
+        <div class="lp-toolbar">
+            <div class="lp-search-wrap">
+                <input type="text" id="lp-search" class="lp-search" data-i18n-placeholder="launchpad.search_placeholder" placeholder="Search links...">
+            </div>
+            <select id="lp-category-filter" class="lp-select">
+                <option value="" data-i18n="launchpad.all_categories">All categories</option>
+            </select>
+            <button id="lp-add-btn" class="btn btn-primary" data-i18n="launchpad.add_link">+ Add Link</button>
+        </div>
+
+        <!-- Grid -->
+        <div class="lp-grid" id="lp-grid"></div>
+
+        <!-- Empty state -->
+        <div class="lp-empty" id="lp-empty" style="display:none">
+            <div class="lp-empty-icon">🚀</div>
+            <div class="lp-empty-title" data-i18n="launchpad.empty_title">No links yet</div>
+            <div class="lp-empty-text" data-i18n="launchpad.empty_text">Add your first link to get started.</div>
+            <button class="btn btn-primary" onclick="openLinkModal()" data-i18n="launchpad.add_link">+ Add Link</button>
+        </div>
+    </div>
+
+    <!-- Link Modal -->
+    <div class="modal-overlay" id="lp-modal-overlay" style="display:none">
+        <div class="modal-card lp-modal">
+            <div class="modal-title" id="lp-modal-title" data-i18n="launchpad.modal_add_title">Add Link</div>
+            <form id="lp-form" class="lp-form">
+                <input type="hidden" id="lp-link-id">
+                <div class="lp-field">
+                    <label data-i18n="launchpad.label_title">Title</label>
+                    <input type="text" id="lp-title" required data-i18n-placeholder="launchpad.placeholder_title">
+                </div>
+                <div class="lp-field">
+                    <label data-i18n="launchpad.label_url">URL</label>
+                    <input type="url" id="lp-url" required placeholder="https://...">
+                </div>
+                <div class="lp-field">
+                    <label data-i18n="launchpad.label_category">Category</label>
+                    <input type="text" id="lp-category" list="lp-category-list" data-i18n-placeholder="launchpad.placeholder_category">
+                    <datalist id="lp-category-list"></datalist>
+                </div>
+                <div class="lp-field">
+                    <label data-i18n="launchpad.label_description">Description</label>
+                    <input type="text" id="lp-description" data-i18n-placeholder="launchpad.placeholder_description">
+                </div>
+
+                <!-- Icon section -->
+                <div class="lp-field">
+                    <label data-i18n="launchpad.label_icon">Icon</label>
+                    <div class="lp-icon-tabs">
+                        <button type="button" class="lp-icon-tab active" data-tab="search" data-i18n="launchpad.tab_search">Search</button>
+                        <button type="button" class="lp-icon-tab" data-tab="url" data-i18n="launchpad.tab_url">Custom URL</button>
+                    </div>
+                    <div class="lp-icon-panel active" id="lp-icon-panel-search">
+                        <div class="lp-icon-search-wrap">
+                            <input type="text" id="lp-icon-search" class="lp-search" data-i18n-placeholder="launchpad.icon_search_placeholder" placeholder="Search icons (e.g. plex, nginx)...">
+                            <button type="button" id="lp-icon-search-btn" class="btn btn-sm">🔍</button>
+                        </div>
+                        <div class="lp-icon-results" id="lp-icon-results"></div>
+                    </div>
+                    <div class="lp-icon-panel" id="lp-icon-panel-url">
+                        <input type="url" id="lp-icon-url" placeholder="https://example.com/icon.png">
+                        <div class="lp-icon-preview" id="lp-icon-preview"></div>
+                    </div>
+                    <input type="hidden" id="lp-icon-path">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel" id="lp-modal-cancel" data-i18n="common.btn_cancel">Cancel</button>
+                    <button type="submit" class="modal-btn confirm" data-i18n="common.btn_save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/launchpad/main.js"></script>
+</body>
+</html>

@@ -299,6 +299,7 @@ function injectRadialMenu() {
     const allPages = [
         { href: '/', icon: '💬', key: 'common.nav_chat' },
         { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
+        { href: '/launchpad', icon: '🚀', key: 'common.nav_launchpad' },
         { href: '/desktop', icon: '▣', key: 'common.nav_desktop' },
         { href: '/plans', icon: '🗺️', key: 'common.nav_plans' },
         { href: '/missions', icon: '🚀', key: 'common.nav_missions' },

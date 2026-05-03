@@ -118,6 +118,33 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		mux.HandleFunc("/api/todos", handleTodos(s))
 		mux.HandleFunc("/api/todos/", handleTodoByID(s))
 
+		// ── Launchpad API ──
+		mux.HandleFunc("/api/launchpad/links", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleListLaunchpadLinks(s)(w, r)
+			case http.MethodPost:
+				handleCreateLaunchpadLink(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/launchpad/links/", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				handleGetLaunchpadLink(s)(w, r)
+			case http.MethodPut:
+				handleUpdateLaunchpadLink(s)(w, r)
+			case http.MethodDelete:
+				handleDeleteLaunchpadLink(s)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+		mux.HandleFunc("/api/launchpad/categories", handleListLaunchpadCategories(s))
+		mux.HandleFunc("/api/launchpad/icons/search", handleSearchLaunchpadIcons(s))
+		mux.HandleFunc("/api/launchpad/icons/download", handleDownloadLaunchpadIcon(s))
+
 		// ── SQL Connections API ──
 		mux.HandleFunc("/api/sql-connections", handleSQLConnections(s))
 		mux.HandleFunc("/api/sql-connections/", func(w http.ResponseWriter, r *http.Request) {

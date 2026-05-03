@@ -29,6 +29,7 @@ import (
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
+	"aurago/internal/launchpad"
 	"aurago/internal/llm"
 	"aurago/internal/logger"
 	"aurago/internal/memory"
@@ -498,6 +499,20 @@ func main() {
 	} else {
 		defer plannerDB.Close()
 		appLog.Info("Planner DB initialized", "path", cfg.SQLite.PlannerPath)
+	}
+
+	// Launchpad DB
+	var launchpadDB *sql.DB
+	{
+		var lpErr error
+		launchpadDB, lpErr = launchpad.InitDB(cfg.SQLite.LaunchpadPath)
+		if lpErr != nil {
+			appLog.Warn("Failed to initialize Launchpad DB", "error", lpErr, "path", cfg.SQLite.LaunchpadPath)
+			launchpadDB = nil
+		} else {
+			defer launchpadDB.Close()
+			appLog.Info("Launchpad DB initialized", "path", cfg.SQLite.LaunchpadPath)
+		}
 	}
 
 	var sqlConnectionsDB *sql.DB
@@ -1023,6 +1038,7 @@ func main() {
 		HomepageRegistryDB:   homepageRegistryDB,
 		ContactsDB:           contactsDB,
 		PlannerDB:            plannerDB,
+		LaunchpadDB:          launchpadDB,
 		SQLConnectionsDB:     sqlConnectionsDB,
 		SQLConnectionPool:    sqlConnectionPool,
 		BackgroundTasks:      backgroundTaskManager,

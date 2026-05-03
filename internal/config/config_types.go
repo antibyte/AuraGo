@@ -368,6 +368,7 @@ type Config struct {
 		PreparedMissionsPath string `yaml:"prepared_missions_path"`
 		MissionHistoryPath   string `yaml:"mission_history_path"`
 		PushPath             string `yaml:"push_path"`
+		LaunchpadPath        string `yaml:"launchpad_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID

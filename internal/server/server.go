@@ -247,6 +247,7 @@ type Server struct {
 	HomepageRegistryDB *sql.DB
 	ContactsDB         *sql.DB
 	PlannerDB          *sql.DB
+	LaunchpadDB        *sql.DB
 	SQLConnectionsDB   *sql.DB
 	SQLConnectionPool  *sqlconnections.ConnectionPool
 	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
@@ -345,6 +346,7 @@ type StartOptions struct {
 	HomepageRegistryDB   *sql.DB
 	ContactsDB           *sql.DB
 	PlannerDB            *sql.DB
+	LaunchpadDB          *sql.DB
 	SQLConnectionsDB     *sql.DB
 	SQLConnectionPool    *sqlconnections.ConnectionPool
 	BackgroundTasks      *tools.BackgroundTaskManager
