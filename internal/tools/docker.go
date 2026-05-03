@@ -233,6 +233,40 @@ func DockerRequest(cfg DockerConfig, method, endpoint string, body string) ([]by
 	return dockerRequest(cfg, method, endpoint, body)
 }
 
+// DockerRequestContext performs a Docker Engine API request with caller-managed
+// cancellation. It is intended for long-running calls such as exec start, where
+// a fixed client timeout would cut off valid work before the caller's deadline.
+func DockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoint string, body string) ([]byte, int, error) {
+	if dockerMethodMutates(method) {
+		if err := requireDockerMutationPermission(); err != nil {
+			return nil, 0, err
+		}
+	} else if err := requireDockerPermission(); err != nil {
+		return nil, 0, err
+	}
+	client := getPullDockerClient(cfg)
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	}
+	reqURL := "http://localhost/" + dockerAPIVersion + endpoint
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, reqBody)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("docker request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("failed to read docker response: %w", err)
+	}
+	return data, resp.StatusCode, nil
+}
+
 // errJSON is a helper that returns a JSON error string.
 // Uses proper marshaling to handle special characters (quotes, newlines, etc.) in messages.
 func errJSON(msg string, args ...interface{}) string {
