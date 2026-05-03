@@ -924,7 +924,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			})
 
 		case "virtual_desktop":
-			logger.Info("LLM requested virtual desktop operation", "operation", tc.Operation)
+			logger.Info("LLM requested virtual desktop operation",
+				"operation", tc.Operation,
+				"path", firstNonEmptyToolString(toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path")),
+				"app_id", toolArgString(tc.Params, "app_id"),
+				"widget_id", firstNonEmptyToolString(toolArgString(tc.Params, "widget_id"), toolArgString(tc.Params, "id")),
+			)
 			exec := tools.ExecuteVirtualDesktop(ctx, cfg, tc.Params)
 			if exec.Event != nil && dc.Broker != nil {
 				payload, _ := json.Marshal(struct {

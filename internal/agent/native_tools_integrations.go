@@ -1107,14 +1107,15 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.VirtualDesktopEnabled {
 		tools = append(tools, tool("virtual_desktop",
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
-				"Generated apps should use the Aura Desktop SDK runtime and include a sprite icon. All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
+				"Generated apps should use the Aura Desktop SDK runtime and include a sprite icon. To create a simple standalone widget, write non-empty HTML directly to Widgets/<widget_id>.html; the desktop registers and pins it automatically. "+
+				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
 					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "install_app", "upsert_widget", "open_app", "show_notification"},
 				},
-				"path":      prop("string", "Workspace-relative file or directory path for list_files/read_file/write_file, e.g. 'Documents/notes.md'."),
+				"path":      prop("string", "Workspace-relative file or directory path for list_files/read_file/write_file, e.g. 'Documents/notes.md'. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'."),
 				"file_path": prop("string", "Alias for path."),
 				"content":   prop("string", "Text file content for write_file, or notification message for show_notification."),
 				"title":     prop("string", "Notification title or widget title."),

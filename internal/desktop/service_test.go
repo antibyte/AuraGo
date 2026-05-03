@@ -260,6 +260,44 @@ func TestServiceUpsertWidgetRegistersRuntimeIconAndEntry(t *testing.T) {
 	}
 }
 
+func TestServiceUpsertWidgetRegistersStandaloneEntry(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	if err := svc.WriteFile(context.Background(), "Widgets/weather_pforzheim.html", "<main>Weather</main>", SourceAgent); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	widget := Widget{
+		ID:    "weather-pforzheim",
+		Title: "Weather Pforzheim",
+		Icon:  "weather",
+		Entry: "weather_pforzheim.html",
+	}
+	if err := svc.UpsertWidget(context.Background(), widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var got Widget
+	for _, item := range bootstrap.Widgets {
+		if item.ID == "weather-pforzheim" {
+			got = item
+			break
+		}
+	}
+	if got.ID == "" {
+		t.Fatalf("standalone widget was not registered: %+v", bootstrap.Widgets)
+	}
+	if got.AppID != "" {
+		t.Fatalf("app_id = %q, want empty standalone widget app_id", got.AppID)
+	}
+	if got.Entry != "weather_pforzheim.html" {
+		t.Fatalf("entry = %q, want weather_pforzheim.html", got.Entry)
+	}
+}
+
 func TestServiceUpsertWidgetRejectsMissingOrEmptyEntryFile(t *testing.T) {
 	t.Parallel()
 
@@ -305,6 +343,35 @@ func TestServiceUpsertWidgetRejectsMissingOrEmptyEntryFile(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "widget entry file must not be empty") {
 		t.Fatalf("error = %q, want empty widget entry rejection", err)
+	}
+
+	err = svc.UpsertWidget(context.Background(), Widget{
+		ID:    "missing-standalone-widget",
+		Title: "Weather",
+		Icon:  "weather",
+		Entry: "missing.html",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected missing standalone widget entry file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "widget entry file is missing") {
+		t.Fatalf("error = %q, want standalone missing widget entry rejection", err)
+	}
+
+	if err := svc.WriteFile(context.Background(), "Widgets/empty.html", " \n\t", SourceAgent); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	err = svc.UpsertWidget(context.Background(), Widget{
+		ID:    "empty-standalone-widget",
+		Title: "Weather",
+		Icon:  "weather",
+		Entry: "empty.html",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected empty standalone widget entry file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "widget entry file must not be empty") {
+		t.Fatalf("error = %q, want standalone empty widget entry rejection", err)
 	}
 }
 

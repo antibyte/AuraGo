@@ -509,9 +509,6 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		widget.Icon = "widgets"
 	}
 	if widget.Entry != "" {
-		if widget.AppID == "" {
-			return fmt.Errorf("desktop widget entry requires app_id")
-		}
 		if widget.Entry == "." || strings.HasPrefix(widget.Entry, "..") || filepath.IsAbs(widget.Entry) {
 			return fmt.Errorf("desktop widget entry must be a relative file")
 		}
@@ -563,7 +560,11 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 }
 
 func (s *Service) validateWidgetEntryFile(appID, entry string) error {
-	path, err := s.ResolvePath(filepath.ToSlash(filepath.Join("Apps", appID, entry)))
+	base := "Widgets"
+	if appID != "" {
+		base = filepath.ToSlash(filepath.Join("Apps", appID))
+	}
+	path, err := s.ResolvePath(filepath.ToSlash(filepath.Join(base, entry)))
 	if err != nil {
 		return err
 	}

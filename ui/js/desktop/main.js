@@ -237,7 +237,7 @@
         widgets.slice(0, 4).forEach(widget => {
             const app = allApps().find(item => item.id === widget.app_id);
             const iconKey = widget.icon || (app ? iconForApp(app) : 'widgets');
-            const widgetBody = widget.entry && widget.app_id
+            const widgetBody = widget.entry
                 ? `<div class="vd-widget-frame-wrap"></div>`
                 : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
             cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}">
@@ -245,7 +245,7 @@
                     ${spriteMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 26)}
                     <div class="vd-widget-text">
                         <div class="vd-widget-title">${esc(widget.title || widget.id)}</div>
-                        ${widget.entry && widget.app_id ? `<div class="vd-widget-kind">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>` : ''}
+                        ${widget.entry ? `<div class="vd-widget-kind">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>` : ''}
                     </div>
                 </div>
                 ${widgetBody}
@@ -253,7 +253,7 @@
         });
         host.innerHTML = cards.join('');
         widgets.slice(0, 4).forEach(widget => {
-            if (!widget.entry || !widget.app_id) return;
+            if (!widget.entry) return;
             const card = host.querySelector(`[data-widget-id="${widget.id}"] .vd-widget-frame-wrap`);
             if (!card) return;
             renderWidgetFrame(card, widget);
@@ -262,7 +262,7 @@
 
     async function renderWidgetFrame(card, widget) {
         card.innerHTML = `<div class="vd-widget-body">${esc(t('desktop.loading'))}</div>`;
-        const path = 'Apps/' + widget.app_id + '/' + widget.entry;
+        const path = widgetFramePath(widget);
         try {
             const src = await desktopEmbedURL(path, { widget_id: widget.id });
             await ensureDesktopEmbedHasContent(src);
@@ -270,6 +270,12 @@
         } catch (err) {
             card.innerHTML = `<div class="vd-widget-body">${esc(err.message)}</div>`;
         }
+    }
+
+    function widgetFramePath(widget) {
+        return widget.app_id
+            ? 'Apps/' + widget.app_id + '/' + widget.entry
+            : 'Widgets/' + widget.entry;
     }
 
     function renderStartApps() {

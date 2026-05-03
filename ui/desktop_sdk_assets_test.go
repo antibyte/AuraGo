@@ -55,4 +55,7 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 	if !strings.Contains(string(shell), "desktop.embed_empty") {
 		t.Fatal("desktop shell does not expose an empty iframe file error")
 	}
+	if !strings.Contains(string(shell), "widgetFramePath") {
+		t.Fatal("desktop shell does not resolve standalone widget frame paths")
+	}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +17,8 @@ type VirtualDesktopExecution struct {
 	Output string
 	Event  *desktop.Event
 }
+
+var virtualDesktopWidgetIDSanitizer = regexp.MustCompile(`[^a-z0-9_-]+`)
 
 // ExecuteVirtualDesktop performs one agent-requested operation against the
 // first-party virtual desktop workspace.
@@ -68,8 +72,18 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if strings.TrimSpace(path) == "" {
 			return virtualDesktopJSON("error", "path is required", nil, nil)
 		}
+		if isVirtualDesktopStandaloneWidgetHTML(path) && strings.TrimSpace(content) == "" {
+			return virtualDesktopJSON("error", "desktop widget HTML file must not be empty", nil, nil)
+		}
 		if err := svc.WriteFile(ctx, path, content, desktop.SourceAgent); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if widget, ok := virtualDesktopStandaloneWidgetFromFile(path); ok && strings.TrimSpace(content) != "" {
+			if err := svc.UpsertWidget(ctx, widget, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": "write_file", "path": path, "widget_id": widget.ID})
+			return virtualDesktopJSON("ok", "desktop widget file written and registered", map[string]interface{}{"path": path, "widget_id": widget.ID}, event)
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
 		return virtualDesktopJSON("ok", "desktop file written", map[string]interface{}{"path": path}, event)
@@ -221,6 +235,59 @@ func virtualDesktopWidget(args map[string]interface{}) (desktop.Widget, error) {
 		widget.Runtime = virtualDesktopString(args, "runtime")
 	}
 	return widget, nil
+}
+
+func isVirtualDesktopStandaloneWidgetHTML(rawPath string) bool {
+	clean := cleanVirtualDesktopSlashPath(rawPath)
+	return path.Dir(clean) == "Widgets" && strings.EqualFold(path.Ext(clean), ".html")
+}
+
+func virtualDesktopStandaloneWidgetFromFile(rawPath string) (desktop.Widget, bool) {
+	if !isVirtualDesktopStandaloneWidgetHTML(rawPath) {
+		return desktop.Widget{}, false
+	}
+	clean := cleanVirtualDesktopSlashPath(rawPath)
+	entry := path.Base(clean)
+	id := strings.TrimSuffix(entry, path.Ext(entry))
+	id = strings.ToLower(strings.TrimSpace(id))
+	id = virtualDesktopWidgetIDSanitizer.ReplaceAllString(id, "_")
+	id = strings.Trim(id, "_-")
+	if len(id) < 2 {
+		return desktop.Widget{}, false
+	}
+	return desktop.Widget{
+		ID:      id,
+		Type:    desktop.WidgetTypeCustom,
+		Title:   virtualDesktopTitleFromID(id),
+		Icon:    "widgets",
+		Entry:   entry,
+		Runtime: desktop.AuraDesktopRuntime,
+		W:       2,
+		H:       2,
+		Config:  map[string]interface{}{},
+	}, true
+}
+
+func cleanVirtualDesktopSlashPath(rawPath string) string {
+	p := strings.TrimSpace(strings.ReplaceAll(rawPath, "\\", "/"))
+	if p == "" {
+		return "."
+	}
+	return path.Clean(p)
+}
+
+func virtualDesktopTitleFromID(id string) string {
+	parts := strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(id))
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	if len(parts) == 0 {
+		return id
+	}
+	return strings.Join(parts, " ")
 }
 
 func virtualDesktopFiles(args map[string]interface{}) (map[string]string, error) {
