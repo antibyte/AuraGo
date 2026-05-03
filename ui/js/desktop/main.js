@@ -616,8 +616,9 @@
         const presets = {
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
-            'music-player': { width: 550, height: 450 },
-            calendar: { width: 950, height: 650 }
+            'music-player': { width: 580, height: 360 },
+            calendar: { width: 950, height: 650 },
+            'quick-connect': { width: 920, height: 640 }
         };
         return presets[appId] || defaultWindowSize();
     }
@@ -1564,19 +1565,142 @@
     async function renderMusicPlayer(id) {
         const host = contentEl(id);
         if (!host) return;
-        host.innerHTML = `<div class="vd-winamp"><section class="vd-winamp-deck"><div class="vd-winamp-title"><span data-title>*** AURAGO WINAMP ***</span></div><canvas width="260" height="58"></canvas><div class="vd-winamp-time" data-time>00:00 / 00:00</div><input type="range" min="0" max="100" value="0" data-seek><div class="vd-winamp-controls"><button data-prev>⏮</button><button data-play>▶</button><button data-pause>⏸</button><button data-stop>■</button><button data-next>⏭</button></div><label>VOL <input type="range" min="0" max="1" step="0.01" value="0.8" data-volume></label><label>BAL <input type="range" min="-1" max="1" step="0.01" value="0" data-balance></label><div class="vd-winamp-toggles"><button data-shuffle>${esc(t('desktop.winamp_shuffle'))}</button><button data-repeat>${esc(t('desktop.winamp_repeat'))}</button><button data-eq>EQ</button></div></section><section class="vd-winamp-playlist"><div><strong>${esc(t('desktop.winamp_playlist'))}</strong><button data-load>${esc(t('desktop.winamp_load_folder'))}</button></div><div data-playlist class="vd-winamp-tracks">${esc(t('desktop.winamp_no_tracks'))}</div></section><audio></audio></div>`;
+        const win = state.windows.get(id);
+        if (win && win.element) {
+            win.element.style.minWidth = '480px';
+            win.element.style.minHeight = '280px';
+        }
+
+        let audioContext = null;
+        let analyser = null;
+        let sourceNode = null;
+        let panner = null;
+        let audioSetupDone = false;
+
+        const setupAudio = () => {
+            if (audioSetupDone) return analyser;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 128;
+                panner = audioContext.createStereoPanner();
+                sourceNode = audioContext.createMediaElementSource(audio);
+                sourceNode.connect(panner);
+                panner.connect(analyser);
+                analyser.connect(audioContext.destination);
+                audioSetupDone = true;
+                return analyser;
+            } catch (err) {
+                return null;
+            }
+        };
+
+        host.innerHTML = `<div class="vd-winamp">
+            <section class="vd-winamp-main">
+                <div class="vd-winamp-titlebar">
+                    <div class="vd-winamp-titlebar-btns">
+                        <button data-action="minimize" title="Minimize">_</button>
+                        <button data-action="shade" title="Windowshade">□</button>
+                        <button data-action="close" title="Close">×</button>
+                    </div>
+                    <div class="vd-winamp-title-scroll-wrap">
+                        <span data-title class="vd-winamp-title-text">*** AURAGO WINAMP ***</span>
+                    </div>
+                </div>
+                <div class="vd-winamp-display">
+                    <div class="vd-winamp-display-row">
+                        <span class="vd-winamp-time" data-time>00:00</span>
+                        <span class="vd-winamp-display-meta">128 KBPS <span class="vd-winamp-stereo">STEREO</span> 44 KHZ</span>
+                    </div>
+                    <canvas width="280" height="54"></canvas>
+                </div>
+                <div class="vd-winamp-controls">
+                    <button data-prev title="Previous">|◄◄</button>
+                    <button data-play title="Play">►</button>
+                    <button data-pause title="Pause">▌▌</button>
+                    <button data-stop title="Stop">■</button>
+                    <button data-next title="Next">►►|</button>
+                    <button data-load title="Open folder">⏏</button>
+                </div>
+                <div class="vd-winamp-slider-row">
+                    <div class="vd-winamp-slider-group">
+                        <label>VOL</label>
+                        <div class="vd-winamp-slider-track" data-slider="volume" data-min="0" data-max="1" data-step="0.01" data-value="0.8">
+                            <div class="vd-winamp-slider-fill"></div>
+                            <div class="vd-winamp-slider-thumb"></div>
+                        </div>
+                    </div>
+                    <div class="vd-winamp-slider-group">
+                        <label>BAL</label>
+                        <div class="vd-winamp-slider-track" data-slider="balance" data-min="-1" data-max="1" data-step="0.01" data-value="0">
+                            <div class="vd-winamp-slider-fill"></div>
+                            <div class="vd-winamp-slider-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="vd-winamp-toggles">
+                    <button data-shuffle><span class="vd-winamp-led"></span><span>SHUF</span></button>
+                    <button data-repeat><span class="vd-winamp-led"></span><span>REP</span></button>
+                    <button data-eq>EQ</button>
+                    <button data-pl>PL</button>
+                </div>
+            </section>
+            <section class="vd-winamp-playlist">
+                <div class="vd-winamp-pl-header">
+                    <span class="vd-winamp-pl-title">${esc(t('desktop.winamp_playlist'))}</span>
+                    <span class="vd-winamp-pl-count" data-track-count>0 ${esc(t('desktop.winamp_tracks'))}</span>
+                    <button data-load-pl>${esc(t('desktop.winamp_load_folder'))}</button>
+                </div>
+                <div data-playlist class="vd-winamp-tracks">${esc(t('desktop.winamp_no_tracks'))}</div>
+            </section>
+            <audio></audio>
+        </div>`;
+
         const audio = host.querySelector('audio');
         const playlistEl = host.querySelector('[data-playlist]');
         const titleEl = host.querySelector('[data-title]');
         const timeEl = host.querySelector('[data-time]');
-        const seek = host.querySelector('[data-seek]');
+        const trackCountEl = host.querySelector('[data-track-count]');
+
         let tracks = [];
         let index = 0;
         let shuffle = false;
         let repeat = false;
         audio.volume = 0.8;
-        const renderPlaylist = () => { playlistEl.innerHTML = tracks.length ? tracks.map((track, i) => `<button type="button" class="${i === index ? 'active' : ''}" data-track="${i}"><span>${esc(track.name)}</span><small>${esc(track.path)}</small></button>`).join('') : esc(t('desktop.winamp_no_tracks')); playlistEl.querySelectorAll('[data-track]').forEach(btn => btn.addEventListener('dblclick', () => playTrack(Number(btn.dataset.track)))); };
-        const playTrack = async i => { if (!tracks[i]) return; index = i; audio.src = await desktopEmbedURL(tracks[i].path); titleEl.textContent = tracks[i].name; renderPlaylist(); await audio.play().catch(err => showDesktopNotification({ title: t('desktop.notification'), message: err.message })); };
+
+        const renderPlaylist = () => {
+            if (!tracks.length) {
+                playlistEl.innerHTML = esc(t('desktop.winamp_no_tracks'));
+                trackCountEl.textContent = '0 ' + t('desktop.winamp_tracks');
+                return;
+            }
+            trackCountEl.textContent = tracks.length + ' ' + t('desktop.winamp_tracks');
+            playlistEl.innerHTML = tracks.map((track, i) => {
+                const num = String(i + 1).padStart(2, '0');
+                return `<button type="button" class="${i === index ? 'active' : ''}" data-track="${i}">
+                    <span class="vd-winamp-pl-num">${num}</span>
+                    <span class="vd-winamp-pl-name">${esc(track.name)}</span>
+                    <span class="vd-winamp-pl-time">--:--</span>
+                </button>`;
+            }).join('');
+            playlistEl.querySelectorAll('[data-track]').forEach(btn => {
+                btn.addEventListener('dblclick', () => playTrack(Number(btn.dataset.track)));
+            });
+        };
+
+        const playTrack = async i => {
+            if (!tracks[i]) return;
+            index = i;
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+            audio.src = await desktopEmbedURL(tracks[i].path);
+            titleEl.textContent = tracks[i].name;
+            renderPlaylist();
+            await audio.play().catch(err => showDesktopNotification({ title: t('desktop.notification'), message: err.message }));
+            setupAudio();
+        };
+
         const scan = async path => {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(path));
             const files = body.files || [];
@@ -1585,20 +1709,68 @@
                 else if (/\.(mp3|wav|flac|ogg|m4a)$/i.test(file.name)) tracks.push({ name: file.name, path: file.path });
             }
         };
-        host.querySelector('[data-load]').addEventListener('click', async () => { const folder = await promptDialog(t('desktop.winamp_load_folder'), 'Music'); if (folder == null) return; tracks = []; await scan(folder); index = 0; renderPlaylist(); if (tracks[0]) playTrack(0); });
-        host.querySelector('[data-play]').addEventListener('click', () => tracks[index] ? (audio.src ? audio.play() : playTrack(index)) : null);
+
+        const loadFolder = async () => {
+            const folder = await promptDialog(t('desktop.winamp_load_folder'), 'Music');
+            if (folder == null) return;
+            tracks = [];
+            await scan(folder);
+            index = 0;
+            renderPlaylist();
+            if (tracks[0]) playTrack(0);
+        };
+
+        host.querySelector('[data-load]').addEventListener('click', loadFolder);
+        host.querySelector('[data-load-pl]').addEventListener('click', loadFolder);
+        host.querySelector('[data-play]').addEventListener('click', () => {
+            if (!tracks[index]) return;
+            if (audio.src) {
+                if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+                audio.play();
+            } else {
+                playTrack(index);
+            }
+        });
         host.querySelector('[data-pause]').addEventListener('click', () => audio.pause());
         host.querySelector('[data-stop]').addEventListener('click', () => { audio.pause(); audio.currentTime = 0; });
         host.querySelector('[data-prev]').addEventListener('click', () => playTrack((index - 1 + tracks.length) % tracks.length));
         host.querySelector('[data-next]').addEventListener('click', () => playTrack(shuffle ? Math.floor(Math.random() * tracks.length) : (index + 1) % tracks.length));
-        host.querySelector('[data-shuffle]').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.classList.toggle('active', shuffle); });
-        host.querySelector('[data-repeat]').addEventListener('click', event => { repeat = !repeat; event.currentTarget.classList.toggle('active', repeat); audio.loop = repeat; });
-        host.querySelector('[data-volume]').addEventListener('input', event => { audio.volume = Number(event.currentTarget.value); });
-        seek.addEventListener('input', () => { if (audio.duration) audio.currentTime = audio.duration * Number(seek.value) / 100; });
-        audio.addEventListener('timeupdate', () => { seek.value = audio.duration ? String(audio.currentTime / audio.duration * 100) : '0'; timeEl.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`; });
+        host.querySelector('[data-shuffle]').addEventListener('click', event => {
+            shuffle = !shuffle;
+            event.currentTarget.classList.toggle('active', shuffle);
+        });
+        host.querySelector('[data-repeat]').addEventListener('click', event => {
+            repeat = !repeat;
+            event.currentTarget.classList.toggle('active', repeat);
+            audio.loop = repeat;
+        });
+        host.querySelector('[data-action="minimize"]').addEventListener('click', () => {
+            const w = state.windows.get(id);
+            if (w && w.element) w.element.style.display = 'none';
+            if (state.activeWindowId === id) state.activeWindowId = '';
+            renderTaskbar();
+        });
+        host.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
+
+        // Custom sliders
+        host.querySelectorAll('[data-slider]').forEach(track => {
+            initWinampSlider(track, value => {
+                const type = track.dataset.slider;
+                if (type === 'volume') audio.volume = value;
+                else if (type === 'balance' && panner) panner.pan.value = value;
+            });
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            timeEl.textContent = formatTime(audio.currentTime);
+            const activeBtn = playlistEl.querySelector(`[data-track="${index}"] .vd-winamp-pl-time`);
+            if (activeBtn) activeBtn.textContent = formatTime(audio.currentTime);
+        });
         audio.addEventListener('ended', () => { if (!repeat && tracks.length) host.querySelector('[data-next]').click(); });
+
+        startTitleScroll(titleEl);
         renderPlaylist();
-        animateWinampCanvas(host.querySelector('canvas'), audio);
+        animateWinampCanvas(host.querySelector('canvas'), audio, () => analyser);
     }
 
     function formatTime(seconds) {
@@ -1608,18 +1780,127 @@
         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    function animateWinampCanvas(canvas, audio) {
-        const ctx = canvas.getContext('2d');
-        const draw = () => {
-            ctx.fillStyle = '#050805';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const bars = 24;
-            for (let i = 0; i < bars; i++) {
-                const h = audio.paused ? 4 : 8 + Math.abs(Math.sin(Date.now() / 220 + i)) * 44 * (audio.volume || 0.5);
-                ctx.fillStyle = i % 3 === 0 ? '#f2b84b' : '#30ff60';
-                ctx.fillRect(i * 11, canvas.height - h, 7, h);
+    function initWinampSlider(track, onChange) {
+        const fill = track.querySelector('.vd-winamp-slider-fill');
+        const thumb = track.querySelector('.vd-winamp-slider-thumb');
+        const min = Number(track.dataset.min);
+        const max = Number(track.dataset.max);
+        const step = Number(track.dataset.step) || 0.01;
+        let value = Number(track.dataset.value);
+
+        const updateVisual = () => {
+            const pct = (value - min) / (max - min) * 100;
+            if (fill) fill.style.width = pct + '%';
+            if (thumb) thumb.style.left = pct + '%';
+        };
+
+        const setValueFromX = clientX => {
+            const rect = track.getBoundingClientRect();
+            let pct = (clientX - rect.left) / rect.width;
+            pct = Math.max(0, Math.min(1, pct));
+            let newValue = min + pct * (max - min);
+            if (step) {
+                newValue = Math.round(newValue / step) * step;
+                newValue = Math.round(newValue * 100) / 100;
             }
+            value = newValue;
+            updateVisual();
+            onChange(value);
+            track.dataset.value = String(value);
+        };
+
+        updateVisual();
+
+        let dragging = false;
+        track.addEventListener('pointerdown', e => {
+            dragging = true;
+            track.setPointerCapture(e.pointerId);
+            setValueFromX(e.clientX);
+        });
+        track.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            setValueFromX(e.clientX);
+        });
+        track.addEventListener('pointerup', e => {
+            dragging = false;
+            track.releasePointerCapture(e.pointerId);
+        });
+    }
+
+    function startTitleScroll(el) {
+        let pos = 0;
+        let interval = null;
+        const start = () => {
+            if (interval) clearInterval(interval);
+            pos = 0;
+            el.style.transform = 'translateX(0)';
+            const parent = el.parentElement;
+            if (!parent || el.scrollWidth <= parent.clientWidth) return;
+            interval = setInterval(() => {
+                pos -= 1;
+                if (Math.abs(pos) >= el.scrollWidth + 30) pos = parent.clientWidth;
+                el.style.transform = `translateX(${pos}px)`;
+            }, 30);
+        };
+        start();
+        const observer = new MutationObserver(start);
+        observer.observe(el, { childList: true });
+    }
+
+    function animateWinampCanvas(canvas, audio, getAnalyser) {
+        const ctx = canvas.getContext('2d');
+        const barCount = 28;
+        const peaks = new Float32Array(barCount);
+        const peakSpeeds = new Float32Array(barCount);
+
+        const draw = () => {
             requestAnimationFrame(draw);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const analyser = getAnalyser();
+            let data = null;
+            if (analyser && !audio.paused) {
+                data = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(data);
+            }
+
+            const barWidth = Math.floor((canvas.width - 4) / barCount) - 1;
+            const maxBarHeight = canvas.height - 6;
+
+            for (let i = 0; i < barCount; i++) {
+                let h = 2;
+                if (data) {
+                    const binIndex = Math.floor(i * (data.length / barCount));
+                    h = 2 + (data[binIndex] / 255) * maxBarHeight;
+                } else if (!audio.paused) {
+                    h = 2 + Math.abs(Math.sin(Date.now() / 280 + i * 0.8)) * maxBarHeight * 0.5;
+                }
+
+                const x = 2 + i * (barWidth + 1);
+                const y = canvas.height - h - 2;
+
+                const gradient = ctx.createLinearGradient(0, canvas.height, 0, 2);
+                gradient.addColorStop(0, '#00FF00');
+                gradient.addColorStop(0.55, '#FFFF00');
+                gradient.addColorStop(1, '#FF0000');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, y, barWidth, h);
+
+                if (h > peaks[i]) {
+                    peaks[i] = h;
+                    peakSpeeds[i] = 0.4;
+                } else {
+                    peaks[i] -= peakSpeeds[i];
+                    peakSpeeds[i] += 0.08;
+                    if (peaks[i] < h) peaks[i] = h;
+                }
+                if (peaks[i] < 2) peaks[i] = 2;
+
+                const peakY = canvas.height - peaks[i] - 2;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(x, peakY, barWidth, 1);
+            }
         };
         draw();
     }
