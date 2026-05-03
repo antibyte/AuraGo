@@ -2323,7 +2323,7 @@
                 categories = await api('/api/launchpad/categories');
                 updateCategorySelect();
                 render();
-            } catch (e) { showNotify(t('desktop.launchpad_load_error')); }
+            } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_load_error') }); }
         }
 
         function updateCategorySelect() {
@@ -2367,10 +2367,10 @@
         }
 
         async function deleteLink(linkId) {
-            const ok = await showConfirmModal(t('desktop.launchpad_delete_confirm'));
+            const ok = confirm(t('desktop.launchpad_delete_confirm'));
             if (!ok) return;
             try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
-            catch (e) { showNotify(t('desktop.launchpad_delete_error')); }
+            catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
         async function openEditModal(linkId) {
@@ -2471,7 +2471,7 @@
                 }
                 modal.remove();
                 await load();
-            } catch (e) { showNotify(t('desktop.launchpad_save_error')); }
+            } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_save_error') }); }
         }
 
         host.querySelector('[data-action="add"]').addEventListener('click', () => openEditModal());
