@@ -8,6 +8,7 @@
         ws: null,
         chatBusy: false,
         startQuery: '',
+        desktopFiles: [],
         iconManifest: null,
         papirusIconManifest: null,
         iconMap: new Map(),
@@ -378,7 +379,19 @@
 
     async function loadBootstrap() {
         state.bootstrap = await api('/api/desktop/bootstrap');
+        state.desktopFiles = await loadDesktopFiles();
         renderDesktop();
+    }
+
+    async function loadDesktopFiles() {
+        if (!state.bootstrap || !state.bootstrap.enabled) return [];
+        try {
+            const body = await api('/api/desktop/files?path=Desktop');
+            return (body.files || []).filter(file => file && file.path);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            return [];
+        }
     }
 
     function renderDesktop() {
@@ -404,10 +417,10 @@
         const items = desktopShortcutItems();
         const positions = iconPositions();
         icons.innerHTML = items.map(item => {
-            const iconKey = item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
-            const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
+            const iconKey = item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
+            const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
-            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
+            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
                 ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
@@ -422,7 +435,7 @@
 
     function desktopShortcutItems() {
         const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
-        return shortcuts.map(shortcut => {
+        const shortcutItems = shortcuts.map(shortcut => {
             if (shortcut.target_type === 'app') {
                 const app = appById(shortcut.target_id);
                 if (!app) return null;
@@ -446,6 +459,15 @@
             }
             return null;
         }).filter(Boolean);
+        const desktopEntries = (state.desktopFiles || []).map(file => ({
+            id: 'desktop-entry-' + file.path,
+            name: file.name || file.path,
+            type: file.type === 'directory' ? 'directory' : 'file',
+            path: file.path,
+            file,
+            desktopEntry: true
+        }));
+        return [...shortcutItems, ...desktopEntries];
     }
 
     function selectDesktopIcon(btn) {
@@ -494,6 +516,10 @@
     }
 
     function activateDesktopItem(btn) {
+        if (btn.dataset.kind === 'file') {
+            openDesktopFileEntry(btn);
+            return;
+        }
         if (btn.dataset.kind === 'directory') {
             openApp('files', { path: btn.dataset.path || '' });
             return;
@@ -951,12 +977,24 @@
         selectDesktopIcon(btn);
         const path = btn.dataset.path || '';
         const appId = btn.dataset.appId || '';
-        const appIsBuiltin = !appId || isBuiltinApp(appId);
+        const kind = btn.dataset.kind || '';
+        const isDesktopEntry = btn.dataset.desktopEntry === 'true';
         const items = [
-            { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) },
-            { label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) }
+            { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) }
         ];
+        if (isDesktopEntry || kind === 'file') {
+            items.push(
+                { label: t('desktop.context_rename'), icon: '✎', action: () => renamePath(path) },
+                { label: t('desktop.context_delete'), icon: '×', action: () => deletePath(path) }
+            );
+            if (btn.dataset.webPath) {
+                items.push({ label: t('desktop.media_download'), icon: '↓', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
+            }
+        } else {
+            items.push({ label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) });
+        }
         if (appId) {
+            const appIsBuiltin = isBuiltinApp(appId);
             items.push({ label: t('desktop.context_delete_app'), icon: '×', disabled: appIsBuiltin, action: () => deleteDesktopApp(appId) });
         }
         items.push(
@@ -1060,7 +1098,20 @@
     async function createFileInPath(basePath) {
         const name = await promptDialog(t('desktop.new_file'), 'untitled.txt');
         if (!name) return;
-        openApp('editor', { path: joinPath(basePath, name), content: '' });
+        const path = joinPath(basePath, name);
+        try {
+            await api('/api/desktop/file', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path, content: '' })
+            });
+            await loadBootstrap();
+            const active = state.windows.get(state.activeWindowId);
+            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            openApp('editor', { path, content: '' });
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
     }
 
     async function createFolderInPath(basePath) {
@@ -1305,7 +1356,7 @@
 
     function openDesktopFileEntry(row) {
         const entry = {
-            name: row.querySelector('.vd-file-name') ? row.querySelector('.vd-file-name').textContent : row.dataset.path,
+            name: row.querySelector('.vd-file-name, .vd-icon-label') ? row.querySelector('.vd-file-name, .vd-icon-label').textContent : row.dataset.path,
             path: row.dataset.path,
             web_path: row.dataset.webPath,
             media_kind: row.dataset.mediaKind,
@@ -2541,7 +2592,7 @@
                         <input type="text" class="vd-modal-input lp-description" placeholder="${esc(t('desktop.launchpad_label_description'))}" value="${esc(link ? link.description : '')}">
                         <div style="font-size: 12px; color: var(--vd-muted); margin-top: 4px;">${esc(t('desktop.launchpad_label_icon'))}</div>
                         <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
-                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div></div>
+                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" style="display:none;"></div></div>
                         <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
                         <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
                     </div>
@@ -2553,7 +2604,12 @@
             document.body.appendChild(backdrop);
             const modal = backdrop.querySelector('.vd-modal');
             const preview = modal.querySelector('.lp-icon-preview');
-            if (link && link.icon_path) preview.innerHTML = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px; border-radius:8px;">';
+            const selectedPreview = modal.querySelector('.lp-icon-selected-preview');
+            if (link && link.icon_path) {
+                const imgTag = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px; border-radius:8px;">';
+                preview.innerHTML = imgTag;
+                if (selectedPreview) { selectedPreview.style.display = 'flex'; selectedPreview.innerHTML = imgTag; }
+            }
 
             modal.querySelectorAll('.lp-icon-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -2597,6 +2653,11 @@
                         resultsEl.querySelectorAll('.lp-icon-result').forEach(x => x.classList.remove('selected'));
                         el.classList.add('selected');
                         selectedIconURL = el.dataset.url;
+                        const previewEl = modal.querySelector('.lp-icon-selected-preview');
+                        if (previewEl) {
+                            previewEl.style.display = 'flex';
+                            previewEl.innerHTML = '<img src="' + esc(el.dataset.url) + '" style="width:48px;height:48px;border-radius:8px;object-fit:contain;" onerror="this.style.display=\'none\'">';
+                        }
                     });
                 });
             } catch (e) {
