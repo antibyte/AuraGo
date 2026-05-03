@@ -135,6 +135,10 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.state == StateRunning {
+		if _, err := s.ensureWorkspaceLocked(); err != nil {
+			s.state = StateError
+			return err
+		}
 		s.touchLocked()
 		return nil
 	}
@@ -143,15 +147,10 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	}
 
 	s.state = StateStarting
-	workspaceDir := s.cfg.WorkspaceDir
-	if strings.TrimSpace(workspaceDir) == "" {
+	codeWorkspaceDir, err := s.ensureWorkspaceLocked()
+	if err != nil {
 		s.state = StateError
-		return fmt.Errorf("desktop workspace directory is required")
-	}
-	codeWorkspaceDir := filepath.Join(workspaceDir, codeWorkspaceDirName)
-	if err := os.MkdirAll(codeWorkspaceDir, 0o755); err != nil {
-		s.state = StateError
-		return fmt.Errorf("create code studio workspace: %w", err)
+		return err
 	}
 
 	containerID, running, err := s.findContainerLocked(ctx)
@@ -208,6 +207,42 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	}
 	s.state = StateRunning
 	s.touchLocked()
+	return nil
+}
+
+func (s *CodeContainerService) ensureWorkspaceLocked() (string, error) {
+	workspaceDir := s.cfg.WorkspaceDir
+	if strings.TrimSpace(workspaceDir) == "" {
+		return "", fmt.Errorf("desktop workspace directory is required")
+	}
+	codeWorkspaceDir := filepath.Join(workspaceDir, codeWorkspaceDirName)
+	if err := os.MkdirAll(codeWorkspaceDir, 0o755); err != nil {
+		return "", fmt.Errorf("create code studio workspace: %w", err)
+	}
+	if err := seedCodeStudioWorkspace(codeWorkspaceDir); err != nil {
+		return "", fmt.Errorf("seed code studio workspace: %w", err)
+	}
+	return codeWorkspaceDir, nil
+}
+
+func seedCodeStudioWorkspace(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) > 0 {
+		return nil
+	}
+	files := map[string]string{
+		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\n```\n",
+		"hello.go":  "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Code Studio\")\n}\n",
+		"hello.py":  "print(\"Hello from Code Studio\")\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

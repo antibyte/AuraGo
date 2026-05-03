@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +14,50 @@ type fakeCodeContainerDocker struct {
 	ensuredImages []string
 	creates       []CodeDockerCreateRequest
 	actions       []string
+}
+
+func TestCodeContainerEnsureStartedSeedsDefaultWorkspace(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	readme := filepath.Join(workspace, codeWorkspaceDirName, "README.md")
+	if _, err := os.Stat(readme); err != nil {
+		t.Fatalf("default README was not created: %v", err)
+	}
+	mainGo := filepath.Join(workspace, codeWorkspaceDirName, "hello.go")
+	if _, err := os.Stat(mainGo); err != nil {
+		t.Fatalf("default Go example was not created: %v", err)
+	}
+}
+
+func TestCodeContainerEnsureStartedSeedsWorkspaceWhenAlreadyRunning(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+	svc.state = StateRunning
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, codeWorkspaceDirName, "README.md")); err != nil {
+		t.Fatalf("default README was not created for already-running service: %v", err)
+	}
 }
 
 func (f *fakeCodeContainerDocker) ListContainers(ctx context.Context, all bool) ([]CodeDockerContainer, error) {

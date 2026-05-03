@@ -545,47 +545,23 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	cols := parsePositiveInt(r.URL.Query().Get("cols"), 120)
-	rows := parsePositiveInt(r.URL.Query().Get("rows"), 30)
-	execID, err := h.docker.CreateTerminalExec(r.Context(), containerID, cols, rows)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
-		return
-	}
 	conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
-
-	go h.readTerminalControl(conn, execID)
-	stream, err := h.docker.StartExec(r.Context(), execID)
-	if err != nil {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-		return
-	}
-	frames, err := demuxDockerAttachStream(bytes.NewReader(stream))
-	if err != nil {
-		_ = conn.WriteMessage(websocket.BinaryMessage, stream)
-		return
-	}
-	for _, frame := range frames {
-		if len(frame.Payload) == 0 {
-			continue
-		}
-		if err := conn.WriteMessage(websocket.BinaryMessage, frame.Payload); err != nil {
-			return
-		}
-	}
+	h.runLineTerminal(r.Context(), conn, containerID)
 }
 
-func (h codeStudioHandlers) readTerminalControl(conn *websocket.Conn, execID string) {
+func (h codeStudioHandlers) runLineTerminal(ctx context.Context, conn *websocket.Conn, containerID string) {
+	session := newCodeStudioTerminalSession(codeStudioWorkspaceRoot)
+	_ = conn.WriteMessage(websocket.TextMessage, []byte(session.prompt()))
 	for {
 		messageType, payload, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
-		if messageType != websocket.TextMessage {
+		if messageType != websocket.TextMessage && messageType != websocket.BinaryMessage {
 			continue
 		}
 		var msg struct {
@@ -594,9 +570,33 @@ func (h codeStudioHandlers) readTerminalControl(conn *websocket.Conn, execID str
 			Rows int    `json:"rows"`
 		}
 		if json.Unmarshal(payload, &msg) == nil && msg.Type == "resize" {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = h.docker.ResizeExec(ctx, execID, msg.Cols, msg.Rows)
-			cancel()
+			continue
+		}
+		cmd, output := session.consume(string(payload))
+		if output != "" {
+			if err := conn.WriteMessage(websocket.TextMessage, []byte(output)); err != nil {
+				return
+			}
+		}
+		if cmd == "" {
+			continue
+		}
+		result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-lc", cmd}, codeStudioMaxExecTime)
+		text := ""
+		if err != nil {
+			text = err.Error() + "\n"
+		} else {
+			text = result.Output
+			if text != "" && !strings.HasSuffix(text, "\n") {
+				text += "\n"
+			}
+			if result.ExitCode != 0 {
+				text += fmt.Sprintf("exit %d\n", result.ExitCode)
+			}
+		}
+		text = strings.ReplaceAll(text, "\n", "\r\n") + session.prompt()
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(text)); err != nil {
+			return
 		}
 	}
 }
@@ -908,6 +908,68 @@ func parsePositiveInt(raw string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+type codeStudioTerminalSession struct {
+	cwd  string
+	line strings.Builder
+}
+
+func newCodeStudioTerminalSession(cwd string) *codeStudioTerminalSession {
+	path, err := sanitizeCodeStudioPath(cwd)
+	if err != nil {
+		path = codeStudioWorkspaceRoot
+	}
+	return &codeStudioTerminalSession{cwd: path}
+}
+
+func (s *codeStudioTerminalSession) prompt() string {
+	return s.cwd + " $ "
+}
+
+func (s *codeStudioTerminalSession) consume(input string) (string, string) {
+	var output strings.Builder
+	for _, r := range input {
+		switch r {
+		case '\r', '\n':
+			text := strings.TrimSpace(s.line.String())
+			s.line.Reset()
+			output.WriteString("\r\n")
+			if text == "" {
+				output.WriteString(s.prompt())
+				return "", output.String()
+			}
+			if strings.HasPrefix(text, "cd") && (text == "cd" || strings.HasPrefix(text, "cd ")) {
+				target := strings.TrimSpace(strings.TrimPrefix(text, "cd"))
+				if target == "" {
+					target = codeStudioWorkspaceRoot
+				}
+				next, err := sanitizeCodeStudioPath(pathpkg.Join(s.cwd, target))
+				if err != nil {
+					output.WriteString(err.Error())
+					output.WriteString("\r\n")
+				} else {
+					s.cwd = next
+					output.WriteString(s.cwd)
+					output.WriteString("\r\n")
+				}
+				output.WriteString(s.prompt())
+				return "", output.String()
+			}
+			return "cd " + shellQuote(s.cwd) + " && " + text, output.String()
+		case '\b', 0x7f:
+			current := s.line.String()
+			if len(current) > 0 {
+				s.line.Reset()
+				s.line.WriteString(current[:len(current)-1])
+				output.WriteString("\b \b")
+			}
+		default:
+			s.line.WriteRune(r)
+			output.WriteRune(r)
+		}
+	}
+	return "", output.String()
 }
 
 func (a codeStudioDockerAdapter) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {

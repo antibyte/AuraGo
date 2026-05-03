@@ -351,8 +351,12 @@
             event.preventDefault();
             sidebar.classList.remove('dragover');
             const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
-            for (const file of files) await apiClient.uploadFile(state.currentPath, file);
-            if (files.length) await refreshFiles(state.currentPath);
+            try {
+                for (const file of files) await apiClient.uploadFile(state.currentPath, file);
+                if (files.length) await refreshFiles(state.currentPath);
+            } catch (err) {
+                showOperationError(err);
+            }
         };
         sidebar.querySelectorAll('[data-file-path]').forEach(row => {
             row.addEventListener('click', event => {
@@ -569,17 +573,26 @@
     async function createNewFile() {
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
-        const path = joinPath(state.currentPath, name);
-        await apiClient.writeFile(path, '');
-        await refreshFiles(state.currentPath);
-        await openFile(path);
+        try {
+            const path = joinPath(state.currentPath, name);
+            await apiClient.writeFile(path, '');
+            await refreshFiles(state.currentPath);
+            await openFile(path);
+        } catch (err) {
+            showOperationError(err);
+        }
     }
 
     async function createNewFolder() {
         const name = await promptValue(tr('codeStudio.newFolder', 'New Folder'), 'src');
         if (!name) return;
-        await apiClient.createDirectory(joinPath(state.currentPath, name));
-        await refreshFiles(state.currentPath);
+        try {
+            await apiClient.createDirectory(joinPath(state.currentPath, name));
+            await refreshFiles(state.currentPath);
+            renderStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name);
+        } catch (err) {
+            showOperationError(err);
+        }
     }
 
     async function renamePath(file) {
@@ -622,8 +635,12 @@
         input.type = 'file';
         input.addEventListener('change', async () => {
             if (!input.files || !input.files[0]) return;
-            await apiClient.uploadFile(state.currentPath, input.files[0]);
-            await refreshFiles(state.currentPath);
+            try {
+                await apiClient.uploadFile(state.currentPath, input.files[0]);
+                await refreshFiles(state.currentPath);
+            } catch (err) {
+                showOperationError(err);
+            }
         }, { once: true });
         input.click();
     }
@@ -992,6 +1009,12 @@
         }
         const screen = state.root.querySelector('[data-terminal-screen]');
         if (screen) screen.textContent += String(line || '') + '\n';
+    }
+
+    function showOperationError(err) {
+        const message = err && err.message ? err.message : String(err || '');
+        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
+        writeTerminalLine(message);
     }
 
     function languageForPath(path) {
