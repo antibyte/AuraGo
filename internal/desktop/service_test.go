@@ -86,6 +86,19 @@ func TestServiceWritesAndReadsFilesInsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsEmptyStandaloneWidgetHTML(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.WriteFile(context.Background(), "Widgets/weather_pforzheim.html", " \n\t", SourceAgent)
+	if err == nil {
+		t.Fatal("expected empty standalone widget HTML to be rejected")
+	}
+	if !strings.Contains(err.Error(), "desktop widget HTML file must not be empty") {
+		t.Fatalf("error = %q, want empty widget HTML rejection", err)
+	}
+}
+
 func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	t.Parallel()
 
@@ -358,21 +371,6 @@ func TestServiceUpsertWidgetRejectsMissingOrEmptyEntryFile(t *testing.T) {
 		t.Fatalf("error = %q, want standalone missing widget entry rejection", err)
 	}
 
-	if err := svc.WriteFile(context.Background(), "Widgets/empty.html", " \n\t", SourceAgent); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	err = svc.UpsertWidget(context.Background(), Widget{
-		ID:    "empty-standalone-widget",
-		Title: "Weather",
-		Icon:  "weather",
-		Entry: "empty.html",
-	}, SourceAgent)
-	if err == nil {
-		t.Fatal("expected empty standalone widget entry file to be rejected")
-	}
-	if !strings.Contains(err.Error(), "widget entry file must not be empty") {
-		t.Fatalf("error = %q, want standalone empty widget entry rejection", err)
-	}
 }
 
 func TestServiceUpsertWidgetRejectsUnsafeEntry(t *testing.T) {

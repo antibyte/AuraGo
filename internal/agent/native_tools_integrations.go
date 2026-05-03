@@ -1117,7 +1117,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"path":      prop("string", "Workspace-relative file or directory path for list_files/read_file/write_file, e.g. 'Documents/notes.md'. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'."),
 				"file_path": prop("string", "Alias for path."),
-				"content":   prop("string", "Text file content for write_file, or notification message for show_notification."),
+				"content":   prop("string", "Required text file content for write_file, or notification message for show_notification. For Widgets/<widget_id>.html this must be complete, non-empty HTML."),
 				"title":     prop("string", "Notification title or widget title."),
 				"app_id":    prop("string", "Desktop app ID for open_app or widget ownership."),
 				"manifest": map[string]interface{}{

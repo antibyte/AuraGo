@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	slashpath "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -284,6 +285,11 @@ func cleanDesktopPath(rawPath string) string {
 	return filepath.Clean(filepath.FromSlash(p))
 }
 
+func isStandaloneWidgetHTMLPath(rawPath string) bool {
+	p := filepath.ToSlash(cleanDesktopPath(rawPath))
+	return strings.EqualFold(slashpath.Dir(p), "Widgets") && strings.EqualFold(slashpath.Ext(p), ".html")
+}
+
 func isWithinPath(root, candidate string) bool {
 	rel, err := filepath.Rel(root, candidate)
 	if err != nil {
@@ -385,6 +391,9 @@ func (s *Service) WriteFile(ctx context.Context, rawPath, content, source string
 	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
 	if int64(len([]byte(content))) > maxBytes {
 		return fmt.Errorf("desktop file exceeds max size")
+	}
+	if isStandaloneWidgetHTMLPath(rawPath) && strings.TrimSpace(content) == "" {
+		return fmt.Errorf("desktop widget HTML file must not be empty")
 	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {

@@ -49,7 +49,7 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 
 ## Widget Registration
 
-For a simple standalone widget, write non-empty HTML directly to `Widgets/<widget_id>.html` with `write_file`. The desktop automatically registers and pins that file as a widget. Do not write empty placeholder HTML.
+For a simple standalone widget, write complete non-empty HTML directly to `Widgets/<widget_id>.html` with `write_file`. The desktop automatically registers and pins that file as a widget. Do not write empty placeholder HTML. If `write_file` returns an empty-content error, retry by sending the full HTML in `content` before claiming completion.
 
 For widgets owned by a generated app, register them with `upsert_widget`. An app-backed widget can use the SDK bridge and app permissions.
 
