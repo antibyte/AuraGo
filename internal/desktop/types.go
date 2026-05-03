@@ -263,6 +263,49 @@ func NormalizeDesktopIconName(raw, label string) (string, error) {
 	return "", fmt.Errorf("%s icon must use icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>", label)
 }
 
+// InferDesktopIconName chooses the first catalog icon mentioned by an app or
+// widget identity. It keeps agent-generated desktop items usable when the icon
+// field is omitted while still returning only catalog-approved names.
+func InferDesktopIconName(candidates ...string) string {
+	for _, raw := range candidates {
+		for _, candidate := range desktopIconInferenceCandidates(raw) {
+			if icon, err := NormalizeDesktopIconName(candidate, "desktop"); err == nil {
+				return icon
+			}
+		}
+	}
+	return "apps"
+}
+
+func desktopIconInferenceCandidates(raw string) []string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if normalized == "" {
+		return nil
+	}
+	normalized = strings.ReplaceAll(normalized, "\\", "/")
+	if idx := strings.LastIndex(normalized, "/"); idx >= 0 {
+		normalized = normalized[idx+1:]
+	}
+	candidates := []string{strings.ReplaceAll(normalized, " ", "_")}
+	var token strings.Builder
+	flush := func() {
+		if token.Len() == 0 {
+			return
+		}
+		candidates = append(candidates, token.String())
+		token.Reset()
+	}
+	for _, r := range normalized {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			token.WriteRune(r)
+			continue
+		}
+		flush()
+	}
+	flush()
+	return candidates
+}
+
 // DefaultDirectories returns the persistent workspace folders exposed by the desktop.
 func DefaultDirectories() []string {
 	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Data", "Pictures", "Trash", "Shared"}

@@ -504,6 +504,9 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	if manifest.Name == "" {
 		return fmt.Errorf("desktop app name is required")
 	}
+	if manifest.Icon == "" {
+		manifest.Icon = InferDesktopIconName(manifest.ID, manifest.Name, manifest.Entry, manifest.Description)
+	}
 	icon, err := NormalizeDesktopIconName(manifest.Icon, "desktop app")
 	if err != nil {
 		return err
@@ -588,7 +591,7 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		widget.Type = WidgetTypeCustom
 	}
 	if widget.Icon == "" {
-		widget.Icon = "widgets"
+		widget.Icon = InferDesktopIconName(widget.ID, widget.Title, widget.Type, widget.Entry, widget.AppID)
 	}
 	icon, err := NormalizeDesktopIconName(widget.Icon, "desktop widget")
 	if err != nil {

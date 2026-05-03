@@ -325,7 +325,7 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	if virtualDesktop == nil {
 		t.Fatal("missing virtual_desktop schema")
 	}
-	for _, want := range []string{"icon_catalog", "Papirus", "emoji", "sprite:<name>"} {
+	for _, want := range []string{"icon_catalog", "Papirus", "Emoji", "sprite:<name>"} {
 		if !strings.Contains(virtualDesktop.Description, want) {
 			t.Fatalf("virtual_desktop description missing %q: %s", want, virtualDesktop.Description)
 		}
@@ -334,7 +334,7 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	props, _ := params["properties"].(map[string]interface{})
 	manifest, _ := props["manifest"].(map[string]interface{})
 	manifestDescription, _ := manifest["description"].(string)
-	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "runtime defaults to aura-desktop-sdk@1"} {
+	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
 		if !strings.Contains(manifestDescription, want) {
 			t.Fatalf("manifest description missing %q: %s", want, manifestDescription)
 		}
@@ -343,6 +343,9 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	widgetDescription, _ := widget["description"].(string)
 	if !strings.Contains(widgetDescription, "icon_catalog") {
 		t.Fatalf("widget description missing icon_catalog guidance: %s", widgetDescription)
+	}
+	if !strings.Contains(widgetDescription, "inferred") {
+		t.Fatalf("widget description missing inferred icon guidance: %s", widgetDescription)
 	}
 }
 

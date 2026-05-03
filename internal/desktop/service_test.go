@@ -255,23 +255,18 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	}
 }
 
-func TestServiceInstallAppRequiresIconAndRegistersSDKRuntime(t *testing.T) {
+func TestServiceInstallAppInfersIconAndRegistersSDKRuntime(t *testing.T) {
 	t.Parallel()
 
 	svc := testService(t)
 	manifest := AppManifest{
-		ID:      "sdk-notes",
-		Name:    "SDK Notes",
-		Version: "1.0.0",
-		Entry:   "index.html",
+		ID:          "sdk-notes",
+		Name:        "SDK Notes",
+		Version:     "1.0.0",
+		Entry:       "index.html",
+		Permissions: []string{" files:read ", "", "widgets:write"},
 	}
 	files := map[string]string{"index.html": "<main id=\"app\"></main>"}
-	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err == nil {
-		t.Fatal("expected missing app icon to be rejected")
-	}
-
-	manifest.Icon = "note"
-	manifest.Permissions = []string{" files:read ", "", "widgets:write"}
 	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
 		t.Fatalf("InstallApp: %v", err)
 	}
@@ -345,6 +340,35 @@ func TestServiceInstallAppNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
 	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
 		t.Fatalf("InstallApp sprite icon: %v", err)
 	}
+}
+
+func TestServiceInstallAppInfersMissingIconFromManifestIdentity(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	files := map[string]string{"index.html": "<main>Weather</main>"}
+	manifest := AppManifest{
+		ID:      "weather-dashboard",
+		Name:    "Weather Dashboard",
+		Version: "1.0.0",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp without icon: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID == "weather-dashboard" {
+			if app.Icon != "weather" {
+				t.Fatalf("inferred icon = %q, want weather", app.Icon)
+			}
+			return
+		}
+	}
+	t.Fatalf("weather-dashboard was not installed: %+v", bootstrap.InstalledApps)
 }
 
 func TestServiceInstallAppRejectsEmptyEntryFile(t *testing.T) {
@@ -468,6 +492,32 @@ func TestServiceUpsertWidgetNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
 	if !strings.Contains(err.Error(), "desktop widget icon must use") {
 		t.Fatalf("error = %q, want icon catalog guidance", err)
 	}
+}
+
+func TestServiceUpsertWidgetInfersMissingIconFromWidgetIdentity(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	widget := Widget{
+		ID:    "quick_notes",
+		Title: "Quick Notes",
+	}
+	if err := svc.UpsertWidget(context.Background(), widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget without icon: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, item := range bootstrap.Widgets {
+		if item.ID == "quick_notes" {
+			if item.Icon != "notes" {
+				t.Fatalf("inferred widget icon = %q, want notes", item.Icon)
+			}
+			return
+		}
+	}
+	t.Fatalf("quick_notes widget was not registered: %+v", bootstrap.Widgets)
 }
 
 func TestServiceUpsertWidgetRegistersStandaloneEntry(t *testing.T) {

@@ -1107,7 +1107,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.VirtualDesktopEnabled {
 		tools = append(tools, tool("virtual_desktop",
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
-				"Generated apps should use the Aura Desktop SDK runtime and choose semantic Papirus icons from status.icon_catalog.preferred or status.icon_catalog.aliases; emoji icons and unknown custom names are rejected. Use sprite:<name> only for deliberate legacy sprite fallback. "+
+				"Generated apps should use the Aura Desktop SDK runtime and choose semantic Papirus icons from status.icon_catalog.preferred or status.icon_catalog.aliases; if icon is omitted, AuraGo infers one from id/name/title when possible. Emoji icons and unknown custom names are rejected. Use sprite:<name> only for deliberate legacy sprite fallback. "+
 				"To create a simple standalone widget, write non-empty HTML directly to Widgets/<widget_id>.html; the desktop registers and pins it automatically. "+
 				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
 			schema(map[string]interface{}{
@@ -1123,7 +1123,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"app_id":    prop("string", "Desktop app ID for open_app or widget ownership."),
 				"manifest": map[string]interface{}{
 					"type":                 "object",
-					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is required and must come from icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; runtime defaults to aura-desktop-sdk@1.",
+					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is optional but should come from icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; when omitted AuraGo infers one from id/name/entry/description. runtime defaults to aura-desktop-sdk@1.",
 					"additionalProperties": true,
 				},
 				"files": map[string]interface{}{
@@ -1133,7 +1133,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"widget": map[string]interface{}{
 					"type":                 "object",
-					"description":          "Widget payload for upsert_widget: id, app_id, type, title, icon, entry, runtime, permissions, x, y, w, h, config. icon follows the same icon_catalog rules as app manifests.",
+					"description":          "Widget payload for upsert_widget: id, app_id, type, title, icon, entry, runtime, permissions, x, y, w, h, config. icon follows the same icon_catalog rules as app manifests and is inferred from id/title/type/entry/app_id when omitted.",
 					"additionalProperties": true,
 				},
 			}, "operation"),

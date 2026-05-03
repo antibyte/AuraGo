@@ -259,7 +259,7 @@ func virtualDesktopStandaloneWidgetFromFile(rawPath string) (desktop.Widget, boo
 		ID:      id,
 		Type:    desktop.WidgetTypeCustom,
 		Title:   virtualDesktopTitleFromID(id),
-		Icon:    "widgets",
+		Icon:    desktop.InferDesktopIconName(id, entry),
 		Entry:   entry,
 		Runtime: desktop.AuraDesktopRuntime,
 		W:       2,

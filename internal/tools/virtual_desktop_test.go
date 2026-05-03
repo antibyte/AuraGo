@@ -57,6 +57,7 @@ func TestExecuteVirtualDesktopWriteFileAutoRegistersStandaloneWidget(t *testing.
 			Widgets []struct {
 				ID    string `json:"id"`
 				AppID string `json:"app_id"`
+				Icon  string `json:"icon"`
 				Entry string `json:"entry"`
 			} `json:"widgets"`
 		} `json:"data"`
@@ -71,6 +72,9 @@ func TestExecuteVirtualDesktopWriteFileAutoRegistersStandaloneWidget(t *testing.
 			}
 			if widget.Entry != "weather_pforzheim.html" {
 				t.Fatalf("entry = %q, want weather_pforzheim.html", widget.Entry)
+			}
+			if widget.Icon != "weather" {
+				t.Fatalf("icon = %q, want weather", widget.Icon)
 			}
 			return
 		}
