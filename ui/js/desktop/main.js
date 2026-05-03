@@ -259,6 +259,10 @@
         return allApps().find(app => app.id === appId);
     }
 
+    function isBuiltinApp(appId) {
+        return ((state.bootstrap && state.bootstrap.builtin_apps) || []).some(app => app.id === appId);
+    }
+
     function fmtBytes(size) {
         const n = Number(size || 0);
         if (n < 1024) return t('desktop.bytes', { count: n });
@@ -427,6 +431,7 @@
                     name: shortcut.name || appName(app),
                     type: 'app',
                     app,
+                    path: shortcut.path || '',
                     shortcut
                 };
             }
@@ -493,7 +498,12 @@
             openApp('files', { path: btn.dataset.path || '' });
             return;
         }
-        openApp(btn.dataset.appId || btn.dataset.id);
+        const appId = btn.dataset.appId || btn.dataset.id;
+        if (appId === 'files') {
+            openApp('files', { path: btn.dataset.path || '' });
+            return;
+        }
+        openApp(appId);
     }
 
     function renderWidgets() {
@@ -909,11 +919,10 @@
                 <span class="vd-context-icon">${esc(item.icon || '')}</span>
                 <span>${esc(item.label)}</span>
             </button>`).join('');
-        $('vd-workspace').appendChild(menu);
+        document.body.appendChild(menu);
         const rect = menu.getBoundingClientRect();
-        const workspace = $('vd-workspace').getBoundingClientRect();
-        menu.style.left = Math.max(8, Math.min(x - workspace.left, workspace.width - rect.width - 8)) + 'px';
-        menu.style.top = Math.max(8, Math.min(y - workspace.top, workspace.height - rect.height - 8)) + 'px';
+        menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
+        menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
         menu.querySelectorAll('[data-index]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const item = items[Number(btn.dataset.index)];
@@ -941,21 +950,32 @@
         event.preventDefault();
         selectDesktopIcon(btn);
         const path = btn.dataset.path || '';
+        const appId = btn.dataset.appId || '';
+        const appIsBuiltin = !appId || isBuiltinApp(appId);
         const items = [
             { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) },
-            { label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) },
+            { label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) }
+        ];
+        if (appId) {
+            items.push({ label: t('desktop.context_delete_app'), icon: '×', disabled: appIsBuiltin, action: () => deleteDesktopApp(appId) });
+        }
+        items.push(
             { separator: true },
             { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
-        ];
+        );
         showContextMenu(event.clientX, event.clientY, items);
     }
 
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
-        showContextMenu(event.clientX, event.clientY, [
+        const items = [
             { label: t('desktop.context_open'), icon: '↗', action: () => openApp(appId) },
             { label: t('desktop.context_add_to_desktop'), icon: '+', action: () => addDesktopShortcut(appId) }
-        ]);
+        ];
+        if (!isBuiltinApp(appId)) {
+            items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: '×', action: () => deleteDesktopApp(appId) });
+        }
+        showContextMenu(event.clientX, event.clientY, items);
     }
 
     function showWidgetContextMenu(event, widget) {
@@ -1120,6 +1140,21 @@
         }
     }
 
+    async function deleteDesktopApp(appId) {
+        if (!appId || isBuiltinApp(appId)) return;
+        const app = appById(appId);
+        const name = app ? appName(app) : appId;
+        const confirmed = await confirmDialog(t('desktop.confirm_delete_app'), t('desktop.confirm_delete_app_msg', { name }));
+        if (!confirmed) return;
+        try {
+            await api('/api/desktop/apps?id=' + encodeURIComponent(appId), { method: 'DELETE' });
+            removeIconPosition('app-' + appId);
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
     async function deleteWidget(id) {
         if (!id) return;
         const confirmed = await confirmDialog(t('desktop.context_remove_widget'), t('desktop.confirm_delete_msg', { path: id }));
@@ -1143,7 +1178,9 @@
 
     function renderAppContent(id, appId, context) {
         if (appId === 'files') {
-            const path = context.path || settingValue('files.default_folder') || '';
+            const path = Object.prototype.hasOwnProperty.call(context || {}, 'path')
+                ? (context.path || '')
+                : (settingValue('files.default_folder') || '');
             const item = state.windows.get(id);
             if (item) {
                 const subtitle = item.element.querySelector('.vd-window-subtitle');

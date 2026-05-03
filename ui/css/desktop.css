@@ -1929,7 +1929,7 @@
 }
 
 .vd-context-menu {
-    position: absolute;
+    position: fixed;
     min-width: 214px;
     padding: 7px;
     border: 1px solid var(--vd-border);
@@ -1937,7 +1937,7 @@
     background: rgba(13, 18, 26, 0.96);
     box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(24px);
-    z-index: 120;
+    z-index: 10000;
     animation: vd-menu-in 90ms ease-out;
 }
 

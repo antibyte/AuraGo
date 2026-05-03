@@ -574,6 +574,60 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	}
 }
 
+func TestServiceDeleteAppRemovesGeneratedAppShortcutAndFiles(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	files := map[string]string{"index.html": "<main>Quick Notes</main>"}
+	if err := svc.InstallApp(ctx, manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	if err := svc.AddDesktopAppShortcut(ctx, "quick-notes", SourceUser); err != nil {
+		t.Fatalf("AddDesktopAppShortcut: %v", err)
+	}
+	if err := svc.DeleteApp(ctx, "quick-notes", SourceUser); err != nil {
+		t.Fatalf("DeleteApp: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID == "quick-notes" {
+			t.Fatalf("deleted app still in start menu: %+v", bootstrap.InstalledApps)
+		}
+	}
+	for _, shortcut := range bootstrap.Shortcuts {
+		if shortcut.TargetID == "quick-notes" {
+			t.Fatalf("deleted app shortcut still pinned: %+v", bootstrap.Shortcuts)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, "Apps", "quick-notes")); !os.IsNotExist(err) {
+		t.Fatalf("app files still exist or unexpected stat error: %v", err)
+	}
+}
+
+func TestServiceDeleteAppRejectsBuiltinApps(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.DeleteApp(context.Background(), "files", SourceUser)
+	if err == nil {
+		t.Fatal("expected deleting builtin app to be rejected")
+	}
+	if !strings.Contains(err.Error(), "built-in desktop apps cannot be deleted") {
+		t.Fatalf("error = %q, want builtin rejection", err)
+	}
+}
+
 func TestServiceInstallAppInfersIconAndRegistersSDKRuntime(t *testing.T) {
 	t.Parallel()
 

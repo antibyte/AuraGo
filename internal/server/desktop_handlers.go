@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -255,7 +256,7 @@ func handleDesktopDirectory(s *Server) http.HandlerFunc {
 	}
 }
 
-func handleDesktopApps(s *Server) http.HandlerFunc {
+func handleDesktopCopy(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -264,6 +265,100 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		var body struct {
+			SourcePath string `json:"source_path"`
+			DestPath   string `json:"dest_path"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if body.SourcePath == "" || body.DestPath == "" {
+			jsonError(w, "source_path and dest_path are required", http.StatusBadRequest)
+			return
+		}
+		if err := svc.CopyPath(r.Context(), body.SourcePath, body.DestPath, desktop.SourceUser); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "copy_path", "source_path": body.SourcePath, "dest_path": body.DestPath}, CreatedAt: time.Now().UTC()}
+		broadcastDesktopEvent(s, hub, event)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+	}
+}
+
+func handleDesktopUpload(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, hub, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		maxSize := int64(svc.Config().MaxFileSizeMB) * 1024 * 1024
+		if maxSize <= 0 {
+			maxSize = 50 * 1024 * 1024
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxSize+1024)
+		if err := r.ParseMultipartForm(maxSize); err != nil {
+			jsonError(w, "File too large or invalid form data", http.StatusBadRequest)
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			jsonError(w, "Missing file field", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		destDir := r.FormValue("path")
+		if destDir == "" {
+			destDir = ""
+		}
+		// Write the uploaded file content via the service
+		content, readErr := io.ReadAll(file)
+		if readErr != nil {
+			jsonError(w, "Failed to read upload", http.StatusBadRequest)
+			return
+		}
+		destPath := strings.TrimRight(destDir, "/") + "/" + header.Filename
+		if err := svc.WriteFile(r.Context(), destPath, string(content), desktop.SourceUser); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "upload_file", "path": destPath}, CreatedAt: time.Now().UTC()}
+		broadcastDesktopEvent(s, hub, event)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": destPath})
+	}
+}
+
+func handleDesktopApps(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		svc, hub, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			id := r.URL.Query().Get("id")
+			if err := svc.DeleteApp(r.Context(), id, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "delete_app", "app_id": id}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+			return
+		}
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var body struct {

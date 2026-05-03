@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime"
 	"net/url"
 	"os"
@@ -926,6 +927,123 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	return nil
 }
 
+// CopyPath copies a workspace file or directory to a new location.
+func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	// Handle media mount paths
+	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(srcPath); fromOK || err != nil {
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(fromRel) == "" {
+			return fmt.Errorf("cannot copy desktop media mount root")
+		}
+		toMount, to, toRel, toOK, err := s.resolveMediaMount(dstPath)
+		if err != nil {
+			return err
+		}
+		if !toOK || !strings.EqualFold(fromMount.Name, toMount.Name) {
+			return fmt.Errorf("desktop media paths cannot copy across mounts")
+		}
+		if strings.TrimSpace(toRel) == "" {
+			return fmt.Errorf("desktop media destination must be inside the mount")
+		}
+		if strings.EqualFold(from, to) {
+			return fmt.Errorf("source and destination are the same")
+		}
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return fmt.Errorf("create desktop media destination directory: %w", err)
+		}
+		if err := copyPath(from, to); err != nil {
+			return fmt.Errorf("copy desktop media path: %w", err)
+		}
+		_ = s.Audit(ctx, "copy_path", mediaDesktopPath(fromMount, fromRel), map[string]interface{}{"new_path": mediaDesktopPath(toMount, toRel)}, source)
+		return nil
+	}
+	if _, _, _, toOK, err := s.resolveMediaMount(dstPath); err != nil {
+		return err
+	} else if toOK {
+		return fmt.Errorf("desktop workspace paths cannot copy into media mounts")
+	}
+	from, err := s.ResolvePath(srcPath)
+	if err != nil {
+		return err
+	}
+	to, err := s.ResolvePath(dstPath)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(from, to) {
+		return fmt.Errorf("source and destination are the same")
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fmt.Errorf("create desktop destination directory: %w", err)
+	}
+	if err := copyPath(from, to); err != nil {
+		return fmt.Errorf("copy desktop path: %w", err)
+	}
+	_ = s.Audit(ctx, "copy_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
+	return nil
+}
+
+// copyPath copies a file or directory tree from src to dst.
+func copyPath(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return copyDir(src, dst)
+	}
+	return copyFile(src, dst)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
+}
+
+func copyDir(src, dst string) error {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // DeletePath removes a workspace file or directory tree.
 func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error {
 	if err := s.ensureReady(ctx); err != nil {
@@ -1105,6 +1223,60 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 		return fmt.Errorf("save desktop app manifest: %w", err)
 	}
 	_ = s.Audit(ctx, "install_app", manifest.ID, manifest, source)
+	return nil
+}
+
+// DeleteApp removes one generated app from the start menu, desktop shortcuts,
+// widgets, and workspace app files. Built-in apps are never deleted.
+func (s *Service) DeleteApp(ctx context.Context, id, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	if !desktopIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid desktop app id")
+	}
+	for _, app := range BuiltinApps() {
+		if app.ID == id {
+			return fmt.Errorf("built-in desktop apps cannot be deleted")
+		}
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin desktop app delete: %w", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM desktop_apps WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete desktop app manifest: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("desktop app not found")
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM desktop_shortcuts WHERE target_type = ? AND target_id = ?`, ShortcutTargetApp, id); err != nil {
+		return fmt.Errorf("delete desktop app shortcuts: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM desktop_widgets WHERE app_id = ?`, id); err != nil {
+		return fmt.Errorf("delete desktop app widgets: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit desktop app delete: %w", err)
+	}
+	appDir, err := s.ResolvePath(filepath.ToSlash(filepath.Join("Apps", id)))
+	if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(appDir); err != nil {
+		return fmt.Errorf("delete desktop app files: %w", err)
+	}
+	_ = s.Audit(ctx, "delete_app", id, map[string]interface{}{}, source)
 	return nil
 }
 
