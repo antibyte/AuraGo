@@ -19,7 +19,10 @@
         terminalVisible: true,
         terminalHeight: 220,
         sidebarVisible: true,
-        sidebarWidth: 280
+        sidebarWidth: 280,
+        searchVisible: false,
+        searchResults: [],
+        shortcutsWired: false
     };
 
     function tr(key, fallback, vars) {
@@ -45,10 +48,12 @@
     }
 
     async function api(path, options) {
-        const response = await fetch(path, Object.assign({
+        const requestOptions = Object.assign({
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' }
-        }, options || {}));
+        }, options || {});
+        if (requestOptions.body instanceof FormData) delete requestOptions.headers;
+        const response = await fetch(path, requestOptions);
         if (!response.ok) {
             let message = response.statusText;
             try {
@@ -70,6 +75,17 @@
             method: 'PUT',
             body: JSON.stringify({ path, content })
         }),
+        renamePath: (oldPath, newPath) => api('/api/code-studio/file', {
+            method: 'PATCH',
+            body: JSON.stringify({ old_path: oldPath, new_path: newPath })
+        }),
+        deletePath: path => api('/api/code-studio/file?path=' + encodeURIComponent(path), { method: 'DELETE' }),
+        uploadFile: (path, file) => {
+            const body = new FormData();
+            body.append('path', path || WORKSPACE_ROOT);
+            body.append('file', file);
+            return api('/api/code-studio/upload', { method: 'POST', body });
+        },
         createDirectory: path => api('/api/code-studio/directory', {
             method: 'POST',
             body: JSON.stringify({ path })
@@ -77,7 +93,8 @@
         exec: command => api('/api/code-studio/exec', {
             method: 'POST',
             body: JSON.stringify({ command, cwd: currentDirectory(), timeout_seconds: 300 })
-        })
+        }),
+        search: options => api('/api/code-studio/search?' + new URLSearchParams(options))
     };
 
     function loadState() {
@@ -160,6 +177,7 @@
     function shellMarkup() {
         return `<div class="code-studio" data-code-studio>
             <div class="code-studio-toolbar" data-toolbar></div>
+            <div class="code-studio-search" data-search hidden></div>
             <div class="code-studio-body">
                 <aside class="code-studio-sidebar" data-sidebar></aside>
                 <main class="code-studio-main">
@@ -179,11 +197,13 @@
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
         renderToolbar();
+        renderSearchPanel();
         renderSidebar();
         renderTabs();
         renderEditor();
         renderTerminal();
         renderStatus();
+        wireShortcuts();
     }
 
     function renderToolbar() {
@@ -193,6 +213,8 @@
             <button type="button" class="cs-button" data-action="new-folder">${esc(tr('codeStudio.newFolder', 'New Folder'))}</button>
             <button type="button" class="cs-button primary" data-action="save">${esc(tr('codeStudio.save', 'Save'))}</button>
             <button type="button" class="cs-button" data-action="run">${esc(tr('codeStudio.run', 'Run'))}</button>
+            <button type="button" class="cs-button" data-action="search">${esc(tr('codeStudio.search', 'Search'))}</button>
+            <button type="button" class="cs-button" data-action="upload">${esc(tr('codeStudio.upload', 'Upload'))}</button>
             <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">↻</button>
             <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">▣</button>
             <span class="cs-toolbar-spacer"></span>
@@ -201,8 +223,40 @@
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', createNewFolder);
         toolbar.querySelector('[data-action="save"]').addEventListener('click', saveCurrentFile);
         toolbar.querySelector('[data-action="run"]').addEventListener('click', runCurrentFile);
+        toolbar.querySelector('[data-action="search"]').addEventListener('click', toggleSearch);
+        toolbar.querySelector('[data-action="upload"]').addEventListener('click', uploadFile);
         toolbar.querySelector('[data-action="refresh"]').addEventListener('click', () => refreshFiles(state.currentPath));
         toolbar.querySelector('[data-action="terminal"]').addEventListener('click', toggleTerminal);
+    }
+
+    function renderSearchPanel() {
+        const panel = state.root.querySelector('[data-search]');
+        if (!panel) return;
+        panel.hidden = !state.searchVisible;
+        if (!state.searchVisible) return;
+        const results = state.searchResults.length ? state.searchResults.map(result => `
+            <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}">
+                <span>${esc(result.path)}:${esc(result.line)}</span>
+                <code>${esc(result.preview)}</code>
+            </button>`).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
+        panel.innerHTML = `<form class="cs-search-form" data-search-form>
+            <input name="q" placeholder="${esc(tr('codeStudio.searchFiles', 'Search in Files'))}" autocomplete="off" spellcheck="false">
+            <input name="include" placeholder="*.go" autocomplete="off" spellcheck="false">
+            <input name="exclude" placeholder="vendor/" autocomplete="off" spellcheck="false">
+            <label><input type="checkbox" name="case"> Aa</label>
+            <label><input type="checkbox" name="whole"> Ab</label>
+            <label><input type="checkbox" name="regex"> .*</label>
+            <button type="submit" class="cs-button primary">${esc(tr('codeStudio.search', 'Search'))}</button>
+        </form><div class="cs-search-results">${results}</div>`;
+        panel.querySelector('[data-search-form]').addEventListener('submit', event => {
+            event.preventDefault();
+            runSearch(new FormData(event.currentTarget));
+        });
+        panel.querySelectorAll('[data-search-path]').forEach(btn => {
+            btn.addEventListener('click', () => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1)));
+        });
+        const input = panel.querySelector('input[name="q"]');
+        if (input && !input.value) input.focus();
     }
 
     function renderSidebar(errorMessage) {
@@ -217,23 +271,75 @@
             <strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong>
             <span>${esc(state.currentPath)}</span>
         </div><div class="cs-file-tree">${rows}</div>`;
+        sidebar.ondragover = event => {
+            event.preventDefault();
+            sidebar.classList.add('dragover');
+        };
+        sidebar.ondragleave = () => sidebar.classList.remove('dragover');
+        sidebar.ondrop = async event => {
+            event.preventDefault();
+            sidebar.classList.remove('dragover');
+            const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
+            for (const file of files) await apiClient.uploadFile(state.currentPath, file);
+            if (files.length) await refreshFiles(state.currentPath);
+        };
         sidebar.querySelectorAll('[data-file-path]').forEach(row => {
-            row.addEventListener('click', () => {
+            row.addEventListener('click', event => {
+                const action = event.target.closest('[data-file-action]');
+                if (action) return;
                 const file = state.files.find(item => item.path === row.dataset.filePath);
                 if (!file) return;
                 if (file.type === 'directory') refreshFiles(file.path);
                 else openFile(file.path);
+            });
+            row.addEventListener('keydown', event => {
+                const file = state.files.find(item => item.path === row.dataset.filePath);
+                if (!file) return;
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (file.type === 'directory') refreshFiles(file.path);
+                    else openFile(file.path);
+                }
+                if (event.key === 'F2') {
+                    event.preventDefault();
+                    renamePath(file);
+                }
+                if (event.key === 'Delete') {
+                    event.preventDefault();
+                    deletePath(file);
+                }
+            });
+        });
+        sidebar.querySelectorAll('[data-file-action]').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.stopPropagation();
+                const file = state.files.find(item => item.path === btn.closest('[data-file-path]').dataset.filePath);
+                if (!file) return;
+                const action = btn.dataset.fileAction;
+                if (action === 'rename') renamePath(file);
+                if (action === 'delete') deletePath(file);
+                if (action === 'download') downloadFile(file);
+            });
+            btn.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                btn.click();
             });
         });
     }
 
     function fileRow(file) {
         const icon = file.type === 'directory' ? '▸' : fileIcon(file.name);
-        return `<button type="button" class="cs-file-row" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}">
+        return `<div role="button" tabindex="0" class="cs-file-row" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}">
             <span class="cs-file-icon">${esc(icon)}</span>
             <span class="cs-file-name">${esc(file.name)}</span>
             <span class="cs-file-meta">${file.type === 'directory' ? '' : esc(formatBytes(file.size))}</span>
-        </button>`;
+            <span class="cs-file-actions">
+                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">F2</span>
+                ${file.type === 'file' ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">↓</span>` : ''}
+                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">×</span>
+            </span>
+        </div>`;
     }
 
     function renderTabs() {
@@ -397,6 +503,93 @@
         await refreshFiles(state.currentPath);
     }
 
+    async function renamePath(file) {
+        const name = await promptValue(tr('codeStudio.rename', 'Rename'), file.name);
+        if (!name || name === file.name) return;
+        const newPath = joinPath(parentPath(file.path), name);
+        await apiClient.renamePath(file.path, newPath);
+        state.openTabs.forEach(tab => {
+            if (tab.path === file.path) tab.path = newPath;
+            else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
+                tab.path = newPath + tab.path.slice(file.path.length);
+            }
+        });
+        await refreshFiles(state.currentPath);
+        renderTabs();
+        renderStatus();
+        saveState();
+    }
+
+    async function deletePath(file) {
+        const confirmed = await confirmValue(tr('codeStudio.deleteConfirm', 'Are you sure you want to delete {{name}}?', { name: file.name }));
+        if (!confirmed) return;
+        await apiClient.deletePath(file.path);
+        state.openTabs = state.openTabs.filter(tab => tab.path !== file.path && !tab.path.startsWith(file.path + '/'));
+        if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
+        await refreshFiles(state.currentPath);
+        renderTabs();
+        renderEditor();
+        renderStatus();
+        saveState();
+    }
+
+    function downloadFile(file) {
+        if (!file || file.type !== 'file') return;
+        window.location.href = '/api/code-studio/download?path=' + encodeURIComponent(file.path);
+    }
+
+    function uploadFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.addEventListener('change', async () => {
+            if (!input.files || !input.files[0]) return;
+            await apiClient.uploadFile(state.currentPath, input.files[0]);
+            await refreshFiles(state.currentPath);
+        }, { once: true });
+        input.click();
+    }
+
+    function toggleSearch() {
+        state.searchVisible = !state.searchVisible;
+        renderSearchPanel();
+    }
+
+    async function runSearch(formData) {
+        const query = String(formData.get('q') || '').trim();
+        if (!query) return;
+        renderStatus(tr('codeStudio.search', 'Search'));
+        const result = await apiClient.search({
+            q: query,
+            path: state.currentPath || WORKSPACE_ROOT,
+            case: formData.get('case') ? 'true' : 'false',
+            whole: formData.get('whole') ? 'true' : 'false',
+            regex: formData.get('regex') ? 'true' : 'false',
+            include: String(formData.get('include') || ''),
+            exclude: String(formData.get('exclude') || '')
+        });
+        state.searchResults = result.results || [];
+        renderSearchPanel();
+        renderStatus(tr('codeStudio.search', 'Search') + ': ' + state.searchResults.length);
+    }
+
+    async function openSearchResult(path, line) {
+        await openFile(path);
+        const tab = activeTab();
+        if (!tab || !tab.view) return;
+        if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
+            const docLine = tab.view.state.doc.line(Math.max(1, line || 1));
+            tab.view.dispatch({
+                selection: { anchor: docLine.from },
+                effects: state.cmModule.EditorView.scrollIntoView(docLine.from, { y: 'center' })
+            });
+        } else if (tab.view.textarea) {
+            const lines = tab.view.textarea.value.split('\n');
+            const offset = lines.slice(0, Math.max(0, (line || 1) - 1)).join('\n').length;
+            tab.view.textarea.focus();
+            tab.view.textarea.setSelectionRange(offset, offset);
+        }
+    }
+
     async function runCurrentFile() {
         const tab = activeTab();
         if (!tab) return;
@@ -461,14 +654,18 @@
             cm.drawSelection && cm.drawSelection(),
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
+            cm.EditorView.lineWrapping,
             cm.oneDark,
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
+            cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
             cm.syntaxHighlighting && cm.defaultHighlightStyle && cm.syntaxHighlighting(cm.defaultHighlightStyle),
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
-                { key: 'Ctrl-s', run: () => { saveCurrentFile(); return true; } }
+                { key: 'Ctrl-s', run: () => { saveCurrentFile(); return true; } },
+                { key: 'F5', run: () => { runCurrentFile(); return true; } },
+                ...(cm.searchKeymap || [])
             ].filter(Boolean)),
             cm.EditorView.updateListener.of(update => {
                 if (!update.docChanged) return;
@@ -525,7 +722,7 @@
         });
         updatePreview();
         tab.modified = false;
-        return { getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        return { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
     }
 
     function editorValue(tab) {
@@ -595,6 +792,13 @@
         return (base || WORKSPACE_ROOT).replace(/\/+$/, '') + '/' + String(name || '').replace(/^\/+/, '');
     }
 
+    function parentPath(path) {
+        const clean = String(path || WORKSPACE_ROOT).replace(/\/+$/, '');
+        const index = clean.lastIndexOf('/');
+        if (index <= 0) return WORKSPACE_ROOT;
+        return clean.slice(0, index) || WORKSPACE_ROOT;
+    }
+
     function baseName(path) {
         return String(path || '').split('/').filter(Boolean).pop() || WORKSPACE_ROOT;
     }
@@ -633,6 +837,56 @@
             });
             input.focus();
             input.select();
+        });
+    }
+
+    function confirmValue(message) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'cs-modal-backdrop';
+            overlay.innerHTML = `<div class="cs-modal">
+                <p>${esc(message)}</p>
+                <div class="cs-modal-actions">
+                    <button type="button" class="cs-button" data-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                    <button type="button" class="cs-button danger" data-confirm>${esc(tr('desktop.delete', 'Delete'))}</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            const cleanup = result => {
+                overlay.remove();
+                resolve(result);
+            };
+            overlay.querySelector('[data-confirm]').addEventListener('click', () => cleanup(true));
+            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(false));
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) cleanup(false);
+            });
+            overlay.querySelector('[data-confirm]').focus();
+        });
+    }
+
+    function wireShortcuts() {
+        if (state.shortcutsWired) return;
+        state.shortcutsWired = true;
+        document.addEventListener('keydown', event => {
+            if (!state.root || !studioRoot()) return;
+            const activeElement = document.activeElement;
+            if (activeElement && !state.root.contains(activeElement)) return;
+            const key = event.key.toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && key === 's') {
+                event.preventDefault();
+                saveCurrentFile();
+            } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'f') {
+                event.preventDefault();
+                if (!state.searchVisible) state.searchVisible = true;
+                renderSearchPanel();
+            } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
+                event.preventDefault();
+                createNewFile();
+            } else if (event.key === 'F5') {
+                event.preventDefault();
+                runCurrentFile();
+            }
         });
     }
 

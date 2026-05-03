@@ -103,6 +103,50 @@ func TestDemuxDockerAttachStream(t *testing.T) {
 	}
 }
 
+func TestParseCodeStudioGrepOutput(t *testing.T) {
+	output := "/workspace/main.go:12:func main() {\n/workspace/pkg/app.go:8:func Run() error {\n"
+
+	results, err := parseCodeStudioGrepOutput(output)
+	if err != nil {
+		t.Fatalf("parseCodeStudioGrepOutput: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("len(results) = %d, want 2", len(results))
+	}
+	if results[0].Path != "/workspace/main.go" || results[0].Line != 12 || results[0].Preview != "func main() {" {
+		t.Fatalf("first result = %#v", results[0])
+	}
+	if results[1].Path != "/workspace/pkg/app.go" || results[1].Line != 8 || results[1].Preview != "func Run() error {" {
+		t.Fatalf("second result = %#v", results[1])
+	}
+}
+
+func TestBuildCodeStudioSearchCommandEscapesUserInput(t *testing.T) {
+	cmd, err := buildCodeStudioSearchCommand(codeStudioSearchOptions{
+		Query:         "func main",
+		Path:          "/workspace/src",
+		CaseSensitive: false,
+		WholeWord:     true,
+		Include:       "*.go",
+		Exclude:       "vendor/",
+	})
+	if err != nil {
+		t.Fatalf("buildCodeStudioSearchCommand: %v", err)
+	}
+	joined := strings.Join(cmd, " ")
+	for _, want := range []string{"grep", "-R", "-n", "-I", "-i", "-w", "--include=*.go", "--exclude-dir=vendor"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("command %q missing %q", joined, want)
+		}
+	}
+	if got := cmd[len(cmd)-2]; got != "func main" {
+		t.Fatalf("query arg = %q, want literal query", got)
+	}
+	if got := cmd[len(cmd)-1]; got != "/workspace/src" {
+		t.Fatalf("path arg = %q, want sanitized path", got)
+	}
+}
+
 func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	s := testCodeStudioServer(t)
 	handler := codeStudioHandlers{server: s, docker: fakeCodeStudioDockerAPI{}}

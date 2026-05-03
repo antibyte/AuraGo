@@ -49,6 +49,22 @@ type codeStudioFileEntry struct {
 	Modified time.Time `json:"modified"`
 }
 
+type codeStudioSearchOptions struct {
+	Query         string
+	Path          string
+	CaseSensitive bool
+	Regex         bool
+	WholeWord     bool
+	Include       string
+	Exclude       string
+}
+
+type codeStudioSearchResult struct {
+	Path    string `json:"path"`
+	Line    int    `json:"line"`
+	Preview string `json:"preview"`
+}
+
 type codeStudioHandlers struct {
 	server *Server
 	docker codeStudioDockerAPI
@@ -70,6 +86,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/upload", handlers.handleUpload)
 	mux.HandleFunc("/api/code-studio/download", handlers.handleDownload)
 	mux.HandleFunc("/api/code-studio/exec", handlers.handleExec)
+	mux.HandleFunc("/api/code-studio/search", handlers.handleSearch)
 	mux.HandleFunc("/api/code-studio/terminal", handlers.handleTerminal)
 }
 
@@ -477,6 +494,43 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{"status": "ok", "exit_code": result.ExitCode, "output": result.Output})
 }
 
+func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	options, err := codeStudioSearchOptionsFromRequest(r)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cmd, err := buildCodeStudioSearchCommand(options)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.docker.Exec(r.Context(), containerID, cmd, 60*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if result.ExitCode > 1 {
+		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
+		return
+	}
+	results, err := parseCodeStudioGrepOutput(result.Output)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "results": results})
+}
+
 func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Request) {
 	if !h.isAuthenticated(r) {
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
@@ -668,6 +722,108 @@ func parseCodeStudioStatLine(line string) (int64, time.Time, error) {
 		return 0, time.Time{}, fmt.Errorf("invalid stat timestamp: %w", err)
 	}
 	return size, time.Unix(modified, 0).UTC(), nil
+}
+
+func codeStudioSearchOptionsFromRequest(r *http.Request) (codeStudioSearchOptions, error) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if query == "" {
+		return codeStudioSearchOptions{}, fmt.Errorf("search query is required")
+	}
+	path, err := sanitizeCodeStudioPath(r.URL.Query().Get("path"))
+	if err != nil {
+		return codeStudioSearchOptions{}, err
+	}
+	return codeStudioSearchOptions{
+		Query:         query,
+		Path:          path,
+		CaseSensitive: r.URL.Query().Get("case") == "true",
+		Regex:         r.URL.Query().Get("regex") == "true",
+		WholeWord:     r.URL.Query().Get("whole") == "true",
+		Include:       strings.TrimSpace(r.URL.Query().Get("include")),
+		Exclude:       strings.TrimSpace(r.URL.Query().Get("exclude")),
+	}, nil
+}
+
+func buildCodeStudioSearchCommand(options codeStudioSearchOptions) ([]string, error) {
+	path, err := sanitizeCodeStudioPath(options.Path)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(options.Query) == "" {
+		return nil, fmt.Errorf("search query is required")
+	}
+	cmd := []string{"grep", "-R", "-n", "-I"}
+	if !options.Regex {
+		cmd = append(cmd, "-F")
+	} else {
+		cmd = append(cmd, "-E")
+	}
+	if !options.CaseSensitive {
+		cmd = append(cmd, "-i")
+	}
+	if options.WholeWord {
+		cmd = append(cmd, "-w")
+	}
+	if include := sanitizeCodeStudioGlob(options.Include); include != "" {
+		cmd = append(cmd, "--include="+include)
+	}
+	if exclude := sanitizeCodeStudioExclude(options.Exclude); exclude != "" {
+		cmd = append(cmd, "--exclude-dir="+exclude)
+	}
+	cmd = append(cmd, options.Query, path)
+	return cmd, nil
+}
+
+func parseCodeStudioGrepOutput(output string) ([]codeStudioSearchResult, error) {
+	output = strings.TrimRight(output, "\n")
+	if strings.TrimSpace(output) == "" {
+		return []codeStudioSearchResult{}, nil
+	}
+	lines := strings.Split(output, "\n")
+	results := make([]codeStudioSearchResult, 0, len(lines))
+	for _, line := range lines {
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid search output line")
+		}
+		path, err := sanitizeCodeStudioPath(parts[0])
+		if err != nil {
+			return nil, err
+		}
+		lineNo, err := strconv.Atoi(parts[1])
+		if err != nil || lineNo <= 0 {
+			return nil, fmt.Errorf("invalid search line number")
+		}
+		results = append(results, codeStudioSearchResult{
+			Path:    path,
+			Line:    lineNo,
+			Preview: parts[2],
+		})
+	}
+	return results, nil
+}
+
+func sanitizeCodeStudioGlob(raw string) string {
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	if raw == "" || strings.Contains(raw, "/") || strings.Contains(raw, "\x00") {
+		return ""
+	}
+	return raw
+}
+
+func sanitizeCodeStudioExclude(raw string) string {
+	raw = strings.Trim(strings.ReplaceAll(raw, "\\", "/"), " /")
+	if raw == "" || strings.Contains(raw, "\x00") {
+		return ""
+	}
+	if strings.Contains(raw, "..") {
+		return ""
+	}
+	if strings.Contains(raw, "/") {
+		parts := strings.Split(raw, "/")
+		raw = parts[len(parts)-1]
+	}
+	return raw
 }
 
 func normalizeCodeStudioExecCommand(command string, args []string, cwd string) ([]string, error) {

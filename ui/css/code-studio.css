@@ -20,6 +20,7 @@
 }
 
 .code-studio-toolbar,
+.code-studio-search,
 .code-studio-statusbar,
 .cs-terminal-head,
 .cs-sidebar-head {
@@ -41,6 +42,101 @@
     border-bottom: 0;
 }
 
+.code-studio-search {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+    max-height: 190px;
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.code-studio-search[hidden] {
+    display: none;
+}
+
+.cs-search-form {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) 90px 90px auto auto auto auto;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.cs-search-form input[name="q"],
+.cs-search-form input[name="include"],
+.cs-search-form input[name="exclude"] {
+    min-width: 0;
+}
+
+.cs-search-form input[name="q"],
+.cs-search-form input[name="include"],
+.cs-search-form input[name="exclude"] {
+    height: 30px;
+    min-width: 0;
+    padding: 0 9px;
+    border: 1px solid var(--cs-border);
+    border-radius: 6px;
+    color: var(--cs-text);
+    background: #10151c;
+}
+
+.cs-search-form input[type="checkbox"] {
+    margin: 0;
+}
+
+.cs-search-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--cs-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.cs-search-results {
+    display: grid;
+    gap: 4px;
+    max-height: 120px;
+    overflow: auto;
+}
+
+.cs-search-result {
+    display: grid;
+    grid-template-columns: minmax(140px, 35%) minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--cs-text);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-search-result:hover {
+    border-color: rgba(62, 198, 181, 0.55);
+    background: rgba(62, 198, 181, 0.12);
+}
+
+.cs-search-result span,
+.cs-search-result code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-search-result span {
+    color: var(--cs-muted);
+    font-size: 12px;
+}
+
+.cs-search-result code {
+    font: 12px/1.4 Consolas, "Liberation Mono", monospace;
+    color: #d8e2ef;
+}
+
 .code-studio-body {
     display: grid;
     grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr);
@@ -57,6 +153,10 @@
     overflow: hidden;
     border-right: 1px solid var(--cs-border);
     background: var(--cs-panel);
+}
+
+.code-studio-sidebar.dragover {
+    box-shadow: inset 0 0 0 2px rgba(62, 198, 181, 0.55);
 }
 
 .code-studio[data-sidebar="hidden"] .code-studio-sidebar {
@@ -118,6 +218,12 @@
     border-color: var(--cs-accent);
 }
 
+.cs-button.danger {
+    color: #21070b;
+    background: var(--cs-danger);
+    border-color: var(--cs-danger);
+}
+
 .cs-toolbar-spacer {
     flex: 1;
 }
@@ -153,7 +259,7 @@
 
 .cs-file-row {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 6px;
     width: 100%;
@@ -166,6 +272,45 @@
     background: transparent;
     text-align: left;
     cursor: pointer;
+}
+
+.cs-file-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0;
+}
+
+.cs-file-row:hover .cs-file-actions,
+.cs-file-row:focus .cs-file-actions,
+.cs-file-row:focus-within .cs-file-actions {
+    opacity: 1;
+}
+
+.cs-file-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    border: 1px solid var(--cs-border);
+    border-radius: 5px;
+    color: var(--cs-muted);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 11px;
+}
+
+.cs-file-action:hover,
+.cs-file-action:focus {
+    color: var(--cs-text);
+    border-color: rgba(62, 198, 181, 0.55);
+    outline: 0;
+}
+
+.cs-file-action.danger:hover,
+.cs-file-action.danger:focus {
+    color: var(--cs-danger);
+    border-color: rgba(255, 107, 122, 0.6);
 }
 
 .cs-file-name,
@@ -389,6 +534,11 @@
     background: #10151c;
 }
 
+.cs-modal p {
+    margin: 0;
+    color: var(--cs-text);
+}
+
 .cs-modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -407,6 +557,15 @@
 
     .cs-textarea-wrap {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cs-search-form {
+        grid-template-columns: minmax(0, 1fr) minmax(80px, 110px);
+    }
+
+    .cs-search-form label,
+    .cs-search-form button {
+        min-width: 0;
     }
 
     .code-studio-preview {
