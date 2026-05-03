@@ -46,7 +46,7 @@ type CodeContainerService struct {
 type CodeContainerDocker interface {
 	ListContainers(ctx context.Context, all bool) ([]CodeDockerContainer, error)
 	InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error)
-	PullImage(ctx context.Context, image string) error
+	EnsureImage(ctx context.Context, image string) error
 	CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error)
 	ContainerAction(ctx context.Context, container, action string) error
 }
@@ -176,9 +176,9 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	}
 
 	image := codeStudioImage(s.cfg.CodeStudio)
-	if err := s.docker.PullImage(ctx, image); err != nil {
+	if err := s.docker.EnsureImage(ctx, image); err != nil {
 		s.state = StateError
-		return fmt.Errorf("pull code studio image %s: %w", image, err)
+		return fmt.Errorf("prepare code studio image %s: %w", image, err)
 	}
 
 	createdID, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
@@ -432,7 +432,7 @@ func (missingCodeContainerDocker) InspectContainer(ctx context.Context, containe
 	return CodeDockerInspect{}, fmt.Errorf("code studio Docker backend is not configured")
 }
 
-func (missingCodeContainerDocker) PullImage(ctx context.Context, image string) error {
+func (missingCodeContainerDocker) EnsureImage(ctx context.Context, image string) error {
 	return fmt.Errorf("code studio Docker backend is not configured")
 }
 

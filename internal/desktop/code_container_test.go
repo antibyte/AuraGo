@@ -10,7 +10,7 @@ import (
 type fakeCodeContainerDocker struct {
 	containers    []CodeDockerContainer
 	inspectByName map[string]CodeDockerInspect
-	pulls         []string
+	ensuredImages []string
 	creates       []CodeDockerCreateRequest
 	actions       []string
 }
@@ -26,8 +26,8 @@ func (f *fakeCodeContainerDocker) InspectContainer(ctx context.Context, containe
 	return f.inspectByName[container], nil
 }
 
-func (f *fakeCodeContainerDocker) PullImage(ctx context.Context, image string) error {
-	f.pulls = append(f.pulls, image)
+func (f *fakeCodeContainerDocker) EnsureImage(ctx context.Context, image string) error {
+	f.ensuredImages = append(f.ensuredImages, image)
 	return nil
 }
 
@@ -77,6 +77,9 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	}
 	if len(fake.creates) != 1 {
 		t.Fatalf("create count = %d, want 1", len(fake.creates))
+	}
+	if len(fake.ensuredImages) != 1 || fake.ensuredImages[0] != "custom/code-studio:test" {
+		t.Fatalf("ensured images = %#v, want custom image ensured before create", fake.ensuredImages)
 	}
 	req := fake.creates[0]
 	if req.Image != "custom/code-studio:test" {
@@ -236,7 +239,7 @@ func TestCodeContainerDisabledDoesNotTouchDocker(t *testing.T) {
 	if err := svc.EnsureStarted(context.Background()); err == nil {
 		t.Fatal("expected disabled error")
 	}
-	if len(fake.pulls) != 0 || len(fake.creates) != 0 || len(fake.actions) != 0 {
-		t.Fatalf("docker was touched despite disabled code studio: pulls=%v creates=%v actions=%v", fake.pulls, fake.creates, fake.actions)
+	if len(fake.ensuredImages) != 0 || len(fake.creates) != 0 || len(fake.actions) != 0 {
+		t.Fatalf("docker was touched despite disabled code studio: ensured=%v creates=%v actions=%v", fake.ensuredImages, fake.creates, fake.actions)
 	}
 }

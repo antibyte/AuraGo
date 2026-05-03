@@ -5,9 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"aurago/internal/desktop"
+	"aurago/internal/sandbox"
 	"aurago/internal/tools"
 )
 
@@ -67,8 +74,73 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 	return desktop.CodeDockerInspect{ID: resp.ID, Name: resp.Name, State: resp.State}, nil
 }
 
-func (a codeStudioDockerAdapter) PullImage(ctx context.Context, image string) error {
+func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) error {
+	exists, err := a.imageExists(ctx, image)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	if image == "aurago/code-studio:latest" {
+		if err := a.buildDefaultImage(ctx, image); err != nil {
+			return fmt.Errorf("build default code studio image: %w", err)
+		}
+		return nil
+	}
 	return tools.PullImageWait(ctx, a.cfg, image, a.logger)
+}
+
+func (a codeStudioDockerAdapter) imageExists(ctx context.Context, image string) (bool, error) {
+	data, code, err := tools.DockerRequestContext(ctx, a.cfg, "GET", "/images/"+url.PathEscape(image)+"/json", "")
+	if err != nil {
+		return false, fmt.Errorf("inspect code studio image %s: %w", image, err)
+	}
+	if code == 200 {
+		return true, nil
+	}
+	if code == 404 {
+		return false, nil
+	}
+	return false, fmt.Errorf("inspect code studio image %s returned HTTP %d: %s", image, code, strings.TrimSpace(string(data)))
+}
+
+func (a codeStudioDockerAdapter) buildDefaultImage(ctx context.Context, image string) error {
+	dockerfile := filepath.Join("deploy", "docker", "Dockerfile.code-studio")
+	if _, err := os.Stat(dockerfile); err != nil {
+		return fmt.Errorf("code studio Dockerfile is missing at %s: %w", dockerfile, err)
+	}
+	if a.logger != nil {
+		a.logger.Info("Building Code Studio image from local Dockerfile", "image", image, "dockerfile", dockerfile)
+	}
+	buildCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(buildCtx, "docker", "build",
+		"--build-arg", "TARGETARCH="+codeStudioDockerTargetArch(),
+		"-f", dockerfile,
+		"-t", image,
+		".",
+	)
+	dockerCfgDir := filepath.Join("data", ".docker")
+	_ = os.MkdirAll(dockerCfgDir, 0o700)
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker build failed: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+	if a.logger != nil {
+		a.logger.Info("Code Studio image built successfully", "image", image)
+	}
+	return nil
+}
+
+func codeStudioDockerTargetArch() string {
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+		return runtime.GOARCH
+	default:
+		return "amd64"
+	}
 }
 
 func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req desktop.CodeDockerCreateRequest) (string, error) {
