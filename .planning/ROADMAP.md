@@ -10,7 +10,7 @@
 - [x] **Phase 1: CSS Foundation Cleanup** — Establish clean CSS architecture (keyframes, variables, specificity, naming)
 - [x] **Phase 2: Component Unification and Responsive Fixes** (1/4) — Fix Mission Control, unify components, establish consistent breakpoints (completed 2026-04-03)
 - [x] **Phase 3: Translation Audit and Polish** — Complete i18n coverage, consolidate modals, final polish
-- [ ] **Phase 4: Vercel Integration for Web Publishing** — Add a native Vercel publishing path for the homepage tool, plus project/domain/env management
+- [x] **Phase 4: Vercel Integration for Web Publishing** — Add a native Vercel publishing path for the homepage tool, plus project/domain/env management (completed 2026-05-03)
 
 ---
 
@@ -104,11 +104,11 @@ Plans:
 4. Homepage workflows and docs clearly direct the agent to use `deploy_vercel` for Vercel publishing and to keep homepage files inside the homepage workspace
 5. Registry logging, handler tests, tool tests, and workflow tests cover the Vercel path well enough to prevent silent regressions
 
-**Plans:** 0/3 plans complete
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 04-01-PLAN.md -- Config, vault, feature flags, and Config UI surface
-- [ ] 04-02-PLAN.md -- Backend Vercel integration and agent wiring
-- [ ] 04-03-PLAN.md -- Homepage deploy flow, docs, registry logging, and tests
+- [x] 04-01-PLAN.md -- Config, vault, feature flags, and Config UI surface
+- [x] 04-02-PLAN.md -- Backend Vercel integration and agent wiring
+- [x] 04-03-PLAN.md -- Homepage deploy flow, docs, registry logging, and tests
 
 ---
 
@@ -119,7 +119,7 @@ Plans:
 | 1. CSS Foundation Cleanup | 4/4 | Complete   | 2026-04-03 |
 | 2. Component Unification and Responsive Fixes | 4/4 | Complete   | 2026-04-03 |
 | 3. Translation Audit and Polish | 4/4 | Complete   | 2026-04-03 |
-| 4. Vercel Integration for Web Publishing | 0/3 | Planned | — |
+| 4. Vercel Integration for Web Publishing | 3/3 | Complete | 2026-05-03 |
 
 ---
 
