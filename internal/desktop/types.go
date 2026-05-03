@@ -151,6 +151,7 @@ var desktopPreferredIconNames = []string{
 	"audio",
 	"browser",
 	"calendar",
+	"calculator",
 	"code",
 	"css",
 	"database",
@@ -183,15 +184,20 @@ var desktopPreferredIconNames = []string{
 var desktopIconAliases = map[string]string{
 	"agent_chat":   "apps",
 	"binary":       "code",
+	"calculator":   "calculator",
 	"cloud":        "network",
 	"csv":          "spreadsheet",
 	"edit":         "editor",
 	"executable":   "code",
 	"file":         "text",
+	"music":        "audio",
+	"music-player": "audio",
 	"pictures":     "image",
 	"presentation": "documents",
 	"search":       "folder",
 	"sparkles":     "apps",
+	"tasks":        "notes",
+	"todo":         "notes",
 	"widgets":      "apps",
 }
 
@@ -231,6 +237,9 @@ func BuiltinApps() []AppManifest {
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
 		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Description: "Inspect virtual desktop settings."},
 		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
+		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Description: "Scientific calculator with standard and advanced modes."},
+		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Description: "Task management connected to the backend planner."},
+		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "sparkles", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 	}
 }

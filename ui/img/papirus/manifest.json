@@ -17,6 +17,7 @@
     "audio": "img/papirus/icons/audio.svg",
     "browser": "img/papirus/icons/browser.svg",
     "calendar": "img/papirus/icons/calendar.svg",
+    "calculator": "img/papirus/icons/calculator.svg",
     "code": "img/papirus/icons/code.svg",
     "css": "img/papirus/icons/css.svg",
     "database": "img/papirus/icons/database.svg",
@@ -48,15 +49,21 @@
   "aliases": {
     "agent_chat": "apps",
     "binary": "code",
+    "calc": "calculator",
+    "calculator": "calculator",
     "cloud": "network",
     "csv": "spreadsheet",
     "edit": "editor",
     "executable": "code",
     "file": "text",
+    "music": "audio",
+    "music-player": "audio",
     "pictures": "image",
     "presentation": "documents",
     "search": "folder",
     "sparkles": "apps",
+    "tasks": "notes",
+    "todo": "notes",
     "widgets": "apps"
   }
 }

@@ -40,6 +40,9 @@
         editor: 'edit',
         settings: 'settings',
         calendar: 'calendar',
+        calculator: 'calculator',
+        'music-player': 'audio',
+        todo: 'notes',
         'agent-chat': 'agent_chat',
         terminal: 'terminal',
         browser: 'browser'
@@ -122,6 +125,9 @@
             editor: 'E',
             settings: 'S',
             calendar: 'C',
+            calculator: 'Ca',
+            'music-player': 'MP',
+            todo: 'Td',
             'agent-chat': 'A'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
@@ -606,6 +612,16 @@
         return app ? appName(app) : appId;
     }
 
+    function appWindowSize(appId) {
+        const presets = {
+            calculator: { width: 380, height: 520 },
+            todo: { width: 900, height: 600 },
+            'music-player': { width: 550, height: 450 },
+            calendar: { width: 950, height: 650 }
+        };
+        return presets[appId] || defaultWindowSize();
+    }
+
     function openApp(appId, context) {
         const existing = [...state.windows.values()].find(win => win.appId === appId && appId !== 'editor');
         if (existing) {
@@ -620,7 +636,7 @@
         win.dataset.windowId = id;
         win.style.left = Math.max(16, 170 + state.windows.size * 28) + 'px';
         win.style.top = Math.max(12, 72 + state.windows.size * 24) + 'px';
-        const size = defaultWindowSize();
+        const size = appWindowSize(appId);
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
         win.style.zIndex = String(++state.z);
@@ -1030,6 +1046,9 @@
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'calendar') return renderCalendar(id);
+        if (appId === 'calculator') return renderCalculator(id);
+        if (appId === 'todo') return renderTodo(id);
+        if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'agent-chat') return renderChat(id);
         return renderGeneratedApp(id, appId);
     }
@@ -1286,19 +1305,291 @@
         }
     }
 
-    function renderCalendar(id) {
+    function plannerJSON(url, method, body) {
+        return api(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        });
+    }
+
+    function isoDate(date) {
+        const d = new Date(date);
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${month}-${day}`;
+    }
+
+    function dateTimeLocalValue(value) {
+        const d = value ? new Date(value) : new Date();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hour = String(d.getHours()).padStart(2, '0');
+        const minute = String(d.getMinutes()).padStart(2, '0');
+        return `${d.getFullYear()}-${month}-${day}T${hour}:${minute}`;
+    }
+
+    function fromLocalDateTime(value) {
+        return value ? new Date(value).toISOString() : new Date().toISOString();
+    }
+
+    function renderCalculator(id) {
         const host = contentEl(id);
-        const now = new Date();
-        const first = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOffset = (first.getDay() + 6) % 7;
-        const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const cells = [];
-        for (let i = 0; i < startOffset; i++) cells.push('');
-        for (let day = 1; day <= days; day++) cells.push(String(day));
-        host.innerHTML = `<div class="vd-calendar">
-            <div class="vd-toolbar"><span class="vd-window-title">${esc(now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</span></div>
-            <div class="vd-calendar-grid">${cells.map(day => `<div class="vd-calendar-cell ${Number(day) === now.getDate() ? 'today' : ''}">${esc(day)}</div>`).join('')}</div>
+        if (!host) return;
+        host.innerHTML = `<div class="vd-calc" tabindex="0">
+            <div class="vd-calc-tabs">
+                <button type="button" class="active" data-mode="standard">${esc(t('desktop.calc_standard'))}</button>
+                <button type="button" data-mode="scientific">${esc(t('desktop.calc_scientific'))}</button>
+            </div>
+            <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
+            <div class="vd-calc-keys">
+                ${['C','CE','⌫','%','sin','cos','tan','√','7','8','9','÷','log','ln','π','x²','4','5','6','×','(',')','e','xʸ','1','2','3','-','n!','±','.','+','0','00','='].map(key => `<button type="button" class="${/[+\-×÷=%]|xʸ/.test(key) ? 'op' : /sin|cos|tan|log|ln|π|e|√|n!|x²|[()]/.test(key) ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
+            </div>
+            <aside class="vd-calc-history"><div>${esc(t('desktop.calc_history'))}</div><ol></ol></aside>
         </div>`;
+        const root = host.querySelector('.vd-calc');
+        const expressionEl = host.querySelector('[data-expression]');
+        const resultEl = host.querySelector('[data-result]');
+        const historyEl = host.querySelector('.vd-calc-history ol');
+        let expression = '';
+        const history = [];
+        const update = (result) => {
+            expressionEl.textContent = expression || '0';
+            resultEl.textContent = result == null ? '0' : String(result);
+        };
+        const factorial = n => n < 0 || !Number.isInteger(n) ? NaN : Array.from({ length: n }, (_, i) => i + 1).reduce((a, b) => a * b, 1);
+        const evaluate = () => {
+            if (!expression) return;
+            let js = expression.replaceAll('×', '*').replaceAll('÷', '/').replaceAll('π', 'Math.PI').replaceAll('√', 'Math.sqrt').replaceAll('ln', 'Math.log').replaceAll('log', 'Math.log10').replaceAll('sin', 'Math.sin').replaceAll('cos', 'Math.cos').replaceAll('tan', 'Math.tan').replaceAll('e', 'Math.E').replaceAll('^', '**');
+            js = js.replace(/(\d+(?:\.\d+)?)!/g, 'factorial($1)');
+            js = js.replace(/(\d+(?:\.\d+)?)²/g, '($1**2)');
+            if (!/^[0-9+\-*/().,% MathPIEsincotaglrfqu!_]*$/.test(js)) throw new Error('Invalid expression');
+            const value = Function('factorial', `return (${js})`)(factorial);
+            const result = Number.isFinite(value) ? Number(value.toFixed(10)) : value;
+            history.unshift(`${expression} = ${result}`);
+            history.splice(8);
+            historyEl.innerHTML = history.map(item => `<li>${esc(item)}</li>`).join('');
+            expression = String(result);
+            update(result);
+        };
+        const press = key => {
+            try {
+                if (key === 'C') expression = '';
+                else if (key === 'CE') expression = '';
+                else if (key === '⌫') expression = expression.slice(0, -1);
+                else if (key === '=') return evaluate();
+                else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
+                else if (key === 'x²') expression += '²';
+                else if (key === 'xʸ') expression += '^';
+                else if (key === 'n!') expression += '!';
+                else if (['sin', 'cos', 'tan', 'log', 'ln', '√'].includes(key)) expression += `${key}(`;
+                else expression += key;
+                update();
+            } catch (err) {
+                resultEl.textContent = err.message;
+            }
+        };
+        host.querySelectorAll('[data-key]').forEach(btn => btn.addEventListener('click', () => press(btn.dataset.key)));
+        host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
+            host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('active', item === btn));
+            root.classList.toggle('scientific-on', btn.dataset.mode === 'scientific');
+        }));
+        root.addEventListener('keydown', event => {
+            const map = { Enter: '=', Backspace: '⌫', Escape: 'C', '*': '×', '/': '÷' };
+            const key = map[event.key] || event.key;
+            if (/^[0-9.+\-()%]$/.test(key) || ['=', '⌫', 'C', '×', '÷'].includes(key)) {
+                event.preventDefault();
+                press(key);
+            }
+        });
+        root.focus();
+    }
+
+    async function renderTodo(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.dataset.todoFilter = host.dataset.todoFilter || 'all';
+        host.innerHTML = `<div class="vd-todo"><aside class="vd-todo-sidebar">
+            ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
+        </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"><select><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary">${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
+        const load = async (selectedID) => {
+            const todos = await api('/api/todos?status=all');
+            const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
+                .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
+            const list = host.querySelector('.vd-todo-list');
+            list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
+            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load)));
+            const selected = todos.find(todo => todo.id === selectedID) || filtered[0];
+            if (selected) renderTodoDetail(host, selected, load);
+        };
+        host.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
+            host.dataset.todoFilter = btn.dataset.filter;
+            renderTodo(id);
+        }));
+        host.querySelector('.vd-todo-add').addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = event.currentTarget.querySelector('input');
+            const title = input.value.trim();
+            if (!title) return;
+            const result = await plannerJSON('/api/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
+            input.value = '';
+            await load(result.id);
+        });
+        try { await load(); } catch (err) { host.querySelector('.vd-todo-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+    }
+
+    function renderTodoCard(todo, selectedID) {
+        const due = todo.due_date ? new Date(todo.due_date) : null;
+        const overdue = due && due < new Date() && todo.status !== 'done';
+        return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
+            <div><strong>${esc(todo.title)}</strong><span class="vd-todo-priority ${esc(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span></div>
+            <small>${esc(t('desktop.todo_' + todo.status))}${due ? ' · ' + esc(due.toLocaleDateString()) : ''}${overdue ? ' · ' + esc(t('desktop.todo_overdue')) : ''}</small>
+            <div class="vd-todo-progress"><span style="width:${Number(todo.progress_percent) || 0}%"></span></div>
+        </article>`;
+    }
+
+    function renderTodoDetail(host, todo, reload) {
+        const pane = host.querySelector('.vd-todo-detail');
+        const items = todo.items || [];
+        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<label class="vd-todo-item"><input type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}><span>${esc(item.title)}</span><button type="button" data-item-delete="${esc(item.id)}">×</button></label>`).join('')}</div>`;
+        pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
+            await reload(todo.id);
+        });
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
+        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
+        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(input.dataset.itemToggle), 'PUT', { is_done: input.checked }); await reload(todo.id); }));
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
+    }
+
+    async function renderCalendar(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.dataset.calView = host.dataset.calView || 'month';
+        host.dataset.calDate = host.dataset.calDate || isoDate(new Date());
+        const activeDate = new Date(host.dataset.calDate + 'T12:00:00');
+        host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button type="button" data-cal-nav="prev">‹</button><button type="button" data-cal-today>${esc(t('desktop.cal_today'))}</button><button type="button" data-cal-nav="next">›</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}<button type="button" class="vd-button vd-button-primary" data-cal-new>${esc(t('desktop.cal_new_appointment'))}</button></div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
+        const render = async () => {
+            const appointments = await api('/api/appointments?status=all');
+            const body = host.querySelector('.vd-calendar-body');
+            body.innerHTML = host.dataset.calView === 'month' ? calendarMonthHTML(activeDate, appointments) : calendarAgendaHTML(activeDate, appointments, host.dataset.calView);
+            body.querySelectorAll('[data-cal-date]').forEach(cell => cell.addEventListener('click', () => openAppointmentModal(host, null, cell.dataset.calDate, render)));
+            body.querySelectorAll('[data-appt-id]').forEach(btn => btn.addEventListener('click', event => { event.stopPropagation(); openAppointmentModal(host, appointments.find(a => a.id === btn.dataset.apptId), '', render); }));
+        };
+        host.querySelectorAll('[data-cal-view]').forEach(btn => btn.addEventListener('click', () => { host.dataset.calView = btn.dataset.calView; renderCalendar(id); }));
+        host.querySelector('[data-cal-today]').addEventListener('click', () => { host.dataset.calDate = isoDate(new Date()); renderCalendar(id); });
+        host.querySelectorAll('[data-cal-nav]').forEach(btn => btn.addEventListener('click', () => {
+            const delta = btn.dataset.calNav === 'next' ? 1 : -1;
+            if (host.dataset.calView === 'month') activeDate.setMonth(activeDate.getMonth() + delta);
+            else activeDate.setDate(activeDate.getDate() + delta * (host.dataset.calView === 'week' ? 7 : 1));
+            host.dataset.calDate = isoDate(activeDate);
+            renderCalendar(id);
+        }));
+        host.querySelector('[data-cal-new]').addEventListener('click', () => openAppointmentModal(host, null, isoDate(activeDate), render));
+        try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+    }
+
+    function calendarMonthHTML(activeDate, appointments) {
+        const first = new Date(activeDate.getFullYear(), activeDate.getMonth(), 1);
+        const start = new Date(first);
+        start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+        const today = isoDate(new Date());
+        const cells = Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+        return `<div class="vd-calendar-month">${cells.map(d => { const key = isoDate(d); const dayItems = appointments.filter(a => String(a.date_time || '').startsWith(key)); return `<button type="button" class="vd-calendar-cell ${d.getMonth() !== activeDate.getMonth() ? 'muted' : ''} ${key === today ? 'today' : ''}" data-cal-date="${key}"><span>${d.getDate()}</span>${dayItems.slice(0, 3).map(a => `<i class="${esc(a.status || 'upcoming')}" data-appt-id="${esc(a.id)}">${esc(a.title)}</i>`).join('')}</button>`; }).join('')}</div><aside class="vd-calendar-upcoming"><h3>${esc(t('desktop.cal_new_appointment'))}</h3>${appointments.slice(0, 8).map(a => `<button type="button" data-appt-id="${esc(a.id)}">${esc(new Date(a.date_time).toLocaleString())} · ${esc(a.title)}</button>`).join('')}</aside>`;
+    }
+
+    function calendarAgendaHTML(activeDate, appointments, view) {
+        const days = view === 'week' ? Array.from({ length: 7 }, (_, i) => { const d = new Date(activeDate); d.setDate(activeDate.getDate() - ((activeDate.getDay() + 6) % 7) + i); return d; }) : [activeDate];
+        return `<div class="vd-calendar-agenda ${view}">${days.map(day => { const key = isoDate(day); const dayItems = appointments.filter(a => String(a.date_time || '').startsWith(key)); return `<section><h3>${esc(day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }))}</h3>${Array.from({ length: 24 }, (_, hour) => `<div class="vd-calendar-hour" data-cal-date="${key}T${String(hour).padStart(2, '0')}:00"><span>${String(hour).padStart(2, '0')}:00</span>${dayItems.filter(a => new Date(a.date_time).getHours() === hour).map(a => `<button type="button" class="${esc(a.status || 'upcoming')}" data-appt-id="${esc(a.id)}">${esc(a.title)}</button>`).join('')}</div>`).join('')}</section>`; }).join('')}</div>`;
+    }
+
+    function openAppointmentModal(host, appointment, dateHint, reload) {
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-modal-backdrop';
+        const initial = appointment || { title: '', description: '', status: 'upcoming', date_time: dateHint ? fromLocalDateTime(dateHint.includes('T') ? dateHint : dateHint + 'T09:00') : new Date().toISOString(), wake_agent: false };
+        overlay.innerHTML = `<form class="vd-modal vd-calendar-modal"><div class="vd-modal-title">${esc(t(appointment ? 'desktop.cal_edit_appointment' : 'desktop.cal_new_appointment'))}</div><input name="title" class="vd-modal-input" placeholder="${esc(t('desktop.cal_title'))}" value="${esc(initial.title)}"><input name="date_time" class="vd-modal-input" type="datetime-local" value="${esc(dateTimeLocalValue(initial.date_time))}"><textarea name="description" class="vd-modal-input" placeholder="${esc(t('desktop.cal_description'))}">${esc(initial.description || '')}</textarea><select name="status" class="vd-modal-input">${['upcoming','overdue','completed','cancelled'].map(status => `<option value="${status}" ${initial.status === status ? 'selected' : ''}>${esc(t('desktop.cal_status_' + status))}</option>`).join('')}</select><label class="vd-check"><input name="wake_agent" type="checkbox" ${initial.wake_agent ? 'checked' : ''}>${esc(t('desktop.cal_notification'))}</label><div class="vd-modal-actions">${appointment ? `<button type="button" class="vd-button" data-delete>${esc(t('desktop.delete'))}</button>` : ''}<button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button><button class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button></div></form>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.querySelector('[data-cancel]').addEventListener('click', close);
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+        const del = overlay.querySelector('[data-delete]');
+        if (del) del.addEventListener('click', async () => { if (await confirmDialog(t('desktop.cal_delete_confirm'), appointment.title)) { await api('/api/appointments/' + encodeURIComponent(appointment.id), { method: 'DELETE' }); close(); await reload(); } });
+        overlay.querySelector('form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const payload = { title: form.title.value.trim(), date_time: fromLocalDateTime(form.date_time.value), description: form.description.value, status: form.status.value, wake_agent: form.wake_agent.checked };
+            if (!payload.title) return;
+            if (appointment) await plannerJSON('/api/appointments/' + encodeURIComponent(appointment.id), 'PUT', payload);
+            else await plannerJSON('/api/appointments', 'POST', payload);
+            close();
+            await reload();
+        });
+    }
+
+    async function renderMusicPlayer(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.innerHTML = `<div class="vd-winamp"><section class="vd-winamp-deck"><div class="vd-winamp-title"><span data-title>*** AURAGO WINAMP ***</span></div><canvas width="260" height="58"></canvas><div class="vd-winamp-time" data-time>00:00 / 00:00</div><input type="range" min="0" max="100" value="0" data-seek><div class="vd-winamp-controls"><button data-prev>⏮</button><button data-play>▶</button><button data-pause>⏸</button><button data-stop>■</button><button data-next>⏭</button></div><label>VOL <input type="range" min="0" max="1" step="0.01" value="0.8" data-volume></label><label>BAL <input type="range" min="-1" max="1" step="0.01" value="0" data-balance></label><div class="vd-winamp-toggles"><button data-shuffle>${esc(t('desktop.winamp_shuffle'))}</button><button data-repeat>${esc(t('desktop.winamp_repeat'))}</button><button data-eq>EQ</button></div></section><section class="vd-winamp-playlist"><div><strong>${esc(t('desktop.winamp_playlist'))}</strong><button data-load>${esc(t('desktop.winamp_load_folder'))}</button></div><div data-playlist class="vd-winamp-tracks">${esc(t('desktop.winamp_no_tracks'))}</div></section><audio></audio></div>`;
+        const audio = host.querySelector('audio');
+        const playlistEl = host.querySelector('[data-playlist]');
+        const titleEl = host.querySelector('[data-title]');
+        const timeEl = host.querySelector('[data-time]');
+        const seek = host.querySelector('[data-seek]');
+        let tracks = [];
+        let index = 0;
+        let shuffle = false;
+        let repeat = false;
+        audio.volume = 0.8;
+        const renderPlaylist = () => { playlistEl.innerHTML = tracks.length ? tracks.map((track, i) => `<button type="button" class="${i === index ? 'active' : ''}" data-track="${i}"><span>${esc(track.name)}</span><small>${esc(track.path)}</small></button>`).join('') : esc(t('desktop.winamp_no_tracks')); playlistEl.querySelectorAll('[data-track]').forEach(btn => btn.addEventListener('dblclick', () => playTrack(Number(btn.dataset.track)))); };
+        const playTrack = async i => { if (!tracks[i]) return; index = i; audio.src = await desktopEmbedURL(tracks[i].path); titleEl.textContent = tracks[i].name; renderPlaylist(); await audio.play().catch(err => showDesktopNotification({ title: t('desktop.notification'), message: err.message })); };
+        const scan = async path => {
+            const body = await api('/api/desktop/files?path=' + encodeURIComponent(path));
+            const files = body.files || [];
+            for (const file of files) {
+                if (file.type === 'directory') await scan(file.path);
+                else if (/\.(mp3|wav|flac|ogg|m4a)$/i.test(file.name)) tracks.push({ name: file.name, path: file.path });
+            }
+        };
+        host.querySelector('[data-load]').addEventListener('click', async () => { const folder = await promptDialog(t('desktop.winamp_load_folder'), 'Music'); if (folder == null) return; tracks = []; await scan(folder); index = 0; renderPlaylist(); if (tracks[0]) playTrack(0); });
+        host.querySelector('[data-play]').addEventListener('click', () => tracks[index] ? (audio.src ? audio.play() : playTrack(index)) : null);
+        host.querySelector('[data-pause]').addEventListener('click', () => audio.pause());
+        host.querySelector('[data-stop]').addEventListener('click', () => { audio.pause(); audio.currentTime = 0; });
+        host.querySelector('[data-prev]').addEventListener('click', () => playTrack((index - 1 + tracks.length) % tracks.length));
+        host.querySelector('[data-next]').addEventListener('click', () => playTrack(shuffle ? Math.floor(Math.random() * tracks.length) : (index + 1) % tracks.length));
+        host.querySelector('[data-shuffle]').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.classList.toggle('active', shuffle); });
+        host.querySelector('[data-repeat]').addEventListener('click', event => { repeat = !repeat; event.currentTarget.classList.toggle('active', repeat); audio.loop = repeat; });
+        host.querySelector('[data-volume]').addEventListener('input', event => { audio.volume = Number(event.currentTarget.value); });
+        seek.addEventListener('input', () => { if (audio.duration) audio.currentTime = audio.duration * Number(seek.value) / 100; });
+        audio.addEventListener('timeupdate', () => { seek.value = audio.duration ? String(audio.currentTime / audio.duration * 100) : '0'; timeEl.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`; });
+        audio.addEventListener('ended', () => { if (!repeat && tracks.length) host.querySelector('[data-next]').click(); });
+        renderPlaylist();
+        animateWinampCanvas(host.querySelector('canvas'), audio);
+    }
+
+    function formatTime(seconds) {
+        if (!Number.isFinite(seconds)) return '00:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function animateWinampCanvas(canvas, audio) {
+        const ctx = canvas.getContext('2d');
+        const draw = () => {
+            ctx.fillStyle = '#050805';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const bars = 24;
+            for (let i = 0; i < bars; i++) {
+                const h = audio.paused ? 4 : 8 + Math.abs(Math.sin(Date.now() / 220 + i)) * 44 * (audio.volume || 0.5);
+                ctx.fillStyle = i % 3 === 0 ? '#f2b84b' : '#30ff60';
+                ctx.fillRect(i * 11, canvas.height - h, 7, h);
+            }
+            requestAnimationFrame(draw);
+        };
+        draw();
     }
 
     function renderChat(id) {
