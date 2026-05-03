@@ -55,7 +55,8 @@
         todo: 'notes',
         'agent-chat': 'agent_chat',
         terminal: 'terminal',
-        browser: 'browser'
+        browser: 'browser',
+        launchpad: 'apps'
     };
     appIconKeys['code-studio'] = 'code';
     const extensionIconKeys = {
@@ -145,7 +146,8 @@
             'agent-chat': 'A',
             gallery: 'G',
             'quick-connect': 'QC',
-            'code-studio': 'CS'
+            'code-studio': 'CS',
+            launchpad: 'LP'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -640,7 +642,8 @@
             'music-player': { width: 430, height: 260 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 },
-            'code-studio': { width: 1280, height: 850 }
+            'code-studio': { width: 1280, height: 850 },
+            launchpad: { width: 1100, height: 700 }
         };
         return presets[appId] || defaultWindowSize();
     }
@@ -1079,6 +1082,7 @@
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, context || {});
         }
+        if (appId === 'launchpad') return renderLaunchpad(id);
         return renderGeneratedApp(id, appId);
     }
 
@@ -2281,6 +2285,200 @@
             };
             ws.onerror = () => { term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n'); };
         }
+    }
+
+    function renderLaunchpad(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        let links = [];
+        let categories = [];
+        let searchQuery = '';
+        let selectedCategory = '';
+        let iconSearchDebounce = null;
+        let selectedIconURL = null;
+
+        host.innerHTML = `
+            <div class="vd-launchpad">
+                <div class="vd-launchpad-toolbar">
+                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="Search links...">
+                    <select class="vd-launchpad-category"><option value="">All categories</option></select>
+                    <button class="vd-tool-button" type="button" data-action="add">+ ${esc(t('desktop.launchpad_add'))}</button>
+                </div>
+                <div class="vd-launchpad-grid"></div>
+                <div class="vd-launchpad-empty" style="display:none">
+                    <div class="vd-launchpad-empty-icon">🚀</div>
+                    <div>${esc(t('desktop.launchpad_empty'))}</div>
+                </div>
+            </div>`;
+
+        const grid = host.querySelector('.vd-launchpad-grid');
+        const empty = host.querySelector('.vd-launchpad-empty');
+        const searchInput = host.querySelector('.vd-launchpad-search');
+        const categorySelect = host.querySelector('.vd-launchpad-category');
+
+        async function load() {
+            try {
+                const url = selectedCategory ? '/api/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/launchpad/links';
+                links = await api(url);
+                categories = await api('/api/launchpad/categories');
+                updateCategorySelect();
+                render();
+            } catch (e) { showNotify(t('desktop.launchpad_load_error')); }
+        }
+
+        function updateCategorySelect() {
+            const val = categorySelect.value;
+            categorySelect.innerHTML = '<option value="">' + esc(t('desktop.launchpad_all_categories')) + '</option>';
+            categories.forEach(c => { categorySelect.innerHTML += '<option value="' + esc(c) + '">' + esc(c) + '</option>'; });
+            categorySelect.value = val;
+        }
+
+        function render() {
+            let filtered = links;
+            const q = searchQuery.toLowerCase().trim();
+            if (q) filtered = filtered.filter(l => (l.title || '').toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q));
+            if (filtered.length === 0) { grid.innerHTML = ''; empty.style.display = ''; return; }
+            empty.style.display = 'none';
+            grid.innerHTML = filtered.map(link => {
+                const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' : '';
+                const fallback = '<div class="vd-launchpad-tile-fallback" style="display:' + (link.icon_path ? 'none' : 'flex') + '">🌐</div>';
+                return '<div class="vd-launchpad-tile" data-id="' + esc(link.id) + '">' + icon + fallback +
+                    '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
+                    (link.description ? '<div class="vd-launchpad-tile-desc">' + esc(link.description) + '</div>' : '') +
+                    '<div class="vd-launchpad-tile-actions">' +
+                    '<button type="button" class="vd-launchpad-tile-btn" data-action="edit" title="' + esc(t('desktop.launchpad_edit')) + '">✏️</button>' +
+                    '<button type="button" class="vd-launchpad-tile-btn" data-action="delete" title="' + esc(t('desktop.launchpad_delete')) + '">🗑️</button>' +
+                    '</div></div>';
+            }).join('');
+            grid.querySelectorAll('.vd-launchpad-tile').forEach(tile => {
+                tile.addEventListener('click', (e) => { if (!e.target.closest('.vd-launchpad-tile-actions')) openTileLink(tile.dataset.id); });
+            });
+            grid.querySelectorAll('[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(btn.closest('.vd-launchpad-tile').dataset.id); });
+            });
+            grid.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); deleteLink(btn.closest('.vd-launchpad-tile').dataset.id); });
+            });
+        }
+
+        function openTileLink(linkId) {
+            const link = links.find(l => l.id === linkId);
+            if (link && link.url) window.open(link.url, '_blank', 'noopener,noreferrer');
+        }
+
+        async function deleteLink(linkId) {
+            const ok = await showConfirmModal(t('desktop.launchpad_delete_confirm'));
+            if (!ok) return;
+            try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            catch (e) { showNotify(t('desktop.launchpad_delete_error')); }
+        }
+
+        async function openEditModal(linkId) {
+            const link = linkId ? links.find(l => l.id === linkId) : null;
+            selectedIconURL = null;
+            const modal = document.createElement('div');
+            modal.className = 'vd-modal-overlay';
+            modal.innerHTML = `
+                <div class="vd-modal">
+                    <div class="vd-modal-header">${esc(linkId ? t('desktop.launchpad_edit_title') : t('desktop.launchpad_add_title'))}</div>
+                    <div class="vd-modal-body">
+                        <input type="hidden" class="lp-id" value="${esc(linkId || '')}">
+                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_title'))}</label><input type="text" class="lp-title" required value="${esc(link ? link.title : '')}"></div>
+                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_url'))}</label><input type="url" class="lp-url" required value="${esc(link ? link.url : '')}"></div>
+                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_category'))}</label><input type="text" class="lp-category" list="lp-cats" value="${esc(link ? link.category : '')}"><datalist id="lp-cats">${categories.map(c => '<option value="' + esc(c) + '">').join('')}</datalist></div>
+                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_description'))}</label><input type="text" class="lp-description" value="${esc(link ? link.description : '')}"></div>
+                        <div class="vd-field">
+                            <label>${esc(t('desktop.launchpad_label_icon'))}</label>
+                            <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
+                            <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div></div>
+                            <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
+                            <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
+                        </div>
+                    </div>
+                    <div class="vd-modal-actions">
+                        <button type="button" class="vd-tool-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                        <button type="button" class="vd-tool-button primary" data-action="save">${esc(t('desktop.save'))}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            const preview = modal.querySelector('.lp-icon-preview');
+            if (link && link.icon_path) preview.innerHTML = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px">';
+
+            modal.querySelectorAll('.lp-icon-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    modal.querySelectorAll('.lp-icon-tab').forEach(t => t.classList.remove('active'));
+                    modal.querySelectorAll('.lp-icon-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    modal.querySelector('[data-panel="' + tab.dataset.tab + '"]').classList.add('active');
+                });
+            });
+            modal.querySelector('.lp-icon-search').addEventListener('input', (e) => {
+                clearTimeout(iconSearchDebounce);
+                iconSearchDebounce = setTimeout(() => searchIcons(modal, e.target.value), 400);
+            });
+            modal.querySelector('.lp-icon-search-btn').addEventListener('click', () => searchIcons(modal, modal.querySelector('.lp-icon-search').value));
+            modal.querySelector('.lp-icon-url').addEventListener('input', (e) => {
+                const u = e.target.value.trim();
+                preview.innerHTML = u ? '<img src="' + esc(u) + '" style="max-width:64px;max-height:64px" onerror="this.style.display=\'none\'">' : '';
+            });
+            modal.querySelector('[data-action="cancel"]').addEventListener('click', () => modal.remove());
+            modal.querySelector('[data-action="save"]').addEventListener('click', () => saveLink(modal, linkId));
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        }
+
+        async function searchIcons(modal, query) {
+            const resultsEl = modal.querySelector('.lp-icon-results');
+            if (!query.trim()) { resultsEl.innerHTML = ''; return; }
+            resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
+            try {
+                const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
+                resultsEl.innerHTML = (results || []).map(r => {
+                    const img = r.url_png || r.url_webp || r.url_svg;
+                    return '<div class="lp-icon-result" data-url="' + esc(img) + '"><img src="' + esc(img) + '" alt=""><span>' + esc(r.name) + '</span></div>';
+                }).join('');
+                resultsEl.querySelectorAll('.lp-icon-result').forEach(el => {
+                    el.addEventListener('click', () => {
+                        resultsEl.querySelectorAll('.lp-icon-result').forEach(x => x.classList.remove('selected'));
+                        el.classList.add('selected');
+                        selectedIconURL = el.dataset.url;
+                    });
+                });
+            } catch (e) { resultsEl.innerHTML = ''; }
+        }
+
+        async function saveLink(modal, linkId) {
+            const title = modal.querySelector('.lp-title').value.trim();
+            const url = modal.querySelector('.lp-url').value.trim();
+            const category = modal.querySelector('.lp-category').value.trim();
+            const description = modal.querySelector('.lp-description').value.trim();
+            let iconPath = modal.querySelector('.lp-icon-path').value;
+
+            const activeTab = modal.querySelector('.lp-icon-tab.active');
+            const iconUrl = activeTab && activeTab.dataset.tab === 'search' ? selectedIconURL : modal.querySelector('.lp-icon-url').value.trim();
+            if (iconUrl) {
+                try {
+                    const dl = await api('/api/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
+                    if (dl && dl.local_path) iconPath = dl.local_path;
+                } catch (e) { /* ignore download errors */ }
+            }
+
+            const payload = { title, url, category, description, icon_path: iconPath };
+            try {
+                if (linkId) {
+                    await api('/api/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                } else {
+                    await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
+                }
+                modal.remove();
+                await load();
+            } catch (e) { showNotify(t('desktop.launchpad_save_error')); }
+        }
+
+        host.querySelector('[data-action="add"]').addEventListener('click', () => openEditModal());
+        searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
+        categorySelect.addEventListener('change', (e) => { selectedCategory = e.target.value; load(); });
+
+        load();
     }
 
     function renderChat(id) {

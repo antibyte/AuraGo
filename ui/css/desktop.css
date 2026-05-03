@@ -2353,6 +2353,285 @@
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Launchpad
+   ═══════════════════════════════════════════════════════════════ */
+
+.vd-launchpad {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.vd-launchpad-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.vd-launchpad-search {
+    flex: 1;
+    min-width: 160px;
+    padding: 8px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-surface);
+    color: var(--vd-text);
+    font-size: 13px;
+    outline: none;
+}
+
+.vd-launchpad-search:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-launchpad-category {
+    padding: 8px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-surface);
+    color: var(--vd-text);
+    font-size: 13px;
+    min-width: 140px;
+}
+
+.vd-launchpad-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 12px;
+}
+
+.vd-launchpad-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 10px 10px;
+    background: var(--vd-surface-strong);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+}
+
+.vd-launchpad-tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--vd-accent);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.vd-launchpad-tile-icon {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.vd-launchpad-tile-fallback {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: rgba(39, 199, 166, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+}
+
+.vd-launchpad-tile-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+    word-break: break-word;
+    color: var(--vd-text);
+}
+
+.vd-launchpad-tile-desc {
+    font-size: 10px;
+    color: var(--vd-muted);
+    text-align: center;
+    margin-top: 2px;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.vd-launchpad-tile-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 3px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.vd-launchpad-tile:hover .vd-launchpad-tile-actions {
+    opacity: 1;
+}
+
+.vd-launchpad-tile-btn {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 4px;
+    background: var(--vd-surface);
+    color: var(--vd-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    padding: 0;
+}
+
+.vd-launchpad-tile-btn:hover {
+    background: var(--vd-accent);
+    color: #000;
+}
+
+.vd-launchpad-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    color: var(--vd-muted);
+    font-size: 14px;
+}
+
+.vd-launchpad-empty-icon {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+/* Launchpad modal fields */
+.lp-icon-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.lp-icon-tab {
+    padding: 4px 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 5px;
+    background: var(--vd-surface);
+    color: var(--vd-muted);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.lp-icon-tab.active {
+    background: var(--vd-accent);
+    color: #000;
+    border-color: var(--vd-accent);
+    font-weight: 500;
+}
+
+.lp-icon-panel {
+    display: none;
+}
+
+.lp-icon-panel.active {
+    display: block;
+}
+
+.lp-icon-search-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.lp-icon-search-row input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 5px;
+    background: var(--vd-surface);
+    color: var(--vd-text);
+    font-size: 12px;
+}
+
+.lp-icon-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-surface);
+}
+
+.lp-icon-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: background 0.15s;
+}
+
+.lp-icon-result:hover {
+    background: var(--vd-surface-strong);
+}
+
+.lp-icon-result.selected {
+    border-color: var(--vd-accent);
+    background: rgba(39, 199, 166, 0.12);
+}
+
+.lp-icon-result img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    margin-bottom: 2px;
+}
+
+.lp-icon-result span {
+    font-size: 9px;
+    color: var(--vd-muted);
+    text-align: center;
+    word-break: break-all;
+    line-height: 1.1;
+}
+
+.lp-icon-preview {
+    margin-top: 6px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lp-icon-preview img {
+    max-width: 48px;
+    max-height: 48px;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
 @media (max-width: 680px) {
     .vd-quick-connect {
         flex-direction: column;

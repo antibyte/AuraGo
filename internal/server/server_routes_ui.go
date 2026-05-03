@@ -119,27 +119,6 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		})
 		s.Logger.Info("Virtual Desktop UI enabled at /desktop")
 
-		launchpadTmpl, launchpadErr := template.ParseFS(uiFS, "launchpad.html")
-		if launchpadErr != nil {
-			s.Logger.Error("Failed to parse launchpad UI template", "error", launchpadErr)
-		}
-		mux.HandleFunc("/launchpad", func(w http.ResponseWriter, r *http.Request) {
-			if launchpadTmpl == nil {
-				http.Error(w, "Launchpad template error", http.StatusInternalServerError)
-				return
-			}
-			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
-			if err := launchpadTmpl.Execute(w, data); err != nil {
-				s.Logger.Error("Failed to execute launchpad template", "error", err)
-				http.Error(w, "Template render error", http.StatusInternalServerError)
-			}
-		})
-		s.Logger.Info("Launchpad UI enabled at /launchpad")
-
 		plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")
 		if plansErr != nil {
 			s.Logger.Error("Failed to parse plans UI template", "error", plansErr)
