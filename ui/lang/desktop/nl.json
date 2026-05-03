@@ -89,6 +89,8 @@
   "desktop.context_open": "Openen",
   "desktop.context_rename": "Hernoemen",
   "desktop.context_delete": "Verwijderen",
+  "desktop.context_add_to_desktop": "Aan bureaublad toevoegen",
+  "desktop.context_remove_from_desktop": "Van bureaublad verwijderen",
   "desktop.context_properties": "Eigenschappen",
   "desktop.context_remove_widget": "Widget verwijderen",
   "desktop.context_maximize": "Maximaliseren",

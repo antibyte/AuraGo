@@ -89,6 +89,8 @@
   "desktop.context_open": "Abrir",
   "desktop.context_rename": "Renombrar",
   "desktop.context_delete": "Eliminar",
+  "desktop.context_add_to_desktop": "Añadir al escritorio",
+  "desktop.context_remove_from_desktop": "Quitar del escritorio",
   "desktop.context_properties": "Propiedades",
   "desktop.context_remove_widget": "Quitar widget",
   "desktop.context_maximize": "Maximizar",

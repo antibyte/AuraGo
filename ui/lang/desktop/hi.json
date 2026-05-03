@@ -89,6 +89,8 @@
   "desktop.context_open": "खोलें",
   "desktop.context_rename": "नाम बदलें",
   "desktop.context_delete": "हटाएं",
+  "desktop.context_add_to_desktop": "डेस्कटॉप में जोड़ें",
+  "desktop.context_remove_from_desktop": "डेस्कटॉप से हटाएँ",
   "desktop.context_properties": "गुण",
   "desktop.context_remove_widget": "विजेट हटाएं",
   "desktop.context_maximize": "बड़ा करें",

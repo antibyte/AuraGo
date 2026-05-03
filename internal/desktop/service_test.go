@@ -136,6 +136,73 @@ func TestServiceBootstrapIncludesCodeStudioApp(t *testing.T) {
 	}
 }
 
+func TestServiceBootstrapDefaultDesktopShortcuts(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	got := map[string]Shortcut{}
+	for _, shortcut := range bootstrap.Shortcuts {
+		got[shortcut.ID] = shortcut
+	}
+	if len(got) != 2 {
+		t.Fatalf("default shortcuts = %+v, want files and trash only", bootstrap.Shortcuts)
+	}
+	if got["app-files"].TargetType != ShortcutTargetApp || got["app-files"].TargetID != "files" {
+		t.Fatalf("files shortcut = %+v", got["app-files"])
+	}
+	if got["dir-Trash"].TargetType != ShortcutTargetDirectory || got["dir-Trash"].Path != "Trash" {
+		t.Fatalf("trash shortcut = %+v", got["dir-Trash"])
+	}
+}
+
+func TestServiceDesktopShortcutsCanHideAndRestoreBuiltinApps(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.RemoveDesktopShortcut(ctx, "app-files", SourceUser); err != nil {
+		t.Fatalf("RemoveDesktopShortcut files: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after remove: %v", err)
+	}
+	for _, shortcut := range bootstrap.Shortcuts {
+		if shortcut.ID == "app-files" {
+			t.Fatalf("files shortcut returned after removal: %+v", bootstrap.Shortcuts)
+		}
+	}
+	var filesStillInStartMenu bool
+	for _, app := range bootstrap.BuiltinApps {
+		if app.ID == "files" {
+			filesStillInStartMenu = true
+		}
+	}
+	if !filesStillInStartMenu {
+		t.Fatalf("builtin app was removed from start menu: %+v", bootstrap.BuiltinApps)
+	}
+	if err := svc.AddDesktopAppShortcut(ctx, "files", SourceUser); err != nil {
+		t.Fatalf("AddDesktopAppShortcut files: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after restore: %v", err)
+	}
+	var restored bool
+	for _, shortcut := range bootstrap.Shortcuts {
+		if shortcut.ID == "app-files" && shortcut.TargetID == "files" {
+			restored = true
+		}
+	}
+	if !restored {
+		t.Fatalf("files shortcut was not restored: %+v", bootstrap.Shortcuts)
+	}
+}
+
 func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	t.Parallel()
 

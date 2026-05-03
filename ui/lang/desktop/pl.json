@@ -89,6 +89,8 @@
   "desktop.context_open": "Otwórz",
   "desktop.context_rename": "Zmień nazwę",
   "desktop.context_delete": "Usuń",
+  "desktop.context_add_to_desktop": "Dodaj do pulpitu",
+  "desktop.context_remove_from_desktop": "Usuń z pulpitu",
   "desktop.context_properties": "Właściwości",
   "desktop.context_remove_widget": "Usuń widżet",
   "desktop.context_maximize": "Maksymalizuj",

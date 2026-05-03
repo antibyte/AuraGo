@@ -89,6 +89,8 @@
   "desktop.context_open": "Åpne",
   "desktop.context_rename": "Gi nytt navn",
   "desktop.context_delete": "Slett",
+  "desktop.context_add_to_desktop": "Legg til på skrivebordet",
+  "desktop.context_remove_from_desktop": "Fjern fra skrivebordet",
   "desktop.context_properties": "Egenskaper",
   "desktop.context_remove_widget": "Fjern widget",
   "desktop.context_maximize": "Maksimer",

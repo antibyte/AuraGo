@@ -81,6 +81,10 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 			MaxFileSize: int64(desktopCfg.MaxFileSizeMB) * 1024 * 1024,
 		},
 		BuiltinApps: desktop.BuiltinApps(),
+		Shortcuts: []desktop.Shortcut{
+			{ID: "app-files", TargetType: desktop.ShortcutTargetApp, TargetID: "files", Name: "Files", Icon: "folder"},
+			{ID: "dir-Trash", TargetType: desktop.ShortcutTargetDirectory, Path: "Trash", Name: "Trash", Icon: "trash"},
+		},
 		Settings:    settings,
 		IconCatalog: desktop.DesktopIconCatalog(settings),
 	}
@@ -278,6 +282,46 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 		broadcastDesktopEvent(s, hub, event)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+	}
+}
+
+func handleDesktopShortcuts(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		svc, hub, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodPost:
+			var body struct {
+				AppID string `json:"app_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+				return
+			}
+			if err := svc.AddDesktopAppShortcut(r.Context(), body.AppID, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "add_shortcut", "app_id": body.AppID}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if err := svc.RemoveDesktopShortcut(r.Context(), id, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "remove_shortcut", "shortcut_id": id}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 	}
 }
 

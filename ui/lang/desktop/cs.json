@@ -89,6 +89,8 @@
   "desktop.context_open": "Otevřít",
   "desktop.context_rename": "Přejmenovat",
   "desktop.context_delete": "Smazat",
+  "desktop.context_add_to_desktop": "Přidat na plochu",
+  "desktop.context_remove_from_desktop": "Odebrat z plochy",
   "desktop.context_properties": "Vlastnosti",
   "desktop.context_remove_widget": "Odebrat widget",
   "desktop.context_maximize": "Maximalizovat",

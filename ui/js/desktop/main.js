@@ -255,6 +255,10 @@
         return [...(boot.builtin_apps || []), ...(boot.installed_apps || [])];
     }
 
+    function appById(appId) {
+        return allApps().find(app => app.id === appId);
+    }
+
     function fmtBytes(size) {
         const n = Number(size || 0);
         if (n < 1024) return t('desktop.bytes', { count: n });
@@ -330,6 +334,12 @@
         writeJSONStorage(ICON_POSITIONS_KEY, positions);
     }
 
+    function removeIconPosition(id) {
+        const positions = iconPositions();
+        delete positions[id];
+        writeJSONStorage(ICON_POSITIONS_KEY, positions);
+    }
+
     function defaultIconPosition(index) {
         const cellW = 92;
         const cellH = 104;
@@ -387,16 +397,13 @@
 
     function renderIcons() {
         const icons = $('vd-icons');
-        const directories = (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || [];
-        const directoryItems = directories.slice(0, 4).map(name => ({ id: 'dir-' + name, name, type: 'directory', path: name }));
-        const appItems = allApps().map(app => ({ id: app.id, name: appName(app), type: 'app', app }));
-        const items = [...appItems, ...directoryItems];
+        const items = desktopShortcutItems();
         const positions = iconPositions();
         icons.innerHTML = items.map(item => {
             const iconKey = item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
             const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
-            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
+            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
                 ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
@@ -407,6 +414,33 @@
             btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
             wireDraggableIcon(btn);
         });
+    }
+
+    function desktopShortcutItems() {
+        const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
+        return shortcuts.map(shortcut => {
+            if (shortcut.target_type === 'app') {
+                const app = appById(shortcut.target_id);
+                if (!app) return null;
+                return {
+                    id: shortcut.id,
+                    name: shortcut.name || appName(app),
+                    type: 'app',
+                    app,
+                    shortcut
+                };
+            }
+            if (shortcut.target_type === 'directory') {
+                return {
+                    id: shortcut.id,
+                    name: shortcut.name || shortcut.path,
+                    type: 'directory',
+                    path: shortcut.path || shortcut.target_id || '',
+                    shortcut
+                };
+            }
+            return null;
+        }).filter(Boolean);
     }
 
     function selectDesktopIcon(btn) {
@@ -459,7 +493,7 @@
             openApp('files', { path: btn.dataset.path || '' });
             return;
         }
-        openApp(btn.dataset.id);
+        openApp(btn.dataset.appId || btn.dataset.id);
     }
 
     function renderWidgets() {
@@ -618,6 +652,7 @@
                 $('vd-start-menu').hidden = true;
                 openApp(btn.dataset.appId);
             });
+            btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
         });
     }
 
@@ -898,16 +933,22 @@
     function showIconContextMenu(event, btn) {
         event.preventDefault();
         selectDesktopIcon(btn);
-        const isDirectory = btn.dataset.kind === 'directory';
         const path = btn.dataset.path || '';
         const items = [
             { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) },
-            { label: t('desktop.context_rename'), icon: '✎', disabled: !isDirectory, action: () => renamePath(path) },
-            { label: t('desktop.context_delete'), icon: '×', disabled: !isDirectory, action: () => deletePath(path) },
+            { label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) },
             { separator: true },
             { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
         ];
         showContextMenu(event.clientX, event.clientY, items);
+    }
+
+    function showStartAppContextMenu(event, appId) {
+        event.preventDefault();
+        showContextMenu(event.clientX, event.clientY, [
+            { label: t('desktop.context_open'), icon: '↗', action: () => openApp(appId) },
+            { label: t('desktop.context_add_to_desktop'), icon: '+', action: () => addDesktopShortcut(appId) }
+        ]);
     }
 
     function showWidgetContextMenu(event, widget) {
@@ -1042,6 +1083,31 @@
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function addDesktopShortcut(appId) {
+        if (!appId) return;
+        try {
+            await api('/api/desktop/shortcuts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app_id: appId })
+            });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function removeDesktopShortcut(id) {
+        if (!id) return;
+        try {
+            await api('/api/desktop/shortcuts?id=' + encodeURIComponent(id), { method: 'DELETE' });
+            removeIconPosition(id);
+            await loadBootstrap();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }

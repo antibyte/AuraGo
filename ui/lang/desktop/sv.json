@@ -89,6 +89,8 @@
   "desktop.context_open": "Öppna",
   "desktop.context_rename": "Byt namn",
   "desktop.context_delete": "Ta bort",
+  "desktop.context_add_to_desktop": "Lägg till på skrivbordet",
+  "desktop.context_remove_from_desktop": "Ta bort från skrivbordet",
   "desktop.context_properties": "Egenskaper",
   "desktop.context_remove_widget": "Ta bort widget",
   "desktop.context_maximize": "Maximera",

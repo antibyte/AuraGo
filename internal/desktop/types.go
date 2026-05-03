@@ -14,9 +14,11 @@ const (
 	SourceAgent = "agent"
 	SourceUser  = "user"
 
-	AuraDesktopRuntime = "aura-desktop-sdk@1"
-	BuiltinRuntime     = "builtin"
-	WidgetTypeCustom   = "custom"
+	AuraDesktopRuntime      = "aura-desktop-sdk@1"
+	BuiltinRuntime          = "builtin"
+	WidgetTypeCustom        = "custom"
+	ShortcutTargetApp       = "app"
+	ShortcutTargetDirectory = "directory"
 )
 
 // Config describes the runtime settings needed by the desktop service.
@@ -67,6 +69,7 @@ type BootstrapPayload struct {
 	Workspace          WorkspaceInfo     `json:"workspace"`
 	BuiltinApps        []AppManifest     `json:"builtin_apps"`
 	InstalledApps      []AppManifest     `json:"installed_apps"`
+	Shortcuts          []Shortcut        `json:"shortcuts"`
 	Widgets            []Widget          `json:"widgets"`
 	Settings           map[string]string `json:"settings"`
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
@@ -108,6 +111,18 @@ type AppManifest struct {
 	Metadata    map[string]string `json:"metadata,omitempty"`
 	CreatedAt   time.Time         `json:"created_at,omitempty"`
 	UpdatedAt   time.Time         `json:"updated_at,omitempty"`
+}
+
+// Shortcut describes one persistent icon pinned to the desktop surface.
+type Shortcut struct {
+	ID         string    `json:"id"`
+	TargetType string    `json:"target_type"`
+	TargetID   string    `json:"target_id,omitempty"`
+	Path       string    `json:"path,omitempty"`
+	Name       string    `json:"name"`
+	Icon       string    `json:"icon"`
+	CreatedAt  time.Time `json:"created_at,omitempty"`
+	UpdatedAt  time.Time `json:"updated_at,omitempty"`
 }
 
 // Widget describes a pinned desktop widget backed by a built-in or installed app.

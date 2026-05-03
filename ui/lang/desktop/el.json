@@ -89,6 +89,8 @@
   "desktop.context_open": "Άνοιγμα",
   "desktop.context_rename": "Μετονομασία",
   "desktop.context_delete": "Διαγραφή",
+  "desktop.context_add_to_desktop": "Προσθήκη στην επιφάνεια εργασίας",
+  "desktop.context_remove_from_desktop": "Αφαίρεση από την επιφάνεια εργασίας",
   "desktop.context_properties": "Ιδιότητες",
   "desktop.context_remove_widget": "Αφαίρεση widget",
   "desktop.context_maximize": "Μεγιστοποίηση",

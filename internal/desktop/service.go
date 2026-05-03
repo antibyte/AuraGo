@@ -19,7 +19,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
@@ -226,6 +226,16 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			value TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS desktop_shortcuts (
+			id TEXT PRIMARY KEY,
+			target_type TEXT NOT NULL,
+			target_id TEXT NOT NULL DEFAULT '',
+			path TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL,
+			icon TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS desktop_audit (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			action TEXT NOT NULL,
@@ -234,7 +244,7 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			details_json TEXT NOT NULL,
 			created_at TEXT NOT NULL
 		)`,
-		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '2')
+		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '3')
 			ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 	}
 	for _, stmt := range stmts {
@@ -245,7 +255,43 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "widget_json", "TEXT NOT NULL DEFAULT '{}'"); err != nil {
 		return err
 	}
+	if err := s.seedDesktopShortcutsLocked(ctx); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
+	var seeded string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_shortcuts_seeded'`).Scan(&seeded)
+	if err == nil && seeded == "true" {
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read desktop shortcuts seed state: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	defaults := []Shortcut{
+		{ID: "app-files", TargetType: ShortcutTargetApp, TargetID: "files", Name: "Files", Icon: "folder"},
+		{ID: "dir-Trash", TargetType: ShortcutTargetDirectory, Path: "Trash", Name: "Trash", Icon: "trash"},
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin desktop shortcuts seed: %w", err)
+	}
+	defer tx.Rollback()
+	for _, shortcut := range defaults {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO desktop_shortcuts(id, target_type, target_id, path, name, icon, created_at, updated_at)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+			shortcut.ID, shortcut.TargetType, shortcut.TargetID, shortcut.Path, shortcut.Name, shortcut.Icon, now, now); err != nil {
+			return fmt.Errorf("seed desktop shortcut %s: %w", shortcut.ID, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_shortcuts_seeded', 'true')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("mark desktop shortcuts seeded: %w", err)
+	}
+	return tx.Commit()
 }
 
 func (s *Service) ensureColumnLocked(ctx context.Context, table, column, definition string) error {
@@ -314,6 +360,10 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	if err != nil {
 		return BootstrapPayload{}, err
 	}
+	shortcuts, err := s.listShortcuts(ctx)
+	if err != nil {
+		return BootstrapPayload{}, err
+	}
 	settings, err := s.listSettings(ctx)
 	if err != nil {
 		return BootstrapPayload{}, err
@@ -333,6 +383,7 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		},
 		BuiltinApps:   BuiltinApps(),
 		InstalledApps: apps,
+		Shortcuts:     shortcuts,
 		Widgets:       widgets,
 		Settings:      settings,
 		IconCatalog:   DesktopIconCatalog(settings),
@@ -1166,6 +1217,104 @@ func (s *Service) DeleteWidget(ctx context.Context, id, source string) error {
 	return nil
 }
 
+// AddDesktopAppShortcut pins an existing built-in or installed app to the desktop.
+func (s *Service) AddDesktopAppShortcut(ctx context.Context, appID, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	appID = strings.ToLower(strings.TrimSpace(appID))
+	app, ok, err := s.findApp(ctx, appID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("desktop app not found")
+	}
+	shortcut := Shortcut{
+		ID:         "app-" + app.ID,
+		TargetType: ShortcutTargetApp,
+		TargetID:   app.ID,
+		Name:       app.Name,
+		Icon:       iconOrDefault(app.Icon, InferDesktopIconName(app.ID, app.Name)),
+	}
+	return s.upsertDesktopShortcut(ctx, shortcut, source)
+}
+
+// RemoveDesktopShortcut removes one pinned desktop icon without uninstalling the app.
+func (s *Service) RemoveDesktopShortcut(ctx context.Context, id, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("desktop shortcut id is required")
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	if _, err := db.ExecContext(ctx, `DELETE FROM desktop_shortcuts WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("remove desktop shortcut: %w", err)
+	}
+	_ = s.Audit(ctx, "remove_shortcut", id, map[string]interface{}{}, source)
+	return nil
+}
+
+func (s *Service) upsertDesktopShortcut(ctx context.Context, shortcut Shortcut, source string) error {
+	shortcut.ID = strings.TrimSpace(shortcut.ID)
+	shortcut.TargetType = strings.ToLower(strings.TrimSpace(shortcut.TargetType))
+	shortcut.TargetID = strings.ToLower(strings.TrimSpace(shortcut.TargetID))
+	shortcut.Path = cleanDesktopPathSlash(shortcut.Path)
+	shortcut.Name = strings.TrimSpace(shortcut.Name)
+	shortcut.Icon = strings.TrimSpace(shortcut.Icon)
+	if shortcut.ID == "" {
+		return fmt.Errorf("desktop shortcut id is required")
+	}
+	if shortcut.TargetType != ShortcutTargetApp && shortcut.TargetType != ShortcutTargetDirectory {
+		return fmt.Errorf("unsupported desktop shortcut target type")
+	}
+	if shortcut.TargetType == ShortcutTargetApp && shortcut.TargetID == "" {
+		return fmt.Errorf("desktop shortcut app id is required")
+	}
+	if shortcut.TargetType == ShortcutTargetDirectory {
+		if shortcut.Path == "." {
+			return fmt.Errorf("desktop shortcut path is required")
+		}
+		if _, err := s.ResolvePath(shortcut.Path); err != nil {
+			return err
+		}
+	}
+	if shortcut.Name == "" {
+		shortcut.Name = shortcut.TargetID
+	}
+	if shortcut.Icon == "" {
+		shortcut.Icon = InferDesktopIconName(shortcut.TargetID, shortcut.Name, shortcut.Path)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	if _, err := db.ExecContext(ctx, `INSERT INTO desktop_shortcuts(id, target_type, target_id, path, name, icon, created_at, updated_at)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			target_type = excluded.target_type,
+			target_id = excluded.target_id,
+			path = excluded.path,
+			name = excluded.name,
+			icon = excluded.icon,
+			updated_at = excluded.updated_at`,
+		shortcut.ID, shortcut.TargetType, shortcut.TargetID, shortcut.Path, shortcut.Name, shortcut.Icon, now, now); err != nil {
+		return fmt.Errorf("save desktop shortcut: %w", err)
+	}
+	_ = s.Audit(ctx, "upsert_shortcut", shortcut.ID, shortcut, source)
+	return nil
+}
+
 // SetSetting stores one validated desktop setting.
 func (s *Service) SetSetting(ctx context.Context, key, value, source string) error {
 	if err := s.ensureReady(ctx); err != nil {
@@ -1324,6 +1473,56 @@ func (s *Service) listApps(ctx context.Context) ([]AppManifest, error) {
 		apps = append(apps, app)
 	}
 	return apps, rows.Err()
+}
+
+func (s *Service) findApp(ctx context.Context, id string) (AppManifest, bool, error) {
+	for _, app := range BuiltinApps() {
+		if app.ID == id {
+			return app, true, nil
+		}
+	}
+	apps, err := s.listApps(ctx)
+	if err != nil {
+		return AppManifest{}, false, err
+	}
+	for _, app := range apps {
+		if app.ID == id {
+			return app, true, nil
+		}
+	}
+	return AppManifest{}, false, nil
+}
+
+func iconOrDefault(icon, fallback string) string {
+	icon = strings.TrimSpace(icon)
+	if icon != "" {
+		return icon
+	}
+	return fallback
+}
+
+func (s *Service) listShortcuts(ctx context.Context) ([]Shortcut, error) {
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	rows, err := db.QueryContext(ctx, `SELECT id, target_type, target_id, path, name, icon, created_at, updated_at
+		FROM desktop_shortcuts ORDER BY created_at, name COLLATE NOCASE`)
+	if err != nil {
+		return nil, fmt.Errorf("list desktop shortcuts: %w", err)
+	}
+	defer rows.Close()
+	var shortcuts []Shortcut
+	for rows.Next() {
+		var shortcut Shortcut
+		var createdAt, updatedAt string
+		if err := rows.Scan(&shortcut.ID, &shortcut.TargetType, &shortcut.TargetID, &shortcut.Path, &shortcut.Name, &shortcut.Icon, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan desktop shortcut: %w", err)
+		}
+		shortcut.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+		shortcut.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+		shortcuts = append(shortcuts, shortcut)
+	}
+	return shortcuts, rows.Err()
 }
 
 func (s *Service) listWidgets(ctx context.Context) ([]Widget, error) {

@@ -89,6 +89,8 @@
   "desktop.context_open": "打开",
   "desktop.context_rename": "重命名",
   "desktop.context_delete": "删除",
+  "desktop.context_add_to_desktop": "添加到桌面",
+  "desktop.context_remove_from_desktop": "从桌面移除",
   "desktop.context_properties": "属性",
   "desktop.context_remove_widget": "移除小组件",
   "desktop.context_maximize": "最大化",

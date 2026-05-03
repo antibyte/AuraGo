@@ -89,6 +89,8 @@
   "desktop.context_open": "開く",
   "desktop.context_rename": "名前を変更",
   "desktop.context_delete": "削除",
+  "desktop.context_add_to_desktop": "デスクトップに追加",
+  "desktop.context_remove_from_desktop": "デスクトップから削除",
   "desktop.context_properties": "プロパティ",
   "desktop.context_remove_widget": "ウィジェットを削除",
   "desktop.context_maximize": "最大化",
