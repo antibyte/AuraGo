@@ -26,8 +26,6 @@ func TestDesktopMediaGalleryAssets(t *testing.T) {
 		"data-gallery-rename",
 		"data-gallery-delete",
 		"data-gallery-download",
-		"loadMusicLibrary('Music')",
-		"track.web_path || await desktopEmbedURL(track.path)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("desktop shell missing media gallery marker %q", want)

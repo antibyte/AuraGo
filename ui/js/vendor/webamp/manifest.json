@@ -1,0 +1,10 @@
+{
+  "name": "webamp",
+  "version": "2.2.0",
+  "source": "https://github.com/captbaritone/webamp",
+  "license": "MIT",
+  "bundle": "webamp.bundle.min.mjs",
+  "bundle_type": "core-esm",
+  "npm_package": "webamp@2.2.0",
+  "npm_integrity": "sha512-XzKr65Z4d+4rxA9xsyxIvrmBOP3Rv9ioQv8TTXUlIBxIkUZEXWO+xz0avHDZF2yqsk4EgVFG5dV/dTx5b+WPQ=="
+}

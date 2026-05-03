@@ -18,6 +18,7 @@ import (
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {
 	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
+	_ = mime.AddExtensionType(".mjs", "application/javascript; charset=utf-8")
 	_ = mime.AddExtensionType(".woff", "font/woff")
 	_ = mime.AddExtensionType(".woff2", "font/woff2")
 	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
