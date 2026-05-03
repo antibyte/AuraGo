@@ -57,6 +57,7 @@
         terminal: 'terminal',
         browser: 'browser'
     };
+    appIconKeys['code-studio'] = 'code';
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -143,7 +144,8 @@
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
-            'quick-connect': 'QC'
+            'quick-connect': 'QC',
+            'code-studio': 'CS'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -637,7 +639,8 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             calendar: { width: 950, height: 650 },
-            'quick-connect': { width: 920, height: 640 }
+            'quick-connect': { width: 920, height: 640 },
+            'code-studio': { width: 1280, height: 850 }
         };
         return presets[appId] || defaultWindowSize();
     }
@@ -1073,6 +1076,9 @@
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
+        if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
+            return window.CodeStudio.render(contentEl(id), id, context || {});
+        }
         return renderGeneratedApp(id, appId);
     }
 

@@ -117,6 +117,25 @@ func TestServiceBootstrapIncludesMediaMountsAndGalleryApp(t *testing.T) {
 	}
 }
 
+func TestServiceBootstrapIncludesCodeStudioApp(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var foundCodeStudio bool
+	for _, app := range bootstrap.BuiltinApps {
+		if app.ID == "code-studio" {
+			foundCodeStudio = app.Icon == "code" && app.Entry == "builtin://code-studio"
+		}
+	}
+	if !foundCodeStudio {
+		t.Fatalf("builtin apps missing code studio app: %+v", bootstrap.BuiltinApps)
+	}
+}
+
 func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	t.Parallel()
 
