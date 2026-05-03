@@ -2017,6 +2017,342 @@
     background: #fff;
 }
 
+/* Quick Connect – Header actions */
+.vd-qc-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Quick Connect – Device badges */
+.vd-qc-device-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-qc-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.vd-qc-badge-ok {
+    background: rgba(39, 199, 166, 0.18);
+    color: var(--vd-accent);
+}
+
+.vd-qc-badge-warn {
+    background: rgba(242, 184, 75, 0.18);
+    color: var(--vd-amber);
+}
+
+/* Quick Connect – Modal overlay */
+.vd-qc-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+}
+
+/* Quick Connect – Modal */
+.vd-qc-modal {
+    background: var(--vd-surface-strong);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    width: 460px;
+    max-width: 95%;
+    max-height: 90%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.vd-qc-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-modal-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--vd-text);
+}
+
+.vd-qc-modal-close {
+    background: none;
+    border: none;
+    color: var(--vd-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.vd-qc-modal-close:hover {
+    color: var(--vd-text);
+}
+
+.vd-qc-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.vd-qc-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--vd-border);
+}
+
+/* Quick Connect – Form sections */
+.vd-qc-form-section {
+    margin-bottom: 16px;
+}
+
+.vd-qc-form-section:last-child {
+    margin-bottom: 0;
+}
+
+.vd-qc-form-title {
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--vd-muted);
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-qc-form-row {
+    display: flex;
+    gap: 10px;
+}
+
+.vd-qc-flex-3 { flex: 3; }
+.vd-qc-flex-1 { flex: 1; }
+
+/* Quick Connect – Labels & Inputs */
+.vd-qc-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--vd-muted);
+    margin-bottom: 8px;
+}
+
+.vd-qc-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    margin-top: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-qc-input:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
+    margin-top: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 12px;
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    outline: none;
+    resize: vertical;
+    min-height: 60px;
+    transition: border-color 0.15s;
+}
+
+.vd-qc-textarea:focus {
+    border-color: var(--vd-accent);
+}
+
+.vd-qc-input-group {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-qc-input-group .vd-qc-input {
+    flex: 1;
+    margin-top: 0;
+}
+
+.vd-qc-input-toggle {
+    background: var(--vd-bg);
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    color: var(--vd-muted);
+    cursor: pointer;
+    padding: 0 8px;
+    font-size: 14px;
+}
+
+.vd-qc-input-toggle:hover {
+    color: var(--vd-text);
+}
+
+/* Quick Connect – Cert area */
+.vd-qc-cert-area {
+    margin-top: 3px;
+}
+
+.vd-qc-cert-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.vd-qc-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--vd-accent);
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+/* Quick Connect – Buttons */
+.vd-qc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-bg);
+    color: var(--vd-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.vd-qc-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.vd-qc-btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+.vd-qc-btn-primary {
+    background: var(--vd-accent);
+    color: #111;
+    border-color: var(--vd-accent);
+    font-weight: 600;
+}
+
+.vd-qc-btn-primary:hover {
+    background: #2edbb5;
+    border-color: #2edbb5;
+}
+
+.vd-qc-btn-secondary {
+    background: transparent;
+    color: var(--vd-muted);
+}
+
+.vd-qc-btn-secondary:hover {
+    color: var(--vd-text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.vd-qc-btn-danger {
+    background: var(--vd-coral);
+    color: #fff;
+    border-color: var(--vd-coral);
+    font-weight: 600;
+}
+
+.vd-qc-btn-danger:hover {
+    background: #ff9580;
+    border-color: #ff9580;
+}
+
+/* Quick Connect – Confirm dialog */
+.vd-qc-confirm {
+    background: var(--vd-surface-strong);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 340px;
+    max-width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.vd-qc-confirm-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.vd-qc-confirm-msg {
+    font-size: 13px;
+    color: var(--vd-muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.vd-qc-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Quick Connect – Notify toast */
+.vd-qc-notify {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--vd-coral);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 200;
+    animation: vd-qc-notify-in 0.2s ease-out;
+    max-width: 80%;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes vd-qc-notify-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 @media (max-width: 680px) {
     .vd-quick-connect {
         flex-direction: column;
@@ -2028,5 +2364,8 @@
         min-width: 0;
         border-right: none;
         border-bottom: 1px solid var(--vd-border);
+    }
+    .vd-qc-modal {
+        width: 95%;
     }
 }

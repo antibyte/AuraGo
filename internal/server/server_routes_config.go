@@ -223,6 +223,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/credentials/python-accessible", func(w http.ResponseWriter, r *http.Request) {
 		handleListPythonAccessibleCredentials(s)(w, r)
 	})
+	mux.HandleFunc("/api/credentials/export/", func(w http.ResponseWriter, r *http.Request) {
+		handleExportCredential(s)(w, r)
+	})
 	mux.HandleFunc("/api/credentials/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

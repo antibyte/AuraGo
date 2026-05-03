@@ -1908,7 +1908,10 @@
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
                     <span class="vd-qc-title">${esc(t('desktop.qc_title'))}</span>
-                    <button class="vd-tool-button" type="button" data-action="refresh">${esc(t('desktop.qc_refresh'))}</button>
+                    <div class="vd-qc-header-actions">
+                        <button class="vd-tool-button" type="button" data-action="add" title="${esc(t('desktop.qc_add_server'))}">+</button>
+                        <button class="vd-tool-button" type="button" data-action="refresh">${esc(t('desktop.qc_refresh'))}</button>
+                    </div>
                 </div>
                 <div class="vd-qc-search">
                     <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
@@ -1931,23 +1934,28 @@
         let activeTerm = null;
         let activeFitAddon = null;
         let cachedDevices = null;
+        let cachedCredentials = null;
 
-        loadDevices();
+        loadAll();
 
-        host.querySelector('[data-action="refresh"]').addEventListener('click', loadDevices);
+        host.querySelector('[data-action="refresh"]').addEventListener('click', loadAll);
+        host.querySelector('[data-action="add"]').addEventListener('click', () => showServerModal());
         searchInput.addEventListener('input', () => filterDevices());
 
-        async function loadDevices() {
+        async function loadAll() {
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
-                const body = await api('/api/devices');
-                const devices = (body.devices || body || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type);
-                cachedDevices = devices;
-                if (!devices.length) {
+                const [devBody, credBody] = await Promise.all([
+                    api('/api/devices'),
+                    api('/api/credentials')
+                ]);
+                cachedDevices = (devBody.devices || devBody || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type);
+                cachedCredentials = credBody || [];
+                if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                     return;
                 }
-                renderDeviceList(devices);
+                renderDeviceList(cachedDevices);
             } catch (err) {
                 deviceList.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
             }
@@ -1964,88 +1972,280 @@
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
                 return;
             }
-            deviceList.innerHTML = filtered.map(d => `<button class="vd-qc-device" type="button" data-device-id="${esc(d.id)}">
-                <div class="vd-qc-device-name">${esc(d.name)}</div>
-                <div class="vd-qc-device-meta">${esc(d.ip_address || d.host || '')}${d.port && d.port !== 22 ? ':' + d.port : ''}</div>
-            </button>`).join('');
+            deviceList.innerHTML = filtered.map(d => {
+                const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
+                return `<button class="vd-qc-device" type="button" data-device-id="${esc(d.id)}">
+                    <div class="vd-qc-device-name">${esc(d.name)}</div>
+                    <div class="vd-qc-device-meta">${esc(d.ip_address || '')}${d.port && d.port !== 22 ? ':' + d.port : ''}</div>
+                    <div class="vd-qc-device-badges">
+                        ${d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">SSH</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>'}
+                    </div>
+                </button>`;
+            }).join('');
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => {
                 btn.addEventListener('click', () => connectToDevice(btn.dataset.deviceId));
+                btn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const dev = cachedDevices.find(d => d.id === btn.dataset.deviceId);
+                    if (dev) showDeviceContextMenu(e.clientX, e.clientY, dev);
+                });
             });
         }
 
         function filterDevices() {
-            if (cachedDevices) {
-                renderDeviceList(cachedDevices);
+            if (cachedDevices) renderDeviceList(cachedDevices);
+        }
+
+        function showDeviceContextMenu(x, y, device) {
+            closeContextMenu();
+            const items = [
+                { label: t('desktop.qc_connect'), icon: '⌨', action: () => connectToDevice(device.id) },
+                { label: t('desktop.qc_edit'), icon: '✎', action: () => showServerModal(device) },
+                { separator: true },
+                { label: t('desktop.qc_delete'), icon: '×', action: () => confirmDeleteDevice(device) }
+            ];
+            showContextMenu(x, y, items);
+        }
+
+        async function confirmDeleteDevice(device) {
+            const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
+            if (!ok) return;
+            try {
+                await api('/api/devices/' + device.id, { method: 'DELETE' });
+                await loadAll();
+            } catch (err) {
+                showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
             }
         }
 
-        async function connectToDevice(deviceId) {
-            // Highlight active device
-            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
+        function showNotify(msg) {
+            const existing = host.querySelector('.vd-qc-notify');
+            if (existing) existing.remove();
+            const el = document.createElement('div');
+            el.className = 'vd-qc-notify';
+            el.textContent = msg;
+            host.querySelector('.vd-quick-connect').appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
 
-            // Disconnect existing session
+        function showConfirmModal(title, message) {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'vd-qc-modal-overlay';
+                overlay.innerHTML = `<div class="vd-qc-confirm">
+                    <div class="vd-qc-confirm-title">${esc(title)}</div>
+                    <div class="vd-qc-confirm-msg">${esc(message)}</div>
+                    <div class="vd-qc-confirm-actions">
+                        <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                        <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${esc(t('desktop.delete'))}</button>
+                    </div>
+                </div>`;
+                host.querySelector('.vd-quick-connect').appendChild(overlay);
+                overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
+                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+            });
+        }
+
+        function showServerModal(existingDevice) {
+            const isEdit = !!existingDevice;
+            const existingCred = isEdit && existingDevice.credential_id && cachedCredentials
+                ? cachedCredentials.find(c => c.id === existingDevice.credential_id) : null;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-qc-modal-overlay';
+            overlay.innerHTML = `<div class="vd-qc-modal">
+                <div class="vd-qc-modal-header">
+                    <span class="vd-qc-modal-title">${esc(isEdit ? t('desktop.qc_edit_server') : t('desktop.qc_add_server'))}</span>
+                    <button class="vd-qc-modal-close" type="button" data-action="close">×</button>
+                </div>
+                <div class="vd-qc-modal-body">
+                    <div class="vd-qc-form-section">
+                        <div class="vd-qc-form-title">${esc(t('desktop.qc_section_server'))}</div>
+                        <label class="vd-qc-label">${esc(t('desktop.qc_name'))}
+                            <input class="vd-qc-input" type="text" name="name" value="${esc(isEdit ? existingDevice.name : '')}" required>
+                        </label>
+                        <div class="vd-qc-form-row">
+                            <label class="vd-qc-label vd-qc-flex-3">${esc(t('desktop.qc_host'))}
+                                <input class="vd-qc-input" type="text" name="host" value="${esc(isEdit ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
+                            </label>
+                            <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_port'))}
+                                <input class="vd-qc-input" type="number" name="port" value="${isEdit ? (existingDevice.port || 22) : 22}" min="1" max="65535">
+                            </label>
+                        </div>
+                        <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
+                            <input class="vd-qc-input" type="text" name="description" value="${esc(isEdit ? (existingDevice.description || '') : '')}">
+                        </label>
+                    </div>
+                    <div class="vd-qc-form-section">
+                        <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
+                        <label class="vd-qc-label">${esc(t('desktop.qc_username'))}
+                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required>
+                        </label>
+                        <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
+                            <div class="vd-qc-input-group">
+                                <input class="vd-qc-input" type="password" name="password" placeholder="${isEdit && existingCred && existingCred.has_password ? t('desktop.qc_password_stored') : ''}">
+                                <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw">👁</button>
+                                ${isEdit && existingCred && existingCred.has_password ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="download-pw">↓</button>` : ''}
+                            </div>
+                        </label>
+                        <label class="vd-qc-label">${esc(t('desktop.qc_certificate'))}
+                            <div class="vd-qc-cert-area">
+                                <textarea class="vd-qc-textarea" name="certificate_text" rows="3" placeholder="${t('desktop.qc_cert_paste_placeholder')}"></textarea>
+                                <div class="vd-qc-cert-actions">
+                                    <label class="vd-qc-btn vd-qc-btn-secondary vd-qc-btn-sm">
+                                        ${esc(t('desktop.qc_upload_cert'))}
+                                        <input type="file" accept=".pem,.key,.pub,.crt,.cer,.txt" name="certificate_file" hidden>
+                                    </label>
+                                    ${isEdit && existingCred && existingCred.has_certificate ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="download-cert">${esc(t('desktop.qc_download_cert'))}</button>` : ''}
+                                </div>
+                                ${isEdit && existingCred && existingCred.has_certificate ? '<span class="vd-qc-hint">' + esc(t('desktop.qc_cert_stored')) + '</span>' : ''}
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="vd-qc-modal-footer">
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                    <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="save">${esc(t('desktop.qc_save'))}</button>
+                </div>
+            </div>`;
+
+            host.querySelector('.vd-quick-connect').appendChild(overlay);
+
+            // Certificate file upload
+            const certFileInput = overlay.querySelector('input[name="certificate_file"]');
+            const certTextarea = overlay.querySelector('textarea[name="certificate_text"]');
+            certFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    certTextarea.value = await file.text();
+                }
+            });
+
+            // Password toggle
+            overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
+                const pwInput = overlay.querySelector('input[name="password"]');
+                pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+            });
+
+            // Download password
+            const dlPwBtn = overlay.querySelector('[data-action="download-pw"]');
+            if (dlPwBtn && existingCred) {
+                dlPwBtn.addEventListener('click', async () => {
+                    try {
+                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=password');
+                        downloadText(body.content, (existingCred.name || 'password') + '.txt');
+                    } catch (err) { showNotify(err.message); }
+                });
+            }
+
+            // Download certificate
+            const dlCertBtn = overlay.querySelector('[data-action="download-cert"]');
+            if (dlCertBtn && existingCred) {
+                dlCertBtn.addEventListener('click', async () => {
+                    try {
+                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=certificate');
+                        downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
+                    } catch (err) { showNotify(err.message); }
+                });
+            }
+
+            // Close / Cancel
+            overlay.querySelector('[data-action="close"]').addEventListener('click', () => overlay.remove());
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+
+            // Save
+            overlay.querySelector('[data-action="save"]').addEventListener('click', async () => {
+                const name = overlay.querySelector('input[name="name"]').value.trim();
+                const hostVal = overlay.querySelector('input[name="host"]').value.trim();
+                const port = parseInt(overlay.querySelector('input[name="port"]').value) || 22;
+                const description = overlay.querySelector('input[name="description"]').value.trim();
+                const username = overlay.querySelector('input[name="username"]').value.trim();
+                const password = overlay.querySelector('input[name="password"]').value;
+                const certificateText = certTextarea.value.trim();
+
+                if (!name || !hostVal || !username) {
+                    showNotify(t('desktop.qc_validation_error'));
+                    return;
+                }
+
+                try {
+                    if (isEdit) {
+                        // Update credential if exists
+                        if (existingCred) {
+                            const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                            if (password) credBody.password = password;
+                            if (certificateText) credBody.certificate_text = certificateText;
+                            await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        } else {
+                            // Create credential and link
+                            const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                            if (password) credBody.password = password;
+                            if (certificateText) credBody.certificate_text = certificateText;
+                            const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            existingDevice.credential_id = created.id;
+                        }
+                        // Update device
+                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                    } else {
+                        // Create credential first
+                        const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                        if (password) credBody.password = password;
+                        if (certificateText) credBody.certificate_text = certificateText;
+                        const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        // Create device linked to credential
+                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', ip_address: hostVal, port, description, credential_id: created.id }) });
+                    }
+                    overlay.remove();
+                    await loadAll();
+                } catch (err) {
+                    showNotify(t('desktop.qc_save_error') + ': ' + err.message);
+                }
+            });
+        }
+
+        function downloadText(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function connectToDevice(deviceId) {
+            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
-
-            // Show connecting state
             terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
 
-            // Create terminal
             const term = new Terminal({
                 theme: {
-                    background: '#0d1117',
-                    foreground: '#c9d1d9',
-                    cursor: '#58a6ff',
+                    background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff',
                     selectionBackground: 'rgba(88, 166, 255, 0.3)',
-                    black: '#0d1117',
-                    red: '#ff7b72',
-                    green: '#3fb950',
-                    yellow: '#d29922',
-                    blue: '#58a6ff',
-                    magenta: '#bc8cff',
-                    cyan: '#39c5cf',
-                    white: '#c9d1d9',
-                    brightBlack: '#484f58',
-                    brightRed: '#ffa198',
-                    brightGreen: '#56d364',
-                    brightYellow: '#e3b341',
-                    brightBlue: '#79c0ff',
-                    brightMagenta: '#d2a8ff',
-                    brightCyan: '#56d4dd',
-                    brightWhite: '#f0f6fc'
+                    black: '#0d1117', red: '#ff7b72', green: '#3fb950', yellow: '#d29922',
+                    blue: '#58a6ff', magenta: '#bc8cff', cyan: '#39c5cf', white: '#c9d1d9',
+                    brightBlack: '#484f58', brightRed: '#ffa198', brightGreen: '#56d364',
+                    brightYellow: '#e3b341', brightBlue: '#79c0ff', brightMagenta: '#d2a8ff',
+                    brightCyan: '#56d4dd', brightWhite: '#f0f6fc'
                 },
                 fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-                fontSize: 14,
-                cursorBlink: true,
-                cursorStyle: 'bar',
-                scrollback: 5000,
-                convertEol: true
+                fontSize: 14, cursorBlink: true, cursorStyle: 'bar', scrollback: 5000, convertEol: true
             });
             const fitAddon = new FitAddon.FitAddon();
             term.loadAddon(fitAddon);
-
             const termContainer = document.createElement('div');
             termContainer.className = 'vd-qc-term-container';
             terminalArea.replaceChildren(termContainer);
             term.open(termContainer);
-
             activeTerm = term;
             activeFitAddon = fitAddon;
-
-            // Fit after open
-            setTimeout(() => {
-                try { fitAddon.fit(); } catch(_) {}
-            }, 50);
-
-            // Resize observer
+            setTimeout(() => { try { fitAddon.fit(); } catch(_) {} }, 50);
             const resizeObserver = new ResizeObserver(() => {
-                if (activeTerm === term) {
-                    try { fitAddon.fit(); } catch(_) {}
-                }
+                if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
             resizeObserver.observe(termContainer);
 
-            // WebSocket connection
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = proto + '//' + location.host + '/api/desktop/ssh?device_id=' + encodeURIComponent(deviceId) + '&cols=' + term.cols + '&rows=' + term.rows;
             const ws = new WebSocket(wsUrl);
@@ -2053,45 +2253,27 @@
             activeWS = ws;
 
             term.onData(data => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(new TextEncoder().encode(data));
-                }
+                if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
             });
-
-            // Send resize events
             term.onResize(({ cols, rows }) => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-                }
+                if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
-
             ws.onmessage = (event) => {
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
-                        if (msg.type === 'error') {
-                            term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
-                        } else if (msg.type === 'disconnected') {
-                            term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
-                        }
+                        if (msg.type === 'error') term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
+                        else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
                     } catch(_) {}
                 } else {
-                    // Binary data = terminal output
                     const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : new TextEncoder().encode(event.data);
                     term.write(bytes);
                 }
             };
-
             ws.onclose = () => {
-                if (activeWS === ws) {
-                    term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
-                    activeWS = null;
-                }
+                if (activeWS === ws) { term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n'); activeWS = null; }
             };
-
-            ws.onerror = () => {
-                term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
-            };
+            ws.onerror = () => { term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n'); };
         }
     }
 

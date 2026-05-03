@@ -383,3 +383,79 @@ func handleListPythonAccessibleCredentials(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(items)
 	}
 }
+
+func handleExportCredential(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.InventoryDB == nil {
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if s.Vault == nil {
+			jsonError(w, "vault not configured", http.StatusServiceUnavailable)
+			return
+		}
+
+		id := strings.TrimPrefix(r.URL.Path, "/api/credentials/export/")
+		if id == "" {
+			jsonError(w, "credential id required", http.StatusBadRequest)
+			return
+		}
+
+		secretType := r.URL.Query().Get("type")
+		if secretType != "password" && secretType != "certificate" {
+			jsonError(w, "type must be 'password' or 'certificate'", http.StatusBadRequest)
+			return
+		}
+
+		item, err := credentials.GetByID(s.InventoryDB, id)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				jsonError(w, "credential not found", http.StatusNotFound)
+			} else {
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load credential", "Failed to load credential", err, "credential_id", id)
+			}
+			return
+		}
+
+		var vaultID string
+		switch secretType {
+		case "password":
+			vaultID = item.PasswordVaultID
+		case "certificate":
+			vaultID = item.CertificateVaultID
+		}
+
+		if vaultID == "" {
+			jsonError(w, "no "+secretType+" stored for this credential", http.StatusNotFound)
+			return
+		}
+
+		secret, err := s.Vault.ReadSecret(vaultID)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read vault secret", "Failed to read vault secret", err, "credential_id", id)
+			return
+		}
+
+		filename := item.Name
+		if secretType == "certificate" {
+			filename = filename + "_key.pem"
+		} else {
+			filename = filename + ".txt"
+		}
+		// Sanitize filename
+		filename = strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.' {
+				return r
+			}
+			return '_'
+		}, filename)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+		json.NewEncoder(w).Encode(map[string]string{"content": secret})
+	}
+}
