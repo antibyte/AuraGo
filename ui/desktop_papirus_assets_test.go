@@ -55,10 +55,13 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 	}
 
 	for _, key := range []string{
-		"apps", "archive", "audio", "browser", "calendar", "calculator", "code", "css", "database",
-		"desktop", "documents", "downloads", "editor", "folder", "go", "html", "image",
-		"javascript", "json", "markdown", "network", "notes", "pdf", "python", "settings",
-		"spreadsheet", "terminal", "text", "trash", "video", "weather", "xml", "yaml",
+		"analytics", "apps", "archive", "audio", "backup", "book", "browser", "calendar",
+		"calculator", "camera", "chat", "cloud", "code", "css", "database", "desktop",
+		"documents", "downloads", "editor", "folder", "forms", "globe", "go", "help",
+		"home", "html", "image", "javascript", "json", "key", "mail", "markdown",
+		"map", "monitor", "network", "notes", "package", "pdf", "phone", "printer",
+		"python", "server", "settings", "spreadsheet", "terminal", "text", "tools",
+		"trash", "video", "weather", "workflow", "xml", "yaml",
 	} {
 		path, ok := manifest.Icons[key]
 		if !ok {
