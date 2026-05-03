@@ -2513,7 +2513,8 @@
     min-height: 0;
     overflow: auto;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-auto-rows: minmax(176px, auto);
     align-content: start;
     gap: 12px;
     padding: 12px;
@@ -2526,7 +2527,10 @@
 }
 
 .vd-gallery-card {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    min-height: 176px;
     overflow: hidden;
     border: 1px solid var(--vd-border);
     border-radius: 6px;
@@ -2535,20 +2539,23 @@
 
 .vd-gallery-preview {
     display: block;
+    flex: 0 0 126px;
     width: 100%;
-    min-height: 104px;
-    aspect-ratio: 16 / 10;
+    height: 126px;
+    min-height: 126px;
     padding: 0;
     border: 0;
     background: #0c111b;
     cursor: pointer;
     overflow: hidden;
+    line-height: 0;
 }
 
 .vd-gallery-preview img,
 .vd-gallery-preview video {
     width: 100%;
     height: 100%;
+    min-height: 126px;
     object-fit: cover;
     display: block;
 }
