@@ -13,25 +13,20 @@ import (
 	"aurago/internal/dockerutil"
 )
 
+// ContainerResources holds optional Docker host resource limits.
+type ContainerResources struct {
+	MemoryMB  int
+	CPUCores  int
+	PidsLimit int
+}
+
 // DockerCreateContainer creates a new container from a configuration.
-func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string) string {
+func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources) string {
 	if err := requireDockerPermission(); err != nil {
 		return errJSON("%v", err)
 	}
 	if image == "" {
 		return errJSON("image is required")
-	}
-
-	// Build HostConfig.PortBindings and ExposedPorts
-	exposedPorts := map[string]interface{}{}
-	portBindings := map[string]interface{}{}
-	for containerPort, hostPort := range ports {
-		// Ensure container port has /tcp suffix
-		if !strings.Contains(containerPort, "/") {
-			containerPort += "/tcp"
-		}
-		exposedPorts[containerPort] = struct{}{}
-		portBindings[containerPort] = []map[string]string{{"HostPort": hostPort}}
 	}
 
 	for _, bind := range volumes {
@@ -40,23 +35,7 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		}
 	}
 
-	// Build volume binds
-	hostConfig := map[string]interface{}{
-		"Binds":         volumes,
-		"PortBindings":  portBindings,
-		"RestartPolicy": map[string]interface{}{"Name": restart},
-	}
-
-	payload := map[string]interface{}{
-		"Image":        image,
-		"Env":          env,
-		"ExposedPorts": exposedPorts,
-		"HostConfig":   hostConfig,
-	}
-	if len(cmd) > 0 {
-		payload["Cmd"] = cmd
-	}
-
+	payload := buildDockerCreateContainerPayload(image, env, ports, volumes, cmd, restart, resources)
 	body, _ := json.Marshal(payload)
 
 	endpoint := "/containers/create"
@@ -85,6 +64,49 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%s"}`, id)
 	}
 	return dockerBodyErr(code, data)
+}
+
+func buildDockerCreateContainerPayload(image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources) map[string]interface{} {
+	exposedPorts := map[string]interface{}{}
+	portBindings := map[string]interface{}{}
+	for containerPort, hostPort := range ports {
+		if !strings.Contains(containerPort, "/") {
+			containerPort += "/tcp"
+		}
+		exposedPorts[containerPort] = struct{}{}
+		portBindings[containerPort] = []map[string]string{{"HostPort": hostPort}}
+	}
+
+	hostConfig := map[string]interface{}{
+		"Binds":         volumes,
+		"PortBindings":  portBindings,
+		"RestartPolicy": map[string]interface{}{"Name": restart},
+	}
+	if resources != nil {
+		if resources.MemoryMB > 0 {
+			memoryBytes := int64(resources.MemoryMB) * 1024 * 1024
+			hostConfig["Memory"] = memoryBytes
+			hostConfig["MemorySwap"] = memoryBytes
+		}
+		if resources.CPUCores > 0 {
+			hostConfig["CpuQuota"] = int64(resources.CPUCores) * 100000
+			hostConfig["CpuPeriod"] = int64(100000)
+		}
+		if resources.PidsLimit > 0 {
+			hostConfig["PidsLimit"] = int64(resources.PidsLimit)
+		}
+	}
+
+	payload := map[string]interface{}{
+		"Image":        image,
+		"Env":          env,
+		"ExposedPorts": exposedPorts,
+		"HostConfig":   hostConfig,
+	}
+	if len(cmd) > 0 {
+		payload["Cmd"] = cmd
+	}
+	return payload
 }
 
 func dockerCreateSucceeded(code int) bool {

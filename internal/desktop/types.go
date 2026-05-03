@@ -27,6 +27,7 @@ type Config struct {
 	AllowGeneratedApps bool
 	AllowPythonJobs    bool
 	WorkspaceDir       string
+	DockerHost         string
 	DBPath             string
 	DataDir            string
 	DocumentDir        string
@@ -35,6 +36,17 @@ type Config struct {
 	MaxFileSizeMB      int
 	ControlLevel       string
 	MaxWSClients       int
+	CodeStudio         CodeStudioConfig
+}
+
+// CodeStudioConfig controls the lazy Code Studio development container.
+type CodeStudioConfig struct {
+	Enabled         bool
+	Image           string
+	AutoStart       bool
+	AutoStopMinutes int
+	MaxMemoryMB     int
+	MaxCPUCores     int
 }
 
 // WorkspaceInfo is the public workspace state returned to the browser.

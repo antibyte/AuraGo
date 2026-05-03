@@ -32,10 +32,11 @@ type mediaMount struct {
 
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
-	mu     sync.Mutex
-	cfg    Config
-	db     *sql.DB
-	closed bool
+	mu            sync.Mutex
+	cfg           Config
+	db            *sql.DB
+	codeContainer *CodeContainerService
+	closed        bool
 }
 
 // NewService creates a desktop service. Call Init before using it.
@@ -44,7 +45,7 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{cfg: normalized}, nil
+	return &Service{cfg: normalized, codeContainer: NewCodeContainerService(normalized, nil)}, nil
 }
 
 func normalizeConfig(cfg Config) (Config, error) {
@@ -159,12 +160,26 @@ func (s *Service) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
+	if s.codeContainer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.codeContainer.Stop(ctx); err != nil {
+			return err
+		}
+	}
 	if s.db != nil {
 		err := s.db.Close()
 		s.db = nil
 		return err
 	}
 	return nil
+}
+
+// CodeContainer returns the lazy Code Studio container service.
+func (s *Service) CodeContainer() *CodeContainerService {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.codeContainer
 }
 
 func (s *Service) ensureReady(ctx context.Context) error {

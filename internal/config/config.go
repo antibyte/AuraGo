@@ -272,6 +272,12 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.AllowGeneratedApps = true
+	cfg.VirtualDesktop.CodeStudio.Enabled = true
+	cfg.VirtualDesktop.CodeStudio.Image = "aurago/code-studio:latest"
+	cfg.VirtualDesktop.CodeStudio.AutoStart = false
+	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30
+	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
+	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
@@ -510,6 +516,18 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.VirtualDesktop.MaxWSClients <= 0 {
 		cfg.VirtualDesktop.MaxWSClients = 8
+	}
+	if strings.TrimSpace(cfg.VirtualDesktop.CodeStudio.Image) == "" {
+		cfg.VirtualDesktop.CodeStudio.Image = "aurago/code-studio:latest"
+	}
+	if cfg.VirtualDesktop.CodeStudio.AutoStopMinutes <= 0 {
+		cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30
+	}
+	if cfg.VirtualDesktop.CodeStudio.MaxMemoryMB <= 0 {
+		cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
+	}
+	if cfg.VirtualDesktop.CodeStudio.MaxCPUCores <= 0 {
+		cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 2
 	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
@@ -1438,6 +1456,12 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "max_file_size_mb"}, c.VirtualDesktop.MaxFileSizeMB},
 		{[]string{"virtual_desktop", "control_level"}, c.VirtualDesktop.ControlLevel},
 		{[]string{"virtual_desktop", "max_ws_clients"}, c.VirtualDesktop.MaxWSClients},
+		{[]string{"virtual_desktop", "code_studio", "enabled"}, c.VirtualDesktop.CodeStudio.Enabled},
+		{[]string{"virtual_desktop", "code_studio", "image"}, c.VirtualDesktop.CodeStudio.Image},
+		{[]string{"virtual_desktop", "code_studio", "auto_start"}, c.VirtualDesktop.CodeStudio.AutoStart},
+		{[]string{"virtual_desktop", "code_studio", "auto_stop_minutes"}, c.VirtualDesktop.CodeStudio.AutoStopMinutes},
+		{[]string{"virtual_desktop", "code_studio", "max_memory_mb"}, c.VirtualDesktop.CodeStudio.MaxMemoryMB},
+		{[]string{"virtual_desktop", "code_studio", "max_cpu_cores"}, c.VirtualDesktop.CodeStudio.MaxCPUCores},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

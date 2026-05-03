@@ -52,6 +52,7 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		AllowGeneratedApps: desktopCfg.AllowGeneratedApps,
 		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
 		WorkspaceDir:       workspaceDir,
+		DockerHost:         strings.TrimSpace(cfg.Docker.Host),
 		DBPath:             dbPath,
 		DataDir:            dataDir,
 		DocumentDir:        documentDir,
@@ -60,5 +61,13 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		MaxFileSizeMB:      maxFileSizeMB,
 		ControlLevel:       controlLevel,
 		MaxWSClients:       maxWSClients,
+		CodeStudio: CodeStudioConfig{
+			Enabled:         desktopCfg.CodeStudio.Enabled,
+			Image:           strings.TrimSpace(desktopCfg.CodeStudio.Image),
+			AutoStart:       desktopCfg.CodeStudio.AutoStart,
+			AutoStopMinutes: desktopCfg.CodeStudio.AutoStopMinutes,
+			MaxMemoryMB:     desktopCfg.CodeStudio.MaxMemoryMB,
+			MaxCPUCores:     desktopCfg.CodeStudio.MaxCPUCores,
+		},
 	}
 }

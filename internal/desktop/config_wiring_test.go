@@ -19,6 +19,12 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	cfg.SQLite.ImageGalleryPath = filepath.Join(t.TempDir(), "image_gallery.db")
 	cfg.Directories.DataDir = filepath.Join(t.TempDir(), "data")
 	cfg.Tools.DocumentCreator.OutputDir = filepath.Join(cfg.Directories.DataDir, "documents")
+	cfg.Docker.Host = "tcp://docker.example:2375"
+	cfg.VirtualDesktop.CodeStudio.Enabled = true
+	cfg.VirtualDesktop.CodeStudio.Image = "custom/code-studio:test"
+	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 15
+	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 2048
+	cfg.VirtualDesktop.CodeStudio.MaxCPUCores = 1
 
 	got := ConfigFromAuraConfig(cfg)
 	if !got.Enabled || !got.AllowAgentControl {
@@ -47,5 +53,14 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	}
 	if got.ControlLevel == "" {
 		t.Fatal("control level should have a default")
+	}
+	if got.DockerHost != cfg.Docker.Host {
+		t.Fatalf("docker host = %q, want %q", got.DockerHost, cfg.Docker.Host)
+	}
+	if got.CodeStudio.Image != cfg.VirtualDesktop.CodeStudio.Image {
+		t.Fatalf("code studio image = %q, want %q", got.CodeStudio.Image, cfg.VirtualDesktop.CodeStudio.Image)
+	}
+	if got.CodeStudio.AutoStopMinutes != 15 || got.CodeStudio.MaxMemoryMB != 2048 || got.CodeStudio.MaxCPUCores != 1 {
+		t.Fatalf("code studio config not preserved: %+v", got.CodeStudio)
 	}
 }

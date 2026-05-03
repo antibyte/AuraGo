@@ -219,15 +219,26 @@ type SpaceAgentConfig struct {
 
 // VirtualDesktopConfig holds settings for AuraGo's browser-native virtual desktop.
 type VirtualDesktopConfig struct {
-	Enabled            bool   `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
-	ReadOnly           bool   `yaml:"readonly" json:"readonly"`                         // block writes while keeping the desktop browsable
-	AllowAgentControl  bool   `yaml:"allow_agent_control" json:"allow_agent_control"`   // expose the virtual_desktop tool to the agent
-	AllowGeneratedApps bool   `yaml:"allow_generated_apps" json:"allow_generated_apps"` // allow generated JS apps and widgets
-	AllowPythonJobs    bool   `yaml:"allow_python_jobs" json:"allow_python_jobs"`       // allow desktop apps to request backend Python jobs via the agent
-	WorkspaceDir       string `yaml:"workspace_dir" json:"workspace_dir"`               // persistent desktop workspace root
-	MaxFileSizeMB      int    `yaml:"max_file_size_mb" json:"max_file_size_mb"`         // max text file read/write size
-	ControlLevel       string `yaml:"control_level" json:"control_level"`               // "confirm_destructive" (default) or "trusted"
-	MaxWSClients       int    `yaml:"max_ws_clients" json:"max_ws_clients"`             // max concurrent desktop websocket clients
+	Enabled            bool             `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
+	ReadOnly           bool             `yaml:"readonly" json:"readonly"`                         // block writes while keeping the desktop browsable
+	AllowAgentControl  bool             `yaml:"allow_agent_control" json:"allow_agent_control"`   // expose the virtual_desktop tool to the agent
+	AllowGeneratedApps bool             `yaml:"allow_generated_apps" json:"allow_generated_apps"` // allow generated JS apps and widgets
+	AllowPythonJobs    bool             `yaml:"allow_python_jobs" json:"allow_python_jobs"`       // allow desktop apps to request backend Python jobs via the agent
+	WorkspaceDir       string           `yaml:"workspace_dir" json:"workspace_dir"`               // persistent desktop workspace root
+	MaxFileSizeMB      int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`         // max text file read/write size
+	ControlLevel       string           `yaml:"control_level" json:"control_level"`               // "confirm_destructive" (default) or "trusted"
+	MaxWSClients       int              `yaml:"max_ws_clients" json:"max_ws_clients"`             // max concurrent desktop websocket clients
+	CodeStudio         CodeStudioConfig `yaml:"code_studio" json:"code_studio"`                   // built-in Code Studio development container
+}
+
+// CodeStudioConfig holds settings for the lazy Code Studio dev container.
+type CodeStudioConfig struct {
+	Enabled         bool   `yaml:"enabled" json:"enabled"`
+	Image           string `yaml:"image" json:"image"`
+	AutoStart       bool   `yaml:"auto_start" json:"auto_start"` // reserved; false keeps lazy start behavior
+	AutoStopMinutes int    `yaml:"auto_stop_minutes" json:"auto_stop_minutes"`
+	MaxMemoryMB     int    `yaml:"max_memory_mb" json:"max_memory_mb"`
+	MaxCPUCores     int    `yaml:"max_cpu_cores" json:"max_cpu_cores"`
 }
 
 // MQTTTLS holds TLS configuration for MQTT connections.

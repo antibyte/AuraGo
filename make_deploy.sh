@@ -27,6 +27,16 @@ RESOURCES="resources.dat"
 echo "━━━ AuraGo Deployment Builder ━━━"
 echo ""
 
+if command -v node >/dev/null 2>&1; then
+  echo "[0/5] Building CodeMirror bundle ..."
+  if [ ! -d node_modules ] && command -v npm >/dev/null 2>&1; then
+    npm install --no-audit --no-fund
+  fi
+  node scripts/build-codemirror.js
+else
+  echo "[0/5] Node.js not found; skipping CodeMirror bundle build."
+fi
+
 # ── Clean ─────────────────────────────────────────────────────────────────
 rm -rf "$DEPLOY_DIR"
 mkdir -p "$DEPLOY_DIR"

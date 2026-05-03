@@ -23,6 +23,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build CodeMirror bundle
+        run: |
+          npm install --no-audit --no-fund
+          node scripts/build-codemirror.js
+
       # Docker registry requires all-lowercase image names.
       # github.repository may contain uppercase letters (e.g. antibyte/AuraGo).
       - name: Lowercase image name

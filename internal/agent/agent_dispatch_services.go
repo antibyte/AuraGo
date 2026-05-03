@@ -275,7 +275,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if restart == "" {
 					restart = "no"
 				}
-				result := tools.DockerCreateContainer(dockerCfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, cmd, restart)
+				result := tools.DockerCreateContainer(dockerCfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, cmd, restart, nil)
 				// Auto-start if operation was "run"
 				if req.Operation == "run" {
 					var created map[string]interface{}

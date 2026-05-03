@@ -18,7 +18,9 @@ METRICS_DASHBOARD_DATA_SOURCES.md
 *.lock
 
 # Deploy output
-/deploy/
+/deploy/*
+!/deploy/docker/
+!/deploy/docker/**
 deploy_linux.ps1
 
 # Secrets & Configuration (CRITICAL!)
@@ -87,6 +89,7 @@ agent_workspace/skills/example_hello_world.json
 .venv/
 venv/
 __pycache__/
+node_modules/
 # Logs
 log/
 *.log
@@ -132,3 +135,4 @@ diff.txt
 
 *.orig
 data/missions_v2.json
+ui/js/vendor/codemirror-bundle.esm.js

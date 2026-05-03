@@ -14,7 +14,7 @@ func TestDockerMutationsDenyWhenRuntimeReadOnly(t *testing.T) {
 		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
 	})
 
-	result := DockerCreateContainer(DockerConfig{}, "test", "alpine:latest", nil, nil, nil, nil, "")
+	result := DockerCreateContainer(DockerConfig{}, "test", "alpine:latest", nil, nil, nil, nil, "", nil)
 	if !strings.Contains(result, "docker mutation is disabled") {
 		t.Fatalf("DockerCreateContainer = %s, want docker readonly denial", result)
 	}
@@ -222,6 +222,41 @@ func TestDockerCreateStatusAcceptsAnySuccessCode(t *testing.T) {
 		if dockerCreateSucceeded(code) {
 			t.Fatalf("expected create status %d to be rejected", code)
 		}
+	}
+}
+
+func TestBuildDockerCreateContainerPayloadIncludesResourceLimits(t *testing.T) {
+	payload := buildDockerCreateContainerPayload(
+		"aurago/code-studio:latest",
+		[]string{"HOME=/home/developer"},
+		nil,
+		[]string{"/tmp/workspace:/workspace"},
+		[]string{"sleep", "infinity"},
+		"unless-stopped",
+		&ContainerResources{MemoryMB: 4096, CPUCores: 2, PidsLimit: 1024},
+	)
+
+	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("HostConfig type = %T, want map[string]interface{}", payload["HostConfig"])
+	}
+	if got := hostConfig["Memory"]; got != int64(4096)*1024*1024 {
+		t.Fatalf("Memory = %v, want 4GiB bytes", got)
+	}
+	if got := hostConfig["MemorySwap"]; got != int64(4096)*1024*1024 {
+		t.Fatalf("MemorySwap = %v, want 4GiB bytes", got)
+	}
+	if got := hostConfig["CpuQuota"]; got != int64(200000) {
+		t.Fatalf("CpuQuota = %v, want 200000", got)
+	}
+	if got := hostConfig["CpuPeriod"]; got != int64(100000) {
+		t.Fatalf("CpuPeriod = %v, want 100000", got)
+	}
+	if got := hostConfig["PidsLimit"]; got != int64(1024) {
+		t.Fatalf("PidsLimit = %v, want 1024", got)
+	}
+	if ports, ok := payload["ExposedPorts"].(map[string]interface{}); !ok || len(ports) != 0 {
+		t.Fatalf("ExposedPorts = %#v, want empty map when no ports are configured", payload["ExposedPorts"])
 	}
 }
 

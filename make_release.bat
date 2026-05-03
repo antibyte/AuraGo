@@ -45,6 +45,17 @@ if errorlevel 1 (
     exit /b 1
 )
 echo     tar: OK
+where node >nul 2>&1
+if errorlevel 1 (
+    echo     Node.js: not found; skipping CodeMirror bundle build
+) else (
+    echo     Node.js: OK
+    if not exist node_modules (
+        where npm >nul 2>&1
+        if not errorlevel 1 npm install --no-audit --no-fund || exit /b 1
+    )
+    node scripts\build-codemirror.js || exit /b 1
+)
 echo.
 
 REM -- Version tag

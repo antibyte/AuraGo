@@ -53,6 +53,9 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 			_ = svc.Close()
 			return nil, nil, err
 		}
+		if codeContainer := svc.CodeContainer(); codeContainer != nil {
+			codeContainer.SetDockerClient(newCodeStudioDockerAdapter(desktopCfg, s.Logger))
+		}
 		s.DesktopService = svc
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)
 	}

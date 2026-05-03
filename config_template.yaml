@@ -610,6 +610,13 @@ virtual_desktop:
     max_file_size_mb: 50
     control_level: confirm_destructive                    # confirm_destructive or trusted
     max_ws_clients: 8
+    code_studio:
+        enabled: true
+        image: aurago/code-studio:latest
+        auto_start: false                                  # false = lazy start when the app opens
+        auto_stop_minutes: 30                              # stop container after inactivity
+        max_memory_mb: 4096                                # Docker memory limit
+        max_cpu_cores: 2                                   # Docker CPU quota
 indexing:
     enabled: true
     directories:
