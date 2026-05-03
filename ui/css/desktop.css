@@ -713,6 +713,51 @@
     font: inherit;
 }
 
+.vd-icon-catalog-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+.vd-icon-catalog {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vd-icon-catalog-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.vd-icon-catalog-tag {
+    max-width: 100%;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--vd-text);
+    font-size: 0.76rem;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.vd-icon-catalog-empty,
+.vd-icon-catalog-alias-label {
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    font-weight: 850;
+}
+
+.vd-icon-catalog-aliases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    color: var(--vd-muted);
+    font-size: 0.76rem;
+    overflow-wrap: anywhere;
+}
+
 .vd-switch {
     position: relative;
     width: 52px;

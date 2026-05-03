@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "कोई ट्रैक लोड नहीं",
   "desktop.winamp_shuffle": "शफल",
   "desktop.winamp_repeat": "दोहराएँ",
-  "desktop.cal_status_overdue": "समय से अधिक"
+  "desktop.cal_status_overdue": "समय से अधिक",
+  "desktop.settings_icon_catalog": "Icon catalog",
+  "desktop.settings_icon_catalog_desc": "Generated apps aur widgets ke liye semantic names.",
+  "desktop.settings_icon_catalog_aliases": "Aliases",
+  "desktop.settings_icon_catalog_empty": "Koi icon catalog uplabdh nahi hai."
 }

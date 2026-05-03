@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "未加载曲目",
   "desktop.winamp_shuffle": "随机",
   "desktop.winamp_repeat": "重复",
-  "desktop.cal_status_overdue": "已逾期"
+  "desktop.cal_status_overdue": "已逾期",
+  "desktop.settings_icon_catalog": "Icon catalog",
+  "desktop.settings_icon_catalog_desc": "Generated apps he widgets keyong de semantic names.",
+  "desktop.settings_icon_catalog_aliases": "Aliases",
+  "desktop.settings_icon_catalog_empty": "Meiyou keyong de icon catalog."
 }

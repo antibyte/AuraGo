@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "No hay pistas cargadas",
   "desktop.winamp_shuffle": "Aleatorio",
   "desktop.winamp_repeat": "Repetir",
-  "desktop.cal_status_overdue": "Vencida"
+  "desktop.cal_status_overdue": "Vencida",
+  "desktop.settings_icon_catalog": "Catalogo de iconos",
+  "desktop.settings_icon_catalog_desc": "Nombres semanticos disponibles para apps y widgets generados.",
+  "desktop.settings_icon_catalog_aliases": "Alias",
+  "desktop.settings_icon_catalog_empty": "No hay catalogo de iconos disponible."
 }

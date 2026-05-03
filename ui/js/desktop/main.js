@@ -1168,7 +1168,8 @@
                     ]),
                     settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
                         ['papirus', 'desktop.settings_icon_theme_papirus'], ['aurago', 'desktop.settings_icon_theme_aurago']
-                    ])
+                    ]),
+                    settingIconCatalog('desktop.settings_icon_catalog', 'desktop.settings_icon_catalog_desc')
                 ]
             },
             {
@@ -1224,6 +1225,15 @@
         return { type: 'info', label, value };
     }
 
+    function settingIconCatalog(label, desc) {
+        const catalog = (state.bootstrap && state.bootstrap.icon_catalog) || {};
+        const preferred = Array.isArray(catalog.preferred) ? catalog.preferred.slice() : [];
+        const aliases = catalog.aliases && typeof catalog.aliases === 'object'
+            ? Object.keys(catalog.aliases).sort().map(alias => [alias, catalog.aliases[alias]])
+            : [];
+        return { type: 'icon_catalog', label, desc, preferred, aliases };
+    }
+
     function renderSettings(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -1272,6 +1282,7 @@
                 <div class="vd-setting-value">${esc(item.value)}</div>
             </article>`;
         }
+        if (item.type === 'icon_catalog') return renderIconCatalogSetting(item);
         const control = item.type === 'toggle'
             ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
             : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => `<option value="${esc(option[0])}" ${settingValue(item.key) === option[0] ? 'selected' : ''}>${esc(t(option[1]))}</option>`).join('')}</select>`;
@@ -1281,6 +1292,25 @@
                 <div class="vd-setting-help">${esc(t(item.desc))}</div>
             </div>
             ${control}
+        </article>`;
+    }
+
+    function renderIconCatalogSetting(item) {
+        const preferred = item.preferred.length
+            ? item.preferred.map(name => `<span class="vd-icon-catalog-tag">${esc(name)}</span>`).join('')
+            : `<span class="vd-icon-catalog-empty">${esc(t('desktop.settings_icon_catalog_empty'))}</span>`;
+        const aliases = item.aliases.length
+            ? `<div class="vd-icon-catalog-aliases">${item.aliases.map(pair => `<span><b>${esc(pair[0])}</b> -&gt; ${esc(pair[1])}</span>`).join('')}</div>`
+            : '';
+        return `<article class="vd-setting-row vd-icon-catalog-row">
+            <div>
+                <div class="vd-setting-label">${esc(t(item.label))}</div>
+                <div class="vd-setting-help">${esc(t(item.desc))}</div>
+            </div>
+            <div class="vd-icon-catalog" aria-label="${esc(t(item.label))}">
+                <div class="vd-icon-catalog-tags">${preferred}</div>
+                ${aliases ? `<div class="vd-icon-catalog-alias-label">${esc(t('desktop.settings_icon_catalog_aliases'))}</div>${aliases}` : ''}
+            </div>
         </article>`;
     }
 

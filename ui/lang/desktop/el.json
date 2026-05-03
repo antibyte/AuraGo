@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "Δεν φορτώθηκαν κομμάτια",
   "desktop.winamp_shuffle": "Τυχαία",
   "desktop.winamp_repeat": "Επανάληψη",
-  "desktop.cal_status_overdue": "Εκπρόθεσμο"
+  "desktop.cal_status_overdue": "Εκπρόθεσμο",
+  "desktop.settings_icon_catalog": "Katalogos eikonidion",
+  "desktop.settings_icon_catalog_desc": "Simasiologika onomata gia dimiourgimenes efarmoges kai widget.",
+  "desktop.settings_icon_catalog_aliases": "Pseudonyma",
+  "desktop.settings_icon_catalog_empty": "Den yparchei katalogos eikonidion."
 }

@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "Geen nummers geladen",
   "desktop.winamp_shuffle": "Willekeurig",
   "desktop.winamp_repeat": "Herhalen",
-  "desktop.cal_status_overdue": "Te laat"
+  "desktop.cal_status_overdue": "Te laat",
+  "desktop.settings_icon_catalog": "Iconencatalogus",
+  "desktop.settings_icon_catalog_desc": "Semantische namen voor gegenereerde apps en widgets.",
+  "desktop.settings_icon_catalog_aliases": "Aliassen",
+  "desktop.settings_icon_catalog_empty": "Geen iconencatalogus beschikbaar."
 }

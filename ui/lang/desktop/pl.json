@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "Brak wczytanych utworów",
   "desktop.winamp_shuffle": "Losowo",
   "desktop.winamp_repeat": "Powtórz",
-  "desktop.cal_status_overdue": "Po terminie"
+  "desktop.cal_status_overdue": "Po terminie",
+  "desktop.settings_icon_catalog": "Katalog ikon",
+  "desktop.settings_icon_catalog_desc": "Nazwy semantyczne dla generowanych aplikacji i widzetow.",
+  "desktop.settings_icon_catalog_aliases": "Aliasy",
+  "desktop.settings_icon_catalog_empty": "Brak dostepnego katalogu ikon."
 }

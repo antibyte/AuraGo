@@ -206,5 +206,9 @@
   "desktop.winamp_no_tracks": "Inga spår inlästa",
   "desktop.winamp_shuffle": "Blanda",
   "desktop.winamp_repeat": "Upprepa",
-  "desktop.cal_status_overdue": "Försenad"
+  "desktop.cal_status_overdue": "Försenad",
+  "desktop.settings_icon_catalog": "Ikonkatalog",
+  "desktop.settings_icon_catalog_desc": "Semantiska namn for genererade appar och widgetar.",
+  "desktop.settings_icon_catalog_aliases": "Alias",
+  "desktop.settings_icon_catalog_empty": "Ingen ikonkatalog ar tillganglig."
 }

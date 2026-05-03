@@ -25,10 +25,21 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"settingValue('appearance.icon_theme') !== 'aurago'",
 		"function renderStartButtonIcon()",
 		"renderStartButtonIcon();",
+		"settingIconCatalog(",
+		"function renderIconCatalogSetting(",
+		"desktop.settings_icon_catalog_aliases",
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing icon theme setting marker %q", want)
 		}
+	}
+
+	css, err := Content.ReadFile("css/desktop.css")
+	if err != nil {
+		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
+	}
+	if !strings.Contains(string(css), ".vd-icon-catalog") {
+		t.Fatalf("desktop stylesheet is missing icon catalog settings styles")
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
@@ -46,6 +57,10 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 			"desktop.settings_icon_theme_desc",
 			"desktop.settings_icon_theme_papirus",
 			"desktop.settings_icon_theme_aurago",
+			"desktop.settings_icon_catalog",
+			"desktop.settings_icon_catalog_desc",
+			"desktop.settings_icon_catalog_aliases",
+			"desktop.settings_icon_catalog_empty",
 		} {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing non-empty translation for %s", path, key)
