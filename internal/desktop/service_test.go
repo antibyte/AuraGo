@@ -120,6 +120,36 @@ func TestServiceRejectsDeletingWorkspaceRoot(t *testing.T) {
 	}
 }
 
+func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	if bootstrap.Settings["appearance.wallpaper"] != "aurora" {
+		t.Fatalf("default wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
+	}
+	if err := svc.SetSetting(ctx, "appearance.wallpaper", "forest", SourceUser); err != nil {
+		t.Fatalf("SetSetting valid: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after setting: %v", err)
+	}
+	if bootstrap.Settings["appearance.wallpaper"] != "forest" {
+		t.Fatalf("stored wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
+	}
+	if err := svc.SetSetting(ctx, "appearance.wallpaper", "../../bad", SourceUser); err == nil {
+		t.Fatal("expected invalid setting value to be rejected")
+	}
+	if err := svc.SetSetting(ctx, "unknown.setting", "true", SourceUser); err == nil {
+		t.Fatal("expected unknown setting key to be rejected")
+	}
+}
+
 func TestServiceRejectsEmptyStandaloneWidgetHTML(t *testing.T) {
 	t.Parallel()
 

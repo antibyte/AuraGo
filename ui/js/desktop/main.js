@@ -82,6 +82,18 @@
         exe: 'executable',
         bin: 'binary'
     };
+    const desktopSettingDefaults = {
+        'appearance.wallpaper': 'aurora',
+        'appearance.accent': 'teal',
+        'appearance.density': 'comfortable',
+        'desktop.icon_size': 'medium',
+        'desktop.show_widgets': 'true',
+        'windows.animations': 'true',
+        'windows.default_size': 'balanced',
+        'files.confirm_delete': 'true',
+        'files.default_folder': 'Documents',
+        'agent.show_chat_button': 'true'
+    };
 
     function $(id) {
         return document.getElementById(id);
@@ -176,6 +188,50 @@
         return t('desktop.mib', { count: (n / 1024 / 1024).toFixed(1) });
     }
 
+    function desktopSettings() {
+        return Object.assign({}, desktopSettingDefaults, (state.bootstrap && state.bootstrap.settings) || {});
+    }
+
+    function settingValue(key) {
+        const settings = desktopSettings();
+        return settings[key] != null ? settings[key] : desktopSettingDefaults[key];
+    }
+
+    function settingBool(key) {
+        return settingValue(key) !== 'false';
+    }
+
+    function applyDesktopSettings() {
+        const body = document.body;
+        body.dataset.wallpaper = settingValue('appearance.wallpaper');
+        body.dataset.accent = settingValue('appearance.accent');
+        body.dataset.density = settingValue('appearance.density');
+        body.dataset.animations = settingValue('windows.animations');
+        body.dataset.widgets = settingValue('desktop.show_widgets');
+        body.dataset.iconSize = settingValue('desktop.icon_size');
+        const sizes = { small: 34, medium: 42, large: 52 };
+        body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
+        const agentButton = $('vd-agent-button');
+        if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
+    }
+
+    function iconGlyphPixels() {
+        const sizes = { small: 34, medium: 42, large: 52 };
+        return sizes[settingValue('desktop.icon_size')] || 42;
+    }
+
+    function defaultWindowSize() {
+        const workspace = $('vd-window-layer') || $('vd-workspace');
+        const w = (workspace && workspace.clientWidth) || window.innerWidth;
+        const h = (workspace && workspace.clientHeight) || window.innerHeight;
+        const preset = settingValue('windows.default_size');
+        const ratios = preset === 'compact' ? [0.55, 0.62] : preset === 'large' ? [0.82, 0.86] : [0.68, 0.76];
+        return {
+            width: Math.round(Math.min(980, Math.max(WINDOW_MIN_W, w * ratios[0]))),
+            height: Math.round(Math.min(680, Math.max(WINDOW_MIN_H, h * ratios[1])))
+        };
+    }
+
     function readJSONStorage(key, fallback) {
         try {
             const raw = localStorage.getItem(key);
@@ -239,6 +295,7 @@
     function renderDesktop() {
         const enabled = state.bootstrap && state.bootstrap.enabled;
         $('vd-disabled').hidden = !!enabled;
+        applyDesktopSettings();
         renderIcons();
         renderWidgets();
         renderStartApps();
@@ -257,7 +314,7 @@
             const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
             return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
-                ${spriteMarkup(iconKey, fallback, 'vd-sprite-icon', 42)}
+                ${spriteMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
         }).join('');
@@ -509,6 +566,9 @@
         win.dataset.windowId = id;
         win.style.left = Math.max(16, 170 + state.windows.size * 28) + 'px';
         win.style.top = Math.max(12, 72 + state.windows.size * 24) + 'px';
+        const size = defaultWindowSize();
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
         win.style.zIndex = String(++state.z);
         win.innerHTML = `<header class="vd-window-titlebar">
             <div>
@@ -876,8 +936,10 @@
 
     async function deletePath(path) {
         if (!path) return;
-        const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
-        if (!confirmed) return;
+        if (settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+            if (!confirmed) return;
+        }
         try {
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
             await loadBootstrap();
@@ -910,7 +972,7 @@
     }
 
     function renderAppContent(id, appId, context) {
-        if (appId === 'files') return renderFiles(id, context.path || '');
+        if (appId === 'files') return renderFiles(id, context.path || settingValue('files.default_folder') || '');
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'calendar') return renderCalendar(id);
@@ -1016,22 +1078,154 @@
         });
     }
 
-    function renderSettings(id) {
-        const host = contentEl(id);
+    function settingsSections() {
         const boot = state.bootstrap || {};
         const workspace = boot.workspace || {};
-        const cards = [
-            ['desktop.setting_workspace', workspace.root || ''],
-            ['desktop.setting_agent_control', boot.allow_agent_control ? t('desktop.on') : t('desktop.off')],
-            ['desktop.setting_generated_apps', boot.allow_generated_apps ? t('desktop.on') : t('desktop.off')],
-            ['desktop.setting_readonly', boot.readonly ? t('desktop.on') : t('desktop.off')],
-            ['desktop.setting_apps', String((boot.installed_apps || []).length)],
-            ['desktop.setting_widgets', String((boot.widgets || []).length)]
+        return [
+            {
+                id: 'appearance', icon: '◐', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
+                    settingSelect('appearance.wallpaper', 'desktop.settings_wallpaper', 'desktop.settings_wallpaper_desc', [
+                        ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest']
+                    ]),
+                    settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
+                        ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
+                    ]),
+                    settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
+                        ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
+                    ])
+                ]
+            },
+            {
+                id: 'desktop', icon: '▦', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
+                        ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
+                    ]),
+                    settingToggle('desktop.show_widgets', 'desktop.settings_show_widgets', 'desktop.settings_show_widgets_desc')
+                ]
+            },
+            {
+                id: 'windows', icon: '▣', title: 'desktop.settings_category_windows', desc: 'desktop.settings_category_windows_desc', items: [
+                    settingToggle('windows.animations', 'desktop.settings_window_animations', 'desktop.settings_window_animations_desc'),
+                    settingSelect('windows.default_size', 'desktop.settings_default_window_size', 'desktop.settings_default_window_size_desc', [
+                        ['compact', 'desktop.settings_window_size_compact'], ['balanced', 'desktop.settings_window_size_balanced'], ['large', 'desktop.settings_window_size_large']
+                    ])
+                ]
+            },
+            {
+                id: 'files', icon: '▤', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
+                    settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
+                    settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
+                        ['Desktop', 'desktop.settings_folder_desktop'], ['Documents', 'desktop.settings_folder_documents'], ['Downloads', 'desktop.settings_folder_downloads'], ['Pictures', 'desktop.settings_folder_pictures'], ['Shared', 'desktop.settings_folder_shared']
+                    ])
+                ]
+            },
+            {
+                id: 'agent', icon: '✦', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
+                    settingToggle('agent.show_chat_button', 'desktop.settings_show_agent_button', 'desktop.settings_show_agent_button_desc'),
+                    settingInfo('desktop.setting_agent_control', boot.allow_agent_control ? t('desktop.on') : t('desktop.off'))
+                ]
+            },
+            {
+                id: 'system', icon: 'ⓘ', title: 'desktop.settings_category_system', desc: 'desktop.settings_category_system_desc', items: [
+                    settingInfo('desktop.setting_workspace', workspace.root || ''),
+                    settingInfo('desktop.setting_readonly', boot.readonly ? t('desktop.on') : t('desktop.off')),
+                    settingInfo('desktop.setting_apps', String((boot.installed_apps || []).length)),
+                    settingInfo('desktop.setting_widgets', String((boot.widgets || []).length))
+                ]
+            }
         ];
-        host.innerHTML = `<div class="vd-settings-grid">${cards.map(card => `<div class="vd-setting-card">
-            <div class="vd-setting-label">${esc(t(card[0]))}</div>
-            <div class="vd-setting-value">${esc(card[1])}</div>
-        </div>`).join('')}</div>`;
+    }
+
+    function settingSelect(key, label, desc, options) {
+        return { type: 'select', key, label, desc, options };
+    }
+
+    function settingToggle(key, label, desc) {
+        return { type: 'toggle', key, label, desc };
+    }
+
+    function settingInfo(label, value) {
+        return { type: 'info', label, value };
+    }
+
+    function renderSettings(id) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.dataset.activeSettings = host.dataset.activeSettings || 'appearance';
+        renderSettingsShell(host);
+    }
+
+    function renderSettingsShell(host) {
+        const sections = settingsSections();
+        const active = sections.find(section => section.id === host.dataset.activeSettings) || sections[0];
+        host.innerHTML = `<div class="vd-settings-app">
+            <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
+                <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
+                ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
+                    <span>${esc(section.icon)}</span><span>${esc(t(section.title))}</span>
+                </button>`).join('')}
+            </aside>
+            <section class="vd-settings-pane">
+                <div class="vd-settings-pane-head">
+                    <div class="vd-settings-pane-icon">${esc(active.icon)}</div>
+                    <div>
+                        <div class="vd-settings-pane-title">${esc(t(active.title))}</div>
+                        <div class="vd-settings-pane-desc">${esc(t(active.desc))}</div>
+                    </div>
+                </div>
+                <div class="vd-settings-list">${active.items.map(renderSettingItem).join('')}</div>
+            </section>
+        </div>`;
+        host.querySelectorAll('[data-section]').forEach(btn => btn.addEventListener('click', () => {
+            host.dataset.activeSettings = btn.dataset.section;
+            renderSettingsShell(host);
+        }));
+        host.querySelectorAll('[data-setting-key]').forEach(control => {
+            control.addEventListener('change', async event => {
+                const key = event.currentTarget.dataset.settingKey;
+                const value = event.currentTarget.type === 'checkbox' ? String(event.currentTarget.checked) : event.currentTarget.value;
+                await saveDesktopSetting(key, value, host);
+            });
+        });
+    }
+
+    function renderSettingItem(item) {
+        if (item.type === 'info') {
+            return `<article class="vd-setting-row readonly">
+                <div><div class="vd-setting-label">${esc(t(item.label))}</div></div>
+                <div class="vd-setting-value">${esc(item.value)}</div>
+            </article>`;
+        }
+        const control = item.type === 'toggle'
+            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
+            : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => `<option value="${esc(option[0])}" ${settingValue(item.key) === option[0] ? 'selected' : ''}>${esc(t(option[1]))}</option>`).join('')}</select>`;
+        return `<article class="vd-setting-row">
+            <div>
+                <div class="vd-setting-label">${esc(t(item.label))}</div>
+                <div class="vd-setting-help">${esc(t(item.desc))}</div>
+            </div>
+            ${control}
+        </article>`;
+    }
+
+    async function saveDesktopSetting(key, value, host) {
+        try {
+            const body = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value })
+            });
+            if (!state.bootstrap) state.bootstrap = {};
+            state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
+            applyDesktopSettings();
+            renderIcons();
+            renderWidgets();
+            renderStartApps();
+            if (host && host.isConnected) renderSettingsShell(host);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            if (host && host.isConnected) renderSettingsShell(host);
+        }
     }
 
     function renderCalendar(id) {

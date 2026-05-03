@@ -101,6 +101,38 @@ type Event struct {
 	CreatedAt time.Time   `json:"created_at"`
 }
 
+// SettingDefinition describes one safe, user-editable desktop setting.
+type SettingDefinition struct {
+	Key     string
+	Default string
+	Values  []string
+}
+
+// DesktopSettingDefinitions returns all settings that may be persisted by the desktop UI.
+func DesktopSettingDefinitions() []SettingDefinition {
+	return []SettingDefinition{
+		{Key: "appearance.wallpaper", Default: "aurora", Values: []string{"aurora", "midnight", "slate", "ember", "forest"}},
+		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
+		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
+		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
+		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
+		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
+		{Key: "windows.default_size", Default: "balanced", Values: []string{"compact", "balanced", "large"}},
+		{Key: "files.confirm_delete", Default: "true", Values: []string{"true", "false"}},
+		{Key: "files.default_folder", Default: "Documents", Values: []string{"Desktop", "Documents", "Downloads", "Pictures", "Shared"}},
+		{Key: "agent.show_chat_button", Default: "true", Values: []string{"true", "false"}},
+	}
+}
+
+// DesktopSettingDefaults returns default values for all safe desktop settings.
+func DesktopSettingDefaults() map[string]string {
+	defaults := map[string]string{}
+	for _, def := range DesktopSettingDefinitions() {
+		defaults[def.Key] = def.Default
+	}
+	return defaults
+}
+
 // DefaultDirectories returns the persistent workspace folders exposed by the desktop.
 func DefaultDirectories() []string {
 	return []string{"Desktop", "Documents", "Downloads", "Apps", "Widgets", "Data", "Pictures", "Trash", "Shared"}
