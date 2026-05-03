@@ -2376,33 +2376,33 @@
         async function openEditModal(linkId) {
             const link = linkId ? links.find(l => l.id === linkId) : null;
             selectedIconURL = null;
-            const modal = document.createElement('div');
-            modal.className = 'vd-modal-overlay';
-            modal.innerHTML = `
-                <div class="vd-modal">
-                    <div class="vd-modal-header">${esc(linkId ? t('desktop.launchpad_edit_title') : t('desktop.launchpad_add_title'))}</div>
-                    <div class="vd-modal-body">
+            const backdrop = document.createElement('div');
+            backdrop.className = 'vd-modal-backdrop';
+            backdrop.innerHTML = `
+                <form class="vd-modal" role="dialog" aria-modal="true" style="width:min(480px, calc(100vw - 32px)); max-height: 80vh; overflow-y: auto;">
+                    <div class="vd-modal-title">${esc(linkId ? t('desktop.launchpad_edit_title') : t('desktop.launchpad_add_title'))}</div>
+                    <div style="display:flex; flex-direction:column; gap:10px; margin: 10px 0;">
                         <input type="hidden" class="lp-id" value="${esc(linkId || '')}">
-                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_title'))}</label><input type="text" class="lp-title" required value="${esc(link ? link.title : '')}"></div>
-                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_url'))}</label><input type="url" class="lp-url" required value="${esc(link ? link.url : '')}"></div>
-                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_category'))}</label><input type="text" class="lp-category" list="lp-cats" value="${esc(link ? link.category : '')}"><datalist id="lp-cats">${categories.map(c => '<option value="' + esc(c) + '">').join('')}</datalist></div>
-                        <div class="vd-field"><label>${esc(t('desktop.launchpad_label_description'))}</label><input type="text" class="lp-description" value="${esc(link ? link.description : '')}"></div>
-                        <div class="vd-field">
-                            <label>${esc(t('desktop.launchpad_label_icon'))}</label>
-                            <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
-                            <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div></div>
-                            <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
-                            <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
-                        </div>
+                        <input type="text" class="vd-modal-input lp-title" placeholder="${esc(t('desktop.launchpad_label_title'))}" value="${esc(link ? link.title : '')}" required>
+                        <input type="url" class="vd-modal-input lp-url" placeholder="${esc(t('desktop.launchpad_label_url'))}" value="${esc(link ? link.url : '')}" required>
+                        <input type="text" class="vd-modal-input lp-category" placeholder="${esc(t('desktop.launchpad_label_category'))}" list="lp-cats" value="${esc(link ? link.category : '')}">
+                        <datalist id="lp-cats">${categories.map(c => '<option value="' + esc(c) + '">').join('')}</datalist>
+                        <input type="text" class="vd-modal-input lp-description" placeholder="${esc(t('desktop.launchpad_label_description'))}" value="${esc(link ? link.description : '')}">
+                        <div style="font-size: 12px; color: var(--vd-muted); margin-top: 4px;">${esc(t('desktop.launchpad_label_icon'))}</div>
+                        <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
+                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div></div>
+                        <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
+                        <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
                     </div>
                     <div class="vd-modal-actions">
-                        <button type="button" class="vd-tool-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
-                        <button type="button" class="vd-tool-button primary" data-action="save">${esc(t('desktop.save'))}</button>
+                        <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                        <button type="button" class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button>
                     </div>
-                </div>`;
-            document.body.appendChild(modal);
+                </form>`;
+            document.body.appendChild(backdrop);
+            const modal = backdrop.querySelector('.vd-modal');
             const preview = modal.querySelector('.lp-icon-preview');
-            if (link && link.icon_path) preview.innerHTML = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px">';
+            if (link && link.icon_path) preview.innerHTML = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px; border-radius:8px;">';
 
             modal.querySelectorAll('.lp-icon-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -2419,11 +2419,11 @@
             modal.querySelector('.lp-icon-search-btn').addEventListener('click', () => searchIcons(modal, modal.querySelector('.lp-icon-search').value));
             modal.querySelector('.lp-icon-url').addEventListener('input', (e) => {
                 const u = e.target.value.trim();
-                preview.innerHTML = u ? '<img src="' + esc(u) + '" style="max-width:64px;max-height:64px" onerror="this.style.display=\'none\'">' : '';
+                preview.innerHTML = u ? '<img src="' + esc(u) + '" style="max-width:64px;max-height:64px; border-radius:8px;" onerror="this.style.display=\'none\'">' : '';
             });
-            modal.querySelector('[data-action="cancel"]').addEventListener('click', () => modal.remove());
+            modal.querySelector('[data-action="cancel"]').addEventListener('click', () => backdrop.remove());
             modal.querySelector('[data-action="save"]').addEventListener('click', () => saveLink(modal, linkId));
-            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
         }
 
         async function searchIcons(modal, query) {
@@ -2469,7 +2469,7 @@
                 } else {
                     await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
-                modal.remove();
+                modal.closest('.vd-modal-backdrop').remove();
                 await load();
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_save_error') }); }
         }
