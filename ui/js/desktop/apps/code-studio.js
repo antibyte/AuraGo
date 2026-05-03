@@ -750,10 +750,12 @@
         const tab = activeTab();
         const cursor = codeStudioCursor();
         const selection = codeStudioSelection();
+        const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
             current_file: tab ? tab.path : '',
             current_language: tab ? tab.language : '',
+            current_content: selection.text ? '' : content,
             cursor_line: cursor.line,
             cursor_column: cursor.column,
             selected_text: selection.text,

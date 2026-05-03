@@ -445,6 +445,7 @@ type desktopChatContext struct {
 	Source          string   `json:"source"`
 	CurrentFile     string   `json:"current_file"`
 	CurrentLanguage string   `json:"current_language"`
+	CurrentContent  string   `json:"current_content"`
 	CursorLine      int      `json:"cursor_line"`
 	CursorColumn    int      `json:"cursor_column"`
 	SelectedText    string   `json:"selected_text"`
@@ -577,6 +578,7 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	if chatContext.Source == "code-studio" {
 		b.WriteString("\n\nThe user is coding in Code Studio.")
+		b.WriteString("\nImportant: Code Studio files live inside the dedicated Code Studio container workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
 		if strings.TrimSpace(chatContext.CurrentFile) != "" {
 			b.WriteString("\nCurrent file: ")
 			b.WriteString(strings.TrimSpace(chatContext.CurrentFile))
@@ -595,6 +597,11 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 		if strings.TrimSpace(chatContext.SelectedText) != "" {
 			b.WriteString("\nSelected text:\n<external_data>\n")
 			b.WriteString(chatContext.SelectedText)
+			b.WriteString("\n</external_data>")
+		}
+		if strings.TrimSpace(chatContext.SelectedText) == "" && strings.TrimSpace(chatContext.CurrentContent) != "" {
+			b.WriteString("\nCurrent file content:\n<external_data>\n")
+			b.WriteString(chatContext.CurrentContent)
 			b.WriteString("\n</external_data>")
 		}
 	}
