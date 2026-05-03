@@ -1105,6 +1105,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		HomepageRegistryDB: opts.HomepageRegistryDB,
 		ContactsDB:         opts.ContactsDB,
 		PlannerDB:          opts.PlannerDB,
+		LaunchpadDB:        opts.LaunchpadDB,
 		SQLConnectionsDB:   opts.SQLConnectionsDB,
 		SQLConnectionPool:  opts.SQLConnectionPool,
 		Guardian: security.NewGuardianWithOptions(logger, security.GuardianOptions{
