@@ -219,7 +219,8 @@
     }
 
     function renderToolbar() {
-        const toolbar = state.root.querySelector('[data-toolbar]');
+        const toolbar = shellPart('[data-toolbar]');
+        if (!toolbar) return;
         toolbar.innerHTML = `
             <button type="button" class="cs-button" data-action="new-file">${esc(tr('codeStudio.newFile', 'New File'))}</button>
             <button type="button" class="cs-button" data-action="new-folder">${esc(tr('codeStudio.newFolder', 'New Folder'))}</button>
@@ -244,7 +245,7 @@
     }
 
     function renderSearchPanel() {
-        const panel = state.root.querySelector('[data-search]');
+        const panel = shellPart('[data-search]');
         if (!panel) return;
         panel.hidden = !state.searchVisible;
         if (!state.searchVisible) return;
@@ -274,7 +275,7 @@
     }
 
     function renderAgentPanel() {
-        const panel = state.root.querySelector('[data-agent-panel]');
+        const panel = shellPart('[data-agent-panel]');
         if (!panel) return;
         if (!state.agentVisible) {
             panel.innerHTML = '';
@@ -329,7 +330,8 @@
     }
 
     function renderSidebar(errorMessage) {
-        const sidebar = state.root.querySelector('[data-sidebar]');
+        const sidebar = shellPart('[data-sidebar]');
+        if (!sidebar) return;
         if (errorMessage) {
             sidebar.innerHTML = `<div class="cs-sidebar-head"><strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong></div>
                 <div class="code-studio-error compact">${esc(errorMessage)}</div>`;
@@ -412,7 +414,8 @@
     }
 
     function renderTabs() {
-        const tabs = state.root.querySelector('[data-tabs]');
+        const tabs = shellPart('[data-tabs]');
+        if (!tabs) return;
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
             <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}" data-tab="${index}">
                 <span>${esc(baseName(tab.path))}${tab.modified ? ' *' : ''}</span>
@@ -429,7 +432,8 @@
     }
 
     function renderEditor() {
-        const editor = state.root.querySelector('[data-editor]');
+        const editor = shellPart('[data-editor]');
+        if (!editor) return;
         const tab = activeTab();
         if (!tab) {
             editor.innerHTML = `<div class="cs-editor-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
@@ -446,7 +450,8 @@
     }
 
     function renderTerminal() {
-        const terminal = state.root.querySelector('[data-terminal]');
+        const terminal = shellPart('[data-terminal]');
+        if (!terminal) return;
         terminal.innerHTML = `<div class="cs-terminal-head">
             <strong>${esc(tr('codeStudio.terminal', 'Terminal'))}</strong>
             <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
@@ -454,7 +459,8 @@
     }
 
     function renderStatus(message) {
-        const status = state.root.querySelector('[data-statusbar]');
+        const status = shellPart('[data-statusbar]');
+        if (!status) return;
         const tab = activeTab();
         status.innerHTML = `<span>${esc(message || state.containerStatus)}</span>
             <span>${esc(tab ? tab.path : tr('codeStudio.noFiles', 'No files open'))}</span>
@@ -683,14 +689,14 @@
 
     function toggleAgentPanel() {
         state.agentVisible = !state.agentVisible;
-        studioRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
+        ensureShellRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         renderAgentPanel();
     }
 
     async function sendAgentMessage(message) {
         if (state.agentBusy) return;
         state.agentVisible = true;
-        studioRoot().dataset.agent = 'visible';
+        ensureShellRoot().dataset.agent = 'visible';
         state.agentMessages.push({ role: 'user', text: message });
         state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
         state.agentBusy = true;
@@ -821,8 +827,8 @@
     }
 
     function connectTerminal() {
-        const screen = state.root.querySelector('[data-terminal-screen]');
-        const label = state.root.querySelector('[data-terminal-state]');
+        const screen = shellPart('[data-terminal-screen]');
+        const label = shellPart('[data-terminal-state]');
         if (!screen || !window.Terminal) {
             if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
             return;
@@ -967,9 +973,14 @@
         return root;
     }
 
+    function shellPart(selector) {
+        const root = ensureShellRoot();
+        return root ? root.querySelector(selector) : null;
+    }
+
     function toggleTerminal() {
         state.terminalVisible = !state.terminalVisible;
-        studioRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
+        ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         if (state.fitAddon && state.terminalVisible) setTimeout(() => state.fitAddon.fit(), 50);
         saveState();
     }
