@@ -49,4 +49,10 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 	if !strings.Contains(string(shell), "/api/desktop/embed-token") {
 		t.Fatal("desktop shell does not request embed tokens for generated iframes")
 	}
+	if !strings.Contains(string(shell), "ensureDesktopEmbedHasContent") {
+		t.Fatal("desktop shell does not preflight generated iframe content")
+	}
+	if !strings.Contains(string(shell), "desktop.embed_empty") {
+		t.Fatal("desktop shell does not expose an empty iframe file error")
+	}
 }

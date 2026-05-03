@@ -175,13 +175,48 @@ func TestServiceInstallAppRequiresIconAndRegistersSDKRuntime(t *testing.T) {
 	}
 }
 
+func TestServiceInstallAppRejectsEmptyEntryFile(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	manifest := AppManifest{
+		ID:      "empty-entry",
+		Name:    "Empty Entry",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	files := map[string]string{"index.html": "   \n\t"}
+	err := svc.InstallApp(context.Background(), manifest, files, SourceAgent)
+	if err == nil {
+		t.Fatal("expected empty app entry file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "entry file must not be empty") {
+		t.Fatalf("error = %q, want empty entry file rejection", err)
+	}
+}
+
 func TestServiceUpsertWidgetRegistersRuntimeIconAndEntry(t *testing.T) {
 	t.Parallel()
 
 	svc := testService(t)
+	manifest := AppManifest{
+		ID:      "calendar-widget-host",
+		Name:    "Calendar Widget Host",
+		Version: "1.0.0",
+		Icon:    "calendar",
+		Entry:   "index.html",
+	}
+	files := map[string]string{
+		"index.html":  "<main>Calendar</main>",
+		"widget.html": "<main>Today</main>",
+	}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
 	widget := Widget{
 		ID:          "today-widget",
-		AppID:       "calendar",
+		AppID:       "calendar-widget-host",
 		Title:       "Today",
 		Icon:        "calendar",
 		Entry:       "widget.html",
@@ -222,6 +257,54 @@ func TestServiceUpsertWidgetRegistersRuntimeIconAndEntry(t *testing.T) {
 	}
 	if _, ok := got.Config["dense"]; !ok {
 		t.Fatalf("config was not preserved: %#v", got.Config)
+	}
+}
+
+func TestServiceUpsertWidgetRejectsMissingOrEmptyEntryFile(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	manifest := AppManifest{
+		ID:      "weather",
+		Name:    "Weather",
+		Version: "1.0.0",
+		Icon:    "weather",
+		Entry:   "index.html",
+	}
+	files := map[string]string{
+		"index.html":  "<main>Weather</main>",
+		"widget.html": " \n\t",
+	}
+	if err := svc.InstallApp(context.Background(), manifest, files, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+
+	err := svc.UpsertWidget(context.Background(), Widget{
+		ID:    "missing-weather-widget",
+		AppID: "weather",
+		Title: "Weather",
+		Icon:  "weather",
+		Entry: "missing.html",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected missing widget entry file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "widget entry file is missing") {
+		t.Fatalf("error = %q, want missing widget entry rejection", err)
+	}
+
+	err = svc.UpsertWidget(context.Background(), Widget{
+		ID:    "empty-weather-widget",
+		AppID: "weather",
+		Title: "Weather",
+		Icon:  "weather",
+		Entry: "widget.html",
+	}, SourceAgent)
+	if err == nil {
+		t.Fatal("expected empty widget entry file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "widget entry file must not be empty") {
+		t.Fatalf("error = %q, want empty widget entry rejection", err)
 	}
 }
 

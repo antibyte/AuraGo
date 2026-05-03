@@ -46,6 +46,7 @@
   "desktop.done": "पूरा",
   "desktop.app_missing": "ऐप नहीं मिला",
   "desktop.notification": "सूचना",
+  "desktop.embed_empty": "इस डेस्कटॉप ऐप या विजेट की फ़ाइल खाली है।",
   "config.section.virtual_desktop.label": "वर्चुअल डेस्कटॉप",
   "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।",
   "config.virtual_desktop.enabled_label": "वर्चुअल डेस्कटॉप सक्षम करें",

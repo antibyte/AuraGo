@@ -46,6 +46,7 @@
   "desktop.done": "Færdig",
   "desktop.app_missing": "App ikke fundet",
   "desktop.notification": "Notifikation",
+  "desktop.embed_empty": "Denne desktopapp- eller widgetfil er tom.",
   "config.section.virtual_desktop.label": "Virtuelt skrivebord",
   "config.section.virtual_desktop.desc": "Browser-skrivebord med agentstyrede apps, filer og widgets.",
   "config.virtual_desktop.enabled_label": "Aktivér virtuelt skrivebord",

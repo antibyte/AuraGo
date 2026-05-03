@@ -46,6 +46,7 @@
   "desktop.done": "Klart",
   "desktop.app_missing": "Appen hittades inte",
   "desktop.notification": "Notis",
+  "desktop.embed_empty": "Filen för den här skrivbordsappen eller widgeten är tom.",
   "config.section.virtual_desktop.label": "Virtuellt skrivbord",
   "config.section.virtual_desktop.desc": "Webbläsarskrivbord med agentstyrda appar, filer och widgetar.",
   "config.virtual_desktop.enabled_label": "Aktivera virtuellt skrivbord",

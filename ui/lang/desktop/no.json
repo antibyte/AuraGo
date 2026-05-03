@@ -46,6 +46,7 @@
   "desktop.done": "Ferdig",
   "desktop.app_missing": "App ikke funnet",
   "desktop.notification": "Varsel",
+  "desktop.embed_empty": "Denne skrivebordsappen eller widgetfilen er tom.",
   "config.section.virtual_desktop.label": "Virtuelt skrivebord",
   "config.section.virtual_desktop.desc": "Nettleserskrivebord med agentstyrte apper, filer og widgeter.",
   "config.virtual_desktop.enabled_label": "Aktiver virtuelt skrivebord",

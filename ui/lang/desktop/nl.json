@@ -46,6 +46,7 @@
   "desktop.done": "Klaar",
   "desktop.app_missing": "App niet gevonden",
   "desktop.notification": "Melding",
+  "desktop.embed_empty": "Het bestand van deze desktop-app of widget is leeg.",
   "config.section.virtual_desktop.label": "Virtueel bureaublad",
   "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets.",
   "config.virtual_desktop.enabled_label": "Virtueel bureaublad inschakelen",

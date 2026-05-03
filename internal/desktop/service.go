@@ -433,8 +433,12 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	if manifest.Entry == "." || strings.HasPrefix(manifest.Entry, "..") || filepath.IsAbs(manifest.Entry) {
 		return fmt.Errorf("desktop app entry must be a relative file")
 	}
-	if _, ok := files[manifest.Entry]; !ok {
+	entryContent, ok := files[manifest.Entry]
+	if !ok {
 		return fmt.Errorf("desktop app entry file is missing")
+	}
+	if err := requireNonEmptyDesktopFile("app entry", entryContent); err != nil {
+		return err
 	}
 	baseRel := filepath.ToSlash(filepath.Join("Apps", manifest.ID))
 	for rel, content := range files {
@@ -511,6 +515,9 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		if widget.Entry == "." || strings.HasPrefix(widget.Entry, "..") || filepath.IsAbs(widget.Entry) {
 			return fmt.Errorf("desktop widget entry must be a relative file")
 		}
+		if err := s.validateWidgetEntryFile(widget.AppID, widget.Entry); err != nil {
+			return err
+		}
 	}
 	if widget.W <= 0 {
 		widget.W = 2
@@ -552,6 +559,28 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		return fmt.Errorf("save desktop widget: %w", err)
 	}
 	_ = s.Audit(ctx, "upsert_widget", widget.ID, widget, source)
+	return nil
+}
+
+func (s *Service) validateWidgetEntryFile(appID, entry string) error {
+	path, err := s.ResolvePath(filepath.ToSlash(filepath.Join("Apps", appID, entry)))
+	if err != nil {
+		return err
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("desktop widget entry file is missing")
+		}
+		return fmt.Errorf("read desktop widget entry file: %w", err)
+	}
+	return requireNonEmptyDesktopFile("widget entry", string(content))
+}
+
+func requireNonEmptyDesktopFile(label, content string) error {
+	if strings.TrimSpace(content) == "" {
+		return fmt.Errorf("desktop %s file must not be empty", label)
+	}
 	return nil
 }
 

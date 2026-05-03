@@ -46,6 +46,7 @@
   "desktop.done": "完成",
   "desktop.app_missing": "未找到应用",
   "desktop.notification": "通知",
+  "desktop.embed_empty": "此桌面应用或小组件文件为空。",
   "config.section.virtual_desktop.label": "虚拟桌面",
   "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。",
   "config.virtual_desktop.enabled_label": "启用虚拟桌面",

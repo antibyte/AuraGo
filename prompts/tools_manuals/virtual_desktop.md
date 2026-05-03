@@ -37,6 +37,7 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 ```
 
 Every generated app must have a non-empty `icon`. Use a name from the desktop sprite sheet when possible, for example `note`, `calendar`, `terminal`, `database`, `image`, `settings`, `folder`, or `sparkles`.
+The app `entry` file must exist in `files` and must contain real HTML. Do not install placeholder or empty entry files.
 
 Generated browser apps should use the first-party Aura Desktop SDK:
 
@@ -74,3 +75,4 @@ Register widgets with `upsert_widget`. A widget can be a simple pinned card or a
 ```
 
 If `entry` is set, it must be a file inside the owning app directory (`Apps/<app_id>/`). Widget entries should also load the SDK stylesheet and script.
+Register an iframe widget only after the owning app has been installed and the widget entry file exists with non-empty HTML content.

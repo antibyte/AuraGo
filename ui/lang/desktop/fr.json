@@ -46,6 +46,7 @@
   "desktop.done": "Terminé",
   "desktop.app_missing": "App introuvable",
   "desktop.notification": "Notification",
+  "desktop.embed_empty": "Le fichier de cette application ou de ce widget de bureau est vide.",
   "config.section.virtual_desktop.label": "Bureau virtuel",
   "config.section.virtual_desktop.desc": "Bureau dans le navigateur avec apps, fichiers et widgets contrôlés par l'agent.",
   "config.virtual_desktop.enabled_label": "Activer le bureau virtuel",

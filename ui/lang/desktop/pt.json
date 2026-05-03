@@ -46,6 +46,7 @@
   "desktop.done": "Concluído",
   "desktop.app_missing": "App não encontrado",
   "desktop.notification": "Notificação",
+  "desktop.embed_empty": "O arquivo deste app ou widget da área de trabalho está vazio.",
   "config.section.virtual_desktop.label": "Desktop virtual",
   "config.section.virtual_desktop.desc": "Desktop no navegador com apps, arquivos e widgets controlados pelo agente.",
   "config.virtual_desktop.enabled_label": "Ativar desktop virtual",

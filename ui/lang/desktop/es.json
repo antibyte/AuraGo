@@ -46,6 +46,7 @@
   "desktop.done": "Hecho",
   "desktop.app_missing": "App no encontrada",
   "desktop.notification": "Notificación",
+  "desktop.embed_empty": "El archivo de esta aplicación o widget de escritorio está vacío.",
   "config.section.virtual_desktop.label": "Escritorio virtual",
   "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente.",
   "config.virtual_desktop.enabled_label": "Activar escritorio virtual",

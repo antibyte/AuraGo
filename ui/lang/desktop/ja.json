@@ -46,6 +46,7 @@
   "desktop.done": "完了",
   "desktop.app_missing": "アプリが見つかりません",
   "desktop.notification": "通知",
+  "desktop.embed_empty": "このデスクトップアプリまたはウィジェットのファイルは空です。",
   "config.section.virtual_desktop.label": "仮想デスクトップ",
   "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。",
   "config.virtual_desktop.enabled_label": "仮想デスクトップを有効化",

@@ -46,6 +46,7 @@
   "desktop.done": "Gotowe",
   "desktop.app_missing": "Nie znaleziono aplikacji",
   "desktop.notification": "Powiadomienie",
+  "desktop.embed_empty": "Plik tej aplikacji pulpitu lub widżetu jest pusty.",
   "config.section.virtual_desktop.label": "Wirtualny pulpit",
   "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta.",
   "config.virtual_desktop.enabled_label": "Włącz wirtualny pulpit",

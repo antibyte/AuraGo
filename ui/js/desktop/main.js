@@ -265,6 +265,7 @@
         const path = 'Apps/' + widget.app_id + '/' + widget.entry;
         try {
             const src = await desktopEmbedURL(path, { widget_id: widget.id });
+            await ensureDesktopEmbedHasContent(src);
             card.replaceChildren(makeSandboxedFrame(src, widget.app_id, widget.id, '', 'vd-widget-frame', widget.title || widget.id));
         } catch (err) {
             card.innerHTML = `<div class="vd-widget-body">${esc(err.message)}</div>`;
@@ -566,7 +567,8 @@
         const path = 'Apps/' + app.id + '/' + app.entry;
         host.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
         desktopEmbedURL(path)
-            .then(src => {
+            .then(async src => {
+                await ensureDesktopEmbedHasContent(src);
                 if (!contentEl(id)) return;
                 host.replaceChildren(makeSandboxedFrame(src, app.id, '', id, 'vd-generated-frame', appName(app)));
             })
@@ -598,6 +600,15 @@
         if (body.token) query.set('desktop_token', body.token);
         const suffix = query.toString();
         return desktopFileURL(path) + (suffix ? '?' + suffix : '');
+    }
+
+    async function ensureDesktopEmbedHasContent(src) {
+        const response = await fetch(src, { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) throw new Error(response.statusText || ('HTTP ' + response.status));
+        const html = await response.text();
+        if (!html.trim()) {
+            throw new Error(t('desktop.embed_empty'));
+        }
     }
 
     function findSDKClient(source) {

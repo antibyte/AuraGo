@@ -46,6 +46,7 @@
   "desktop.done": "Ολοκληρώθηκε",
   "desktop.app_missing": "Η εφαρμογή δεν βρέθηκε",
   "desktop.notification": "Ειδοποίηση",
+  "desktop.embed_empty": "Το αρχείο αυτής της εφαρμογής ή του widget στην επιφάνεια εργασίας είναι κενό.",
   "config.section.virtual_desktop.label": "Εικονική επιφάνεια εργασίας",
   "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent.",
   "config.virtual_desktop.enabled_label": "Ενεργοποίηση εικονικής επιφάνειας εργασίας",

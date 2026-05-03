@@ -46,6 +46,7 @@
   "desktop.done": "Fertig",
   "desktop.app_missing": "App nicht gefunden",
   "desktop.notification": "Benachrichtigung",
+  "desktop.embed_empty": "Diese Desktop-App- oder Widget-Datei ist leer.",
   "config.section.virtual_desktop.label": "Virtueller Desktop",
   "config.section.virtual_desktop.desc": "Browser-Desktop-Arbeitsbereich mit agentengesteuerten Apps, Dateien und Widgets.",
   "config.virtual_desktop.enabled_label": "Virtuellen Desktop aktivieren",

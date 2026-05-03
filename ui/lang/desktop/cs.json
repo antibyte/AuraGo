@@ -46,6 +46,7 @@
   "desktop.done": "Hotovo",
   "desktop.app_missing": "Aplikace nenalezena",
   "desktop.notification": "Oznámení",
+  "desktop.embed_empty": "Soubor této desktopové aplikace nebo widgetu je prázdný.",
   "config.section.virtual_desktop.label": "Virtuální plocha",
   "config.section.virtual_desktop.desc": "Pracovní plocha v prohlížeči s aplikacemi, soubory a widgety řízenými agentem.",
   "config.virtual_desktop.enabled_label": "Povolit virtuální plochu",
