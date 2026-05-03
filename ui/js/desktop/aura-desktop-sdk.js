@@ -371,6 +371,7 @@
             resolve: name => loadIconContext().then(iconContext => resolveIconSource(name, iconContext)),
             sprite: spriteIcon,
             icon: desktopIcon,
+            catalog: () => context().then(ctx => ctx && ctx.bootstrap ? ctx.bootstrap.icon_catalog || null : null),
             load: loadIcons
         }
     };

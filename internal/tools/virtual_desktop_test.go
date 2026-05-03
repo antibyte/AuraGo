@@ -98,3 +98,40 @@ func TestExecuteVirtualDesktopWriteFileRejectsEmptyStandaloneWidgetHTML(t *testi
 		t.Fatalf("status = %q, want error: %s", payload.Status, exec.Output)
 	}
 }
+
+func TestExecuteVirtualDesktopStatusExposesIconCatalog(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			IconCatalog struct {
+				Theme              string            `json:"theme"`
+				DefaultTheme       string            `json:"default_theme"`
+				Preferred          []string          `json:"preferred"`
+				Aliases            map[string]string `json:"aliases"`
+				LegacySpritePrefix string            `json:"legacy_sprite_prefix"`
+			} `json:"icon_catalog"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output = %s", payload.Status, exec.Output)
+	}
+	if payload.Data.IconCatalog.Theme != "papirus" || payload.Data.IconCatalog.DefaultTheme != "papirus" {
+		t.Fatalf("icon catalog theme = %+v", payload.Data.IconCatalog)
+	}
+	if payload.Data.IconCatalog.LegacySpritePrefix != "sprite:" {
+		t.Fatalf("legacy sprite prefix = %q", payload.Data.IconCatalog.LegacySpritePrefix)
+	}
+	if len(payload.Data.IconCatalog.Preferred) < 20 {
+		t.Fatalf("expected generated app icon names, got %+v", payload.Data.IconCatalog.Preferred)
+	}
+	if payload.Data.IconCatalog.Aliases["widgets"] != "apps" {
+		t.Fatalf("widgets alias = %q, want apps", payload.Data.IconCatalog.Aliases["widgets"])
+	}
+}

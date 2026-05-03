@@ -1524,6 +1524,8 @@
     function sdkBootstrap() {
         const boot = state.bootstrap || {};
         const workspace = boot.workspace || {};
+        const iconCatalog = Object.assign({}, boot.icon_catalog || {});
+        if (boot.icon_catalog) iconCatalog.theme = settingValue('appearance.icon_theme');
         return {
             enabled: !!boot.enabled,
             readonly: !!boot.readonly,
@@ -1535,7 +1537,8 @@
             },
             installed_apps: boot.installed_apps || [],
             widgets: boot.widgets || [],
-            settings: boot.settings || {}
+            settings: boot.settings || {},
+            icon_catalog: boot.icon_catalog ? iconCatalog : null
         };
     }
 

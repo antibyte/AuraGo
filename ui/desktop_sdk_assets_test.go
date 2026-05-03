@@ -65,6 +65,7 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 		"resolveIconSource",
 		"vd-papirus-icon",
 		"papirus_icon_manifest: state.papirusIconManifest",
+		"icon_catalog: boot.icon_catalog",
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing Papirus icon resolver marker %q", want)
@@ -87,6 +88,8 @@ func TestDesktopSDKResolvesPapirusIcons(t *testing.T) {
 		"resolve: name =>",
 		"ad-papirus-icon",
 		"appearance.icon_theme",
+		"icon_catalog",
+		"catalog: () => context().then",
 		"sprite:",
 		"papirus:",
 	} {

@@ -48,6 +48,17 @@ type BootstrapPayload struct {
 	InstalledApps      []AppManifest     `json:"installed_apps"`
 	Widgets            []Widget          `json:"widgets"`
 	Settings           map[string]string `json:"settings"`
+	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
+}
+
+// IconCatalogInfo tells agents and generated apps which semantic icons are safe
+// to use for Papirus-first desktop surfaces.
+type IconCatalogInfo struct {
+	Theme              string            `json:"theme"`
+	DefaultTheme       string            `json:"default_theme"`
+	Preferred          []string          `json:"preferred"`
+	Aliases            map[string]string `json:"aliases"`
+	LegacySpritePrefix string            `json:"legacy_sprite_prefix"`
 }
 
 // FileEntry describes one file or directory in the desktop workspace.
@@ -132,6 +143,80 @@ func DesktopSettingDefaults() map[string]string {
 		defaults[def.Key] = def.Default
 	}
 	return defaults
+}
+
+var desktopPreferredIconNames = []string{
+	"apps",
+	"archive",
+	"audio",
+	"browser",
+	"calendar",
+	"code",
+	"css",
+	"database",
+	"desktop",
+	"documents",
+	"downloads",
+	"editor",
+	"folder",
+	"go",
+	"html",
+	"image",
+	"javascript",
+	"json",
+	"markdown",
+	"network",
+	"notes",
+	"pdf",
+	"python",
+	"settings",
+	"spreadsheet",
+	"terminal",
+	"text",
+	"trash",
+	"video",
+	"weather",
+	"xml",
+	"yaml",
+}
+
+var desktopIconAliases = map[string]string{
+	"agent_chat":   "apps",
+	"binary":       "code",
+	"cloud":        "network",
+	"csv":          "spreadsheet",
+	"edit":         "editor",
+	"executable":   "code",
+	"file":         "text",
+	"pictures":     "image",
+	"presentation": "documents",
+	"search":       "folder",
+	"sparkles":     "apps",
+	"widgets":      "apps",
+}
+
+// DesktopIconCatalog returns a copy of the public icon catalog for generated apps.
+func DesktopIconCatalog(settings map[string]string) IconCatalogInfo {
+	defaultTheme := DesktopSettingDefaults()["appearance.icon_theme"]
+	theme := defaultTheme
+	if settings != nil {
+		if value := settings["appearance.icon_theme"]; value != "" {
+			if err := validateDesktopSetting("appearance.icon_theme", value); err == nil {
+				theme = value
+			}
+		}
+	}
+	aliases := make(map[string]string, len(desktopIconAliases))
+	for key, value := range desktopIconAliases {
+		aliases[key] = value
+	}
+	return IconCatalogInfo{
+		Theme:              theme,
+		DefaultTheme:       defaultTheme,
+		Preferred:          append([]string(nil), desktopPreferredIconNames...),
+		Aliases:            aliases,
+		LegacySpritePrefix: "sprite:",
+	}
 }
 
 // DefaultDirectories returns the persistent workspace folders exposed by the desktop.

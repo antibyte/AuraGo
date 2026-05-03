@@ -246,6 +246,7 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		InstalledApps: apps,
 		Widgets:       widgets,
 		Settings:      settings,
+		IconCatalog:   DesktopIconCatalog(settings),
 	}, nil
 }
 

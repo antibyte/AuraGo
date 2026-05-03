@@ -63,6 +63,7 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 	cfgSnapshot := *s.Cfg
 	s.CfgMu.RUnlock()
 	desktopCfg := desktop.ConfigFromAuraConfig(&cfgSnapshot)
+	settings := desktop.DesktopSettingDefaults()
 	return desktop.BootstrapPayload{
 		Enabled:            false,
 		ReadOnly:           desktopCfg.ReadOnly,
@@ -76,7 +77,8 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 			MaxFileSize: int64(desktopCfg.MaxFileSizeMB) * 1024 * 1024,
 		},
 		BuiltinApps: desktop.BuiltinApps(),
-		Settings:    map[string]string{},
+		Settings:    settings,
+		IconCatalog: desktop.DesktopIconCatalog(settings),
 	}
 }
 

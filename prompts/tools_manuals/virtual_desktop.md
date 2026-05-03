@@ -6,7 +6,7 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 
 ## Operations
 
-- `status` / `bootstrap`: return desktop settings, built-in apps, installed apps, widgets, and workspace folders.
+- `status` / `bootstrap`: return desktop settings, built-in apps, installed apps, widgets, workspace folders, and `icon_catalog` for generated app icon selection.
 - `list_files`: list a workspace directory. Use `path`, for example `Documents`.
 - `read_file`: read one text file. Use `path`.
 - `write_file`: write one text file. Use `path` and `content`.
@@ -36,7 +36,7 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 }
 ```
 
-Every generated app must have a non-empty `icon`. Prefer AuraGo's semantic Papirus icon names: `apps`, `archive`, `audio`, `browser`, `calendar`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `go`, `html`, `image`, `javascript`, `json`, `markdown`, `network`, `notes`, `pdf`, `python`, `settings`, `spreadsheet`, `terminal`, `text`, `trash`, `video`, `weather`, `xml`, or `yaml`. The desktop and SDK resolve these to Papirus SVGs and fall back to the built-in sprite sheet when needed. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
+Every generated app must have a non-empty `icon`. Prefer AuraGo's semantic Papirus icon names from `status.icon_catalog.preferred`: `apps`, `archive`, `audio`, `browser`, `calendar`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `go`, `html`, `image`, `javascript`, `json`, `markdown`, `network`, `notes`, `pdf`, `python`, `settings`, `spreadsheet`, `terminal`, `text`, `trash`, `video`, `weather`, `xml`, or `yaml`. The desktop and SDK resolve these to Papirus SVGs and fall back to the built-in sprite sheet when needed. `status.icon_catalog.aliases` lists friendly aliases such as `sparkles -> apps` and `edit -> editor`. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
 The app `entry` file must exist in `files` and must contain real HTML. Do not install placeholder or empty entry files.
 
 Generated browser apps should use the first-party Aura Desktop SDK:
@@ -45,6 +45,7 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 - Set `manifest.runtime` to `aura-desktop-sdk@1` or omit it to use that default.
 - Request only the permissions the app needs, for example `files:read`, `files:write`, `widgets:write`, `notifications`, or `apps:open`.
 - Build controls with `AuraDesktop.ui` (`icon`, `button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `toggle`, `emptyState`) instead of custom per-app styling. Pass semantic icon names to `icon`, `button`, `card`, and `emptyState`; do not use emoji as app or tool icons.
+- Use `await AuraDesktop.icons.catalog()` when an app needs to choose icons dynamically. It returns the same `icon_catalog` object from desktop bootstrap, including the active theme, preferred semantic names, aliases, and the legacy `sprite:` prefix.
 - Use `AuraDesktop.fs`, `AuraDesktop.widgets.register`, `AuraDesktop.notifications.show`, and `AuraDesktop.desktop.openApp` for desktop actions. The SDK talks to the desktop shell through a safe iframe bridge.
 
 ## Widget Registration

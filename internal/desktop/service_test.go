@@ -31,6 +31,15 @@ func testService(t *testing.T) *Service {
 	return svc
 }
 
+func stringSliceContains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
 	t.Parallel()
 
@@ -49,6 +58,33 @@ func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
 	}
 	if len(bootstrap.BuiltinApps) < 4 {
 		t.Fatalf("expected builtin desktop apps, got %d", len(bootstrap.BuiltinApps))
+	}
+}
+
+func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	if bootstrap.IconCatalog.Theme != "papirus" {
+		t.Fatalf("icon catalog theme = %q, want papirus", bootstrap.IconCatalog.Theme)
+	}
+	if bootstrap.IconCatalog.DefaultTheme != "papirus" {
+		t.Fatalf("icon catalog default theme = %q, want papirus", bootstrap.IconCatalog.DefaultTheme)
+	}
+	if bootstrap.IconCatalog.LegacySpritePrefix != "sprite:" {
+		t.Fatalf("legacy sprite prefix = %q, want sprite:", bootstrap.IconCatalog.LegacySpritePrefix)
+	}
+	for _, want := range []string{"notes", "settings", "weather", "folder"} {
+		if !stringSliceContains(bootstrap.IconCatalog.Preferred, want) {
+			t.Fatalf("icon catalog missing preferred icon %q: %+v", want, bootstrap.IconCatalog.Preferred)
+		}
+	}
+	if bootstrap.IconCatalog.Aliases["sparkles"] != "apps" {
+		t.Fatalf("sparkles alias = %q, want apps", bootstrap.IconCatalog.Aliases["sparkles"])
 	}
 }
 
