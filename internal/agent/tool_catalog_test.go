@@ -313,6 +313,39 @@ func TestBuildNativeToolSchemasUsesSkillManifestParameters(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
+	var virtualDesktop *openai.FunctionDefinition
+	for _, item := range schemas {
+		if item.Function != nil && item.Function.Name == "virtual_desktop" {
+			virtualDesktop = item.Function
+			break
+		}
+	}
+	if virtualDesktop == nil {
+		t.Fatal("missing virtual_desktop schema")
+	}
+	for _, want := range []string{"icon_catalog", "Papirus", "emoji", "sprite:<name>"} {
+		if !strings.Contains(virtualDesktop.Description, want) {
+			t.Fatalf("virtual_desktop description missing %q: %s", want, virtualDesktop.Description)
+		}
+	}
+	params, _ := virtualDesktop.Parameters.(map[string]interface{})
+	props, _ := params["properties"].(map[string]interface{})
+	manifest, _ := props["manifest"].(map[string]interface{})
+	manifestDescription, _ := manifest["description"].(string)
+	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "runtime defaults to aura-desktop-sdk@1"} {
+		if !strings.Contains(manifestDescription, want) {
+			t.Fatalf("manifest description missing %q: %s", want, manifestDescription)
+		}
+	}
+	widget, _ := props["widget"].(map[string]interface{})
+	widgetDescription, _ := widget["description"].(string)
+	if !strings.Contains(widgetDescription, "icon_catalog") {
+		t.Fatalf("widget description missing icon_catalog guidance: %s", widgetDescription)
+	}
+}
+
 func resetToolCatalogForTest(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
