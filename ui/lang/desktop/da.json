@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Havklint",
   "desktop.settings_wallpaper_aurora_glass": "Auroraglas",
   "desktop.settings_wallpaper_nebula_flow": "Taagestrøm",
-  "desktop.settings_wallpaper_paper_waves": "Papirbølger"
+  "desktop.settings_wallpaper_paper_waves": "Papirbølger",
+  "desktop.app_quick_connect": "Hurtig forbindelse",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Opdater",
+  "desktop.qc_search_placeholder": "Søg servere...",
+  "desktop.qc_no_devices": "Ingen SSH-servere fundet. Tilføj enheder i Viden-sektionen.",
+  "desktop.qc_select_device": "Vælg en server at forbinde til",
+  "desktop.qc_connecting": "Forbinder...",
+  "desktop.qc_disconnected": "Forbindelse lukket",
+  "desktop.qc_connection_error": "Forbindelsesfejl"
 }

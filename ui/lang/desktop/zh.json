@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Ocean Cliff",
   "desktop.settings_wallpaper_aurora_glass": "Aurora Glass",
   "desktop.settings_wallpaper_nebula_flow": "Nebula Flow",
-  "desktop.settings_wallpaper_paper_waves": "Paper Waves"
+  "desktop.settings_wallpaper_paper_waves": "Paper Waves",
+  "desktop.app_quick_connect": "快速连接",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "刷新",
+  "desktop.qc_search_placeholder": "搜索服务器...",
+  "desktop.qc_no_devices": "未找到SSH服务器。请在知识部分添加设备。",
+  "desktop.qc_select_device": "选择要连接的服务器",
+  "desktop.qc_connecting": "连接中...",
+  "desktop.qc_disconnected": "连接已关闭",
+  "desktop.qc_connection_error": "连接错误"
 }

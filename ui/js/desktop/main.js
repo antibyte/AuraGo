@@ -617,7 +617,7 @@
         const presets = {
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
-            'music-player': { width: 880, height: 520 },
+            'music-player': { width: 760, height: 460 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 }
         };
@@ -635,6 +635,7 @@
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';
+        if (appId === 'music-player') win.classList.add('no-titlebar');
         win.dataset.windowId = id;
         win.style.left = Math.max(16, 170 + state.windows.size * 28) + 'px';
         win.style.top = Math.max(12, 72 + state.windows.size * 24) + 'px';
@@ -1569,8 +1570,8 @@
         if (!host) return;
         const win = state.windows.get(id);
         if (win && win.element) {
-            win.element.style.minWidth = '720px';
-            win.element.style.minHeight = '400px';
+            win.element.style.minWidth = '640px';
+            win.element.style.minHeight = '360px';
         }
 
         let audioContext = null;
@@ -1614,7 +1615,7 @@
                         <span class="vd-winamp-time" data-time>00:00</span>
                         <span class="vd-winamp-display-meta">128 KBPS <span class="vd-winamp-stereo">STEREO</span> 44 KHZ</span>
                     </div>
-                    <canvas width="420" height="110"></canvas>
+                    <canvas width="360" height="90"></canvas>
                 </div>
                 <div class="vd-winamp-controls">
                     <button data-prev title="Previous">|◄◄</button>

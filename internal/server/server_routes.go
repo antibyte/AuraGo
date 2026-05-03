@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/desktop"
 	"aurago/internal/discord"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
@@ -453,6 +454,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
+	mux.HandleFunc("/api/desktop/ssh", desktop.HandleSSHProxy(s.InventoryDB, s.Vault, s.Logger))
 
 	s.registerConfigAPIRoutes(mux, sse)
 

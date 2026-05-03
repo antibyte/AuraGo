@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Havklippe",
   "desktop.settings_wallpaper_aurora_glass": "Auroraglass",
   "desktop.settings_wallpaper_nebula_flow": "Takestrøm",
-  "desktop.settings_wallpaper_paper_waves": "Papirbølger"
+  "desktop.settings_wallpaper_paper_waves": "Papirbølger",
+  "desktop.app_quick_connect": "Hurtigtilkobling",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Oppdater",
+  "desktop.qc_search_placeholder": "Søk servere...",
+  "desktop.qc_no_devices": "Ingen SSH-servere funnet. Legg til enheter i Kunnskap-seksjonen.",
+  "desktop.qc_select_device": "Velg en server å koble til",
+  "desktop.qc_connecting": "Kobler til...",
+  "desktop.qc_disconnected": "Tilkobling lukket",
+  "desktop.qc_connection_error": "Tilkoblingsfeil"
 }

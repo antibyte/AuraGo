@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Ocean Cliff",
   "desktop.settings_wallpaper_aurora_glass": "Aurora Glass",
   "desktop.settings_wallpaper_nebula_flow": "Nebula Flow",
-  "desktop.settings_wallpaper_paper_waves": "Paper Waves"
+  "desktop.settings_wallpaper_paper_waves": "Paper Waves",
+  "desktop.app_quick_connect": "クイック接続",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "更新",
+  "desktop.qc_search_placeholder": "サーバーを検索...",
+  "desktop.qc_no_devices": "SSHサーバーが見つかりません。ナレッジセクションでデバイスを追加してください。",
+  "desktop.qc_select_device": "接続するサーバーを選択",
+  "desktop.qc_connecting": "接続中...",
+  "desktop.qc_disconnected": "接続が切断されました",
+  "desktop.qc_connection_error": "接続エラー"
 }

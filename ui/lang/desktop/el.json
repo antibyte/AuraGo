@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Okeanios gkremos",
   "desktop.settings_wallpaper_aurora_glass": "Gyali auroras",
   "desktop.settings_wallpaper_nebula_flow": "Roi nefelomatos",
-  "desktop.settings_wallpaper_paper_waves": "Hartina kymata"
+  "desktop.settings_wallpaper_paper_waves": "Hartina kymata",
+  "desktop.app_quick_connect": "Γρήγορη Σύνδεση",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Ανανέωση",
+  "desktop.qc_search_placeholder": "Αναζήτηση διακομιστών...",
+  "desktop.qc_no_devices": "Δεν βρέθηκαν SSH διακομιστές. Προσθέστε συσκευές στην ενότητα Γνώσεις.",
+  "desktop.qc_select_device": "Επιλέξτε διακομιστή για σύνδεση",
+  "desktop.qc_connecting": "Σύνδεση...",
+  "desktop.qc_disconnected": "Η σύνδεση έκλεισε",
+  "desktop.qc_connection_error": "Σφάλμα σύνδεσης"
 }

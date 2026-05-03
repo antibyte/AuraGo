@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Oceansky utes",
   "desktop.settings_wallpaper_aurora_glass": "Aurora sklo",
   "desktop.settings_wallpaper_nebula_flow": "Tok mlhoviny",
-  "desktop.settings_wallpaper_paper_waves": "Papirove vlny"
+  "desktop.settings_wallpaper_paper_waves": "Papirove vlny",
+  "desktop.app_quick_connect": "Rychlé připojení",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Obnovit",
+  "desktop.qc_search_placeholder": "Hledat servery...",
+  "desktop.qc_no_devices": "Žádné SSH servery. Přidejte zařízení v sekci Znalosti.",
+  "desktop.qc_select_device": "Vyberte server pro připojení",
+  "desktop.qc_connecting": "Připojování...",
+  "desktop.qc_disconnected": "Spojení ukončeno",
+  "desktop.qc_connection_error": "Chyba připojení"
 }

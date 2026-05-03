@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Havsklippa",
   "desktop.settings_wallpaper_aurora_glass": "Auroraglas",
   "desktop.settings_wallpaper_nebula_flow": "Nebulosaflöde",
-  "desktop.settings_wallpaper_paper_waves": "Pappersvågor"
+  "desktop.settings_wallpaper_paper_waves": "Pappersvågor",
+  "desktop.app_quick_connect": "Snabbanslutning",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Uppdatera",
+  "desktop.qc_search_placeholder": "Sök servrar...",
+  "desktop.qc_no_devices": "Inga SSH-servrar hittades. Lägg till enheter i Kunskap-sektionen.",
+  "desktop.qc_select_device": "Välj en server att ansluta till",
+  "desktop.qc_connecting": "Ansluter...",
+  "desktop.qc_disconnected": "Anslutning stängd",
+  "desktop.qc_connection_error": "Anslutningsfel"
 }

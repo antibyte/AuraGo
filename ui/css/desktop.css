@@ -407,6 +407,20 @@
     border-color: rgba(39, 199, 166, 0.46);
 }
 
+.vd-window.no-titlebar {
+    grid-template-rows: 1fr;
+    border: 2px solid #181818;
+    border-top: 2px solid #505050;
+    border-left: 2px solid #505050;
+    background: #2a2a2a;
+    backdrop-filter: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.vd-window.no-titlebar .vd-window-titlebar {
+    display: none;
+}
+
 .vd-window-titlebar {
     display: flex;
     align-items: center;
@@ -1183,59 +1197,59 @@
 
 .vd-winamp {
     display: grid;
-    grid-template-columns: 420px 1fr;
+    grid-template-columns: 360px 1fr;
     gap: 0;
     height: 100%;
     min-height: 0;
     background: #2a2a2a;
     color: #d0d0d0;
     font-family: 'Verdana', 'Arial', sans-serif;
-    font-size: 16px;
+    font-size: 13px;
     user-select: none;
 }
 
 .vd-winamp-main {
     display: grid;
-    grid-template-rows: 28px auto auto auto auto 1fr;
+    grid-template-rows: 22px auto auto auto auto 1fr;
     gap: 0;
     border: 2px solid #181818;
     border-right: 2px solid #505050;
     border-bottom: 2px solid #505050;
     background: linear-gradient(180deg, #323232 0%, #2a2a2a 8%, #2a2a2a 100%);
     min-height: 0;
-    padding: 4px;
+    padding: 3px;
 }
 
 .vd-winamp-titlebar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 2px 8px;
+    gap: 6px;
+    padding: 1px 6px;
     background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
     border: 1px solid #181818;
     border-top: 1px solid #505050;
-    height: 28px;
+    height: 22px;
     overflow: hidden;
     box-sizing: border-box;
 }
 
 .vd-winamp-titlebar-btns {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex-shrink: 0;
 }
 
 .vd-winamp-titlebar-btns button {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     padding: 0;
     border: 2px solid #181818;
     border-top-color: #707070;
     border-left-color: #707070;
     background: #2a2a2a;
     color: #c0c0c0;
-    font-size: 14px;
-    line-height: 18px;
+    font-size: 11px;
+    line-height: 14px;
     cursor: pointer;
     font-family: 'Verdana', sans-serif;
 }
@@ -1251,17 +1265,17 @@
     flex: 1;
     overflow: hidden;
     position: relative;
-    height: 22px;
+    height: 18px;
 }
 
 .vd-winamp-title-text {
     display: inline-block;
     white-space: nowrap;
     color: #00FF3C;
-    font-size: 18px;
+    font-size: 14px;
     font-family: 'Courier New', monospace;
-    line-height: 22px;
-    text-shadow: 0 0 4px rgba(0, 255, 60, 0.4);
+    line-height: 18px;
+    text-shadow: 0 0 3px rgba(0, 255, 60, 0.35);
 }
 
 .vd-winamp-display {
@@ -1269,31 +1283,31 @@
     border: 2px solid #181818;
     border-top: 2px solid #505050;
     border-left: 2px solid #505050;
-    margin: 6px;
-    padding: 6px;
+    margin: 4px;
+    padding: 4px;
 }
 
 .vd-winamp-display-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2px 4px;
-    margin-bottom: 4px;
+    padding: 1px 3px;
+    margin-bottom: 2px;
 }
 
 .vd-winamp-time {
     color: #00FF3C;
     font-family: 'Courier New', monospace;
-    font-size: 26px;
+    font-size: 20px;
     font-weight: bold;
     letter-spacing: 2px;
-    text-shadow: 0 0 6px rgba(0, 255, 60, 0.5);
+    text-shadow: 0 0 4px rgba(0, 255, 60, 0.4);
 }
 
 .vd-winamp-display-meta {
     color: #00FF3C;
     font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .vd-winamp-stereo {
@@ -1303,7 +1317,7 @@
 
 .vd-winamp canvas {
     width: 100%;
-    height: 110px;
+    height: 80px;
     display: block;
     background: #000000;
     border: 1px solid #282828;
@@ -1311,22 +1325,22 @@
 
 .vd-winamp-controls {
     display: flex;
-    gap: 6px;
-    padding: 6px 8px;
+    gap: 4px;
+    padding: 4px 6px;
     align-items: center;
 }
 
 .vd-winamp-controls button {
-    width: 40px;
-    height: 32px;
+    width: 32px;
+    height: 26px;
     padding: 0;
     border: 2px solid #181818;
     border-top-color: #707070;
     border-left-color: #707070;
     background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
     color: #e0e0e0;
-    font-size: 16px;
-    line-height: 28px;
+    font-size: 13px;
+    line-height: 22px;
     text-align: center;
     cursor: pointer;
     font-family: 'Verdana', sans-serif;
@@ -1342,29 +1356,29 @@
 
 .vd-winamp-slider-row {
     display: flex;
-    gap: 16px;
-    padding: 4px 10px;
+    gap: 12px;
+    padding: 3px 8px;
     align-items: center;
 }
 
 .vd-winamp-slider-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex: 1;
 }
 
 .vd-winamp-slider-group label {
     color: #d0d0d0;
-    font-size: 14px;
-    width: 32px;
+    font-size: 11px;
+    width: 26px;
     text-align: right;
     font-weight: bold;
 }
 
 .vd-winamp-slider-track {
     position: relative;
-    height: 14px;
+    height: 10px;
     background: #101010;
     border: 2px solid #181818;
     border-top-color: #404040;
@@ -1375,19 +1389,19 @@
 
 .vd-winamp-slider-fill {
     position: absolute;
-    top: 2px;
-    left: 2px;
-    bottom: 2px;
+    top: 1px;
+    left: 1px;
+    bottom: 1px;
     background: #00FF3C;
-    opacity: 0.45;
+    opacity: 0.4;
     pointer-events: none;
 }
 
 .vd-winamp-slider-thumb {
     position: absolute;
     top: -1px;
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     background: #d0d0d0;
     border: 2px solid #181818;
     border-top-color: #f0f0f0;
@@ -1398,23 +1412,23 @@
 
 .vd-winamp-toggles {
     display: flex;
-    gap: 8px;
-    padding: 6px 10px;
+    gap: 6px;
+    padding: 4px 8px;
     align-items: center;
 }
 
 .vd-winamp-toggles button {
     display: flex;
     align-items: center;
-    gap: 4px;
-    height: 28px;
-    padding: 0 10px;
+    gap: 3px;
+    height: 22px;
+    padding: 0 8px;
     border: 2px solid #181818;
     border-top-color: #707070;
     border-left-color: #707070;
     background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
     color: #d0d0d0;
-    font-size: 14px;
+    font-size: 11px;
     cursor: pointer;
     font-family: 'Verdana', sans-serif;
 }
@@ -1425,12 +1439,12 @@
 
 .vd-winamp-toggles button.active .vd-winamp-led {
     background: #00FF3C;
-    box-shadow: 0 0 6px #00FF3C;
+    box-shadow: 0 0 4px #00FF3C;
 }
 
 .vd-winamp-led {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #404040;
     border: 2px solid #181818;
@@ -1439,55 +1453,55 @@
 
 .vd-winamp-playlist {
     display: grid;
-    grid-template-rows: 32px 1fr;
+    grid-template-rows: 24px 1fr;
     background: #2a2a2a;
     border: 2px solid #181818;
     border-left: 2px solid #505050;
     border-bottom: 2px solid #505050;
     min-height: 0;
-    padding: 4px;
+    padding: 3px;
 }
 
 .vd-winamp-pl-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 4px 10px;
+    gap: 8px;
+    padding: 3px 8px;
     background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
     border: 1px solid #181818;
     border-top: 1px solid #505050;
     color: #d0d0d0;
-    font-size: 16px;
+    font-size: 13px;
 }
 
 .vd-winamp-pl-title {
     font-weight: bold;
     color: #00FF3C;
-    font-size: 18px;
+    font-size: 14px;
 }
 
 .vd-winamp-pl-count {
     flex: 1;
     color: #808080;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .vd-winamp-pl-header button {
-    padding: 0 12px;
-    height: 26px;
+    padding: 0 8px;
+    height: 20px;
     border: 2px solid #181818;
     border-top-color: #707070;
     border-left-color: #707070;
     background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
     color: #d0d0d0;
-    font-size: 14px;
+    font-size: 11px;
     cursor: pointer;
     font-family: 'Verdana', sans-serif;
 }
 
 .vd-winamp-tracks {
     overflow: auto;
-    padding: 4px;
+    padding: 3px;
     background: #000000;
     border: 2px solid #181818;
     border-top: 2px solid #505050;
@@ -1495,7 +1509,7 @@
 }
 
 .vd-winamp-tracks::-webkit-scrollbar {
-    width: 16px;
+    width: 12px;
     background: #2a2a2a;
 }
 
@@ -1508,13 +1522,13 @@
 
 .vd-winamp-tracks button {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
-    padding: 4px 8px;
+    padding: 2px 6px;
     border: 0;
     background: transparent;
     color: #808080;
-    font-size: 15px;
+    font-size: 12px;
     font-family: 'Verdana', sans-serif;
     text-align: left;
     cursor: pointer;
@@ -1531,7 +1545,7 @@
 }
 
 .vd-winamp-pl-num {
-    width: 28px;
+    width: 22px;
     flex-shrink: 0;
     text-align: right;
 }
@@ -1544,7 +1558,7 @@
 }
 
 .vd-winamp-pl-time {
-    width: 56px;
+    width: 44px;
     text-align: right;
     flex-shrink: 0;
 }

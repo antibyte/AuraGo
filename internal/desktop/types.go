@@ -322,5 +322,6 @@ func BuiltinApps() []AppManifest {
 		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Description: "Task management connected to the backend planner."},
 		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "sparkles", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
+		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH servers with an interactive terminal."},
 	}
 }

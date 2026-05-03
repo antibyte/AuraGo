@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Ocean Cliff",
   "desktop.settings_wallpaper_aurora_glass": "Aurora Glass",
   "desktop.settings_wallpaper_nebula_flow": "Nebula Flow",
-  "desktop.settings_wallpaper_paper_waves": "Paper Waves"
+  "desktop.settings_wallpaper_paper_waves": "Paper Waves",
+  "desktop.app_quick_connect": "त्वरित कनेक्ट",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "रीफ़्रेश",
+  "desktop.qc_search_placeholder": "सर्वर खोजें...",
+  "desktop.qc_no_devices": "कोई SSH सर्वर नहीं मिला। ज्ञान अनुभाग में डिवाइस जोड़ें।",
+  "desktop.qc_select_device": "कनेक्ट करने के लिए सर्वर चुनें",
+  "desktop.qc_connecting": "कनेक्ट हो रहा है...",
+  "desktop.qc_disconnected": "कनेक्शन बंद",
+  "desktop.qc_connection_error": "कनेक्शन त्रुटि"
 }

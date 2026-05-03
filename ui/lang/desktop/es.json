@@ -217,5 +217,14 @@
   "desktop.settings_wallpaper_ocean_cliff": "Acantilado oceanico",
   "desktop.settings_wallpaper_aurora_glass": "Cristal aurora",
   "desktop.settings_wallpaper_nebula_flow": "Flujo nebular",
-  "desktop.settings_wallpaper_paper_waves": "Ondas de papel"
+  "desktop.settings_wallpaper_paper_waves": "Ondas de papel",
+  "desktop.app_quick_connect": "Conexión rápida",
+  "desktop.qc_title": "SSH",
+  "desktop.qc_refresh": "Actualizar",
+  "desktop.qc_search_placeholder": "Buscar servidores...",
+  "desktop.qc_no_devices": "No se encontraron servidores SSH. Agrega dispositivos en la sección Conocimiento.",
+  "desktop.qc_select_device": "Selecciona un servidor para conectarte",
+  "desktop.qc_connecting": "Conectando...",
+  "desktop.qc_disconnected": "Conexión cerrada",
+  "desktop.qc_connection_error": "Error de conexión"
 }
