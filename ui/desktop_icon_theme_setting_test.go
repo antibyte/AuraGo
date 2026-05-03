@@ -23,6 +23,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"desktop.settings_icon_theme_papirus",
 		"desktop.settings_icon_theme_aurago",
 		"settingValue('appearance.icon_theme') !== 'aurago'",
+		"function renderStartButtonIcon()",
+		"renderStartButtonIcon();",
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing icon theme setting marker %q", want)

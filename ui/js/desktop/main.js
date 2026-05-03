@@ -342,10 +342,18 @@
         const enabled = state.bootstrap && state.bootstrap.enabled;
         $('vd-disabled').hidden = !!enabled;
         applyDesktopSettings();
+        renderStartButtonIcon();
         renderIcons();
         renderWidgets();
         renderStartApps();
         renderTaskbar();
+    }
+
+    function renderStartButtonIcon() {
+        const startButton = $('vd-start-button');
+        if (!startButton) return;
+        const startGlyph = startButton.querySelector('.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon');
+        if (startGlyph) startGlyph.outerHTML = iconMarkup('apps', 'A', 'vd-sprite-start', 28);
     }
 
     function renderIcons() {
@@ -1267,6 +1275,7 @@
             if (!state.bootstrap) state.bootstrap = {};
             state.bootstrap.settings = body.settings || Object.assign(desktopSettings(), { [key]: value });
             applyDesktopSettings();
+            renderStartButtonIcon();
             renderIcons();
             renderWidgets();
             renderStartApps();
@@ -1599,8 +1608,7 @@
             state.startQuery = event.target.value;
             renderStartApps();
         });
-        const startGlyph = $('vd-start-button').querySelector('.vd-start-glyph');
-        if (startGlyph) startGlyph.outerHTML = iconMarkup('apps', 'A', 'vd-sprite-start', 28);
+        renderStartButtonIcon();
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             const menu = $('vd-start-menu');
