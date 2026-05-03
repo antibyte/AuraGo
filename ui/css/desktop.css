@@ -111,15 +111,14 @@
 
 .vd-icons {
     position: absolute;
-    inset: 18px auto auto 18px;
-    width: min(360px, calc(100vw - 36px));
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-    gap: 12px;
+    inset: 0;
     z-index: 2;
+    pointer-events: none;
 }
 
 .vd-icon {
+    position: absolute;
+    width: 86px;
     height: 88px;
     border: 1px solid transparent;
     border-radius: 8px;
@@ -131,13 +130,22 @@
     gap: 7px;
     cursor: pointer;
     font: inherit;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
 }
 
 .vd-icon:hover,
-.vd-icon:focus-visible {
+.vd-icon:focus-visible,
+.vd-icon.selected {
     background: rgba(255, 255, 255, 0.08);
     border-color: var(--vd-border);
     outline: none;
+}
+
+.vd-icon.selected {
+    background: rgba(39, 199, 166, 0.16);
+    border-color: rgba(39, 199, 166, 0.5);
 }
 
 .vd-sprite-icon,
@@ -199,21 +207,21 @@
 
 .vd-widgets {
     position: absolute;
-    top: 18px;
-    right: 18px;
-    width: min(320px, calc(100vw - 36px));
-    display: grid;
-    gap: 12px;
+    inset: 0;
     z-index: 1;
+    pointer-events: none;
 }
 
 .vd-widget {
+    position: absolute;
     min-height: 92px;
     padding: 14px;
     border-radius: 8px;
     border: 1px solid var(--vd-border);
     background: rgba(12, 17, 24, 0.58);
     backdrop-filter: blur(20px);
+    pointer-events: auto;
+    overflow: hidden;
 }
 
 .vd-widget-head {
@@ -221,6 +229,16 @@
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 10px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.vd-dragging {
+    opacity: 0.82;
+    transform: scale(1.015);
+    z-index: 80 !important;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
 }
 
 .vd-widget-text {
@@ -284,6 +302,11 @@
     backdrop-filter: blur(26px);
     overflow: hidden;
     pointer-events: auto;
+    transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
+}
+
+.vd-window.maximized {
+    border-radius: 8px;
 }
 
 .vd-window.active {
@@ -299,6 +322,7 @@
     background: rgba(10, 14, 20, 0.58);
     border-bottom: 1px solid var(--vd-border);
     cursor: grab;
+    user-select: none;
 }
 
 .vd-window-title {
@@ -345,6 +369,76 @@
     min-height: 0;
 }
 
+.vd-resize-handle {
+    position: absolute;
+    z-index: 3;
+    background: transparent;
+}
+
+.vd-resize-n,
+.vd-resize-s {
+    left: 8px;
+    right: 8px;
+    height: 7px;
+    cursor: ns-resize;
+}
+
+.vd-resize-n {
+    top: 0;
+}
+
+.vd-resize-s {
+    bottom: 0;
+}
+
+.vd-resize-e,
+.vd-resize-w {
+    top: 8px;
+    bottom: 8px;
+    width: 7px;
+    cursor: ew-resize;
+}
+
+.vd-resize-e {
+    right: 0;
+}
+
+.vd-resize-w {
+    left: 0;
+}
+
+.vd-resize-ne,
+.vd-resize-nw,
+.vd-resize-se,
+.vd-resize-sw {
+    width: 12px;
+    height: 12px;
+}
+
+.vd-resize-ne {
+    top: 0;
+    right: 0;
+    cursor: nesw-resize;
+}
+
+.vd-resize-nw {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+}
+
+.vd-resize-se {
+    right: 0;
+    bottom: 0;
+    cursor: nwse-resize;
+}
+
+.vd-resize-sw {
+    left: 0;
+    bottom: 0;
+    cursor: nesw-resize;
+}
+
 .vd-panel {
     display: grid;
     grid-template-rows: auto 1fr;
@@ -384,6 +478,11 @@
 
 .vd-file-row:hover {
     background: rgba(255, 255, 255, 0.08);
+}
+
+.vd-file-row.selected {
+    background: rgba(39, 199, 166, 0.15);
+    outline: 1px solid rgba(39, 199, 166, 0.35);
 }
 
 .vd-file-name {
@@ -636,6 +735,121 @@
 
 .vd-start-item:hover {
     background: rgba(255, 255, 255, 0.08);
+}
+
+.vd-context-menu {
+    position: absolute;
+    min-width: 214px;
+    padding: 7px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: rgba(13, 18, 26, 0.96);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px);
+    z-index: 120;
+    animation: vd-menu-in 90ms ease-out;
+}
+
+.vd-context-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-context-item:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.vd-context-item:disabled {
+    color: rgba(167, 176, 192, 0.48);
+    cursor: not-allowed;
+}
+
+.vd-context-icon {
+    color: var(--vd-accent);
+    text-align: center;
+}
+
+.vd-context-separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--vd-border);
+}
+
+.vd-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(4, 7, 12, 0.58);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+}
+
+.vd-modal {
+    width: min(420px, calc(100vw - 32px));
+    padding: 18px;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+}
+
+.vd-modal-title {
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.vd-modal-copy {
+    color: var(--vd-muted);
+    line-height: 1.45;
+    margin-bottom: 12px;
+}
+
+.vd-modal-input {
+    width: 100%;
+    height: 40px;
+    margin: 8px 0 14px;
+    padding: 0 11px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.24);
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.vd-button-primary {
+    border-color: rgba(39, 199, 166, 0.5);
+    background: rgba(39, 199, 166, 0.2);
+}
+
+@keyframes vd-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .vd-disabled {

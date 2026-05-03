@@ -156,9 +156,65 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 			broadcastDesktopEvent(s, hub, event)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		case http.MethodPatch:
+			var body struct {
+				OldPath string `json:"old_path"`
+				NewPath string `json:"new_path"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+				return
+			}
+			if err := svc.MovePath(r.Context(), body.OldPath, body.NewPath, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "move_path", "old_path": body.OldPath, "new_path": body.NewPath}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		case http.MethodDelete:
+			path := r.URL.Query().Get("path")
+			if err := svc.DeletePath(r.Context(), path, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "delete_path", "path": path}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+func handleDesktopDirectory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, hub, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		var body struct {
+			Path string `json:"path"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if err := svc.CreateDirectory(r.Context(), body.Path, desktop.SourceUser); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "create_directory", "path": body.Path}, CreatedAt: time.Now().UTC()}
+		broadcastDesktopEvent(s, hub, event)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 	}
 }
 
@@ -194,13 +250,25 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 
 func handleDesktopWidgets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			id := r.URL.Query().Get("id")
+			if err := svc.DeleteWidget(r.Context(), id, desktop.SourceUser); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "delete_widget", "widget_id": id}, CreatedAt: time.Now().UTC()}
+			broadcastDesktopEvent(s, hub, event)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+			return
+		}
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		var widget desktop.Widget

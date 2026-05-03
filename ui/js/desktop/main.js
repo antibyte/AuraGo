@@ -9,12 +9,18 @@
         chatBusy: false,
         startQuery: '',
         iconManifest: null,
-        iconMap: new Map()
+        iconMap: new Map(),
+        selectedIconId: '',
+        contextMenu: null
     };
 
     const SDK_REQUEST_TYPE = 'aurago.desktop.request';
     const SDK_RESPONSE_TYPE = 'aurago.desktop.response';
     const SDK_RUNTIME = 'aura-desktop-sdk@1';
+    const ICON_POSITIONS_KEY = 'aurago.desktop.iconPositions.v1';
+    const WINDOW_MIN_W = 360;
+    const WINDOW_MIN_H = 280;
+    const DRAG_THRESHOLD = 5;
 
     const els = {};
     const directoryIconKeys = {
@@ -88,6 +94,11 @@
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#39;');
+    }
+
+    function cssSel(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return CSS.escape(String(value));
+        return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
     }
 
     function iconGlyph(app) {
@@ -165,6 +176,50 @@
         return t('desktop.mib', { count: (n / 1024 / 1024).toFixed(1) });
     }
 
+    function readJSONStorage(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    }
+
+    function writeJSONStorage(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { }
+    }
+
+    function iconPositions() {
+        return readJSONStorage(ICON_POSITIONS_KEY, {});
+    }
+
+    function saveIconPosition(id, x, y) {
+        const positions = iconPositions();
+        positions[id] = { x: Math.round(x), y: Math.round(y) };
+        writeJSONStorage(ICON_POSITIONS_KEY, positions);
+    }
+
+    function defaultIconPosition(index) {
+        const cellW = 92;
+        const cellH = 104;
+        const workspace = $('vd-workspace');
+        const availableH = Math.max(320, (workspace && workspace.clientHeight) || 520);
+        const rows = Math.max(1, Math.floor((availableH - 36) / cellH));
+        const col = Math.floor(index / rows);
+        const row = index % rows;
+        return { x: 18 + col * cellW, y: 18 + row * cellH };
+    }
+
+    function clampToWorkspace(x, y, w, h) {
+        const workspace = $('vd-workspace');
+        const maxX = Math.max(8, ((workspace && workspace.clientWidth) || window.innerWidth) - (w || 90) - 8);
+        const maxY = Math.max(8, ((workspace && workspace.clientHeight) || window.innerHeight) - (h || 90) - 8);
+        return {
+            x: Math.min(maxX, Math.max(8, x)),
+            y: Math.min(maxY, Math.max(8, y))
+        };
+    }
+
     async function api(url, options) {
         const resp = await fetch(url, options);
         const contentType = resp.headers.get('content-type') || '';
@@ -196,17 +251,66 @@
         const directoryItems = directories.slice(0, 4).map(name => ({ id: 'dir-' + name, name, type: 'directory', path: name }));
         const appItems = allApps().map(app => ({ id: app.id, name: appName(app), type: 'app', app }));
         const items = [...appItems, ...directoryItems];
+        const positions = iconPositions();
         icons.innerHTML = items.map(item => {
             const iconKey = item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
             const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
-            return `<button class="vd-icon" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}">
+            const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
+            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
                 ${spriteMarkup(iconKey, fallback, 'vd-sprite-icon', 42)}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
         }).join('');
         icons.querySelectorAll('.vd-icon').forEach(btn => {
             btn.addEventListener('dblclick', () => activateDesktopItem(btn));
-            btn.addEventListener('click', () => activateDesktopItem(btn));
+            btn.addEventListener('click', () => selectDesktopIcon(btn));
+            btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
+            wireDraggableIcon(btn);
+        });
+    }
+
+    function selectDesktopIcon(btn) {
+        state.selectedIconId = btn ? btn.dataset.id : '';
+        document.querySelectorAll('.vd-icon').forEach(icon => icon.classList.toggle('selected', icon === btn));
+    }
+
+    function wireDraggableIcon(btn) {
+        let drag = null;
+        btn.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            closeContextMenu();
+            selectDesktopIcon(btn);
+            drag = {
+                id: btn.dataset.id,
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                left: parseInt(btn.style.left, 10) || 0,
+                top: parseInt(btn.style.top, 10) || 0,
+                moved: false
+            };
+            btn.setPointerCapture(event.pointerId);
+        });
+        btn.addEventListener('pointermove', event => {
+            if (!drag) return;
+            const dx = event.clientX - drag.x;
+            const dy = event.clientY - drag.y;
+            if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            drag.moved = true;
+            btn.classList.add('vd-dragging');
+            const pos = clampToWorkspace(drag.left + dx, drag.top + dy, btn.offsetWidth, btn.offsetHeight);
+            btn.style.left = pos.x + 'px';
+            btn.style.top = pos.y + 'px';
+        });
+        btn.addEventListener('pointerup', event => {
+            if (!drag) return;
+            btn.releasePointerCapture(event.pointerId);
+            btn.classList.remove('vd-dragging');
+            if (drag.moved) {
+                saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
+                event.preventDefault();
+            }
+            drag = null;
         });
     }
 
@@ -225,7 +329,8 @@
         const directories = (boot.workspace && boot.workspace.directories) || [];
         const summary = directories.length + ' ' + t('desktop.folder') + ' / ' + (boot.installed_apps || []).length + ' ' + t('desktop.setting_apps');
         const cards = [];
-        cards.push(`<article class="vd-widget">
+        const systemBounds = defaultWidgetBounds(0);
+        cards.push(`<article class="vd-widget vd-widget-system" style="left:${systemBounds.x}px;top:${systemBounds.y}px;width:${systemBounds.w}px;height:${systemBounds.h}px">
             <div class="vd-widget-head">
                 ${spriteMarkup('desktop', 'S', 'vd-sprite-file', 26)}
                 <div>
@@ -234,13 +339,14 @@
                 </div>
             </div>
         </article>`);
-        widgets.slice(0, 4).forEach(widget => {
+        widgets.slice(0, 4).forEach((widget, index) => {
             const app = allApps().find(item => item.id === widget.app_id);
             const iconKey = widget.icon || (app ? iconForApp(app) : 'widgets');
+            const bounds = widgetBounds(widget, index + 1);
             const widgetBody = widget.entry
                 ? `<div class="vd-widget-frame-wrap"></div>`
                 : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
-            cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}">
+            cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${bounds.h}px">
                 <div class="vd-widget-head">
                     ${spriteMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 26)}
                     <div class="vd-widget-text">
@@ -256,8 +362,90 @@
             if (!widget.entry) return;
             const card = host.querySelector(`[data-widget-id="${widget.id}"] .vd-widget-frame-wrap`);
             if (!card) return;
-            renderWidgetFrame(card, widget);
+                renderWidgetFrame(card, widget);
         });
+        widgets.slice(0, 4).forEach(widget => {
+            const card = host.querySelector(`[data-widget-id="${cssSel(widget.id)}"]`);
+            if (!card) return;
+            card.addEventListener('contextmenu', event => showWidgetContextMenu(event, widget));
+            wireDraggableWidget(card, widget);
+        });
+    }
+
+    function defaultWidgetBounds(index) {
+        const workspace = $('vd-workspace');
+        const width = 320;
+        const height = 132;
+        const x = Math.max(18, ((workspace && workspace.clientWidth) || window.innerWidth) - width - 18);
+        return { x, y: 18 + index * (height + 12), w: width, h: height };
+    }
+
+    function widgetBounds(widget, index) {
+        const fallback = defaultWidgetBounds(index);
+        const w = Number(widget.w || widget.W || 0);
+        const h = Number(widget.h || widget.H || 0);
+        return {
+            x: Number(widget.x || widget.X || fallback.x) || fallback.x,
+            y: Number(widget.y || widget.Y || fallback.y) || fallback.y,
+            w: w > 16 ? w : Math.max(240, w * 160 || fallback.w),
+            h: h > 16 ? h : Math.max(104, h * 86 || fallback.h)
+        };
+    }
+
+    function wireDraggableWidget(card, widget) {
+        const handle = card.querySelector('.vd-widget-head') || card;
+        let drag = null;
+        handle.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            drag = {
+                x: event.clientX,
+                y: event.clientY,
+                left: parseInt(card.style.left, 10) || 0,
+                top: parseInt(card.style.top, 10) || 0,
+                moved: false
+            };
+            handle.setPointerCapture(event.pointerId);
+        });
+        handle.addEventListener('pointermove', event => {
+            if (!drag) return;
+            const dx = event.clientX - drag.x;
+            const dy = event.clientY - drag.y;
+            if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            drag.moved = true;
+            card.classList.add('vd-dragging');
+            const pos = clampToWorkspace(drag.left + dx, drag.top + dy, card.offsetWidth, card.offsetHeight);
+            card.style.left = pos.x + 'px';
+            card.style.top = pos.y + 'px';
+        });
+        handle.addEventListener('pointerup', async event => {
+            if (!drag) return;
+            handle.releasePointerCapture(event.pointerId);
+            card.classList.remove('vd-dragging');
+            if (drag.moved) {
+                await persistWidgetBounds(widget, card);
+                event.preventDefault();
+            }
+            drag = null;
+        });
+    }
+
+    async function persistWidgetBounds(widget, card) {
+        const updated = Object.assign({}, widget, {
+            x: parseInt(card.style.left, 10) || 0,
+            y: parseInt(card.style.top, 10) || 0,
+            w: Math.round(card.offsetWidth),
+            h: Math.round(card.offsetHeight)
+        });
+        try {
+            await api('/api/desktop/widgets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updated)
+            });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
     }
 
     async function renderWidgetFrame(card, widget) {
@@ -296,7 +484,10 @@
     function renderTaskbar() {
         const host = $('vd-taskbar-apps');
         host.innerHTML = [...state.windows.values()].map(win => `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}">${esc(win.title)}</button>`).join('');
-        host.querySelectorAll('[data-window-id]').forEach(btn => btn.addEventListener('click', () => focusWindow(btn.dataset.windowId)));
+        host.querySelectorAll('[data-window-id]').forEach(btn => {
+            btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
+            btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
+        });
     }
 
     function windowTitle(appId) {
@@ -326,30 +517,43 @@
             </div>
             <div class="vd-window-actions">
                 <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}">_</button>
+                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}">□</button>
                 <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}">x</button>
             </div>
         </header>
-        <div class="vd-window-content" data-window-content></div>`;
+        <div class="vd-window-content" data-window-content></div>
+        ${resizeHandleMarkup()}`;
         $('vd-window-layer').appendChild(win);
-        state.windows.set(id, { id, appId, title, element: win });
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null });
         wireWindow(win, id);
         focusWindow(id);
         renderAppContent(id, appId, context || {});
         renderTaskbar();
     }
 
+    function resizeHandleMarkup() {
+        return ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+            .map(edge => `<span class="vd-resize-handle vd-resize-${edge}" data-resize="${edge}"></span>`)
+            .join('');
+    }
+
     function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
+        win.addEventListener('contextmenu', event => {
+            if (event.target.closest('.vd-window-titlebar')) showWindowContextMenu(event, id);
+        });
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => {
             win.style.display = 'none';
             if (state.activeWindowId === id) state.activeWindowId = '';
             renderTaskbar();
         });
+        win.querySelector('[data-action="maximize"]').addEventListener('click', () => toggleMaximizeWindow(id));
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button')) return;
+            if (state.windows.get(id) && state.windows.get(id).maximized) return;
             drag = {
                 x: event.clientX,
                 y: event.clientY,
@@ -366,6 +570,107 @@
             win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
         });
         bar.addEventListener('pointerup', () => { drag = null; });
+        bar.addEventListener('dblclick', event => {
+            if (event.target.closest('button')) return;
+            toggleMaximizeWindow(id);
+        });
+        wireWindowResize(win, id);
+    }
+
+    function windowBounds(win) {
+        return {
+            left: parseInt(win.style.left, 10) || 0,
+            top: parseInt(win.style.top, 10) || 0,
+            width: Math.round(win.offsetWidth),
+            height: Math.round(win.offsetHeight)
+        };
+    }
+
+    function workspaceBoundsForWindow() {
+        const layer = $('vd-window-layer');
+        return { width: layer.clientWidth, height: layer.clientHeight };
+    }
+
+    function toggleMaximizeWindow(id) {
+        const item = state.windows.get(id);
+        if (!item) return;
+        const win = item.element;
+        if (item.maximized) {
+            const b = item.restoreBounds || { left: 80, top: 48, width: 820, height: 560 };
+            win.classList.remove('maximized');
+            win.style.left = b.left + 'px';
+            win.style.top = b.top + 'px';
+            win.style.width = b.width + 'px';
+            win.style.height = b.height + 'px';
+            item.maximized = false;
+        } else {
+            item.restoreBounds = windowBounds(win);
+            const bounds = workspaceBoundsForWindow();
+            win.classList.add('maximized');
+            win.style.left = '8px';
+            win.style.top = '8px';
+            win.style.width = Math.max(WINDOW_MIN_W, bounds.width - 16) + 'px';
+            win.style.height = Math.max(WINDOW_MIN_H, bounds.height - 16) + 'px';
+            item.maximized = true;
+        }
+        focusWindow(id);
+    }
+
+    function wireWindowResize(win, id) {
+        win.querySelectorAll('[data-resize]').forEach(handle => {
+            let resize = null;
+            handle.addEventListener('pointerdown', event => {
+                const item = state.windows.get(id);
+                if (item && item.maximized) return;
+                event.preventDefault();
+                event.stopPropagation();
+                focusWindow(id);
+                resize = {
+                    edge: handle.dataset.resize,
+                    x: event.clientX,
+                    y: event.clientY,
+                    bounds: windowBounds(win)
+                };
+                handle.setPointerCapture(event.pointerId);
+            });
+            handle.addEventListener('pointermove', event => {
+                if (!resize) return;
+                const dx = event.clientX - resize.x;
+                const dy = event.clientY - resize.y;
+                applyResize(win, resize.edge, resize.bounds, dx, dy);
+            });
+            handle.addEventListener('pointerup', event => {
+                if (!resize) return;
+                handle.releasePointerCapture(event.pointerId);
+                resize = null;
+            });
+        });
+    }
+
+    function applyResize(win, edge, start, dx, dy) {
+        const workspace = workspaceBoundsForWindow();
+        let left = start.left;
+        let top = start.top;
+        let width = start.width;
+        let height = start.height;
+        if (edge.includes('e')) width = Math.max(WINDOW_MIN_W, start.width + dx);
+        if (edge.includes('s')) height = Math.max(WINDOW_MIN_H, start.height + dy);
+        if (edge.includes('w')) {
+            width = Math.max(WINDOW_MIN_W, start.width - dx);
+            left = start.left + (start.width - width);
+        }
+        if (edge.includes('n')) {
+            height = Math.max(WINDOW_MIN_H, start.height - dy);
+            top = start.top + (start.height - height);
+        }
+        left = Math.max(8, Math.min(left, workspace.width - 80));
+        top = Math.max(8, Math.min(top, workspace.height - 80));
+        width = Math.min(width, workspace.width - left - 8);
+        height = Math.min(height, workspace.height - top - 8);
+        win.style.left = left + 'px';
+        win.style.top = top + 'px';
+        win.style.width = width + 'px';
+        win.style.height = height + 'px';
     }
 
     function focusWindow(id) {
@@ -385,6 +690,218 @@
         state.windows.delete(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
+    }
+
+    function closeContextMenu() {
+        if (state.contextMenu) {
+            state.contextMenu.remove();
+            state.contextMenu = null;
+        }
+    }
+
+    function showContextMenu(x, y, items) {
+        closeContextMenu();
+        const menu = document.createElement('div');
+        menu.className = 'vd-context-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = items.map((item, index) => item.separator
+            ? '<div class="vd-context-separator" role="separator"></div>'
+            : `<button type="button" class="vd-context-item" role="menuitem" data-index="${index}" ${item.disabled ? 'disabled' : ''}>
+                <span class="vd-context-icon">${esc(item.icon || '')}</span>
+                <span>${esc(item.label)}</span>
+            </button>`).join('');
+        $('vd-workspace').appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        const workspace = $('vd-workspace').getBoundingClientRect();
+        menu.style.left = Math.max(8, Math.min(x - workspace.left, workspace.width - rect.width - 8)) + 'px';
+        menu.style.top = Math.max(8, Math.min(y - workspace.top, workspace.height - rect.height - 8)) + 'px';
+        menu.querySelectorAll('[data-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = items[Number(btn.dataset.index)];
+                closeContextMenu();
+                if (item && item.action) item.action();
+            });
+        });
+        state.contextMenu = menu;
+    }
+
+    function showDesktopContextMenu(event) {
+        if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
+        event.preventDefault();
+        selectDesktopIcon(null);
+        showContextMenu(event.clientX, event.clientY, [
+            { label: t('desktop.context_new_file'), icon: '+', action: () => createFileInPath('Desktop') },
+            { label: t('desktop.context_new_folder'), icon: '▣', action: () => createFolderInPath('Desktop') },
+            { separator: true },
+            { label: t('desktop.context_refresh'), icon: '↻', action: () => loadBootstrap() },
+            { label: t('desktop.context_sort_icons'), icon: '⇄', action: autoArrangeIcons }
+        ]);
+    }
+
+    function showIconContextMenu(event, btn) {
+        event.preventDefault();
+        selectDesktopIcon(btn);
+        const isDirectory = btn.dataset.kind === 'directory';
+        const path = btn.dataset.path || '';
+        const items = [
+            { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) },
+            { label: t('desktop.context_rename'), icon: '✎', disabled: !isDirectory, action: () => renamePath(path) },
+            { label: t('desktop.context_delete'), icon: '×', disabled: !isDirectory, action: () => deletePath(path) },
+            { separator: true },
+            { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
+        ];
+        showContextMenu(event.clientX, event.clientY, items);
+    }
+
+    function showWidgetContextMenu(event, widget) {
+        event.preventDefault();
+        showContextMenu(event.clientX, event.clientY, [
+            { label: t('desktop.context_open'), icon: '↗', action: () => widget.app_id && openApp(widget.app_id) },
+            { label: t('desktop.context_remove_widget'), icon: '×', action: () => deleteWidget(widget.id) }
+        ]);
+    }
+
+    function showWindowContextMenu(event, id) {
+        event.preventDefault();
+        const item = state.windows.get(id);
+        if (!item) return;
+        showContextMenu(event.clientX, event.clientY, [
+            { label: t('desktop.context_restore'), icon: '▣', action: () => focusWindow(id) },
+            { label: t('desktop.context_minimize'), icon: '_', action: () => { item.element.style.display = 'none'; renderTaskbar(); } },
+            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: '□', action: () => toggleMaximizeWindow(id) },
+            { separator: true },
+            { label: t('desktop.context_close'), icon: '×', action: () => closeWindow(id) }
+        ]);
+    }
+
+    function autoArrangeIcons() {
+        const icons = [...document.querySelectorAll('.vd-icon')];
+        icons.forEach((icon, index) => {
+            const pos = defaultIconPosition(index);
+            icon.style.left = pos.x + 'px';
+            icon.style.top = pos.y + 'px';
+            saveIconPosition(icon.dataset.id, pos.x, pos.y);
+        });
+    }
+
+    function pathDir(path) {
+        const parts = String(path || '').split('/').filter(Boolean);
+        parts.pop();
+        return parts.join('/');
+    }
+
+    async function promptDialog(title, value) {
+        return modalDialog({ title, input: true, value: value || '' });
+    }
+
+    async function confirmDialog(title, message) {
+        return modalDialog({ title, message, confirmOnly: true });
+    }
+
+    function modalDialog(options) {
+        closeContextMenu();
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-modal-backdrop';
+        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true">
+            <div class="vd-modal-title">${esc(options.title || '')}</div>
+            ${options.message ? `<div class="vd-modal-copy">${esc(options.message)}</div>` : ''}
+            ${options.input ? `<input class="vd-modal-input" value="${esc(options.value || '')}" autocomplete="off">` : ''}
+            <div class="vd-modal-actions">
+                <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
+                <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>
+            </div>
+        </form>`;
+        document.body.appendChild(overlay);
+        const form = overlay.querySelector('form');
+        const input = overlay.querySelector('input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+        return new Promise(resolve => {
+            const finish = value => {
+                overlay.remove();
+                resolve(value);
+            };
+            overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
+            overlay.addEventListener('click', event => { if (event.target === overlay) finish(options.input ? null : false); });
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                finish(options.input ? input.value.trim() : true);
+            });
+        });
+    }
+
+    async function createFileInPath(basePath) {
+        const name = await promptDialog(t('desktop.new_file'), 'untitled.txt');
+        if (!name) return;
+        openApp('editor', { path: joinPath(basePath, name), content: '' });
+    }
+
+    async function createFolderInPath(basePath) {
+        const name = await promptDialog(t('desktop.new_folder'), 'New Folder');
+        if (!name) return;
+        try {
+            await api('/api/desktop/directory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: joinPath(basePath, name) })
+            });
+            await loadBootstrap();
+            const active = state.windows.get(state.activeWindowId);
+            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function renamePath(path) {
+        if (!path) return;
+        const current = String(path).split('/').pop();
+        const name = await promptDialog(t('desktop.rename'), current);
+        if (!name || name === current) return;
+        try {
+            await api('/api/desktop/file', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_path: path, new_path: joinPath(pathDir(path), name) })
+            });
+            await loadBootstrap();
+            const active = state.windows.get(state.activeWindowId);
+            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function deletePath(path) {
+        if (!path) return;
+        const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+        if (!confirmed) return;
+        try {
+            await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
+            await loadBootstrap();
+            const active = state.windows.get(state.activeWindowId);
+            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function deleteWidget(id) {
+        if (!id) return;
+        const confirmed = await confirmDialog(t('desktop.context_remove_widget'), t('desktop.confirm_delete_msg', { path: id }));
+        if (!confirmed) return;
+        try {
+            await api('/api/desktop/widgets?id=' + encodeURIComponent(id), { method: 'DELETE' });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    function showProperties(title, body) {
+        showDesktopNotification({ title: title || t('desktop.context_properties'), message: body || '' });
     }
 
     function contentEl(id) {
@@ -409,6 +926,7 @@
             <div class="vd-toolbar">
                 <button class="vd-tool-button" type="button" data-action="up">${esc(t('desktop.up'))}</button>
                 <button class="vd-tool-button" type="button" data-action="new-file">${esc(t('desktop.new_file'))}</button>
+                <button class="vd-tool-button" type="button" data-action="new-folder">${esc(t('desktop.new_folder'))}</button>
                 <span class="vd-path">${esc(state.filesPath || t('desktop.workspace_root'))}</span>
             </div>
             <div class="vd-file-list">${esc(t('desktop.loading'))}</div>
@@ -419,6 +937,7 @@
             renderFiles(id, parts.join('/'));
         });
         host.querySelector('[data-action="new-file"]').addEventListener('click', () => openApp('editor', { path: joinPath(state.filesPath, 'untitled.txt'), content: '' }));
+        host.querySelector('[data-action="new-folder"]').addEventListener('click', () => createFolderInPath(state.filesPath));
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
@@ -427,10 +946,25 @@
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
             </div>`).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
-            host.querySelectorAll('.vd-file-row').forEach(row => row.addEventListener('click', () => {
-                if (row.dataset.type === 'directory') renderFiles(id, row.dataset.path);
-                else openEditorFile(row.dataset.path);
-            }));
+            host.querySelectorAll('.vd-file-row').forEach(row => {
+                row.addEventListener('dblclick', () => {
+                    if (row.dataset.type === 'directory') renderFiles(id, row.dataset.path);
+                    else openEditorFile(row.dataset.path);
+                });
+                row.addEventListener('click', () => {
+                    host.querySelectorAll('.vd-file-row').forEach(item => item.classList.toggle('selected', item === row));
+                });
+                row.addEventListener('contextmenu', event => {
+                    event.preventDefault();
+                    showContextMenu(event.clientX, event.clientY, [
+                        { label: t('desktop.context_open'), icon: '↗', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openEditorFile(row.dataset.path) },
+                        { label: t('desktop.context_rename'), icon: '✎', action: () => renamePath(row.dataset.path) },
+                        { label: t('desktop.context_delete'), icon: '×', action: () => deletePath(row.dataset.path) },
+                        { separator: true },
+                        { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, row.dataset.path) }
+                    ]);
+                });
+            });
         } catch (err) {
             host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
         }
@@ -824,15 +1358,62 @@
         const startGlyph = $('vd-start-button').querySelector('.vd-start-glyph');
         if (startGlyph) startGlyph.outerHTML = spriteMarkup('apps', 'A', 'vd-sprite-start', 28);
         document.addEventListener('click', (event) => {
+            if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             const menu = $('vd-start-menu');
             if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
                 menu.hidden = true;
             }
         });
+        $('vd-workspace').addEventListener('contextmenu', showDesktopContextMenu);
+        $('vd-workspace').addEventListener('click', event => {
+            if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
+        });
+        document.addEventListener('keydown', handleDesktopKeydown);
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
         window.addEventListener('message', handleSDKMessage);
+    }
+
+    function handleDesktopKeydown(event) {
+        if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+        if (event.key === 'Escape') {
+            closeContextMenu();
+            $('vd-start-menu').hidden = true;
+            return;
+        }
+        if (event.ctrlKey && event.code === 'Space') {
+            event.preventDefault();
+            $('vd-start-button').click();
+            return;
+        }
+        if (event.key === 'Enter' && state.selectedIconId) {
+            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+            if (icon) activateDesktopItem(icon);
+            return;
+        }
+        if (event.key === 'Delete' && state.selectedIconId) {
+            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+            if (icon && icon.dataset.kind === 'directory') deletePath(icon.dataset.path);
+            return;
+        }
+        if (event.key === 'F2' && state.selectedIconId) {
+            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+            if (icon && icon.dataset.kind === 'directory') renamePath(icon.dataset.path);
+            return;
+        }
+        if (event.altKey && event.key === 'F4') {
+            event.preventDefault();
+            if (state.activeWindowId) closeWindow(state.activeWindowId);
+            return;
+        }
+        if (event.altKey && event.key === 'Tab') {
+            event.preventDefault();
+            const wins = [...state.windows.values()];
+            if (!wins.length) return;
+            const index = wins.findIndex(win => win.id === state.activeWindowId);
+            focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
+        }
     }
 
     async function init() {

@@ -86,6 +86,40 @@ func TestServiceWritesAndReadsFilesInsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestServiceCreateMoveAndDeletePath(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.CreateDirectory(ctx, "Documents/Projects", SourceUser); err != nil {
+		t.Fatalf("CreateDirectory: %v", err)
+	}
+	if err := svc.WriteFile(ctx, "Documents/Projects/note.txt", "hello", SourceUser); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := svc.MovePath(ctx, "Documents/Projects/note.txt", "Documents/Projects/renamed.txt", SourceUser); err != nil {
+		t.Fatalf("MovePath: %v", err)
+	}
+	if _, _, err := svc.ReadFile(ctx, "Documents/Projects/renamed.txt"); err != nil {
+		t.Fatalf("ReadFile renamed path: %v", err)
+	}
+	if err := svc.DeletePath(ctx, "Documents/Projects", SourceUser); err != nil {
+		t.Fatalf("DeletePath: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, "Documents", "Projects")); !os.IsNotExist(err) {
+		t.Fatalf("Projects directory still exists or unexpected stat error: %v", err)
+	}
+}
+
+func TestServiceRejectsDeletingWorkspaceRoot(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	if err := svc.DeletePath(context.Background(), ".", SourceUser); err == nil {
+		t.Fatal("expected deleting workspace root to be rejected")
+	}
+}
+
 func TestServiceRejectsEmptyStandaloneWidgetHTML(t *testing.T) {
 	t.Parallel()
 

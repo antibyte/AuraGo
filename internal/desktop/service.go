@@ -409,6 +409,76 @@ func (s *Service) WriteFile(ctx context.Context, rawPath, content, source string
 	return nil
 }
 
+// CreateDirectory creates a workspace directory and any missing parents.
+func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	path, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return fmt.Errorf("create desktop directory: %w", err)
+	}
+	_ = s.Audit(ctx, "create_directory", s.relativePath(path), map[string]interface{}{}, source)
+	return nil
+}
+
+// MovePath renames or moves a workspace file or directory.
+func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	from, err := s.ResolvePath(oldPath)
+	if err != nil {
+		return err
+	}
+	to, err := s.ResolvePath(newPath)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(from, to) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fmt.Errorf("create desktop destination directory: %w", err)
+	}
+	if err := os.Rename(from, to); err != nil {
+		return fmt.Errorf("move desktop path: %w", err)
+	}
+	_ = s.Audit(ctx, "move_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
+	return nil
+}
+
+// DeletePath removes a workspace file or directory tree.
+func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	path, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return err
+	}
+	if path == s.Config().WorkspaceDir {
+		return fmt.Errorf("cannot delete desktop workspace root")
+	}
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("delete desktop path: %w", err)
+	}
+	_ = s.Audit(ctx, "delete_path", s.relativePath(path), map[string]interface{}{}, source)
+	return nil
+}
+
 // InstallApp stores a generated app manifest and writes its files under Apps/<id>.
 func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files map[string]string, source string) error {
 	if err := s.ensureReady(ctx); err != nil {
@@ -565,6 +635,28 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 		return fmt.Errorf("save desktop widget: %w", err)
 	}
 	_ = s.Audit(ctx, "upsert_widget", widget.ID, widget, source)
+	return nil
+}
+
+// DeleteWidget removes one desktop widget registration.
+func (s *Service) DeleteWidget(ctx context.Context, id, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	if !desktopIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid desktop widget id")
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	if _, err := db.ExecContext(ctx, `DELETE FROM desktop_widgets WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete desktop widget: %w", err)
+	}
+	_ = s.Audit(ctx, "delete_widget", id, map[string]interface{}{}, source)
 	return nil
 }
 
