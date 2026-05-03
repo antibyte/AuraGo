@@ -239,6 +239,12 @@
     height: 26px;
 }
 
+.vd-papirus-icon {
+    background-image: var(--vd-papirus-url);
+    background-position: center;
+    background-size: contain;
+}
+
 .vd-icon-letter,
 .vd-start-glyph {
     display: grid;

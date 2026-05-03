@@ -7,6 +7,7 @@
     const VERSION = '1.0.0';
     let requestSeq = 0;
     let contextPromise = null;
+    let iconContextPromise = null;
     let iconManifestPromise = null;
     const pending = new Map();
 
@@ -77,14 +78,67 @@
 
     function loadIcons() {
         if (!iconManifestPromise) {
-            iconManifestPromise = context()
-                .then(ctx => ctx && ctx.icon_manifest ? ctx.icon_manifest : null)
+            iconManifestPromise = loadIconContext()
+                .then(ctx => ctx.sprite || null)
                 .catch(() => null);
         }
         return iconManifestPromise;
     }
 
-    function applyIcon(span, manifest, name, size) {
+    function loadIconContext() {
+        if (!iconContextPromise) {
+            iconContextPromise = context()
+                .then(ctx => ({
+                    sprite: ctx && ctx.icon_manifest ? ctx.icon_manifest : null,
+                    papirus: ctx && ctx.papirus_icon_manifest ? ctx.papirus_icon_manifest : null
+                }))
+                .catch(() => ({ sprite: null, papirus: null }));
+        }
+        return iconContextPromise;
+    }
+
+    function normalizeIconName(name) {
+        return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
+    }
+
+    function papirusIconPath(manifest, name) {
+        if (!manifest || !manifest.icons) return '';
+        let normalized = normalizeIconName(name);
+        if (!normalized || normalized.startsWith('sprite:')) return '';
+        if (normalized.startsWith('papirus:')) normalized = normalized.slice('papirus:'.length);
+        const aliases = manifest.aliases || {};
+        const candidates = [
+            normalized,
+            aliases[normalized],
+            normalized.replaceAll('_', '-'),
+            aliases[normalized.replaceAll('_', '-')]
+        ].filter(Boolean);
+        for (const candidate of candidates) {
+            if (manifest.icons[candidate]) return '/' + String(manifest.icons[candidate]).replace(/^\/+/, '');
+        }
+        return '';
+    }
+
+    function spriteIconName(name) {
+        const normalized = normalizeIconName(name);
+        return normalized.startsWith('sprite:') ? normalized.slice('sprite:'.length) : normalized;
+    }
+
+    function resolveIconSource(name, iconContext) {
+        iconContext = iconContext || {};
+        const normalized = normalizeIconName(name);
+        if (!normalized) return { type: 'fallback' };
+        if (!normalized.startsWith('sprite:')) {
+            const path = papirusIconPath(iconContext.papirus, normalized);
+            if (path) return { type: 'papirus', path };
+        }
+        const spriteName = spriteIconName(normalized);
+        const manifest = iconContext.sprite;
+        const exists = manifest && Array.isArray(manifest.icons) && manifest.icons.some(item => item.name === spriteName);
+        return exists ? { type: 'sprite', name: spriteName } : { type: 'fallback' };
+    }
+
+    function applySpriteIcon(span, manifest, name, size) {
         if (!manifest || !Array.isArray(manifest.icons)) {
             span.textContent = String(name || 'app').slice(0, 2).toUpperCase();
             span.classList.add('ad-icon-fallback');
@@ -103,18 +157,36 @@
         span.style.backgroundPosition = `${Math.round(-icon.x * scale)}px ${Math.round(-icon.y * scale)}px`;
     }
 
-    function spriteIcon(name, options) {
+    function applyResolvedIcon(span, iconContext, name, size) {
+        const source = resolveIconSource(name, iconContext);
+        if (source.type === 'papirus') {
+            span.style.backgroundImage = `url('${source.path}')`;
+            span.classList.add('ad-papirus-icon');
+            return;
+        }
+        applySpriteIcon(span, iconContext && iconContext.sprite, source.name || name, size);
+    }
+
+    function desktopIcon(name, options) {
         const size = Number((options && options.size) || 22);
         const span = el('span', {
             className: 'ad-icon',
             'aria-hidden': 'true',
             style: { width: size + 'px', height: size + 'px' }
         });
-        loadIcons().then(manifest => applyIcon(span, manifest, name, size));
+        loadIconContext().then(iconContext => applyResolvedIcon(span, iconContext, name, size));
         return span;
     }
 
+    function spriteIcon(name, options) {
+        return desktopIcon('sprite:' + name, options);
+    }
+
     const ui = {};
+
+    ui.icon = function icon(name, options) {
+        return desktopIcon(name, options);
+    };
 
     ui.button = function button(options) {
         options = options || {};
@@ -125,7 +197,7 @@
             title: options.title || options.label || '',
             onclick: options.onClick
         }, [
-            options.icon ? spriteIcon(options.icon, { size: options.iconSize || 20 }) : null,
+            options.icon ? ui.icon(options.icon, { size: options.iconSize || 20 }) : null,
             options.label ? el('span', { className: 'ad-button-label', text: options.label }) : null
         ]);
         return buttonEl;
@@ -142,7 +214,7 @@
     ui.card = function card(options) {
         options = options || {};
         return el('article', { className: 'ad-card' }, [
-            options.icon ? spriteIcon(options.icon, { size: 28 }) : null,
+            options.icon ? ui.icon(options.icon, { size: 28 }) : null,
             el('div', { className: 'ad-card-content' }, [
                 options.title ? el('h3', { text: options.title }) : null,
                 options.body ? el('p', { text: options.body }) : null,
@@ -154,7 +226,7 @@
     ui.emptyState = function emptyState(options) {
         options = options || {};
         return el('div', { className: 'ad-empty' }, [
-            options.icon ? spriteIcon(options.icon, { size: 34 }) : null,
+            options.icon ? ui.icon(options.icon, { size: 34 }) : null,
             options.title ? el('strong', { text: options.title }) : null,
             options.body ? el('span', { text: options.body }) : null
         ]);
@@ -295,7 +367,9 @@
         notifications,
         desktop,
         icons: {
+            resolve: name => loadIconContext().then(iconContext => resolveIconSource(name, iconContext)),
             sprite: spriteIcon,
+            icon: desktopIcon,
             load: loadIcons
         }
     };

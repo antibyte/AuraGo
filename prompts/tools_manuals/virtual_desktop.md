@@ -24,19 +24,19 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
     "id": "quick-notes",
     "name": "Quick Notes",
     "version": "1.0.0",
-    "icon": "note",
+    "icon": "notes",
     "entry": "index.html",
     "runtime": "aura-desktop-sdk@1",
     "description": "A compact notes app."
   },
   "files": {
     "index.html": "<link rel=\"stylesheet\" href=\"/css/desktop-sdk.css\"><main id=\"app\"></main><script src=\"/js/desktop/aura-desktop-sdk.js\"></script><script src=\"app.js\"></script>",
-    "app.js": "const app = AuraDesktop.app({ title: 'Quick Notes' }); app.mount(AuraDesktop.ui.panel([AuraDesktop.ui.emptyState({ icon: 'note', title: 'Ready' })]));"
+    "app.js": "const app = AuraDesktop.app({ title: 'Quick Notes' }); app.mount(AuraDesktop.ui.panel([AuraDesktop.ui.emptyState({ icon: 'notes', title: 'Ready' })]));"
   }
 }
 ```
 
-Every generated app must have a non-empty `icon`. Use a name from the desktop sprite sheet when possible, for example `note`, `calendar`, `terminal`, `database`, `image`, `settings`, `folder`, or `sparkles`.
+Every generated app must have a non-empty `icon`. Prefer AuraGo's semantic Papirus icon names: `apps`, `archive`, `audio`, `browser`, `calendar`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `go`, `html`, `image`, `javascript`, `json`, `markdown`, `network`, `notes`, `pdf`, `python`, `settings`, `spreadsheet`, `terminal`, `text`, `trash`, `video`, `weather`, `xml`, or `yaml`. The desktop and SDK resolve these to Papirus SVGs and fall back to the built-in sprite sheet when needed. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
 The app `entry` file must exist in `files` and must contain real HTML. Do not install placeholder or empty entry files.
 
 Generated browser apps should use the first-party Aura Desktop SDK:
@@ -44,7 +44,7 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 - Add `/css/desktop-sdk.css` and `/js/desktop/aura-desktop-sdk.js` to the app entry HTML.
 - Set `manifest.runtime` to `aura-desktop-sdk@1` or omit it to use that default.
 - Request only the permissions the app needs, for example `files:read`, `files:write`, `widgets:write`, `notifications`, or `apps:open`.
-- Build controls with `AuraDesktop.ui` (`button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `toggle`, `emptyState`) instead of custom per-app styling.
+- Build controls with `AuraDesktop.ui` (`icon`, `button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `toggle`, `emptyState`) instead of custom per-app styling. Pass semantic icon names to `icon`, `button`, `card`, and `emptyState`; do not use emoji as app or tool icons.
 - Use `AuraDesktop.fs`, `AuraDesktop.widgets.register`, `AuraDesktop.notifications.show`, and `AuraDesktop.desktop.openApp` for desktop actions. The SDK talks to the desktop shell through a safe iframe bridge.
 
 ## Widget Registration
@@ -61,7 +61,7 @@ For widgets owned by a generated app, register them with `upsert_widget`. An app
     "app_id": "quick-notes",
     "type": "summary",
     "title": "Quick Notes",
-    "icon": "note",
+    "icon": "notes",
     "entry": "widget.html",
     "runtime": "aura-desktop-sdk@1",
     "permissions": ["notifications"],

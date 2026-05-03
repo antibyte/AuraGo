@@ -9,6 +9,7 @@
         chatBusy: false,
         startQuery: '',
         iconManifest: null,
+        papirusIconManifest: null,
         iconMap: new Map(),
         selectedIconId: '',
         contextMenu: null
@@ -126,23 +127,57 @@
     }
 
     async function loadIconManifest() {
-        try {
-            const manifest = await api('/img/desktop-icons-sprite.json');
-            state.iconManifest = manifest;
-            state.iconMap = new Map((manifest.icons || []).map(icon => [icon.name, icon]));
-        } catch (_) {
-            state.iconManifest = null;
-            state.iconMap = new Map();
-        }
+        const [spriteManifest, papirusIconManifest] = await Promise.all([
+            api('/img/desktop-icons-sprite.json').catch(() => null),
+            api('/img/papirus/manifest.json').catch(() => null)
+        ]);
+        state.iconManifest = spriteManifest;
+        state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
+        state.papirusIconManifest = papirusIconManifest;
     }
 
     function iconExists(key) {
         return key && state.iconMap.has(key);
     }
 
+    function normalizeIconName(name) {
+        return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
+    }
+
+    function papirusIconPath(key) {
+        const manifest = state.papirusIconManifest;
+        if (!manifest || !manifest.icons) return '';
+        let normalized = normalizeIconName(key);
+        if (!normalized || normalized.startsWith('sprite:')) return '';
+        if (normalized.startsWith('papirus:')) normalized = normalized.slice('papirus:'.length);
+        const aliases = manifest.aliases || {};
+        const candidates = [
+            normalized,
+            aliases[normalized],
+            normalized.replaceAll('_', '-'),
+            aliases[normalized.replaceAll('_', '-')]
+        ].filter(Boolean);
+        for (const candidate of candidates) {
+            if (manifest.icons[candidate]) return '/' + String(manifest.icons[candidate]).replace(/^\/+/, '');
+        }
+        return '';
+    }
+
+    function resolveIconSource(key) {
+        const normalized = normalizeIconName(key);
+        if (!normalized) return { type: 'fallback' };
+        if (!normalized.startsWith('sprite:')) {
+            const papirusPath = papirusIconPath(normalized);
+            if (papirusPath) return { type: 'papirus', path: papirusPath };
+        }
+        const spriteKey = normalized.startsWith('sprite:') ? normalized.slice('sprite:'.length) : normalized;
+        return iconExists(spriteKey) ? { type: 'sprite', key: spriteKey } : { type: 'fallback' };
+    }
+
     function spriteMarkup(key, fallback, className, size) {
         const manifest = state.iconManifest;
-        const icon = iconExists(key) ? state.iconMap.get(key) : null;
+        const spriteKey = normalizeIconName(key).replace(/^sprite:/, '');
+        const icon = iconExists(spriteKey) ? state.iconMap.get(spriteKey) : null;
         if (!manifest || !icon) {
             return `<span class="${esc(className)} vd-icon-letter">${esc(String(fallback || 'D').slice(0, 2).toUpperCase())}</span>`;
         }
@@ -152,6 +187,15 @@
         const x = Math.round(-(icon.x || 0) * scale * 1000) / 1000;
         const y = Math.round(-(icon.y || 0) * scale * 1000) / 1000;
         return `<span class="${esc(className)}" aria-hidden="true" style="--vd-sprite-x:${x}px;--vd-sprite-y:${y}px;--vd-sprite-sheet:${sheetW}px ${sheetH}px"></span>`;
+    }
+
+    function iconMarkup(key, fallback, className, size) {
+        const source = resolveIconSource(key);
+        if (source.type === 'papirus') {
+            const pixels = Number(size || 42) || 42;
+            return `<span class="${esc(className)} vd-papirus-icon" aria-hidden="true" style="--vd-papirus-url:url(${esc(source.path)});width:${pixels}px;height:${pixels}px"></span>`;
+        }
+        return spriteMarkup(source.key || key, fallback, className, size);
     }
 
     function iconForApp(app) {
@@ -314,7 +358,7 @@
             const fallback = item.type === 'directory' ? item.name : iconGlyph(item.app);
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
             return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-path="${esc(item.path || '')}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
-                ${spriteMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
+                ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
         }).join('');
@@ -389,7 +433,7 @@
         const systemBounds = defaultWidgetBounds(0);
         cards.push(`<article class="vd-widget vd-widget-system" style="left:${systemBounds.x}px;top:${systemBounds.y}px;width:${systemBounds.w}px;height:${systemBounds.h}px">
             <div class="vd-widget-head">
-                ${spriteMarkup('desktop', 'S', 'vd-sprite-file', 26)}
+                ${iconMarkup('desktop', 'S', 'vd-sprite-file', 26)}
                 <div>
                     <div class="vd-widget-title">${esc(t('desktop.widget_system'))}</div>
                     <div class="vd-widget-body">${esc(summary)}</div>
@@ -405,7 +449,7 @@
                 : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
             cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${bounds.h}px">
                 <div class="vd-widget-head">
-                    ${spriteMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 26)}
+                    ${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 26)}
                     <div class="vd-widget-text">
                         <div class="vd-widget-title">${esc(widget.title || widget.id)}</div>
                         ${widget.entry ? `<div class="vd-widget-kind">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>` : ''}
@@ -527,7 +571,7 @@
         const query = state.startQuery.trim().toLowerCase();
         const apps = allApps().filter(app => !query || appName(app).toLowerCase().includes(query));
         $('vd-start-apps').innerHTML = apps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
-            ${spriteMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
+            ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}</span>
         </button>`).join('');
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
@@ -1004,7 +1048,7 @@
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}">
-                ${spriteMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
+                ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
             </div>`).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
@@ -1419,7 +1463,8 @@
                     app: client.app,
                     widget: client.widget || null,
                     bootstrap: sdkBootstrap(),
-                    icon_manifest: state.iconManifest
+                    icon_manifest: state.iconManifest,
+                    papirus_icon_manifest: state.papirusIconManifest
                 };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
@@ -1550,7 +1595,7 @@
             renderStartApps();
         });
         const startGlyph = $('vd-start-button').querySelector('.vd-start-glyph');
-        if (startGlyph) startGlyph.outerHTML = spriteMarkup('apps', 'A', 'vd-sprite-start', 28);
+        if (startGlyph) startGlyph.outerHTML = iconMarkup('apps', 'A', 'vd-sprite-start', 28);
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             const menu = $('vd-start-menu');
