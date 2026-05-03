@@ -13,8 +13,8 @@
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v=20260430a">
     <link rel="stylesheet" href="/shared-animations.css">
-    <link rel="stylesheet" href="/css/desktop.css?v=4">
-    <link rel="stylesheet" href="/css/code-studio.css?v=1">
+    <link rel="stylesheet" href="/css/desktop.css?v=5">
+    <link rel="stylesheet" href="/css/code-studio.css?v=2">
     <link rel="stylesheet" href="/css/xterm.css">
     <link rel="stylesheet" href="/css/hljs-github-dark.min.css">
     <script src="/shared.js?v=15"></script>
@@ -26,22 +26,7 @@
 </head>
 
 <body class="desktop-body">
-    <div id="radialMenuAnchor"></div>
     <main id="desktop-root" class="vd-shell" aria-live="polite">
-        <section class="vd-topbar">
-            <div class="vd-brand">
-                <div class="vd-brand-mark">AG</div>
-                <div>
-                    <div class="vd-brand-title">AuraGo</div>
-                    <div class="vd-brand-subtitle" data-i18n="desktop.subtitle"></div>
-                </div>
-            </div>
-            <div class="vd-status-strip">
-                <span id="vd-ws-state" class="vd-status-dot" data-state="offline"></span>
-                <span id="vd-clock" class="vd-clock"></span>
-            </div>
-        </section>
-
         <section class="vd-workspace" id="vd-workspace">
             <div class="vd-icons" id="vd-icons"></div>
             <div class="vd-widgets" id="vd-widgets"></div>
@@ -61,10 +46,15 @@
                 <span data-i18n="desktop.start_menu"></span>
             </button>
             <div class="vd-taskbar-apps" id="vd-taskbar-apps"></div>
-            <button class="vd-agent-button" id="vd-agent-button" type="button" data-i18n-title="desktop.agent_chat">
-                <span class="vd-agent-dot"></span>
-                <span data-i18n="desktop.agent_chat"></span>
-            </button>
+            <div class="vd-taskbar-system">
+                <span id="vd-ws-state" class="vd-status-dot" data-state="offline"></span>
+                <span id="vd-clock" class="vd-clock"></span>
+                <div id="radialMenuAnchor" class="vd-radial-anchor"></div>
+                <button class="vd-agent-button" id="vd-agent-button" type="button" data-i18n-title="desktop.agent_chat">
+                    <span class="vd-agent-dot"></span>
+                    <span data-i18n="desktop.agent_chat"></span>
+                </button>
+            </div>
         </section>
 
         <aside class="vd-start-menu" id="vd-start-menu" hidden>
@@ -79,7 +69,7 @@
     <script src="/js/vendor/xterm-addon-fit.min.js"></script>
     <script src="/js/vendor/highlight.min.js"></script>
     <script src="/js/desktop/apps/code-studio.js?v=1"></script>
-    <script src="/js/desktop/main.js?v=6"></script>
+    <script src="/js/desktop/main.js?v=7"></script>
 </body>
 
 </html>

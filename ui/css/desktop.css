@@ -96,7 +96,7 @@
 }
 
 .desktop-body[data-density="compact"] .vd-shell {
-    grid-template-rows: 48px 1fr 48px;
+    grid-template-rows: 1fr 48px;
 }
 
 .desktop-body[data-widgets="false"] .vd-widgets {
@@ -116,7 +116,7 @@
     height: 100vh;
     min-height: 560px;
     display: grid;
-    grid-template-rows: 58px 1fr 54px;
+    grid-template-rows: 1fr 54px;
 }
 
 .vd-topbar,
@@ -138,6 +138,18 @@
 
 .vd-taskbar {
     border-top: 1px solid var(--vd-border);
+}
+
+.vd-taskbar-apps {
+    flex: 1;
+    min-width: 0;
+}
+
+.vd-taskbar-system {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
 }
 
 .vd-brand {
@@ -176,6 +188,33 @@
     align-items: center;
     gap: 8px;
     padding-right: 56px;
+}
+
+.vd-radial-anchor {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+}
+
+.desktop-body .radial-menu {
+    position: static;
+    inset: auto;
+    width: 32px;
+    height: 32px;
+}
+
+.desktop-body .radial-items {
+    top: auto;
+    right: 0;
+    bottom: 0;
+}
+
+.desktop-body .radial-item {
+    top: auto !important;
+    bottom: calc(var(--radial-index, 1) * 40px);
+    transform: scale(0.3) translate(10px, 10px);
+    transform-origin: right bottom;
 }
 
 .vd-status-dot {
@@ -400,7 +439,10 @@
 }
 
 .vd-window.maximized {
-    border-radius: 8px;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0;
 }
 
 .vd-window.active {
@@ -1598,15 +1640,7 @@
 
 @media (max-width: 820px) {
     .vd-shell {
-        grid-template-rows: 54px 1fr 58px;
-    }
-
-    .vd-status-strip {
-        padding-right: 48px;
-    }
-
-    .vd-brand-subtitle {
-        display: none;
+        grid-template-rows: 1fr 58px;
     }
 
     .vd-icons {
@@ -1618,10 +1652,10 @@
     }
 
     .vd-window {
-        left: 8px !important;
-        top: 8px !important;
-        width: calc(100vw - 16px) !important;
-        height: calc(100vh - 136px) !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100vw !important;
+        height: calc(100vh - 58px) !important;
     }
 
     .vd-agent-button span:last-child,

@@ -140,12 +140,14 @@
 .code-studio-body {
     display: grid;
     grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr);
+    width: 100%;
     min-height: 0;
     flex: 1;
+    overflow: hidden;
 }
 
 .code-studio[data-agent="visible"] .code-studio-body {
-    grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr) 320px;
+    grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr) minmax(320px, 360px);
 }
 
 .code-studio[data-sidebar="hidden"] .code-studio-body {
@@ -153,7 +155,7 @@
 }
 
 .code-studio[data-sidebar="hidden"][data-agent="visible"] .code-studio-body {
-    grid-template-columns: 0 minmax(0, 1fr) 320px;
+    grid-template-columns: 0 minmax(0, 1fr) minmax(320px, 360px);
 }
 
 .code-studio-sidebar {
@@ -172,18 +174,25 @@
 }
 
 .code-studio-main {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-rows: 36px minmax(0, 1fr) var(--cs-terminal-height);
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
 }
 
 .code-studio-chat {
+    position: relative;
+    z-index: 2;
     display: none;
-    min-width: 0;
+    min-width: 320px;
     min-height: 0;
+    overflow: hidden;
     border-left: 1px solid var(--cs-border);
     background: var(--cs-panel);
+    box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22);
 }
 
 .code-studio[data-agent="visible"] .code-studio-chat {
@@ -710,6 +719,10 @@
 
     .code-studio[data-agent="visible"] .code-studio-main {
         display: none;
+    }
+
+    .code-studio[data-agent="visible"] .code-studio-chat {
+        min-width: 0;
     }
 
     .cs-textarea-wrap {

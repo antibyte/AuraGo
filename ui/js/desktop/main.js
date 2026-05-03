@@ -763,10 +763,10 @@
             item.restoreBounds = windowBounds(win);
             const bounds = workspaceBoundsForWindow();
             win.classList.add('maximized');
-            win.style.left = '8px';
-            win.style.top = '8px';
-            win.style.width = Math.max(WINDOW_MIN_W, bounds.width - 16) + 'px';
-            win.style.height = Math.max(WINDOW_MIN_H, bounds.height - 16) + 'px';
+            win.style.left = '0';
+            win.style.top = '0';
+            win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
+            win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
             item.maximized = true;
         }
         focusWindow(id);
