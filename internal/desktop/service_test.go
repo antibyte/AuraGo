@@ -136,6 +136,50 @@ func TestServiceBootstrapIncludesCodeStudioApp(t *testing.T) {
 	}
 }
 
+func TestServiceBootstrapIncludesOfficeApps(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	got := map[string]AppManifest{}
+	for _, app := range bootstrap.BuiltinApps {
+		got[app.ID] = app
+	}
+	if got["writer"].Icon != "documents" || got["writer"].Entry != "builtin://writer" {
+		t.Fatalf("writer app = %+v", got["writer"])
+	}
+	if got["sheets"].Icon != "spreadsheet" || got["sheets"].Entry != "builtin://sheets" {
+		t.Fatalf("sheets app = %+v", got["sheets"])
+	}
+}
+
+func TestServiceBinaryFileRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	want := []byte{0x50, 0x4b, 0x03, 0x04, 0x00, 0xff, 0x10, 0x80, 0x00, 0x01}
+	if err := svc.WriteFileBytes(ctx, "Documents/book.xlsx", want, SourceUser); err != nil {
+		t.Fatalf("WriteFileBytes: %v", err)
+	}
+	got, entry, err := svc.ReadFileBytes(ctx, "Documents/book.xlsx")
+	if err != nil {
+		t.Fatalf("ReadFileBytes: %v", err)
+	}
+	if entry.Name != "book.xlsx" || entry.Path != "Documents/book.xlsx" {
+		t.Fatalf("entry = %+v", entry)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("bytes = %v, want %v", got, want)
+	}
+	if _, _, err := svc.ReadFile(ctx, "Documents/book.xlsx"); err == nil {
+		t.Fatal("ReadFile should reject binary office files; use ReadFileBytes")
+	}
+}
+
 func TestServiceBootstrapDefaultDesktopShortcuts(t *testing.T) {
 	t.Parallel()
 

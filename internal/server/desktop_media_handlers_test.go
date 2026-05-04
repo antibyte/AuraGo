@@ -3,7 +3,9 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -195,6 +197,53 @@ func TestDesktopPreviewRejectsNonImages(t *testing.T) {
 	handleDesktopPreview(srv)(rr, req)
 	if rr.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestDesktopUploadAndDownloadPreserveBinaryOfficeBytes(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	payload := []byte{0x50, 0x4b, 0x03, 0x04, 0x00, 0xff, 0x10, 0x80, 0x00, 0x01}
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err := writer.WriteField("path", "Documents"); err != nil {
+		t.Fatalf("write path field: %v", err)
+	}
+	part, err := writer.CreateFormFile("file", "book.xlsx")
+	if err != nil {
+		t.Fatalf("create file part: %v", err)
+	}
+	if _, err := part.Write(payload); err != nil {
+		t.Fatalf("write file part: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handleDesktopUpload(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("upload status = %d body = %s", rr.Code, rr.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/download?path=Documents/book.xlsx", nil)
+	rr = httptest.NewRecorder()
+	handleDesktopDownload(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("download status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	got, err := io.ReadAll(rr.Body)
+	if err != nil {
+		t.Fatalf("read download: %v", err)
+	}
+	if !bytes.Equal(got, payload) {
+		t.Fatalf("download bytes = %v, want %v", got, payload)
+	}
+	if got := rr.Header().Get("Content-Disposition"); !strings.Contains(got, "attachment") || !strings.Contains(got, "book.xlsx") {
+		t.Fatalf("content disposition = %q", got)
 	}
 }
 

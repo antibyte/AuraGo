@@ -140,6 +140,118 @@ func TestExecuteVirtualDesktopStatusExposesIconCatalog(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopOfficeDocumentOperations(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_document",
+		"path":      "Documents/notes.docx",
+		"title":     "Notes",
+		"content":   "Hello Writer\nFrom the agent",
+	})
+	var writePayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &writePayload); err != nil {
+		t.Fatalf("decode write_document: %v output=%s", err, write.Output)
+	}
+	if writePayload.Status != "ok" {
+		t.Fatalf("write_document = %s", write.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_document",
+		"path":      "Documents/notes.docx",
+	})
+	var readPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Document struct {
+				Text string `json:"text"`
+			} `json:"document"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(read.Output), &readPayload); err != nil {
+		t.Fatalf("decode read_document: %v output=%s", err, read.Output)
+	}
+	if readPayload.Status != "ok" || readPayload.Data.Document.Text != "Hello Writer\nFrom the agent" {
+		t.Fatalf("read_document payload = %+v", readPayload)
+	}
+}
+
+func TestExecuteVirtualDesktopWorkbookOperations(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	workbook := map[string]interface{}{
+		"sheets": []interface{}{
+			map[string]interface{}{
+				"name": "Budget",
+				"rows": []interface{}{
+					[]interface{}{map[string]interface{}{"value": "Item"}, map[string]interface{}{"value": "Amount"}},
+					[]interface{}{map[string]interface{}{"value": "Coffee"}, map[string]interface{}{"value": "12.50"}},
+				},
+			},
+		},
+	}
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_workbook",
+		"path":      "Documents/budget.xlsx",
+		"workbook":  workbook,
+	})
+	var statusPayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &statusPayload); err != nil {
+		t.Fatalf("decode write_workbook: %v output=%s", err, write.Output)
+	}
+	if statusPayload.Status != "ok" {
+		t.Fatalf("write_workbook = %s", write.Output)
+	}
+
+	set := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "set_cell",
+		"path":      "Documents/budget.xlsx",
+		"sheet":     "Budget",
+		"cell":      "B3",
+		"formula":   "SUM(B2:B2)",
+	})
+	statusPayload = struct {
+		Status string `json:"status"`
+	}{}
+	if err := json.Unmarshal([]byte(set.Output), &statusPayload); err != nil {
+		t.Fatalf("decode set_cell: %v output=%s", err, set.Output)
+	}
+	if statusPayload.Status != "ok" {
+		t.Fatalf("set_cell = %s", set.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_workbook",
+		"path":      "Documents/budget.xlsx",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Workbook struct {
+				Sheets []struct {
+					Rows [][]struct {
+						Value   string `json:"value"`
+						Formula string `json:"formula"`
+					} `json:"rows"`
+				} `json:"sheets"`
+			} `json:"workbook"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(read.Output), &payload); err != nil {
+		t.Fatalf("decode read_workbook: %v output=%s", err, read.Output)
+	}
+	if payload.Status != "ok" || payload.Data.Workbook.Sheets[0].Rows[2][1].Formula != "SUM(B2:B2)" {
+		t.Fatalf("read_workbook payload = %+v", payload)
+	}
+}
+
 func TestExecuteVirtualDesktopInstallAppNormalizesIconAlias(t *testing.T) {
 	t.Parallel()
 

@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/office"
 )
 
 type VirtualDesktopExecution struct {
@@ -87,6 +88,134 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
 		return virtualDesktopJSON("ok", "desktop file written", map[string]interface{}{"path": path}, event)
+	case "read_document":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		data, entry, err := svc.ReadFileBytes(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		doc, err := office.DecodeDocument(entry.Name, data)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		doc.Path = entry.Path
+		return virtualDesktopJSON("ok", "desktop document read", map[string]interface{}{"entry": entry, "document": doc}, nil)
+	case "write_document":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		doc, err := virtualDesktopDocument(args)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if doc.Title == "" {
+			doc.Title = virtualDesktopString(args, "title", "name")
+		}
+		if doc.Path == "" {
+			doc.Path = path
+		}
+		data, _, err := office.EncodeDocument(path, doc)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if err := svc.WriteFileBytes(ctx, path, data, desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
+		return virtualDesktopJSON("ok", "desktop document written", map[string]interface{}{"path": path, "document": doc}, event)
+	case "read_workbook":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		data, entry, err := svc.ReadFileBytes(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		workbook, err := office.DecodeWorkbook(entry.Name, data)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		workbook.Path = entry.Path
+		return virtualDesktopJSON("ok", "desktop workbook read", map[string]interface{}{"entry": entry, "workbook": workbook}, nil)
+	case "write_workbook":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		workbook, err := virtualDesktopWorkbook(args)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		workbook.Path = path
+		data, err := virtualDesktopEncodeWorkbookForPath(path, workbook)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if err := svc.WriteFileBytes(ctx, path, data, desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
+		return virtualDesktopJSON("ok", "desktop workbook written", map[string]interface{}{"path": path, "workbook": workbook}, event)
+	case "set_cell":
+		path := virtualDesktopString(args, "path", "file_path")
+		cellRef := virtualDesktopString(args, "cell", "cell_ref", "address")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		if strings.TrimSpace(cellRef) == "" {
+			return virtualDesktopJSON("error", "cell is required", nil, nil)
+		}
+		workbook := office.Workbook{Path: path}
+		if data, entry, err := svc.ReadFileBytes(ctx, path); err == nil {
+			workbook, err = office.DecodeWorkbook(entry.Name, data)
+			if err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+		}
+		cell := office.Cell{
+			Value:   virtualDesktopString(args, "value", "content"),
+			Formula: virtualDesktopString(args, "formula"),
+		}
+		if err := office.SetCell(&workbook, virtualDesktopString(args, "sheet", "sheet_name"), cellRef, cell); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		data, err := virtualDesktopEncodeWorkbookForPath(path, workbook)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if err := svc.WriteFileBytes(ctx, path, data, desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path, "cell": cellRef})
+		return virtualDesktopJSON("ok", "desktop workbook cell updated", map[string]interface{}{"path": path, "workbook": workbook}, event)
+	case "export_file":
+		path := virtualDesktopString(args, "path", "file_path", "source_path")
+		outputPath := virtualDesktopString(args, "output_path", "target_path")
+		format := strings.ToLower(strings.TrimPrefix(virtualDesktopString(args, "format"), "."))
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		if strings.TrimSpace(outputPath) == "" {
+			return virtualDesktopJSON("error", "output_path is required", nil, nil)
+		}
+		data, entry, err := svc.ReadFileBytes(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		exported, err := virtualDesktopExportOffice(entry.Name, data, outputPath, format)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if err := svc.WriteFileBytes(ctx, outputPath, exported, desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path, "output_path": outputPath})
+		return virtualDesktopJSON("ok", "desktop office file exported", map[string]interface{}{"path": path, "output_path": outputPath}, event)
 	case "install_app":
 		manifest, err := virtualDesktopManifest(args)
 		if err != nil {
@@ -235,6 +364,87 @@ func virtualDesktopWidget(args map[string]interface{}) (desktop.Widget, error) {
 		widget.Runtime = virtualDesktopString(args, "runtime")
 	}
 	return widget, nil
+}
+
+func virtualDesktopDocument(args map[string]interface{}) (office.Document, error) {
+	var doc office.Document
+	if raw, ok := args["document"]; ok {
+		if err := mapToStruct(raw, &doc); err != nil {
+			return doc, fmt.Errorf("invalid document: %w", err)
+		}
+	}
+	if doc.Text == "" {
+		doc.Text = virtualDesktopString(args, "content", "text")
+	}
+	if doc.HTML == "" {
+		doc.HTML = virtualDesktopString(args, "html")
+	}
+	if doc.Title == "" {
+		doc.Title = virtualDesktopString(args, "title", "name")
+	}
+	if doc.Path == "" {
+		doc.Path = virtualDesktopString(args, "path", "file_path")
+	}
+	return doc, nil
+}
+
+func virtualDesktopWorkbook(args map[string]interface{}) (office.Workbook, error) {
+	if raw, ok := args["workbook"]; ok {
+		return office.MarshalWorkbook(raw)
+	}
+	sheet := virtualDesktopString(args, "sheet", "sheet_name")
+	if sheet == "" {
+		sheet = "Sheet1"
+	}
+	workbook := office.Workbook{
+		Path: virtualDesktopString(args, "path", "file_path"),
+		Sheets: []office.Sheet{{
+			Name: sheet,
+		}},
+	}
+	return workbook, nil
+}
+
+func virtualDesktopEncodeWorkbookForPath(rawPath string, workbook office.Workbook) ([]byte, error) {
+	switch strings.ToLower(path.Ext(cleanVirtualDesktopSlashPath(rawPath))) {
+	case ".csv":
+		return office.EncodeCSV(workbook, "")
+	case ".xlsx", ".xlsm", ".xltx", ".xltm", "":
+		return office.EncodeWorkbook(workbook)
+	default:
+		return nil, fmt.Errorf("unsupported workbook type %q", path.Ext(rawPath))
+	}
+}
+
+func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, format string) ([]byte, error) {
+	outputExt := strings.ToLower(path.Ext(cleanVirtualDesktopSlashPath(outputPath)))
+	if format != "" {
+		outputExt = "." + format
+	}
+	switch outputExt {
+	case ".docx", ".html", ".htm", ".md", ".txt":
+		doc, err := office.DecodeDocument(sourceName, data)
+		if err != nil {
+			return nil, err
+		}
+		exportName := sourceName
+		if outputExt != "" {
+			exportName = strings.TrimSuffix(sourceName, path.Ext(sourceName)) + outputExt
+		}
+		exported, _, err := office.EncodeDocument(exportName, doc)
+		return exported, err
+	case ".xlsx", ".xlsm", ".csv":
+		workbook, err := office.DecodeWorkbook(sourceName, data)
+		if err != nil {
+			return nil, err
+		}
+		if outputExt == ".csv" {
+			return office.EncodeCSV(workbook, "")
+		}
+		return office.EncodeWorkbook(workbook)
+	default:
+		return nil, fmt.Errorf("unsupported export format %q", strings.TrimPrefix(outputExt, "."))
+	}
 }
 
 func isVirtualDesktopStandaloneWidgetHTML(rawPath string) bool {

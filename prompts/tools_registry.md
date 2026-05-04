@@ -53,6 +53,7 @@ Before starting a multi-step task, load the manuals for unfamiliar tools through
 | Tool | Purpose |
 |---|---|
 | `filesystem` | Read, write, list, move, delete files in the workspace |
+| `virtual_desktop` | Manage desktop files/apps/widgets and create or edit basic Writer/Sheets Office documents inside the virtual desktop workspace |
 
 ### Reusable Tools & Skills - Tools are created and managed by you. Skills are pre-made
 | Tool | Purpose |

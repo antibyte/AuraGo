@@ -1,6 +1,6 @@
 # virtual_desktop
 
-Use `virtual_desktop` to control AuraGo's first-party browser desktop. It can inspect the desktop state, read and write files inside the desktop workspace, install generated JavaScript apps, pin widgets, open apps, and show desktop notifications.
+Use `virtual_desktop` to control AuraGo's first-party browser desktop. It can inspect the desktop state, read and write files inside the desktop workspace, create and edit basic Office documents/workbooks, install generated JavaScript apps, pin widgets, open apps, and show desktop notifications.
 
 The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place credentials or vault values in generated app files. If an app needs sensitive data, build a small backend or agent-mediated flow that retrieves only the minimum safe result.
 
@@ -10,6 +10,12 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 - `list_files`: list a workspace directory. Use `path`, for example `Documents`.
 - `read_file`: read one text file. Use `path`.
 - `write_file`: write one text file. Use `path` and `content`.
+- `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, and `delta`.
+- `write_document`: create/update `.docx`, `.html`, `.md`, or `.txt`. Use `path`, plus either `content`/`title` or a `document` object.
+- `read_workbook`: read `.xlsx`, `.xlsm`, or `.csv` through the Office backend. Use `path`; returns workbook JSON `{sheets:[{name, rows:[[ {value, formula} ]]}]}`.
+- `write_workbook`: create/update `.xlsx`, `.xlsm`, or `.csv`. Use `path` and `workbook`.
+- `set_cell`: update one workbook cell. Use `path`, `sheet`, `cell` (A1 style), and either `value` or `formula`.
+- `export_file`: export an Office file to another workspace file. Use `path`, `output_path`, and `format` (`docx`, `html`, `md`, `txt`, `xlsx`, or `csv`).
 - `install_app`: register a generated app and install its files under `Apps/<id>/`. Provide `manifest` and `files`.
 - `upsert_widget`: register or update a pinned widget. Provide `widget`.
 - `open_app`: ask the browser desktop to open an app. Provide `app_id`.
@@ -38,6 +44,49 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 
 Prefer AuraGo's semantic Papirus icon names from `status.icon_catalog.preferred`: `apps`, `archive`, `audio`, `browser`, `calendar`, `calculator`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `go`, `html`, `image`, `javascript`, `json`, `markdown`, `network`, `notes`, `pdf`, `python`, `settings`, `spreadsheet`, `terminal`, `text`, `trash`, `video`, `weather`, `xml`, or `yaml`. The desktop and SDK resolve these to Papirus SVGs and fall back to the built-in sprite sheet when needed. `status.icon_catalog.aliases` lists friendly aliases such as `sparkles -> apps`, `edit -> editor`, `note -> notes`, `todo -> notes`, and `music-player -> audio`. App and widget icons are normalized against this catalog; emoji icons and unknown custom names are rejected. If `icon` is omitted, AuraGo infers a catalog icon from app/widget id, name/title, type, entry, or description. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
 The app `entry` file must exist in `files` and must contain real HTML. Do not install placeholder or empty entry files.
+
+## Office Examples
+
+Create a DOCX document the browser Writer app can open:
+
+```json
+{
+  "operation": "write_document",
+  "path": "Documents/meeting-notes.docx",
+  "title": "Meeting Notes",
+  "content": "Agenda\nBudget review\nNext steps"
+}
+```
+
+Create a workbook and add a formula:
+
+```json
+{
+  "operation": "write_workbook",
+  "path": "Documents/budget.xlsx",
+  "workbook": {
+    "sheets": [
+      {
+        "name": "Budget",
+        "rows": [
+          [{"value": "Item"}, {"value": "Amount"}],
+          [{"value": "Coffee"}, {"value": "12.50"}]
+        ]
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "operation": "set_cell",
+  "path": "Documents/budget.xlsx",
+  "sheet": "Budget",
+  "cell": "B3",
+  "formula": "SUM(B2:B2)"
+}
+```
 
 Generated browser apps should use the first-party Aura Desktop SDK:
 

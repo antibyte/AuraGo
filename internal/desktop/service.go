@@ -535,6 +535,18 @@ func mediaWebPath(mount mediaMount, rel string) string {
 
 func mediaMIMEType(name string) string {
 	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case ".xlsm":
+		return "application/vnd.ms-excel.sheet.macroEnabled.12"
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	case ".pdf":
+		return "application/pdf"
+	}
 	if ext == ".mp3" {
 		return "audio/mpeg"
 	}
@@ -557,6 +569,44 @@ func mediaMIMEType(name string) string {
 		return mt
 	}
 	return "application/octet-stream"
+}
+
+func desktopMediaKindForName(name string) string {
+	mimeType := MIMETypeForName(name)
+	switch {
+	case strings.HasPrefix(mimeType, "image/"):
+		return "image"
+	case strings.HasPrefix(mimeType, "audio/"):
+		return "audio"
+	case strings.HasPrefix(mimeType, "video/"):
+		return "video"
+	case strings.HasPrefix(mimeType, "text/"), strings.Contains(mimeType, "json"), strings.Contains(mimeType, "xml"):
+		return ""
+	case strings.HasPrefix(mimeType, "application/pdf"),
+		strings.Contains(mimeType, "wordprocessingml"),
+		strings.Contains(mimeType, "spreadsheetml"),
+		strings.Contains(mimeType, "presentationml"):
+		return "document"
+	default:
+		return ""
+	}
+}
+
+func isDesktopTextReadable(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".docx", ".xlsx", ".xlsm", ".pptx", ".pdf":
+		return false
+	}
+	mimeType := MIMETypeForName(name)
+	if strings.HasPrefix(mimeType, "text/") || strings.Contains(mimeType, "json") || strings.Contains(mimeType, "xml") {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".md", ".log", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".html", ".htm", ".css", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".sql", ".svg":
+		return true
+	default:
+		return false
+	}
 }
 
 // MIMETypeForName returns the best-effort MIME type used by desktop file previews.
@@ -629,11 +679,13 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 			itemType = "directory"
 		}
 		result = append(result, FileEntry{
-			Name:    entry.Name(),
-			Path:    s.relativePath(filepath.Join(dirPath, entry.Name())),
-			Type:    itemType,
-			Size:    info.Size(),
-			ModTime: info.ModTime(),
+			Name:      entry.Name(),
+			Path:      s.relativePath(filepath.Join(dirPath, entry.Name())),
+			Type:      itemType,
+			Size:      info.Size(),
+			ModTime:   info.ModTime(),
+			MIMEType:  MIMETypeForName(entry.Name()),
+			MediaKind: desktopMediaKindForName(entry.Name()),
 		})
 	}
 	if cleanDesktopPathSlash(rawPath) == "." {
@@ -769,8 +821,8 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 			return "", FileEntry{}, fmt.Errorf("desktop media path is a directory")
 		}
 		entry := mediaFileEntry(mount, path, info)
-		if strings.HasPrefix(entry.MIMEType, "image/") || strings.HasPrefix(entry.MIMEType, "audio/") || strings.HasPrefix(entry.MIMEType, "video/") || entry.MIMEType == "application/pdf" {
-			return "", entry, fmt.Errorf("desktop media file is binary; use web_path")
+		if !isDesktopTextReadable(entry.Name) {
+			return "", entry, fmt.Errorf("desktop media file is binary; use web_path or download")
 		}
 		maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
 		if info.Size() > maxBytes {
@@ -797,6 +849,17 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 	if info.Size() > maxBytes {
 		return "", FileEntry{}, fmt.Errorf("desktop file exceeds max size")
 	}
+	if !isDesktopTextReadable(path) {
+		return "", FileEntry{
+			Name:      filepath.Base(path),
+			Path:      s.relativePath(path),
+			Type:      "file",
+			Size:      info.Size(),
+			ModTime:   info.ModTime(),
+			MIMEType:  MIMETypeForName(path),
+			MediaKind: desktopMediaKindForName(path),
+		}, fmt.Errorf("desktop file is binary; use ReadFileBytes or download")
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", FileEntry{}, fmt.Errorf("read desktop file: %w", err)
@@ -807,6 +870,68 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 		Type:    "file",
 		Size:    info.Size(),
 		ModTime: info.ModTime(),
+	}, nil
+}
+
+// ReadFileBytes reads one binary or text file from the workspace.
+func (s *Service) ReadFileBytes(ctx context.Context, rawPath string) ([]byte, FileEntry, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return nil, FileEntry{}, err
+	}
+	if mount, path, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return nil, FileEntry{}, err
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, FileEntry{}, fmt.Errorf("stat desktop media file: %w", err)
+		}
+		if info.IsDir() {
+			return nil, FileEntry{}, fmt.Errorf("desktop media path is a directory")
+		}
+		maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
+		if maxBytes <= 0 {
+			maxBytes = 50 * 1024 * 1024
+		}
+		if info.Size() > maxBytes {
+			return nil, FileEntry{}, fmt.Errorf("desktop media file exceeds max size")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, FileEntry{}, fmt.Errorf("read desktop media file: %w", err)
+		}
+		return data, mediaFileEntry(mount, path, info), nil
+	}
+	path, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return nil, FileEntry{}, err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, FileEntry{}, fmt.Errorf("stat desktop file: %w", err)
+	}
+	if info.IsDir() {
+		return nil, FileEntry{}, fmt.Errorf("desktop path is a directory")
+	}
+	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
+	if maxBytes <= 0 {
+		maxBytes = 50 * 1024 * 1024
+	}
+	if info.Size() > maxBytes {
+		return nil, FileEntry{}, fmt.Errorf("desktop file exceeds max size")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, FileEntry{}, fmt.Errorf("read desktop file: %w", err)
+	}
+	return data, FileEntry{
+		Name:      filepath.Base(path),
+		Path:      s.relativePath(path),
+		Type:      "file",
+		Size:      info.Size(),
+		ModTime:   info.ModTime(),
+		MIMEType:  MIMETypeForName(path),
+		MediaKind: desktopMediaKindForName(path),
 	}, nil
 }
 
@@ -889,6 +1014,43 @@ func (s *Service) WriteFile(ctx context.Context, rawPath, content, source string
 		return fmt.Errorf("write desktop file: %w", err)
 	}
 	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len([]byte(content))}, source)
+	return nil
+}
+
+// WriteFileBytes writes binary or text bytes into the workspace.
+func (s *Service) WriteFileBytes(ctx context.Context, rawPath string, content []byte, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
+	if maxBytes <= 0 {
+		maxBytes = 50 * 1024 * 1024
+	}
+	if int64(len(content)) > maxBytes {
+		return fmt.Errorf("desktop file exceeds max size")
+	}
+	if isStandaloneWidgetHTMLPath(rawPath) && strings.TrimSpace(string(content)) == "" {
+		return fmt.Errorf("desktop widget HTML file must not be empty")
+	}
+	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
+		return err
+	} else if ok {
+		return fmt.Errorf("desktop media mounts are read-only for file writes")
+	}
+	path, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create desktop file directory: %w", err)
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		return fmt.Errorf("write desktop file: %w", err)
+	}
+	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len(content)}, source)
 	return nil
 }
 

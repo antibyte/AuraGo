@@ -48,6 +48,8 @@
     const appIconKeys = {
         files: 'folder',
         editor: 'edit',
+        writer: 'documents',
+        sheets: 'spreadsheet',
         settings: 'settings',
         calendar: 'calendar',
         calculator: 'calculator',
@@ -97,7 +99,11 @@
         db: 'database',
         sqlite: 'database',
         csv: 'spreadsheet',
+        doc: 'documents',
+        docx: 'documents',
+        xls: 'spreadsheet',
         xlsx: 'spreadsheet',
+        xlsm: 'spreadsheet',
         pptx: 'presentation',
         exe: 'executable',
         bin: 'binary'
@@ -139,6 +145,8 @@
         const map = {
             files: 'F',
             editor: 'E',
+            writer: 'W',
+            sheets: 'Sh',
             settings: 'S',
             calendar: 'C',
             calculator: 'Ca',
@@ -709,6 +717,8 @@
     function appWindowSize(appId) {
         const presets = {
             files: { width: 920, height: 600 },
+            writer: { width: 960, height: 700 },
+            sheets: { width: 1040, height: 690 },
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
@@ -721,7 +731,8 @@
     }
 
     function openApp(appId, context) {
-        const existing = [...state.windows.values()].find(win => win.appId === appId && appId !== 'editor');
+        const multiInstance = appId === 'editor' || appId === 'writer' || appId === 'sheets';
+        const existing = [...state.windows.values()].find(win => win.appId === appId && !multiInstance);
         if (existing) {
             focusWindow(existing.id);
             if (appId === 'files' && context && context.path != null) {
@@ -989,6 +1000,8 @@
             );
             if (btn.dataset.webPath) {
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
+            } else if (kind === 'file') {
+                items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadDesktopPath(path, btn.querySelector('.vd-icon-label').textContent) });
             }
         } else {
             items.push({ label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcut(btn.dataset.id) });
@@ -1240,6 +1253,26 @@
             return renderFiles(id, path);
         }
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
+        if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
+            return window.WriterApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc,
+                api,
+                t,
+                iconMarkup,
+                notify: showDesktopNotification,
+                loadBootstrap
+            }));
+        }
+        if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
+            return window.SheetsApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc,
+                api,
+                t,
+                iconMarkup,
+                notify: showDesktopNotification,
+                loadBootstrap
+            }));
+        }
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'calculator') return renderCalculator(id);
@@ -1274,6 +1307,8 @@
                 confirmDialog,
                 showNotification: showDesktopNotification,
                 openFile: (entry) => {
+                    if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
+                    if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
                     if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
                     openEditorFile(entry.path);
                 },
@@ -1333,6 +1368,8 @@
                     ];
                     if (row.dataset.webPath) {
                         actions.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(row.dataset.webPath, row.querySelector('.vd-file-name').textContent) });
+                    } else if (row.dataset.type === 'file') {
+                        actions.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadDesktopPath(row.dataset.path, row.querySelector('.vd-file-name').textContent) });
                     }
                     actions.push(
                         { separator: true },
@@ -1354,6 +1391,21 @@
         openApp('editor', { path });
     }
 
+    function fileExtension(value) {
+        const parts = String(value || '').split('.');
+        return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    }
+
+    function isWriterFile(file) {
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        return ext === 'docx' || ext === 'html' || ext === 'htm';
+    }
+
+    function isSheetsFile(file) {
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        return ext === 'xlsx' || ext === 'xlsm' || ext === 'csv';
+    }
+
     function openDesktopFileEntry(row) {
         const entry = {
             name: row.querySelector('.vd-file-name, .vd-icon-label') ? row.querySelector('.vd-file-name, .vd-icon-label').textContent : row.dataset.path,
@@ -1362,8 +1414,20 @@
             media_kind: row.dataset.mediaKind,
             mime_type: row.dataset.mimeType
         };
+        if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
+        if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
         openEditorFile(entry.path);
+    }
+
+    function downloadDesktopPath(path, filename) {
+        if (!path) return;
+        const link = document.createElement('a');
+        link.href = '/api/desktop/download?path=' + encodeURIComponent(path);
+        link.download = filename || '';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 
     function downloadMediaPath(webPath, filename) {
@@ -1378,6 +1442,8 @@
 
     function openMediaPreview(file) {
         if (!file || !file.web_path) {
+            if (isWriterFile(file)) return openApp('writer', { path: file.path });
+            if (isSheetsFile(file)) return openApp('sheets', { path: file.path });
             if (file && file.path) openEditorFile(file.path);
             return;
         }

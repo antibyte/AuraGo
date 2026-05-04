@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -366,14 +367,13 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 		if destDir == "" {
 			destDir = ""
 		}
-		// Write the uploaded file content via the service
 		content, readErr := io.ReadAll(file)
 		if readErr != nil {
 			jsonError(w, "Failed to read upload", http.StatusBadRequest)
 			return
 		}
 		destPath := strings.TrimRight(destDir, "/") + "/" + header.Filename
-		if err := svc.WriteFile(r.Context(), destPath, string(content), desktop.SourceUser); err != nil {
+		if err := svc.WriteFileBytes(r.Context(), destPath, content, desktop.SourceUser); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -381,6 +381,36 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 		broadcastDesktopEvent(s, hub, event)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": destPath})
+	}
+}
+
+func handleDesktopDownload(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, _, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		data, entry, err := svc.ReadFileBytes(r.Context(), r.URL.Query().Get("path"))
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		mimeType := entry.MIMEType
+		if mimeType == "" {
+			mimeType = desktop.MIMETypeForName(entry.Name)
+		}
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", mimeType)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(entry.Name, `"`, "")))
+		http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(data))
 	}
 }
 

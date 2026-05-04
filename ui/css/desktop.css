@@ -1500,6 +1500,185 @@
     line-height: 1.55;
 }
 
+.office-app {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    background: rgba(5, 8, 12, 0.2);
+}
+
+.office-toolbar {
+    gap: 8px;
+    min-width: 0;
+}
+
+.office-path-input,
+.office-title-input {
+    min-width: 130px;
+    height: 32px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
+    padding: 0 10px;
+    font: inherit;
+}
+
+.office-path-input {
+    flex: 1 1 240px;
+}
+
+.office-title-input {
+    flex: 0 1 180px;
+}
+
+.office-writer-tools {
+    border: 0;
+    border-bottom: 1px solid var(--vd-border);
+    background: rgba(8, 12, 18, 0.45);
+}
+
+.office-writer .ql-toolbar.ql-snow,
+.office-writer .ql-container.ql-snow {
+    border-color: var(--vd-border);
+}
+
+.office-writer .ql-toolbar.ql-snow {
+    border-width: 0 0 1px 0;
+}
+
+.office-writer .ql-container.ql-snow {
+    border-width: 0;
+}
+
+.office-writer .ql-picker,
+.office-writer .ql-stroke {
+    color: var(--vd-text);
+    stroke: var(--vd-text);
+}
+
+.office-writer .ql-fill {
+    fill: var(--vd-text);
+}
+
+.office-writer .ql-picker-options {
+    background: rgba(12, 18, 28, 0.98);
+    border-color: var(--vd-border);
+}
+
+.office-writer-editor {
+    min-height: 0;
+    overflow: auto;
+    background: rgba(255, 255, 255, 0.94);
+    color: #111827;
+}
+
+.office-writer-editor .ql-editor {
+    min-height: 100%;
+    padding: 28px clamp(22px, 5vw, 64px);
+    line-height: 1.65;
+    font-size: 1rem;
+}
+
+.office-writer-fallback {
+    min-height: 0;
+    resize: none;
+    border: 0;
+    border-radius: 0;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #111827;
+    font: inherit;
+    line-height: 1.6;
+}
+
+.office-sheet-tabs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vd-border);
+    background: rgba(8, 12, 18, 0.36);
+}
+
+.office-sheet-tabs button {
+    min-width: 82px;
+    height: 30px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.office-sheet-tabs button.active {
+    border-color: var(--vd-accent);
+    background: rgba(48, 213, 200, 0.16);
+}
+
+.office-sheet-grid-wrap {
+    min-height: 0;
+    overflow: auto;
+    background: rgba(245, 247, 251, 0.96);
+}
+
+.office-grid {
+    border-collapse: collapse;
+    min-width: 900px;
+    width: max-content;
+    color: #111827;
+    font-size: 0.86rem;
+}
+
+.office-grid th,
+.office-grid td {
+    border: 1px solid #d7dde8;
+}
+
+.office-grid th {
+    position: sticky;
+    z-index: 2;
+    background: #e8edf5;
+    color: #334155;
+    min-width: 44px;
+    height: 30px;
+    font-weight: 600;
+}
+
+.office-grid thead th {
+    top: 0;
+}
+
+.office-grid tbody th {
+    left: 0;
+}
+
+.office-grid td {
+    min-width: 104px;
+    height: 32px;
+    background: #ffffff;
+}
+
+.office-grid input {
+    width: 100%;
+    height: 31px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #111827;
+    padding: 0 8px;
+    font: inherit;
+}
+
+.office-grid input:focus {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: -2px;
+    background: #f8fbff;
+}
+
 .vd-settings-app {
     min-height: 0;
     display: grid;

@@ -475,6 +475,8 @@ func BuiltinApps() []AppManifest {
 	return []AppManifest{
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
+		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "documents", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "sheets", Name: "Sheets", Version: "1.0.0", Icon: "spreadsheet", Entry: "builtin://sheets", Runtime: BuiltinRuntime, Description: "Create and edit basic spreadsheets.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Description: "Inspect virtual desktop settings."},
 		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
 		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Description: "Scientific calculator with standard and advanced modes."},

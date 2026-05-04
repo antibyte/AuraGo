@@ -1164,20 +1164,12 @@
             a.remove();
             return;
         }
-        try {
-            const result = await api('/api/desktop/file?path=' + encodeURIComponent(file.path));
-            const blob = new Blob([result.content || ''], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-        }
+        const a = document.createElement('a');
+        a.href = '/api/desktop/download?path=' + encodeURIComponent(file.path || '');
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     }
 
     function uploadFiles() {
