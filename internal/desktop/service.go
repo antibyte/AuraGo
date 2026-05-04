@@ -24,6 +24,8 @@ const SchemaVersion = 3
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
+var desktopMutationMu sync.Mutex
+
 type mediaMount struct {
 	Name      string
 	Dir       string
@@ -34,21 +36,20 @@ type mediaMount struct {
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
 	mu            sync.Mutex
-	mutationMu    sync.Mutex
 	cfg           Config
 	db            *sql.DB
 	codeContainer *CodeContainerService
 	closed        bool
 }
 
-// FileWriteState is the current target state observed while holding the service mutation lock.
+// FileWriteState is the current target state observed while holding the shared desktop mutation lock.
 type FileWriteState struct {
 	Data   []byte
 	Entry  FileEntry
 	Exists bool
 }
 
-// FileWritePrecondition can reject a write after observing the current target state.
+// FileWritePrecondition can reject a write after observing the current target state under the shared desktop mutation lock.
 type FileWritePrecondition func(FileWriteState) error
 
 // NewService creates a desktop service. Call Init before using it.
@@ -1053,8 +1054,8 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 		return FileEntry{}, err
 	}
 
-	s.mutationMu.Lock()
-	defer s.mutationMu.Unlock()
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 
 	if precondition != nil {
 		state, err := s.fileWriteStateLocked(path, maxBytes)
@@ -1113,8 +1114,8 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
-	s.mutationMu.Lock()
-	defer s.mutationMu.Unlock()
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
 		return err
 	} else if ok {
@@ -1139,8 +1140,8 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
-	s.mutationMu.Lock()
-	defer s.mutationMu.Unlock()
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(oldPath); fromOK || err != nil {
 		if err != nil {
 			return err
@@ -1205,8 +1206,8 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
-	s.mutationMu.Lock()
-	defer s.mutationMu.Unlock()
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 	// Handle media mount paths
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(srcPath); fromOK || err != nil {
 		if err != nil {
@@ -1324,8 +1325,8 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
-	s.mutationMu.Lock()
-	defer s.mutationMu.Unlock()
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 	if mount, path, rel, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
 		if err != nil {
 			return err

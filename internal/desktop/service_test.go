@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testService(t *testing.T) *Service {
@@ -60,6 +61,19 @@ func testMediaService(t *testing.T) *Service {
 	return svc
 }
 
+func testServiceWithConfig(t *testing.T, cfg Config) *Service {
+	t.Helper()
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	if err := svc.Init(context.Background()); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	return svc
+}
+
 func stringSliceContains(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
@@ -67,6 +81,57 @@ func stringSliceContains(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "workspace")
+	dbPath := filepath.Join(t.TempDir(), "desktop.db")
+	cfg := Config{
+		Enabled:       true,
+		WorkspaceDir:  root,
+		DBPath:        dbPath,
+		MaxFileSizeMB: 1,
+		ControlLevel:  ControlConfirmDestructive,
+	}
+	svc1 := testServiceWithConfig(t, cfg)
+	svc2 := testServiceWithConfig(t, cfg)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	conditionalDone := make(chan error, 1)
+	go func() {
+		_, err := svc1.WriteFileBytesConditional(context.Background(), "Documents/shared.txt", []byte("conditional"), SourceUser, func(FileWriteState) error {
+			close(entered)
+			<-release
+			return nil
+		})
+		conditionalDone <- err
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("conditional write precondition did not start")
+	}
+
+	directDone := make(chan error, 1)
+	go func() {
+		directDone <- svc2.WriteFileBytes(context.Background(), "Documents/shared.txt", []byte("direct"), SourceAgent)
+	}()
+
+	select {
+	case err := <-directDone:
+		t.Fatalf("second service write completed before shared mutation lock was released: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+	if err := <-conditionalDone; err != nil {
+		t.Fatalf("conditional write: %v", err)
+	}
+	if err := <-directDone; err != nil {
+		t.Fatalf("direct write: %v", err)
+	}
 }
 
 func TestServiceBootstrapCreatesWorkspaceFolders(t *testing.T) {
