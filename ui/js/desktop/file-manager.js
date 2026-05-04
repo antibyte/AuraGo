@@ -3,6 +3,8 @@
 
     const LS_VIEW_KEY = 'aurago.fm.view';
     const LS_SORT_KEY = 'aurago.fm.sort';
+    const PREVIEW_IMAGE_EXTS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
+    const PREVIEW_IMAGE_MIMES = new Set(['image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp']);
 
     const fm = {
         windowId: '',
@@ -100,6 +102,31 @@
             php: 'file-php', rb: 'file-ruby', swift: 'file-swift',
         };
         return map[ext] || 'file';
+    }
+
+    function fileExt(name) {
+        const parts = String(name || '').split('.');
+        return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    }
+
+    function isPreviewableImage(file) {
+        if (!file || file.type !== 'file') return false;
+        const mime = String(file.mime_type || '').toLowerCase();
+        if (mime && PREVIEW_IMAGE_MIMES.has(mime)) return true;
+        return PREVIEW_IMAGE_EXTS.has(fileExt(file.name));
+    }
+
+    function previewURL(file) {
+        return '/api/desktop/preview?path=' + encodeURIComponent(file.path || '');
+    }
+
+    function thumbnailMarkup(file, iconKey, fallback, mode) {
+        const icon = iconMarkup(iconKey, fallback, 'fm-thumb-fallback-icon', mode === 'grid' ? 38 : 18);
+        if (!isPreviewableImage(file)) return icon;
+        return `<span class="fm-thumb fm-thumb-${esc(mode || 'grid')}" aria-hidden="true">
+            <img src="${esc(previewURL(file))}" loading="lazy" decoding="async" alt="">
+            <span class="fm-thumb-fallback">${icon}</span>
+        </span>`;
     }
 
     function iconForDirectory(name) {
@@ -646,8 +673,9 @@
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
+        const preview = !isDir && isPreviewableImage(file);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
-            <div class="fm-grid-icon">${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', '', 40)}</div>
+            <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>
             <div class="fm-grid-name">${esc(file.name)}</div>
         </div>`;
     }
@@ -660,7 +688,7 @@
         const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
-                ${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', 'fm-list-icon', 18)}
+                <span class="fm-list-icon">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'list')}</span>
                 <span class="fm-list-name">${esc(file.name)}</span>
             </div>
             <div class="fm-list-cell fm-col-size">${isDir ? '\u2014' : esc(fmtBytes(file.size))}</div>
@@ -733,6 +761,16 @@
 
         attachFileItemEvents(root);
         attachMainAreaEvents(root, true);
+        attachThumbnailEvents(root);
+    }
+
+    function attachThumbnailEvents(root) {
+        root.querySelectorAll('img[data-fm-thumb], .fm-thumb img').forEach(img => {
+            img.addEventListener('error', () => {
+                const thumb = img.closest('.fm-thumb');
+                if (thumb) thumb.classList.add('failed');
+            }, { once: true });
+        });
     }
 
     function attachFileItemEvents(root) {

@@ -290,6 +290,52 @@ func handleDesktopCopy(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleDesktopPreview(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, _, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		file, entry, mimeType, err := svc.OpenPreviewFile(r.Context(), r.URL.Query().Get("path"))
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		if !isDesktopPreviewImageMIME(mimeType) {
+			jsonError(w, "desktop preview only supports image files", http.StatusUnsupportedMediaType)
+			return
+		}
+		maxSize := int64(svc.Config().MaxFileSizeMB) * 1024 * 1024
+		if maxSize <= 0 {
+			maxSize = 50 * 1024 * 1024
+		}
+		if entry.Size > maxSize {
+			jsonError(w, "desktop preview file exceeds max size", http.StatusRequestEntityTooLarge)
+			return
+		}
+		w.Header().Set("Content-Type", mimeType)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "private, max-age=120")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, strings.ReplaceAll(entry.Name, `"`, "")))
+		http.ServeContent(w, r, entry.Name, entry.ModTime, file)
+	}
+}
+
+func isDesktopPreviewImageMIME(mimeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/avif", "image/bmp", "image/gif", "image/jpeg", "image/png", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
 func handleDesktopUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

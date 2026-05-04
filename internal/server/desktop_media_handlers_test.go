@@ -148,6 +148,56 @@ func TestDesktopMediaMountFilePatchAndDeleteAPI(t *testing.T) {
 	}
 }
 
+func TestDesktopPreviewServesWorkspaceImagesInline(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	imageDir := filepath.Join(srv.Cfg.VirtualDesktop.WorkspaceDir, "Pictures")
+	if err := os.MkdirAll(imageDir, 0o755); err != nil {
+		t.Fatalf("mkdir pictures: %v", err)
+	}
+	imageBytes := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0, 0, 0, 0}
+	if err := os.WriteFile(filepath.Join(imageDir, "sample.png"), imageBytes, 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/preview?path=Pictures/sample.png", nil)
+	rr := httptest.NewRecorder()
+	handleDesktopPreview(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); !strings.HasPrefix(got, "image/png") {
+		t.Fatalf("content type = %q, want image/png", got)
+	}
+	if got := rr.Header().Get("Content-Disposition"); !strings.Contains(got, "inline") || !strings.Contains(got, "sample.png") {
+		t.Fatalf("content disposition = %q", got)
+	}
+	if !bytes.Equal(rr.Body.Bytes(), imageBytes) {
+		t.Fatalf("preview body = %v, want %v", rr.Body.Bytes(), imageBytes)
+	}
+}
+
+func TestDesktopPreviewRejectsNonImages(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	docDir := filepath.Join(srv.Cfg.VirtualDesktop.WorkspaceDir, "Documents")
+	if err := os.MkdirAll(docDir, 0o755); err != nil {
+		t.Fatalf("mkdir documents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(docDir, "note.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatalf("write text: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/preview?path=Documents/note.txt", nil)
+	rr := httptest.NewRecorder()
+	handleDesktopPreview(srv)(rr, req)
+	if rr.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+}
+
 func testDesktopMediaServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	tmp := t.TempDir()

@@ -728,10 +728,16 @@
     height: 16px;
     opacity: 0.78;
 }
-.fm-sidebar-icon,
-.fm-list-icon {
+.fm-sidebar-icon {
     width: 18px;
     height: 18px;
+}
+.fm-list-icon {
+    width: 24px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .fm-sort-indicator {
     width: 12px;
@@ -971,24 +977,26 @@
 /* Grid view */
 .fm-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 6px;
 }
 .fm-grid-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 10px 6px 8px;
+    gap: 6px;
+    padding: 10px 8px 8px;
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
     border: 1px solid transparent;
     user-select: none;
     position: relative;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 .fm-grid-item:hover {
     background: rgba(255,255,255,0.06);
+    transform: translateY(-1px);
 }
 .fm-grid-item.selected {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
@@ -998,11 +1006,14 @@
     opacity: 0.5;
 }
 .fm-grid-icon {
-    width: 40px;
-    height: 40px;
+    width: 76px;
+    height: 58px;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+.fm-grid-icon.has-preview {
+    width: 86px;
 }
 .fm-grid-name {
     font-size: 0.75rem;
@@ -1073,6 +1084,7 @@
     cursor: pointer;
     user-select: none;
     border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
 }
 .fm-list-row:hover {
     background: rgba(255,255,255,0.06);
@@ -1089,6 +1101,53 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.82rem;
+}
+.fm-thumb {
+    display: inline-grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    background:
+        linear-gradient(45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+        rgba(0,0,0,0.18);
+    background-size: 10px 10px;
+    background-position: 0 0, 0 5px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+    position: relative;
+    flex-shrink: 0;
+}
+.fm-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.fm-thumb-grid {
+    width: 82px;
+    height: 54px;
+    border-radius: 7px;
+}
+.fm-thumb-list {
+    width: 24px;
+    height: 20px;
+    border-radius: 4px;
+}
+.fm-thumb-fallback {
+    display: none;
+}
+.fm-thumb.failed img {
+    display: none;
+}
+.fm-thumb.failed .fm-thumb-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.fm-list-icon .fm-thumb-fallback-icon,
+.fm-list-icon .vd-papirus-icon {
+    width: 18px !important;
+    height: 18px !important;
 }
 
 /* Status bar */

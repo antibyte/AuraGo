@@ -559,6 +559,11 @@ func mediaMIMEType(name string) string {
 	return "application/octet-stream"
 }
 
+// MIMETypeForName returns the best-effort MIME type used by desktop file previews.
+func MIMETypeForName(name string) string {
+	return mediaMIMEType(name)
+}
+
 func mediaFileEntry(mount mediaMount, absPath string, info os.FileInfo) FileEntry {
 	itemType := "file"
 	if info.IsDir() {
@@ -803,6 +808,54 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 		Size:    info.Size(),
 		ModTime: info.ModTime(),
 	}, nil
+}
+
+// OpenPreviewFile opens a workspace or media file for read-only inline preview.
+func (s *Service) OpenPreviewFile(ctx context.Context, rawPath string) (*os.File, FileEntry, string, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return nil, FileEntry{}, "", err
+	}
+	if mount, path, _, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
+		if err != nil {
+			return nil, FileEntry{}, "", err
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, FileEntry{}, "", fmt.Errorf("stat desktop media preview: %w", err)
+		}
+		if info.IsDir() {
+			return nil, FileEntry{}, "", fmt.Errorf("desktop preview path is a directory")
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, FileEntry{}, "", fmt.Errorf("open desktop media preview: %w", err)
+		}
+		entry := mediaFileEntry(mount, path, info)
+		return file, entry, entry.MIMEType, nil
+	}
+	path, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return nil, FileEntry{}, "", err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, FileEntry{}, "", fmt.Errorf("stat desktop preview: %w", err)
+	}
+	if info.IsDir() {
+		return nil, FileEntry{}, "", fmt.Errorf("desktop preview path is a directory")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, FileEntry{}, "", fmt.Errorf("open desktop preview: %w", err)
+	}
+	return file, FileEntry{
+		Name:     filepath.Base(path),
+		Path:     s.relativePath(path),
+		Type:     "file",
+		Size:     info.Size(),
+		ModTime:  info.ModTime(),
+		MIMEType: MIMETypeForName(path),
+	}, MIMETypeForName(path), nil
 }
 
 // WriteFile writes a UTF-8 text file into the workspace.
