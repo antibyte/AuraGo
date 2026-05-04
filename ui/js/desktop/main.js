@@ -1801,7 +1801,7 @@
         host.dataset.calView = host.dataset.calView || 'month';
         host.dataset.calDate = host.dataset.calDate || isoDate(new Date());
         const activeDate = new Date(host.dataset.calDate + 'T12:00:00');
-        host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button type="button" data-cal-nav="prev">‹</button><button type="button" data-cal-today>${esc(t('desktop.cal_today'))}</button><button type="button" data-cal-nav="next">›</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}<button type="button" class="vd-button vd-button-primary" data-cal-new>${esc(t('desktop.cal_new_appointment'))}</button></div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
+        host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button class="vd-calendar-icon-button" type="button" data-cal-nav="prev">${iconMarkup('chevron-left', 'L', 'vd-calendar-action-icon', 15)}</button><button type="button" data-cal-today>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_today'))}</span></button><button class="vd-calendar-icon-button" type="button" data-cal-nav="next">${iconMarkup('chevron-right', 'R', 'vd-calendar-action-icon', 15)}</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}<button type="button" class="vd-button vd-button-primary" data-cal-new>${iconMarkup('file-plus', 'N', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_new_appointment'))}</span></button></div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
         const render = async () => {
             const appointments = await api('/api/appointments?status=all');
             const body = host.querySelector('.vd-calendar-body');
@@ -1840,7 +1840,7 @@
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop';
         const initial = appointment || { title: '', description: '', status: 'upcoming', date_time: dateHint ? fromLocalDateTime(dateHint.includes('T') ? dateHint : dateHint + 'T09:00') : new Date().toISOString(), wake_agent: false };
-        overlay.innerHTML = `<form class="vd-modal vd-calendar-modal"><div class="vd-modal-title">${esc(t(appointment ? 'desktop.cal_edit_appointment' : 'desktop.cal_new_appointment'))}</div><input name="title" class="vd-modal-input" placeholder="${esc(t('desktop.cal_title'))}" value="${esc(initial.title)}"><input name="date_time" class="vd-modal-input" type="datetime-local" value="${esc(dateTimeLocalValue(initial.date_time))}"><textarea name="description" class="vd-modal-input" placeholder="${esc(t('desktop.cal_description'))}">${esc(initial.description || '')}</textarea><select name="status" class="vd-modal-input">${['upcoming','overdue','completed','cancelled'].map(status => `<option value="${status}" ${initial.status === status ? 'selected' : ''}>${esc(t('desktop.cal_status_' + status))}</option>`).join('')}</select><label class="vd-check"><input name="wake_agent" type="checkbox" ${initial.wake_agent ? 'checked' : ''}>${esc(t('desktop.cal_notification'))}</label><div class="vd-modal-actions">${appointment ? `<button type="button" class="vd-button" data-delete>${esc(t('desktop.delete'))}</button>` : ''}<button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button><button class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button></div></form>`;
+        overlay.innerHTML = `<form class="vd-modal vd-calendar-modal"><div class="vd-modal-title">${esc(t(appointment ? 'desktop.cal_edit_appointment' : 'desktop.cal_new_appointment'))}</div><input name="title" class="vd-modal-input" placeholder="${esc(t('desktop.cal_title'))}" value="${esc(initial.title)}"><input name="date_time" class="vd-modal-input" type="datetime-local" value="${esc(dateTimeLocalValue(initial.date_time))}"><textarea name="description" class="vd-modal-input" placeholder="${esc(t('desktop.cal_description'))}">${esc(initial.description || '')}</textarea><select name="status" class="vd-modal-input">${['upcoming','overdue','completed','cancelled'].map(status => `<option value="${status}" ${initial.status === status ? 'selected' : ''}>${esc(t('desktop.cal_status_' + status))}</option>`).join('')}</select><label class="vd-check"><input name="wake_agent" type="checkbox" ${initial.wake_agent ? 'checked' : ''}>${esc(t('desktop.cal_notification'))}</label><div class="vd-modal-actions">${appointment ? `<button type="button" class="vd-button" data-delete>${iconMarkup('trash', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.delete'))}</span></button>` : ''}<button type="button" class="vd-button" data-cancel>${iconMarkup('x', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.cancel'))}</span></button><button class="vd-button vd-button-primary">${iconMarkup('save', 'S', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.save'))}</span></button></div></form>`;
         document.body.appendChild(overlay);
         const close = () => overlay.remove();
         overlay.querySelector('[data-cancel]').addEventListener('click', close);
@@ -2542,7 +2542,7 @@
                     <button class="vd-tool-button" type="button" data-action="add">${iconMarkup('file-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.launchpad_add'))}</span></button>
                 </div>
                 <div class="vd-launchpad-grid"></div>
-                <div class="vd-launchpad-empty" style="display:none">
+                <div class="vd-launchpad-empty" hidden>
                     <div class="vd-launchpad-empty-icon">${iconMarkup('apps', 'A', 'vd-launchpad-empty-papirus-icon', 42)}</div>
                     <div>${esc(t('desktop.launchpad_empty'))}</div>
                 </div>
@@ -2574,11 +2574,11 @@
             let filtered = links;
             const q = searchQuery.toLowerCase().trim();
             if (q) filtered = filtered.filter(l => (l.title || '').toLowerCase().includes(q) || (l.description || '').toLowerCase().includes(q));
-            if (filtered.length === 0) { grid.innerHTML = ''; empty.style.display = ''; return; }
-            empty.style.display = 'none';
+            if (filtered.length === 0) { grid.innerHTML = ''; empty.hidden = false; return; }
+            empty.hidden = true;
             grid.innerHTML = filtered.map(link => {
-                const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' : '';
-                const fallback = '<div class="vd-launchpad-tile-fallback" style="display:' + (link.icon_path ? 'none' : 'flex') + '">' + iconMarkup('globe', 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
+                const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '';
+                const fallback = '<div class="vd-launchpad-tile-fallback"' + (link.icon_path ? ' hidden' : '') + '>' + iconMarkup('globe', 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
                 return '<div class="vd-launchpad-tile" data-id="' + esc(link.id) + '">' + icon + fallback +
                     '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
                     (link.description ? '<div class="vd-launchpad-tile-desc">' + esc(link.description) + '</div>' : '') +
@@ -2616,24 +2616,24 @@
             const backdrop = document.createElement('div');
             backdrop.className = 'vd-modal-backdrop';
             backdrop.innerHTML = `
-                <form class="vd-modal" role="dialog" aria-modal="true" style="width:min(480px, calc(100vw - 32px)); max-height: 80vh; overflow-y: auto;">
+                <form class="vd-modal vd-launchpad-modal" role="dialog" aria-modal="true">
                     <div class="vd-modal-title">${esc(linkId ? t('desktop.launchpad_edit_title') : t('desktop.launchpad_add_title'))}</div>
-                    <div style="display:flex; flex-direction:column; gap:10px; margin: 10px 0;">
+                    <div class="vd-launchpad-form-stack">
                         <input type="hidden" class="lp-id" value="${esc(linkId || '')}">
                         <input type="text" class="vd-modal-input lp-title" placeholder="${esc(t('desktop.launchpad_label_title'))}" value="${esc(link ? link.title : '')}" required>
                         <input type="url" class="vd-modal-input lp-url" placeholder="${esc(t('desktop.launchpad_label_url'))}" value="${esc(link ? link.url : '')}" required>
                         <input type="text" class="vd-modal-input lp-category" placeholder="${esc(t('desktop.launchpad_label_category'))}" list="lp-cats" value="${esc(link ? link.category : '')}">
                         <datalist id="lp-cats">${(categories || []).map(c => '<option value="' + esc(c) + '">').join('')}</datalist>
                         <input type="text" class="vd-modal-input lp-description" placeholder="${esc(t('desktop.launchpad_label_description'))}" value="${esc(link ? link.description : '')}">
-                        <div style="font-size: 12px; color: var(--vd-muted); margin-top: 4px;">${esc(t('desktop.launchpad_label_icon'))}</div>
+                        <div class="vd-launchpad-field-label">${esc(t('desktop.launchpad_label_icon'))}</div>
                         <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
-                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">${iconMarkup('search', 'S', 'vd-tool-icon', 15)}</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" style="display:none;"></div></div>
+                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">${iconMarkup('search', 'S', 'vd-tool-icon', 15)}</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" hidden></div></div>
                         <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
                         <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
                     </div>
                     <div class="vd-modal-actions">
-                        <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
-                        <button type="button" class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button>
+                        <button type="button" class="vd-button" data-action="cancel">${iconMarkup('x', 'X', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.cancel'))}</span></button>
+                        <button type="button" class="vd-button vd-button-primary" data-action="save">${iconMarkup('save', 'S', 'vd-modal-action-icon', 15)}<span>${esc(t('desktop.save'))}</span></button>
                     </div>
                 </form>`;
             document.body.appendChild(backdrop);
@@ -2641,9 +2641,9 @@
             const preview = modal.querySelector('.lp-icon-preview');
             const selectedPreview = modal.querySelector('.lp-icon-selected-preview');
             if (link && link.icon_path) {
-                const imgTag = '<img src="/files/' + esc(link.icon_path) + '" style="max-width:64px;max-height:64px; border-radius:8px;">';
+                const imgTag = '<img class="lp-icon-preview-img" src="/files/' + esc(link.icon_path) + '">';
                 preview.innerHTML = imgTag;
-                if (selectedPreview) { selectedPreview.style.display = 'flex'; selectedPreview.innerHTML = imgTag; }
+                if (selectedPreview) { selectedPreview.hidden = false; selectedPreview.innerHTML = imgTag; }
             }
 
             modal.querySelectorAll('.lp-icon-tab').forEach(tab => {
@@ -2661,7 +2661,7 @@
             modal.querySelector('.lp-icon-search-btn').addEventListener('click', () => searchIcons(modal, modal.querySelector('.lp-icon-search').value));
             modal.querySelector('.lp-icon-url').addEventListener('input', (e) => {
                 const u = e.target.value.trim();
-                preview.innerHTML = u ? '<img src="' + esc(u) + '" style="max-width:64px;max-height:64px; border-radius:8px;" onerror="this.style.display=\'none\'">' : '';
+                preview.innerHTML = u ? '<img class="lp-icon-preview-img" src="' + esc(u) + '" onerror="this.style.display=\'none\'">' : '';
             });
             modal.querySelector('[data-action="cancel"]').addEventListener('click', () => backdrop.remove());
             modal.querySelector('[data-action="save"]').addEventListener('click', () => saveLink(modal, linkId));
@@ -2676,7 +2676,7 @@
                 const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
                 const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
                 if (!items.length) {
-                    resultsEl.innerHTML = '<div class="lp-icon-msg" style="color:var(--vd-muted);">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
+                    resultsEl.innerHTML = '<div class="lp-icon-msg muted">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
                     return;
                 }
                 resultsEl.innerHTML = items.map(r => {
@@ -2690,13 +2690,13 @@
                         selectedIconURL = el.dataset.url;
                         const previewEl = modal.querySelector('.lp-icon-selected-preview');
                         if (previewEl) {
-                            previewEl.style.display = 'flex';
-                            previewEl.innerHTML = '<img src="' + esc(el.dataset.url) + '" style="width:48px;height:48px;border-radius:8px;object-fit:contain;" onerror="this.style.display=\'none\'">';
+                            previewEl.hidden = false;
+                            previewEl.innerHTML = '<img class="lp-icon-selected-img" src="' + esc(el.dataset.url) + '" onerror="this.style.display=\'none\'">';
                         }
                     });
                 });
             } catch (e) {
-                resultsEl.innerHTML = '<div class="lp-icon-msg" style="color:var(--vd-coral);">' + esc(t('desktop.launchpad_icon_search_error')) + '</div>';
+                resultsEl.innerHTML = '<div class="lp-icon-msg error">' + esc(t('desktop.launchpad_icon_search_error')) + '</div>';
             }
         }
 
@@ -2743,7 +2743,7 @@
             </div>
             <form class="vd-chat-form">
                 <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
-                <button class="vd-chat-send" type="submit">${esc(t('desktop.send'))}</button>
+                <button class="vd-chat-send" type="submit">${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span>${esc(t('desktop.send'))}</span></button>
             </form>
         </div>`;
         const input = host.querySelector('.vd-chat-input');

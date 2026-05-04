@@ -340,6 +340,9 @@
 .vd-launchpad-fallback-icon.vd-papirus-icon,
 .vd-gallery-action-icon.vd-papirus-icon,
 .vd-todo-action-icon.vd-papirus-icon,
+.vd-calendar-action-icon.vd-papirus-icon,
+.vd-modal-action-icon.vd-papirus-icon,
+.vd-chat-send-icon.vd-papirus-icon,
 .vd-qc-close-icon.vd-papirus-icon,
 .vd-qc-input-icon.vd-papirus-icon,
 .vd-qc-btn-icon.vd-papirus-icon,
@@ -551,7 +554,21 @@
     height: 28px;
 }
 
+.vd-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
 .vd-tool-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vd-chat-send {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -563,6 +580,8 @@
 .vd-settings-nav-icon,
 .vd-settings-pane-papirus-icon,
 .vd-launchpad-action-icon,
+.vd-calendar-action-icon,
+.vd-modal-action-icon,
 .vd-launchpad-empty-papirus-icon {
     flex-shrink: 0;
 }
@@ -1729,12 +1748,22 @@
 .vd-calc-tabs button,
 .vd-calendar-toolbar button,
 .vd-todo-sidebar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 1px solid var(--vd-border);
     color: var(--vd-text);
     background: rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     padding: 7px 10px;
     cursor: pointer;
+}
+
+.vd-calendar-icon-button {
+    width: 34px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
 }
 
 .vd-calc-tabs button.active,
@@ -3403,6 +3432,32 @@
     margin-bottom: 8px;
 }
 
+.vd-launchpad-empty[hidden],
+.vd-launchpad-tile-icon[hidden],
+.vd-launchpad-tile-fallback[hidden],
+.lp-icon-selected-preview[hidden] {
+    display: none !important;
+}
+
+.vd-launchpad-modal {
+    width: min(480px, calc(100vw - 32px));
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.vd-launchpad-form-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.vd-launchpad-field-label {
+    font-size: 12px;
+    color: var(--vd-muted);
+    margin-top: 4px;
+}
+
 .vd-launchpad-tile-title {
     font-size: 12px;
     font-weight: 600;
@@ -3470,7 +3525,6 @@
 }
 
 .vd-launchpad-empty-icon {
-    font-size: 3rem;
     opacity: 0.5;
 }
 
@@ -3576,6 +3630,14 @@
     font-size: 13px;
 }
 
+.lp-icon-msg.muted {
+    color: var(--vd-muted);
+}
+
+.lp-icon-msg.error {
+    color: var(--vd-coral);
+}
+
 .lp-icon-selected-preview {
     display: flex;
     align-items: center;
@@ -3596,11 +3658,24 @@
     justify-content: center;
 }
 
-.lp-icon-preview img {
+.lp-icon-preview img,
+.lp-icon-preview-img {
     max-width: 48px;
     max-height: 48px;
     object-fit: contain;
     border-radius: 6px;
+}
+
+.lp-icon-preview-img {
+    max-width: 64px;
+    max-height: 64px;
+}
+
+.lp-icon-selected-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: contain;
 }
 
 @media (max-width: 680px) {
