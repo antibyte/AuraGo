@@ -58,6 +58,8 @@ func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 		"fm.activeKeyboardWindow = fm.windowId",
 		"fm.activeKeyboardWindow !== fm.windowId",
 		"root.contains(document.activeElement)",
+		"function focusFileItem(path)",
+		"focusFileItem(path);",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("file manager keyboard shortcut scoping missing marker %q", marker)

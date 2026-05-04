@@ -28,6 +28,8 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 		},
 		"ui/js/desktop/apps/sheets.js": {
 			"SheetsApp.dispose",
+			"closeContextMenu: () => closeSheetContextMenu()",
+			"instance.closeContextMenu()",
 			"instances.delete(windowId)",
 		},
 		"ui/js/desktop/apps/writer.js": {

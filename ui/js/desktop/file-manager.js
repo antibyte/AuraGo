@@ -508,6 +508,18 @@
         updateStatusBar();
     }
 
+    function focusFileItem(path) {
+        if (!fm.host || !path) return;
+        const root = fm.host.querySelector('.file-manager');
+        if (!root) return;
+        const item = Array.from(root.querySelectorAll('[data-path]')).find(node => node.dataset.path === path);
+        if (item && typeof item.focus === 'function') {
+            item.focus({ preventScroll: true });
+        } else if (typeof root.focus === 'function') {
+            root.focus({ preventScroll: true });
+        }
+    }
+
     function renderFileContent() {
         if (!fm.host) return;
         const root = fm.host.querySelector('.file-manager');
@@ -527,7 +539,7 @@
     }
 
     function buildMarkup() {
-        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}">
+        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" tabindex="-1">
             ${renderToolbarHtml()}
             ${renderSearchHtml()}
             <div class="fm-body">
@@ -912,7 +924,9 @@
             addSelection(path);
         }
         fm.lastClickedPath = path;
+        activateKeyboardWindow();
         renderAll();
+        focusFileItem(path);
     }
 
     function handleItemDblClick(e) {

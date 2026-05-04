@@ -8,7 +8,7 @@
 
     function render(host, windowId, context) {
         if (!host) return;
-        instances.set(windowId, { container: host });
+        instances.set(windowId, { container: host, closeContextMenu: () => closeSheetContextMenu() });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
         const rawT = ctx.t || ((key, vars) => interpolate(key, vars));
@@ -603,6 +603,10 @@
     }
 
     function dispose(windowId) {
+        const instance = instances.get(windowId);
+        if (instance && typeof instance.closeContextMenu === 'function') {
+            instance.closeContextMenu();
+        }
         instances.delete(windowId);
     }
 
