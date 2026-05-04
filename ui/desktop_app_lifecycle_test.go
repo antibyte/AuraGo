@@ -12,8 +12,13 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 
 	markers := map[string][]string{
 		"ui/js/desktop/main.js": {
+			"function appGlobalName",
+			"'code-studio': 'CodeStudioApp'",
+			"function appGlobalFallbackName",
+			"'code-studio': 'CodeStudio'",
 			"function disposeAppWindow",
 			"window[disposeName]",
+			"window[fallbackName]",
 			"closeWindow(id)",
 		},
 		"ui/js/desktop/apps/sheets.js": {

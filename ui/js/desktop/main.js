@@ -278,6 +278,12 @@
         }[appId] || '';
     }
 
+    function appGlobalFallbackName(appId) {
+        return {
+            'code-studio': 'CodeStudio'
+        }[appId] || '';
+    }
+
     function isBuiltinApp(appId) {
         return ((state.bootstrap && state.bootstrap.builtin_apps) || []).some(app => app.id === appId);
     }
@@ -1013,7 +1019,8 @@
             window.RadioApp.dispose(win.id);
         }
         const disposeName = appGlobalName(win.appId);
-        const app = disposeName ? window[disposeName] : null;
+        const fallbackName = appGlobalFallbackName(win.appId);
+        const app = (disposeName ? window[disposeName] : null) || (fallbackName ? window[fallbackName] : null);
         if (app && typeof app.dispose === 'function') {
             app.dispose(win.id);
         }
