@@ -1781,7 +1781,7 @@
     function renderTodoDetail(host, todo, reload) {
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
-        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<label class="vd-todo-item"><input type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}><span>${esc(item.title)}</span><button type="button" data-item-delete="${esc(item.id)}">×</button></label>`).join('')}</div>`;
+        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<label class="vd-todo-item"><input type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}><span>${esc(item.title)}</span><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></label>`).join('')}</div>`;
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -1893,10 +1893,10 @@
                     <div class="vd-gallery-card-meta">
                         <span>${esc(file.name)}</span>
                         <div class="vd-gallery-actions">
-                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">↗</button>
-                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">↓</a>
-                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">✎</button>
-                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">×</button>
+                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">${iconMarkup('folder-open', 'O', 'vd-gallery-action-icon', 14)}</button>
+                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">${iconMarkup('download', 'D', 'vd-gallery-action-icon', 14)}</a>
+                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">${iconMarkup('edit', 'E', 'vd-gallery-action-icon', 14)}</button>
+                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">${iconMarkup('trash', 'X', 'vd-gallery-action-icon', 14)}</button>
                         </div>
                     </div>
                 </article>`;
@@ -2282,8 +2282,8 @@
                     <div class="vd-qc-confirm-title">${esc(title)}</div>
                     <div class="vd-qc-confirm-msg">${esc(message)}</div>
                     <div class="vd-qc-confirm-actions">
-                        <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
-                        <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${esc(t('desktop.delete'))}</button>
+                        <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                        <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>
                     </div>
                 </div>`;
                 host.querySelector('.vd-quick-connect').appendChild(overlay);
@@ -2303,7 +2303,7 @@
             overlay.innerHTML = `<div class="vd-qc-modal">
                 <div class="vd-qc-modal-header">
                     <span class="vd-qc-modal-title">${esc(isEdit ? t('desktop.qc_edit_server') : t('desktop.qc_add_server'))}</span>
-                    <button class="vd-qc-modal-close" type="button" data-action="close">×</button>
+                    <button class="vd-qc-modal-close" type="button" data-action="close" title="${esc(t('desktop.close'))}">${iconMarkup('x', 'X', 'vd-qc-close-icon', 14)}</button>
                 </div>
                 <div class="vd-qc-modal-body">
                     <div class="vd-qc-form-section">
@@ -2331,8 +2331,8 @@
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
                                 <input class="vd-qc-input" type="password" name="password" placeholder="${isEdit && existingCred && existingCred.has_password ? t('desktop.qc_password_stored') : ''}">
-                                <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw">👁</button>
-                                ${isEdit && existingCred && existingCred.has_password ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="download-pw">↓</button>` : ''}
+                                <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw" title="${esc(t('desktop.qc_password'))}">${iconMarkup('key', 'K', 'vd-qc-input-icon', 14)}</button>
+                                ${isEdit && existingCred && existingCred.has_password ? `<button class="vd-qc-btn vd-qc-btn-sm vd-qc-icon-only" type="button" data-action="download-pw" title="${esc(t('desktop.qc_password'))}">${iconMarkup('download', 'D', 'vd-qc-btn-icon', 14)}</button>` : ''}
                             </div>
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_certificate'))}
@@ -2340,10 +2340,10 @@
                                 <textarea class="vd-qc-textarea" name="certificate_text" rows="3" placeholder="${t('desktop.qc_cert_paste_placeholder')}"></textarea>
                                 <div class="vd-qc-cert-actions">
                                     <label class="vd-qc-btn vd-qc-btn-secondary vd-qc-btn-sm">
-                                        ${esc(t('desktop.qc_upload_cert'))}
+                                        ${iconMarkup('upload', 'U', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_upload_cert'))}</span>
                                         <input type="file" accept=".pem,.key,.pub,.crt,.cer,.txt" name="certificate_file" hidden>
                                     </label>
-                                    ${isEdit && existingCred && existingCred.has_certificate ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="download-cert">${esc(t('desktop.qc_download_cert'))}</button>` : ''}
+                                    ${isEdit && existingCred && existingCred.has_certificate ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="download-cert">${iconMarkup('download', 'D', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_download_cert'))}</span></button>` : ''}
                                 </div>
                                 ${isEdit && existingCred && existingCred.has_certificate ? '<span class="vd-qc-hint">' + esc(t('desktop.qc_cert_stored')) + '</span>' : ''}
                             </div>
@@ -2351,8 +2351,8 @@
                     </div>
                 </div>
                 <div class="vd-qc-modal-footer">
-                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
-                    <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="save">${esc(t('desktop.qc_save'))}</button>
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="save">${iconMarkup('save', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_save'))}</span></button>
                 </div>
             </div>`;
 
@@ -2578,7 +2578,7 @@
             empty.style.display = 'none';
             grid.innerHTML = filtered.map(link => {
                 const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' : '';
-                const fallback = '<div class="vd-launchpad-tile-fallback" style="display:' + (link.icon_path ? 'none' : 'flex') + '">🌐</div>';
+                const fallback = '<div class="vd-launchpad-tile-fallback" style="display:' + (link.icon_path ? 'none' : 'flex') + '">' + iconMarkup('globe', 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
                 return '<div class="vd-launchpad-tile" data-id="' + esc(link.id) + '">' + icon + fallback +
                     '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
                     (link.description ? '<div class="vd-launchpad-tile-desc">' + esc(link.description) + '</div>' : '') +
@@ -2604,7 +2604,7 @@
         }
 
         async function deleteLink(linkId) {
-            const ok = confirm(t('desktop.launchpad_delete_confirm'));
+            const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
             try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }

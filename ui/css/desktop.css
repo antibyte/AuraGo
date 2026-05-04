@@ -337,6 +337,12 @@
 .vd-settings-nav-icon.vd-papirus-icon,
 .vd-settings-pane-papirus-icon.vd-papirus-icon,
 .vd-launchpad-action-icon.vd-papirus-icon,
+.vd-launchpad-fallback-icon.vd-papirus-icon,
+.vd-gallery-action-icon.vd-papirus-icon,
+.vd-todo-action-icon.vd-papirus-icon,
+.vd-qc-close-icon.vd-papirus-icon,
+.vd-qc-input-icon.vd-papirus-icon,
+.vd-qc-btn-icon.vd-papirus-icon,
 .fm-toolbtn .vd-papirus-icon,
 .fm-btn-icon.vd-papirus-icon,
 .fm-search-icon.vd-papirus-icon,
@@ -348,8 +354,15 @@
 }
 
 .vd-button.primary .vd-papirus-icon,
+.vd-button-primary .vd-papirus-icon,
+.vd-qc-btn-primary .vd-papirus-icon,
 .fm-btn.primary .vd-papirus-icon {
     filter: brightness(0) saturate(100%) invert(5%) sepia(16%) saturate(1555%) hue-rotate(132deg) brightness(94%) contrast(96%);
+    opacity: 1;
+}
+
+.vd-qc-btn-danger .vd-papirus-icon {
+    filter: brightness(0) invert(1);
     opacity: 1;
 }
 
@@ -1920,6 +1933,25 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
+.vd-todo-item-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.vd-todo-item-delete:hover {
+    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.12);
+}
+
 .vd-calendar {
     display: grid;
     grid-template-rows: auto 1fr;
@@ -2848,6 +2880,10 @@
     background: rgba(239, 68, 68, 0.12);
 }
 
+.vd-icon-button .vd-papirus-icon {
+    pointer-events: none;
+}
+
 .vd-media-preview-backdrop {
     z-index: 5000;
 }
@@ -2990,16 +3026,22 @@
 }
 
 .vd-qc-modal-close {
-    background: none;
-    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
+    border-radius: 6px;
     color: var(--vd-muted);
-    font-size: 18px;
     cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
+    padding: 0;
 }
 
 .vd-qc-modal-close:hover {
+    border-color: var(--vd-border);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--vd-text);
 }
 
@@ -3107,12 +3149,16 @@
 }
 
 .vd-qc-input-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
     background: var(--vd-bg);
     border: 1px solid var(--vd-border);
     border-radius: 6px;
     color: var(--vd-muted);
     cursor: pointer;
-    padding: 0 8px;
+    padding: 0;
     font-size: 14px;
 }
 
@@ -3144,6 +3190,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     padding: 7px 16px;
     border-radius: 6px;
     border: 1px solid var(--vd-border);
@@ -3163,6 +3210,12 @@
 .vd-qc-btn-sm {
     padding: 4px 10px;
     font-size: 11px;
+}
+
+.vd-qc-icon-only {
+    width: 34px;
+    padding-left: 0;
+    padding-right: 0;
 }
 
 .vd-qc-btn-primary {
@@ -3347,7 +3400,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.4rem;
     margin-bottom: 8px;
 }
 
