@@ -29,6 +29,9 @@
     }
 
     window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin || event.source !== window.parent) {
+            return;
+        }
         const msg = event.data;
         if (!msg || msg.type !== RESPONSE_TYPE || !pending.has(msg.id)) return;
         const item = pending.get(msg.id);
