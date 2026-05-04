@@ -2,33 +2,84 @@
     const STATE_KEY = 'aurago.codeStudio.state.v1';
     const WORKSPACE_ROOT = '/workspace';
 
-    const state = {
-        root: null,
-        windowId: '',
-        editorType: null,
-        cmModule: null,
-        files: [],
-        openTabs: [],
-        activeTabIndex: -1,
-        terminal: null,
-        fitAddon: null,
-        ws: null,
-        currentPath: WORKSPACE_ROOT,
-        recentFiles: [],
-        containerStatus: 'unknown',
-        terminalVisible: true,
-        terminalHeight: 220,
-        sidebarVisible: true,
-        sidebarWidth: 280,
-        searchVisible: false,
-        searchResults: [],
-        agentVisible: false,
-        agentMessages: [],
-        agentBusy: false,
-        pendingSuggestion: null,
-        shortcutsWired: false,
-        iconMarkup: null
-    };
+    const instances = new Map();
+    let state = null;
+    let latestWindowId = '';
+
+    function createInstance(container, windowId, context) {
+        return {
+            root: container,
+            windowId,
+            context: context || {},
+            editorType: null,
+            cmModule: null,
+            files: [],
+            openTabs: [],
+            activeTabIndex: -1,
+            terminal: null,
+            fitAddon: null,
+            ws: null,
+            currentPath: WORKSPACE_ROOT,
+            recentFiles: [],
+            containerStatus: 'unknown',
+            terminalVisible: true,
+            terminalHeight: 220,
+            sidebarVisible: true,
+            sidebarWidth: 280,
+            searchVisible: false,
+            searchResults: [],
+            agentVisible: false,
+            agentMessages: [],
+            agentBusy: false,
+            pendingSuggestion: null,
+            shortcutsWired: false,
+            iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
+            disposers: []
+        };
+    }
+
+    function currentInstance() {
+        if (state) return state;
+        if (latestWindowId && instances.has(latestWindowId)) return instances.get(latestWindowId);
+        const iterator = instances.values().next();
+        return iterator.done ? null : iterator.value;
+    }
+
+    function runWithInstance(instance, fn) {
+        if (!instance || typeof fn !== 'function') return undefined;
+        const previous = state;
+        state = instance;
+        let result;
+        try {
+            result = fn();
+        } catch (err) {
+            state = previous;
+            throw err;
+        }
+        if (result && typeof result.then === 'function') {
+            return result.finally(() => {
+                state = previous;
+            });
+        }
+        state = previous;
+        return result;
+    }
+
+    function withCurrentInstance(fn) {
+        const instance = currentInstance();
+        if (!instance) return undefined;
+        return runWithInstance(instance, fn);
+    }
+
+    function bindInstance(instance, fn) {
+        return function boundCodeStudioHandler(...args) {
+            return runWithInstance(instance, () => fn.apply(this, args));
+        };
+    }
+
+    function bind(fn) {
+        return bindInstance(state, fn);
+    }
 
     function tr(key, fallback, vars) {
         const translator = typeof window.t === 'function'
@@ -53,7 +104,7 @@
     }
 
     function iconMarkup(key, fallback, className, size) {
-        if (typeof state.iconMarkup === 'function') {
+        if (state && typeof state.iconMarkup === 'function') {
             return state.iconMarkup(key, fallback, className || 'cs-papirus-icon', size || 15);
         }
         const pixels = Number(size || 15) || 15;
@@ -121,10 +172,10 @@
             method: 'POST',
             body: JSON.stringify({ path })
         }),
-        exec: command => api('/api/code-studio/exec', {
+        exec: command => runOnWindow(null, () => api('/api/code-studio/exec', {
             method: 'POST',
             body: JSON.stringify({ command, cwd: currentDirectory(), timeout_seconds: 300 })
-        }),
+        })),
         search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
         agentChat: (message, context) => api('/api/desktop/chat', {
             method: 'POST',
@@ -170,23 +221,47 @@
 
     async function render(container, windowId, context) {
         if (!container) return;
-        state.root = container;
-        state.windowId = windowId;
-        state.iconMarkup = context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null;
-        loadState();
-        container.innerHTML = shellMarkup();
-        renderLoading(tr('codeStudio.starting', 'Starting container...'));
-        try {
-            await prepareContainer();
-            await loadEditorModule();
+        dispose(windowId);
+        const instance = createInstance(container, windowId, context);
+        instances.set(windowId, instance);
+        latestWindowId = windowId;
+        return runWithInstance(instance, async () => {
+            loadState();
             container.innerHTML = shellMarkup();
-            renderShell();
-            await refreshFiles(context && context.path ? context.path : state.currentPath);
-            await restoreTabs();
-            connectTerminal();
-        } catch (err) {
-            renderError(err.message || String(err));
+            renderLoading(tr('codeStudio.starting', 'Starting container...'));
+            try {
+                await prepareContainer();
+                await loadEditorModule();
+                container.innerHTML = shellMarkup();
+                renderShell();
+                await refreshFiles(context && context.path ? context.path : state.currentPath);
+                await restoreTabs();
+                connectTerminal();
+            } catch (err) {
+                renderError(err.message || String(err));
+            }
+        });
+    }
+
+    function dispose(windowId) {
+        if (!windowId) {
+            const instance = currentInstance();
+            windowId = instance && instance.windowId;
         }
+        const instance = instances.get(windowId);
+        if (!instance) return;
+        if (instance.ws && (typeof WebSocket === 'undefined' || instance.ws.readyState !== WebSocket.CLOSED)) {
+            instance.ws.close();
+        }
+        for (const disposeFn of instance.disposers || []) {
+            try { disposeFn(); } catch (_) {}
+        }
+        instance.openTabs.forEach(tab => {
+            if (tab.view && typeof tab.view.destroy === 'function') tab.view.destroy();
+        });
+        instances.delete(windowId);
+        if (state === instance) state = null;
+        if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
     }
 
     async function prepareContainer() {
@@ -261,15 +336,15 @@
             <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('terminal', 'T', 'cs-icon-button-icon', 16)}</button>
             <span class="cs-toolbar-spacer"></span>
             <span class="cs-pill">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic editor'))}</span>`;
-        toolbar.querySelector('[data-action="new-file"]').addEventListener('click', createNewFile);
-        toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', createNewFolder);
-        toolbar.querySelector('[data-action="save"]').addEventListener('click', saveCurrentFile);
-        toolbar.querySelector('[data-action="run"]').addEventListener('click', runCurrentFile);
-        toolbar.querySelector('[data-action="search"]').addEventListener('click', toggleSearch);
-        toolbar.querySelector('[data-action="agent"]').addEventListener('click', toggleAgentPanel);
-        toolbar.querySelector('[data-action="upload"]').addEventListener('click', uploadFile);
-        toolbar.querySelector('[data-action="refresh"]').addEventListener('click', () => refreshFiles(state.currentPath));
-        toolbar.querySelector('[data-action="terminal"]').addEventListener('click', toggleTerminal);
+        toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
+        toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
+        toolbar.querySelector('[data-action="save"]').addEventListener('click', bind(saveCurrentFile));
+        toolbar.querySelector('[data-action="run"]').addEventListener('click', bind(runCurrentFile));
+        toolbar.querySelector('[data-action="search"]').addEventListener('click', bind(toggleSearch));
+        toolbar.querySelector('[data-action="agent"]').addEventListener('click', bind(toggleAgentPanel));
+        toolbar.querySelector('[data-action="upload"]').addEventListener('click', bind(uploadFile));
+        toolbar.querySelector('[data-action="refresh"]').addEventListener('click', bind(() => refreshFiles(state.currentPath)));
+        toolbar.querySelector('[data-action="terminal"]').addEventListener('click', bind(toggleTerminal));
     }
 
     function renderSearchPanel() {
@@ -291,12 +366,12 @@
             <label><input type="checkbox" name="regex"> .*</label>
             <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
         </form><div class="cs-search-results">${results}</div>`;
-        panel.querySelector('[data-search-form]').addEventListener('submit', event => {
+        panel.querySelector('[data-search-form]').addEventListener('submit', bind(event => {
             event.preventDefault();
             runSearch(new FormData(event.currentTarget));
-        });
+        }));
         panel.querySelectorAll('[data-search-path]').forEach(btn => {
-            btn.addEventListener('click', () => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1)));
+            btn.addEventListener('click', bind(() => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1))));
         });
         const input = panel.querySelector('input[name="q"]');
         if (input && !input.value) input.focus();
@@ -336,25 +411,25 @@
             <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
             <button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>
         </form>`;
-        panel.querySelector('[data-agent-close]').addEventListener('click', toggleAgentPanel);
+        panel.querySelector('[data-agent-close]').addEventListener('click', bind(toggleAgentPanel));
         panel.querySelectorAll('[data-code-action]').forEach(btn => {
-            btn.addEventListener('click', () => runCodeAction(btn.dataset.codeAction));
+            btn.addEventListener('click', bind(() => runCodeAction(btn.dataset.codeAction)));
         });
-        panel.querySelector('[data-agent-form]').addEventListener('submit', event => {
+        panel.querySelector('[data-agent-form]').addEventListener('submit', bind(event => {
             event.preventDefault();
             const input = event.currentTarget.elements.message;
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
             sendAgentMessage(message);
-        });
+        }));
         const apply = panel.querySelector('[data-agent-apply]');
-        if (apply) apply.addEventListener('click', applyAgentSuggestion);
+        if (apply) apply.addEventListener('click', bind(applyAgentSuggestion));
         const discard = panel.querySelector('[data-agent-discard]');
-        if (discard) discard.addEventListener('click', () => {
+        if (discard) discard.addEventListener('click', bind(() => {
             state.pendingSuggestion = null;
             renderAgentPanel();
-        });
+        }));
     }
 
     function renderSidebar(errorMessage) {
@@ -370,12 +445,12 @@
             <strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong>
             <span>${esc(state.currentPath)}</span>
         </div><div class="cs-file-tree">${rows}</div>`;
-        sidebar.ondragover = event => {
+        sidebar.ondragover = bind(event => {
             event.preventDefault();
             sidebar.classList.add('dragover');
-        };
-        sidebar.ondragleave = () => sidebar.classList.remove('dragover');
-        sidebar.ondrop = async event => {
+        });
+        sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
+        sidebar.ondrop = bind(async event => {
             event.preventDefault();
             sidebar.classList.remove('dragover');
             const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
@@ -385,17 +460,17 @@
             } catch (err) {
                 showOperationError(err);
             }
-        };
+        });
         sidebar.querySelectorAll('[data-file-path]').forEach(row => {
-            row.addEventListener('click', event => {
+            row.addEventListener('click', bind(event => {
                 const action = event.target.closest('[data-file-action]');
                 if (action) return;
                 const file = state.files.find(item => item.path === row.dataset.filePath);
                 if (!file) return;
                 if (file.type === 'directory') refreshFiles(file.path);
                 else openFile(file.path);
-            });
-            row.addEventListener('keydown', event => {
+            }));
+            row.addEventListener('keydown', bind(event => {
                 const file = state.files.find(item => item.path === row.dataset.filePath);
                 if (!file) return;
                 if (event.key === 'Enter') {
@@ -411,10 +486,10 @@
                     event.preventDefault();
                     deletePath(file);
                 }
-            });
+            }));
         });
         sidebar.querySelectorAll('[data-file-action]').forEach(btn => {
-            btn.addEventListener('click', event => {
+            btn.addEventListener('click', bind(event => {
                 event.stopPropagation();
                 const file = state.files.find(item => item.path === btn.closest('[data-file-path]').dataset.filePath);
                 if (!file) return;
@@ -422,12 +497,12 @@
                 if (action === 'rename') renamePath(file);
                 if (action === 'delete') deletePath(file);
                 if (action === 'download') downloadFile(file);
-            });
-            btn.addEventListener('keydown', event => {
+            }));
+            btn.addEventListener('keydown', bind(event => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
                 btn.click();
-            });
+            }));
         });
     }
 
@@ -455,14 +530,14 @@
                 <span>${esc(baseName(tab.path))}${tab.modified ? ' *' : ''}</span>
                 <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
             </button>`).join('') : `<div class="cs-tabs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
-        tabs.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', event => {
+        tabs.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', bind(event => {
             if (event.target.closest('[data-close]')) return;
             activateTab(Number(btn.dataset.tab));
-        }));
-        tabs.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', event => {
+        })));
+        tabs.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', bind(event => {
             event.stopPropagation();
             closeTab(Number(btn.dataset.close));
-        }));
+        })));
     }
 
     function renderEditor() {
@@ -477,10 +552,10 @@
         tab.view = state.editorType === 'codemirror'
             ? createCodeMirrorEditor(editor, tab)
             : createTextareaEditor(editor, tab);
-        editor.oncontextmenu = event => {
+        editor.oncontextmenu = bind(event => {
             event.preventDefault();
             showCodeActionMenu(event.clientX, event.clientY);
-        };
+        });
     }
 
     function renderTerminal() {
@@ -513,7 +588,7 @@
             <strong>${esc(tr('codeStudio.containerError', 'Container error: {error}', { error: message }))}</strong>
             <button type="button" class="cs-button primary" data-retry>${esc(tr('codeStudio.refresh', 'Refresh'))}</button>
         </div></div>`;
-        state.root.querySelector('[data-retry]').addEventListener('click', () => render(state.root, state.windowId, {}));
+        state.root.querySelector('[data-retry]').addEventListener('click', bind(() => render(state.root, state.windowId, state.context || {})));
     }
 
     async function refreshFiles(path) {
@@ -663,7 +738,7 @@
     function uploadFile() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.addEventListener('change', async () => {
+        input.addEventListener('change', bind(async () => {
             if (!input.files || !input.files[0]) return;
             try {
                 await apiClient.uploadFile(state.currentPath, input.files[0]);
@@ -671,7 +746,7 @@
             } catch (err) {
                 showOperationError(err);
             }
-        }, { once: true });
+        }), { once: true });
         input.click();
     }
 
@@ -859,20 +934,22 @@
             <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
         document.body.appendChild(menu);
         menu.querySelectorAll('[data-code-action]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', bind(() => {
                 runCodeAction(btn.dataset.codeAction);
                 menu.remove();
-            });
+            }));
         });
-        setTimeout(() => {
+        setTimeout(bind(() => {
+            let boundClose;
             const close = event => {
                 if (!menu.contains(event.target)) {
                     menu.remove();
-                    document.removeEventListener('mousedown', close);
+                    document.removeEventListener('mousedown', boundClose);
                 }
             };
-            document.addEventListener('mousedown', close);
-        }, 0);
+            boundClose = bind(close);
+            document.addEventListener('mousedown', boundClose);
+        }), 0);
     }
 
     function connectTerminal() {
@@ -896,16 +973,20 @@
             const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws.binaryType = 'arraybuffer';
             state.ws = ws;
-            ws.onopen = () => {
+            const instance = state;
+            ws.onopen = bindInstance(instance, () => {
                 label.textContent = tr('codeStudio.running', 'Running...');
-                term.onData(data => ws.readyState === WebSocket.OPEN && ws.send(data));
-            };
-            ws.onmessage = event => {
+                const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
+                if (termDataDispose && typeof termDataDispose.dispose === 'function') {
+                    instance.disposers.push(() => termDataDispose.dispose());
+                }
+            });
+            ws.onmessage = bindInstance(instance, event => {
                 if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
                 else term.write(String(event.data));
-            };
-            ws.onerror = () => label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
-            ws.onclose = () => label.textContent = tr('codeStudio.stopped', 'Stopped');
+            });
+            ws.onerror = bindInstance(instance, () => label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable'));
+            ws.onclose = bindInstance(instance, () => label.textContent = tr('codeStudio.stopped', 'Stopped'));
         } catch (err) {
             screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
         }
@@ -930,17 +1011,17 @@
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
-                { key: 'Ctrl-s', run: () => { saveCurrentFile(); return true; } },
-                { key: 'F5', run: () => { runCurrentFile(); return true; } },
+                { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
+                { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) },
                 ...(cm.searchKeymap || [])
             ].filter(Boolean)),
-            cm.EditorView.updateListener.of(update => {
+            cm.EditorView.updateListener.of(bind(update => {
                 if (!update.docChanged) return;
                 tab.modified = true;
                 tab.content = update.state.doc.toString();
                 renderTabs();
                 renderStatus();
-            })
+            }))
         ].filter(Boolean);
         return new cm.EditorView({
             state: cm.EditorState.create({ doc: tab.content, extensions }),
@@ -960,7 +1041,7 @@
         wrapper.appendChild(textarea);
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
-        const updatePreview = () => {
+        const updatePreview = bind(() => {
             tab.content = textarea.value;
             tab.modified = true;
             preview.textContent = textarea.value;
@@ -971,9 +1052,9 @@
             }
             renderTabs();
             renderStatus();
-        };
+        });
         textarea.addEventListener('input', updatePreview);
-        textarea.addEventListener('keydown', event => {
+        textarea.addEventListener('keydown', bind(event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
                 event.preventDefault();
                 saveCurrentFile();
@@ -986,7 +1067,7 @@
                 textarea.selectionStart = textarea.selectionEnd = start + 4;
                 updatePreview();
             }
-        });
+        }));
         updatePreview();
         tab.modified = false;
         return { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
@@ -1000,16 +1081,18 @@
     }
 
     function activeTab() {
+        if (!state) return null;
         return state.openTabs[state.activeTabIndex] || null;
     }
 
     function currentDirectory() {
         const tab = activeTab();
         if (tab && tab.path) return tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/')));
-        return state.currentPath || WORKSPACE_ROOT;
+        return state && state.currentPath || WORKSPACE_ROOT;
     }
 
     function studioRoot() {
+        if (!state || !state.root) return null;
         return state.root.querySelector('[data-code-studio]');
     }
 
@@ -1030,7 +1113,7 @@
     function toggleTerminal() {
         state.terminalVisible = !state.terminalVisible;
         ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
-        if (state.fitAddon && state.terminalVisible) setTimeout(() => state.fitAddon.fit(), 50);
+        if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
         saveState();
     }
 
@@ -1114,14 +1197,14 @@
                 overlay.remove();
                 resolve(result);
             };
-            overlay.querySelector('form').addEventListener('submit', event => {
+            overlay.querySelector('form').addEventListener('submit', bind(event => {
                 event.preventDefault();
                 cleanup(input.value.trim());
-            });
-            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(''));
-            overlay.addEventListener('click', event => {
+            }));
+            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup('')));
+            overlay.addEventListener('click', bind(event => {
                 if (event.target === overlay) cleanup('');
-            });
+            }));
             input.focus();
             input.select();
         });
@@ -1143,11 +1226,11 @@
                 overlay.remove();
                 resolve(result);
             };
-            overlay.querySelector('[data-confirm]').addEventListener('click', () => cleanup(true));
-            overlay.querySelector('[data-cancel]').addEventListener('click', () => cleanup(false));
-            overlay.addEventListener('click', event => {
+            overlay.querySelector('[data-confirm]').addEventListener('click', bind(() => cleanup(true)));
+            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup(false)));
+            overlay.addEventListener('click', bind(event => {
                 if (event.target === overlay) cleanup(false);
-            });
+            }));
             overlay.querySelector('[data-confirm]').focus();
         });
     }
@@ -1155,7 +1238,8 @@
     function wireShortcuts() {
         if (state.shortcutsWired) return;
         state.shortcutsWired = true;
-        document.addEventListener('keydown', event => {
+        const instance = state;
+        const onKeydown = bindInstance(instance, event => {
             if (!state.root || !studioRoot()) return;
             const activeElement = document.activeElement;
             if (activeElement && !state.root.contains(activeElement)) return;
@@ -1178,16 +1262,49 @@
                 runCurrentFile();
             }
         });
+        document.addEventListener('keydown', onKeydown);
+        state.disposers.push(() => document.removeEventListener('keydown', onKeydown));
     }
 
-    window.CodeStudio = {
+    function runOnWindow(windowId, fn) {
+        const instance = windowId ? instances.get(windowId) : currentInstance();
+        if (!instance) return undefined;
+        latestWindowId = instance.windowId;
+        return runWithInstance(instance, fn);
+    }
+
+    function exposedLoadState(windowId) {
+        return runOnWindow(windowId, loadState);
+    }
+
+    function exposedSaveState(windowId) {
+        return runOnWindow(windowId, saveState);
+    }
+
+    function exposedRefreshFiles(path, windowId) {
+        return runOnWindow(windowId, () => refreshFiles(path || state.currentPath));
+    }
+
+    function exposedOpenFile(path, persist, windowId) {
+        return runOnWindow(windowId, () => openFile(path, persist));
+    }
+
+    function exposedSaveCurrentFile(windowId) {
+        return runOnWindow(windowId, saveCurrentFile);
+    }
+
+    window.CodeStudioApp = {
         render,
-        state,
+        dispose,
+        get state() { return currentInstance(); },
+        instances,
         api: apiClient,
-        loadState,
-        saveState,
-        refreshFiles,
-        openFile,
-        saveCurrentFile
+        loadState: exposedLoadState,
+        saveState: exposedSaveState,
+        refreshFiles: exposedRefreshFiles,
+        openFile: exposedOpenFile,
+        saveCurrentFile: exposedSaveCurrentFile
     };
+    window.CodeStudioApp.dispose = dispose;
+    window.CodeStudio = window.CodeStudioApp;
 })();
