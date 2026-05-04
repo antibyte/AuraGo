@@ -55,6 +55,7 @@
         calculator: 'calculator',
         gallery: 'image',
         'music-player': 'audio',
+        radio: 'audio',
         todo: 'notes',
         'agent-chat': 'agent_chat',
         terminal: 'terminal',
@@ -151,6 +152,7 @@
             calendar: 'C',
             calculator: 'Ca',
             'music-player': 'MP',
+            radio: 'Ra',
             todo: 'Td',
             'agent-chat': 'A',
             gallery: 'G',
@@ -722,6 +724,7 @@
             calculator: { width: 380, height: 520 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
+            radio: { width: 960, height: 680 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 },
             'code-studio': { width: 1280, height: 850 },
@@ -932,6 +935,7 @@
         const win = state.windows.get(id);
         if (!win) return;
         if (win.appId === 'music-player') disposeWebampMusic(id);
+        if (win.appId === 'radio' && window.RadioApp && typeof window.RadioApp.dispose === 'function') window.RadioApp.dispose(id);
         win.element.remove();
         state.windows.delete(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -1279,6 +1283,9 @@
         if (appId === 'todo') return renderTodo(id);
         if (appId === 'gallery') return renderGallery(id);
         if (appId === 'music-player') return renderMusicPlayer(id);
+        if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
+            return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
+        }
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
