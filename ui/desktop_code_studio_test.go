@@ -19,10 +19,16 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"instances.set(windowId, instance)",
 		"CodeStudioApp.dispose",
 		"instance.ws.close()",
+		"async function runAsyncStep",
+		"instances.get(state.windowId) === state",
+		"if (!instances.has(windowId)) return;",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("Code Studio per-window lifecycle missing marker %q", marker)
 		}
+	}
+	if strings.Contains(source, "return runWithInstance(instance, async () => {") {
+		t.Fatalf("Code Studio render must not hold global state across awaited operations")
 	}
 	if !strings.Contains(source, "window.CodeStudio = window.CodeStudioApp") {
 		t.Fatalf("Code Studio compatibility export missing")

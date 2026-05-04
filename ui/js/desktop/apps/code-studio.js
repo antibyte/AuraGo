@@ -39,10 +39,14 @@
     }
 
     function currentInstance() {
-        if (state) return state;
+        if (state && instances.get(state.windowId) === state) return state;
         if (latestWindowId && instances.has(latestWindowId)) return instances.get(latestWindowId);
         const iterator = instances.values().next();
         return iterator.done ? null : iterator.value;
+    }
+
+    function isLiveInstance(instance) {
+        return instance && instances.get(instance.windowId) === instance;
     }
 
     function runWithInstance(instance, fn) {
@@ -62,6 +66,19 @@
             });
         }
         state = previous;
+        return result;
+    }
+
+    async function runAsyncStep(instance, fn) {
+        if (!isLiveInstance(instance)) return undefined;
+        const previous = state;
+        state = instance;
+        let result;
+        try {
+            result = fn(instance);
+        } finally {
+            state = previous;
+        }
         return result;
     }
 
@@ -225,22 +242,28 @@
         const instance = createInstance(container, windowId, context);
         instances.set(windowId, instance);
         latestWindowId = windowId;
-        return runWithInstance(instance, async () => {
+        runWithInstance(instance, () => {
             loadState();
             container.innerHTML = shellMarkup();
             renderLoading(tr('codeStudio.starting', 'Starting container...'));
-            try {
-                await prepareContainer();
-                await loadEditorModule();
+        });
+        try {
+            await runAsyncStep(instance, prepareContainer);
+            if (!instances.has(windowId)) return;
+            await runAsyncStep(instance, loadEditorModule);
+            if (!instances.has(windowId)) return;
+            runWithInstance(instance, () => {
                 container.innerHTML = shellMarkup();
                 renderShell();
-                await refreshFiles(context && context.path ? context.path : state.currentPath);
-                await restoreTabs();
-                connectTerminal();
-            } catch (err) {
-                renderError(err.message || String(err));
-            }
-        });
+            });
+            await runAsyncStep(instance, () => refreshFiles(context && context.path ? context.path : state.currentPath));
+            if (!instances.has(windowId)) return;
+            await runAsyncStep(instance, restoreTabs);
+            if (!instances.has(windowId)) return;
+            runWithInstance(instance, connectTerminal);
+        } catch (err) {
+            if (instances.has(windowId)) runWithInstance(instance, () => renderError(err.message || String(err)));
+        }
     }
 
     function dispose(windowId) {
@@ -264,25 +287,40 @@
         if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
     }
 
-    async function prepareContainer() {
+    async function prepareContainer(instance) {
+        const target = instance || state;
         const status = await apiClient.status();
         const payload = status.code_studio || {};
         if (!payload.enabled) throw new Error(tr('codeStudio.dockerUnavailable', 'Docker is not available. Code Studio requires Docker.'));
-        state.containerStatus = payload.running ? 'running' : 'starting';
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            state.containerStatus = payload.running ? 'running' : 'starting';
+        });
         if (!payload.running) {
             await apiClient.files(WORKSPACE_ROOT);
-            state.containerStatus = 'running';
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.containerStatus = 'running';
+            });
         }
     }
 
-    async function loadEditorModule() {
+    async function loadEditorModule(instance) {
+        const target = instance || state;
         try {
-            state.cmModule = await import('/js/vendor/codemirror-bundle.esm.js');
-            state.editorType = 'codemirror';
+            const cmModule = await import('/js/vendor/codemirror-bundle.esm.js');
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.cmModule = cmModule;
+                state.editorType = 'codemirror';
+            });
         } catch (err) {
             console.warn('CodeMirror ESM failed, using textarea fallback', err);
-            state.cmModule = null;
-            state.editorType = 'textarea';
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.cmModule = null;
+                state.editorType = 'textarea';
+            });
         }
     }
 
@@ -592,37 +630,53 @@
     }
 
     async function refreshFiles(path) {
-        state.currentPath = path || WORKSPACE_ROOT;
+        const target = state;
+        if (!target) return;
+        const nextPath = path || WORKSPACE_ROOT;
+        state.currentPath = nextPath;
         try {
-            const result = await apiClient.files(state.currentPath);
-            state.files = result.files || [];
-            renderSidebar();
-            renderStatus();
+            const result = await apiClient.files(nextPath);
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.files = result.files || [];
+                renderSidebar();
+                renderStatus();
+            });
         } catch (err) {
-            renderSidebar(err.message || String(err));
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => renderSidebar(err.message || String(err)));
+            }
         }
     }
 
     async function restoreTabs() {
-        const savedPaths = state.openTabs.map(tab => tab.path);
-        const desiredActive = state.activeTabIndex;
+        const target = state;
+        if (!target) return;
+        const savedPaths = target.openTabs.map(tab => tab.path);
+        const desiredActive = target.activeTabIndex;
         state.openTabs = [];
         for (const path of savedPaths) {
             try {
-                await openFile(path, false);
+                await runAsyncStep(target, () => openFile(path, false));
             } catch (err) {
                 console.warn('Failed to restore Code Studio tab', path, err);
             }
+            if (!isLiveInstance(target)) return;
         }
-        if (state.openTabs.length) {
-            activateTab(Math.min(Math.max(desiredActive, 0), state.openTabs.length - 1));
-        } else {
-            renderTabs();
-            renderEditor();
-        }
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            if (state.openTabs.length) {
+                activateTab(Math.min(Math.max(desiredActive, 0), state.openTabs.length - 1));
+            } else {
+                renderTabs();
+                renderEditor();
+            }
+        });
     }
 
     async function openFile(path, persist) {
+        const target = state;
+        if (!target) return;
         const existing = state.openTabs.findIndex(tab => tab.path === path);
         if (existing >= 0) {
             activateTab(existing);
@@ -630,17 +684,20 @@
         }
         renderStatus(tr('codeStudio.editorLoading', 'Loading editor...'));
         const result = await apiClient.file(path);
-        const tab = {
-            path,
-            content: result.content || '',
-            modified: false,
-            language: languageForPath(path),
-            view: null
-        };
-        state.openTabs.push(tab);
-        state.recentFiles = [path, ...state.recentFiles.filter(item => item !== path)].slice(0, 20);
-        activateTab(state.openTabs.length - 1, persist !== false);
-        if (persist !== false) saveState();
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            const tab = {
+                path,
+                content: result.content || '',
+                modified: false,
+                language: languageForPath(path),
+                view: null
+            };
+            state.openTabs.push(tab);
+            state.recentFiles = [path, ...state.recentFiles.filter(item => item !== path)].slice(0, 20);
+            activateTab(state.openTabs.length - 1, persist !== false);
+            if (persist !== false) saveState();
+        });
     }
 
     function activateTab(index, persist) {
