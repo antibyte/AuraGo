@@ -19,7 +19,9 @@ func TestSecurityHeadersAllowYouTubeEmbeds(t *testing.T) {
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, marker := range []string{
 		"default-src 'self'",
-		"connect-src 'self' ws: wss:",
+		"connect-src 'self' ws: wss: https://de1.api.radio-browser.info",
+		"img-src 'self' data: blob: https:",
+		"media-src 'self' data: blob: http: https:",
 		"object-src 'none'",
 		"form-action 'self'",
 		"frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
