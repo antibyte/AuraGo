@@ -2806,6 +2806,8 @@
         top: 0 !important;
         width: 100vw !important;
         height: calc(100dvh - 58px - env(safe-area-inset-bottom)) !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
     }
 
     .vd-agent-button span:last-child,
