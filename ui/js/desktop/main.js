@@ -390,6 +390,10 @@
         };
     }
 
+    function clampDesktopIconPosition(left, top) {
+        return clampToWorkspace(left, top, 92, 88);
+    }
+
     async function api(url, options) {
         const resp = await fetch(url, options);
         const contentType = resp.headers.get('content-type') || '';
@@ -1148,7 +1152,8 @@
     function autoArrangeIcons() {
         const icons = [...document.querySelectorAll('.vd-icon')];
         icons.forEach((icon, index) => {
-            const pos = defaultIconPosition(index);
+            const arranged = defaultIconPosition(index);
+            const pos = clampDesktopIconPosition(arranged.x, arranged.y);
             icon.style.left = pos.x + 'px';
             icon.style.top = pos.y + 'px';
             saveIconPosition(icon.dataset.id, pos.x, pos.y);
@@ -3420,29 +3425,9 @@
 
     function handleDesktopKeydown(event) {
         if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
-        if (event.key === 'Escape') {
-            closeContextMenu();
-            $('vd-start-menu').hidden = true;
-            return;
-        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
-            return;
-        }
-        if (event.key === 'Enter' && state.selectedIconId) {
-            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
-            if (icon) activateDesktopItem(icon);
-            return;
-        }
-        if (event.key === 'Delete' && state.selectedIconId) {
-            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
-            if (icon && icon.dataset.kind === 'directory') deletePath(icon.dataset.path);
-            return;
-        }
-        if (event.key === 'F2' && state.selectedIconId) {
-            const icon = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
-            if (icon && icon.dataset.kind === 'directory') renamePath(icon.dataset.path);
             return;
         }
         if (event.altKey && event.key === 'F4') {
@@ -3457,6 +3442,44 @@
             const index = wins.findIndex(win => win.id === state.activeWindowId);
             focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
         }
+        switch (event.key) {
+        case 'Escape':
+            closeContextMenu();
+            $('vd-start-menu').hidden = true;
+            return;
+        case 'Enter': {
+            const icon = selectedDesktopIcon();
+            if (icon) activateDesktopItem(icon);
+            return;
+        }
+        case 'Delete': {
+            const icon = selectedFileDirectoryIcon();
+            if (icon) {
+                event.preventDefault();
+                deletePath(icon.dataset.path);
+            }
+            return;
+        }
+        case 'F2': {
+            const icon = selectedFileDirectoryIcon();
+            if (icon) {
+                event.preventDefault();
+                renamePath(icon.dataset.path);
+            }
+            return;
+        }
+        }
+    }
+
+    function selectedDesktopIcon() {
+        if (!state.selectedIconId) return null;
+        return document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+    }
+
+    function selectedFileDirectoryIcon() {
+        const icon = selectedDesktopIcon();
+        if (!icon || !icon.dataset.path) return null;
+        return icon.dataset.kind === 'file' || icon.dataset.kind === 'directory' ? icon : null;
     }
 
     async function init() {

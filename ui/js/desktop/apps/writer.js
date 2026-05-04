@@ -49,12 +49,24 @@
 
         const pathInput = host.querySelector('[data-path]');
         const titleInput = host.querySelector('[data-title]');
-        const status = host.querySelector('[data-status]');
+        const statusNode = host.querySelector('[data-status]');
         const editorHost = host.querySelector('[data-editor]');
         const fallback = host.querySelector('[data-fallback]');
 
-        function setStatus(message) {
-            if (status) status.textContent = message || '';
+        function setStatus(message, kind) {
+            if (!statusNode) return;
+            statusNode.textContent = message || '';
+            if (kind) {
+                statusNode.dataset.statusKind = kind;
+            } else {
+                delete statusNode.dataset.statusKind;
+            }
+        }
+
+        function clearSaveError(statusNode) {
+            if (!statusNode || statusNode.dataset.statusKind !== 'save-error') return;
+            statusNode.textContent = '';
+            delete statusNode.dataset.statusKind;
         }
 
         function setPath(path) {
@@ -151,7 +163,8 @@
 
         host.querySelector('[data-action="save"]').addEventListener('click', () => {
             save().catch(err => {
-                setStatus(err.message || String(err));
+                setStatus(err.message || String(err), 'save-error');
+                setTimeout(() => clearSaveError(statusNode), 6000);
                 notify({ type: 'error', message: err.message || String(err) });
             });
         });
