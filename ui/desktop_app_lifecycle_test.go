@@ -1,0 +1,46 @@
+package ui
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
+	t.Parallel()
+
+	markers := map[string][]string{
+		"ui/js/desktop/main.js": {
+			"function disposeAppWindow",
+			"window[disposeName]",
+			"closeWindow(id)",
+		},
+		"ui/js/desktop/apps/sheets.js": {
+			"SheetsApp.dispose",
+			"instances.delete(windowId)",
+		},
+		"ui/js/desktop/apps/writer.js": {
+			"WriterApp.dispose",
+			"instances.delete(windowId)",
+		},
+	}
+
+	for path, wants := range markers {
+		sourcePath := filepath.FromSlash(path)
+		sourceBytes, err := os.ReadFile(sourcePath)
+		if err != nil && strings.HasPrefix(path, "ui/") {
+			sourcePath = filepath.FromSlash(strings.TrimPrefix(path, "ui/"))
+			sourceBytes, err = os.ReadFile(sourcePath)
+		}
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		source := string(sourceBytes)
+		for _, want := range wants {
+			if !strings.Contains(source, want) {
+				t.Fatalf("%s missing desktop app lifecycle marker %q", path, want)
+			}
+		}
+	}
+}

@@ -270,6 +270,14 @@
         return allApps().find(app => app.id === appId);
     }
 
+    function appGlobalName(appId) {
+        return {
+            writer: 'WriterApp',
+            sheets: 'SheetsApp',
+            'code-studio': 'CodeStudioApp'
+        }[appId] || '';
+    }
+
     function isBuiltinApp(appId) {
         return ((state.bootstrap && state.bootstrap.builtin_apps) || []).some(app => app.id === appId);
     }
@@ -991,12 +999,24 @@
     function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
-        if (win.appId === 'music-player') disposeWebampMusic(id);
-        if (win.appId === 'radio' && window.RadioApp && typeof window.RadioApp.dispose === 'function') window.RadioApp.dispose(id);
+        disposeAppWindow(win);
         win.element.remove();
         state.windows.delete(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
+    }
+
+    function disposeAppWindow(win) {
+        if (!win) return;
+        if (win.appId === 'music-player') disposeWebampMusic(win.id);
+        if (win.appId === 'radio' && window.RadioApp && typeof window.RadioApp.dispose === 'function') {
+            window.RadioApp.dispose(win.id);
+        }
+        const disposeName = appGlobalName(win.appId);
+        const app = disposeName ? window[disposeName] : null;
+        if (app && typeof app.dispose === 'function') {
+            app.dispose(win.id);
+        }
     }
 
     function closeContextMenu() {

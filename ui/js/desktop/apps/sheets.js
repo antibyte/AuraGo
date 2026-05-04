@@ -4,9 +4,11 @@
     const DEFAULT_PATH = 'Documents/untitled.xlsx';
     const MIN_ROWS = 24;
     const MIN_COLS = 10;
+    const instances = new Map();
 
     function render(host, windowId, context) {
         if (!host) return;
+        instances.set(windowId, { container: host });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
         const rawT = ctx.t || ((key, vars) => interpolate(key, vars));
@@ -573,6 +575,10 @@
         load();
     }
 
+    function dispose(windowId) {
+        instances.delete(windowId);
+    }
+
     async function fetchJSON(url, options) {
         const resp = await fetch(url, options);
         const body = await resp.json().catch(() => ({}));
@@ -660,5 +666,7 @@
         return result;
     }
 
-    window.SheetsApp = { render };
+    window.SheetsApp = window.SheetsApp || {};
+    window.SheetsApp.render = render;
+    window.SheetsApp.dispose = dispose;
 })();

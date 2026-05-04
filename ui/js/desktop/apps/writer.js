@@ -2,9 +2,11 @@
     'use strict';
 
     const DEFAULT_PATH = 'Documents/untitled.docx';
+    const instances = new Map();
 
     function render(host, windowId, context) {
         if (!host) return;
+        instances.set(windowId, { container: host });
         const ctx = context || {};
         const esc = ctx.esc || (value => String(value == null ? '' : value));
         const t = ctx.t || ((key, fallback) => fallback || key);
@@ -164,6 +166,10 @@
         load();
     }
 
+    function dispose(windowId) {
+        instances.delete(windowId);
+    }
+
     async function fetchJSON(url, options) {
         const resp = await fetch(url, options);
         const body = await resp.json().catch(() => ({}));
@@ -184,5 +190,7 @@
             .replaceAll("'", '&#39;');
     }
 
-    window.WriterApp = { render };
+    window.WriterApp = window.WriterApp || {};
+    window.WriterApp.render = render;
+    window.WriterApp.dispose = dispose;
 })();
