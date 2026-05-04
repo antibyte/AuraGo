@@ -14,11 +14,18 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 	}
 	source := string(sourceBytes)
 	for _, marker := range []string{
+		"function clampWindowSize",
 		"function nextWindowPosition",
 		"workspaceRect.width",
 		"workspaceRect.height",
+		"workspaceRect.width - margin * 2",
+		"workspaceRect.height - margin * 2",
 		"Math.min(maxLeft",
 		"Math.min(maxTop",
+		"const requestedSize = appWindowSize(appId)",
+		"const size = clampWindowSize(requestedSize)",
+		"win.style.width = size.width + 'px'",
+		"win.style.height = size.height + 'px'",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("window manager placement missing marker %q", marker)

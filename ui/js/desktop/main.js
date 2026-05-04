@@ -733,19 +733,30 @@
         return presets[appId] || defaultWindowSize();
     }
 
+    function clampWindowSize(size) {
+        const workspace = $('vd-workspace') || document.body;
+        const workspaceRect = workspace.getBoundingClientRect();
+        const margin = 16;
+        return {
+            width: Math.min(size.width, Math.max(1, workspaceRect.width - margin * 2)),
+            height: Math.min(size.height, Math.max(1, workspaceRect.height - margin * 2))
+        };
+    }
+
     function nextWindowPosition(size) {
         const workspace = $('vd-workspace') || document.body;
         const workspaceRect = workspace.getBoundingClientRect();
         const margin = 16;
+        const topStart = 72;
         const stepX = 28;
         const stepY = 24;
         const maxLeft = Math.max(margin, workspaceRect.width - size.width - margin);
         const maxTop = Math.max(margin, workspaceRect.height - size.height - margin);
         const slotsX = Math.max(1, Math.floor((maxLeft - margin) / stepX) + 1);
-        const slotsY = Math.max(1, Math.floor((maxTop - margin) / stepY) + 1);
+        const slotsY = Math.max(1, Math.floor((maxTop - topStart) / stepY) + 1);
         const index = state.windows.size;
         const left = margin + (index % slotsX) * stepX;
-        const top = 72 + (Math.floor(index / slotsX) % slotsY) * stepY;
+        const top = topStart + (Math.floor(index / slotsX) % slotsY) * stepY;
         return {
             left: Math.min(maxLeft, Math.max(margin, left)),
             top: Math.min(maxTop, Math.max(margin, top))
@@ -771,7 +782,8 @@
         const win = document.createElement('section');
         win.className = 'vd-window';
         win.dataset.windowId = id;
-        const size = appWindowSize(appId);
+        const requestedSize = appWindowSize(appId);
+        const size = clampWindowSize(requestedSize);
         const position = nextWindowPosition(size);
         win.style.left = position.left + 'px';
         win.style.top = position.top + 'px';
