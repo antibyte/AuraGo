@@ -763,9 +763,18 @@
         };
     }
 
+    function findExistingAppWindow(appId, context) {
+        return [...state.windows.values()].find(win => {
+            if (win.appId !== appId) return false;
+            if ((appId === 'writer' || appId === 'sheets') && context && context.path != null) {
+                return win.context && win.context.path === context.path;
+            }
+            return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+        });
+    }
+
     function openApp(appId, context) {
-        const multiInstance = appId === 'editor' || appId === 'writer' || appId === 'sheets';
-        const existing = [...state.windows.values()].find(win => win.appId === appId && !multiInstance);
+        const existing = findExistingAppWindow(appId, context || {});
         if (existing) {
             focusWindow(existing.id);
             if (appId === 'files' && context && context.path != null) {
@@ -806,7 +815,7 @@
         <div class="vd-window-content" data-window-content></div>
         ${resizeHandleMarkup()}`;
         $('vd-window-layer').appendChild(win);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null });
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: context || {} });
         wireWindow(win, id);
         focusWindow(id);
         renderAppContent(id, appId, context || {});

@@ -35,6 +35,26 @@ func TestSheetsKeyboardNavigationIsBounded(t *testing.T) {
 	}
 }
 
+func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "main.js"))
+	if err != nil {
+		t.Fatalf("read main.js: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"function findExistingAppWindow",
+		"context && context.path != null",
+		"win.context && win.context.path === context.path",
+		"appId === 'writer' || appId === 'sheets'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("office same-file dedupe missing marker %q", marker)
+		}
+	}
+}
+
 func jsFunctionBody(t *testing.T, source, name string) string {
 	t.Helper()
 
