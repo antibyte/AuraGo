@@ -23,7 +23,7 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"finally {",
 		"async function runAsyncStep",
 		"instances.get(state.windowId) === state",
-		"if (!instances.has(windowId)) return;",
+		"if (!isLiveInstance(instance)) return;",
 		"const target = state;",
 		"if (!isLiveInstance(target)) return;",
 		"if (!isLiveInstance(instance)) return undefined;",
@@ -39,6 +39,12 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	}
 	if strings.Contains(source, "return runWithInstance(instance, async () => {") {
 		t.Fatalf("Code Studio render must not hold global state across awaited operations")
+	}
+	if strings.Contains(source, "if (!instances.has(windowId)) return;") {
+		t.Fatalf("Code Studio render must ignore stale instances, not just reused window IDs")
+	}
+	if strings.Contains(source, "if (instances.has(windowId)) runWithInstance(instance") {
+		t.Fatalf("Code Studio render catch path must ignore stale instances")
 	}
 	if !strings.Contains(source, "window.CodeStudio = window.CodeStudioApp") {
 		t.Fatalf("Code Studio compatibility export missing")

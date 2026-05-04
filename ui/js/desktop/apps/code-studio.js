@@ -241,20 +241,20 @@
         });
         try {
             await runAsyncStep(instance, prepareContainer);
-            if (!instances.has(windowId)) return;
+            if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, loadEditorModule);
-            if (!instances.has(windowId)) return;
+            if (!isLiveInstance(instance)) return;
             runWithInstance(instance, () => {
                 container.innerHTML = shellMarkup();
                 renderShell();
             });
             await runAsyncStep(instance, () => refreshFiles(context && context.path ? context.path : state.currentPath));
-            if (!instances.has(windowId)) return;
+            if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
-            if (!instances.has(windowId)) return;
+            if (!isLiveInstance(instance)) return;
             runWithInstance(instance, connectTerminal);
         } catch (err) {
-            if (instances.has(windowId)) runWithInstance(instance, () => renderError(err.message || String(err)));
+            if (isLiveInstance(instance)) runWithInstance(instance, () => renderError(err.message || String(err)));
         }
     }
 
