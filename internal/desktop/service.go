@@ -34,11 +34,22 @@ type mediaMount struct {
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
 	mu            sync.Mutex
+	mutationMu    sync.Mutex
 	cfg           Config
 	db            *sql.DB
 	codeContainer *CodeContainerService
 	closed        bool
 }
+
+// FileWriteState is the current target state observed while holding the service mutation lock.
+type FileWriteState struct {
+	Data   []byte
+	Entry  FileEntry
+	Exists bool
+}
+
+// FileWritePrecondition can reject a write after observing the current target state.
+type FileWritePrecondition func(FileWriteState) error
 
 // NewService creates a desktop service. Call Init before using it.
 func NewService(cfg Config) (*Service, error) {
@@ -466,6 +477,18 @@ func (s *Service) relativePath(absPath string) string {
 		return filepath.ToSlash(filepath.Base(absPath))
 	}
 	return filepath.ToSlash(rel)
+}
+
+func (s *Service) workspaceFileEntry(path string, info os.FileInfo) FileEntry {
+	return FileEntry{
+		Name:      filepath.Base(path),
+		Path:      s.relativePath(path),
+		Type:      "file",
+		Size:      info.Size(),
+		ModTime:   info.ModTime(),
+		MIMEType:  MIMETypeForName(path),
+		MediaKind: desktopMediaKindForName(path),
+	}
 }
 
 func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string, bool, error) {
@@ -985,73 +1008,101 @@ func (s *Service) OpenPreviewFile(ctx context.Context, rawPath string) (*os.File
 
 // WriteFile writes a UTF-8 text file into the workspace.
 func (s *Service) WriteFile(ctx context.Context, rawPath, content, source string) error {
-	if err := s.ensureReady(ctx); err != nil {
-		return err
-	}
-	if s.Config().ReadOnly {
-		return fmt.Errorf("virtual desktop is read-only")
-	}
-	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
-	if int64(len([]byte(content))) > maxBytes {
-		return fmt.Errorf("desktop file exceeds max size")
-	}
-	if isStandaloneWidgetHTMLPath(rawPath) && strings.TrimSpace(content) == "" {
-		return fmt.Errorf("desktop widget HTML file must not be empty")
-	}
-	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
-		return err
-	} else if ok {
-		return fmt.Errorf("desktop media mounts are read-only for text writes")
-	}
-	path, err := s.ResolvePath(rawPath)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create desktop file directory: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write desktop file: %w", err)
-	}
-	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len([]byte(content))}, source)
-	return nil
+	_, err := s.writeFileBytes(ctx, rawPath, []byte(content), source, true, nil)
+	return err
 }
 
 // WriteFileBytes writes binary or text bytes into the workspace.
 func (s *Service) WriteFileBytes(ctx context.Context, rawPath string, content []byte, source string) error {
+	_, err := s.WriteFileBytesConditional(ctx, rawPath, content, source, nil)
+	return err
+}
+
+// WriteFileBytesConditional writes bytes if the optional precondition accepts the current target state.
+func (s *Service) WriteFileBytesConditional(ctx context.Context, rawPath string, content []byte, source string, precondition FileWritePrecondition) (FileEntry, error) {
+	return s.writeFileBytes(ctx, rawPath, content, source, false, precondition)
+}
+
+func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []byte, source string, textWrite bool, precondition FileWritePrecondition) (FileEntry, error) {
 	if err := s.ensureReady(ctx); err != nil {
-		return err
+		return FileEntry{}, err
 	}
 	if s.Config().ReadOnly {
-		return fmt.Errorf("virtual desktop is read-only")
+		return FileEntry{}, fmt.Errorf("virtual desktop is read-only")
 	}
 	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
 	if maxBytes <= 0 {
 		maxBytes = 50 * 1024 * 1024
 	}
 	if int64(len(content)) > maxBytes {
-		return fmt.Errorf("desktop file exceeds max size")
+		return FileEntry{}, fmt.Errorf("desktop file exceeds max size")
 	}
 	if isStandaloneWidgetHTMLPath(rawPath) && strings.TrimSpace(string(content)) == "" {
-		return fmt.Errorf("desktop widget HTML file must not be empty")
+		return FileEntry{}, fmt.Errorf("desktop widget HTML file must not be empty")
 	}
 	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
-		return err
+		return FileEntry{}, err
 	} else if ok {
-		return fmt.Errorf("desktop media mounts are read-only for file writes")
+		if textWrite {
+			return FileEntry{}, fmt.Errorf("desktop media mounts are read-only for text writes")
+		}
+		return FileEntry{}, fmt.Errorf("desktop media mounts are read-only for file writes")
 	}
 	path, err := s.ResolvePath(rawPath)
 	if err != nil {
-		return err
+		return FileEntry{}, err
+	}
+
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+
+	if precondition != nil {
+		state, err := s.fileWriteStateLocked(path, maxBytes)
+		if err != nil {
+			return FileEntry{}, err
+		}
+		if err := precondition(state); err != nil {
+			return FileEntry{}, err
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create desktop file directory: %w", err)
+		return FileEntry{}, fmt.Errorf("create desktop file directory: %w", err)
 	}
 	if err := os.WriteFile(path, content, 0o644); err != nil {
-		return fmt.Errorf("write desktop file: %w", err)
+		return FileEntry{}, fmt.Errorf("write desktop file: %w", err)
 	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return FileEntry{}, fmt.Errorf("stat written desktop file: %w", err)
+	}
+	entry := s.workspaceFileEntry(path, info)
 	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len(content)}, source)
-	return nil
+	return entry, nil
+}
+
+func (s *Service) fileWriteStateLocked(path string, maxBytes int64) (FileWriteState, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return FileWriteState{}, nil
+		}
+		return FileWriteState{}, fmt.Errorf("stat desktop file: %w", err)
+	}
+	if info.IsDir() {
+		return FileWriteState{}, fmt.Errorf("desktop path is a directory")
+	}
+	if maxBytes > 0 && info.Size() > maxBytes {
+		return FileWriteState{}, fmt.Errorf("desktop file exceeds max size")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return FileWriteState{}, fmt.Errorf("read desktop file: %w", err)
+	}
+	return FileWriteState{
+		Data:   data,
+		Entry:  s.workspaceFileEntry(path, info),
+		Exists: true,
+	}, nil
 }
 
 // CreateDirectory creates a workspace directory and any missing parents.
@@ -1062,6 +1113,8 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	if _, _, _, ok, err := s.resolveMediaMount(rawPath); err != nil {
 		return err
 	} else if ok {
@@ -1086,6 +1139,8 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(oldPath); fromOK || err != nil {
 		if err != nil {
 			return err
@@ -1150,6 +1205,8 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	// Handle media mount paths
 	if fromMount, from, fromRel, fromOK, err := s.resolveMediaMount(srcPath); fromOK || err != nil {
 		if err != nil {
@@ -1267,6 +1324,8 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
 	if mount, path, rel, ok, err := s.resolveMediaMount(rawPath); ok || err != nil {
 		if err != nil {
 			return err

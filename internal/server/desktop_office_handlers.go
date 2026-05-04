@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"aurago/internal/desktop"
@@ -264,8 +262,6 @@ type officeConflictError struct {
 	message string
 }
 
-var officeSaveLocks sync.Map
-
 func (e officeConflictError) Error() string {
 	return e.message
 }
@@ -291,71 +287,38 @@ func officeVersionForEntry(entry desktop.FileEntry, data []byte) officeVersion {
 }
 
 func writeOfficeFileBytesChecked(ctx context.Context, svc *desktop.Service, path string, data []byte, expected *officeVersion) (*officeVersion, error) {
-	lockKey, err := officeLockKey(svc, path)
-	if err != nil {
-		return nil, err
-	}
-	lockValue, _ := officeSaveLocks.LoadOrStore(lockKey, &sync.Mutex{})
-	lock := lockValue.(*sync.Mutex)
-	lock.Lock()
-	defer lock.Unlock()
-
-	if err := checkOfficeVersion(ctx, svc, path, expected); err != nil {
-		return nil, err
-	}
-	if err := svc.WriteFileBytes(ctx, path, data, desktop.SourceUser); err != nil {
-		return nil, err
-	}
-	return currentOfficeVersion(ctx, svc, path)
-}
-
-func officeLockKey(svc *desktop.Service, path string) (string, error) {
-	absPath, err := svc.ResolvePath(path)
-	if err != nil {
-		return "", fmt.Errorf("resolve office save path: %w", err)
-	}
-	return filepath.Clean(absPath), nil
-}
-
-func checkOfficeVersion(ctx context.Context, svc *desktop.Service, path string, expected *officeVersion) error {
-	current, err := currentOfficeVersion(ctx, svc, path)
-	if err != nil {
-		if isOfficeNotExistError(err) {
-			return nil
-		}
-		return fmt.Errorf("check current office version: %w", err)
-	}
-	if expected == nil {
-		return officeConflictError{message: "office file changed; reload before saving"}
-	}
-	if strings.TrimSpace(expected.ETag) != "" {
-		if strings.TrimSpace(expected.ETag) == current.ETag {
-			return nil
-		}
-		return officeConflictError{message: "office file changed; reload before saving"}
-	}
-	matchesModified := strings.TrimSpace(expected.Modified) == current.Modified || strings.TrimSpace(expected.ModTime) == current.ModTime
-	if expected.Size == current.Size && matchesModified {
-		return nil
-	}
-	return officeConflictError{message: "office file changed; reload before saving"}
-}
-
-func isOfficeNotExistError(err error) bool {
-	if os.IsNotExist(err) || errors.Is(err, os.ErrNotExist) {
-		return true
-	}
-	var pathErr *os.PathError
-	return errors.As(err, &pathErr) && (os.IsNotExist(pathErr.Err) || errors.Is(pathErr.Err, os.ErrNotExist))
-}
-
-func currentOfficeVersion(ctx context.Context, svc *desktop.Service, path string) (*officeVersion, error) {
-	data, entry, err := svc.ReadFileBytes(ctx, path)
+	entry, err := svc.WriteFileBytesConditional(ctx, path, data, desktop.SourceUser, func(current desktop.FileWriteState) error {
+		return checkOfficeVersion(current, expected)
+	})
 	if err != nil {
 		return nil, err
 	}
 	version := officeVersionForEntry(entry, data)
 	return &version, nil
+}
+
+func checkOfficeVersion(current desktop.FileWriteState, expected *officeVersion) error {
+	if !current.Exists {
+		if expected == nil {
+			return nil
+		}
+		return officeConflictError{message: "office file changed; reload before saving"}
+	}
+	if expected == nil {
+		return officeConflictError{message: "office file changed; reload before saving"}
+	}
+	currentVersion := officeVersionForEntry(current.Entry, current.Data)
+	if strings.TrimSpace(expected.ETag) != "" {
+		if strings.TrimSpace(expected.ETag) == currentVersion.ETag {
+			return nil
+		}
+		return officeConflictError{message: "office file changed; reload before saving"}
+	}
+	matchesModified := strings.TrimSpace(expected.Modified) == currentVersion.Modified || strings.TrimSpace(expected.ModTime) == currentVersion.ModTime
+	if expected.Size == currentVersion.Size && matchesModified {
+		return nil
+	}
+	return officeConflictError{message: "office file changed; reload before saving"}
 }
 
 func encodeWorkbookForPath(path string, workbook office.Workbook, sheet string) ([]byte, error) {

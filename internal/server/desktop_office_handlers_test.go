@@ -147,6 +147,38 @@ func TestDesktopOfficeWorkbookOptimisticLocking(t *testing.T) {
 	if missingVersionResp.Code != http.StatusConflict {
 		t.Fatalf("save without version status = %d, want %d, body %s", missingVersionResp.Code, http.StatusConflict, missingVersionResp.Body.String())
 	}
+
+	deletedPath := "Documents/deleted-after-load.xlsx"
+	deletedData, err := office.EncodeWorkbook(testWorkbook("deleted-before"))
+	if err != nil {
+		t.Fatalf("EncodeWorkbook deleted initial: %v", err)
+	}
+	if err := svc.WriteFileBytes(context.Background(), deletedPath, deletedData, desktop.SourceUser); err != nil {
+		t.Fatalf("WriteFileBytes deleted initial: %v", err)
+	}
+	deletedGetResp := doOfficeWorkbookRequest(t, s, http.MethodGet, "/api/desktop/office/workbook?path="+url.QueryEscape(deletedPath), nil)
+	if deletedGetResp.Code != http.StatusOK {
+		t.Fatalf("deleted GET status = %d, body %s", deletedGetResp.Code, deletedGetResp.Body.String())
+	}
+	deletedVersion := decodeOfficeWorkbookResponse(t, deletedGetResp).OfficeVersion
+	deletedAbsPath, err := svc.ResolvePath(deletedPath)
+	if err != nil {
+		t.Fatalf("ResolvePath deleted workbook: %v", err)
+	}
+	if err := svc.DeletePath(context.Background(), deletedPath, desktop.SourceUser); err != nil {
+		t.Fatalf("DeletePath deleted workbook: %v", err)
+	}
+	deletedStaleResp := doOfficeWorkbookRequest(t, s, http.MethodPut, "/api/desktop/office/workbook", map[string]interface{}{
+		"path":           deletedPath,
+		"workbook":       testWorkbook("recreated stale"),
+		"office_version": json.RawMessage(deletedVersion),
+	})
+	if deletedStaleResp.Code != http.StatusConflict {
+		t.Fatalf("deleted stale save status = %d, want %d, body %s", deletedStaleResp.Code, http.StatusConflict, deletedStaleResp.Body.String())
+	}
+	if _, err := os.Stat(deletedAbsPath); !os.IsNotExist(err) {
+		t.Fatalf("deleted stale save recreated file, stat err = %v", err)
+	}
 }
 
 func TestDesktopOfficeDocumentOptimisticLocking(t *testing.T) {
@@ -241,7 +273,7 @@ func TestDesktopOfficeDocumentOptimisticLocking(t *testing.T) {
 	}
 }
 
-func TestOfficeOptimisticConcurrentCreateUsesPathLock(t *testing.T) {
+func TestOfficeOptimisticConcurrentCreateUsesMutationLock(t *testing.T) {
 	s := newDesktopOfficeTestServer(t)
 	const writers = 16
 	path := "Documents/concurrent-create.xlsx"
@@ -284,6 +316,69 @@ func TestOfficeOptimisticConcurrentCreateUsesPathLock(t *testing.T) {
 	}
 	if created != 1 || conflicts != writers-1 {
 		t.Fatalf("concurrent create statuses: %d created, %d conflicts; want 1 created, %d conflicts", created, conflicts, writers-1)
+	}
+}
+
+func TestOfficeOptimisticConcurrentExistingSaveAllowsOneWriter(t *testing.T) {
+	s := newDesktopOfficeTestServer(t)
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatalf("getDesktopService: %v", err)
+	}
+	path := "Documents/concurrent-existing.xlsx"
+	initialData, err := office.EncodeWorkbook(testWorkbook("initial concurrent"))
+	if err != nil {
+		t.Fatalf("EncodeWorkbook concurrent initial: %v", err)
+	}
+	if err := svc.WriteFileBytes(context.Background(), path, initialData, desktop.SourceUser); err != nil {
+		t.Fatalf("WriteFileBytes concurrent initial: %v", err)
+	}
+	getResp := doOfficeWorkbookRequest(t, s, http.MethodGet, "/api/desktop/office/workbook?path="+url.QueryEscape(path), nil)
+	if getResp.Code != http.StatusOK {
+		t.Fatalf("concurrent existing GET status = %d, body %s", getResp.Code, getResp.Body.String())
+	}
+	version := decodeOfficeWorkbookResponse(t, getResp).OfficeVersion
+
+	const writers = 16
+	var ready sync.WaitGroup
+	var start sync.WaitGroup
+	var done sync.WaitGroup
+	statuses := make(chan int, writers)
+	start.Add(1)
+	for i := 0; i < writers; i++ {
+		i := i
+		ready.Add(1)
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			ready.Done()
+			start.Wait()
+			resp := doOfficeWorkbookRequest(t, s, http.MethodPut, "/api/desktop/office/workbook", map[string]interface{}{
+				"path":           path,
+				"workbook":       testWorkbook(fmt.Sprintf("writer-%d", i)),
+				"office_version": json.RawMessage(version),
+			})
+			statuses <- resp.Code
+		}()
+	}
+	ready.Wait()
+	start.Done()
+	done.Wait()
+	close(statuses)
+
+	var saved, conflicts int
+	for status := range statuses {
+		switch status {
+		case http.StatusOK:
+			saved++
+		case http.StatusConflict:
+			conflicts++
+		default:
+			t.Fatalf("concurrent existing save returned unexpected status %d", status)
+		}
+	}
+	if saved != 1 || conflicts != writers-1 {
+		t.Fatalf("concurrent existing save statuses: %d saved, %d conflicts; want 1 saved, %d conflicts", saved, conflicts, writers-1)
 	}
 }
 
