@@ -1012,18 +1012,25 @@
         renderTaskbar();
     }
 
+    function callAppDispose(app, windowId) {
+        if (!app || typeof app.dispose !== 'function') return false;
+        try {
+            app.dispose(windowId);
+            return true;
+        } catch (err) {
+            console.warn('Desktop app dispose failed', err);
+            return false;
+        }
+    }
+
     function disposeAppWindow(win) {
         if (!win) return;
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
-        if (win.appId === 'radio' && window.RadioApp && typeof window.RadioApp.dispose === 'function') {
-            window.RadioApp.dispose(win.id);
-        }
+        if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
-        const app = (disposeName ? window[disposeName] : null) || (fallbackName ? window[fallbackName] : null);
-        if (app && typeof app.dispose === 'function') {
-            app.dispose(win.id);
-        }
+        const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
+        if (!disposed && fallbackName) callAppDispose(window[fallbackName], win.id);
     }
 
     function closeContextMenu() {
