@@ -324,9 +324,12 @@
 }
 
 .vd-papirus-icon {
+    display: inline-block;
     background-image: var(--vd-papirus-url);
+    background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+    flex-shrink: 0;
 }
 
 .vd-icon-letter,
@@ -699,6 +702,41 @@
     cursor: pointer;
     font-size: 0.85rem;
     padding: 0;
+}
+.fm-toolbtn .vd-papirus-icon,
+.fm-btn-icon,
+.fm-search-icon,
+.fm-sidebar-icon,
+.fm-list-icon,
+.fm-sort-indicator,
+.fm-context-icon .vd-papirus-icon {
+    flex-shrink: 0;
+}
+.fm-btn-icon,
+.fm-search-icon,
+.fm-sidebar-icon,
+.fm-list-icon,
+.fm-sort-indicator {
+    display: inline-block;
+}
+.fm-btn-icon {
+    width: 14px;
+    height: 14px;
+}
+.fm-search-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.78;
+}
+.fm-sidebar-icon,
+.fm-list-icon {
+    width: 18px;
+    height: 18px;
+}
+.fm-sort-indicator {
+    width: 12px;
+    height: 12px;
+    opacity: 0.82;
 }
 .fm-toolbtn:hover:not(:disabled) {
     background: rgba(255,255,255,0.08);
@@ -1095,8 +1133,16 @@
     display: flex;
 }
 .fm-drop-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
     font-size: 0.9rem;
     color: var(--vd-accent, #27c7a6);
+}
+.fm-drop-icon {
+    width: 48px;
+    height: 48px;
 }
 
 /* Loading */
@@ -1135,7 +1181,8 @@
     text-align: center;
 }
 .fm-empty-icon {
-    font-size: 2.5rem;
+    width: 32px;
+    height: 32px;
     opacity: 0.4;
 }
 

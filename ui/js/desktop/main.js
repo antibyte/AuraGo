@@ -156,7 +156,7 @@
     async function loadIconManifest() {
         const [spriteManifest, papirusIconManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json').catch(() => null)
+            api('/img/papirus/manifest.json?v=2').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
