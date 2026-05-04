@@ -92,6 +92,26 @@ func TestOfficeAppsSendOptimisticVersion(t *testing.T) {
 	}
 }
 
+func TestSheetsFormulaStateUsesSingleSetter(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "sheets.js"))
+	if err != nil {
+		t.Fatalf("read sheets.js: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"function setCellFromInput(input, raw)",
+		"raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw }",
+		"setCellFromInput(input, formulaInput.value);",
+		"setCellFromInput(input, raw);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("sheets formula state missing marker %q", marker)
+		}
+	}
+}
+
 func jsFunctionBody(t *testing.T, source, name string) string {
 	t.Helper()
 

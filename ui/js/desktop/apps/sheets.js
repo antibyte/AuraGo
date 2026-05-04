@@ -127,6 +127,8 @@
                     else updateFormulaBar();
                 });
                 input.addEventListener('input', () => {
+                    const raw = input.value;
+                    setCellFromInput(input, raw);
                     if (isFocusCell(Number(input.dataset.row), Number(input.dataset.col))) {
                         updateFormulaBar();
                     }
@@ -195,11 +197,32 @@
                 const row = [];
                 tr.querySelectorAll('input').forEach((input, c) => {
                     const raw = input.value;
-                    row[c] = raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw };
+                    row[c] = cellFromRaw(raw);
                 });
                 rows[r] = row;
             });
             return rows;
+        }
+
+        function cellFromRaw(raw) {
+            raw = String(raw == null ? '' : raw);
+            return raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw };
+        }
+
+        function setCellFromInput(input, raw) {
+            if (!input) return null;
+            raw = String(raw == null ? '' : raw);
+            input.value = raw;
+            const cell = cellFromRaw(raw);
+            const sheet = workbook.sheets[activeSheet];
+            if (!sheet) return cell;
+            const row = Math.max(0, Number(input.dataset.row) || 0);
+            const col = Math.max(0, Number(input.dataset.col) || 0);
+            sheet.rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+            ensureRows(sheet.rows, row + 1, col + 1);
+            sheet.rows[row][col] = cell;
+            sheet.rows = trimRows(sheet.rows);
+            return cell;
         }
 
         function setSheetRows(rows) {
@@ -266,7 +289,7 @@
         function applyFormulaBar() {
             const input = cellInput(selection.focus.row, selection.focus.col);
             if (!input || !formulaInput) return;
-            input.value = formulaInput.value;
+            setCellFromInput(input, formulaInput.value);
             input.focus();
             updateFormulaBar();
         }
@@ -387,7 +410,7 @@
             ensureRows(rows, requiredRows, Math.max(requiredCols, maxCols(rows), MIN_COLS));
             parsed.forEach((rowValues, r) => {
                 rowValues.forEach((value, c) => {
-                    rows[range.startRow + r][range.startCol + c] = value.startsWith('=') ? { formula: value.slice(1) } : { value };
+                    rows[range.startRow + r][range.startCol + c] = cellFromRaw(value);
                 });
             });
             selection = {
@@ -399,7 +422,7 @@
 
         function clearRange() {
             selectedInputs().forEach(input => {
-                input.value = '';
+                setCellFromInput(input, '');
             });
             updateFormulaBar();
         }

@@ -188,6 +188,9 @@ func EncodeWorkbook(workbook Workbook) ([]byte, error) {
 				}
 				if strings.TrimSpace(cell.Formula) != "" {
 					formula := strings.TrimPrefix(strings.TrimSpace(cell.Formula), "=")
+					if _, err := EvaluateFormulaForSheet(sheet, formula); err != nil {
+						return nil, fmt.Errorf("invalid formula %s!%s: %w", name, addr, err)
+					}
 					if err := f.SetCellFormula(name, addr, formula); err != nil {
 						return nil, fmt.Errorf("set formula %s!%s: %w", name, addr, err)
 					}
