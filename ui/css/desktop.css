@@ -23,6 +23,16 @@
     overflow: hidden;
 }
 
+@supports (height: 100dvh) {
+    .desktop-body {
+        min-height: 100dvh;
+    }
+
+    .vd-shell {
+        height: 100dvh;
+    }
+}
+
 .desktop-body[data-wallpaper="midnight"] {
     background: radial-gradient(circle at 18% 18%, rgba(123, 209, 255, 0.16), transparent 34%), linear-gradient(160deg, #05070d, #161b29 58%, #070a10);
 }
@@ -2261,7 +2271,15 @@
 
 @media (max-width: 820px) {
     .vd-shell {
-        grid-template-rows: 1fr 58px;
+        height: 100dvh;
+        min-height: 0;
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .vd-taskbar {
+        min-height: 58px;
+        padding: 8px max(10px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+        gap: 8px;
     }
 
     .vd-icons {
@@ -2276,7 +2294,7 @@
         left: 0 !important;
         top: 0 !important;
         width: 100vw !important;
-        height: calc(100vh - 58px) !important;
+        height: calc(100dvh - 58px - env(safe-area-inset-bottom)) !important;
     }
 
     .vd-agent-button span:last-child,
