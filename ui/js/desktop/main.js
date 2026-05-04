@@ -1905,11 +1905,16 @@
     }
 
     function calculatorFactorial(value) {
-        if (value < 0 || !Number.isInteger(value)) return NaN;
-        if (value > 170) return Infinity;
+        if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) throw new Error('Invalid expression');
+        if (value > 170) throw new Error('Invalid expression');
         let result = 1;
         for (let i = 2; i <= value; i += 1) result *= i;
         return result;
+    }
+
+    function ensureFiniteCalculatorResult(value) {
+        if (!Number.isFinite(value)) throw new Error('Invalid expression');
+        return value;
     }
 
     function applyCalculatorOperation(name, value) {
@@ -2013,7 +2018,8 @@
     }
 
     function evaluateCalculatorExpression(expression) {
-        return parseCalculatorExpression(tokenizeCalculatorExpression(expression));
+        const value = parseCalculatorExpression(tokenizeCalculatorExpression(expression));
+        return ensureFiniteCalculatorResult(value);
     }
 
     function renderCalculator(id) {
@@ -2043,7 +2049,7 @@
         const evaluate = () => {
             if (!expression) return;
             const value = evaluateCalculatorExpression(expression);
-            const result = Number.isFinite(value) ? Number(value.toFixed(10)) : value;
+            const result = Number(value.toFixed(10));
             history.unshift(`${expression} = ${result}`);
             history.splice(8);
             historyEl.innerHTML = history.map(item => `<li>${esc(item)}</li>`).join('');
