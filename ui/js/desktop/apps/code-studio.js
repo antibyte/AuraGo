@@ -94,6 +94,16 @@
         if (instance && typeof disposeFn === 'function') instance.disposers.push(disposeFn);
     }
 
+    function registerDisposer(disposeFn) {
+        if (!state || typeof disposeFn !== 'function') return () => {};
+        const owner = state;
+        owner.disposers.push(disposeFn);
+        return () => {
+            if (state === owner) state.disposers = state.disposers.filter(item => item !== disposeFn);
+            else owner.disposers = owner.disposers.filter(item => item !== disposeFn);
+        };
+    }
+
     function destroyTabView(tab) {
         if (tab && tab.view && typeof tab.view.destroy === 'function') {
             try { tab.view.destroy(); } catch (_) {}
@@ -825,7 +835,9 @@
         if (!isLiveInstance(target)) return;
         const currentPath = target.currentPath;
         runWithInstance(target, () => {
-            state.openTabs = state.openTabs.filter(tab => tab.path !== file.path && !tab.path.startsWith(file.path + '/'));
+            const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
+            removedTabs.forEach(destroyTabView);
+            state.openTabs = state.openTabs.filter(tab => !removedTabs.includes(tab));
             if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
         });
         await runAsyncStep(target, () => refreshFiles(currentPath));
@@ -1098,14 +1110,18 @@
         document.body.appendChild(menu);
         let boundClose = null;
         let menuClosed = false;
+        let unregister = () => {};
         const cleanupMenu = () => {
             if (menuClosed) return;
             menuClosed = true;
+            unregister();
             if (boundClose) document.removeEventListener('mousedown', boundClose);
             menu.remove();
         };
         menu.__codeStudioCleanup = cleanupMenu;
-        addDisposer(instance, cleanupMenu);
+        runWithInstance(instance, () => {
+            unregister = registerDisposer(cleanupMenu);
+        });
         menu.querySelectorAll('[data-code-action]').forEach(btn => {
             btn.addEventListener('click', bind(() => {
                 runCodeAction(btn.dataset.codeAction);
@@ -1373,13 +1389,17 @@
             document.body.appendChild(overlay);
             const input = overlay.querySelector('input');
             let settled = false;
+            let unregister = () => {};
             const cleanup = result => {
                 if (settled) return;
                 settled = true;
+                unregister();
                 overlay.remove();
                 resolve(result);
             };
-            addDisposer(instance, () => cleanup(''));
+            runWithInstance(instance, () => {
+                unregister = registerDisposer(() => cleanup(''));
+            });
             overlay.querySelector('form').addEventListener('submit', bind(event => {
                 event.preventDefault();
                 cleanup(input.value.trim());
@@ -1407,13 +1427,17 @@
             </div>`;
             document.body.appendChild(overlay);
             let settled = false;
+            let unregister = () => {};
             const cleanup = result => {
                 if (settled) return;
                 settled = true;
+                unregister();
                 overlay.remove();
                 resolve(result);
             };
-            addDisposer(instance, () => cleanup(false));
+            runWithInstance(instance, () => {
+                unregister = registerDisposer(() => cleanup(false));
+            });
             overlay.querySelector('[data-confirm]').addEventListener('click', bind(() => cleanup(true)));
             overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup(false)));
             overlay.addEventListener('click', bind(event => {
