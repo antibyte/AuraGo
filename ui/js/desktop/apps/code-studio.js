@@ -26,7 +26,8 @@
         agentMessages: [],
         agentBusy: false,
         pendingSuggestion: null,
-        shortcutsWired: false
+        shortcutsWired: false,
+        iconMarkup: null
     };
 
     function tr(key, fallback, vars) {
@@ -49,6 +50,32 @@
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#39;');
+    }
+
+    function iconMarkup(key, fallback, className, size) {
+        if (typeof state.iconMarkup === 'function') {
+            return state.iconMarkup(key, fallback, className || 'cs-papirus-icon', size || 15);
+        }
+        const pixels = Number(size || 15) || 15;
+        return `<span class="${esc(className || 'cs-papirus-icon')}" style="font-size:${pixels}px">${esc(fallback || key || '')}</span>`;
+    }
+
+    function buttonIcon(key, fallback) {
+        return iconMarkup(key, fallback, 'cs-button-icon', 15);
+    }
+
+    function fileIconName(name) {
+        const lang = languageForPath(name);
+        return ({
+            javascript: 'javascript',
+            python: 'python',
+            go: 'go',
+            rust: 'code',
+            json: 'json',
+            html: 'html',
+            css: 'css',
+            markdown: 'markdown'
+        })[lang] || 'text';
     }
 
     async function api(path, options) {
@@ -145,6 +172,7 @@
         if (!container) return;
         state.root = container;
         state.windowId = windowId;
+        state.iconMarkup = context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null;
         loadState();
         container.innerHTML = shellMarkup();
         renderLoading(tr('codeStudio.starting', 'Starting container...'));
@@ -222,15 +250,15 @@
         const toolbar = shellPart('[data-toolbar]');
         if (!toolbar) return;
         toolbar.innerHTML = `
-            <button type="button" class="cs-button" data-action="new-file">${esc(tr('codeStudio.newFile', 'New File'))}</button>
-            <button type="button" class="cs-button" data-action="new-folder">${esc(tr('codeStudio.newFolder', 'New Folder'))}</button>
-            <button type="button" class="cs-button primary" data-action="save">${esc(tr('codeStudio.save', 'Save'))}</button>
-            <button type="button" class="cs-button" data-action="run">${esc(tr('codeStudio.run', 'Run'))}</button>
-            <button type="button" class="cs-button" data-action="search">${esc(tr('codeStudio.search', 'Search'))}</button>
-            <button type="button" class="cs-button" data-action="agent">${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</button>
-            <button type="button" class="cs-button" data-action="upload">${esc(tr('codeStudio.upload', 'Upload'))}</button>
-            <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">↻</button>
-            <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">▣</button>
+            <button type="button" class="cs-button" data-action="new-file">${buttonIcon('file-plus', '+')}<span>${esc(tr('codeStudio.newFile', 'New File'))}</span></button>
+            <button type="button" class="cs-button" data-action="new-folder">${buttonIcon('folder-plus', '+')}<span>${esc(tr('codeStudio.newFolder', 'New Folder'))}</span></button>
+            <button type="button" class="cs-button primary" data-action="save">${buttonIcon('save', 'S')}<span>${esc(tr('codeStudio.save', 'Save'))}</span></button>
+            <button type="button" class="cs-button" data-action="run">${buttonIcon('run', 'R')}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
+            <button type="button" class="cs-button" data-action="search">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
+            <button type="button" class="cs-button" data-action="agent">${buttonIcon('chat', 'A')}<span>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</span></button>
+            <button type="button" class="cs-button" data-action="upload">${buttonIcon('upload', 'U')}<span>${esc(tr('codeStudio.upload', 'Upload'))}</span></button>
+            <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 16)}</button>
+            <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('terminal', 'T', 'cs-icon-button-icon', 16)}</button>
             <span class="cs-toolbar-spacer"></span>
             <span class="cs-pill">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic editor'))}</span>`;
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', createNewFile);
@@ -261,7 +289,7 @@
             <label><input type="checkbox" name="case"> Aa</label>
             <label><input type="checkbox" name="whole"> Ab</label>
             <label><input type="checkbox" name="regex"> .*</label>
-            <button type="submit" class="cs-button primary">${esc(tr('codeStudio.search', 'Search'))}</button>
+            <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
         </form><div class="cs-search-results">${results}</div>`;
         panel.querySelector('[data-search-form]').addEventListener('submit', event => {
             event.preventDefault();
@@ -287,26 +315,26 @@
         const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
             <div class="cs-diff-head">
                 <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
-                <button type="button" class="cs-button primary" data-agent-apply>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</button>
-                <button type="button" class="cs-button" data-agent-discard>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</button>
+                <button type="button" class="cs-button primary" data-agent-apply>${buttonIcon('check-square', 'Y')}<span>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</span></button>
+                <button type="button" class="cs-button" data-agent-discard>${buttonIcon('x', 'X')}<span>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</span></button>
             </div>
             <pre>${esc(state.pendingSuggestion)}</pre>
         </div>` : '';
         panel.innerHTML = `<div class="cs-agent-head">
             <strong>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</strong>
-            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">×</button>
+            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 16)}</button>
         </div>
         <div class="cs-agent-actions">
-            <button type="button" class="cs-button" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
-            <button type="button" class="cs-button" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</button>
-            <button type="button" class="cs-button" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</button>
-            <button type="button" class="cs-button" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>
+            <button type="button" class="cs-button" data-code-action="explain">${buttonIcon('info', 'i')}<span>${esc(tr('codeStudio.explain', 'Explain'))}</span></button>
+            <button type="button" class="cs-button" data-code-action="comments">${buttonIcon('notes', 'N')}<span>${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</span></button>
+            <button type="button" class="cs-button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
+            <button type="button" class="cs-button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>
         </div>
         <div class="cs-agent-log">${messages}</div>
         ${suggestion}
         <form class="cs-agent-form" data-agent-form>
             <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
-            <button type="submit" class="cs-button primary">${esc(tr('desktop.send', 'Send'))}</button>
+            <button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>
         </form>`;
         panel.querySelector('[data-agent-close]').addEventListener('click', toggleAgentPanel);
         panel.querySelectorAll('[data-code-action]').forEach(btn => {
@@ -404,15 +432,17 @@
     }
 
     function fileRow(file) {
-        const icon = file.type === 'directory' ? '▸' : fileIcon(file.name);
+        const icon = file.type === 'directory'
+            ? iconMarkup('folder', 'D', 'cs-file-papirus-icon', 18)
+            : iconMarkup(fileIconName(file.name), fileIcon(file.name), 'cs-file-papirus-icon', 18);
         return `<div role="button" tabindex="0" class="cs-file-row" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}">
-            <span class="cs-file-icon">${esc(icon)}</span>
+            <span class="cs-file-icon">${icon}</span>
             <span class="cs-file-name">${esc(file.name)}</span>
             <span class="cs-file-meta">${file.type === 'directory' ? '' : esc(formatBytes(file.size))}</span>
             <span class="cs-file-actions">
-                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">F2</span>
-                ${file.type === 'file' ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">↓</span>` : ''}
-                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">×</span>
+                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">${iconMarkup('edit', 'E', 'cs-file-action-icon', 14)}</span>
+                ${file.type === 'file' ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">${iconMarkup('download', 'D', 'cs-file-action-icon', 14)}</span>` : ''}
+                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">${iconMarkup('trash', 'X', 'cs-file-action-icon', 14)}</span>
             </span>
         </div>`;
     }
@@ -423,7 +453,7 @@
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
             <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}" data-tab="${index}">
                 <span>${esc(baseName(tab.path))}${tab.modified ? ' *' : ''}</span>
-                <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">×</span>
+                <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
             </button>`).join('') : `<div class="cs-tabs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
         tabs.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', event => {
             if (event.target.closest('[data-close]')) return;
@@ -823,10 +853,10 @@
         menu.style.left = x + 'px';
         menu.style.top = y + 'px';
         menu.innerHTML = `
-            <button type="button" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
-            <button type="button" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</button>
-            <button type="button" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</button>
-            <button type="button" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>`;
+            <button type="button" data-code-action="explain">${buttonIcon('info', 'i')}<span>${esc(tr('codeStudio.explain', 'Explain'))}</span></button>
+            <button type="button" data-code-action="comments">${buttonIcon('notes', 'N')}<span>${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</span></button>
+            <button type="button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
+            <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
         document.body.appendChild(menu);
         menu.querySelectorAll('[data-code-action]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1074,8 +1104,8 @@
             overlay.innerHTML = `<form class="cs-modal">
                 <label>${esc(title)}<input name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false"></label>
                 <div class="cs-modal-actions">
-                    <button type="button" class="cs-button" data-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="cs-button primary">${esc(tr('desktop.ok', 'OK'))}</button>
+                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
+                    <button type="submit" class="cs-button primary">${buttonIcon('check-square', 'Y')}<span>${esc(tr('desktop.ok', 'OK'))}</span></button>
                 </div>
             </form>`;
             document.body.appendChild(overlay);
@@ -1104,8 +1134,8 @@
             overlay.innerHTML = `<div class="cs-modal">
                 <p>${esc(message)}</p>
                 <div class="cs-modal-actions">
-                    <button type="button" class="cs-button" data-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
-                    <button type="button" class="cs-button danger" data-confirm>${esc(tr('desktop.delete', 'Delete'))}</button>
+                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
+                    <button type="button" class="cs-button danger" data-confirm>${buttonIcon('trash', 'X')}<span>${esc(tr('desktop.delete', 'Delete'))}</span></button>
                 </div>
             </div>`;
             document.body.appendChild(overlay);

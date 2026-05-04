@@ -64,8 +64,8 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 		"trash", "video", "weather", "workflow", "xml", "yaml",
 		"arrow-up", "check-square", "chevron-down", "chevron-left", "chevron-right",
 		"chevron-up", "clipboard", "copy", "download", "file-plus", "folder-open",
-		"folder-plus", "grid", "info", "list", "refresh", "scissors", "search",
-		"sort", "upload", "x",
+		"folder-plus", "grid", "info", "list", "refresh", "run", "save", "scissors",
+		"search", "sort", "stop", "upload", "x",
 	} {
 		path, ok := manifest.Icons[key]
 		if !ok {

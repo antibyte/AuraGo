@@ -217,6 +217,10 @@
 
 .cs-button,
 .cs-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     height: 28px;
     border: 1px solid var(--cs-border);
     border-radius: 6px;
@@ -232,6 +236,14 @@
 .cs-icon-button {
     width: 30px;
     padding: 0;
+}
+
+.cs-button-icon,
+.cs-icon-button-icon,
+.cs-file-papirus-icon,
+.cs-file-action-icon,
+.cs-tab-close-icon {
+    flex-shrink: 0;
 }
 
 .cs-button:hover,
@@ -315,6 +327,12 @@
 .cs-file-row:focus .cs-file-actions,
 .cs-file-row:focus-within .cs-file-actions {
     opacity: 1;
+}
+
+.cs-file-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .cs-file-action {

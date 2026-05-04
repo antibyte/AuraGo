@@ -1249,7 +1249,7 @@
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
-            return window.CodeStudio.render(contentEl(id), id, context || {});
+            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup }));
         }
         if (appId === 'launchpad') return renderLaunchpad(id);
         return renderGeneratedApp(id, appId);
