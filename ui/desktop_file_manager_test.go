@@ -61,3 +61,25 @@ func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 		}
 	}
 }
+
+func TestFileManagerToolbarAndContextMenuCleanup(t *testing.T) {
+	t.Parallel()
+
+	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
+	if err != nil {
+		t.Fatalf("file manager script missing from embedded UI: %v", err)
+	}
+	source := string(jsBytes)
+	if count := strings.Count(source, "function updateToolbarState()"); count != 1 {
+		t.Fatalf("file manager toolbar updater count = %d, want 1", count)
+	}
+	for _, marker := range []string{
+		"Math.max(8,",
+		"menuRect.left < 8",
+		"menuRect.top < 8",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager context menu clamp missing marker %q", marker)
+		}
+	}
+}

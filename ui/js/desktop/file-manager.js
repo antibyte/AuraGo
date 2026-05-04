@@ -240,9 +240,15 @@
             </button>`;
         }).join('');
         document.body.appendChild(menu);
-        const rect = menu.getBoundingClientRect();
-        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
-        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+        const menuRect = menu.getBoundingClientRect();
+        let nextLeft = x;
+        let nextTop = y;
+        if (menuRect.right > window.innerWidth) nextLeft = Math.max(8, window.innerWidth - menuRect.width - 8);
+        if (menuRect.bottom > window.innerHeight) nextTop = Math.max(8, window.innerHeight - menuRect.height - 8);
+        if (menuRect.left < 8) nextLeft = Math.max(8, nextLeft);
+        if (menuRect.top < 8) nextTop = Math.max(8, nextTop);
+        menu.style.left = nextLeft + 'px';
+        menu.style.top = nextTop + 'px';
         menu.querySelectorAll('.fm-context-item:not(.disabled)').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
@@ -1483,10 +1489,6 @@
             toggleSearch();
             return;
         }
-    }
-
-    function updateToolbarState() {
-        // Already handled in render
     }
 
     /**
