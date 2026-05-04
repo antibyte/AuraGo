@@ -526,7 +526,6 @@
             <div class="fm-body">
                 ${renderSidebarHtml()}
                 <div class="fm-content">
-                    ${renderBreadcrumbHtml()}
                     <div class="fm-main" data-fm-main>
                         ${renderContentHtml()}
                     </div>
@@ -614,10 +613,6 @@
                 ${items || `<div class="fm-sidebar-empty">${esc(t('desktop.fm.workspace_root', 'Workspace'))}</div>`}
             </div>
         </aside>`;
-    }
-
-    function renderBreadcrumbHtml() {
-        return `<div class="fm-breadcrumb-bar">${renderBreadcrumbSegments()}</div>`;
     }
 
     function renderBreadcrumbSegments() {
