@@ -81,6 +81,7 @@
 
     function bindInstance(instance, fn) {
         return function boundCodeStudioHandler(...args) {
+            if (!isLiveInstance(instance)) return undefined;
             return runWithInstance(instance, () => fn.apply(this, args));
         };
     }
@@ -909,10 +910,12 @@
             await runAsyncStep(target, saveCurrentFile);
             if (!isLiveInstance(target)) return;
         }
-        const command = runCommandFor(tab.path);
-        const cwd = tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/')));
-        renderStatus(tr('codeStudio.running', 'Running...'));
-        writeTerminalLine('$ ' + command);
+        const command = runWithInstance(target, () => runCommandFor(tab.path));
+        const cwd = runWithInstance(target, () => tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/'))));
+        runWithInstance(target, () => {
+            renderStatus(tr('codeStudio.running', 'Running...'));
+            writeTerminalLine('$ ' + command);
+        });
         try {
             const result = await api('/api/code-studio/exec', {
                 method: 'POST',
