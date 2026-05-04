@@ -517,6 +517,22 @@
     height: 28px;
 }
 
+.vd-tool-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vd-tool-icon,
+.vd-context-papirus-icon,
+.vd-settings-nav-icon,
+.vd-settings-pane-papirus-icon,
+.vd-launchpad-action-icon,
+.vd-launchpad-empty-papirus-icon {
+    flex-shrink: 0;
+}
+
 .vd-window-button:hover,
 .vd-button:hover,
 .vd-start-button:hover,
@@ -1465,6 +1481,10 @@
     cursor: pointer;
 }
 
+.vd-settings-nav-icon {
+    justify-self: center;
+}
+
 .vd-settings-nav:hover,
 .vd-settings-nav.active {
     background: rgba(255, 255, 255, 0.08);
@@ -1496,6 +1516,11 @@
     background: rgba(39, 199, 166, 0.18);
     color: var(--vd-accent);
     font-weight: 900;
+}
+
+.vd-settings-pane-papirus-icon {
+    width: 28px;
+    height: 28px;
 }
 
 .vd-settings-pane-title {
@@ -2280,7 +2305,11 @@
 
 .vd-context-icon {
     color: var(--vd-accent);
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
 }
 
 .vd-context-separator {

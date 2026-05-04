@@ -942,7 +942,7 @@
         menu.innerHTML = items.map((item, index) => item.separator
             ? '<div class="vd-context-separator" role="separator"></div>'
             : `<button type="button" class="vd-context-item" role="menuitem" data-index="${index}" ${item.disabled ? 'disabled' : ''}>
-                <span class="vd-context-icon">${esc(item.icon || '')}</span>
+                <span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>
                 <span>${esc(item.label)}</span>
             </button>`).join('');
         document.body.appendChild(menu);
@@ -964,11 +964,11 @@
         event.preventDefault();
         selectDesktopIcon(null);
         showContextMenu(event.clientX, event.clientY, [
-            { label: t('desktop.context_new_file'), icon: '+', action: () => createFileInPath('Desktop') },
-            { label: t('desktop.context_new_folder'), icon: '▣', action: () => createFolderInPath('Desktop') },
+            { label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
+            { label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { separator: true },
-            { label: t('desktop.context_refresh'), icon: '↻', action: () => loadBootstrap() },
-            { label: t('desktop.context_sort_icons'), icon: '⇄', action: autoArrangeIcons }
+            { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
+            { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
         ]);
     }
 
@@ -980,26 +980,26 @@
         const kind = btn.dataset.kind || '';
         const isDesktopEntry = btn.dataset.desktopEntry === 'true';
         const items = [
-            { label: t('desktop.context_open'), icon: '↗', action: () => activateDesktopItem(btn) }
+            { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => activateDesktopItem(btn) }
         ];
         if (isDesktopEntry || kind === 'file') {
             items.push(
-                { label: t('desktop.context_rename'), icon: '✎', action: () => renamePath(path) },
-                { label: t('desktop.context_delete'), icon: '×', action: () => deletePath(path) }
+                { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(path) },
+                { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(path) }
             );
             if (btn.dataset.webPath) {
-                items.push({ label: t('desktop.media_download'), icon: '↓', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
+                items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
             }
         } else {
-            items.push({ label: t('desktop.context_remove_from_desktop'), icon: '×', action: () => removeDesktopShortcut(btn.dataset.id) });
+            items.push({ label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcut(btn.dataset.id) });
         }
         if (appId) {
             const appIsBuiltin = isBuiltinApp(appId);
-            items.push({ label: t('desktop.context_delete_app'), icon: '×', disabled: appIsBuiltin, action: () => deleteDesktopApp(appId) });
+            items.push({ label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApp(appId) });
         }
         items.push(
             { separator: true },
-            { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
+            { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
         );
         showContextMenu(event.clientX, event.clientY, items);
     }
@@ -1007,11 +1007,11 @@
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
         const items = [
-            { label: t('desktop.context_open'), icon: '↗', action: () => openApp(appId) },
-            { label: t('desktop.context_add_to_desktop'), icon: '+', action: () => addDesktopShortcut(appId) }
+            { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
+            { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) }
         ];
         if (!isBuiltinApp(appId)) {
-            items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: '×', action: () => deleteDesktopApp(appId) });
+            items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', action: () => deleteDesktopApp(appId) });
         }
         showContextMenu(event.clientX, event.clientY, items);
     }
@@ -1019,8 +1019,8 @@
     function showWidgetContextMenu(event, widget) {
         event.preventDefault();
         showContextMenu(event.clientX, event.clientY, [
-            { label: t('desktop.context_open'), icon: '↗', action: () => widget.app_id && openApp(widget.app_id) },
-            { label: t('desktop.context_remove_widget'), icon: '×', action: () => deleteWidget(widget.id) }
+            { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },
+            { label: t('desktop.context_remove_widget'), icon: 'x', fallback: 'X', action: () => deleteWidget(widget.id) }
         ]);
     }
 
@@ -1029,11 +1029,11 @@
         const item = state.windows.get(id);
         if (!item) return;
         showContextMenu(event.clientX, event.clientY, [
-            { label: t('desktop.context_restore'), icon: '▣', action: () => focusWindow(id) },
-            { label: t('desktop.context_minimize'), icon: '_', action: () => { item.element.style.display = 'none'; renderTaskbar(); } },
-            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: '□', action: () => toggleMaximizeWindow(id) },
+            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
+            { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => { item.element.style.display = 'none'; renderTaskbar(); } },
+            { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) },
             { separator: true },
-            { label: t('desktop.context_close'), icon: '×', action: () => closeWindow(id) }
+            { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
         ]);
     }
 
@@ -1294,9 +1294,9 @@
         // Fallback: old file browser if FileManager module is not loaded
         host.innerHTML = `<div class="vd-panel">
             <div class="vd-toolbar">
-                <button class="vd-tool-button" type="button" data-action="up">${esc(t('desktop.up'))}</button>
-                <button class="vd-tool-button" type="button" data-action="new-file">${esc(t('desktop.new_file'))}</button>
-                <button class="vd-tool-button" type="button" data-action="new-folder">${esc(t('desktop.new_folder'))}</button>
+                <button class="vd-tool-button" type="button" data-action="up">${iconMarkup('arrow-up', 'U', 'vd-tool-icon', 15)}<span>${esc(t('desktop.up'))}</span></button>
+                <button class="vd-tool-button" type="button" data-action="new-file">${iconMarkup('file-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.new_file'))}</span></button>
+                <button class="vd-tool-button" type="button" data-action="new-folder">${iconMarkup('folder-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.new_folder'))}</span></button>
                 <span class="vd-path">${esc(state.filesPath || t('desktop.workspace_root'))}</span>
             </div>
             <div class="vd-file-list">${esc(t('desktop.loading'))}</div>
@@ -1327,16 +1327,16 @@
                 row.addEventListener('contextmenu', event => {
                     event.preventDefault();
                     const actions = [
-                        { label: t('desktop.context_open'), icon: '↗', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
-                        { label: t('desktop.context_rename'), icon: '✎', action: () => renamePath(row.dataset.path) },
-                        { label: t('desktop.context_delete'), icon: '×', action: () => deletePath(row.dataset.path) },
+                        { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
+                        { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
+                        { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
                     ];
                     if (row.dataset.webPath) {
-                        actions.push({ label: t('desktop.media_download'), icon: '↓', action: () => downloadMediaPath(row.dataset.webPath, row.querySelector('.vd-file-name').textContent) });
+                        actions.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(row.dataset.webPath, row.querySelector('.vd-file-name').textContent) });
                     }
                     actions.push(
                         { separator: true },
-                        { label: t('desktop.context_properties'), icon: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, row.dataset.path) }
+                        { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(row.querySelector('.vd-file-name').textContent, row.dataset.path) }
                     );
                     showContextMenu(event.clientX, event.clientY, actions);
                 });
@@ -1454,7 +1454,7 @@
         const workspace = boot.workspace || {};
         return [
             {
-                id: 'appearance', icon: '◐', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
+                id: 'appearance', icon: 'settings', fallback: 'A', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
                     settingSelect('appearance.wallpaper', 'desktop.settings_wallpaper', 'desktop.settings_wallpaper_desc', [
                         ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
                         ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
@@ -1473,7 +1473,7 @@
                 ]
             },
             {
-                id: 'desktop', icon: '▦', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                id: 'desktop', icon: 'desktop', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
                     settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
                         ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
                     ]),
@@ -1481,7 +1481,7 @@
                 ]
             },
             {
-                id: 'windows', icon: '▣', title: 'desktop.settings_category_windows', desc: 'desktop.settings_category_windows_desc', items: [
+                id: 'windows', icon: 'monitor', fallback: 'W', title: 'desktop.settings_category_windows', desc: 'desktop.settings_category_windows_desc', items: [
                     settingToggle('windows.animations', 'desktop.settings_window_animations', 'desktop.settings_window_animations_desc'),
                     settingSelect('windows.default_size', 'desktop.settings_default_window_size', 'desktop.settings_default_window_size_desc', [
                         ['compact', 'desktop.settings_window_size_compact'], ['balanced', 'desktop.settings_window_size_balanced'], ['large', 'desktop.settings_window_size_large']
@@ -1489,7 +1489,7 @@
                 ]
             },
             {
-                id: 'files', icon: '▤', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
+                id: 'files', icon: 'folder', fallback: 'F', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
                     settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
                     settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
                         ['Desktop', 'desktop.settings_folder_desktop'], ['Documents', 'desktop.settings_folder_documents'], ['Downloads', 'desktop.settings_folder_downloads'], ['Pictures', 'desktop.settings_folder_pictures'], ['Shared', 'desktop.settings_folder_shared']
@@ -1497,13 +1497,13 @@
                 ]
             },
             {
-                id: 'agent', icon: '✦', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
+                id: 'agent', icon: 'apps', fallback: 'A', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
                     settingToggle('agent.show_chat_button', 'desktop.settings_show_agent_button', 'desktop.settings_show_agent_button_desc'),
                     settingInfo('desktop.setting_agent_control', boot.allow_agent_control ? t('desktop.on') : t('desktop.off'))
                 ]
             },
             {
-                id: 'system', icon: 'ⓘ', title: 'desktop.settings_category_system', desc: 'desktop.settings_category_system_desc', items: [
+                id: 'system', icon: 'info', fallback: 'i', title: 'desktop.settings_category_system', desc: 'desktop.settings_category_system_desc', items: [
                     settingInfo('desktop.setting_workspace', workspace.root || ''),
                     settingInfo('desktop.setting_readonly', boot.readonly ? t('desktop.on') : t('desktop.off')),
                     settingInfo('desktop.setting_apps', String((boot.installed_apps || []).length)),
@@ -1548,12 +1548,12 @@
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
-                    <span>${esc(section.icon)}</span><span>${esc(t(section.title))}</span>
+                    ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
                 </button>`).join('')}
             </aside>
             <section class="vd-settings-pane">
                 <div class="vd-settings-pane-head">
-                    <div class="vd-settings-pane-icon">${esc(active.icon)}</div>
+                    <div class="vd-settings-pane-icon">${iconMarkup(active.icon, active.fallback || active.icon, 'vd-settings-pane-papirus-icon', 28)}</div>
                     <div>
                         <div class="vd-settings-pane-title">${esc(t(active.title))}</div>
                         <div class="vd-settings-pane-desc">${esc(t(active.desc))}</div>
@@ -1867,10 +1867,10 @@
         host.innerHTML = `<div class="vd-gallery">
             <div class="vd-toolbar vd-gallery-toolbar">
                 <div class="vd-segmented">
-                    <button class="vd-tool-button" type="button" data-gallery-tab="Photos">${esc(t('desktop.gallery_photos'))}</button>
-                    <button class="vd-tool-button" type="button" data-gallery-tab="Videos">${esc(t('desktop.gallery_videos'))}</button>
+                    <button class="vd-tool-button" type="button" data-gallery-tab="Photos">${iconMarkup('image', 'P', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_photos'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-gallery-tab="Videos">${iconMarkup('video', 'V', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_videos'))}</span></button>
                 </div>
-                <button class="vd-tool-button" type="button" data-gallery-refresh>${esc(t('desktop.gallery_refresh'))}</button>
+                <button class="vd-tool-button" type="button" data-gallery-refresh>${iconMarkup('refresh', 'R', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_refresh'))}</span></button>
                 <span class="vd-path">${esc(t('desktop.gallery_title'))}</span>
             </div>
             <div class="vd-gallery-grid" data-gallery-grid>${esc(t('desktop.loading'))}</div>
@@ -2121,8 +2121,8 @@
                 <div class="vd-qc-sidebar-header">
                     <span class="vd-qc-title">${esc(t('desktop.qc_title'))}</span>
                     <div class="vd-qc-header-actions">
-                        <button class="vd-tool-button" type="button" data-action="add" title="${esc(t('desktop.qc_add_server'))}">+</button>
-                        <button class="vd-tool-button" type="button" data-action="refresh">${esc(t('desktop.qc_refresh'))}</button>
+                        <button class="vd-tool-button" type="button" data-action="add" title="${esc(t('desktop.qc_add_server'))}">${iconMarkup('server', 'S', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-tool-icon', 15)}<span>${esc(t('desktop.qc_refresh'))}</span></button>
                     </div>
                 </div>
                 <div class="vd-qc-search">
@@ -2211,10 +2211,10 @@
         function showDeviceContextMenu(x, y, device) {
             closeContextMenu();
             const items = [
-                { label: t('desktop.qc_connect'), icon: '⌨', action: () => connectToDevice(device.id) },
-                { label: t('desktop.qc_edit'), icon: '✎', action: () => showServerModal(device) },
+                { label: t('desktop.qc_connect'), icon: 'terminal', fallback: 'T', action: () => connectToDevice(device.id) },
+                { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) },
                 { separator: true },
-                { label: t('desktop.qc_delete'), icon: '×', action: () => confirmDeleteDevice(device) }
+                { label: t('desktop.qc_delete'), icon: 'trash', fallback: 'X', action: () => confirmDeleteDevice(device) }
             ];
             showContextMenu(x, y, items);
         }
@@ -2504,11 +2504,11 @@
                 <div class="vd-launchpad-toolbar">
                     <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="Search links...">
                     <select class="vd-launchpad-category"><option value="">All categories</option></select>
-                    <button class="vd-tool-button" type="button" data-action="add">+ ${esc(t('desktop.launchpad_add'))}</button>
+                    <button class="vd-tool-button" type="button" data-action="add">${iconMarkup('file-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.launchpad_add'))}</span></button>
                 </div>
                 <div class="vd-launchpad-grid"></div>
                 <div class="vd-launchpad-empty" style="display:none">
-                    <div class="vd-launchpad-empty-icon">🚀</div>
+                    <div class="vd-launchpad-empty-icon">${iconMarkup('apps', 'A', 'vd-launchpad-empty-papirus-icon', 42)}</div>
                     <div>${esc(t('desktop.launchpad_empty'))}</div>
                 </div>
             </div>`;
@@ -2548,8 +2548,8 @@
                     '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
                     (link.description ? '<div class="vd-launchpad-tile-desc">' + esc(link.description) + '</div>' : '') +
                     '<div class="vd-launchpad-tile-actions">' +
-                    '<button type="button" class="vd-launchpad-tile-btn" data-action="edit" title="' + esc(t('desktop.launchpad_edit')) + '">✏️</button>' +
-                    '<button type="button" class="vd-launchpad-tile-btn" data-action="delete" title="' + esc(t('desktop.launchpad_delete')) + '">🗑️</button>' +
+                    '<button type="button" class="vd-launchpad-tile-btn" data-action="edit" title="' + esc(t('desktop.launchpad_edit')) + '">' + iconMarkup('edit', 'E', 'vd-launchpad-action-icon', 15) + '</button>' +
+                    '<button type="button" class="vd-launchpad-tile-btn" data-action="delete" title="' + esc(t('desktop.launchpad_delete')) + '">' + iconMarkup('trash', 'X', 'vd-launchpad-action-icon', 15) + '</button>' +
                     '</div></div>';
             }).join('');
             grid.querySelectorAll('.vd-launchpad-tile').forEach(tile => {
@@ -2592,7 +2592,7 @@
                         <input type="text" class="vd-modal-input lp-description" placeholder="${esc(t('desktop.launchpad_label_description'))}" value="${esc(link ? link.description : '')}">
                         <div style="font-size: 12px; color: var(--vd-muted); margin-top: 4px;">${esc(t('desktop.launchpad_label_icon'))}</div>
                         <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
-                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">🔍</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" style="display:none;"></div></div>
+                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">${iconMarkup('search', 'S', 'vd-tool-icon', 15)}</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" style="display:none;"></div></div>
                         <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
                         <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
                     </div>
