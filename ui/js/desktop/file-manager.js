@@ -1157,11 +1157,11 @@
             return;
         }
         const parent = parentPath(path);
-        const newPath = joinPath(parent, newName.trim());
+        const nextPath = joinPath(parent, newName.trim());
         try {
             await api('/api/desktop/file', {
                 method: 'PATCH',
-                body: JSON.stringify({ old_path: path, new_path: newPath })
+                body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
             refresh();
         } catch (err) {

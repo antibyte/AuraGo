@@ -18,6 +18,13 @@ func TestFileManagerInlineRenameMarkers(t *testing.T) {
 		"finishRename",
 		"cancelRename",
 		"fm.renamePath === file.path",
+		"event.key === 'Enter'",
+		"event.key === 'Escape'",
+		"renameInput.addEventListener('blur'",
+		"method: 'PATCH'",
+		"old_path: path",
+		"new_path: nextPath",
+		"/api/desktop/file",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("file manager rename missing marker %q", marker)
