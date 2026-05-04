@@ -70,6 +70,28 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 	}
 }
 
+func TestOfficeAppsSendOptimisticVersion(t *testing.T) {
+	t.Parallel()
+
+	for _, app := range []string{"writer.js", "sheets.js"} {
+		sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", app))
+		if err != nil {
+			t.Fatalf("read %s: %v", app, err)
+		}
+		source := string(sourceBytes)
+		for _, marker := range []string{
+			"let officeVersion = null;",
+			"officeVersion = body.office_version || null;",
+			"office_version: officeVersion",
+			"officeVersion = body.office_version || officeVersion;",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s missing optimistic office version marker %q", app, marker)
+			}
+		}
+	}
+}
+
 func jsFunctionBody(t *testing.T, source, name string) string {
 	t.Helper()
 

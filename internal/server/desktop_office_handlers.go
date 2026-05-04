@@ -2,9 +2,13 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,16 +39,9 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 			}
 			doc.Path = entry.Path
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "document": doc})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "document": doc, "office_version": officeVersionForEntry(entry)})
 		case http.MethodPut, http.MethodPost:
-			var body struct {
-				Path     string          `json:"path"`
-				Title    string          `json:"title"`
-				Text     string          `json:"text"`
-				Content  string          `json:"content"`
-				HTML     string          `json:"html"`
-				Document office.Document `json:"document"`
-			}
+			var body officeDocumentSaveRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
@@ -55,6 +52,14 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 			}
 			if path == "" {
 				jsonError(w, "path is required", http.StatusBadRequest)
+				return
+			}
+			if err := checkOfficeVersion(r.Context(), svc, path, body.OfficeVersion); err != nil {
+				if isOfficeConflictError(err) {
+					jsonError(w, err.Error(), http.StatusConflict)
+					return
+				}
+				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			doc := body.Document
@@ -81,8 +86,13 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 			}
 			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "write_document", "path": path}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
+			officeVersion, err := currentOfficeVersion(r.Context(), svc, path)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": path})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": path, "office_version": officeVersion})
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -111,13 +121,9 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 			}
 			workbook.Path = entry.Path
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "workbook": workbook})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "workbook": workbook, "office_version": officeVersionForEntry(entry)})
 		case http.MethodPut, http.MethodPost:
-			var body struct {
-				Path     string          `json:"path"`
-				Workbook json.RawMessage `json:"workbook"`
-				Sheet    string          `json:"sheet"`
-			}
+			var body officeWorkbookSaveRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
@@ -128,6 +134,14 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 			}
 			if path == "" {
 				jsonError(w, "path is required", http.StatusBadRequest)
+				return
+			}
+			if err := checkOfficeVersion(r.Context(), svc, path, body.OfficeVersion); err != nil {
+				if isOfficeConflictError(err) {
+					jsonError(w, err.Error(), http.StatusConflict)
+					return
+				}
+				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			var workbook office.Workbook
@@ -151,8 +165,13 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 			}
 			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "write_workbook", "path": path}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
+			officeVersion, err := currentOfficeVersion(r.Context(), svc, path)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": path})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": path, "office_version": officeVersion})
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -229,6 +248,98 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(outputName, `"`, "")))
 		http.ServeContent(w, r, outputName, entry.ModTime, bytes.NewReader(output))
 	}
+}
+
+type officeVersion struct {
+	Path     string `json:"path"`
+	Modified string `json:"modified"`
+	ModTime  string `json:"mod_time"`
+	Size     int64  `json:"size"`
+	ETag     string `json:"etag"`
+}
+
+type officeDocumentSaveRequest struct {
+	Path          string          `json:"path"`
+	Title         string          `json:"title"`
+	Text          string          `json:"text"`
+	Content       string          `json:"content"`
+	HTML          string          `json:"html"`
+	Document      office.Document `json:"document"`
+	OfficeVersion *officeVersion  `json:"office_version"`
+}
+
+type officeWorkbookSaveRequest struct {
+	Path          string          `json:"path"`
+	Workbook      json.RawMessage `json:"workbook"`
+	Sheet         string          `json:"sheet"`
+	OfficeVersion *officeVersion  `json:"office_version"`
+}
+
+type officeConflictError struct {
+	message string
+}
+
+func (e officeConflictError) Error() string {
+	return e.message
+}
+
+func isOfficeConflictError(err error) bool {
+	var conflict officeConflictError
+	return errors.As(err, &conflict)
+}
+
+func officeVersionForEntry(entry desktop.FileEntry) officeVersion {
+	modified := entry.ModTime.UTC().Format(time.RFC3339Nano)
+	etagInput := fmt.Sprintf("%s:%d:%d", entry.Path, entry.Size, entry.ModTime.UTC().UnixNano())
+	etag := sha256.Sum256([]byte(etagInput))
+	return officeVersion{
+		Path:     entry.Path,
+		Modified: modified,
+		ModTime:  modified,
+		Size:     entry.Size,
+		ETag:     fmt.Sprintf("%x", etag[:]),
+	}
+}
+
+func checkOfficeVersion(ctx context.Context, svc *desktop.Service, path string, expected *officeVersion) error {
+	current, err := currentOfficeVersion(ctx, svc, path)
+	if err != nil {
+		if isOfficeNotExistError(err) {
+			return nil
+		}
+		return fmt.Errorf("check current office version: %w", err)
+	}
+	if expected == nil {
+		return officeConflictError{message: "office file changed; reload before saving"}
+	}
+	if strings.TrimSpace(expected.ETag) != "" {
+		if strings.TrimSpace(expected.ETag) == current.ETag {
+			return nil
+		}
+		return officeConflictError{message: "office file changed; reload before saving"}
+	}
+	matchesModified := strings.TrimSpace(expected.Modified) == current.Modified || strings.TrimSpace(expected.ModTime) == current.ModTime
+	if expected.Size == current.Size && matchesModified {
+		return nil
+	}
+	return officeConflictError{message: "office file changed; reload before saving"}
+}
+
+func isOfficeNotExistError(err error) bool {
+	if os.IsNotExist(err) || errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+	var pathErr *os.PathError
+	return errors.As(err, &pathErr) && (os.IsNotExist(pathErr.Err) || errors.Is(pathErr.Err, os.ErrNotExist))
+}
+
+func currentOfficeVersion(ctx context.Context, svc *desktop.Service, path string) (*officeVersion, error) {
+	_, entry, err := svc.ReadFileBytes(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	version := officeVersionForEntry(entry)
+	return &version, nil
 }
 
 func encodeWorkbookForPath(path string, workbook office.Workbook, sheet string) ([]byte, error) {

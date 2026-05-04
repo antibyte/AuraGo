@@ -25,6 +25,7 @@
         const notify = ctx.notify || (() => {});
         const refreshDesktop = ctx.loadBootstrap || (() => Promise.resolve());
         let currentPath = ctx.path || DEFAULT_PATH;
+        let officeVersion = null;
         let activeSheet = 0;
         let workbook = emptyWorkbook(currentPath);
         let selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
@@ -517,11 +518,12 @@
             setStatus(t('desktop.saving', 'Saving...'));
             const path = pathInput.value.trim() || DEFAULT_PATH;
             workbook.path = path;
-            await api('/api/desktop/office/workbook', {
+            const body = await api('/api/desktop/office/workbook', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path, workbook })
+                body: JSON.stringify({ path, workbook, office_version: officeVersion })
             });
+            officeVersion = body.office_version || officeVersion;
             setPath(path);
             setStatus(t('desktop.sheets_saved', 'Saved'));
             notify({ type: 'success', message: t('desktop.sheets_saved', 'Saved') });
@@ -538,9 +540,11 @@
             try {
                 const body = await api('/api/desktop/office/workbook?path=' + encodeURIComponent(currentPath));
                 workbook = normalizeWorkbook(body.workbook || {}, currentPath);
+                officeVersion = body.office_version || null;
                 setPath((body.entry && body.entry.path) || workbook.path || currentPath);
                 setStatus('');
             } catch (err) {
+                officeVersion = null;
                 workbook = emptyWorkbook(currentPath);
                 setStatus('');
                 if (ctx.path) notify({ type: 'info', message: err.message || String(err) });

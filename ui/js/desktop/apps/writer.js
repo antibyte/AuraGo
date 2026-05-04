@@ -15,6 +15,7 @@
         const notify = ctx.notify || (() => {});
         const refreshDesktop = ctx.loadBootstrap || (() => Promise.resolve());
         let currentPath = ctx.path || DEFAULT_PATH;
+        let officeVersion = null;
         let editor = null;
 
         host.innerHTML = `<div class="office-app office-writer" data-office-writer="${esc(windowId)}">
@@ -99,13 +100,15 @@
                 path,
                 title: titleInput.value.trim(),
                 text: documentText(),
-                html: documentHTML()
+                html: documentHTML(),
+                office_version: officeVersion
             };
-            await api('/api/desktop/office/document', {
+            const body = await api('/api/desktop/office/document', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            officeVersion = body.office_version || officeVersion;
             setPath(path);
             setStatus(t('desktop.writer_saved', 'Saved'));
             notify({ type: 'success', message: t('desktop.writer_saved', 'Saved') });
@@ -133,11 +136,13 @@
             try {
                 const body = await api('/api/desktop/office/document?path=' + encodeURIComponent(currentPath));
                 const doc = (body && body.document) || {};
+                officeVersion = body.office_version || null;
                 setDocumentText(doc.text || '');
                 if (doc.title && titleInput && !titleInput.value) titleInput.value = doc.title;
                 setPath((body.entry && body.entry.path) || doc.path || currentPath);
                 setStatus('');
             } catch (err) {
+                officeVersion = null;
                 setDocumentText(ctx.content || '');
                 setStatus('');
                 if (ctx.path) notify({ type: 'info', message: err.message || String(err) });
