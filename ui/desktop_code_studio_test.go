@@ -29,6 +29,14 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"if (!isLiveInstance(instance)) return undefined;",
 		"await runAsyncStep(target, saveCurrentFile);",
 		"runWithInstance(target, () => {\n            renderStatus(tr('codeStudio.running'",
+		"function destroyTabView",
+		"destroyTabView(tab);",
+		"term.dispose()",
+		"terminalDisposed",
+		"state.disposers.push(() => {",
+		"document.removeEventListener('mousedown'",
+		"cleanup('')",
+		"cleanup(false)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("Code Studio per-window lifecycle missing marker %q", marker)

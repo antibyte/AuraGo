@@ -90,6 +90,17 @@
         return bindInstance(state, fn);
     }
 
+    function addDisposer(instance, disposeFn) {
+        if (instance && typeof disposeFn === 'function') instance.disposers.push(disposeFn);
+    }
+
+    function destroyTabView(tab) {
+        if (tab && tab.view && typeof tab.view.destroy === 'function') {
+            try { tab.view.destroy(); } catch (_) {}
+        }
+        if (tab) tab.view = null;
+    }
+
     function tr(key, fallback, vars) {
         const translator = typeof window.t === 'function'
             ? window.t
@@ -271,9 +282,7 @@
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
         }
-        instance.openTabs.forEach(tab => {
-            if (tab.view && typeof tab.view.destroy === 'function') tab.view.destroy();
-        });
+        instance.openTabs.forEach(destroyTabView);
         instances.delete(windowId);
         if (state === instance) state = null;
         if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
@@ -581,9 +590,14 @@
         if (!editor) return;
         const tab = activeTab();
         if (!tab) {
+            state.openTabs.forEach(destroyTabView);
             editor.innerHTML = `<div class="cs-editor-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
             return;
         }
+        state.openTabs.forEach(openTab => {
+            if (openTab !== tab) destroyTabView(openTab);
+        });
+        destroyTabView(tab);
         editor.innerHTML = '';
         tab.view = state.editorType === 'codemirror'
             ? createCodeMirrorEditor(editor, tab)
@@ -709,7 +723,7 @@
     function closeTab(index) {
         const tab = state.openTabs[index];
         if (!tab) return;
-        if (tab.view && typeof tab.view.destroy === 'function') tab.view.destroy();
+        destroyTabView(tab);
         state.openTabs.splice(index, 1);
         if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
         renderTabs();
@@ -1067,7 +1081,11 @@
     }
 
     function showCodeActionMenu(x, y) {
-        document.querySelectorAll('.cs-context-menu').forEach(menu => menu.remove());
+        document.querySelectorAll('.cs-context-menu').forEach(menu => {
+            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
+            else menu.remove();
+        });
+        const instance = state;
         const menu = document.createElement('div');
         menu.className = 'cs-context-menu';
         menu.style.left = x + 'px';
@@ -1078,18 +1096,27 @@
             <button type="button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
             <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
         document.body.appendChild(menu);
+        let boundClose = null;
+        let menuClosed = false;
+        const cleanupMenu = () => {
+            if (menuClosed) return;
+            menuClosed = true;
+            if (boundClose) document.removeEventListener('mousedown', boundClose);
+            menu.remove();
+        };
+        menu.__codeStudioCleanup = cleanupMenu;
+        addDisposer(instance, cleanupMenu);
         menu.querySelectorAll('[data-code-action]').forEach(btn => {
             btn.addEventListener('click', bind(() => {
                 runCodeAction(btn.dataset.codeAction);
-                menu.remove();
+                cleanupMenu();
             }));
         });
         setTimeout(bind(() => {
-            let boundClose;
+            if (menuClosed) return;
             const close = event => {
                 if (!menu.contains(event.target)) {
-                    menu.remove();
-                    document.removeEventListener('mousedown', boundClose);
+                    cleanupMenu();
                 }
             };
             boundClose = bind(close);
@@ -1107,6 +1134,13 @@
         try {
             const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: 'Consolas, monospace', fontSize: 13 });
             state.terminal = term;
+            const instance = state;
+            let terminalDisposed = false;
+            instance.disposers.push(() => {
+                if (terminalDisposed) return;
+                terminalDisposed = true;
+                if (term && typeof term.dispose === 'function') term.dispose();
+            });
             if (window.FitAddon && window.FitAddon.FitAddon) {
                 state.fitAddon = new window.FitAddon.FitAddon();
                 term.loadAddon(state.fitAddon);
@@ -1118,7 +1152,6 @@
             const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws.binaryType = 'arraybuffer';
             state.ws = ws;
-            const instance = state;
             ws.onopen = bindInstance(instance, () => {
                 label.textContent = tr('codeStudio.running', 'Running...');
                 const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
@@ -1327,6 +1360,7 @@
 
     function promptValue(title, value) {
         return new Promise(resolve => {
+            const instance = state;
             const overlay = document.createElement('div');
             overlay.className = 'cs-modal-backdrop';
             overlay.innerHTML = `<form class="cs-modal">
@@ -1338,10 +1372,14 @@
             </form>`;
             document.body.appendChild(overlay);
             const input = overlay.querySelector('input');
+            let settled = false;
             const cleanup = result => {
+                if (settled) return;
+                settled = true;
                 overlay.remove();
                 resolve(result);
             };
+            addDisposer(instance, () => cleanup(''));
             overlay.querySelector('form').addEventListener('submit', bind(event => {
                 event.preventDefault();
                 cleanup(input.value.trim());
@@ -1357,6 +1395,7 @@
 
     function confirmValue(message) {
         return new Promise(resolve => {
+            const instance = state;
             const overlay = document.createElement('div');
             overlay.className = 'cs-modal-backdrop';
             overlay.innerHTML = `<div class="cs-modal">
@@ -1367,10 +1406,14 @@
                 </div>
             </div>`;
             document.body.appendChild(overlay);
+            let settled = false;
             const cleanup = result => {
+                if (settled) return;
+                settled = true;
                 overlay.remove();
                 resolve(result);
             };
+            addDisposer(instance, () => cleanup(false));
             overlay.querySelector('[data-confirm]').addEventListener('click', bind(() => cleanup(true)));
             overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup(false)));
             overlay.addEventListener('click', bind(event => {
@@ -1408,7 +1451,7 @@
             }
         });
         document.addEventListener('keydown', onKeydown);
-        state.disposers.push(() => document.removeEventListener('keydown', onKeydown));
+        state.disposers.push(() => { document.removeEventListener('keydown', onKeydown); });
     }
 
     function runOnWindow(windowId, fn) {
