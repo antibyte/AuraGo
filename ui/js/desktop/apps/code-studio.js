@@ -53,20 +53,11 @@
         if (!instance || typeof fn !== 'function') return undefined;
         const previous = state;
         state = instance;
-        let result;
         try {
-            result = fn();
-        } catch (err) {
+            return fn();
+        } finally {
             state = previous;
-            throw err;
         }
-        if (result && typeof result.then === 'function') {
-            return result.finally(() => {
-                state = previous;
-            });
-        }
-        state = previous;
-        return result;
     }
 
     async function runAsyncStep(instance, fn) {
@@ -489,14 +480,20 @@
         });
         sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
         sidebar.ondrop = bind(async event => {
+            const target = state;
+            if (!isLiveInstance(target)) return;
             event.preventDefault();
             sidebar.classList.remove('dragover');
             const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
+            const currentPath = target.currentPath;
             try {
-                for (const file of files) await apiClient.uploadFile(state.currentPath, file);
-                if (files.length) await refreshFiles(state.currentPath);
+                for (const file of files) {
+                    await apiClient.uploadFile(currentPath, file);
+                    if (!isLiveInstance(target)) return;
+                }
+                if (files.length) await runAsyncStep(target, () => refreshFiles(currentPath));
             } catch (err) {
-                showOperationError(err);
+                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             }
         });
         sidebar.querySelectorAll('[data-file-path]').forEach(row => {
@@ -721,70 +718,109 @@
     }
 
     async function saveCurrentFile() {
+        const target = state;
+        if (!isLiveInstance(target)) return false;
         const tab = activeTab();
         if (!tab) return false;
         tab.content = editorValue(tab);
-        await apiClient.writeFile(tab.path, tab.content);
-        tab.modified = false;
-        renderTabs();
-        renderStatus(tr('codeStudio.save', 'Save'));
-        saveState();
-        return true;
+        const content = tab.content;
+        const path = tab.path;
+        await apiClient.writeFile(path, content);
+        if (!isLiveInstance(target)) return false;
+        return runWithInstance(target, () => {
+            tab.modified = false;
+            renderTabs();
+            renderStatus(tr('codeStudio.save', 'Save'));
+            saveState();
+            return true;
+        });
     }
 
     async function createNewFile() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
+        if (!isLiveInstance(target)) return;
+        const currentPath = target.currentPath;
+        const path = joinPath(currentPath, name);
         try {
-            const path = joinPath(state.currentPath, name);
             await apiClient.writeFile(path, '');
-            await refreshFiles(state.currentPath);
-            await openFile(path);
+            if (!isLiveInstance(target)) return;
+            await runAsyncStep(target, () => refreshFiles(currentPath));
+            if (!isLiveInstance(target)) return;
+            await runAsyncStep(target, () => openFile(path));
         } catch (err) {
-            showOperationError(err);
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
         }
     }
 
     async function createNewFolder() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const name = await promptValue(tr('codeStudio.newFolder', 'New Folder'), 'src');
         if (!name) return;
+        if (!isLiveInstance(target)) return;
+        const currentPath = target.currentPath;
         try {
-            await apiClient.createDirectory(joinPath(state.currentPath, name));
-            await refreshFiles(state.currentPath);
-            renderStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name);
+            await apiClient.createDirectory(joinPath(currentPath, name));
+            if (!isLiveInstance(target)) return;
+            await runAsyncStep(target, () => refreshFiles(currentPath));
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => renderStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name));
         } catch (err) {
-            showOperationError(err);
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
         }
     }
 
     async function renamePath(file) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const name = await promptValue(tr('codeStudio.rename', 'Rename'), file.name);
         if (!name || name === file.name) return;
+        if (!isLiveInstance(target)) return;
         const newPath = joinPath(parentPath(file.path), name);
         await apiClient.renamePath(file.path, newPath);
-        state.openTabs.forEach(tab => {
-            if (tab.path === file.path) tab.path = newPath;
-            else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
-                tab.path = newPath + tab.path.slice(file.path.length);
-            }
+        if (!isLiveInstance(target)) return;
+        const currentPath = target.currentPath;
+        runWithInstance(target, () => {
+            state.openTabs.forEach(tab => {
+                if (tab.path === file.path) tab.path = newPath;
+                else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
+                    tab.path = newPath + tab.path.slice(file.path.length);
+                }
+            });
         });
-        await refreshFiles(state.currentPath);
-        renderTabs();
-        renderStatus();
-        saveState();
+        await runAsyncStep(target, () => refreshFiles(currentPath));
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            renderTabs();
+            renderStatus();
+            saveState();
+        });
     }
 
     async function deletePath(file) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const confirmed = await confirmValue(tr('codeStudio.deleteConfirm', 'Are you sure you want to delete {{name}}?', { name: file.name }));
         if (!confirmed) return;
+        if (!isLiveInstance(target)) return;
         await apiClient.deletePath(file.path);
-        state.openTabs = state.openTabs.filter(tab => tab.path !== file.path && !tab.path.startsWith(file.path + '/'));
-        if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
-        await refreshFiles(state.currentPath);
-        renderTabs();
-        renderEditor();
-        renderStatus();
-        saveState();
+        if (!isLiveInstance(target)) return;
+        const currentPath = target.currentPath;
+        runWithInstance(target, () => {
+            state.openTabs = state.openTabs.filter(tab => tab.path !== file.path && !tab.path.startsWith(file.path + '/'));
+            if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
+        });
+        await runAsyncStep(target, () => refreshFiles(currentPath));
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            renderTabs();
+            renderEditor();
+            renderStatus();
+            saveState();
+        });
     }
 
     function downloadFile(file) {
@@ -796,12 +832,17 @@
         const input = document.createElement('input');
         input.type = 'file';
         input.addEventListener('change', bind(async () => {
+            const target = state;
+            if (!isLiveInstance(target)) return;
             if (!input.files || !input.files[0]) return;
+            const currentPath = target.currentPath;
+            const file = input.files[0];
             try {
-                await apiClient.uploadFile(state.currentPath, input.files[0]);
-                await refreshFiles(state.currentPath);
+                await apiClient.uploadFile(currentPath, file);
+                if (!isLiveInstance(target)) return;
+                await runAsyncStep(target, () => refreshFiles(currentPath));
             } catch (err) {
-                showOperationError(err);
+                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             }
         }), { once: true });
         input.click();
@@ -813,56 +854,83 @@
     }
 
     async function runSearch(formData) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const query = String(formData.get('q') || '').trim();
         if (!query) return;
         renderStatus(tr('codeStudio.search', 'Search'));
+        const currentPath = target.currentPath || WORKSPACE_ROOT;
         const result = await apiClient.search({
             q: query,
-            path: state.currentPath || WORKSPACE_ROOT,
+            path: currentPath,
             case: formData.get('case') ? 'true' : 'false',
             whole: formData.get('whole') ? 'true' : 'false',
             regex: formData.get('regex') ? 'true' : 'false',
             include: String(formData.get('include') || ''),
             exclude: String(formData.get('exclude') || '')
         });
-        state.searchResults = result.results || [];
-        renderSearchPanel();
-        renderStatus(tr('codeStudio.search', 'Search') + ': ' + state.searchResults.length);
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            state.searchResults = result.results || [];
+            renderSearchPanel();
+            renderStatus(tr('codeStudio.search', 'Search') + ': ' + state.searchResults.length);
+        });
     }
 
     async function openSearchResult(path, line) {
-        await openFile(path);
-        const tab = activeTab();
-        if (!tab || !tab.view) return;
-        if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
-            const docLine = tab.view.state.doc.line(Math.max(1, line || 1));
-            tab.view.dispatch({
-                selection: { anchor: docLine.from },
-                effects: state.cmModule.EditorView.scrollIntoView(docLine.from, { y: 'center' })
-            });
-        } else if (tab.view.textarea) {
-            const lines = tab.view.textarea.value.split('\n');
-            const offset = lines.slice(0, Math.max(0, (line || 1) - 1)).join('\n').length;
-            tab.view.textarea.focus();
-            tab.view.textarea.setSelectionRange(offset, offset);
-        }
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        await runAsyncStep(target, () => openFile(path));
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            const tab = activeTab();
+            if (!tab || !tab.view) return;
+            if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
+                const docLine = tab.view.state.doc.line(Math.max(1, line || 1));
+                tab.view.dispatch({
+                    selection: { anchor: docLine.from },
+                    effects: state.cmModule.EditorView.scrollIntoView(docLine.from, { y: 'center' })
+                });
+            } else if (tab.view.textarea) {
+                const lines = tab.view.textarea.value.split('\n');
+                const offset = lines.slice(0, Math.max(0, (line || 1) - 1)).join('\n').length;
+                tab.view.textarea.focus();
+                tab.view.textarea.setSelectionRange(offset, offset);
+            }
+        });
     }
 
     async function runCurrentFile() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         const tab = activeTab();
         if (!tab) return;
-        if (tab.modified) await saveCurrentFile();
+        if (tab.modified) {
+            await runAsyncStep(target, saveCurrentFile);
+            if (!isLiveInstance(target)) return;
+        }
         const command = runCommandFor(tab.path);
+        const cwd = tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/')));
         renderStatus(tr('codeStudio.running', 'Running...'));
         writeTerminalLine('$ ' + command);
         try {
-            const result = await apiClient.exec(command);
-            writeTerminalLine(result.output || '');
-            writeTerminalLine('exit ' + result.exit_code);
-            renderStatus(tr('codeStudio.stopped', 'Stopped'));
+            const result = await api('/api/code-studio/exec', {
+                method: 'POST',
+                body: JSON.stringify({ command, cwd, timeout_seconds: 300 })
+            });
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                writeTerminalLine(result.output || '');
+                writeTerminalLine('exit ' + result.exit_code);
+                renderStatus(tr('codeStudio.stopped', 'Stopped'));
+            });
         } catch (err) {
-            writeTerminalLine(err.message || String(err));
-            renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: err.message || String(err) }));
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => {
+                    writeTerminalLine(err.message || String(err));
+                    renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: err.message || String(err) }));
+                });
+            }
         }
     }
 
@@ -873,24 +941,41 @@
     }
 
     async function sendAgentMessage(message) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
         if (state.agentBusy) return;
-        state.agentVisible = true;
-        ensureShellRoot().dataset.agent = 'visible';
-        state.agentMessages.push({ role: 'user', text: message });
-        state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
-        state.agentBusy = true;
-        renderAgentPanel();
-        try {
-            const response = await apiClient.agentChat(message, codeStudioAgentContext());
-            const answer = response.answer || tr('desktop.done', 'Done');
-            state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
-            const suggestion = extractFirstCodeBlock(answer);
-            if (suggestion) state.pendingSuggestion = suggestion;
-        } catch (err) {
-            state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
-        } finally {
-            state.agentBusy = false;
+        let context;
+        runWithInstance(target, () => {
+            state.agentVisible = true;
+            ensureShellRoot().dataset.agent = 'visible';
+            state.agentMessages.push({ role: 'user', text: message });
+            state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
+            state.agentBusy = true;
+            context = codeStudioAgentContext();
             renderAgentPanel();
+        });
+        try {
+            const response = await apiClient.agentChat(message, context);
+            if (!isLiveInstance(target)) return;
+            const answer = response.answer || tr('desktop.done', 'Done');
+            runWithInstance(target, () => {
+                state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
+                const suggestion = extractFirstCodeBlock(answer);
+                if (suggestion) state.pendingSuggestion = suggestion;
+            });
+        } catch (err) {
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => {
+                    state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
+                });
+            }
+        } finally {
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => {
+                    state.agentBusy = false;
+                    renderAgentPanel();
+                });
+            }
         }
     }
 
