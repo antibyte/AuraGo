@@ -27,6 +27,7 @@
         renamePath: null,
         dragOverPath: null,
         keyboardBound: false,
+        activeKeyboardWindow: '',
     };
 
     function t(key, fallback, vars) {
@@ -730,6 +731,9 @@
         const root = fm.host.querySelector('.file-manager');
         if (!root) return;
 
+        root.addEventListener('focusin', activateKeyboardWindow);
+        root.addEventListener('pointerdown', activateKeyboardWindow);
+
         // Toolbar buttons
         root.querySelectorAll('[data-action]').forEach(btn => {
             btn.addEventListener('click', handleActionClick);
@@ -1385,13 +1389,15 @@
         document.addEventListener('keydown', handleGlobalKeyDown);
     }
 
+    function activateKeyboardWindow() {
+        fm.activeKeyboardWindow = fm.windowId;
+    }
+
     function handleGlobalKeyDown(e) {
         if (!fm.host) return;
         const root = fm.host.querySelector('.file-manager');
         if (!root) return;
-        // Only handle if this file manager is focused or within an active window
-        const isFocused = root.contains(document.activeElement) || document.activeElement === document.body;
-        if (!isFocused) return;
+        if (fm.activeKeyboardWindow !== fm.windowId || !root.contains(document.activeElement)) return;
 
         const isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
         if (isInput && e.key !== 'Escape') return;

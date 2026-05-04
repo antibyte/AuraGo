@@ -39,3 +39,25 @@ func TestFileManagerInlineRenameMarkers(t *testing.T) {
 		t.Fatalf("desktop stylesheet missing file manager rename input rule")
 	}
 }
+
+func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
+	t.Parallel()
+
+	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
+	if err != nil {
+		t.Fatalf("file manager script missing from embedded UI: %v", err)
+	}
+	source := string(jsBytes)
+	if strings.Contains(source, "document.activeElement === document.body") {
+		t.Fatalf("file manager keyboard shortcuts must not run from body focus")
+	}
+	for _, marker := range []string{
+		"fm.activeKeyboardWindow",
+		"root.addEventListener('focusin'",
+		"root.contains(document.activeElement)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager keyboard shortcut scoping missing marker %q", marker)
+		}
+	}
+}
