@@ -80,46 +80,26 @@ func TestDesktopOfficeWorkbookOptimisticLocking(t *testing.T) {
 	if staleResp.Code != http.StatusConflict {
 		t.Fatalf("stale save status = %d, want %d, body %s", staleResp.Code, http.StatusConflict, staleResp.Body.String())
 	}
-}
 
-func TestDesktopOfficeWorkbookCreateWithoutVersionAllowed(t *testing.T) {
-	s := newDesktopOfficeTestServer(t)
-
-	resp := doOfficeWorkbookRequest(t, s, http.MethodPost, "/api/desktop/office/workbook", map[string]interface{}{
-		"path":     "Documents/new-workbook.xlsx",
+	createPath := "Documents/new-workbook.xlsx"
+	createResp := doOfficeWorkbookRequest(t, s, http.MethodPost, "/api/desktop/office/workbook", map[string]interface{}{
+		"path":     createPath,
 		"workbook": testWorkbook("created"),
 	})
-	if resp.Code != http.StatusOK {
-		t.Fatalf("create status = %d, body %s", resp.Code, resp.Body.String())
+	if createResp.Code != http.StatusOK {
+		t.Fatalf("create status = %d, body %s", createResp.Code, createResp.Body.String())
 	}
-	version := decodeOfficeWorkbookResponse(t, resp).OfficeVersion
-	if len(version) == 0 || string(version) == "null" {
-		t.Fatalf("create response missing office_version: %s", resp.Body.String())
-	}
-}
-
-func TestDesktopOfficeWorkbookExistingSaveWithoutVersionRejected(t *testing.T) {
-	s := newDesktopOfficeTestServer(t)
-	svc, _, err := s.getDesktopService(context.Background())
-	if err != nil {
-		t.Fatalf("getDesktopService: %v", err)
+	createdVersion := decodeOfficeWorkbookResponse(t, createResp).OfficeVersion
+	if len(createdVersion) == 0 || string(createdVersion) == "null" {
+		t.Fatalf("create response missing office_version: %s", createResp.Body.String())
 	}
 
-	path := "Documents/existing.xlsx"
-	data, err := office.EncodeWorkbook(testWorkbook("existing"))
-	if err != nil {
-		t.Fatalf("EncodeWorkbook: %v", err)
-	}
-	if err := svc.WriteFileBytes(context.Background(), path, data, desktop.SourceUser); err != nil {
-		t.Fatalf("WriteFileBytes: %v", err)
-	}
-
-	resp := doOfficeWorkbookRequest(t, s, http.MethodPut, "/api/desktop/office/workbook", map[string]interface{}{
-		"path":     path,
+	missingVersionResp := doOfficeWorkbookRequest(t, s, http.MethodPut, "/api/desktop/office/workbook", map[string]interface{}{
+		"path":     createPath,
 		"workbook": testWorkbook("overwrite"),
 	})
-	if resp.Code != http.StatusConflict {
-		t.Fatalf("save without version status = %d, want %d, body %s", resp.Code, http.StatusConflict, resp.Body.String())
+	if missingVersionResp.Code != http.StatusConflict {
+		t.Fatalf("save without version status = %d, want %d, body %s", missingVersionResp.Code, http.StatusConflict, missingVersionResp.Body.String())
 	}
 }
 
