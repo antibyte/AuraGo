@@ -58,6 +58,7 @@
             currentPath = path || DEFAULT_PATH;
             if (pathInput) pathInput.value = currentPath;
             updateExportLinks();
+            if (typeof ctx.updateWindowContext === 'function') ctx.updateWindowContext(windowId, { path: currentPath });
         }
 
         function documentText() {

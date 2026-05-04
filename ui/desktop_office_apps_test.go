@@ -38,16 +38,31 @@ func TestSheetsKeyboardNavigationIsBounded(t *testing.T) {
 func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 	t.Parallel()
 
-	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "main.js"))
+	mainBytes, err := os.ReadFile(filepath.Join("js", "desktop", "main.js"))
 	if err != nil {
 		t.Fatalf("read main.js: %v", err)
 	}
-	source := string(sourceBytes)
+	writerBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "writer.js"))
+	if err != nil {
+		t.Fatalf("read writer.js: %v", err)
+	}
+	sheetsBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "sheets.js"))
+	if err != nil {
+		t.Fatalf("read sheets.js: %v", err)
+	}
+
+	source := string(mainBytes) + "\n" + string(writerBytes) + "\n" + string(sheetsBytes)
 	for _, marker := range []string{
 		"function findExistingAppWindow",
+		"function normalizeDesktopPath",
+		"function updateWindowContext",
 		"context && context.path != null",
-		"win.context && win.context.path === context.path",
+		"normalizeDesktopPath(context.path)",
+		"win.context && normalizeDesktopPath(win.context.path) === requestedPath",
 		"appId === 'writer' || appId === 'sheets'",
+		"context: windowContext",
+		"updateWindowContext: updateWindowContext",
+		"ctx.updateWindowContext(windowId, { path: currentPath })",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("office same-file dedupe missing marker %q", marker)

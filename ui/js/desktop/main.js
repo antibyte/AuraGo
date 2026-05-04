@@ -763,11 +763,23 @@
         };
     }
 
+    function normalizeDesktopPath(path) {
+        return String(path || '').replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '').trim();
+    }
+
+    function updateWindowContext(windowId, patch) {
+        const win = state.windows.get(windowId);
+        if (!win) return;
+        win.context = Object.assign({}, win.context || {}, patch || {});
+        if (win.context.path != null) win.context.path = normalizeDesktopPath(win.context.path);
+    }
+
     function findExistingAppWindow(appId, context) {
         return [...state.windows.values()].find(win => {
             if (win.appId !== appId) return false;
             if ((appId === 'writer' || appId === 'sheets') && context && context.path != null) {
-                return win.context && win.context.path === context.path;
+                const requestedPath = normalizeDesktopPath(context.path);
+                return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
             }
             return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
         });
@@ -815,10 +827,12 @@
         <div class="vd-window-content" data-window-content></div>
         ${resizeHandleMarkup()}`;
         $('vd-window-layer').appendChild(win);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: context || {} });
+        const windowContext = Object.assign({}, context || {});
+        if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
+        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
         focusWindow(id);
-        renderAppContent(id, appId, context || {});
+        renderAppContent(id, appId, windowContext);
         renderTaskbar();
     }
 
@@ -1307,7 +1321,8 @@
                 t,
                 iconMarkup,
                 notify: showDesktopNotification,
-                loadBootstrap
+                loadBootstrap,
+                updateWindowContext: updateWindowContext
             }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
@@ -1317,7 +1332,8 @@
                 t,
                 iconMarkup,
                 notify: showDesktopNotification,
-                loadBootstrap
+                loadBootstrap,
+                updateWindowContext: updateWindowContext
             }));
         }
         if (appId === 'settings') return renderSettings(id);
