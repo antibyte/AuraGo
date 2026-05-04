@@ -60,6 +60,41 @@ func TestDesktopOfficeAppScriptsAvoidAlert(t *testing.T) {
 	}
 }
 
+func TestDesktopSheetsSupportsSelectionFormulaBarAndContextMenu(t *testing.T) {
+	t.Parallel()
+
+	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+	requiredJS := []string{
+		"data-formula-bar",
+		"data-range-name",
+		"showSheetContextMenu",
+		"'copy-range'",
+		"'paste-range'",
+		"'clear-range'",
+		"'insert-row-above'",
+		"'insert-col-left'",
+		"applyFormulaBar",
+		"office-cell-selected",
+	}
+	for _, marker := range requiredJS {
+		if !strings.Contains(sheetsJS, marker) {
+			t.Fatalf("sheets app missing spreadsheet UX marker %q", marker)
+		}
+	}
+
+	desktopCSS := readDesktopOfficeTestFile(t, filepath.Join("css", "desktop.css"))
+	requiredCSS := []string{
+		".office-formula-bar",
+		".office-cell-selected",
+		".office-sheet-context-menu",
+	}
+	for _, marker := range requiredCSS {
+		if !strings.Contains(desktopCSS, marker) {
+			t.Fatalf("desktop.css missing spreadsheet UX style %q", marker)
+		}
+	}
+}
+
 func TestDesktopOfficeI18NKeys(t *testing.T) {
 	t.Parallel()
 
