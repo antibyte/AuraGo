@@ -789,8 +789,8 @@
         win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
-        win.style.minWidth = size.width + 'px';
-        win.style.minHeight = size.height + 'px';
+        win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
+        win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
         win.style.zIndex = String(++state.z);
         win.innerHTML = `<header class="vd-window-titlebar">
             <div>
