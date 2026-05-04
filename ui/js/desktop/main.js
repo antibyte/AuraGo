@@ -733,6 +733,25 @@
         return presets[appId] || defaultWindowSize();
     }
 
+    function nextWindowPosition(size) {
+        const workspace = $('vd-workspace') || document.body;
+        const workspaceRect = workspace.getBoundingClientRect();
+        const margin = 16;
+        const stepX = 28;
+        const stepY = 24;
+        const maxLeft = Math.max(margin, workspaceRect.width - size.width - margin);
+        const maxTop = Math.max(margin, workspaceRect.height - size.height - margin);
+        const slotsX = Math.max(1, Math.floor((maxLeft - margin) / stepX) + 1);
+        const slotsY = Math.max(1, Math.floor((maxTop - margin) / stepY) + 1);
+        const index = state.windows.size;
+        const left = margin + (index % slotsX) * stepX;
+        const top = 72 + (Math.floor(index / slotsX) % slotsY) * stepY;
+        return {
+            left: Math.min(maxLeft, Math.max(margin, left)),
+            top: Math.min(maxTop, Math.max(margin, top))
+        };
+    }
+
     function openApp(appId, context) {
         const multiInstance = appId === 'editor' || appId === 'writer' || appId === 'sheets';
         const existing = [...state.windows.values()].find(win => win.appId === appId && !multiInstance);
@@ -752,9 +771,10 @@
         const win = document.createElement('section');
         win.className = 'vd-window';
         win.dataset.windowId = id;
-        win.style.left = Math.max(16, 170 + state.windows.size * 28) + 'px';
-        win.style.top = Math.max(12, 72 + state.windows.size * 24) + 'px';
         const size = appWindowSize(appId);
+        const position = nextWindowPosition(size);
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
         win.style.zIndex = String(++state.z);
