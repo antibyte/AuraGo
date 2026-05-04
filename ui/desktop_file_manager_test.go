@@ -54,6 +54,9 @@ func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 	for _, marker := range []string{
 		"fm.activeKeyboardWindow",
 		"root.addEventListener('focusin'",
+		"root.addEventListener('pointerdown'",
+		"fm.activeKeyboardWindow = fm.windowId",
+		"fm.activeKeyboardWindow !== fm.windowId",
 		"root.contains(document.activeElement)",
 	} {
 		if !strings.Contains(source, marker) {
