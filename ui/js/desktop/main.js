@@ -2132,7 +2132,7 @@
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
                 <div class="vd-qc-placeholder">
-                    <span class="vd-qc-placeholder-icon">⌨</span>
+                    <span class="vd-qc-placeholder-icon">${iconMarkup('terminal', 'T', 'vd-qc-placeholder-papirus-icon', 42)}</span>
                     <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
                 </div>
             </div>
@@ -2161,7 +2161,7 @@
                     api('/api/devices'),
                     api('/api/credentials')
                 ]);
-                cachedDevices = (devBody.devices || devBody || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type);
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
@@ -2171,6 +2171,30 @@
             } catch (err) {
                 deviceList.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
             }
+        }
+
+        function auraGoHostName() {
+            return (location.hostname || location.host || 'localhost').replace(/^\[|\]$/g, '');
+        }
+
+        function withAuraGoHostDevice(devices) {
+            const hostName = auraGoHostName();
+            const normalizedHost = hostName.toLowerCase();
+            const hasAuraHost = devices.some(device => {
+                const address = String(device.ip_address || '').toLowerCase();
+                const name = String(device.name || '').toLowerCase();
+                return address === normalizedHost || name === 'aurago host';
+            });
+            if (hasAuraHost) return devices;
+            return [{
+                id: '__aurago-host__',
+                name: 'AuraGo Host',
+                type: 'server',
+                ip_address: hostName,
+                port: 22,
+                description: 'Current AuraGo web host',
+                is_template: true
+            }, ...devices];
         }
 
         function renderDeviceList(devices) {
@@ -2186,16 +2210,25 @@
             }
             deviceList.innerHTML = filtered.map(d => {
                 const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
-                return `<button class="vd-qc-device" type="button" data-device-id="${esc(d.id)}">
-                    <div class="vd-qc-device-name">${esc(d.name)}</div>
-                    <div class="vd-qc-device-meta">${esc(d.ip_address || '')}${d.port && d.port !== 22 ? ':' + d.port : ''}</div>
+                const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 ? ':' + d.port : ''}`;
+                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}">
+                    <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : 'server', 'S', 'vd-qc-device-papirus-icon', 22)}</span>
+                    <div class="vd-qc-device-main">
+                        <div class="vd-qc-device-name">${esc(d.name)}</div>
+                        <div class="vd-qc-device-meta">${esc(endpoint || '')}</div>
+                        ${d.description ? `<div class="vd-qc-device-desc">${esc(d.description)}</div>` : ''}
+                    </div>
                     <div class="vd-qc-device-badges">
-                        ${d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">SSH</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>'}
+                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">Setup</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">SSH</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
                     </div>
                 </button>`;
             }).join('');
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => {
-                btn.addEventListener('click', () => connectToDevice(btn.dataset.deviceId));
+                btn.addEventListener('click', () => {
+                    const dev = cachedDevices.find(d => d.id === btn.dataset.deviceId);
+                    if (dev && dev.is_template) showServerModal(dev);
+                    else connectToDevice(btn.dataset.deviceId);
+                });
                 btn.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     const dev = cachedDevices.find(d => d.id === btn.dataset.deviceId);
@@ -2211,11 +2244,12 @@
         function showDeviceContextMenu(x, y, device) {
             closeContextMenu();
             const items = [
-                { label: t('desktop.qc_connect'), icon: 'terminal', fallback: 'T', action: () => connectToDevice(device.id) },
-                { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) },
-                { separator: true },
-                { label: t('desktop.qc_delete'), icon: 'trash', fallback: 'X', action: () => confirmDeleteDevice(device) }
+                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : 'terminal', fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
+                { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) }
             ];
+            if (!device.is_template) {
+                items.push({ separator: true }, { label: t('desktop.qc_delete'), icon: 'trash', fallback: 'X', action: () => confirmDeleteDevice(device) });
+            }
             showContextMenu(x, y, items);
         }
 
@@ -2259,7 +2293,8 @@
         }
 
         function showServerModal(existingDevice) {
-            const isEdit = !!existingDevice;
+            const isTemplate = !!(existingDevice && existingDevice.is_template);
+            const isEdit = !!existingDevice && !isTemplate;
             const existingCred = isEdit && existingDevice.credential_id && cachedCredentials
                 ? cachedCredentials.find(c => c.id === existingDevice.credential_id) : null;
 
@@ -2274,18 +2309,18 @@
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_server'))}</div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_name'))}
-                            <input class="vd-qc-input" type="text" name="name" value="${esc(isEdit ? existingDevice.name : '')}" required>
+                            <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required>
                         </label>
                         <div class="vd-qc-form-row">
                             <label class="vd-qc-label vd-qc-flex-3">${esc(t('desktop.qc_host'))}
-                                <input class="vd-qc-input" type="text" name="host" value="${esc(isEdit ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
+                                <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_port'))}
-                                <input class="vd-qc-input" type="number" name="port" value="${isEdit ? (existingDevice.port || 22) : 22}" min="1" max="65535">
+                                <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || 22) : 22}" min="1" max="65535">
                             </label>
                         </div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
-                            <input class="vd-qc-input" type="text" name="description" value="${esc(isEdit ? (existingDevice.description || '') : '')}">
+                            <input class="vd-qc-input" type="text" name="description" value="${esc(existingDevice ? (existingDevice.description || '') : '')}">
                         </label>
                     </div>
                     <div class="vd-qc-form-section">
