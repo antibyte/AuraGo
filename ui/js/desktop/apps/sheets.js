@@ -172,7 +172,7 @@
             }[event.key];
             if (!move) return;
             event.preventDefault();
-            const target = cellInput(Math.max(0, move[0]), Math.max(0, move[1]));
+            const target = cellInput(clampCellRow(move[0]), clampCellCol(move[1]));
             if (target) {
                 target.focus();
                 selectCell(Number(target.dataset.row), Number(target.dataset.col), event.shiftKey && event.key.startsWith('Arrow'));
@@ -483,6 +483,22 @@
 
         function cellInput(row, col) {
             return gridHost.querySelector(`input[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        function displayRowCount() {
+            return Math.max(MIN_ROWS, gridHost.querySelectorAll('tbody tr').length);
+        }
+
+        function displayColCount() {
+            return Math.max(MIN_COLS, gridHost.querySelectorAll('thead th[data-col-header]').length);
+        }
+
+        function clampCellRow(row) {
+            return Math.min(displayRowCount() - 1, Math.max(0, Number(row) || 0));
+        }
+
+        function clampCellCol(col) {
+            return Math.min(displayColCount() - 1, Math.max(0, Number(col) || 0));
         }
 
         function clampSelection(rowCount, colCount) {
