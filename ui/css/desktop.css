@@ -1445,15 +1445,14 @@
 
 /* Inline rename */
 .fm-rename-input {
-    background: rgba(0,0,0,0.35);
-    border: 1px solid var(--vd-accent, #27c7a6);
-    border-radius: 4px;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--vd-accent);
+    border-radius: 6px;
+    padding: 3px 6px;
+    background: var(--vd-surface);
     color: var(--vd-text);
     font: inherit;
-    font-size: inherit;
-    padding: 1px 4px;
-    outline: none;
-    width: 100%;
 }
 
 /* Upload progress */

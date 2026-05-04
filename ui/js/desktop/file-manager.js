@@ -669,9 +669,12 @@
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const preview = !isDir && isPreviewableImage(file);
+        const nameContent = fm.renamePath === file.path
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            : esc(file.name);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
             <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>
-            <div class="fm-grid-name">${esc(file.name)}</div>
+            <div class="fm-grid-name">${nameContent}</div>
         </div>`;
     }
 
@@ -681,10 +684,13 @@
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
+        const nameContent = fm.renamePath === file.path
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename', 'Rename'))}">`
+            : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
                 <span class="fm-list-icon">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'list')}</span>
-                <span class="fm-list-name">${esc(file.name)}</span>
+                <span class="fm-list-name">${nameContent}</span>
             </div>
             <div class="fm-list-cell fm-col-size">${isDir ? '\u2014' : esc(fmtBytes(file.size))}</div>
             <div class="fm-list-cell fm-col-date">${esc(formatDate(file.modified))}</div>
@@ -755,6 +761,22 @@
         }
 
         attachFileItemEvents(root);
+        const renameInput = fm.host.querySelector('[data-rename-input]');
+        if (renameInput) {
+            renameInput.addEventListener('click', event => event.stopPropagation());
+            renameInput.addEventListener('keydown', event => {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    finishRename(renameInput);
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelRename();
+                }
+            });
+            renameInput.addEventListener('blur', () => finishRename(renameInput));
+        }
         attachMainAreaEvents(root, true);
         attachThumbnailEvents(root);
     }
@@ -1111,8 +1133,24 @@
         }
     }
 
-    async function finishRename(path, newName) {
-        fm.renamePath = null;
+    function finishRename(input) {
+        if (!input || !fm.renamePath) return;
+        const nextName = String(input.value || '').trim();
+        const path = fm.renamePath;
+        fm.renamePath = '';
+        if (!nextName) {
+            renderAll();
+            return;
+        }
+        renamePath(path, nextName);
+    }
+
+    function cancelRename() {
+        fm.renamePath = '';
+        renderAll();
+    }
+
+    async function renamePath(path, newName) {
         const file = fm.files.find(f => f.path === path);
         if (!file || newName === file.name || !newName.trim()) {
             renderAll();
