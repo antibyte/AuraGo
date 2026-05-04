@@ -332,6 +332,27 @@
     flex-shrink: 0;
 }
 
+.vd-tool-icon.vd-papirus-icon,
+.vd-context-papirus-icon.vd-papirus-icon,
+.vd-settings-nav-icon.vd-papirus-icon,
+.vd-settings-pane-papirus-icon.vd-papirus-icon,
+.vd-launchpad-action-icon.vd-papirus-icon,
+.fm-toolbtn .vd-papirus-icon,
+.fm-btn-icon.vd-papirus-icon,
+.fm-search-icon.vd-papirus-icon,
+.fm-sort-indicator.vd-papirus-icon,
+.fm-context-icon .vd-papirus-icon,
+.fm-drop-icon.vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%) drop-shadow(0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2));
+    opacity: 0.96;
+}
+
+.vd-button.primary .vd-papirus-icon,
+.fm-btn.primary .vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(5%) sepia(16%) saturate(1555%) hue-rotate(132deg) brightness(94%) contrast(96%);
+    opacity: 1;
+}
+
 .vd-icon-letter,
 .vd-start-glyph {
     display: grid;

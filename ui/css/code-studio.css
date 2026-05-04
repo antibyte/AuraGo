@@ -246,6 +246,20 @@
     flex-shrink: 0;
 }
 
+.cs-button-icon.vd-papirus-icon,
+.cs-icon-button-icon.vd-papirus-icon,
+.cs-file-action-icon.vd-papirus-icon,
+.cs-tab-close-icon.vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%) drop-shadow(0 0 5px rgba(62, 198, 181, 0.2));
+    opacity: 0.96;
+}
+
+.cs-button.primary .cs-button-icon.vd-papirus-icon,
+.cs-button.danger .cs-button-icon.vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(6%) sepia(16%) saturate(1533%) hue-rotate(132deg) brightness(94%) contrast(98%);
+    opacity: 1;
+}
+
 .cs-button:hover,
 .cs-icon-button:hover,
 .cs-tab:hover,
