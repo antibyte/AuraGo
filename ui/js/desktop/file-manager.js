@@ -27,11 +27,16 @@
         keyboardBound: false,
     };
 
-    function t(key, vars) {
-        if (fm.callbacks && typeof fm.callbacks.t === 'function') {
-            return fm.callbacks.t(key, vars || {});
+    function t(key, fallback, vars) {
+        if (fallback && typeof fallback === 'object' && !Array.isArray(fallback)) {
+            vars = fallback;
+            fallback = '';
         }
-        let text = key;
+        if (fm.callbacks && typeof fm.callbacks.t === 'function') {
+            const translated = fm.callbacks.t(key, vars || {});
+            if (translated && translated !== key) return translated;
+        }
+        let text = fallback || key;
         Object.entries(vars || {}).forEach(([name, value]) => {
             text = text.replaceAll('{{' + name + '}}', String(value));
             text = text.replaceAll('{' + name + '}', String(value));
@@ -71,7 +76,8 @@
         if (fm.callbacks && typeof fm.callbacks.iconMarkup === 'function') {
             return fm.callbacks.iconMarkup(key, fallback, className, size);
         }
-        return `<span class="${esc(className || '')}" style="font-size:${esc(size || '16px')}">${esc(fallback || key || '')}</span>`;
+        const pixels = Number(size || 16) || 16;
+        return `<span class="${esc(className || '')}" style="font-size:${pixels}px">${esc(fallback || key || '')}</span>`;
     }
 
     function iconForFile(file) {
@@ -140,6 +146,25 @@
         return 'folder';
     }
 
+    function contextIconGlyph(icon) {
+        const map = {
+            'check-square': '\u2713',
+            clipboard: '\u2398',
+            copy: '\u2398',
+            download: '\u2193',
+            edit: '\u270e',
+            'file-plus': '+',
+            'folder-open': '\u25a1',
+            'folder-plus': '+',
+            info: 'i',
+            refresh: '\u21bb',
+            scissors: '\u2702',
+            sort: '\u2195',
+            trash: '\u00d7',
+        };
+        return map[icon] || icon || '';
+    }
+
     function fmtBytes(size) {
         if (fm.callbacks && typeof fm.callbacks.fmtBytes === 'function') {
             return fm.callbacks.fmtBytes(size);
@@ -165,7 +190,7 @@
             // Convert file-manager format {action: string, handler: fn} to main.js format {action: fn}
             const converted = items.map(item => {
                 if (item.separator) return item;
-                const converted = { label: item.label, icon: item.icon || '' };
+                const converted = { label: item.label, icon: contextIconGlyph(item.icon) };
                 if (item.disabled) converted.disabled = true;
                 converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
                 return converted;
@@ -181,7 +206,7 @@
         menu.innerHTML = items.map(item => {
             if (item.separator) return '<div class="fm-context-separator"></div>';
             return `<button type="button" class="fm-context-item${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
-                ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', '14px') : ''}
+                ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', 14) : ''}
                 <span>${esc(item.label)}</span>
                 ${item.shortcut ? `<kbd class="fm-context-shortcut">${esc(item.shortcut)}</kbd>` : ''}
             </button>`;
@@ -449,6 +474,24 @@
         updateStatusBar();
     }
 
+    function renderFileContent() {
+        if (!fm.host) return;
+        const root = fm.host.querySelector('.file-manager');
+        const main = root && root.querySelector('[data-fm-main]');
+        if (!root || !main) {
+            renderAll();
+            return;
+        }
+        const nextMain = main.cloneNode(false);
+        nextMain.innerHTML = renderContentHtml();
+        main.replaceWith(nextMain);
+        const status = root.querySelector('.fm-statusbar');
+        if (status) status.outerHTML = renderStatusBarHtml();
+        attachFileItemEvents(root);
+        attachMainAreaEvents(root, false);
+        updateToolbarState();
+    }
+
     function buildMarkup() {
         return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}">
             ${renderToolbarHtml()}
@@ -473,13 +516,13 @@
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back', 'Back'))}"${backDisabled}>
-                    ${iconMarkup('chevron-left', '\u2039', '', '16px')}
+                    ${iconMarkup('chevron-left', '\u2039', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward', 'Forward'))}"${fwdDisabled}>
-                    ${iconMarkup('chevron-right', '\u203A', '', '16px')}
+                    ${iconMarkup('chevron-right', '\u203A', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up', 'Up'))}">
-                    ${iconMarkup('arrow-up', '\u2191', '', '16px')}
+                    ${iconMarkup('arrow-up', '\u2191', '', 16)}
                 </button>
             </div>
             <div class="fm-toolbar-group fm-breadcrumb-wrap" data-fm-breadcrumb>
@@ -487,33 +530,33 @@
             </div>
             <div class="fm-toolbar-group fm-toolbar-right">
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid', 'Grid View'))}">
-                    ${iconMarkup('grid', '\u25A6', '', '16px')}
+                    ${iconMarkup('grid', '\u25A6', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list', 'List View'))}">
-                    ${iconMarkup('list', '\u2630', '', '16px')}
+                    ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
                 <div class="fm-dropdown-wrap">
                     <button type="button" class="fm-toolbtn" data-action="sort-menu" title="${esc(t('desktop.fm.sort_by', 'Sort by'))}">
-                        ${iconMarkup('sort', '\u2195', '', '16px')}
+                        ${iconMarkup('sort', '\u2195', '', 16)}
                     </button>
                 </div>
                 <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search', 'Search'))} (Ctrl+F)">
-                    ${iconMarkup('search', '\u2315', '', '16px')}
+                    ${iconMarkup('search', '\u2315', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="refresh" title="${esc(t('desktop.fm.refresh', 'Refresh'))}">
-                    ${iconMarkup('refresh', '\u21BB', '', '16px')}
+                    ${iconMarkup('refresh', '\u21BB', '', 16)}
                 </button>
                 <div class="fm-separator"></div>
                 <button type="button" class="fm-btn" data-action="upload">
-                    ${iconMarkup('upload', '\u2191', 'fm-btn-icon', '14px')}
+                    ${iconMarkup('upload', '\u2191', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.upload', 'Upload'))}
                 </button>
                 <button type="button" class="fm-btn" data-action="new-file">
-                    ${iconMarkup('file-plus', '+', 'fm-btn-icon', '14px')}
+                    ${iconMarkup('file-plus', '+', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.new_file', 'New File'))}
                 </button>
                 <button type="button" class="fm-btn" data-action="new-folder">
-                    ${iconMarkup('folder-plus', '+', 'fm-btn-icon', '14px')}
+                    ${iconMarkup('folder-plus', '+', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.new_folder', 'New Folder'))}
                 </button>
             </div>
@@ -523,9 +566,9 @@
     function renderSearchHtml() {
         const hidden = fm.searchQuery ? '' : ' hidden';
         return `<div class="fm-search-bar" data-fm-search${hidden}>
-            ${iconMarkup('search', '\u2315', 'fm-search-icon', '14px')}
+            ${iconMarkup('search', '\u2315', 'fm-search-icon', 14)}
             <input type="text" class="fm-search-input" placeholder="${esc(t('desktop.fm.search_placeholder', 'Search files...'))}" value="${esc(fm.searchQuery)}">
-            <button type="button" class="fm-search-clear" data-action="search-clear">${iconMarkup('x', '\u00D7', '', '14px')}</button>
+            <button type="button" class="fm-search-clear" data-action="search-clear">${iconMarkup('x', '\u00D7', '', 14)}</button>
         </div>`;
     }
 
@@ -534,7 +577,7 @@
             const isActive = fm.currentPath === dir || fm.currentPath.startsWith(dir + '/');
             const iconKey = iconForDirectory(dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
-                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', '18px')}
+                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
                 <span class="fm-sidebar-label">${esc(baseName(dir) || dir)}</span>
             </div>`;
         }).join('');
@@ -568,9 +611,9 @@
         const files = getDisplayFiles();
         if (!files.length) {
             if (fm.filteredFiles !== null && fm.searchQuery) {
-                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', '32px')}<div>${esc(t('desktop.fm.no_results', 'No files match "{{query}}"', { query: fm.searchQuery }))}</div></div>`;
+                return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', 'No files match "{{query}}"', { query: fm.searchQuery }))}</div></div>`;
             }
-            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', '32px')}<div>${esc(t('desktop.fm.empty_folder', 'This folder is empty'))}</div></div>`;
+            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder', 'This folder is empty'))}</div></div>`;
         }
         if (fm.viewMode === 'grid') {
             return `<div class="fm-grid">${files.map(f => renderGridItem(f)).join('')}</div>`;
@@ -579,19 +622,19 @@
             <div class="fm-list-header">
                 <div class="fm-list-cell fm-col-name" data-sort="name" role="button" tabindex="0">
                     ${esc(t('desktop.fm.sort_name', 'Name'))}
-                    ${fm.sortBy === 'name' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', '12px') : ''}
+                    ${fm.sortBy === 'name' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                 </div>
                 <div class="fm-list-cell fm-col-size" data-sort="size" role="button" tabindex="0">
                     ${esc(t('desktop.fm.sort_size', 'Size'))}
-                    ${fm.sortBy === 'size' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', '12px') : ''}
+                    ${fm.sortBy === 'size' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                 </div>
                 <div class="fm-list-cell fm-col-date" data-sort="date" role="button" tabindex="0">
                     ${esc(t('desktop.fm.sort_date', 'Date Modified'))}
-                    ${fm.sortBy === 'date' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', '12px') : ''}
+                    ${fm.sortBy === 'date' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                 </div>
                 <div class="fm-list-cell fm-col-type" data-sort="type" role="button" tabindex="0">
                     ${esc(t('desktop.fm.sort_type', 'Type'))}
-                    ${fm.sortBy === 'type' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', '12px') : ''}
+                    ${fm.sortBy === 'type' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                 </div>
             </div>
             <div class="fm-list-body">${files.map(f => renderListRow(f)).join('')}</div>
@@ -604,7 +647,7 @@
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
-            <div class="fm-grid-icon">${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', '', '40px')}</div>
+            <div class="fm-grid-icon">${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', '', 40)}</div>
             <div class="fm-grid-name">${esc(file.name)}</div>
         </div>`;
     }
@@ -617,7 +660,7 @@
         const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
-                ${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', 'fm-list-icon', '18px')}
+                ${iconMarkup(iconKey, isDir ? '\u25A0' : '\u25A1', 'fm-list-icon', 18)}
                 <span class="fm-list-name">${esc(file.name)}</span>
             </div>
             <div class="fm-list-cell fm-col-size">${isDir ? '\u2014' : esc(fmtBytes(file.size))}</div>
@@ -647,7 +690,7 @@
     function renderDropOverlayHtml() {
         return `<div class="fm-drop-overlay" data-fm-drop-overlay>
             <div class="fm-drop-message">
-                ${iconMarkup('upload', '\u2191', 'fm-drop-icon', '48px')}
+                ${iconMarkup('upload', '\u2191', 'fm-drop-icon', 48)}
                 <div>${esc(t('desktop.fm.drop_here', 'Drop files here to upload'))}</div>
             </div>
         </div>`;
@@ -675,37 +718,48 @@
             item.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(item.dataset.sidebarPath); });
         });
 
-        // Content items (grid or list)
-        root.querySelectorAll('[data-path]').forEach(item => {
-            item.addEventListener('click', handleItemClick);
-            item.addEventListener('dblclick', handleItemDblClick);
-            item.addEventListener('contextmenu', handleItemContextMenu);
-            item.addEventListener('keydown', handleItemKeyDown);
-        });
-
-        // Sort headers (list view)
-        root.querySelectorAll('[data-sort]').forEach(header => {
-            header.addEventListener('click', () => {
-                const sortKey = header.dataset.sort;
-                if (fm.sortBy === sortKey) fm.sortAsc = !fm.sortAsc;
-                else { fm.sortBy = sortKey; fm.sortAsc = true; }
-                savePreferences();
-                renderAll();
-            });
-        });
-
         // Search input
         const searchInput = root.querySelector('.fm-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', e => {
                 fm.searchQuery = e.target.value;
                 applyFilter();
-                renderAll();
+                renderFileContent();
             });
             searchInput.addEventListener('keydown', e => {
                 if (e.key === 'Escape') { fm.searchQuery = ''; applyFilter(); renderAll(); }
             });
         }
+
+        attachFileItemEvents(root);
+        attachMainAreaEvents(root, true);
+    }
+
+    function attachFileItemEvents(root) {
+        root.querySelectorAll('[data-path]').forEach(item => {
+            item.addEventListener('click', handleItemClick);
+            item.addEventListener('dblclick', handleItemDblClick);
+            item.addEventListener('contextmenu', handleItemContextMenu);
+            item.addEventListener('keydown', handleItemKeyDown);
+            item.draggable = true;
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragenter', handleDragEnter);
+            item.addEventListener('dragleave', handleDragLeaveItem);
+            item.addEventListener('dragover', handleDragOverItem);
+            item.addEventListener('drop', handleItemDrop);
+        });
+    }
+
+    function attachMainAreaEvents(root, includePersistentDropOverlay) {
+        root.querySelectorAll('[data-sort]').forEach(header => {
+            header.addEventListener('click', () => {
+                const sortKey = header.dataset.sort;
+                if (fm.sortBy === sortKey) fm.sortAsc = !fm.sortAsc;
+                else { fm.sortBy = sortKey; fm.sortAsc = true; }
+                savePreferences();
+                renderFileContent();
+            });
+        });
 
         // Click empty space to deselect
         const main = root.querySelector('[data-fm-main]');
@@ -713,7 +767,7 @@
             main.addEventListener('click', e => {
                 if (e.target === main || e.target.classList.contains('fm-empty') || e.target.classList.contains('fm-grid') || e.target.classList.contains('fm-list-body')) {
                     clearSelection();
-                    renderAll();
+                    renderFileContent();
                 }
             });
             main.addEventListener('contextmenu', handleEmptyContextMenu);
@@ -726,22 +780,13 @@
             main.addEventListener('drop', handleDrop);
         }
 
-        // Drag start on items
-        root.querySelectorAll('[data-path]').forEach(item => {
-            item.draggable = true;
-            item.addEventListener('dragstart', handleDragStart);
-            item.addEventListener('dragenter', handleDragEnter);
-            item.addEventListener('dragleave', handleDragLeaveItem);
-            item.addEventListener('dragover', handleDragOverItem);
-            item.addEventListener('drop', handleItemDrop);
-        });
-
-        // Drop overlay for external files
-        const dropOverlay = root.querySelector('[data-fm-drop-overlay]');
-        if (dropOverlay) {
-            dropOverlay.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
-            dropOverlay.addEventListener('dragleave', e => { hideDropOverlay(); });
-            dropOverlay.addEventListener('drop', handleExternalDrop);
+        if (includePersistentDropOverlay) {
+            const dropOverlay = root.querySelector('[data-fm-drop-overlay]');
+            if (dropOverlay) {
+                dropOverlay.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
+                dropOverlay.addEventListener('dragleave', e => { hideDropOverlay(); });
+                dropOverlay.addEventListener('drop', handleExternalDrop);
+            }
         }
     }
 
@@ -778,13 +823,13 @@
 
     function showSortMenu(e) {
         const items = [
-            { label: t('desktop.fm.sort_name', 'Name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderAll(); } },
-            { label: t('desktop.fm.sort_size', 'Size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderAll(); } },
-            { label: t('desktop.fm.sort_date', 'Date Modified'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderAll(); } },
-            { label: t('desktop.fm.sort_type', 'Type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderAll(); } },
+            { label: t('desktop.fm.sort_name', 'Name'), action: 'sort-name', handler: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_size', 'Size'), action: 'sort-size', handler: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_date', 'Date Modified'), action: 'sort-date', handler: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_type', 'Type'), action: 'sort-type', handler: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
             { separator: true },
-            { label: t('desktop.fm.sort_asc', 'Ascending'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderAll(); } },
-            { label: t('desktop.fm.sort_desc', 'Descending'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderAll(); } },
+            { label: t('desktop.fm.sort_asc', 'Ascending'), action: 'sort-asc', handler: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
+            { label: t('desktop.fm.sort_desc', 'Descending'), action: 'sort-desc', handler: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } },
         ];
         const rect = e.currentTarget.getBoundingClientRect();
         showContextMenu(rect.left, rect.bottom + 4, items);
@@ -845,7 +890,7 @@
         if (!fm.selectedPaths.has(path)) {
             clearSelection();
             addSelection(path);
-            renderAll();
+            renderFileContent();
         }
         const hasClipboard = fm.clipboard && fm.clipboard.paths.length > 0;
         const items = [
@@ -1171,7 +1216,6 @@
         if (!fm.selectedPaths.has(path)) {
             clearSelection();
             addSelection(path);
-            renderAll();
         }
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', path);

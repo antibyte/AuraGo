@@ -798,14 +798,14 @@
 
 /* Search */
 .fm-search-bar {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 4px;
     padding: 2px 10px 6px;
     border-bottom: 1px solid var(--vd-border);
 }
-.fm-search-bar.visible {
-    display: flex;
+.fm-search-bar[hidden] {
+    display: none;
 }
 .fm-search-input {
     flex: 1;
@@ -982,7 +982,7 @@
 }
 .fm-list-header {
     display: grid;
-    grid-template-columns: 34px 1fr 80px 100px;
+    grid-template-columns: minmax(160px, 1fr) 80px 110px 80px;
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
@@ -1027,7 +1027,7 @@
 }
 .fm-list-row {
     display: grid;
-    grid-template-columns: 34px 1fr 80px 100px;
+    grid-template-columns: minmax(160px, 1fr) 80px 110px 80px;
     align-items: center;
     gap: 8px;
     padding: 5px 10px;
@@ -1085,11 +1085,14 @@
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.06);
     border: 2px dashed rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4);
     border-radius: 8px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 10;
     pointer-events: none;
+}
+.fm-drop-overlay.visible {
+    display: flex;
 }
 .fm-drop-message {
     font-size: 0.9rem;
@@ -1196,6 +1199,17 @@
 }
 
 /* Modals */
+.fm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(5, 8, 13, 0.58);
+}
+
 .fm-modal {
     background: rgba(0,0,0,0.55);
     backdrop-filter: blur(8px);
