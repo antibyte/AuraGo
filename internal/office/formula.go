@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	maxFormulaColumn     = 16384
+	maxFormulaRow        = 1048576
 	maxFormulaBytes      = 4096
 	maxFormulaRangeCells = 100000
 )
@@ -337,7 +339,7 @@ func (p *formulaParser) parsePrimary() (formulaValue, error) {
 }
 
 func (p *formulaParser) cellValue(ref string) (formulaValue, error) {
-	element, err := p.cellElement(ref)
+	element, err := p.cellElement(ref, false)
 	if err != nil {
 		return formulaValue{}, err
 	}
@@ -365,7 +367,7 @@ func (p *formulaParser) rangeValue(startRef, endRef string) (formulaValue, error
 	for row := startRow; row <= endRow; row++ {
 		for col := startCol; col <= endCol; col++ {
 			ref := formulaCellName(col, row)
-			element, err := p.cellElement(ref)
+			element, err := p.cellElement(ref, true)
 			if err != nil {
 				return formulaValue{}, err
 			}
@@ -375,7 +377,7 @@ func (p *formulaParser) rangeValue(startRef, endRef string) (formulaValue, error
 	return formulaValue{isRange: true, elements: elements}, nil
 }
 
-func (p *formulaParser) cellElement(ref string) (formulaElement, error) {
+func (p *formulaParser) cellElement(ref string, allowText bool) (formulaElement, error) {
 	col, row, err := parseFormulaCellRef(ref)
 	if err != nil {
 		return formulaElement{}, err
@@ -403,6 +405,9 @@ func (p *formulaParser) cellElement(ref string) (formulaElement, error) {
 	}
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil || !isFinite(value) {
+		if allowText {
+			return formulaElement{}, nil
+		}
 		return formulaElement{}, fmt.Errorf("cell %s contains non-numeric value", strings.ToUpper(ref))
 	}
 	return formulaElement{value: value, numeric: true}, nil
@@ -419,7 +424,7 @@ func evaluateFormulaFunction(name string, args []formulaValue) (formulaValue, er
 			}
 		}
 		return numericFormulaValue(sum), nil
-	case "AVG":
+	case "AVG", "AVERAGE":
 		var sum float64
 		var count int
 		for _, element := range elements {
@@ -429,7 +434,7 @@ func evaluateFormulaFunction(name string, args []formulaValue) (formulaValue, er
 			}
 		}
 		if count == 0 {
-			return formulaValue{}, fmt.Errorf("AVG requires at least one numeric value")
+			return formulaValue{}, fmt.Errorf("%s requires at least one numeric value", name)
 		}
 		return numericFormulaValue(sum / float64(count)), nil
 	case "MIN":
@@ -512,7 +517,7 @@ func numericFormulaValue(value float64) formulaValue {
 
 func isSupportedFormulaFunction(name string) bool {
 	switch name {
-	case "SUM", "AVG", "MIN", "MAX", "COUNT":
+	case "SUM", "AVG", "AVERAGE", "MIN", "MAX", "COUNT":
 		return true
 	default:
 		return false
@@ -530,16 +535,28 @@ func parseFormulaCellRef(ref string) (int, int, error) {
 	}
 	colName := ref[:i]
 	rowName := ref[i:]
+	for j := 0; j < len(rowName); j++ {
+		if !isFormulaDigit(rowName[j]) {
+			return 0, 0, fmt.Errorf("invalid cell reference %q", ref)
+		}
+	}
 	if rowName[0] == '0' {
 		return 0, 0, fmt.Errorf("invalid cell reference %q", ref)
 	}
 	col := 0
 	for j := 0; j < len(colName); j++ {
 		col = col*26 + int(colName[j]-'A'+1)
+		if col > maxFormulaColumn {
+			return 0, 0, fmt.Errorf("cell reference %q exceeds max column XFD", ref)
+		}
 	}
-	row, err := strconv.Atoi(rowName)
-	if err != nil || row <= 0 {
+	row64, err := strconv.ParseInt(rowName, 10, 32)
+	if err != nil || row64 <= 0 {
 		return 0, 0, fmt.Errorf("invalid cell reference %q", ref)
+	}
+	row := int(row64)
+	if row > maxFormulaRow {
+		return 0, 0, fmt.Errorf("cell reference %q exceeds max row %d", ref, maxFormulaRow)
 	}
 	return col, row, nil
 }

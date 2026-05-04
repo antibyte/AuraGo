@@ -1,6 +1,11 @@
 package office
 
-import "testing"
+import (
+	"bytes"
+	"encoding/csv"
+	"strings"
+	"testing"
+)
 
 func TestDOCXTextRoundTrip(t *testing.T) {
 	t.Parallel()
@@ -58,6 +63,32 @@ func TestWorkbookXLSXRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEncodeWorkbookNormalizesAvgFormula(t *testing.T) {
+	t.Parallel()
+
+	workbook := Workbook{
+		Sheets: []Sheet{{
+			Name: "Budget",
+			Rows: [][]Cell{
+				{{Value: "2"}},
+				{{Value: "4"}},
+				{{Formula: "AVG(A1:A2)"}},
+			},
+		}},
+	}
+	data, err := EncodeWorkbook(workbook)
+	if err != nil {
+		t.Fatalf("EncodeWorkbook: %v", err)
+	}
+	got, err := DecodeWorkbook("budget.xlsx", data)
+	if err != nil {
+		t.Fatalf("DecodeWorkbook: %v", err)
+	}
+	if got.Sheets[0].Rows[2][0].Formula != "AVERAGE(A1:A2)" {
+		t.Fatalf("formula = %q, want %q", got.Sheets[0].Rows[2][0].Formula, "AVERAGE(A1:A2)")
+	}
+}
+
 func TestWorkbookCSVRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -74,5 +105,48 @@ func TestWorkbookCSVRoundTrip(t *testing.T) {
 	}
 	if string(data) != "Name,Role\nAndi,Admin\n" {
 		t.Fatalf("csv = %q", string(data))
+	}
+}
+
+func TestEncodeCSVNeutralizesDangerousCells(t *testing.T) {
+	t.Parallel()
+
+	workbook := Workbook{Sheets: []Sheet{{
+		Name: "Sheet1",
+		Rows: [][]Cell{{
+			{Value: "=cmd"},
+			{Value: " +cmd"},
+			{Value: "-cmd"},
+			{Value: "@cmd"},
+			{Formula: "SUM(A2:A2)"},
+		}},
+	}}}
+	data, err := EncodeCSV(workbook, "Sheet1")
+	if err != nil {
+		t.Fatalf("EncodeCSV: %v", err)
+	}
+	records, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
+	if err != nil {
+		t.Fatalf("read csv: %v", err)
+	}
+	want := []string{"'=cmd", "' +cmd", "'-cmd", "'@cmd", "'=SUM(A2:A2)"}
+	if strings.Join(records[0], "|") != strings.Join(want, "|") {
+		t.Fatalf("csv row = %#v, want %#v", records[0], want)
+	}
+}
+
+func TestEncodeCSVValidatesFormulas(t *testing.T) {
+	t.Parallel()
+
+	workbook := Workbook{Sheets: []Sheet{{
+		Name: "Sheet1",
+		Rows: [][]Cell{{{Formula: "MEDIAN(A1:A2)"}}},
+	}}}
+	_, err := EncodeCSV(workbook, "Sheet1")
+	if err == nil {
+		t.Fatal("expected invalid formula error")
+	}
+	if !strings.Contains(err.Error(), "invalid formula Sheet1!A1:") {
+		t.Fatalf("error = %q, want contextual invalid formula error", err)
 	}
 }

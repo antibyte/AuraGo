@@ -191,6 +191,7 @@ func EncodeWorkbook(workbook Workbook) ([]byte, error) {
 					if _, err := EvaluateFormulaForSheet(sheet, formula); err != nil {
 						return nil, fmt.Errorf("invalid formula %s!%s: %w", name, addr, err)
 					}
+					formula = normalizeFormulaForXLSX(formula)
 					if err := f.SetCellFormula(name, addr, formula); err != nil {
 						return nil, fmt.Errorf("set formula %s!%s: %w", name, addr, err)
 					}
@@ -224,13 +225,22 @@ func EncodeCSV(workbook Workbook, sheetName string) ([]byte, error) {
 	}
 	buf := &bytes.Buffer{}
 	writer := csv.NewWriter(buf)
-	for _, row := range sheet.Rows {
+	sheetLabel := defaultSheetName(sheet.Name, 0)
+	for r, row := range sheet.Rows {
 		record := make([]string, len(row))
 		for i, cell := range row {
+			addr, err := excelize.CoordinatesToCellName(i+1, r+1)
+			if err != nil {
+				return nil, fmt.Errorf("cell address: %w", err)
+			}
 			if cell.Formula != "" {
-				record[i] = "=" + strings.TrimPrefix(cell.Formula, "=")
+				formula := strings.TrimPrefix(strings.TrimSpace(cell.Formula), "=")
+				if _, err := EvaluateFormulaForSheet(sheet, formula); err != nil {
+					return nil, fmt.Errorf("invalid formula %s!%s: %w", sheetLabel, addr, err)
+				}
+				record[i] = neutralizeCSVFormulaCell("=" + formula)
 			} else {
-				record[i] = cell.Value
+				record[i] = neutralizeCSVFormulaCell(cell.Value)
 			}
 		}
 		if err := writer.Write(record); err != nil {
@@ -242,6 +252,27 @@ func EncodeCSV(workbook Workbook, sheetName string) ([]byte, error) {
 		return nil, fmt.Errorf("flush csv: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func normalizeFormulaForXLSX(formula string) string {
+	upper := strings.ToUpper(formula)
+	if strings.HasPrefix(upper, "AVG(") {
+		return "AVERAGE(" + formula[len("AVG("):]
+	}
+	return formula
+}
+
+func neutralizeCSVFormulaCell(value string) string {
+	trimmed := strings.TrimLeft(value, " \t\r\n")
+	if trimmed == "" {
+		return value
+	}
+	switch trimmed[0] {
+	case '=', '+', '-', '@':
+		return "'" + value
+	default:
+		return value
+	}
 }
 
 func SetCell(workbook *Workbook, sheetName, ref string, cell Cell) error {

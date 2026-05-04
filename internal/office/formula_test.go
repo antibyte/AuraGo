@@ -36,6 +36,47 @@ func TestEvaluateFormulaSumRange(t *testing.T) {
 	}
 }
 
+func TestEvaluateFormulaIgnoresTextInAggregateRanges(t *testing.T) {
+	t.Parallel()
+
+	sheet := Sheet{
+		Name: "Sheet1",
+		Rows: [][]Cell{
+			{{Value: "Header"}},
+			{{Value: "2"}},
+			{{Value: "3"}},
+		},
+	}
+	got, err := EvaluateFormulaForSheet(sheet, "SUM(A1:A3)")
+	if err != nil {
+		t.Fatalf("EvaluateFormulaForSheet: %v", err)
+	}
+	if got != "5" {
+		t.Fatalf("result = %q, want %q", got, "5")
+	}
+}
+
+func TestEvaluateFormulaAverageAliases(t *testing.T) {
+	t.Parallel()
+
+	sheet := Sheet{
+		Name: "Sheet1",
+		Rows: [][]Cell{
+			{{Value: "2"}},
+			{{Value: "4"}},
+		},
+	}
+	for _, formula := range []string{"AVG(A1:A2)", "AVERAGE(A1:A2)"} {
+		got, err := EvaluateFormulaForSheet(sheet, formula)
+		if err != nil {
+			t.Fatalf("EvaluateFormulaForSheet(%q): %v", formula, err)
+		}
+		if got != "3" {
+			t.Fatalf("EvaluateFormulaForSheet(%q) = %q, want %q", formula, got, "3")
+		}
+	}
+}
+
 func TestEvaluateFormulaRejectsUnknownFunction(t *testing.T) {
 	t.Parallel()
 
@@ -55,6 +96,35 @@ func TestEvaluateFormulaRejectsInvalidRanges(t *testing.T) {
 		if _, err := EvaluateFormulaForSheet(Sheet{}, formula); err == nil {
 			t.Fatalf("EvaluateFormulaForSheet(%q) expected error", formula)
 		}
+	}
+}
+
+func TestEvaluateFormulaRejectsOutOfBoundsRefsWithoutPanic(t *testing.T) {
+	t.Parallel()
+
+	sheet := Sheet{
+		Name: "Sheet1",
+		Rows: [][]Cell{
+			{{Value: "1"}},
+		},
+	}
+	for _, formula := range []string{
+		"XFE1",
+		"A1048577",
+		"ZZZZZZZZZZZZZZ1",
+		"SUM(XFD1:XFE1)",
+		"SUM(A1048576:A1048577)",
+	} {
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("EvaluateFormulaForSheet(%q) panicked: %v", formula, recovered)
+				}
+			}()
+			if _, err := EvaluateFormulaForSheet(sheet, formula); err == nil {
+				t.Fatalf("EvaluateFormulaForSheet(%q) expected error", formula)
+			}
+		}()
 	}
 }
 
