@@ -1015,6 +1015,9 @@
 .fm-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
+    align-items: start;
     gap: 6px;
 }
 .fm-grid-item {
@@ -1029,6 +1032,8 @@
     border: 1px solid transparent;
     user-select: none;
     position: relative;
+    align-self: start;
+    min-height: 0;
     transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 .fm-grid-item:hover {
