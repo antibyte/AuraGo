@@ -62,11 +62,14 @@ func TestEvaluateFormulaAverageAliases(t *testing.T) {
 	sheet := Sheet{
 		Name: "Sheet1",
 		Rows: [][]Cell{
+			{{Value: "Header"}},
 			{{Value: "2"}},
+			{{Value: ""}},
+			{{Value: "text"}},
 			{{Value: "4"}},
 		},
 	}
-	for _, formula := range []string{"AVG(A1:A2)", "AVERAGE(A1:A2)"} {
+	for _, formula := range []string{"AVG(A2:A5)", "AVERAGE(A2:A5)"} {
 		got, err := EvaluateFormulaForSheet(sheet, formula)
 		if err != nil {
 			t.Fatalf("EvaluateFormulaForSheet(%q): %v", formula, err)
@@ -74,6 +77,28 @@ func TestEvaluateFormulaAverageAliases(t *testing.T) {
 		if got != "3" {
 			t.Fatalf("EvaluateFormulaForSheet(%q) = %q, want %q", formula, got, "3")
 		}
+	}
+}
+
+func TestEvaluateFormulaCountRangeCountsNumericCells(t *testing.T) {
+	t.Parallel()
+
+	sheet := Sheet{
+		Name: "Sheet1",
+		Rows: [][]Cell{
+			{{Value: "Header"}},
+			{{Value: "2"}},
+			{{Value: ""}},
+			{{Value: "text"}},
+			{{Value: "4"}},
+		},
+	}
+	got, err := EvaluateFormulaForSheet(sheet, "COUNT(A1:A5)")
+	if err != nil {
+		t.Fatalf("EvaluateFormulaForSheet: %v", err)
+	}
+	if got != "2" {
+		t.Fatalf("result = %q, want %q", got, "2")
 	}
 }
 

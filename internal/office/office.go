@@ -255,11 +255,38 @@ func EncodeCSV(workbook Workbook, sheetName string) ([]byte, error) {
 }
 
 func normalizeFormulaForXLSX(formula string) string {
-	upper := strings.ToUpper(formula)
-	if strings.HasPrefix(upper, "AVG(") {
-		return "AVERAGE(" + formula[len("AVG("):]
+	var b strings.Builder
+	changed := false
+	for i := 0; i < len(formula); {
+		if isFormulaLetter(formula[i]) {
+			start := i
+			for i < len(formula) && isFormulaLetter(formula[i]) {
+				i++
+			}
+			name := formula[start:i]
+			next := i
+			for next < len(formula) && isFormulaWhitespace(formula[next]) {
+				next++
+			}
+			if strings.EqualFold(name, "AVG") && next < len(formula) && formula[next] == '(' {
+				b.WriteString("AVERAGE")
+				changed = true
+			} else {
+				b.WriteString(name)
+			}
+			continue
+		}
+		b.WriteByte(formula[i])
+		i++
 	}
-	return formula
+	if !changed {
+		return formula
+	}
+	return b.String()
+}
+
+func isFormulaWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n'
 }
 
 func neutralizeCSVFormulaCell(value string) string {

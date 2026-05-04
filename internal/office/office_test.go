@@ -73,6 +73,8 @@ func TestEncodeWorkbookNormalizesAvgFormula(t *testing.T) {
 				{{Value: "2"}},
 				{{Value: "4"}},
 				{{Formula: "AVG(A1:A2)"}},
+				{{Formula: "SUM(AVG(A1:A2))"}},
+				{{Formula: "AVG (A1:A2)"}},
 			},
 		}},
 	}
@@ -86,6 +88,15 @@ func TestEncodeWorkbookNormalizesAvgFormula(t *testing.T) {
 	}
 	if got.Sheets[0].Rows[2][0].Formula != "AVERAGE(A1:A2)" {
 		t.Fatalf("formula = %q, want %q", got.Sheets[0].Rows[2][0].Formula, "AVERAGE(A1:A2)")
+	}
+	if got.Sheets[0].Rows[3][0].Formula != "SUM(AVERAGE(A1:A2))" {
+		t.Fatalf("nested formula = %q, want %q", got.Sheets[0].Rows[3][0].Formula, "SUM(AVERAGE(A1:A2))")
+	}
+	if got.Sheets[0].Rows[4][0].Formula != "AVERAGE (A1:A2)" {
+		t.Fatalf("spaced formula = %q, want %q", got.Sheets[0].Rows[4][0].Formula, "AVERAGE (A1:A2)")
+	}
+	if normalized := normalizeFormulaForXLSX("A1+AVGA(A1:A2)+AVG1+AVG(A1:A2)"); normalized != "A1+AVGA(A1:A2)+AVG1+AVERAGE(A1:A2)" {
+		t.Fatalf("boundary normalization = %q", normalized)
 	}
 }
 
