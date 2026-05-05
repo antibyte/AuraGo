@@ -105,7 +105,8 @@
         'agent-chat': 'chat',
         terminal: 'terminal',
         browser: 'browser',
-        launchpad: 'launchpad'
+        launchpad: 'launchpad',
+        'system-info': 'analytics'
     };
     appIconKeys['code-studio'] = 'code';
     const extensionIconKeys = {
@@ -992,6 +993,7 @@
     }
 
     function windowTitle(appId) {
+        if (appId === 'system-info') return t('desktop.system_info_title');
         const app = allApps().find(item => item.id === appId);
         return app ? appName(app) : appId;
     }
@@ -1008,7 +1010,8 @@
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 },
             'code-studio': { width: 1280, height: 850 },
-            launchpad: { width: 1100, height: 700 }
+            launchpad: { width: 1100, height: 700 },
+            'system-info': { width: 800, height: 600 }
         };
         return presets[appId] || defaultWindowSize();
     }
@@ -1382,6 +1385,7 @@
         if (!win) return;
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
+        if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -1736,6 +1740,9 @@
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
+        }
+        if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
+            return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
         }
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
@@ -4067,6 +4074,15 @@
                 menu.hidden = true;
             }
         });
+        const taskbarSystem = document.querySelector('.vd-taskbar-system');
+        if (taskbarSystem) {
+            taskbarSystem.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                showContextMenu(event.clientX, event.clientY, [
+                    { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') }
+                ]);
+            });
+        }
         $('vd-workspace').addEventListener('contextmenu', showDesktopContextMenu);
         $('vd-workspace').addEventListener('click', event => {
             if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
