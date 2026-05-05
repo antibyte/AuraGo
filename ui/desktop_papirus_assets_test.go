@@ -55,12 +55,12 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 	}
 
 	for _, key := range []string{
-		"analytics", "apps", "archive", "audio", "backup", "book", "browser", "calendar",
+		"analytics", "apps", "archive", "audio", "audio-player", "backup", "book", "browser", "calendar",
 		"calculator", "camera", "chat", "cloud", "code", "css", "database", "desktop",
 		"documents", "downloads", "editor", "folder", "forms", "globe", "go", "help",
 		"home", "html", "image", "javascript", "json", "key", "mail", "markdown",
 		"map", "monitor", "network", "notes", "package", "pdf", "phone", "printer",
-		"python", "server", "settings", "spreadsheet", "terminal", "text", "tools",
+		"python", "radio", "server", "settings", "spreadsheet", "terminal", "text", "tools",
 		"trash", "video", "weather", "workflow", "xml", "yaml",
 		"arrow-up", "check-square", "chevron-down", "chevron-left", "chevron-right",
 		"chevron-up", "clipboard", "copy", "download", "file-plus", "folder-open",
@@ -168,6 +168,11 @@ func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
 		"tools: 'tools'",
 		"weather: 'weather'",
 		"workflow: 'workflow'",
+		"'music-player': 'audio-player'",
+		"player: 'audio-player'",
+		"radio: 'radio'",
+		"'agent-chat': 'chat'",
+		"music: 'audio-player'",
 		"function launchpadCategoryIconKey(category)",
 		"iconMarkup(launchpadCategoryIconKey(link.category), 'G', 'vd-launchpad-fallback-icon', 34)",
 	} {
@@ -182,19 +187,23 @@ func TestDesktopPapirusAliasesExposeExpandedIcons(t *testing.T) {
 
 	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
 	for alias, want := range map[string]string{
-		"backups":   "backup",
-		"books":     "book",
-		"library":   "book",
-		"camera":    "camera",
-		"form":      "forms",
-		"support":   "help",
-		"maps":      "map",
-		"location":  "map",
-		"print":     "printer",
-		"execute":   "run",
-		"tool":      "tools",
-		"forecast":  "weather",
-		"workflows": "workflow",
+		"backups":      "backup",
+		"books":        "book",
+		"library":      "book",
+		"camera":       "camera",
+		"form":         "forms",
+		"support":      "help",
+		"maps":         "map",
+		"location":     "map",
+		"print":        "printer",
+		"execute":      "run",
+		"music-player": "audio-player",
+		"player":       "audio-player",
+		"radio":        "radio",
+		"agent_chat":   "chat",
+		"tool":         "tools",
+		"forecast":     "weather",
+		"workflows":    "workflow",
 	} {
 		if got := catalog.Aliases[alias]; got != want {
 			t.Fatalf("desktop icon alias %q = %q, want %q", alias, got, want)

@@ -97,10 +97,12 @@
         weather: 'weather',
         workflow: 'workflow',
         workflows: 'workflow',
-        'music-player': 'audio',
-        radio: 'audio',
+        music: 'audio-player',
+        'music-player': 'audio-player',
+        player: 'audio-player',
+        radio: 'radio',
         todo: 'notes',
-        'agent-chat': 'agent_chat',
+        'agent-chat': 'chat',
         terminal: 'terminal',
         browser: 'browser',
         launchpad: 'apps'
@@ -190,6 +192,9 @@
         run: 'run',
         tools: 'tools',
         weather: 'weather',
+        music: 'audio-player',
+        player: 'audio-player',
+        radio: 'radio',
         workflow: 'workflow',
         workflows: 'workflow'
     };
@@ -2683,7 +2688,7 @@
 
         host.innerHTML = `<div class="vd-webamp-launcher">
             <div class="vd-webamp-launcher-header">
-                ${iconMarkup('audio', 'MP', 'vd-sprite-start-item', 34)}
+                ${iconMarkup('audio-player', 'MP', 'vd-sprite-start-item', 34)}
                 <div class="vd-webamp-launcher-copy">
                     <strong>${esc(t('desktop.app_music_player'))}</strong>
                     <span data-status>${esc(t('desktop.loading'))}</span>

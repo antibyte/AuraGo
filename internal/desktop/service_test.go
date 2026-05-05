@@ -201,6 +201,29 @@ func TestServiceBootstrapIncludesCodeStudioApp(t *testing.T) {
 	}
 }
 
+func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	got := map[string]AppManifest{}
+	for _, app := range bootstrap.BuiltinApps {
+		got[app.ID] = app
+	}
+	for id, wantIcon := range map[string]string{
+		"music-player": "audio-player",
+		"radio":        "radio",
+		"agent-chat":   "chat",
+	} {
+		if got[id].Icon != wantIcon {
+			t.Fatalf("builtin app %q icon = %q, want %q", id, got[id].Icon, wantIcon)
+		}
+	}
+}
+
 func TestServiceBootstrapIncludesOfficeApps(t *testing.T) {
 	t.Parallel()
 
@@ -996,8 +1019,8 @@ func TestServiceUpsertWidgetNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
 			break
 		}
 	}
-	if got.Icon != "audio" {
-		t.Fatalf("normalized widget icon = %q, want audio", got.Icon)
+	if got.Icon != "audio-player" {
+		t.Fatalf("normalized widget icon = %q, want audio-player", got.Icon)
 	}
 
 	widget.ID = "emoji-widget"
