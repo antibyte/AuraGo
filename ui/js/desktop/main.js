@@ -2413,19 +2413,21 @@
                 <button type="button" data-mode="scientific">${esc(t('desktop.calc_scientific'))}</button>
                 <button type="button" data-mode="programmer">${esc(t('desktop.calc_programmer'))}</button>
             </div>
-            <div class="vd-calc-base" data-base-selector hidden>
-                <button type="button" class="active" data-base="10">${esc(t('desktop.calc_dec'))}</button>
-                <button type="button" data-base="16">${esc(t('desktop.calc_hex'))}</button>
-                <button type="button" data-base="2">${esc(t('desktop.calc_bin'))}</button>
-                <button type="button" data-base="8">${esc(t('desktop.calc_oct'))}</button>
+            <div class="vd-calc-prog-section" data-prog-section>
+                <div class="vd-calc-base" data-base-selector>
+                    <button type="button" class="active" data-base="10">${esc(t('desktop.calc_dec'))}</button>
+                    <button type="button" data-base="16">${esc(t('desktop.calc_hex'))}</button>
+                    <button type="button" data-base="2">${esc(t('desktop.calc_bin'))}</button>
+                    <button type="button" data-base="8">${esc(t('desktop.calc_oct'))}</button>
+                </div>
+                <div class="vd-calc-prog-display" data-prog-display>
+                    <div><span>HEX</span><span data-hex>0</span></div>
+                    <div><span>DEC</span><span data-dec>0</span></div>
+                    <div><span>OCT</span><span data-oct>0</span></div>
+                    <div><span>BIN</span><span data-bin>0</span></div>
+                </div>
             </div>
             <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
-            <div class="vd-calc-prog-display" data-prog-display hidden>
-                <div><span>HEX</span><span data-hex>0</span></div>
-                <div><span>DEC</span><span data-dec>0</span></div>
-                <div><span>OCT</span><span data-oct>0</span></div>
-                <div><span>BIN</span><span data-bin>0</span></div>
-            </div>
             <div class="vd-calc-keys">
                 ${['C','CE','⌫','%','sin','cos','tan','√','7','8','9','÷','log','ln','π','x²','4','5','6','×','(',')','e','xʸ','1','2','3','-','n!','±','.','+','0','00','='].map(key => `<button type="button" class="${/[+\-×÷=%]|xʸ/.test(key) ? 'op' : /sin|cos|tan|log|ln|π|e|√|n!|x²|[()]/.test(key) ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
                 <button type="button" class="fn programmer" data-key="AND">AND</button>
@@ -2450,6 +2452,7 @@
         const historyEl = host.querySelector('.vd-calc-history ol');
         const baseSelector = host.querySelector('[data-base-selector]');
         const progDisplay = host.querySelector('[data-prog-display]');
+        const progSection = host.querySelector('[data-prog-section]');
         let expression = '';
         let mode = 'standard';
         let progBase = 10;
@@ -2547,8 +2550,7 @@
             mode = btn.dataset.mode;
             root.classList.toggle('scientific-on', mode === 'scientific');
             root.classList.toggle('programmer-on', mode === 'programmer');
-            if (baseSelector) baseSelector.hidden = mode !== 'programmer';
-            if (progDisplay) progDisplay.hidden = mode !== 'programmer';
+            if (progSection) progSection.hidden = mode !== 'programmer';
             expression = '';
             update();
         }));
