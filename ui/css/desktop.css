@@ -2062,75 +2062,157 @@
 .vd-calc {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
-    gap: 10px;
-    padding: 14px;
+    gap: 12px;
+    padding: 18px;
     min-height: 0;
-    background: linear-gradient(145deg, #111722, #0b0f16);
+    background:
+        radial-gradient(120% 80% at 10% 10%, rgba(39, 199, 166, 0.10), transparent 50%),
+        radial-gradient(100% 60% at 90% 90%, rgba(242, 184, 75, 0.08), transparent 50%),
+        linear-gradient(160deg, rgba(17, 23, 34, 0.95), rgba(11, 15, 22, 0.98));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+        0 20px 60px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    position: relative;
 }
 
-.vd-calc-tabs,
-.vd-calc-keys,
-.vd-calendar-toolbar,
-.vd-todo-actions,
-.vd-todo-form-row {
+.vd-calc::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    padding: 1px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.vd-calc-tabs {
     display: flex;
     gap: 8px;
+    position: relative;
+    z-index: 1;
 }
 
-.vd-calc-tabs button,
-.vd-calendar-toolbar button,
-.vd-todo-sidebar button {
+.vd-calc-tabs button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border: 1px solid var(--vd-border);
-    color: var(--vd-text);
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: var(--vd-muted);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 8px 14px;
     cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
-.vd-calendar-icon-button {
-    width: 34px;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+.vd-calc-tabs button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(39, 199, 166, 0.25), rgba(39, 199, 166, 0.05));
+    opacity: 0;
+    transition: opacity 0.25s ease;
 }
 
-.vd-calc-tabs button.active,
-.vd-calendar-toolbar button.active,
-.vd-todo-sidebar button.active {
+.vd-calc-tabs button:hover {
+    border-color: rgba(39, 199, 166, 0.35);
+    color: var(--vd-text);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(39, 199, 166, 0.12);
+}
+
+.vd-calc-tabs button:hover::before {
+    opacity: 1;
+}
+
+.vd-calc-tabs button.active {
     border-color: rgba(39, 199, 166, 0.55);
-    background: rgba(39, 199, 166, 0.2);
+    background: rgba(39, 199, 166, 0.18);
+    color: #9ad8cf;
+    box-shadow:
+        0 0 16px rgba(39, 199, 166, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.vd-calc-tabs button span {
+    position: relative;
+    z-index: 1;
 }
 
 .vd-calc-display {
-    padding: 14px;
-    border: 1px solid rgba(154, 216, 207, 0.25);
-    border-radius: 14px;
-    background: #071014;
+    padding: 18px 20px;
+    border-radius: 16px;
+    background:
+        linear-gradient(145deg, rgba(7, 16, 20, 0.9), rgba(5, 12, 16, 0.95));
     text-align: right;
-    font-family: Consolas, Monaco, monospace;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', Consolas, monospace;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
+    box-shadow:
+        inset 0 2px 8px rgba(0, 0, 0, 0.4),
+        0 1px 0 rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(154, 216, 207, 0.12);
+}
+
+.vd-calc-display::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(154, 216, 207, 0.25), transparent);
 }
 
 .vd-calc-display div {
-    min-height: 22px;
-    color: var(--vd-muted);
+    min-height: 24px;
+    color: rgba(167, 176, 192, 0.7);
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-weight: 500;
 }
 
 .vd-calc-display strong {
     display: block;
-    font-size: 30px;
-    color: #9ad8cf;
+    font-size: 38px;
+    font-weight: 300;
+    color: #c8f0e8;
+    letter-spacing: -0.5px;
+    text-shadow: 0 0 20px rgba(154, 216, 207, 0.25), 0 0 40px rgba(154, 216, 207, 0.08);
+    line-height: 1.2;
+    transition: all 0.15s ease;
+}
+
+.vd-calc-display strong.typing {
+    transform: scale(1.02);
+    text-shadow: 0 0 30px rgba(154, 216, 207, 0.4), 0 0 60px rgba(154, 216, 207, 0.15);
 }
 
 .vd-calc-keys {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    position: relative;
+    z-index: 1;
 }
 
 .vd-calc.scientific-on .vd-calc-keys {
@@ -2138,39 +2220,210 @@
 }
 
 .vd-calc-keys button {
-    min-height: 42px;
+    min-height: 48px;
     border: 0;
-    border-radius: 10px;
+    border-radius: 14px;
     color: var(--vd-text);
-    background: rgba(255, 255, 255, 0.12);
-    font-weight: 800;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
+    font-weight: 700;
     cursor: pointer;
+    font-size: 17px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.vd-calc-keys button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.vd-calc-keys button:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.vd-calc-keys button:hover::before {
+    opacity: 1;
+}
+
+.vd-calc-keys button:active,
+.vd-calc-keys button.pressed {
+    transform: translateY(1px) scale(0.97);
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.2),
+        inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition-duration: 0.05s;
 }
 
 .vd-calc-keys button.op {
-    background: rgba(242, 184, 75, 0.24);
-    color: #ffd889;
+    background:
+        linear-gradient(145deg, rgba(242, 184, 75, 0.35), rgba(242, 184, 75, 0.18));
+    color: #ffe4a1;
+    box-shadow:
+        0 2px 8px rgba(242, 184, 75, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.vd-calc-keys button.op:hover {
+    box-shadow:
+        0 6px 20px rgba(242, 184, 75, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .vd-calc-keys button.fn {
     display: none;
-    background: rgba(39, 199, 166, 0.16);
-    color: #9ad8cf;
+    background:
+        linear-gradient(145deg, rgba(39, 199, 166, 0.28), rgba(39, 199, 166, 0.12));
+    color: #a8ece0;
+    font-size: 14px;
+    box-shadow:
+        0 2px 8px rgba(39, 199, 166, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.vd-calc-keys button.fn:hover {
+    box-shadow:
+        0 6px 20px rgba(39, 199, 166, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .vd-calc.scientific-on .vd-calc-keys button.fn {
     display: block;
+    animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes calcFnFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.vd-calc-keys button[data-key="="] {
+    background:
+        linear-gradient(145deg, rgba(39, 199, 166, 0.55), rgba(30, 160, 135, 0.4));
+    color: #ffffff;
+    font-size: 22px;
+    box-shadow:
+        0 4px 12px rgba(39, 199, 166, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.vd-calc-keys button[data-key="="]:hover {
+    box-shadow:
+        0 8px 24px rgba(39, 199, 166, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.vd-calc-keys button[data-key="C"],
+.vd-calc-keys button[data-key="CE"] {
+    background:
+        linear-gradient(145deg, rgba(255, 128, 102, 0.35), rgba(255, 128, 102, 0.18));
+    color: #ffd0c7;
+    box-shadow:
+        0 2px 8px rgba(255, 128, 102, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.vd-calc-keys button[data-key="C"]:hover,
+.vd-calc-keys button[data-key="CE"]:hover {
+    box-shadow:
+        0 6px 20px rgba(255, 128, 102, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .vd-calc-history {
-    min-height: 68px;
-    max-height: 100px;
+    min-height: 70px;
+    max-height: 110px;
     overflow: auto;
-    padding: 8px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.06);
+    padding: 12px 14px;
+    border-radius: 14px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
     color: var(--vd-muted);
     font-size: 12px;
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.vd-calc-history::-webkit-scrollbar {
+    width: 4px;
+}
+
+.vd-calc-history::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.vd-calc-history::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+}
+
+.vd-calc-history > div:first-child {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: rgba(167, 176, 192, 0.5);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vd-calc-history > div:first-child::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(39, 199, 166, 0.5);
+    box-shadow: 0 0 6px rgba(39, 199, 166, 0.3);
+}
+
+.vd-calc-history ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.vd-calc-history li {
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+    border-left: 2px solid rgba(39, 199, 166, 0.2);
+}
+
+.vd-calc-history li:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-left-color: rgba(39, 199, 166, 0.5);
+    transform: translateX(2px);
 }
 
 .vd-todo {

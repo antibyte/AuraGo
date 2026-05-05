@@ -2394,12 +2394,26 @@
             expression = String(result);
             update(result);
         };
+        const animateButton = key => {
+            const btn = host.querySelector(`[data-key="${esc(key)}"]`);
+            if (!btn) return;
+            btn.classList.add('pressed');
+            setTimeout(() => btn.classList.remove('pressed'), 120);
+        };
+        const flashDisplay = () => {
+            resultEl.classList.add('typing');
+            setTimeout(() => resultEl.classList.remove('typing'), 150);
+        };
         const press = key => {
             try {
                 if (key === 'C') expression = '';
                 else if (key === 'CE') expression = '';
                 else if (key === '⌫') expression = expression.slice(0, -1);
-                else if (key === '=') return evaluate();
+                else if (key === '=') {
+                    evaluate();
+                    animateButton('=');
+                    return;
+                }
                 else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
                 else if (key === 'x²') expression += '²';
                 else if (key === 'xʸ') expression += '^';
@@ -2407,11 +2421,16 @@
                 else if (['sin', 'cos', 'tan', 'log', 'ln', '√'].includes(key)) expression += `${key}(`;
                 else expression += key;
                 update();
+                flashDisplay();
             } catch (err) {
                 resultEl.textContent = err.message;
             }
         };
-        host.querySelectorAll('[data-key]').forEach(btn => btn.addEventListener('click', () => press(btn.dataset.key)));
+        host.querySelectorAll('[data-key]').forEach(btn => btn.addEventListener('click', () => {
+            btn.classList.add('pressed');
+            setTimeout(() => btn.classList.remove('pressed'), 120);
+            press(btn.dataset.key);
+        }));
         host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
             host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('active', item === btn));
             root.classList.toggle('scientific-on', btn.dataset.mode === 'scientific');
@@ -2421,6 +2440,7 @@
             const key = map[event.key] || event.key;
             if (/^[0-9.+\-()%]$/.test(key) || ['=', '⌫', 'C', '×', '÷'].includes(key)) {
                 event.preventDefault();
+                animateButton(key);
                 press(key);
             }
         });
