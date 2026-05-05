@@ -14,6 +14,8 @@
         iconMap: new Map(),
         selectedIconId: '',
         contextMenu: null,
+        windowMenus: new Map(),
+        openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
         fruityDockFootprint: null
@@ -1277,7 +1279,7 @@
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
-            if (event.target.closest('button')) return;
+            if (event.target.closest('button, .vd-window-menubar')) return;
             if (isCompactViewport()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
             drag = {
@@ -1299,7 +1301,7 @@
         bar.addEventListener('pointerup', () => { drag = null; });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
             bar.addEventListener('dblclick', event => {
-                if (event.target.closest('button')) return;
+                if (event.target.closest('button, .vd-window-menubar')) return;
                 toggleMaximizeWindow(id);
             });
         }
@@ -1390,6 +1392,7 @@
             item.maximized = true;
         }
         focusWindow(id);
+        renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
     }
 
@@ -1493,6 +1496,7 @@
     function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+        clearWindowMenus(id);
         disposeAppWindow(win);
         win.element.remove();
         state.windows.delete(id);
@@ -1826,7 +1830,248 @@
         return win && win.element.querySelector('[data-window-content]');
     }
 
+    function menuLabel(item) {
+        const fallback = item && (item.label || item.id || '');
+        if (!item || !item.labelKey) return fallback;
+        const translated = t(item.labelKey);
+        return translated && translated !== item.labelKey ? translated : fallback;
+    }
+
+    function normalizeWindowMenuItems(items, menuId, actions, path) {
+        return (Array.isArray(items) ? items : []).map((item, index) => {
+            if (!item || item.hidden) return null;
+            if (item.type === 'separator' || item.separator) return { type: 'separator' };
+            const id = String(item.id || item.actionId || item.action || ('item-' + index));
+            const actionKey = path.concat(id).join('/');
+            const submenuItems = item.items || item.children;
+            const normalized = {
+                type: submenuItems ? 'submenu' : 'item',
+                id,
+                label: item.label || '',
+                labelKey: item.labelKey || '',
+                icon: item.icon || '',
+                fallback: item.fallback || '',
+                shortcut: item.shortcut || '',
+                disabled: typeof item.disabled === 'function' ? !!item.disabled() : !!item.disabled,
+                checked: typeof item.checked === 'function' ? !!item.checked() : !!item.checked,
+                actionKey: ''
+            };
+            if (submenuItems) {
+                normalized.items = normalizeWindowMenuItems(submenuItems, menuId, actions, path.concat(id));
+            } else if (typeof item.action === 'function') {
+                normalized.actionKey = actionKey;
+                actions.set(actionKey, item.action);
+            }
+            return normalized;
+        }).filter(Boolean);
+    }
+
+    function normalizeWindowMenus(windowId, rawMenus, actions) {
+        return (Array.isArray(rawMenus) ? rawMenus : [])
+            .concat(automaticWindowMenu(windowId))
+            .filter(menu => menu && !menu.hidden)
+            .map((menu, index) => {
+                const id = String(menu.id || ('menu-' + index));
+                return {
+                    id,
+                    label: menu.label || '',
+                    labelKey: menu.labelKey || '',
+                    items: normalizeWindowMenuItems(menu.items || [], id, actions, [windowId, id])
+                };
+            })
+            .filter(menu => menu.items.length);
+    }
+
+    function automaticWindowMenu(windowId) {
+        const item = state.windows.get(windowId);
+        const hasMaximize = !!(item && item.element && item.element.querySelector('[data-action="maximize"]'));
+        return {
+            id: 'window',
+            labelKey: 'desktop.menu_window',
+            items: [
+                { id: 'minimize', labelKey: 'desktop.menu_minimize_window', icon: 'minus', action: () => minimizeWindow(windowId) },
+                {
+                    id: 'maximize',
+                    labelKey: item && item.maximized ? 'desktop.menu_restore_window' : 'desktop.menu_maximize_window',
+                    icon: 'maximize',
+                    disabled: !hasMaximize,
+                    action: () => hasMaximize && toggleMaximizeWindow(windowId)
+                },
+                { type: 'separator' },
+                { id: 'close', labelKey: 'desktop.menu_close_window', icon: 'x', shortcut: 'Alt+F4', action: () => closeWindow(windowId) }
+            ]
+        };
+    }
+
+    function renderWindowMenuItems(items) {
+        return (items || []).map(item => {
+            if (item.type === 'separator') return '<div class="vd-window-menu-separator" role="separator"></div>';
+            const label = esc(menuLabel(item));
+            const disabled = item.disabled ? ' disabled' : '';
+            const checked = item.checked ? ' checked' : '';
+            const icon = item.icon
+                ? `<span class="vd-window-menu-icon">${iconMarkup(item.icon, item.fallback || item.icon, 'vd-window-menu-papirus-icon', 14)}</span>`
+                : '<span class="vd-window-menu-icon empty"></span>';
+            if (item.type === 'submenu') {
+                return `<div class="vd-window-menu-submenu${disabled}" role="none">
+                    <button type="button" class="vd-window-menu-item${checked}" role="menuitem" ${disabled ? 'disabled' : ''}>
+                        ${icon}<span>${label}</span><span class="vd-window-menu-arrow">›</span>
+                    </button>
+                    <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
+                </div>`;
+            }
+            return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}>
+                ${icon}<span>${label}</span>${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : '<kbd></kbd>'}
+            </button>`;
+        }).join('');
+    }
+
+    function setWindowMenus(windowId, menus) {
+        if (!state.windows.has(windowId)) return;
+        state.windowMenus.set(windowId, { rawMenus: Array.isArray(menus) ? menus : [], renderedMenus: [], actions: new Map() });
+        renderWindowMenus(windowId);
+    }
+
+    function clearWindowMenus(windowId) {
+        const win = state.windows.get(windowId);
+        state.windowMenus.delete(windowId);
+        if (!win || !win.element) return;
+        win.element.classList.remove('has-window-menu');
+        const bar = win.element.querySelector('.vd-window-menubar');
+        if (bar) bar.remove();
+        if (state.openWindowMenu && state.openWindowMenu.windowId === windowId) state.openWindowMenu = null;
+    }
+
+    function renderWindowMenus(windowId) {
+        const win = state.windows.get(windowId);
+        const record = state.windowMenus.get(windowId);
+        if (!win || !win.element || !record) return;
+        const actions = new Map();
+        const menus = normalizeWindowMenus(windowId, record.rawMenus, actions);
+        record.renderedMenus = menus;
+        record.actions = actions;
+        win.element.classList.toggle('has-window-menu', menus.length > 0);
+        const titlebar = win.element.querySelector('.vd-window-titlebar');
+        if (!titlebar) return;
+        let bar = titlebar.querySelector('.vd-window-menubar');
+        if (!menus.length) {
+            if (bar) bar.remove();
+            return;
+        }
+        if (!bar) {
+            titlebar.insertAdjacentHTML('beforeend', '<nav class="vd-window-menubar" role="menubar"></nav>');
+            bar = titlebar.querySelector('.vd-window-menubar');
+        }
+        bar.innerHTML = menus.map(menu => `<div class="vd-window-menu" data-menu-id="${esc(menu.id)}">
+            <button type="button" class="vd-window-menu-button" role="menuitem" data-window-menu="${esc(menu.id)}">${esc(menuLabel(menu))}</button>
+            <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(menu.items)}</div>
+        </div>`).join('');
+        bar.querySelectorAll('[data-window-menu]').forEach(button => {
+            const open = event => toggleWindowMenu(event, windowId, button.dataset.windowMenu);
+            button.addEventListener('click', open);
+            button.addEventListener('mouseenter', event => {
+                if (state.openWindowMenu && state.openWindowMenu.windowId === windowId) open(event);
+            });
+        });
+        bar.querySelectorAll('[data-menu-action]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (button.disabled) return;
+                runWindowMenuAction(windowId, button.dataset.menuAction);
+            });
+        });
+    }
+
+    function toggleWindowMenu(event, windowId, menuId) {
+        event.preventDefault();
+        event.stopPropagation();
+        focusWindow(windowId);
+        const win = state.windows.get(windowId);
+        const menu = win && win.element.querySelector(`.vd-window-menu[data-menu-id="${cssSel(menuId)}"]`);
+        if (!menu) return;
+        const isOpen = menu.classList.contains('open');
+        closeWindowMenu();
+        if (isOpen) return;
+        menu.classList.add('open');
+        state.openWindowMenu = { windowId, menuId };
+    }
+
+    function closeWindowMenu() {
+        document.querySelectorAll('.vd-window-menu.open').forEach(menu => menu.classList.remove('open'));
+        state.openWindowMenu = null;
+    }
+
+    function runWindowMenuAction(windowId, actionKey) {
+        const record = state.windowMenus.get(windowId);
+        const action = record && record.actions && record.actions.get(actionKey);
+        closeWindowMenu();
+        if (typeof action === 'function') action();
+    }
+
+    function flattenWindowMenuItems(menus) {
+        const flat = [];
+        (menus || []).forEach(menu => {
+            (menu.items || []).forEach(function visit(item) {
+                if (!item || item.type === 'separator') return;
+                if (item.type === 'submenu') {
+                    (item.items || []).forEach(visit);
+                    return;
+                }
+                flat.push(item);
+            });
+        });
+        return flat;
+    }
+
+    function editableShortcutTarget(event, shortcut) {
+        const target = event.target;
+        if (!target || !target.closest) return false;
+        if (!target.closest('input, textarea, select, [contenteditable="true"]')) return false;
+        const normalized = String(shortcut || '').toLowerCase();
+        return !['ctrl+s', 'meta+s', 'f5'].includes(normalized);
+    }
+
+    function handleWindowMenuShortcut(event) {
+        const windowId = state.activeWindowId;
+        if (!windowId || event.defaultPrevented) return false;
+        const record = state.windowMenus.get(windowId);
+        if (!record) return false;
+        for (const item of flattenWindowMenuItems(record.renderedMenus || [])) {
+            if (!item.shortcut || item.disabled || !item.actionKey) continue;
+            if (editableShortcutTarget(event, item.shortcut)) continue;
+            if (!shortcutMatches(event, item.shortcut)) continue;
+            event.preventDefault();
+            event.stopPropagation();
+            runWindowMenuAction(windowId, item.actionKey);
+            return true;
+        }
+        return false;
+    }
+
+    function shortcutMatches(event, shortcut) {
+        const parts = String(shortcut || '').split('+').map(part => part.trim().toLowerCase()).filter(Boolean);
+        if (!parts.length) return false;
+        const wantCtrl = parts.includes('ctrl') || parts.includes('control');
+        const wantMeta = parts.includes('meta') || parts.includes('cmd') || parts.includes('command');
+        const wantAlt = parts.includes('alt') || parts.includes('option');
+        const wantShift = parts.includes('shift');
+        if (wantCtrl && !(event.ctrlKey || event.metaKey)) return false;
+        if (wantMeta && !event.metaKey) return false;
+        if (!wantCtrl && !wantMeta && (event.ctrlKey || event.metaKey)) return false;
+        if (wantAlt !== !!event.altKey) return false;
+        if (wantShift !== !!event.shiftKey) return false;
+        const key = parts.find(part => !['ctrl', 'control', 'meta', 'cmd', 'command', 'alt', 'option', 'shift'].includes(part));
+        if (!key) return false;
+        const eventKey = String(event.key || '').toLowerCase();
+        const eventCode = String(event.code || '').toLowerCase();
+        const aliases = { del: 'delete', esc: 'escape', space: ' ', return: 'enter' };
+        const wanted = aliases[key] || key;
+        return eventKey === wanted || eventCode === wanted || eventCode === ('key' + wanted);
+    }
+
     function renderAppContent(id, appId, context) {
+        clearWindowMenus(id);
         if (appId === 'files') {
             const path = Object.prototype.hasOwnProperty.call(context || {}, 'path')
                 ? (context.path || '')
@@ -1848,7 +2093,9 @@
                 notify: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
-                updateWindowContext: updateWindowContext
+                updateWindowContext: updateWindowContext,
+                setWindowMenus,
+                clearWindowMenus
             }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
@@ -1860,7 +2107,9 @@
                 notify: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
-                updateWindowContext: updateWindowContext
+                updateWindowContext: updateWindowContext,
+                setWindowMenus,
+                clearWindowMenus
             }));
         }
         if (appId === 'settings') return renderSettings(id);
@@ -1870,7 +2119,7 @@
         if (appId === 'gallery') return renderGallery(id);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
-            return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
+            return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
             return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
@@ -1878,7 +2127,7 @@
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
-            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup }));
+            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'launchpad') return renderLaunchpad(id);
         return renderGeneratedApp(id, appId);
@@ -1903,6 +2152,8 @@
                 confirmDialog,
                 showNotification: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
+                setWindowMenus,
+                clearWindowMenus,
                 openFile: (entry) => {
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
@@ -1940,6 +2191,7 @@
         });
         host.querySelector('[data-action="new-file"]').addEventListener('click', () => openApp('editor', { path: joinPath(state.filesPath, 'untitled.txt'), content: '' }));
         host.querySelector('[data-action="new-folder"]').addEventListener('click', () => createFolderInPath(state.filesPath));
+        setFallbackFileMenus(id, state.filesPath);
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
@@ -1978,6 +2230,32 @@
         } catch (err) {
             host.querySelector('.vd-file-list').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
         }
+    }
+
+    function setFallbackFileMenus(id, path) {
+        const readonly = !!((state.bootstrap || {}).readonly);
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'new-file', labelKey: 'desktop.new_file', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: () => openApp('editor', { path: joinPath(path || state.filesPath, 'untitled.txt'), content: '' }) },
+                    { id: 'new-folder', labelKey: 'desktop.new_folder', icon: 'folder-plus', disabled: readonly, action: () => createFolderInPath(path || state.filesPath) }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'up', labelKey: 'desktop.up', icon: 'arrow-up', action: () => {
+                        const parts = (path || state.filesPath).split('/').filter(Boolean);
+                        parts.pop();
+                        renderFiles(id, parts.join('/'));
+                    } },
+                    { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: () => renderFiles(id, path || state.filesPath) }
+                ]
+            }
+        ]);
     }
 
     function joinPath(base, name) {
@@ -2079,7 +2357,6 @@
         if (!host) return;
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
-                <button class="vd-tool-button" type="button" data-action="save">${esc(t('desktop.save'))}</button>
                 <span class="vd-path">${esc(path)}</span>
                 <span class="vd-chat-meta" data-status></span>
             </div>
@@ -2096,7 +2373,7 @@
                 textarea.value = '';
             }
         }
-        host.querySelector('[data-action="save"]').addEventListener('click', async () => {
+        const saveEditor = async () => {
             status.textContent = t('desktop.saving');
             try {
                 await api('/api/desktop/file', {
@@ -2109,7 +2386,46 @@
             } catch (err) {
                 status.textContent = err.message;
             }
-        });
+        };
+        setEditorMenus(id, path, textarea, status, saveEditor);
+    }
+
+    function setEditorMenus(id, path, textarea, status, saveEditor) {
+        const readonly = !!((state.bootstrap || {}).readonly);
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: saveEditor }
+                ]
+            },
+            {
+                id: 'edit',
+                labelKey: 'desktop.menu_edit',
+                items: [
+                    { id: 'cut', labelKey: 'desktop.fm.cut', icon: 'scissors', shortcut: 'Ctrl+X', disabled: readonly, action: () => document.execCommand && document.execCommand('cut') },
+                    { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', action: () => document.execCommand && document.execCommand('copy') },
+                    { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly, action: async () => {
+                        if (!textarea || readonly) return;
+                        if (navigator.clipboard && navigator.clipboard.readText) {
+                            const text = await navigator.clipboard.readText().catch(() => '');
+                            textarea.setRangeText(text, textarea.selectionStart, textarea.selectionEnd, 'end');
+                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    } },
+                    { type: 'separator' },
+                    { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => textarea && textarea.select() }
+                ]
+            },
+            {
+                id: 'help',
+                labelKey: 'desktop.menu_help',
+                items: [
+                    { id: 'path', label: path, icon: 'text', disabled: true, action: () => { if (status) status.textContent = path; } }
+                ]
+            }
+        ]);
     }
 
     function settingsSections() {
@@ -2951,6 +3267,33 @@
         pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
         pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(input.dataset.itemToggle), 'PUT', { is_done: input.checked }); await reload(todo.id); }));
         pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
+        setTodoMenus(host, todo, reload);
+    }
+
+    function setTodoMenus(host, todo, reload) {
+        const win = host && host.closest && host.closest('.vd-window');
+        const id = win && win.dataset.windowId;
+        if (!id || !todo) return;
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'save', labelKey: 'desktop.save', icon: 'save', shortcut: 'Ctrl+S', action: () => {
+                        const form = host.querySelector('.vd-todo-form');
+                        if (form) form.requestSubmit();
+                    } }
+                ]
+            },
+            {
+                id: 'edit',
+                labelKey: 'desktop.menu_edit',
+                items: [
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                ]
+            }
+        ]);
     }
 
     async function renderCalendar(id) {
@@ -2977,7 +3320,28 @@
             renderCalendar(id);
         }));
         host.querySelector('[data-cal-new]').addEventListener('click', () => openAppointmentModal(host, null, isoDate(activeDate), render));
+        setCalendarMenus(id, host, activeDate, render);
         try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
+    }
+
+    function setCalendarMenus(id, host, activeDate, render) {
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'new-appointment', labelKey: 'desktop.cal_new_appointment', icon: 'calendar', shortcut: 'Ctrl+N', action: () => openAppointmentModal(host, null, isoDate(activeDate), render) }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'today', labelKey: 'desktop.cal_today', icon: 'calendar', action: () => { host.dataset.calDate = isoDate(new Date()); renderCalendar(id); } },
+                    { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: render }
+                ]
+            }
+        ]);
     }
 
     function calendarMonthHTML(activeDate, appointments) {
@@ -3109,7 +3473,24 @@
             loadGallery(false);
         });
         moreButton.addEventListener('click', () => loadGallery(true));
+        setGalleryMenus(id, host, () => {
+            host.dataset.galleryOffset = '0';
+            visibleItems = [];
+            loadGallery(false);
+        });
         await loadGallery(false);
+    }
+
+    function setGalleryMenus(id, host, refreshGallery) {
+        setWindowMenus(id, [
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'refresh', labelKey: 'desktop.gallery_refresh', icon: 'refresh', shortcut: 'F5', action: refreshGallery }
+                ]
+            }
+        ]);
     }
 
     function webampHostNode() {
@@ -3268,9 +3649,46 @@
             loadMusicLibrary(currentFolder || 'Music').catch(notifyError);
         });
 
+        setMusicPlayerMenus(id, host, {
+            refresh: () => loadMusicLibrary('Music').catch(notifyError),
+            loadFolder: async () => {
+                const folder = await promptDialog(t('desktop.winamp_load_folder'), currentFolder || 'Music');
+                if (folder == null) return;
+                loadMusicLibrary(folder).catch(notifyError);
+            },
+            reopen: () => {
+                const current = state.webampMusic;
+                if (current && current.instance && typeof current.instance.reopen === 'function') {
+                    current.instance.reopen();
+                    return;
+                }
+                loadMusicLibrary(currentFolder || 'Music').catch(notifyError);
+            }
+        });
         renderLauncherState();
         loadMusicLibrary('Music').catch(notifyError);
     }
+
+    function setMusicPlayerMenus(id, host, actions) {
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'load-folder', labelKey: 'desktop.menu_load_folder', icon: 'folder-open', action: actions.loadFolder },
+                    { id: 'refresh-music', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: actions.refresh }
+                ]
+            },
+            {
+                id: 'playback',
+                labelKey: 'desktop.menu_playback',
+                items: [
+                    { id: 'reopen-webamp', labelKey: 'desktop.menu_reopen_player', icon: 'audio-player', action: actions.reopen }
+                ]
+            }
+        ]);
+    }
+
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -3306,6 +3724,7 @@
         let cachedDevices = null;
         let cachedCredentials = null;
 
+        setQuickConnectMenus(id, host, loadAll, showServerModal);
         loadAll();
 
         host.querySelector('[data-action="refresh"]').addEventListener('click', loadAll);
@@ -3682,6 +4101,25 @@
         }
     }
 
+    function setQuickConnectMenus(id, host, loadAll, showServerModal) {
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
+                ]
+            }
+        ]);
+    }
+
     function renderLaunchpad(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -3890,7 +4328,27 @@
         searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
         categorySelect.addEventListener('change', (e) => { selectedCategory = e.target.value; load(); });
 
+        setLaunchpadMenus(id, host, openEditModal, load);
         load();
+    }
+
+    function setLaunchpadMenus(id, host, openEditModal, load) {
+        setWindowMenus(id, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'add-link', labelKey: 'desktop.launchpad_add', icon: 'file-plus', shortcut: 'Ctrl+N', action: () => openEditModal() }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: load }
+                ]
+            }
+        ]);
     }
 
     function renderChat(id) {
@@ -4028,6 +4486,49 @@
         }, '*');
     }
 
+    function postSDKMenuAction(windowId, actionId) {
+        const frame = document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(windowId)}"]`);
+        if (!frame || !frame.contentWindow || !actionId) return;
+        frame.contentWindow.postMessage({
+            type: 'aurago.desktop.menu-action',
+            actionId: String(actionId)
+        }, window.location.origin);
+    }
+
+    function sdkMenuItems(client, items) {
+        return (Array.isArray(items) ? items : []).map(item => {
+            if (!item || item.hidden) return null;
+            if (item.type === 'separator' || item.separator) return { type: 'separator' };
+            const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';
+            const submenuItems = item.items || item.children;
+            const normalized = {
+                id: item.id || actionId,
+                label: item.label || '',
+                labelKey: item.labelKey || '',
+                icon: item.icon || '',
+                fallback: item.fallback || '',
+                shortcut: item.shortcut || '',
+                disabled: !!item.disabled,
+                checked: !!item.checked
+            };
+            if (submenuItems) {
+                normalized.items = sdkMenuItems(client, submenuItems);
+            } else if (actionId) {
+                normalized.action = () => postSDKMenuAction(client.windowId, actionId);
+            }
+            return normalized;
+        }).filter(Boolean);
+    }
+
+    function sdkMenus(client, menus) {
+        return (Array.isArray(menus) ? menus : []).map(menu => ({
+            id: menu && menu.id || '',
+            label: menu && menu.label || '',
+            labelKey: menu && menu.labelKey || '',
+            items: sdkMenuItems(client, menu && menu.items)
+        }));
+    }
+
     function declaredPermissions(client) {
         const appPermissions = (client.app && client.app.permissions) || [];
         const widgetPermissions = (client.widget && client.widget.permissions) || [];
@@ -4072,6 +4573,13 @@
                     icon_manifest: state.iconManifest,
                     icon_theme_manifests: state.iconThemeManifests
                 };
+            case 'desktop:menu:set':
+                if (!client.windowId) throw new Error('Menus are only available for app windows.');
+                setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));
+                return { status: 'ok' };
+            case 'desktop:menu:clear':
+                if (client.windowId) clearWindowMenus(client.windowId);
+                return { status: 'ok' };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
                 return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
@@ -4202,6 +4710,7 @@
         renderStartButtonIcon();
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
+            if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
             if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
                 menu.hidden = true;
@@ -4229,6 +4738,7 @@
     }
 
     function handleDesktopKeydown(event) {
+        if (handleWindowMenuShortcut(event)) return;
         if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
@@ -4250,6 +4760,7 @@
         switch (event.key) {
         case 'Escape':
             closeContextMenu();
+            closeWindowMenu();
             $('vd-start-menu').hidden = true;
             return;
         case 'Enter': {

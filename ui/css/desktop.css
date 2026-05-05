@@ -164,6 +164,10 @@
     backdrop-filter: blur(34px) saturate(1.24);
 }
 
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu {
+    grid-template-rows: 78px 1fr;
+}
+
 .desktop-body[data-theme="fruity"] .vd-window.active {
     border-color: rgba(10, 132, 255, 0.42);
     box-shadow: 0 28px 72px rgba(52, 64, 84, 0.24), 0 0 0 1px rgba(10, 132, 255, 0.12);
@@ -176,6 +180,11 @@
     background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
     border-bottom-color: rgba(78, 92, 118, 0.14);
     cursor: default;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-titlebar {
+    grid-template-rows: 47px 30px;
+    padding: 0 92px 0 92px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-titlebar > div:first-child {
@@ -202,6 +211,10 @@
     z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-actions {
+    top: 24px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button {
@@ -245,6 +258,39 @@
 .desktop-body[data-theme="fruity"] .vd-window-button[data-action="maximize"] {
     order: 3;
     background: var(--fruity-window-maximize);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menubar {
+    justify-content: center;
+    border-top-color: rgba(78, 92, 118, 0.08);
+    padding-bottom: 2px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu-button {
+    height: 23px;
+    border-radius: 7px;
+    color: rgba(32, 38, 53, 0.72);
+    font-size: 0.72rem;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu.open > .vd-window-menu-button,
+.desktop-body[data-theme="fruity"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="fruity"] .vd-window-menu-button:focus-visible {
+    border-color: rgba(10, 132, 255, 0.18);
+    background: rgba(10, 132, 255, 0.12);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu-popover {
+    border-color: rgba(78, 92, 118, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 18px 44px rgba(52, 64, 84, 0.2);
+    backdrop-filter: blur(32px) saturate(1.24);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-menu-item:hover:not(:disabled),
+.desktop-body[data-theme="fruity"] .vd-window-menu-item:focus-visible:not(:disabled) {
+    background: rgba(10, 132, 255, 0.12);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-content {
@@ -704,6 +750,16 @@
         background: rgba(24, 30, 42, 0.84);
         border-color: rgba(255, 255, 255, 0.13);
         box-shadow: 0 26px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window-menu-button {
+        color: rgba(246, 248, 251, 0.76);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
+        background: rgba(28, 35, 48, 0.9);
+        border-color: rgba(255, 255, 255, 0.14);
+        box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
     }
 
     .desktop-body[data-theme="fruity"] .vd-button,
@@ -1197,6 +1253,10 @@
     transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
 }
 
+.vd-window.has-window-menu {
+    grid-template-rows: 76px 1fr;
+}
+
 .vd-window.maximized {
     border-right: 0;
     border-bottom: 0;
@@ -1235,6 +1295,15 @@
     touch-action: none;
 }
 
+.vd-window.has-window-menu .vd-window-titlebar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 43px 30px;
+    align-items: center;
+    gap: 0 10px;
+    padding: 0 10px;
+}
+
 .vd-window-title {
     font-weight: 800;
     font-size: 0.88rem;
@@ -1263,6 +1332,168 @@
 .vd-window-button {
     width: 28px;
     height: 28px;
+}
+
+.vd-window-menubar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    min-height: 28px;
+    padding: 0 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: default;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.vd-window-menu {
+    position: relative;
+    display: inline-flex;
+}
+
+.vd-window-menu-button {
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 760;
+    cursor: pointer;
+}
+
+.vd-window-menu.open > .vd-window-menu-button,
+.vd-window-menu-button:hover,
+.vd-window-menu-button:focus-visible {
+    border-color: rgba(39, 199, 166, 0.28);
+    background: rgba(39, 199, 166, 0.12);
+    color: var(--vd-text);
+    outline: none;
+}
+
+.vd-window-menu-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 9000;
+    min-width: 210px;
+    padding: 6px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: var(--vd-surface-strong);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(22px) saturate(1.14);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-3px);
+    transition: opacity 90ms ease, transform 90ms ease;
+}
+
+.vd-window-menu.open > .vd-window-menu-popover,
+.vd-window-menu-submenu:hover > .vd-window-menu-popover,
+.vd-window-menu-submenu:focus-within > .vd-window-menu-popover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.vd-window-menu-submenu {
+    position: relative;
+}
+
+.vd-window-menu-submenu > .vd-window-menu-popover {
+    top: -7px;
+    left: calc(100% + 6px);
+}
+
+.vd-window-menu-item {
+    width: 100%;
+    min-height: 28px;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-window-menu-item:hover:not(:disabled),
+.vd-window-menu-item:focus-visible:not(:disabled) {
+    background: rgba(39, 199, 166, 0.14);
+    outline: none;
+}
+
+.vd-window-menu-item:disabled,
+.vd-window-menu-submenu.disabled > .vd-window-menu-item {
+    color: var(--vd-muted);
+    cursor: default;
+    opacity: 0.52;
+}
+
+.vd-window-menu-item.checked {
+    color: var(--vd-accent);
+}
+
+.vd-window-menu-item.checked .vd-window-menu-icon::after {
+    content: "✓";
+    display: grid;
+    place-items: center;
+    font-size: 0.72rem;
+    font-weight: 850;
+}
+
+.vd-window-menu-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+}
+
+.vd-window-menu-icon.empty {
+    opacity: 0;
+}
+
+.vd-window-menu-papirus-icon {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+.vd-window-menu-item span:nth-child(2) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-window-menu-item kbd,
+.vd-window-menu-arrow {
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
+.vd-window-menu-arrow {
+    justify-self: end;
+    font-size: 1rem;
+}
+
+.vd-window-menu-separator {
+    height: 1px;
+    margin: 5px 6px;
+    background: var(--vd-border);
 }
 
 .vd-button {
@@ -3934,9 +4165,26 @@
         grid-template-rows: 52px 1fr;
     }
 
+    .vd-window.has-window-menu {
+        grid-template-rows: 84px 1fr;
+    }
+
     .vd-window-titlebar {
         min-height: 52px;
         padding: 0 14px;
+    }
+
+    .vd-window.has-window-menu .vd-window-titlebar {
+        grid-template-rows: 52px 32px;
+    }
+
+    .vd-window-menubar {
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .vd-window-menubar::-webkit-scrollbar {
+        display: none;
     }
 
     .vd-window-button {

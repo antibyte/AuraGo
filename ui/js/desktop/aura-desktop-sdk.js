@@ -3,6 +3,7 @@
 
     const REQUEST_TYPE = 'aurago.desktop.request';
     const RESPONSE_TYPE = 'aurago.desktop.response';
+    const MENU_ACTION_TYPE = 'aurago.desktop.menu-action';
     const RUNTIME = 'aura-desktop-sdk@1';
     const VERSION = '1.0.0';
     const THEMED_ICON_PREFIXES = ['papirus:', 'whitesur:'];
@@ -11,6 +12,9 @@
     let iconContextPromise = null;
     let iconManifestPromise = null;
     const pending = new Map();
+    const menuActionHandlers = new Map();
+    const menuDirectActions = new Map();
+    let menuActionSeq = 0;
 
     function parentRequest(action, payload) {
         const id = 'sdk-' + Date.now() + '-' + (++requestSeq);
@@ -34,6 +38,10 @@
             return;
         }
         const msg = event.data;
+        if (msg && msg.type === MENU_ACTION_TYPE) {
+            dispatchMenuAction(msg.actionId);
+            return;
+        }
         if (!msg || msg.type !== RESPONSE_TYPE || !pending.has(msg.id)) return;
         const item = pending.get(msg.id);
         pending.delete(msg.id);
@@ -44,6 +52,18 @@
             item.reject(new Error(msg.error || 'Desktop bridge request failed'));
         }
     });
+
+    function dispatchMenuAction(actionId) {
+        const id = String(actionId || '');
+        const direct = menuDirectActions.get(id);
+        if (typeof direct === 'function') {
+            direct(id);
+            return;
+        }
+        menuActionHandlers.forEach(handler => {
+            if (typeof handler === 'function') handler(id);
+        });
+    }
 
     function context() {
         if (!contextPromise) contextPromise = parentRequest('desktop:context');
@@ -228,6 +248,59 @@
         return el('div', { className: 'ad-toolbar' }, items || []);
     };
 
+    function serializeMenuItems(items) {
+        return (Array.isArray(items) ? items : []).map((item, index) => {
+            if (!item) return null;
+            if (item.type === 'separator' || item.separator) return { type: 'separator' };
+            const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || ('item-' + index);
+            const serialized = {
+                id: item.id || actionId,
+                label: item.label || '',
+                labelKey: item.labelKey || '',
+                icon: item.icon || '',
+                fallback: item.fallback || '',
+                shortcut: item.shortcut || '',
+                disabled: !!item.disabled,
+                checked: !!item.checked,
+                hidden: !!item.hidden
+            };
+            const children = item.items || item.children;
+            if (children) {
+                serialized.items = serializeMenuItems(children);
+            } else {
+                serialized.actionId = actionId;
+                if (typeof item.action === 'function') menuDirectActions.set(actionId, item.action);
+            }
+            return serialized;
+        }).filter(Boolean);
+    }
+
+    function serializeMenus(menus) {
+        menuDirectActions.clear();
+        return (Array.isArray(menus) ? menus : []).map((menu, index) => ({
+            id: menu && menu.id || ('menu-' + index),
+            label: menu && menu.label || '',
+            labelKey: menu && menu.labelKey || '',
+            hidden: !!(menu && menu.hidden),
+            items: serializeMenuItems(menu && menu.items)
+        }));
+    }
+
+    ui.menu = {
+        set(menus) {
+            return parentRequest('desktop:menu:set', { menus: serializeMenus(menus) });
+        },
+        clear() {
+            menuDirectActions.clear();
+            return parentRequest('desktop:menu:clear');
+        },
+        onAction(handler) {
+            const id = 'handler-' + (++menuActionSeq);
+            menuActionHandlers.set(id, handler);
+            return () => menuActionHandlers.delete(id);
+        }
+    };
+
     ui.panel = function panel(children, options) {
         return el('section', { className: 'ad-panel' + ((options && options.compact) ? ' ad-panel-compact' : '') }, children || []);
     };
@@ -383,6 +456,7 @@
         app,
         el,
         ui,
+        menu: ui.menu,
         fs,
         widgets,
         notifications,

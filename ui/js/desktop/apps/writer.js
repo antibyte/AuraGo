@@ -21,10 +21,6 @@
 
         host.innerHTML = `<div class="office-app office-writer" data-office-writer="${esc(windowId)}">
             <div class="vd-toolbar office-toolbar">
-                <button class="vd-tool-button" type="button" data-action="save">${iconMarkup('save', 'S', 'vd-tool-icon', 15)}<span>${esc(t('desktop.writer_save', 'Save'))}</span></button>
-                <a class="vd-tool-button" data-action="download" href="#" download>${iconMarkup('download', 'D', 'vd-tool-icon', 15)}<span>${esc(t('desktop.writer_download_docx', 'DOCX'))}</span></a>
-                <a class="vd-tool-button" data-action="export-html" href="#" download>${iconMarkup('html', 'H', 'vd-tool-icon', 15)}<span>${esc(t('desktop.writer_export_html', 'HTML'))}</span></a>
-                <a class="vd-tool-button" data-action="export-md" href="#" download>${iconMarkup('markdown', 'M', 'vd-tool-icon', 15)}<span>${esc(t('desktop.writer_export_md', 'Markdown'))}</span></a>
                 <input class="office-path-input" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
                 <input class="office-title-input" data-title value="${esc(ctx.title || '')}" spellcheck="false" autocomplete="off" placeholder="${esc(t('desktop.writer_title_placeholder', 'Title'))}">
                 <span class="vd-chat-meta" data-status>${esc(t('desktop.writer_loading', 'Loading...'))}</span>
@@ -78,10 +74,10 @@
         }
 
         function applyReadonlyState() {
-            host.querySelectorAll('[data-action="save"]').forEach(button => { button.disabled = readonly; });
             if (titleInput) titleInput.disabled = readonly;
             if (fallback) fallback.readOnly = readonly;
             if (editor && typeof editor.enable === 'function') editor.enable(!readonly);
+            setWindowMenus();
         }
 
         function documentText() {
@@ -103,14 +99,17 @@
         }
 
         function updateExportLinks() {
+            setWindowMenus();
+        }
+
+        function exportURL(format) {
             const path = pathInput.value.trim() || DEFAULT_PATH;
-            const base = '/api/desktop/office/export?path=' + encodeURIComponent(path);
-            const docx = host.querySelector('[data-action="download"]');
-            const html = host.querySelector('[data-action="export-html"]');
-            const md = host.querySelector('[data-action="export-md"]');
-            if (docx) docx.href = base + '&format=docx';
-            if (html) html.href = base + '&format=html';
-            if (md) md.href = base + '&format=md';
+            return '/api/desktop/office/export?path=' + encodeURIComponent(path) + '&format=' + encodeURIComponent(format);
+        }
+
+        async function openExport(format) {
+            if (!pathInput.value.trim() && !readonly) await save();
+            window.open(exportURL(format), '_blank', 'noopener');
         }
 
         async function save() {
@@ -134,6 +133,56 @@
             setStatus(t('desktop.writer_saved', 'Saved'));
             notify({ type: 'success', message: t('desktop.writer_saved', 'Saved') });
             await refreshDesktop();
+        }
+
+        function editCommand(command) {
+            if (editor && editor.root) editor.focus();
+            else if (fallback) fallback.focus();
+            if (document.execCommand) document.execCommand(command);
+        }
+
+        function selectAllText() {
+            if (editor && typeof editor.setSelection === 'function') {
+                editor.focus();
+                editor.setSelection(0, Math.max(0, editor.getLength() - 1));
+                return;
+            }
+            if (fallback) fallback.select();
+        }
+
+        function setWindowMenus() {
+            if (typeof ctx.setWindowMenus !== 'function') return;
+            ctx.setWindowMenus(windowId, [
+                {
+                    id: 'file',
+                    labelKey: 'desktop.menu_file',
+                    items: [
+                        { id: 'save', labelKey: 'desktop.writer_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => {
+                            setStatus(err.message || String(err), 'save-error');
+                            setTimeout(() => clearSaveError(statusNode), 6000);
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) },
+                        { type: 'separator' },
+                        { id: 'download-docx', labelKey: 'desktop.writer_download_docx', icon: 'download', action: () => openExport('docx').catch(err => setStatus(err.message || String(err))) },
+                        { id: 'export-html', labelKey: 'desktop.writer_export_html', icon: 'html', action: () => openExport('html').catch(err => setStatus(err.message || String(err))) },
+                        { id: 'export-md', labelKey: 'desktop.writer_export_md', icon: 'markdown', action: () => openExport('md').catch(err => setStatus(err.message || String(err))) }
+                    ]
+                },
+                {
+                    id: 'edit',
+                    labelKey: 'desktop.menu_edit',
+                    items: [
+                        { id: 'undo', labelKey: 'desktop.menu_undo', icon: 'undo', shortcut: 'Ctrl+Z', disabled: !editor || !editor.history, action: () => editor && editor.history && editor.history.undo() },
+                        { id: 'redo', labelKey: 'desktop.menu_redo', icon: 'redo', shortcut: 'Ctrl+Y', disabled: !editor || !editor.history, action: () => editor && editor.history && editor.history.redo() },
+                        { type: 'separator' },
+                        { id: 'cut', labelKey: 'desktop.fm.cut', icon: 'scissors', shortcut: 'Ctrl+X', disabled: readonly, action: () => editCommand('cut') },
+                        { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', action: () => editCommand('copy') },
+                        { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly, action: () => editCommand('paste') },
+                        { type: 'separator' },
+                        { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: selectAllText }
+                    ]
+                }
+            ]);
         }
 
         async function load() {
@@ -174,27 +223,12 @@
             }
         }
 
-        host.querySelector('[data-action="save"]').addEventListener('click', () => {
-            if (readonly) return;
-            save().catch(err => {
-                setStatus(err.message || String(err), 'save-error');
-                setTimeout(() => clearSaveError(statusNode), 6000);
-                notify({ type: 'error', message: err.message || String(err) });
-            });
-        });
-        host.querySelectorAll('a[data-action]').forEach(link => {
-            link.addEventListener('click', event => {
-                if (!pathInput.value.trim()) {
-                    event.preventDefault();
-                    save().then(() => window.open(link.href, '_blank', 'noopener')).catch(err => setStatus(err.message || String(err)));
-                }
-            });
-        });
         pathInput.addEventListener('change', () => {
             setPath(pathInput.value.trim() || DEFAULT_PATH);
             load();
         });
 
+        setWindowMenus();
         load();
     }
 

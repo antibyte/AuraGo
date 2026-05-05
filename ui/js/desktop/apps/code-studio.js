@@ -367,7 +367,49 @@
         renderTerminal();
         renderAgentPanel();
         renderStatus();
+        renderWindowMenus();
         wireShortcuts();
+    }
+
+    function renderWindowMenus() {
+        if (!state || !state.context || typeof state.context.setWindowMenus !== 'function') return;
+        const hasActiveTab = !!activeTab();
+        state.context.setWindowMenus(state.windowId, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
+                    { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
+                    { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
+                    { id: 'upload', label: tr('codeStudio.upload', 'Upload'), icon: 'upload', action: bind(uploadFile) },
+                    { type: 'separator' },
+                    { id: 'refresh', label: tr('codeStudio.refresh', 'Refresh'), icon: 'refresh', action: bind(() => refreshFiles(state.currentPath)) }
+                ]
+            },
+            {
+                id: 'edit',
+                labelKey: 'desktop.menu_edit',
+                items: [
+                    { id: 'search', label: tr('codeStudio.search', 'Search'), icon: 'search', shortcut: 'Ctrl+F', action: bind(toggleSearch) }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
+                    { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) }
+                ]
+            },
+            {
+                id: 'run',
+                labelKey: 'desktop.menu_run',
+                items: [
+                    { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) }
+                ]
+            }
+        ]);
     }
 
     function renderToolbar() {
@@ -593,6 +635,7 @@
             event.stopPropagation();
             closeTab(Number(btn.dataset.close));
         })));
+        renderWindowMenus();
     }
 
     function renderEditor() {
@@ -967,6 +1010,7 @@
         state.agentVisible = !state.agentVisible;
         ensureShellRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         renderAgentPanel();
+        renderWindowMenus();
     }
 
     async function sendAgentMessage(message) {
@@ -1309,6 +1353,7 @@
         ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
         saveState();
+        renderWindowMenus();
     }
 
     function writeTerminalLine(line) {

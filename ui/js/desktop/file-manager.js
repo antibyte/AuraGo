@@ -584,10 +584,73 @@
 
     function renderAll() {
         if (!fm.host) return;
+        updateWindowMenus();
         fm.host.innerHTML = buildMarkup();
         attachEvents();
         updateToolbarState();
         updateStatusBar();
+    }
+
+    function updateWindowMenus() {
+        if (!fm.callbacks || typeof fm.callbacks.setWindowMenus !== 'function' || !fm.windowId) return;
+        const selected = getSelectedFiles();
+        const hasSelection = selected.length > 0;
+        const hasClipboard = fm.clipboard && fm.clipboard.paths && fm.clipboard.paths.length > 0;
+        const readonly = isReadonly();
+        const selectedFile = selected.length === 1 ? selected[0] : null;
+        fm.callbacks.setWindowMenus(fm.windowId, [
+            {
+                id: 'file',
+                labelKey: 'desktop.menu_file',
+                items: [
+                    { id: 'new-file', labelKey: 'desktop.fm.new_file', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: () => createNewFile() },
+                    { id: 'new-folder', labelKey: 'desktop.fm.new_folder', icon: 'folder-plus', disabled: readonly, action: () => createNewFolder() },
+                    { id: 'upload', labelKey: 'desktop.fm.upload', icon: 'upload', disabled: readonly, action: () => uploadFiles() },
+                    { type: 'separator' },
+                    { id: 'download', labelKey: 'desktop.fm.download', icon: 'download', disabled: !selectedFile || selectedFile.type !== 'file', action: () => selectedFile && downloadFile(selectedFile) },
+                    { id: 'properties', labelKey: 'desktop.fm.properties', icon: 'info', disabled: !selectedFile, action: () => selectedFile && showProperties(selectedFile) }
+                ]
+            },
+            {
+                id: 'edit',
+                labelKey: 'desktop.menu_edit',
+                items: [
+                    { id: 'cut', labelKey: 'desktop.fm.cut', icon: 'scissors', shortcut: 'Ctrl+X', disabled: readonly || !hasSelection, action: () => cutSelection() },
+                    { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', disabled: !hasSelection, action: () => copySelection() },
+                    { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly || !hasClipboard, action: () => pasteClipboard() },
+                    { type: 'separator' },
+                    { id: 'rename', labelKey: 'desktop.fm.rename', icon: 'edit', shortcut: 'F2', disabled: readonly || selected.length !== 1, action: () => selectedFile && startRename(selectedFile.path) },
+                    { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', disabled: readonly || !hasSelection, action: () => deleteSelected() },
+                    { type: 'separator' },
+                    { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => selectAll() }
+                ]
+            },
+            {
+                id: 'view',
+                labelKey: 'desktop.menu_view',
+                items: [
+                    { id: 'refresh', labelKey: 'desktop.fm.refresh', icon: 'refresh', shortcut: 'F5', action: () => refresh() },
+                    { id: 'search', labelKey: 'desktop.search', icon: 'search', shortcut: 'Ctrl+F', action: () => toggleSearch() },
+                    { type: 'separator' },
+                    { id: 'view-grid', labelKey: 'desktop.fm.view_grid', icon: 'grid', checked: fm.viewMode === 'grid', action: () => { fm.viewMode = 'grid'; savePreferences(); renderAll(); } },
+                    { id: 'view-list', labelKey: 'desktop.fm.view_list', icon: 'list', checked: fm.viewMode === 'list', action: () => { fm.viewMode = 'list'; savePreferences(); renderAll(); } },
+                    {
+                        id: 'sort',
+                        labelKey: 'desktop.fm.sort_by',
+                        icon: 'sort',
+                        items: [
+                            { id: 'sort-name', labelKey: 'desktop.fm.sort_name', checked: fm.sortBy === 'name', action: () => { fm.sortBy = 'name'; savePreferences(); renderFileContent(); } },
+                            { id: 'sort-size', labelKey: 'desktop.fm.sort_size', checked: fm.sortBy === 'size', action: () => { fm.sortBy = 'size'; savePreferences(); renderFileContent(); } },
+                            { id: 'sort-date', labelKey: 'desktop.fm.sort_date', checked: fm.sortBy === 'date', action: () => { fm.sortBy = 'date'; savePreferences(); renderFileContent(); } },
+                            { id: 'sort-type', labelKey: 'desktop.fm.sort_type', checked: fm.sortBy === 'type', action: () => { fm.sortBy = 'type'; savePreferences(); renderFileContent(); } },
+                            { type: 'separator' },
+                            { id: 'sort-asc', labelKey: 'desktop.fm.sort_asc', checked: fm.sortAsc, action: () => { fm.sortAsc = true; savePreferences(); renderFileContent(); } },
+                            { id: 'sort-desc', labelKey: 'desktop.fm.sort_desc', checked: !fm.sortAsc, action: () => { fm.sortAsc = false; savePreferences(); renderFileContent(); } }
+                        ]
+                    }
+                ]
+            }
+        ]);
     }
 
     function focusFileItem(path) {

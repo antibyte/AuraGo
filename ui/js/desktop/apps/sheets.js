@@ -577,6 +577,57 @@
             await refreshDesktop();
         }
 
+        function exportURL(format) {
+            const path = pathInput.value.trim() || DEFAULT_PATH;
+            return '/api/desktop/office/export?path=' + encodeURIComponent(path) + '&format=' + encodeURIComponent(format);
+        }
+
+        async function openExport(format) {
+            if (!pathInput.value.trim() && !readonly) await save();
+            window.open(exportURL(format), '_blank', 'noopener');
+        }
+
+        function setWindowMenus() {
+            if (typeof ctx.setWindowMenus !== 'function') return;
+            ctx.setWindowMenus(windowId, [
+                {
+                    id: 'file',
+                    labelKey: 'desktop.menu_file',
+                    items: [
+                        { id: 'save', labelKey: 'desktop.sheets_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => setStatus(err.message || String(err))) },
+                        { type: 'separator' },
+                        { id: 'download-xlsx', labelKey: 'desktop.sheets_download_xlsx', icon: 'download', action: () => openExport('xlsx').catch(err => setStatus(err.message || String(err))) },
+                        { id: 'export-csv', labelKey: 'desktop.sheets_export_csv', icon: 'spreadsheet', action: () => openExport('csv').catch(err => setStatus(err.message || String(err))) }
+                    ]
+                },
+                {
+                    id: 'edit',
+                    labelKey: 'desktop.menu_edit',
+                    items: [
+                        { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', action: copyRange },
+                        { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly, action: () => pasteRange() },
+                        { id: 'clear', labelKey: 'desktop.sheets_clear_range', icon: 'x', shortcut: 'Del', disabled: readonly, action: clearRange },
+                        { type: 'separator' },
+                        { id: 'delete-rows', labelKey: 'desktop.sheets_delete_rows', icon: 'trash', disabled: readonly, action: deleteSelectedRows },
+                        { id: 'delete-cols', labelKey: 'desktop.sheets_delete_columns', icon: 'trash', disabled: readonly, action: deleteSelectedColumns }
+                    ]
+                },
+                {
+                    id: 'insert',
+                    labelKey: 'desktop.menu_insert',
+                    items: [
+                        { id: 'add-row', labelKey: 'desktop.sheets_add_row', icon: 'list', disabled: readonly, action: () => insertRow(captureDisplayRows().length) },
+                        { id: 'add-col', labelKey: 'desktop.sheets_add_column', icon: 'grid', disabled: readonly, action: () => insertColumn(Math.max(MIN_COLS, maxCols(captureDisplayRows()))) },
+                        { type: 'separator' },
+                        { id: 'insert-row-above', labelKey: 'desktop.sheets_insert_row_above', icon: 'list', disabled: readonly, action: () => insertRow(selectionRange().startRow) },
+                        { id: 'insert-row-below', labelKey: 'desktop.sheets_insert_row_below', icon: 'list', disabled: readonly, action: () => insertRow(selectionRange().endRow + 1) },
+                        { id: 'insert-col-left', labelKey: 'desktop.sheets_insert_col_left', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().startCol) },
+                        { id: 'insert-col-right', labelKey: 'desktop.sheets_insert_col_right', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().endCol + 1) }
+                    ]
+                }
+            ]);
+        }
+
         async function load() {
             const adapter = window.AuraUniverSheetsAdapter;
             if (adapter && typeof adapter.render === 'function') {
@@ -626,6 +677,7 @@
             load();
         });
 
+        setWindowMenus();
         load();
 
         function applyReadonlyState() {
@@ -633,6 +685,7 @@
                 button.disabled = readonly;
             });
             if (formulaInput) formulaInput.disabled = readonly;
+            setWindowMenus();
         }
     }
 

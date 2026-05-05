@@ -178,6 +178,29 @@
             loadActive();
         }
 
+        function setWindowMenus() {
+            if (typeof ctx.setWindowMenus !== 'function') return;
+            ctx.setWindowMenus(windowId, [
+                {
+                    id: 'view',
+                    labelKey: 'desktop.menu_view',
+                    items: [
+                        { id: 'refresh', labelKey: 'desktop.context_refresh', icon: 'refresh', shortcut: 'F5', action: () => loadActive() }
+                    ]
+                },
+                {
+                    id: 'playback',
+                    labelKey: 'desktop.menu_playback',
+                    items: [
+                        { id: 'play-pause', labelKey: 'desktop.menu_play_pause', icon: 'audio', disabled: !state.current, action: () => toggleBtn.click() },
+                        { id: 'stop', labelKey: 'desktop.radio_stop', icon: 'stop', disabled: !state.current, action: stopPlayback },
+                        { id: 'mute', labelKey: 'desktop.menu_mute', icon: 'audio', checked: state.muted, action: () => muteBtn.click() },
+                        { id: 'favorite', labelKey: 'desktop.menu_favorite', icon: 'heart', disabled: !state.current, checked: state.current && isFavorite(state.current), action: () => favoriteCurrentBtn.click() }
+                    ]
+                }
+            ]);
+        }
+
         async function loadActive() {
             state.loading = true;
             state.error = '';
@@ -261,6 +284,7 @@
             muteBtn.setAttribute('aria-label', state.muted ? t('desktop.radio_unmute', 'Unmute') : t('desktop.radio_mute', 'Mute'));
             favoriteCurrentBtn.classList.toggle('active', current && isFavorite(current));
             favoriteCurrentBtn.textContent = current && isFavorite(current) ? '♥' : '♡';
+            setWindowMenus();
         }
 
         function toggleFavorite(station) {
@@ -351,6 +375,7 @@
             } catch (_) {}
         }
 
+        setWindowMenus();
         renderTabs();
         loadActive();
     }
