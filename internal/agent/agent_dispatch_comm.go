@@ -941,6 +941,39 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "office_document":
+			logger.Info("LLM requested office document operation",
+				"operation", tc.Operation,
+				"path", firstNonEmptyToolString(toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path")),
+				"output_path", toolArgString(tc.Params, "output_path"),
+			)
+			exec := tools.ExecuteOfficeDocument(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
+
+		case "office_workbook":
+			logger.Info("LLM requested office workbook operation",
+				"operation", tc.Operation,
+				"path", firstNonEmptyToolString(toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path")),
+				"sheet", toolArgString(tc.Params, "sheet"),
+				"cell", toolArgString(tc.Params, "cell"),
+			)
+			exec := tools.ExecuteOfficeWorkbook(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
+
 		case "web_performance_audit":
 			req := decodeWebPerformanceAuditArgs(tc)
 			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)

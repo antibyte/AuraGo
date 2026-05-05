@@ -349,6 +349,71 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	}
 }
 
+func TestBuildNativeToolSchemasIncludesOfficeTools(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{
+		OfficeDocumentEnabled: true,
+		OfficeWorkbookEnabled: true,
+	}, nil)
+	names := toolNames(schemas)
+	for _, want := range []string{"office_document", "office_workbook"} {
+		if !containsName(names, want) {
+			t.Fatalf("missing %s in schemas: %v", want, names)
+		}
+	}
+
+	var documentSchema, workbookSchema *openai.FunctionDefinition
+	for _, item := range schemas {
+		if item.Function == nil {
+			continue
+		}
+		switch item.Function.Name {
+		case "office_document":
+			documentSchema = item.Function
+		case "office_workbook":
+			workbookSchema = item.Function
+		}
+	}
+	if documentSchema == nil || workbookSchema == nil {
+		t.Fatalf("missing office schemas document=%v workbook=%v", documentSchema != nil, workbookSchema != nil)
+	}
+	documentParams, _ := documentSchema.Parameters.(map[string]interface{})
+	documentProps, _ := documentParams["properties"].(map[string]interface{})
+	documentOperation, _ := documentProps["operation"].(map[string]interface{})
+	if !containsInterfaceString(documentOperation["enum"], "patch") {
+		t.Fatalf("office_document operation enum missing patch: %#v", documentOperation["enum"])
+	}
+	workbookParams, _ := workbookSchema.Parameters.(map[string]interface{})
+	workbookProps, _ := workbookParams["properties"].(map[string]interface{})
+	workbookOperation, _ := workbookProps["operation"].(map[string]interface{})
+	for _, want := range []string{"set_range", "evaluate_formula"} {
+		if !containsInterfaceString(workbookOperation["enum"], want) {
+			t.Fatalf("office_workbook operation enum missing %s: %#v", want, workbookOperation["enum"])
+		}
+	}
+}
+
+func containsInterfaceString(raw interface{}, want string) bool {
+	items, ok := raw.([]string)
+	if ok {
+		for _, item := range items {
+			if item == want {
+				return true
+			}
+		}
+		return false
+	}
+	values, ok := raw.([]interface{})
+	if !ok {
+		return false
+	}
+	for _, item := range values {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
 func resetToolCatalogForTest(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {

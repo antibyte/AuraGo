@@ -10,11 +10,14 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 - `list_files`: list a workspace directory. Use `path`, for example `Documents`.
 - `read_file`: read one text file. Use `path`.
 - `write_file`: write one text file. Use `path` and `content`.
-- `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, and `delta`.
+- `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, `delta`, and `office_version`.
 - `write_document`: create/update `.docx`, `.html`, `.md`, or `.txt`. Use `path`, plus either `content`/`title` or a `document` object.
+- `patch_document`: agent-friendly document edits. Use `path`, optional seed `content`, `prepend_text`, `append_text`, `title`, and `replacements:[{find,replace}]`.
 - `read_workbook`: read `.xlsx`, `.xlsm`, or `.csv` through the Office backend. Use `path`; returns workbook JSON `{sheets:[{name, rows:[[ {value, formula} ]]}]}`.
 - `write_workbook`: create/update `.xlsx`, `.xlsm`, or `.csv`. Use `path` and `workbook`.
 - `set_cell`: update one workbook cell. Use `path`, `sheet`, `cell` (A1 style), and either `value` or `formula`.
+- `set_range`: update a workbook range. Use `path`, `sheet`, `start_cell`, and `values` as a 2D array of strings or `{value, formula}` cells.
+- `evaluate_formula`: evaluate AuraGo's safe formula subset in a workbook sheet. Use `path`, `sheet`, and `formula`.
 - `export_file`: export an Office file to another workspace file. Use `path`, `output_path`, and `format` (`docx`, `html`, `md`, `txt`, `xlsx`, or `csv`).
 - `install_app`: register a generated app and install its files under `Apps/<id>/`. Provide `manifest` and `files`.
 - `upsert_widget`: register or update a pinned widget. Provide `widget`.
@@ -87,6 +90,8 @@ Create a workbook and add a formula:
   "formula": "SUM(B2:B2)"
 }
 ```
+
+For direct Office work, prefer the dedicated `office_document` and `office_workbook` tools. Keep using `virtual_desktop` when the same task also needs desktop state, app/window events, widgets, or generated apps. Python skills should call these native tools through the Tool Bridge (`internal_tools`) instead of importing Excelize or editing OOXML directly.
 
 Generated browser apps should use the first-party Aura Desktop SDK:
 

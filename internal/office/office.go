@@ -338,6 +338,28 @@ func SetCell(workbook *Workbook, sheetName, ref string, cell Cell) error {
 	return nil
 }
 
+func SetRange(workbook *Workbook, sheetName, startRef string, rows [][]Cell) error {
+	if strings.TrimSpace(startRef) == "" {
+		return fmt.Errorf("start_cell is required")
+	}
+	startCol, startRow, err := excelize.CellNameToCoordinates(strings.ToUpper(strings.TrimSpace(startRef)))
+	if err != nil {
+		return fmt.Errorf("invalid start cell %q: %w", startRef, err)
+	}
+	for r, row := range rows {
+		for c, cell := range row {
+			ref, err := excelize.CoordinatesToCellName(startCol+c, startRow+r)
+			if err != nil {
+				return fmt.Errorf("cell address: %w", err)
+			}
+			if err := SetCell(workbook, sheetName, ref, cell); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func documentFromText(title, text, htmlText string) Document {
 	if strings.TrimSpace(title) == "" {
 		title = "Document"

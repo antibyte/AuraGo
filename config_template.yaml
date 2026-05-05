@@ -385,6 +385,10 @@ tools:
         enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
     virtual_desktop:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
+    office_document:
+        enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
+    office_workbook:
+        enabled: false                                     # enable office_workbook tool; also requires virtual_desktop.enabled and allow_agent_control
     skill_manager:
         enabled: true                                       # enable the Skill Manager Web UI
         allow_uploads: true                                 # allow users to upload new Python skills

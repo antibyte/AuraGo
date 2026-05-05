@@ -1114,7 +1114,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
-					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "read_document", "write_document", "read_workbook", "write_workbook", "set_cell", "export_file", "install_app", "upsert_widget", "open_app", "show_notification"},
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "show_notification"},
 				},
 				"path":      prop("string", "Workspace-relative file or directory path for file and Office operations, e.g. 'Documents/notes.md', 'Documents/report.docx', or 'Documents/budget.xlsx'. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'."),
 				"file_path": prop("string", "Alias for path."),
@@ -1131,10 +1131,23 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description":          "Workbook payload for write_workbook: {sheets:[{name, rows:[[ {value, formula} ]]}]}. AuraGo writes .xlsx via Excelize and .csv via its CSV adapter.",
 					"additionalProperties": true,
 				},
-				"sheet":       prop("string", "Sheet name for workbook operations, especially set_cell and CSV export."),
-				"cell":        prop("string", "A1-style cell reference for set_cell, e.g. B3."),
-				"value":       prop("string", "Cell value for set_cell."),
-				"formula":     prop("string", "Cell formula for set_cell, with or without a leading '='."),
+				"sheet":      prop("string", "Sheet name for workbook operations, especially set_cell and CSV export."),
+				"cell":       prop("string", "A1-style cell reference for set_cell, e.g. B3."),
+				"start_cell": prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
+				"values": map[string]interface{}{
+					"type":        "array",
+					"description": "2D array for set_range. Cells may be strings or objects with value/formula.",
+					"items":       map[string]interface{}{"type": "array"},
+				},
+				"value":        prop("string", "Cell value for set_cell."),
+				"formula":      prop("string", "Cell formula for set_cell, with or without a leading '='."),
+				"prepend_text": prop("string", "Text to prepend for patch_document."),
+				"append_text":  prop("string", "Text to append for patch_document."),
+				"replacements": map[string]interface{}{
+					"type":        "array",
+					"description": "Replacement list for patch_document, each item {find, replace}.",
+					"items":       map[string]interface{}{"type": "object", "additionalProperties": true},
+				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
 				"app_id":      prop("string", "Desktop app ID for open_app or widget ownership."),
@@ -1154,6 +1167,73 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"additionalProperties": true,
 				},
 			}, "operation"),
+		))
+	}
+
+	if ff.OfficeDocumentEnabled {
+		tools = append(tools, tool("office_document",
+			"Create, read, patch, and export Writer documents inside AuraGo's virtual desktop workspace. "+
+				"Use this dedicated Office tool for agent-safe .docx, .html, .md, and .txt work; it uses the same backend as the Writer app and never exposes raw DOCX libraries directly.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Document operation to perform.",
+					"enum":        []string{"read", "write", "patch", "export"},
+				},
+				"path":         prop("string", "Workspace-relative document path, e.g. 'Documents/report.docx'."),
+				"file_path":    prop("string", "Alias for path."),
+				"output_path":  prop("string", "Workspace-relative target path for export."),
+				"format":       prop("string", "Export format: docx, html, md, or txt."),
+				"title":        prop("string", "Document title for write or patch."),
+				"content":      prop("string", "Plain document text for write, or seed text for patch when the file does not exist."),
+				"text":         prop("string", "Alias for content."),
+				"html":         prop("string", "Optional HTML representation for write."),
+				"prepend_text": prop("string", "Text to prepend during patch."),
+				"append_text":  prop("string", "Text to append during patch."),
+				"replacements": map[string]interface{}{
+					"type":        "array",
+					"description": "Patch replacements, each item {find, replace}.",
+					"items":       map[string]interface{}{"type": "object", "additionalProperties": true},
+				},
+				"document": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Complete document payload for write: title, text, html, delta.",
+					"additionalProperties": true,
+				},
+			}, "operation", "path"),
+		))
+	}
+
+	if ff.OfficeWorkbookEnabled {
+		tools = append(tools, tool("office_workbook",
+			"Create, read, edit ranges, evaluate safe formulas, and export spreadsheets inside AuraGo's virtual desktop workspace. "+
+				"Use this dedicated Office tool for agent-safe .xlsx, .xlsm, and .csv work; XLSX persistence uses Excelize behind a structured workbook model.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Workbook operation to perform.",
+					"enum":        []string{"read", "write", "set_cell", "set_range", "evaluate_formula", "export"},
+				},
+				"path":        prop("string", "Workspace-relative workbook path, e.g. 'Documents/budget.xlsx'."),
+				"file_path":   prop("string", "Alias for path."),
+				"output_path": prop("string", "Workspace-relative target path for export."),
+				"format":      prop("string", "Export format: xlsx or csv."),
+				"sheet":       prop("string", "Sheet name for workbook operations."),
+				"cell":        prop("string", "A1-style cell reference for set_cell, e.g. B3."),
+				"start_cell":  prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
+				"value":       prop("string", "Cell value for set_cell."),
+				"formula":     prop("string", "Cell formula for set_cell/evaluate_formula, with or without a leading '='."),
+				"values": map[string]interface{}{
+					"type":        "array",
+					"description": "2D array for set_range. Cells may be strings or objects with value/formula.",
+					"items":       map[string]interface{}{"type": "array"},
+				},
+				"workbook": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Workbook payload for write: {sheets:[{name, rows:[[ {value, formula} ]]}]}.",
+					"additionalProperties": true,
+				},
+			}, "operation", "path"),
 		))
 	}
 
