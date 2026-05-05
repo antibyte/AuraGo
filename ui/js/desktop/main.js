@@ -1013,7 +1013,15 @@
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 }
         };
-        return presets[appId] || defaultWindowSize();
+        if (presets[appId]) return presets[appId];
+        return defaultWindowSize();
+    }
+
+    function appWindowMinSize(appId) {
+        const mins = {
+            'system-info': { width: 560, height: 460 }
+        };
+        return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
     function clampWindowSize(size) {
@@ -1094,8 +1102,9 @@
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
         const isResizable = appId !== 'calculator';
-        win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
-        win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
+        const minSize = appWindowMinSize(appId);
+        win.style.minWidth = minSize.width + 'px';
+        win.style.minHeight = minSize.height + 'px';
         if (!isResizable) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';

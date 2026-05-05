@@ -4518,9 +4518,10 @@
 .vd-sysinfo {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
-    gap: 16px;
+    gap: 12px;
     height: 100%;
-    padding: 18px;
+    padding: 14px;
+    box-sizing: border-box;
     color: var(--vd-text);
     background:
         radial-gradient(circle at 12% 0%, rgba(39, 199, 166, 0.16), transparent 36%),
@@ -4543,36 +4544,36 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 16px 18px;
-    border-radius: 22px;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
 }
 
 .vd-sysinfo-kicker {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
     color: var(--vd-accent);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 800;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
 }
 
 .vd-sysinfo-hero h2 {
     margin: 0;
-    font-size: clamp(1.3rem, 2.6vw, 2rem);
-    line-height: 1.05;
+    font-size: clamp(1rem, 2vw, 1.6rem);
+    line-height: 1.1;
 }
 
 .vd-sysinfo-status {
     flex: 0 0 auto;
     max-width: 44%;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px solid rgba(39, 199, 166, 0.28);
     border-radius: 999px;
     color: var(--vd-muted);
     background: rgba(39, 199, 166, 0.08);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4580,15 +4581,15 @@
 
 .vd-sysinfo-gauges {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
 }
 
 .vd-sysinfo-gauge {
     position: relative;
-    min-height: 150px;
-    padding: 14px 14px 18px;
-    border-radius: 22px;
+    min-height: 120px;
+    padding: 10px 10px 14px;
+    border-radius: 18px;
     overflow: hidden;
 }
 
@@ -4602,22 +4603,22 @@
 
 .vd-sysinfo-gauge-canvas {
     position: relative;
-    height: 92px;
+    height: 72px;
 }
 
 .vd-sysinfo-gauge-value {
     position: relative;
-    margin-top: -18px;
-    font-size: 1.55rem;
+    margin-top: -14px;
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
     font-weight: 850;
     text-align: center;
 }
 
 .vd-sysinfo-gauge-label {
     position: relative;
-    margin-top: 4px;
+    margin-top: 3px;
     color: var(--vd-muted);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 750;
     letter-spacing: 0.1em;
     text-align: center;
@@ -4637,43 +4638,43 @@
 }
 
 .vd-sysinfo-history {
-    min-height: 180px;
-    padding: 14px;
-    border-radius: 24px;
+    min-height: 140px;
+    padding: 10px 12px;
+    border-radius: 18px;
     overflow: hidden;
 }
 
 .vd-sysinfo-section-title {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     color: var(--vd-muted);
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
 .vd-sysinfo-chart-wrap {
-    height: calc(100% - 28px);
-    min-height: 170px;
+    height: calc(100% - 24px);
+    min-height: 120px;
 }
 
 .vd-sysinfo-details {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
 }
 
 .vd-sysinfo-detail {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
-    padding: 12px 14px;
-    border-radius: 18px;
+    padding: 8px 10px;
+    border-radius: 14px;
 }
 
 .vd-sysinfo-detail span {
     color: var(--vd-muted);
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     font-weight: 750;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -4682,30 +4683,41 @@
 .vd-sysinfo-detail strong {
     min-width: 0;
     color: var(--vd-text);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 760;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
     .vd-sysinfo {
-        grid-template-rows: auto auto minmax(220px, 1fr) auto;
-        padding: 12px;
+        padding: 10px;
+        gap: 8px;
     }
 
     .vd-sysinfo-hero {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .vd-sysinfo-status {
         max-width: 100%;
     }
 
-    .vd-sysinfo-gauges,
-    .vd-sysinfo-details {
+    .vd-sysinfo-gauges {
         grid-template-columns: 1fr;
+    }
+
+    .vd-sysinfo-gauge {
+        min-height: 100px;
+    }
+
+    .vd-sysinfo-gauge-canvas {
+        height: 56px;
+    }
+
+    .vd-sysinfo-details {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
