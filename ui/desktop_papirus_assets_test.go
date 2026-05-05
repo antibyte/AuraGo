@@ -128,6 +128,80 @@ func TestDesktopPapirusManifestMatchesBackendIconCatalog(t *testing.T) {
 	}
 }
 
+func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
+	t.Parallel()
+
+	jsBytes, err := Content.ReadFile("js/desktop/main.js")
+	if err != nil {
+		t.Fatalf("desktop shell missing from embedded UI: %v", err)
+	}
+	js := string(jsBytes)
+	for _, marker := range []string{
+		"Reports: 'analytics'",
+		"Backups: 'backup'",
+		"Books: 'book'",
+		"Camera: 'camera'",
+		"Cloud: 'cloud'",
+		"Forms: 'forms'",
+		"Help: 'help'",
+		"Mail: 'mail'",
+		"Maps: 'map'",
+		"Network: 'network'",
+		"Phone: 'phone'",
+		"Printers: 'printer'",
+		"Tools: 'tools'",
+		"Weather: 'weather'",
+		"Workflows: 'workflow'",
+		"analytics: 'analytics'",
+		"backup: 'backup'",
+		"book: 'book'",
+		"camera: 'camera'",
+		"cloud: 'cloud'",
+		"forms: 'forms'",
+		"help: 'help'",
+		"mail: 'mail'",
+		"map: 'map'",
+		"network: 'network'",
+		"phone: 'phone'",
+		"printer: 'printer'",
+		"run: 'run'",
+		"tools: 'tools'",
+		"weather: 'weather'",
+		"workflow: 'workflow'",
+		"function launchpadCategoryIconKey(category)",
+		"iconMarkup(launchpadCategoryIconKey(link.category), 'G', 'vd-launchpad-fallback-icon', 34)",
+	} {
+		if !strings.Contains(js, marker) {
+			t.Fatalf("desktop Papirus icon mapping missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopPapirusAliasesExposeExpandedIcons(t *testing.T) {
+	t.Parallel()
+
+	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
+	for alias, want := range map[string]string{
+		"backups":   "backup",
+		"books":     "book",
+		"library":   "book",
+		"camera":    "camera",
+		"form":      "forms",
+		"support":   "help",
+		"maps":      "map",
+		"location":  "map",
+		"print":     "printer",
+		"execute":   "run",
+		"tool":      "tools",
+		"forecast":  "weather",
+		"workflows": "workflow",
+	} {
+		if got := catalog.Aliases[alias]; got != want {
+			t.Fatalf("desktop icon alias %q = %q, want %q", alias, got, want)
+		}
+	}
+}
+
 func containsString(items []string, want string) bool {
 	for _, item := range items {
 		if item == want {

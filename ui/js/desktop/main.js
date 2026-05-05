@@ -41,23 +41,62 @@
         Apps: 'apps',
         Widgets: 'widgets',
         Data: 'database',
+        Reports: 'analytics',
+        Backups: 'backup',
+        Backup: 'backup',
+        Books: 'book',
+        Library: 'book',
+        Camera: 'camera',
+        Cloud: 'cloud',
+        Forms: 'forms',
+        Help: 'help',
+        Mail: 'mail',
+        Maps: 'map',
+        Network: 'network',
+        Phone: 'phone',
+        Printers: 'printer',
+        Printer: 'printer',
         Pictures: 'image',
         Music: 'audio',
         Photos: 'image',
         Videos: 'video',
+        Tools: 'tools',
+        Weather: 'weather',
+        Workflows: 'workflow',
         'AuraGo Documents': 'documents',
         Trash: 'trash',
         Shared: 'share'
     };
     const appIconKeys = {
+        analytics: 'analytics',
+        backup: 'backup',
+        backups: 'backup',
+        book: 'book',
+        books: 'book',
+        camera: 'camera',
+        cloud: 'cloud',
         files: 'folder',
         editor: 'edit',
+        forms: 'forms',
         writer: 'documents',
         sheets: 'spreadsheet',
+        help: 'help',
         settings: 'settings',
         calendar: 'calendar',
         calculator: 'calculator',
         gallery: 'image',
+        mail: 'mail',
+        map: 'map',
+        maps: 'map',
+        network: 'network',
+        phone: 'phone',
+        printer: 'printer',
+        print: 'printer',
+        run: 'run',
+        tools: 'tools',
+        weather: 'weather',
+        workflow: 'workflow',
+        workflows: 'workflow',
         'music-player': 'audio',
         radio: 'audio',
         todo: 'notes',
@@ -110,8 +149,49 @@
         xlsx: 'spreadsheet',
         xlsm: 'spreadsheet',
         pptx: 'presentation',
+        bak: 'backup',
+        backup: 'backup',
+        epub: 'book',
+        mobi: 'book',
+        azw3: 'book',
+        heic: 'camera',
+        heif: 'camera',
+        eml: 'mail',
+        msg: 'mail',
+        vcf: 'forms',
+        gpx: 'map',
+        kml: 'map',
+        kmz: 'map',
+        geojson: 'map',
+        workflow: 'workflow',
         exe: 'executable',
         bin: 'binary'
+    };
+    const launchpadCategoryIconKeys = {
+        analytics: 'analytics',
+        stats: 'analytics',
+        backup: 'backup',
+        backups: 'backup',
+        book: 'book',
+        books: 'book',
+        camera: 'camera',
+        cloud: 'cloud',
+        forms: 'forms',
+        help: 'help',
+        support: 'help',
+        mail: 'mail',
+        email: 'mail',
+        map: 'map',
+        maps: 'map',
+        network: 'network',
+        phone: 'phone',
+        printer: 'printer',
+        print: 'printer',
+        run: 'run',
+        tools: 'tools',
+        weather: 'weather',
+        workflow: 'workflow',
+        workflows: 'workflow'
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'aurora',
@@ -257,6 +337,11 @@
         const ext = String(file.name || '').split('.').pop().toLowerCase();
         if (!ext || ext === String(file.name || '').toLowerCase()) return 'file';
         return extensionIconKeys[ext] || 'file';
+    }
+
+    function launchpadCategoryIconKey(category) {
+        const normalized = normalizeIconName(category).replaceAll('_', '-');
+        return launchpadCategoryIconKeys[normalized] || launchpadCategoryIconKeys[normalized.replaceAll('-', '_')] || 'globe';
     }
 
     function appName(app) {
@@ -3180,7 +3265,7 @@
             empty.hidden = true;
             grid.innerHTML = filtered.map(link => {
                 const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '';
-                const fallback = '<div class="vd-launchpad-tile-fallback"' + (link.icon_path ? ' hidden' : '') + '>' + iconMarkup('globe', 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
+                const fallback = '<div class="vd-launchpad-tile-fallback"' + (link.icon_path ? ' hidden' : '') + '>' + iconMarkup(launchpadCategoryIconKey(link.category), 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
                 return '<div class="vd-launchpad-tile" data-id="' + esc(link.id) + '">' + icon + fallback +
                     '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
                     (link.description ? '<div class="vd-launchpad-tile-desc">' + esc(link.description) + '</div>' : '') +
