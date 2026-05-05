@@ -4074,9 +4074,10 @@
                 menu.hidden = true;
             }
         });
-        const taskbarSystem = document.querySelector('.vd-taskbar-system');
-        if (taskbarSystem) {
-            taskbarSystem.addEventListener('contextmenu', (event) => {
+        const taskbarEl = document.querySelector('.vd-taskbar');
+        if (taskbarEl) {
+            taskbarEl.addEventListener('contextmenu', (event) => {
+                if (event.target.closest('button, input, a, .vd-start-menu')) return;
                 event.preventDefault();
                 showContextMenu(event.clientX, event.clientY, [
                     { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') }
