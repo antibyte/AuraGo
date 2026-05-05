@@ -1,4 +1,4 @@
-﻿{
+{
   "config.github.agent_badge": "Πράκτορας",
   "config.github.agent_created_always_allowed": "Δημιουργήθηκε από τον πράκτορα - πάντα επιτρέπεται",
   "config.github.agent_created_note": "Τα repos που δημιουργούνται από τον πράκτορα είναι πάντα προσβάσιμα – ακόμα και χωρίς ρητή έγκριση.",

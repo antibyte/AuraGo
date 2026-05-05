@@ -1,4 +1,4 @@
-﻿{
+{
   "config.github.agent_badge": "代理",
   "config.github.agent_created_always_allowed": "由代理创建 - 始终允许",
   "config.github.agent_created_note": "代理创建的仓库始终可访问——即使没有明确批准。",

@@ -1,4 +1,4 @@
-﻿{
+{
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Skapad av agent - alltid tillåten",
   "config.github.agent_created_note": "Repos som skapats av agenten är alltid tillgängliga – även utan uttryckligt godkännande.",

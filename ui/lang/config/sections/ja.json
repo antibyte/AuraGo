@@ -1,4 +1,4 @@
-﻿{
+{
   "config.github.agent_badge": "エージェント",
   "config.github.agent_created_always_allowed": "エージェントが作成 - 常に許可",
   "config.github.agent_created_note": "Agent ga sakusei shita repo wa, meijiteki na shounin nashi demo tsuneni akusesu kanou desu.",

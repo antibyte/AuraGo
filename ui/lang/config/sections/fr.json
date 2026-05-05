@@ -1,4 +1,4 @@
-﻿{
+{
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Créé par l'agent - toujours autorisé",
   "config.github.agent_created_note": "Les depots crees par l'agent sont toujours accessibles - meme sans approbation explicite.",
