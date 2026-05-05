@@ -7,6 +7,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -643,6 +644,26 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
 					}()
 				}
+			}
+
+			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			if manifestChanged && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer cancel()
+					if err := tools.EnsureManifestSidecarsRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
+						s.Logger.Warn("[Config UI] Failed to start Manifest sidecars", "error", err)
+					}
+				}()
+			}
+			if manifestChanged && (!newCfg.Manifest.Enabled || strings.EqualFold(newCfg.Manifest.Mode, "external")) && oldCfg.Manifest.Enabled && strings.EqualFold(oldCfg.Manifest.Mode, "managed") {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+					defer cancel()
+					if err := tools.StopManifestSidecars(ctx, newCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+						s.Logger.Warn("[Config UI] Failed to stop Manifest sidecars", "error", err)
+					}
+				}()
 			}
 
 			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes
