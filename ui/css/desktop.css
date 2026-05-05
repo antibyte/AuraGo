@@ -104,6 +104,10 @@
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
     --vd-shadow: 0 24px 58px rgba(52, 64, 84, 0.18);
+    --fruity-window-close: #ff5f57;
+    --fruity-window-minimize: #ffbd2e;
+    --fruity-window-maximize: #28c840;
+    --fruity-window-chrome: rgba(249, 251, 255, 0.74);
 }
 
 .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
@@ -130,10 +134,13 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window {
-    border-radius: 14px;
+    grid-template-rows: 48px 1fr;
+    border-radius: 16px;
     background: rgba(255, 255, 255, 0.76);
     border-color: rgba(78, 92, 118, 0.16);
-    box-shadow: 0 24px 64px rgba(52, 64, 84, 0.2);
+    box-shadow:
+        0 34px 78px rgba(52, 64, 84, 0.22),
+        0 1px 0 rgba(255, 255, 255, 0.8) inset;
     backdrop-filter: blur(34px) saturate(1.24);
 }
 
@@ -143,11 +150,86 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-titlebar {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(246, 250, 255, 0.58));
+    position: relative;
+    justify-content: center;
+    padding: 0 92px;
+    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
     border-bottom-color: rgba(78, 92, 118, 0.14);
+    cursor: default;
 }
 
-.desktop-body[data-theme="fruity"] .vd-window-button,
+.desktop-body[data-theme="fruity"] .vd-window-titlebar > div:first-child {
+    min-width: 0;
+    text-align: center;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-title {
+    font-size: 0.84rem;
+    font-weight: 760;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-subtitle {
+    color: rgba(102, 112, 133, 0.82);
+    font-size: 0.68rem;
+    font-weight: 650;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-actions {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    gap: 8px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button {
+    width: 13px;
+    height: 13px;
+    padding: 0;
+    border-radius: 50%;
+    border-color: rgba(32, 38, 53, 0.16);
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.46),
+        0 1px 2px rgba(32, 38, 53, 0.18);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button::after {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(32, 38, 53, 0.28);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-button::after {
+    opacity: 0.54;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="close"] {
+    order: 1;
+    background: var(--fruity-window-close);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="minimize"] {
+    order: 2;
+    background: var(--fruity-window-minimize);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="maximize"] {
+    order: 3;
+    background: var(--fruity-window-maximize);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-content {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(246, 250, 255, 0.08));
+}
+
 .desktop-body[data-theme="fruity"] .vd-button,
 .desktop-body[data-theme="fruity"] .vd-start-button,
 .desktop-body[data-theme="fruity"] .vd-agent-button,
@@ -161,7 +243,6 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-button:hover,
-.desktop-body[data-theme="fruity"] .vd-window-button:hover,
 .desktop-body[data-theme="fruity"] .vd-start-button:hover,
 .desktop-body[data-theme="fruity"] .vd-agent-button:hover,
 .desktop-body[data-theme="fruity"] .vd-tool-button:hover,
@@ -207,6 +288,7 @@
         --vd-text: #f6f8fb;
         --vd-muted: #a9b4c4;
         --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
+        --fruity-window-chrome: rgba(34, 41, 55, 0.78);
     }
 
     .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
@@ -223,6 +305,18 @@
         box-shadow: 0 14px 42px rgba(0, 0, 0, 0.3);
     }
 
+    .desktop-body[data-theme="fruity"] .vd-window-titlebar {
+        background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(23, 30, 43, 0.62));
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window-subtitle {
+        color: rgba(169, 180, 196, 0.82);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window-content {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(14, 20, 31, 0.08));
+    }
+
     .desktop-body[data-theme="fruity"] .vd-window,
     .desktop-body[data-theme="fruity"] .vd-panel,
     .desktop-body[data-theme="fruity"] .vd-settings-app,
@@ -234,7 +328,6 @@
         box-shadow: 0 26px 70px rgba(0, 0, 0, 0.4);
     }
 
-    .desktop-body[data-theme="fruity"] .vd-window-button,
     .desktop-body[data-theme="fruity"] .vd-button,
     .desktop-body[data-theme="fruity"] .vd-start-button,
     .desktop-body[data-theme="fruity"] .vd-agent-button,

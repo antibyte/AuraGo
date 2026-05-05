@@ -37,6 +37,13 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"]",
 		"@media (prefers-color-scheme: dark)",
 		".desktop-body[data-theme=\"fruity\"] .vd-window",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-titlebar",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-actions",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"close\"]",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"minimize\"]",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"maximize\"]",
+		".desktop-body[data-theme=\"fruity\"] .vd-window-button::after",
+		"--fruity-window-close",
 		".desktop-body[data-theme=\"fruity\"] .vd-taskbar",
 		".desktop-body[data-theme=\"fruity\"] .vd-modal",
 	} {
