@@ -110,6 +110,26 @@
     --fruity-window-chrome: rgba(249, 251, 255, 0.74);
 }
 
+.desktop-body[data-theme="fruity"] .vd-shell {
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.desktop-body[data-theme="fruity"][data-density="compact"] .vd-shell {
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.desktop-body[data-theme="fruity"] .vd-resize-nw {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-resize-n {
+    left: 116px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-resize-w {
+    top: 48px;
+}
+
 .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(238, 247, 255, 0.64) 42%, rgba(251, 253, 255, 0.9)),
@@ -179,6 +199,7 @@
     position: absolute;
     left: 14px;
     top: 50%;
+    z-index: 4;
     transform: translateY(-50%);
     gap: 8px;
 }
@@ -279,13 +300,28 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 0;
+    align-items: flex-end;
     justify-content: center;
     gap: 12px;
-    padding: 0 18px 12px;
+    padding: 0 max(18px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
     border-top: 0;
     background: transparent;
     box-shadow: none;
     backdrop-filter: none;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="fruity"][data-density="compact"] .vd-taskbar {
+    padding: 0 max(18px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar > * {
+    pointer-events: auto;
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar::before {
@@ -297,22 +333,46 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
+    position: relative;
     flex: 0 1 auto;
-    max-width: min(900px, calc(100vw - 260px));
-    min-height: 70px;
+    max-width: min(920px, calc(100vw - 170px));
+    min-height: 78px;
     align-items: end;
     justify-content: center;
     gap: 10px;
-    padding: 11px 14px 12px;
-    border: 1px solid rgba(78, 92, 118, 0.18);
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.72);
+    padding: 15px 17px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    border-radius: 26px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.13)),
+        rgba(255, 255, 255, 0.24);
     box-shadow:
-        0 22px 54px rgba(52, 64, 84, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.76);
-    backdrop-filter: blur(30px) saturate(1.24);
+        0 26px 58px rgba(52, 64, 84, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.74),
+        inset 0 -1px 0 rgba(32, 38, 53, 0.09),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(40px) saturate(1.42) contrast(1.04);
+    -webkit-backdrop-filter: blur(40px) saturate(1.42) contrast(1.04);
     overflow: auto hidden;
     scrollbar-width: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: 24px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.68), transparent 24%, rgba(255, 255, 255, 0.16) 48%, rgba(32, 38, 53, 0.08) 76%, transparent);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+        inset 0 0 0 2px rgba(78, 92, 118, 0.07);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps > * {
+    position: relative;
+    z-index: 1;
 }
 
 .desktop-body[data-theme="fruity"] .vd-taskbar-apps::-webkit-scrollbar {
@@ -402,8 +462,31 @@
 
 .desktop-body[data-theme="fruity"] .vd-taskbar-system {
     position: absolute;
-    right: 18px;
-    bottom: 18px;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    margin-left: 0;
+    gap: 8px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-status-dot,
+.desktop-body[data-theme="fruity"] .vd-clock {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-agent-button {
+    order: 10;
+}
+
+.desktop-body[data-theme="fruity"] .vd-radial-anchor {
+    order: 20;
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-radial-anchor .radial-menu {
+    width: 38px;
+    height: 38px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -426,7 +509,6 @@
     }
 
     .desktop-body[data-theme="fruity"] .vd-topbar,
-    .desktop-body[data-theme="fruity"] .vd-taskbar,
     .desktop-body[data-theme="fruity"] .vd-window-titlebar {
         background: rgba(20, 26, 37, 0.74);
         border-color: rgba(255, 255, 255, 0.12);
@@ -447,9 +529,23 @@
 
     .desktop-body[data-theme="fruity"] .vd-taskbar-apps,
     .desktop-body[data-theme="fruity"] .vd-dock-label {
-        background: rgba(24, 30, 42, 0.82);
-        border-color: rgba(255, 255, 255, 0.13);
-        box-shadow: 0 24px 62px rgba(0, 0, 0, 0.38);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05)),
+            rgba(24, 30, 42, 0.32);
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow:
+            0 24px 62px rgba(0, 0, 0, 0.38),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.26),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-apps::before {
+        background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 26%, rgba(255, 255, 255, 0.08) 48%, rgba(0, 0, 0, 0.2) 78%, transparent);
+        box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+            inset 0 0 0 2px rgba(0, 0, 0, 0.12);
     }
 
     .desktop-body[data-theme="fruity"] .vd-dock-button.running::after {
@@ -485,20 +581,20 @@
 
 @media (max-width: 720px) {
     .desktop-body[data-theme="fruity"] .vd-taskbar {
-        justify-content: flex-start;
-        padding: 8px 10px;
+        justify-content: center;
+        padding: 0 max(8px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
     }
 
     .desktop-body[data-theme="fruity"] .vd-start-button {
-        display: inline-flex;
+        display: none;
     }
 
     .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
         flex: 1 1 auto;
-        max-width: none;
+        max-width: calc(100vw - 64px);
         justify-content: flex-start;
-        min-height: 56px;
-        padding: 7px 10px 9px;
+        min-height: 58px;
+        padding: 8px 10px 10px;
         border-radius: 18px;
     }
 
@@ -514,7 +610,9 @@
     }
 
     .desktop-body[data-theme="fruity"] .vd-taskbar-system {
-        position: static;
+        position: absolute;
+        right: max(8px, env(safe-area-inset-right));
+        bottom: calc(14px + env(safe-area-inset-bottom));
     }
 }
 
