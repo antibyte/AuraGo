@@ -201,6 +201,7 @@
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'aurora',
+        'appearance.theme': 'standard',
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
@@ -417,6 +418,7 @@
     function applyDesktopSettings() {
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
+        body.dataset.theme = settingValue('appearance.theme');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
@@ -1103,9 +1105,11 @@
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
         const isResizable = true;
+        win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
+        win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
         const minSize = appWindowMinSize(appId);
-        win.style.minWidth = minSize.width + 'px';
-        win.style.minHeight = minSize.height + 'px';
+        win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
+        win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
         if (!isResizable) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
@@ -2000,6 +2004,9 @@
                         ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
                         ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
                         ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
+                    ]),
+                    settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
+                        ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']
                     ]),
                     settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
                         ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']

@@ -92,6 +92,165 @@
     background-image: linear-gradient(180deg, rgba(4, 7, 12, 0.06), rgba(4, 7, 12, 0.24)), url('/img/wallpapers/paper_waves.jpg');
 }
 
+.desktop-body[data-theme="fruity"] {
+    color-scheme: light;
+    --vd-bg: #f4f8fc;
+    --vd-surface: rgba(255, 255, 255, 0.78);
+    --vd-surface-strong: rgba(255, 255, 255, 0.92);
+    --vd-border: rgba(78, 92, 118, 0.18);
+    --vd-text: #202635;
+    --vd-muted: #667085;
+    --vd-accent: #0a84ff;
+    --vd-coral: #ff5f57;
+    --vd-amber: #ffbd2e;
+    --vd-shadow: 0 24px 58px rgba(52, 64, 84, 0.18);
+}
+
+.desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(238, 247, 255, 0.64) 42%, rgba(251, 253, 255, 0.9)),
+        linear-gradient(125deg, rgba(10, 132, 255, 0.18), rgba(111, 212, 255, 0.08) 46%, rgba(255, 149, 0, 0.12));
+}
+
+.desktop-body[data-theme="fruity"] .vd-topbar,
+.desktop-body[data-theme="fruity"] .vd-taskbar {
+    background: rgba(246, 250, 255, 0.72);
+    border-color: rgba(78, 92, 118, 0.14);
+    box-shadow: 0 12px 34px rgba(52, 64, 84, 0.12);
+    backdrop-filter: blur(30px) saturate(1.28);
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar::before {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.84), rgba(232, 240, 250, 0.55) 62%, rgba(255, 255, 255, 0.18) 63%, transparent 65%);
+    box-shadow:
+        inset 0 0 0 1px rgba(78, 92, 118, 0.12),
+        inset 0 12px 20px rgba(52, 64, 84, 0.1),
+        0 0 0 7px rgba(246, 250, 255, 0.42);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window {
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.76);
+    border-color: rgba(78, 92, 118, 0.16);
+    box-shadow: 0 24px 64px rgba(52, 64, 84, 0.2);
+    backdrop-filter: blur(34px) saturate(1.24);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.active {
+    border-color: rgba(10, 132, 255, 0.42);
+    box-shadow: 0 28px 72px rgba(52, 64, 84, 0.24), 0 0 0 1px rgba(10, 132, 255, 0.12);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(246, 250, 255, 0.58));
+    border-bottom-color: rgba(78, 92, 118, 0.14);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button,
+.desktop-body[data-theme="fruity"] .vd-button,
+.desktop-body[data-theme="fruity"] .vd-start-button,
+.desktop-body[data-theme="fruity"] .vd-agent-button,
+.desktop-body[data-theme="fruity"] .vd-tool-button,
+.desktop-body[data-theme="fruity"] .vd-chat-send,
+.desktop-body[data-theme="fruity"] .vd-setting-select,
+.desktop-body[data-theme="fruity"] .vd-modal-input {
+    background: rgba(255, 255, 255, 0.62);
+    border-color: rgba(78, 92, 118, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.desktop-body[data-theme="fruity"] .vd-button:hover,
+.desktop-body[data-theme="fruity"] .vd-window-button:hover,
+.desktop-body[data-theme="fruity"] .vd-start-button:hover,
+.desktop-body[data-theme="fruity"] .vd-agent-button:hover,
+.desktop-body[data-theme="fruity"] .vd-tool-button:hover,
+.desktop-body[data-theme="fruity"] .vd-chat-send:hover {
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.desktop-body[data-theme="fruity"] .vd-button-primary {
+    background: rgba(10, 132, 255, 0.16);
+    border-color: rgba(10, 132, 255, 0.34);
+}
+
+.desktop-body[data-theme="fruity"] .vd-panel,
+.desktop-body[data-theme="fruity"] .vd-settings-app,
+.desktop-body[data-theme="fruity"] .vd-setting-row,
+.desktop-body[data-theme="fruity"] .vd-context-menu,
+.desktop-body[data-theme="fruity"] .vd-modal {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(78, 92, 118, 0.16);
+    box-shadow: 0 20px 52px rgba(52, 64, 84, 0.16);
+    backdrop-filter: blur(28px) saturate(1.2);
+}
+
+.desktop-body[data-theme="fruity"] .vd-settings-sidebar,
+.desktop-body[data-theme="fruity"] .vd-setting-row.readonly,
+.desktop-body[data-theme="fruity"] .vd-icon-catalog-tag {
+    background: rgba(247, 250, 255, 0.62);
+}
+
+.desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled),
+.desktop-body[data-theme="fruity"] .vd-settings-nav:hover,
+.desktop-body[data-theme="fruity"] .vd-settings-nav.active {
+    background: rgba(10, 132, 255, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    .desktop-body[data-theme="fruity"] {
+        color-scheme: dark;
+        --vd-bg: #111723;
+        --vd-surface: rgba(25, 31, 43, 0.82);
+        --vd-surface-strong: rgba(31, 38, 52, 0.94);
+        --vd-border: rgba(255, 255, 255, 0.14);
+        --vd-text: #f6f8fb;
+        --vd-muted: #a9b4c4;
+        --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
+    }
+
+    .desktop-body[data-theme="fruity"][data-wallpaper="aurora"] {
+        background:
+            linear-gradient(180deg, rgba(12, 18, 29, 0.84), rgba(17, 25, 38, 0.9)),
+            linear-gradient(125deg, rgba(10, 132, 255, 0.22), rgba(111, 212, 255, 0.08) 46%, rgba(255, 149, 0, 0.12));
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-topbar,
+    .desktop-body[data-theme="fruity"] .vd-taskbar,
+    .desktop-body[data-theme="fruity"] .vd-window-titlebar {
+        background: rgba(20, 26, 37, 0.74);
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 14px 42px rgba(0, 0, 0, 0.3);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window,
+    .desktop-body[data-theme="fruity"] .vd-panel,
+    .desktop-body[data-theme="fruity"] .vd-settings-app,
+    .desktop-body[data-theme="fruity"] .vd-setting-row,
+    .desktop-body[data-theme="fruity"] .vd-context-menu,
+    .desktop-body[data-theme="fruity"] .vd-modal {
+        background: rgba(24, 30, 42, 0.84);
+        border-color: rgba(255, 255, 255, 0.13);
+        box-shadow: 0 26px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-window-button,
+    .desktop-body[data-theme="fruity"] .vd-button,
+    .desktop-body[data-theme="fruity"] .vd-start-button,
+    .desktop-body[data-theme="fruity"] .vd-agent-button,
+    .desktop-body[data-theme="fruity"] .vd-tool-button,
+    .desktop-body[data-theme="fruity"] .vd-chat-send,
+    .desktop-body[data-theme="fruity"] .vd-setting-select,
+    .desktop-body[data-theme="fruity"] .vd-modal-input,
+    .desktop-body[data-theme="fruity"] .vd-settings-sidebar,
+    .desktop-body[data-theme="fruity"] .vd-setting-row.readonly,
+    .desktop-body[data-theme="fruity"] .vd-icon-catalog-tag {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+}
+
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
 }
