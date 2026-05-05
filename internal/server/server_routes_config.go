@@ -166,6 +166,10 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/media-conversion/test", handleMediaConversionTest(s))
 	mux.HandleFunc("/api/browser-automation/status", handleBrowserAutomationStatus(s))
 	mux.HandleFunc("/api/browser-automation/test", handleBrowserAutomationTest(s))
+	mux.HandleFunc("/api/manifest/status", handleManifestStatus(s))
+	mux.HandleFunc("/api/manifest/test", handleManifestTest(s))
+	mux.HandleFunc("/api/manifest/start", handleManifestStart(s))
+	mux.HandleFunc("/api/manifest/stop", handleManifestStop(s))
 
 	// YepAPI integration endpoints
 	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))

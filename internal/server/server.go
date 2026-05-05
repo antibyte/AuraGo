@@ -929,6 +929,17 @@ func Start(opts StartOptions) error {
 		}
 	}
 
+	// Auto-start Manifest sidecars whenever the integration is active in managed mode and auto_start is enabled.
+	if cfg.Manifest.Enabled && cfg.Manifest.AutoStart && strings.EqualFold(cfg.Manifest.Mode, "managed") {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			if err := tools.EnsureManifestSidecarsRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
+				logger.Warn("[Manifest] Failed to auto-start sidecars", "error", err)
+			}
+		}()
+	}
+
 	// Auto-start Ansible sidecar container if enabled in sidecar mode
 	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
 		inventoryDir := ""
