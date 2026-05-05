@@ -41,19 +41,21 @@
         audio.volume = state.volume;
 
         host.innerHTML = `<div class="radio-app" data-radio-app="${esc(windowId)}">
-            <div class="radio-hero">
-                <div>
-                    <div class="radio-kicker">${esc(t('desktop.radio_top_stations', 'Popular'))}</div>
-                    <h2>${esc(t('desktop.app_radio', 'Radio'))}</h2>
+            <div class="radio-scroll">
+                <div class="radio-hero">
+                    <div>
+                        <div class="radio-kicker">${esc(t('desktop.radio_top_stations', 'Popular'))}</div>
+                        <h2>${esc(t('desktop.app_radio', 'Radio'))}</h2>
+                    </div>
+                    <label class="radio-search">
+                        ${iconMarkup('search', 'S', 'radio-search-icon', 15)}
+                        <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder', 'Search stations...'))}">
+                    </label>
                 </div>
-                <label class="radio-search">
-                    ${iconMarkup('search', 'S', 'radio-search-icon', 15)}
-                    <input type="search" data-search autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder', 'Search stations...'))}">
-                </label>
+                <div class="radio-tabs" role="tablist" aria-label="${esc(t('desktop.radio_categories', 'Categories'))}" data-tabs></div>
+                <div class="radio-status" data-status hidden></div>
+                <div class="radio-grid" data-grid></div>
             </div>
-            <div class="radio-tabs" role="tablist" aria-label="${esc(t('desktop.radio_categories', 'Categories'))}" data-tabs></div>
-            <div class="radio-status" data-status hidden></div>
-            <div class="radio-grid" data-grid></div>
             <div class="radio-player" data-player>
                 <button class="radio-player-button" type="button" data-action="toggle" aria-label="${esc(t('desktop.radio_play', 'Play'))}">${iconMarkup('audio', 'A', 'radio-button-icon', 18)}</button>
                 <div class="radio-now">
