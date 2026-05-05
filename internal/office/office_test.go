@@ -1,6 +1,7 @@
 package office
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/csv"
 	"strings"
@@ -30,6 +31,35 @@ func TestDOCXTextRoundTrip(t *testing.T) {
 	}
 	if len(got.Delta.Ops) == 0 {
 		t.Fatal("expected Quill-compatible delta operations")
+	}
+}
+
+func TestDOCXPreservesBasicHTMLFormatting(t *testing.T) {
+	t.Parallel()
+
+	want := Document{
+		Title: "Formatted",
+		Text:  "Heading\nBold and italic",
+		HTML:  `<h1>Heading</h1><p><strong>Bold</strong> and <em>italic</em></p>`,
+	}
+	data, err := EncodeDOCX(want)
+	if err != nil {
+		t.Fatalf("EncodeDOCX: %v", err)
+	}
+	documentXML := readDocxPart(t, data, "word/document.xml")
+	for _, marker := range []string{`<w:pStyle w:val="Heading1"/>`, "<w:b/>", "<w:i/>"} {
+		if !strings.Contains(documentXML, marker) {
+			t.Fatalf("document.xml missing rich text marker %q:\n%s", marker, documentXML)
+		}
+	}
+	got, err := DecodeDocument("formatted.docx", data)
+	if err != nil {
+		t.Fatalf("DecodeDocument: %v", err)
+	}
+	for _, marker := range []string{"<h1>Heading</h1>", "<strong>Bold</strong>", "<em>italic</em>"} {
+		if !strings.Contains(got.HTML, marker) {
+			t.Fatalf("decoded HTML missing marker %q: %q", marker, got.HTML)
+		}
 	}
 }
 
@@ -160,4 +190,25 @@ func TestEncodeCSVValidatesFormulas(t *testing.T) {
 	if !strings.Contains(err.Error(), "invalid formula Sheet1!A1:") {
 		t.Fatalf("error = %q, want contextual invalid formula error", err)
 	}
+}
+
+func readDocxPart(t *testing.T, data []byte, name string) string {
+	t.Helper()
+
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("open docx: %v", err)
+	}
+	for _, file := range reader.File {
+		if file.Name != name {
+			continue
+		}
+		raw, err := readZipFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		return string(raw)
+	}
+	t.Fatalf("docx part %s missing", name)
+	return ""
 }

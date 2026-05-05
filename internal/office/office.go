@@ -118,11 +118,11 @@ func DecodeDOCX(data []byte) (Document, error) {
 	if len(documentXML) == 0 {
 		return Document{}, fmt.Errorf("docx is missing word/document.xml")
 	}
-	text, err := parseWordDocumentText(documentXML)
+	text, htmlText, err := parseWordDocument(documentXML)
 	if err != nil {
 		return Document{}, err
 	}
-	return documentFromText(title, text, ""), nil
+	return documentFromText(title, text, htmlText), nil
 }
 
 func EncodeDOCX(doc Document) ([]byte, error) {
@@ -133,7 +133,7 @@ func EncodeDOCX(doc Document) ([]byte, error) {
 		"[Content_Types].xml": contentTypesXML,
 		"_rels/.rels":         packageRelsXML,
 		"docProps/core.xml":   coreXML(doc.Title, now),
-		"word/document.xml":   documentXML(doc.Text),
+		"word/document.xml":   documentXML(doc),
 		"word/styles.xml":     stylesXML,
 	}
 	order := []string{"[Content_Types].xml", "_rels/.rels", "docProps/core.xml", "word/document.xml", "word/styles.xml"}
@@ -476,73 +476,288 @@ func parseCoreTitle(data []byte) string {
 	}
 }
 
-func parseWordDocumentText(data []byte) (string, error) {
+type docxRun struct {
+	Text      string
+	Bold      bool
+	Italic    bool
+	Underline bool
+}
+
+type docxParagraph struct {
+	Style string
+	Runs  []docxRun
+}
+
+func parseWordDocument(data []byte) (string, string, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
-	var paragraphs []string
-	var current strings.Builder
+	var paragraphs []docxParagraph
+	var current docxParagraph
+	var run docxRun
 	var inParagraph bool
 	var inText bool
+	var inRun bool
 	for {
 		tok, err := decoder.Token()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return "", fmt.Errorf("parse document.xml: %w", err)
+			return "", "", fmt.Errorf("parse document.xml: %w", err)
 		}
 		switch token := tok.(type) {
 		case xml.StartElement:
 			switch token.Name.Local {
 			case "p":
 				inParagraph = true
-				current.Reset()
+				current = docxParagraph{}
+			case "pStyle":
+				if inParagraph {
+					current.Style = attrValue(token, "val")
+				}
+			case "r":
+				inRun = true
+				run = docxRun{}
+			case "b":
+				if inRun {
+					run.Bold = true
+				}
+			case "i":
+				if inRun {
+					run.Italic = true
+				}
+			case "u":
+				if inRun {
+					run.Underline = true
+				}
 			case "t":
 				inText = true
 			case "tab":
 				if inParagraph {
-					current.WriteString("\t")
+					run.Text += "\t"
 				}
 			case "br":
 				if inParagraph {
-					current.WriteString("\n")
+					run.Text += "\n"
 				}
 			}
 		case xml.CharData:
 			if inParagraph && inText {
-				current.WriteString(string(token))
+				run.Text += string(token)
 			}
 		case xml.EndElement:
 			switch token.Name.Local {
 			case "t":
 				inText = false
+			case "r":
+				if run.Text != "" {
+					current.Runs = append(current.Runs, run)
+				}
+				run = docxRun{}
+				inRun = false
 			case "p":
-				paragraphs = append(paragraphs, current.String())
-				current.Reset()
+				paragraphs = append(paragraphs, current)
+				current = docxParagraph{}
 				inParagraph = false
 			}
 		}
 	}
-	for len(paragraphs) > 0 && paragraphs[len(paragraphs)-1] == "" {
+	for len(paragraphs) > 0 && paragraphText(paragraphs[len(paragraphs)-1]) == "" {
 		paragraphs = paragraphs[:len(paragraphs)-1]
 	}
-	return strings.Join(paragraphs, "\n"), nil
+	textParts := make([]string, 0, len(paragraphs))
+	for _, paragraph := range paragraphs {
+		textParts = append(textParts, paragraphText(paragraph))
+	}
+	return strings.Join(textParts, "\n"), docxParagraphsHTML(paragraphs), nil
 }
 
-func documentXML(text string) string {
-	var paragraphs []string
-	if text == "" {
-		paragraphs = []string{""}
-	} else {
-		paragraphs = strings.Split(text, "\n")
+func attrValue(token xml.StartElement, local string) string {
+	for _, attr := range token.Attr {
+		if attr.Name.Local == local {
+			return attr.Value
+		}
 	}
+	return ""
+}
+
+func paragraphText(paragraph docxParagraph) string {
+	var b strings.Builder
+	for _, run := range paragraph.Runs {
+		b.WriteString(run.Text)
+	}
+	return b.String()
+}
+
+func docxParagraphsHTML(paragraphs []docxParagraph) string {
+	var b strings.Builder
+	for _, paragraph := range paragraphs {
+		tag := "p"
+		if strings.EqualFold(paragraph.Style, "Heading1") {
+			tag = "h1"
+		} else if strings.EqualFold(paragraph.Style, "Heading2") {
+			tag = "h2"
+		} else if strings.EqualFold(paragraph.Style, "Heading3") {
+			tag = "h3"
+		}
+		b.WriteString("<")
+		b.WriteString(tag)
+		b.WriteString(">")
+		for _, run := range paragraph.Runs {
+			b.WriteString(docxRunHTML(run))
+		}
+		b.WriteString("</")
+		b.WriteString(tag)
+		b.WriteString(">")
+	}
+	return b.String()
+}
+
+func docxRunHTML(run docxRun) string {
+	text := stdhtml.EscapeString(run.Text)
+	if run.Underline {
+		text = "<u>" + text + "</u>"
+	}
+	if run.Italic {
+		text = "<em>" + text + "</em>"
+	}
+	if run.Bold {
+		text = "<strong>" + text + "</strong>"
+	}
+	return text
+}
+
+func documentXML(doc Document) string {
+	paragraphs := docxParagraphsFromDocument(doc)
 	var body strings.Builder
 	for _, paragraph := range paragraphs {
-		body.WriteString(`<w:p><w:r><w:t xml:space="preserve">`)
-		body.WriteString(xmlEscape(paragraph))
-		body.WriteString(`</w:t></w:r></w:p>`)
+		body.WriteString(`<w:p>`)
+		if paragraph.Style != "" {
+			body.WriteString(`<w:pPr><w:pStyle w:val="`)
+			body.WriteString(xmlEscape(paragraph.Style))
+			body.WriteString(`"/></w:pPr>`)
+		}
+		for _, run := range paragraph.Runs {
+			body.WriteString(`<w:r>`)
+			if run.Bold || run.Italic || run.Underline {
+				body.WriteString(`<w:rPr>`)
+				if run.Bold {
+					body.WriteString(`<w:b/>`)
+				}
+				if run.Italic {
+					body.WriteString(`<w:i/>`)
+				}
+				if run.Underline {
+					body.WriteString(`<w:u w:val="single"/>`)
+				}
+				body.WriteString(`</w:rPr>`)
+			}
+			body.WriteString(`<w:t xml:space="preserve">`)
+			body.WriteString(xmlEscape(run.Text))
+			body.WriteString(`</w:t></w:r>`)
+		}
+		body.WriteString(`</w:p>`)
 	}
 	body.WriteString(`<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>`)
 	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` + body.String() + `</w:body></w:document>`
+}
+
+func docxParagraphsFromDocument(doc Document) []docxParagraph {
+	if strings.TrimSpace(doc.HTML) != "" {
+		if paragraphs := docxParagraphsFromHTML(doc.HTML); len(paragraphs) > 0 {
+			return paragraphs
+		}
+	}
+	var lines []string
+	if doc.Text == "" {
+		lines = []string{""}
+	} else {
+		lines = strings.Split(doc.Text, "\n")
+	}
+	paragraphs := make([]docxParagraph, 0, len(lines))
+	for _, line := range lines {
+		paragraphs = append(paragraphs, docxParagraph{Runs: []docxRun{{Text: line}}})
+	}
+	return paragraphs
+}
+
+func docxParagraphsFromHTML(raw string) []docxParagraph {
+	node, err := xhtml.Parse(strings.NewReader(raw))
+	if err != nil {
+		return nil
+	}
+	var paragraphs []docxParagraph
+	var walkBlocks func(*xhtml.Node)
+	walkBlocks = func(n *xhtml.Node) {
+		if n.Type == xhtml.ElementNode && isDocxBlockNode(n.Data) {
+			paragraph := docxParagraph{Style: docxStyleForHTMLBlock(n.Data)}
+			if strings.EqualFold(n.Data, "li") {
+				paragraph.Runs = append(paragraph.Runs, docxRun{Text: "- "})
+			}
+			for child := n.FirstChild; child != nil; child = child.NextSibling {
+				appendDocxRunsFromHTML(child, docxRun{}, &paragraph.Runs)
+			}
+			if len(paragraph.Runs) > 0 || strings.EqualFold(n.Data, "p") {
+				paragraphs = append(paragraphs, paragraph)
+			}
+			return
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			walkBlocks(child)
+		}
+	}
+	walkBlocks(node)
+	return paragraphs
+}
+
+func isDocxBlockNode(name string) bool {
+	switch strings.ToLower(name) {
+	case "p", "div", "h1", "h2", "h3", "li":
+		return true
+	default:
+		return false
+	}
+}
+
+func docxStyleForHTMLBlock(name string) string {
+	switch strings.ToLower(name) {
+	case "h1":
+		return "Heading1"
+	case "h2":
+		return "Heading2"
+	case "h3":
+		return "Heading3"
+	default:
+		return ""
+	}
+}
+
+func appendDocxRunsFromHTML(n *xhtml.Node, inherited docxRun, runs *[]docxRun) {
+	if n.Type == xhtml.TextNode {
+		if n.Data != "" {
+			run := inherited
+			run.Text = n.Data
+			*runs = append(*runs, run)
+		}
+		return
+	}
+	if n.Type == xhtml.ElementNode {
+		switch strings.ToLower(n.Data) {
+		case "strong", "b":
+			inherited.Bold = true
+		case "em", "i":
+			inherited.Italic = true
+		case "u":
+			inherited.Underline = true
+		case "br":
+			run := inherited
+			run.Text = "\n"
+			*runs = append(*runs, run)
+			return
+		}
+	}
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		appendDocxRunsFromHTML(child, inherited, runs)
+	}
 }
 
 func coreXML(title, timestamp string) string {
@@ -594,7 +809,7 @@ func xmlEscape(value string) string {
 
 const contentTypesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`
 const packageRelsXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`
-const stylesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`
+const stylesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/></w:style></w:styles>`
 
 func MarshalWorkbook(raw interface{}) (Workbook, error) {
 	b, err := json.Marshal(raw)

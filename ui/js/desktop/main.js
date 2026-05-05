@@ -1360,6 +1360,7 @@
                 t,
                 iconMarkup,
                 notify: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
                 updateWindowContext: updateWindowContext
             }));
@@ -1371,6 +1372,7 @@
                 t,
                 iconMarkup,
                 notify: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
                 updateWindowContext: updateWindowContext
             }));
@@ -1411,6 +1413,7 @@
                 promptDialog,
                 confirmDialog,
                 showNotification: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
                 openFile: (entry) => {
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });

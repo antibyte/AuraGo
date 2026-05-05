@@ -24,6 +24,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
         const refreshDesktop = ctx.loadBootstrap || (() => Promise.resolve());
+        const readonly = !!ctx.readonly;
         let currentPath = ctx.path || DEFAULT_PATH;
         let officeVersion = null;
         let activeSheet = 0;
@@ -100,9 +101,10 @@
             const colHeaders = Array.from({ length: rows[0].length }, (_, i) => columnName(i + 1));
             gridHost.innerHTML = `<table class="office-grid">
                 <thead><tr><th></th>${colHeaders.map((col, c) => `<th data-col-header="${c}">${esc(col)}</th>`).join('')}</tr></thead>
-                <tbody>${rows.map((row, r) => `<tr><th data-row-header="${r}">${r + 1}</th>${row.map((cell, c) => `<td data-cell-row="${r}" data-cell-col="${c}" class="${esc(cellClass(r, c))}"><input data-row="${r}" data-col="${c}" value="${esc(displayCell(cell))}" spellcheck="false"></td>`).join('')}</tr>`).join('')}</tbody>
+                <tbody>${rows.map((row, r) => `<tr><th data-row-header="${r}">${r + 1}</th>${row.map((cell, c) => `<td data-cell-row="${r}" data-cell-col="${c}" class="${esc(cellClass(r, c))}"><input data-row="${r}" data-col="${c}" ${cellInputAttributes(cell, sheet)} spellcheck="false" ${readonly ? 'readonly' : ''}></td>`).join('')}</tr>`).join('')}</tbody>
             </table>`;
             wireGrid();
+            applyReadonlyState();
             renderSelection();
         }
 
@@ -121,12 +123,15 @@
                     extendSelection(Number(input.dataset.row), Number(input.dataset.col));
                 });
                 input.addEventListener('focus', () => {
+                    showFormulaForEditing(input);
                     const row = Number(input.dataset.row);
                     const col = Number(input.dataset.col);
                     if (!cellInSelection(row, col)) selectCell(row, col, false, false);
                     else updateFormulaBar();
                 });
+                input.addEventListener('blur', () => showFormulaResult(input));
                 input.addEventListener('input', () => {
+                    if (readonly) return;
                     const raw = input.value;
                     setCellFromInput(input, raw);
                     if (isFocusCell(Number(input.dataset.row), Number(input.dataset.col))) {
@@ -196,8 +201,7 @@
             gridHost.querySelectorAll('tbody tr').forEach((tr, r) => {
                 const row = [];
                 tr.querySelectorAll('input').forEach((input, c) => {
-                    const raw = input.value;
-                    row[c] = cellFromRaw(raw);
+                    row[c] = cellFromInputElement(input);
                 });
                 rows[r] = row;
             });
@@ -209,8 +213,19 @@
             return raw.startsWith('=') ? { formula: raw.slice(1) } : { value: raw };
         }
 
+        function cellFromInputElement(input) {
+            if (!input) return { value: '' };
+            const formula = input.dataset.formula || '';
+            const displayValue = input.dataset.displayValue || '';
+            if (formula && (input.value === displayValue || input.value === '=' + formula)) {
+                return { formula };
+            }
+            return cellFromRaw(input.value);
+        }
+
         function setCellFromInput(input, raw) {
             if (!input) return null;
+            if (readonly) return cellFromInputElement(input);
             raw = String(raw == null ? '' : raw);
             input.value = raw;
             const cell = cellFromRaw(raw);
@@ -222,6 +237,7 @@
             ensureRows(sheet.rows, row + 1, col + 1);
             sheet.rows[row][col] = cell;
             sheet.rows = trimRows(sheet.rows);
+            syncFormulaDataset(input, cell, sheet);
             return cell;
         }
 
@@ -287,6 +303,7 @@
         }
 
         function applyFormulaBar() {
+            if (readonly) return;
             const input = cellInput(selection.focus.row, selection.focus.col);
             if (!input || !formulaInput) return;
             setCellFromInput(input, formulaInput.value);
@@ -394,6 +411,7 @@
         }
 
         async function pasteRange() {
+            if (readonly) return;
             let text = localClipboard;
             if (navigator.clipboard && navigator.clipboard.readText) {
                 try {
@@ -421,6 +439,7 @@
         }
 
         function clearRange() {
+            if (readonly) return;
             selectedInputs().forEach(input => {
                 setCellFromInput(input, '');
             });
@@ -428,6 +447,7 @@
         }
 
         function insertRow(index) {
+            if (readonly) return;
             const rows = captureDisplayRows();
             const width = Math.max(MIN_COLS, maxCols(rows));
             rows.splice(index, 0, Array.from({ length: width }, () => ({ value: '' })));
@@ -436,6 +456,7 @@
         }
 
         function insertColumn(index) {
+            if (readonly) return;
             const rows = captureDisplayRows();
             ensureRows(rows, Math.max(MIN_ROWS, rows.length), Math.max(MIN_COLS, maxCols(rows)));
             rows.forEach(row => row.splice(index, 0, { value: '' }));
@@ -444,6 +465,7 @@
         }
 
         function deleteSelectedRows() {
+            if (readonly) return;
             const rows = captureDisplayRows();
             const range = selectionRange();
             rows.splice(range.startRow, range.endRow - range.startRow + 1);
@@ -453,6 +475,7 @@
         }
 
         function deleteSelectedColumns() {
+            if (readonly) return;
             const rows = captureDisplayRows();
             const range = selectionRange();
             rows.forEach(row => row.splice(range.startCol, range.endCol - range.startCol + 1));
@@ -537,6 +560,7 @@
         }
 
         async function save() {
+            if (readonly) return;
             captureGrid();
             setStatus(t('desktop.saving', 'Saving...'));
             const path = pathInput.value.trim() || DEFAULT_PATH;
@@ -576,15 +600,18 @@
         }
 
         host.querySelector('[data-action="save"]').addEventListener('click', () => {
+            if (readonly) return;
             save().catch(err => {
                 setStatus(err.message || String(err));
                 notify({ type: 'error', message: err.message || String(err) });
             });
         });
         host.querySelector('[data-action="add-row"]').addEventListener('click', () => {
+            if (readonly) return;
             insertRow(captureDisplayRows().length);
         });
         host.querySelector('[data-action="add-col"]').addEventListener('click', () => {
+            if (readonly) return;
             insertColumn(Math.max(MIN_COLS, maxCols(captureDisplayRows())));
         });
         host.querySelector('[data-action="apply-formula"]').addEventListener('click', applyFormulaBar);
@@ -600,6 +627,13 @@
         });
 
         load();
+
+        function applyReadonlyState() {
+            host.querySelectorAll('[data-action="save"], [data-action="add-row"], [data-action="add-col"], [data-action="apply-formula"]').forEach(button => {
+                button.disabled = readonly;
+            });
+            if (formulaInput) formulaInput.disabled = readonly;
+        }
     }
 
     function dispose(windowId) {
@@ -668,15 +702,196 @@
         return Math.max(0, ...((rows || []).map(row => Array.isArray(row) ? row.length : 0)));
     }
 
-    function displayCell(cell) {
-        if (!cell) return '';
-        if (cell.formula) return '=' + String(cell.formula).replace(/^=/, '');
-        return cell.value || '';
-    }
+        function displayCell(cell) {
+            if (!cell) return '';
+            if (cell.formula) return '=' + String(cell.formula).replace(/^=/, '');
+            return cell.value || '';
+        }
 
-    function cellName(row, col) {
-        return columnName(col + 1) + String(row + 1);
-    }
+        function cellInputAttributes(cell, sheet) {
+            if (!cell || !cell.formula) {
+                return `value="${esc(displayCell(cell))}"`;
+            }
+            const formula = String(cell.formula).replace(/^=/, '');
+            const displayValue = evaluateFormulaForSheet(sheet, formula);
+            return `value="${esc(displayValue)}" data-formula="${esc(formula)}" data-display-value="${esc(displayValue)}" title="${esc('=' + formula)}"`;
+        }
+
+        function syncFormulaDataset(input, cell, sheet) {
+            if (!input) return;
+            if (cell && cell.formula) {
+                const formula = String(cell.formula).replace(/^=/, '');
+                const displayValue = evaluateFormulaForSheet(sheet, formula);
+                input.dataset.formula = formula;
+                input.dataset.displayValue = displayValue;
+                input.title = '=' + formula;
+                return;
+            }
+            delete input.dataset.formula;
+            delete input.dataset.displayValue;
+            input.removeAttribute('title');
+        }
+
+        function showFormulaForEditing(input) {
+            if (!input || !input.dataset.formula) return;
+            input.value = '=' + input.dataset.formula;
+        }
+
+        function showFormulaResult(input) {
+            if (!input || !input.dataset.formula) return;
+            input.value = input.dataset.displayValue || '';
+        }
+
+        function evaluateFormulaForSheet(sheet, formula) {
+            try {
+                const value = parseFormulaExpression(tokenizeFormula(formula), sheet || { rows: [] });
+                if (!Number.isFinite(value)) return '#ERR';
+                return String(Number.isInteger(value) ? value : Math.round(value * 10000000000) / 10000000000);
+            } catch (_) {
+                return '#ERR';
+            }
+        }
+
+        function tokenizeFormula(formula) {
+            const tokens = [];
+            const input = String(formula || '').replace(/^=/, '');
+            let i = 0;
+            while (i < input.length) {
+                const ch = input[i];
+                if (/\s/.test(ch)) { i++; continue; }
+                if ('+-*/(),:'.includes(ch)) { tokens.push({ type: ch, value: ch }); i++; continue; }
+                if (/[0-9.]/.test(ch)) {
+                    const start = i;
+                    while (i < input.length && /[0-9.]/.test(input[i])) i++;
+                    if (i < input.length && /[eE]/.test(input[i])) {
+                        i++;
+                        if (i < input.length && /[+-]/.test(input[i])) i++;
+                        while (i < input.length && /[0-9]/.test(input[i])) i++;
+                    }
+                    const value = Number(input.slice(start, i));
+                    if (!Number.isFinite(value)) throw new Error('invalid number');
+                    tokens.push({ type: 'number', value });
+                    continue;
+                }
+                if (/[A-Za-z]/.test(ch)) {
+                    const start = i;
+                    while (i < input.length && /[A-Za-z0-9]/.test(input[i])) i++;
+                    const value = input.slice(start, i).toUpperCase();
+                    tokens.push({ type: /\d/.test(value) ? 'cell' : 'ident', value });
+                    continue;
+                }
+                throw new Error('invalid token');
+            }
+            tokens.push({ type: 'eof', value: '' });
+            return tokens;
+        }
+
+        function parseFormulaExpression(tokens, sheet) {
+            let index = 0;
+            const peek = () => tokens[index] || { type: 'eof' };
+            const take = type => peek().type === type ? tokens[index++] : null;
+            const expect = type => {
+                const token = take(type);
+                if (!token) throw new Error('expected ' + type);
+                return token;
+            };
+            const expression = () => {
+                let value = term();
+                while (peek().type === '+' || peek().type === '-') {
+                    const op = tokens[index++].type;
+                    const right = term();
+                    value = op === '+' ? value + right : value - right;
+                }
+                return value;
+            };
+            const term = () => {
+                let value = unary();
+                while (peek().type === '*' || peek().type === '/') {
+                    const op = tokens[index++].type;
+                    const right = unary();
+                    value = op === '*' ? value * right : value / right;
+                }
+                return value;
+            };
+            const unary = () => {
+                if (take('+')) return unary();
+                if (take('-')) return -unary();
+                return primary();
+            };
+            const primary = () => {
+                const token = peek();
+                if (take('number')) return token.value;
+                if (take('cell')) {
+                    if (take(':')) return rangeValues(token.value, expect('cell').value).reduce((sum, value) => sum + value, 0);
+                    return numericCellValue(sheet, token.value);
+                }
+                if (take('ident')) return formulaFunction(token.value);
+                if (take('(')) {
+                    const value = expression();
+                    expect(')');
+                    return value;
+                }
+                throw new Error('invalid formula');
+            };
+            const formulaFunction = name => {
+                expect('(');
+                const args = [];
+                if (peek().type !== ')') {
+                    do {
+                        if (peek().type === 'cell' && tokens[index + 1] && tokens[index + 1].type === ':') {
+                            const start = expect('cell').value;
+                            expect(':');
+                            args.push(...rangeValues(start, expect('cell').value));
+                        } else {
+                            args.push(expression());
+                        }
+                    } while (take(','));
+                }
+                expect(')');
+                if (name === 'SUM') return args.reduce((sum, value) => sum + value, 0);
+                if (name === 'AVG' || name === 'AVERAGE') return args.reduce((sum, value) => sum + value, 0) / Math.max(1, args.length);
+                if (name === 'COUNT') return args.length;
+                if (name === 'MIN') return Math.min(...args);
+                if (name === 'MAX') return Math.max(...args);
+                throw new Error('unknown function');
+            };
+            const rangeValues = (start, end) => {
+                const a = parseCellRef(start);
+                const b = parseCellRef(end);
+                if (b.row < a.row || b.col < a.col) throw new Error('bad range');
+                const values = [];
+                for (let r = a.row; r <= b.row; r++) {
+                    for (let c = a.col; c <= b.col; c++) {
+                        values.push(numericCellValue(sheet, cellName(r, c)));
+                    }
+                }
+                return values;
+            };
+            const result = expression();
+            expect('eof');
+            return result;
+        }
+
+        function numericCellValue(sheet, ref) {
+            const pos = parseCellRef(ref);
+            const cell = sheet && sheet.rows && sheet.rows[pos.row] && sheet.rows[pos.row][pos.col];
+            if (!cell) return 0;
+            if (cell.formula) return Number(evaluateFormulaForSheet(sheet, cell.formula)) || 0;
+            const value = Number(cell.value);
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        function parseCellRef(ref) {
+            const match = /^([A-Z]+)([0-9]+)$/.exec(String(ref || '').toUpperCase());
+            if (!match) throw new Error('bad cell');
+            let col = 0;
+            for (const ch of match[1]) col = col * 26 + ch.charCodeAt(0) - 64;
+            return { row: Number(match[2]) - 1, col: col - 1 };
+        }
+
+        function cellName(row, col) {
+            return columnName(col + 1) + String(row + 1);
+        }
 
     function columnName(index) {
         let name = '';

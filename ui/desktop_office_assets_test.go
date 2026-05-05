@@ -95,6 +95,61 @@ func TestDesktopSheetsSupportsSelectionFormulaBarAndContextMenu(t *testing.T) {
 	}
 }
 
+func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
+	t.Parallel()
+
+	mainJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "main.js"))
+	for _, marker := range []string{"readonly: !!((state.bootstrap || {}).readonly)"} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("desktop main.js missing readonly propagation marker %q", marker)
+		}
+	}
+
+	for _, app := range []string{"writer.js", "sheets.js"} {
+		source := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", app))
+		for _, marker := range []string{
+			"const readonly = !!ctx.readonly;",
+			"applyReadonlyState",
+			"if (readonly) return;",
+			"disabled = readonly",
+		} {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s missing readonly marker %q", app, marker)
+			}
+		}
+	}
+
+	fileManagerJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "file-manager.js"))
+	for _, marker := range []string{
+		"function isReadonly()",
+		"data-readonly=\"true\"",
+		"if (isReadonly()) return;",
+		"readonlyGuardItems",
+	} {
+		if !strings.Contains(fileManagerJS, marker) {
+			t.Fatalf("file manager missing readonly marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopSheetsDisplaysFormulaResultsWithoutLosingSourceFormula(t *testing.T) {
+	t.Parallel()
+
+	sheetsJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+	for _, marker := range []string{
+		"function evaluateFormulaForSheet",
+		"data-formula=",
+		"data-display-value=",
+		"cellFromInputElement(input)",
+		"showFormulaForEditing(input)",
+		"showFormulaResult(input)",
+	} {
+		if !strings.Contains(sheetsJS, marker) {
+			t.Fatalf("sheets formula display missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopOfficeI18NKeys(t *testing.T) {
 	t.Parallel()
 

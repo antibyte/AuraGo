@@ -14,6 +14,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
         const refreshDesktop = ctx.loadBootstrap || (() => Promise.resolve());
+        const readonly = !!ctx.readonly;
         let currentPath = ctx.path || DEFAULT_PATH;
         let officeVersion = null;
         let editor = null;
@@ -76,6 +77,13 @@
             if (typeof ctx.updateWindowContext === 'function') ctx.updateWindowContext(windowId, { path: currentPath });
         }
 
+        function applyReadonlyState() {
+            host.querySelectorAll('[data-action="save"]').forEach(button => { button.disabled = readonly; });
+            if (titleInput) titleInput.disabled = readonly;
+            if (fallback) fallback.readOnly = readonly;
+            if (editor && typeof editor.enable === 'function') editor.enable(!readonly);
+        }
+
         function documentText() {
             if (editor) return editor.getText().replace(/\n$/, '');
             return fallback ? fallback.value : '';
@@ -106,6 +114,7 @@
         }
 
         async function save() {
+            if (readonly) return;
             setStatus(t('desktop.saving', 'Saving...'));
             const path = pathInput.value.trim() || DEFAULT_PATH;
             const payload = {
@@ -144,6 +153,7 @@
                 host.querySelector('[data-quill-toolbar]').hidden = true;
                 fallback.hidden = false;
             }
+            applyReadonlyState();
             updateExportLinks();
             try {
                 const body = await api('/api/desktop/office/document?path=' + encodeURIComponent(currentPath));
@@ -151,6 +161,9 @@
                 officeVersion = body.office_version || null;
                 setDocumentText(doc.text || '');
                 if (doc.title && titleInput && !titleInput.value) titleInput.value = doc.title;
+                if (doc.html && editor && editor.clipboard && typeof editor.clipboard.dangerouslyPasteHTML === 'function') {
+                    editor.clipboard.dangerouslyPasteHTML(doc.html);
+                }
                 setPath((body.entry && body.entry.path) || doc.path || currentPath);
                 setStatus('');
             } catch (err) {
@@ -162,6 +175,7 @@
         }
 
         host.querySelector('[data-action="save"]').addEventListener('click', () => {
+            if (readonly) return;
             save().catch(err => {
                 setStatus(err.message || String(err), 'save-error');
                 setTimeout(() => clearSaveError(statusNode), 6000);

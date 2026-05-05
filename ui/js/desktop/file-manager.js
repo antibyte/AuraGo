@@ -75,6 +75,10 @@
         });
     }
 
+    function isReadonly() {
+        return !!(fm.callbacks && fm.callbacks.readonly);
+    }
+
     function iconMarkup(key, fallback, className, size) {
         if (fm.callbacks && typeof fm.callbacks.iconMarkup === 'function') {
             return fm.callbacks.iconMarkup(key, fallback, className, size);
@@ -539,7 +543,7 @@
     }
 
     function buildMarkup() {
-        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" tabindex="-1">
+        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
             ${renderToolbarHtml()}
             ${renderSearchHtml()}
             <div class="fm-body">
@@ -558,6 +562,7 @@
     function renderToolbarHtml() {
         const backDisabled = !canGoBack() ? ' disabled' : '';
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
+        const writeDisabled = isReadonly() ? ' disabled' : '';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back', 'Back'))}"${backDisabled}>
@@ -592,15 +597,15 @@
                     ${iconMarkup('refresh', '\u21BB', '', 16)}
                 </button>
                 <div class="fm-separator"></div>
-                <button type="button" class="fm-btn" data-action="upload">
+                <button type="button" class="fm-btn" data-action="upload"${writeDisabled}>
                     ${iconMarkup('upload', '\u2191', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.upload', 'Upload'))}
                 </button>
-                <button type="button" class="fm-btn" data-action="new-file">
+                <button type="button" class="fm-btn" data-action="new-file"${writeDisabled}>
                     ${iconMarkup('file-plus', '+', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.new_file', 'New File'))}
                 </button>
-                <button type="button" class="fm-btn" data-action="new-folder">
+                <button type="button" class="fm-btn" data-action="new-folder"${writeDisabled}>
                     ${iconMarkup('folder-plus', '+', 'fm-btn-icon', 14)}
                     ${esc(t('desktop.fm.new_folder', 'New Folder'))}
                 </button>
@@ -736,6 +741,7 @@
     }
 
     function renderDropOverlayHtml() {
+        if (isReadonly()) return '';
         return `<div class="fm-drop-overlay" data-fm-drop-overlay>
             <div class="fm-drop-message">
                 ${iconMarkup('upload', '\u2191', 'fm-drop-icon', 48)}
@@ -883,6 +889,12 @@
         else if (action === 'sort-menu') showSortMenu(e);
     }
 
+    function readonlyGuardItems(items) {
+        if (!isReadonly()) return items;
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'new-file', 'new-folder']);
+        return items.map(item => item.separator || !blocked.has(item.action) ? item : Object.assign({}, item, { disabled: true, handler: () => {} }));
+    }
+
     function toggleSearch() {
         const searchBar = fm.host.querySelector('[data-fm-search]');
         if (!searchBar) return;
@@ -951,9 +963,11 @@
             if (type === 'directory') navigate(file.path);
             else openFileEntry(file);
         } else if (e.key === 'F2') {
+            if (isReadonly()) return;
             e.preventDefault();
             startRename(path);
         } else if (e.key === 'Delete') {
+            if (isReadonly()) return;
             e.preventDefault();
             deleteSelected();
         }
@@ -989,7 +1003,7 @@
         }
         items.push({ separator: true });
         items.push({ label: t('desktop.fm.properties', 'Properties'), action: 'properties', icon: 'info', handler: () => showProperties(file) });
-        showContextMenu(e.clientX, e.clientY, items);
+        showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 
     function handleEmptyContextMenu(e) {
@@ -1006,7 +1020,7 @@
             { separator: true },
             { label: t('desktop.fm.select_all', 'Select All'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
         ];
-        showContextMenu(e.clientX, e.clientY, items);
+        showContextMenu(e.clientX, e.clientY, readonlyGuardItems(items));
     }
 
     function openFileEntry(file) {
@@ -1067,6 +1081,7 @@
 
     // Clipboard operations
     function cutSelection() {
+        if (isReadonly()) return;
         if (!fm.selectedPaths.size) return;
         fm.clipboard = { mode: 'cut', paths: Array.from(fm.selectedPaths) };
         renderAll();
@@ -1079,6 +1094,7 @@
     }
 
     async function pasteClipboard() {
+        if (isReadonly()) return;
         if (!fm.clipboard || !fm.clipboard.paths.length) return;
         const destBase = fm.currentPath;
         for (const srcPath of fm.clipboard.paths) {
@@ -1114,6 +1130,7 @@
 
     // File operations
     async function createNewFile() {
+        if (isReadonly()) return;
         const name = await promptDialog(t('desktop.fm.new_file_prompt', 'File name'), 'new-file.txt');
         if (!name) return;
         const path = joinPath(fm.currentPath, name);
@@ -1130,6 +1147,7 @@
     }
 
     async function createNewFolder() {
+        if (isReadonly()) return;
         const name = await promptDialog(t('desktop.fm.new_folder_prompt', 'Folder name'), 'New Folder');
         if (!name) return;
         const path = joinPath(fm.currentPath, name);
@@ -1146,6 +1164,7 @@
     }
 
     function startRename(path) {
+        if (isReadonly()) return;
         const file = fm.files.find(f => f.path === path);
         if (!file) return;
         fm.renamePath = path;
@@ -1175,6 +1194,7 @@
     }
 
     async function renamePath(path, newName) {
+        if (isReadonly()) return;
         const file = fm.files.find(f => f.path === path);
         if (!file || newName === file.name || !newName.trim()) {
             renderAll();
@@ -1195,6 +1215,7 @@
     }
 
     async function deleteSelected() {
+        if (isReadonly()) return;
         const selected = getSelectedFiles();
         if (!selected.length) return;
         let confirmed;
@@ -1235,6 +1256,7 @@
     }
 
     function uploadFiles() {
+        if (isReadonly()) return;
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
@@ -1246,6 +1268,7 @@
     }
 
     async function uploadFileList(files) {
+        if (isReadonly()) return;
         showNotification({ type: 'info', message: t('desktop.fm.upload_progress', 'Uploading...') });
         for (const file of Array.from(files)) {
             const formData = new FormData();
@@ -1343,6 +1366,7 @@
         e.preventDefault();
         e.stopPropagation();
         hideDropOverlay();
+        if (isReadonly()) return;
         const files = e.dataTransfer.files;
         if (files && files.length) {
             uploadFileList(files);
@@ -1375,6 +1399,7 @@
     async function handleItemDrop(e) {
         e.preventDefault();
         e.stopPropagation();
+        if (isReadonly()) return;
         const target = e.currentTarget;
         target.classList.remove('drag-over');
         const destPath = target.dataset.path;
@@ -1423,11 +1448,13 @@
         if (isInput && e.key !== 'Escape') return;
 
         if (e.key === 'Delete' && !isInput) {
+            if (isReadonly()) return;
             e.preventDefault();
             deleteSelected();
             return;
         }
         if (e.key === 'F2' && !isInput) {
+            if (isReadonly()) return;
             e.preventDefault();
             const selected = getSelectedFiles();
             if (selected.length === 1) startRename(selected[0].path);
@@ -1484,11 +1511,13 @@
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && !isInput) {
+            if (isReadonly()) return;
             e.preventDefault();
             cutSelection();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInput) {
+            if (isReadonly()) return;
             e.preventDefault();
             pasteClipboard();
             return;

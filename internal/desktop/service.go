@@ -1436,7 +1436,11 @@ func (s *Service) InstallApp(ctx context.Context, manifest AppManifest, files ma
 	manifest.Icon = strings.TrimSpace(manifest.Icon)
 	manifest.Entry = cleanDesktopPath(manifest.Entry)
 	manifest.Runtime = normalizeDesktopRuntime(manifest.Runtime)
-	manifest.Permissions = normalizeDesktopPermissions(manifest.Permissions)
+	permissions, err := normalizeDesktopPermissions(manifest.Permissions)
+	if err != nil {
+		return err
+	}
+	manifest.Permissions = permissions
 	if !desktopIDPattern.MatchString(manifest.ID) {
 		return fmt.Errorf("invalid desktop app id")
 	}
@@ -1570,7 +1574,11 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 	widget.Icon = strings.TrimSpace(widget.Icon)
 	widget.Entry = cleanOptionalDesktopFile(widget.Entry)
 	widget.Runtime = normalizeDesktopRuntime(widget.Runtime)
-	widget.Permissions = normalizeDesktopPermissions(widget.Permissions)
+	permissions, err := normalizeDesktopPermissions(widget.Permissions)
+	if err != nil {
+		return err
+	}
+	widget.Permissions = permissions
 	if !desktopIDPattern.MatchString(widget.ID) {
 		return fmt.Errorf("invalid desktop widget id")
 	}
@@ -2048,7 +2056,7 @@ func normalizeDesktopRuntime(runtime string) string {
 	return runtime
 }
 
-func normalizeDesktopPermissions(permissions []string) []string {
+func normalizeDesktopPermissions(permissions []string) ([]string, error) {
 	seen := map[string]struct{}{}
 	result := make([]string, 0, len(permissions))
 	for _, permission := range permissions {
@@ -2056,11 +2064,29 @@ func normalizeDesktopPermissions(permissions []string) []string {
 		if permission == "" {
 			continue
 		}
+		if !allowedDesktopPermission(permission) {
+			return nil, fmt.Errorf("unsupported desktop permission %q", permission)
+		}
 		if _, ok := seen[permission]; ok {
 			continue
 		}
 		seen[permission] = struct{}{}
 		result = append(result, permission)
 	}
-	return result
+	return result, nil
+}
+
+func allowedDesktopPermission(permission string) bool {
+	switch permission {
+	case "apps:open",
+		"files:read",
+		"files:write",
+		"filesystem:read",
+		"filesystem:write",
+		"notifications",
+		"widgets:write":
+		return true
+	default:
+		return false
+	}
 }

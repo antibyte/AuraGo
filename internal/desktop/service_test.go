@@ -780,6 +780,38 @@ func TestServiceInstallAppInfersIconAndRegistersSDKRuntime(t *testing.T) {
 	}
 }
 
+func TestServiceInstallAppRejectsUnsafeSDKPermissions(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	files := map[string]string{"index.html": "<main id=\"app\"></main>"}
+	manifest := AppManifest{
+		ID:          "unsafe-sdk",
+		Name:        "Unsafe SDK",
+		Version:     "1.0.0",
+		Icon:        "apps",
+		Entry:       "index.html",
+		Permissions: []string{"files:read", "*"},
+	}
+	err := svc.InstallApp(context.Background(), manifest, files, SourceAgent)
+	if err == nil {
+		t.Fatal("expected wildcard SDK permission to be rejected")
+	}
+	if !strings.Contains(err.Error(), "unsupported desktop permission") {
+		t.Fatalf("error = %q, want unsupported permission rejection", err)
+	}
+
+	manifest.ID = "unsafe-admin"
+	manifest.Permissions = []string{"filesystem:delete"}
+	err = svc.InstallApp(context.Background(), manifest, files, SourceAgent)
+	if err == nil {
+		t.Fatal("expected unknown SDK permission to be rejected")
+	}
+	if !strings.Contains(err.Error(), "unsupported desktop permission") {
+		t.Fatalf("error = %q, want unsupported permission rejection", err)
+	}
+}
+
 func TestServiceInstallAppNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
 	t.Parallel()
 
