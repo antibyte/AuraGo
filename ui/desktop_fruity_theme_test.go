@@ -22,6 +22,15 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		"settingSelect('appearance.theme'",
 		"desktop.settings_theme_standard",
 		"desktop.settings_theme_fruity",
+		"function isFruityTheme()",
+		"function renderStandardTaskbar()",
+		"function renderFruityDock()",
+		"allApps().map(app =>",
+		"class=\"vd-dock-button",
+		"data-app-id=\"${esc(app.id)}\"",
+		"const runningWindows = [...state.windows.values()]",
+		"runningWindows.some(win => win.appId === app.id)",
+		"win.appId === app.id && win.id === state.activeWindowId",
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing Fruity theme setting marker %q", want)
@@ -45,6 +54,14 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button::after",
 		"--fruity-window-close",
 		".desktop-body[data-theme=\"fruity\"] .vd-taskbar",
+		".desktop-body[data-theme=\"fruity\"] .vd-taskbar-apps",
+		".desktop-body[data-theme=\"fruity\"] .vd-dock-button",
+		".desktop-body[data-theme=\"fruity\"] .vd-dock-button:hover",
+		".desktop-body[data-theme=\"fruity\"] .vd-dock-button.running::after",
+		".desktop-body[data-theme=\"fruity\"] .vd-dock-button.active::after",
+		".desktop-body[data-theme=\"fruity\"] .vd-dock-icon",
+		"scale(1.28)",
+		"@supports selector(.vd-dock-button:has(+ .vd-dock-button:hover))",
 		".desktop-body[data-theme=\"fruity\"] .vd-modal",
 	} {
 		if !strings.Contains(cssText, want) {
