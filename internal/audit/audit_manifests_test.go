@@ -618,6 +618,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"invoke_tool":           "meta-tool parser action",
 		"log_analyzer":          "skill template/manual",
 		"mac_lookup":            "server endpoint/manual",
+		"manifest":              "Manifest.build integration manual",
 		"mcp":                   "MCP runtime/manual",
 		"mqtt":                  "messaging integration manual",
 		"optimize_memory":       "memory maintenance manual alias",
