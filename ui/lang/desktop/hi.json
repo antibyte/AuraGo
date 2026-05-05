@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "अवरोही",
   "desktop.fm.view_grid": "ग्रिड दृश्य",
   "desktop.fm.view_list": "सूची दृश्य",
+  "desktop.fm.toggle_sidebar": "साइडबार टॉगल करें",
   "desktop.fm.quick_access": "त्वरित पहुंच",
   "desktop.fm.workspace_root": "कार्यक्षेत्र",
   "desktop.fm.confirm_delete": "{{count}} आइटम हटाएं?",

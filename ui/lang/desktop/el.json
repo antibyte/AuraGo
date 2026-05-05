@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Φθίνουσα",
   "desktop.fm.view_grid": "Πλέγμα",
   "desktop.fm.view_list": "Λίστα",
+  "desktop.fm.toggle_sidebar": "Εναλλαγή πλαϊνής γραμμής",
   "desktop.fm.quick_access": "Γρήγορη πρόσβαση",
   "desktop.fm.workspace_root": "Χώρος εργασίας",
   "desktop.fm.confirm_delete": "Διαγραφή {{count}} στοιχείων;",

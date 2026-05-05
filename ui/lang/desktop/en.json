@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Descending",
   "desktop.fm.view_grid": "Grid View",
   "desktop.fm.view_list": "List View",
+  "desktop.fm.toggle_sidebar": "Toggle sidebar",
   "desktop.fm.quick_access": "Quick Access",
   "desktop.fm.workspace_root": "Workspace",
   "desktop.fm.confirm_delete": "Delete {{count}} item(s)?",

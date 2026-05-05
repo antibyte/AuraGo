@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Absteigend",
   "desktop.fm.view_grid": "Rasteransicht",
   "desktop.fm.view_list": "Listenansicht",
+  "desktop.fm.toggle_sidebar": "Seitenleiste ein-/ausblenden",
   "desktop.fm.quick_access": "Schnellzugriff",
   "desktop.fm.workspace_root": "Arbeitsbereich",
   "desktop.fm.confirm_delete": "{{count}} Element(e) löschen?",

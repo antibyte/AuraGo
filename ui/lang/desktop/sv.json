@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Fallande",
   "desktop.fm.view_grid": "Rutnätsvy",
   "desktop.fm.view_list": "Listvy",
+  "desktop.fm.toggle_sidebar": "Växla sidofält",
   "desktop.fm.quick_access": "Snabbåtkomst",
   "desktop.fm.workspace_root": "Arbetsyta",
   "desktop.fm.confirm_delete": "Ta bort {{count}} objekt?",

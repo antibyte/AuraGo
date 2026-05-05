@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "降序",
   "desktop.fm.view_grid": "网格视图",
   "desktop.fm.view_list": "列表视图",
+  "desktop.fm.toggle_sidebar": "切换侧边栏",
   "desktop.fm.quick_access": "快速访问",
   "desktop.fm.workspace_root": "工作区",
   "desktop.fm.confirm_delete": "删除 {{count}} 个项目？",

@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "降順",
   "desktop.fm.view_grid": "グリッド表示",
   "desktop.fm.view_list": "リスト表示",
+  "desktop.fm.toggle_sidebar": "サイドバーを切り替え",
   "desktop.fm.quick_access": "クイックアクセス",
   "desktop.fm.workspace_root": "ワークスペース",
   "desktop.fm.confirm_delete": "{{count}} 件のアイテムを削除しますか？",

@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Sestupně",
   "desktop.fm.view_grid": "Mřížka",
   "desktop.fm.view_list": "Seznam",
+  "desktop.fm.toggle_sidebar": "Přepnout postranní panel",
   "desktop.fm.quick_access": "Rychlý přístup",
   "desktop.fm.workspace_root": "Pracovní prostor",
   "desktop.fm.confirm_delete": "Odstranit {{count}} položek?",

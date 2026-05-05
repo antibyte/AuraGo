@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Malejąco",
   "desktop.fm.view_grid": "Widok siatki",
   "desktop.fm.view_list": "Widok listy",
+  "desktop.fm.toggle_sidebar": "Przełącz pasek boczny",
   "desktop.fm.quick_access": "Szybki dostęp",
   "desktop.fm.workspace_root": "Obszar roboczy",
   "desktop.fm.confirm_delete": "Usunąć {{count}} elementów?",

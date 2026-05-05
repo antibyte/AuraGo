@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Faldende",
   "desktop.fm.view_grid": "Gittervisning",
   "desktop.fm.view_list": "Listevisning",
+  "desktop.fm.toggle_sidebar": "Skift sidebjælke",
   "desktop.fm.quick_access": "Hurtig adgang",
   "desktop.fm.workspace_root": "Arbejdsområde",
   "desktop.fm.confirm_delete": "Slet {{count}} element(er)?",

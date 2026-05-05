@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Synkende",
   "desktop.fm.view_grid": "Rutenett",
   "desktop.fm.view_list": "Liste",
+  "desktop.fm.toggle_sidebar": "Vis/skjul sidefelt",
   "desktop.fm.quick_access": "Hurtigtilgang",
   "desktop.fm.workspace_root": "Arbeidsområde",
   "desktop.fm.confirm_delete": "Slett {{count}} element(er)?",

@@ -769,7 +769,7 @@ func walkGoFiles(t *testing.T, root string, visit func(path string, content stri
 		}
 		if d.IsDir() {
 			switch d.Name() {
-			case ".git", ".kilo", "bin", "deploy", "disposable", "node_modules", "reports":
+			case ".git", ".kilo", ".worktrees", "bin", "deploy", "disposable", "node_modules", "reports":
 				return filepath.SkipDir
 			}
 			return nil

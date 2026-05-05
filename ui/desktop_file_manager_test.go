@@ -88,3 +88,24 @@ func TestFileManagerToolbarAndContextMenuCleanup(t *testing.T) {
 		}
 	}
 }
+
+func TestFileManagerMobileInteractionMarkers(t *testing.T) {
+	t.Parallel()
+
+	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
+	if err != nil {
+		t.Fatalf("file manager script missing from embedded UI: %v", err)
+	}
+	source := string(jsBytes)
+	for _, marker := range []string{
+		"function isTouchLikePointer(event)",
+		"function wireLongPress(element, callback, options)",
+		"function openFileItem(path, type)",
+		"function handleSidebarToggle()",
+		"fm.sidebarOpen",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager mobile interaction missing marker %q", marker)
+		}
+	}
+}

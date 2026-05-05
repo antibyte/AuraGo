@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Decrescente",
   "desktop.fm.view_grid": "Vista griglia",
   "desktop.fm.view_list": "Vista elenco",
+  "desktop.fm.toggle_sidebar": "Attiva/disattiva barra laterale",
   "desktop.fm.quick_access": "Accesso rapido",
   "desktop.fm.workspace_root": "Area di lavoro",
   "desktop.fm.confirm_delete": "Eliminare {{count}} elemento(i)?",

@@ -28,6 +28,10 @@
     const WINDOW_MIN_W = 360;
     const WINDOW_MIN_H = 280;
     const DRAG_THRESHOLD = 5;
+    const TOUCH_DRAG_HOLD_MS = 360;
+    const LONG_PRESS_MS = 600;
+    const LONG_PRESS_FEEDBACK_MS = 300;
+    const LONG_PRESS_MOVE_TOLERANCE = 10;
 
     const els = {};
     const directoryIconKeys = {
@@ -328,6 +332,108 @@
         return sizes[settingValue('desktop.icon_size')] || 42;
     }
 
+    function isCompactViewport() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+    }
+
+    function isTouchLikePointer(event) {
+        if (event && (event.pointerType === 'touch' || event.pointerType === 'pen')) return true;
+        return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+    }
+
+    function shouldOpenOnTap(event) {
+        return isTouchLikePointer(event) || isCompactViewport();
+    }
+
+    function updateViewportMetrics() {
+        const visual = window.visualViewport;
+        const height = visual && visual.height ? visual.height : window.innerHeight;
+        document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');
+    }
+
+    function bindViewportMetrics() {
+        updateViewportMetrics();
+        window.addEventListener('resize', updateViewportMetrics);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateViewportMetrics);
+            window.visualViewport.addEventListener('scroll', updateViewportMetrics);
+        }
+    }
+
+    function wireLongPress(element, callback, options) {
+        options = options || {};
+        const threshold = Number(options.threshold || LONG_PRESS_MS);
+        const feedbackDelay = Number(options.feedbackDelay || LONG_PRESS_FEEDBACK_MS);
+        const moveTolerance = Number(options.moveTolerance || LONG_PRESS_MOVE_TOLERANCE);
+        let timer = 0;
+        let feedbackTimer = 0;
+        let startX = 0;
+        let startY = 0;
+        let pointerId = null;
+        let triggered = false;
+        let suppressClick = false;
+
+        function clearTimers() {
+            if (timer) window.clearTimeout(timer);
+            if (feedbackTimer) window.clearTimeout(feedbackTimer);
+            timer = 0;
+            feedbackTimer = 0;
+        }
+
+        function clearPress() {
+            clearTimers();
+            element.classList.remove('vd-long-press-active');
+            pointerId = null;
+            triggered = false;
+            window.setTimeout(() => { element.__vdLongPressTriggered = false; }, 0);
+        }
+
+        element.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || !isTouchLikePointer(event)) return;
+            clearTimers();
+            startX = event.clientX;
+            startY = event.clientY;
+            pointerId = event.pointerId;
+            triggered = false;
+            element.__vdLongPressTriggered = false;
+            feedbackTimer = window.setTimeout(() => {
+                element.classList.add('vd-long-press-active');
+            }, feedbackDelay);
+            timer = window.setTimeout(() => {
+                triggered = true;
+                suppressClick = true;
+                element.__vdLongPressTriggered = true;
+                element.classList.add('vd-long-press-active');
+                event.preventDefault();
+                event.stopPropagation();
+                callback(event);
+            }, threshold);
+        });
+
+        element.addEventListener('pointermove', event => {
+            if (!timer || pointerId !== event.pointerId) return;
+            if (Math.abs(event.clientX - startX) > moveTolerance || Math.abs(event.clientY - startY) > moveTolerance) {
+                clearPress();
+            }
+        });
+
+        element.addEventListener('pointerup', event => {
+            if (pointerId !== event.pointerId) return;
+            if (triggered) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            clearPress();
+        });
+        element.addEventListener('pointercancel', clearPress);
+        element.addEventListener('click', event => {
+            if (!suppressClick) return;
+            suppressClick = false;
+            event.preventDefault();
+            event.stopPropagation();
+        }, true);
+    }
+
     function defaultWindowSize() {
         const workspace = $('vd-window-layer') || $('vd-workspace');
         const w = (workspace && workspace.clientWidth) || window.innerWidth;
@@ -455,8 +561,16 @@
         }).join('');
         icons.querySelectorAll('.vd-icon').forEach(btn => {
             btn.addEventListener('dblclick', () => activateDesktopItem(btn));
-            btn.addEventListener('click', () => selectDesktopIcon(btn));
+            btn.addEventListener('click', event => {
+                if (shouldOpenOnTap(event)) {
+                    event.preventDefault();
+                    activateDesktopItem(btn);
+                    return;
+                }
+                selectDesktopIcon(btn);
+            });
             btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
+            wireLongPress(btn, event => showIconContextMenu(event, btn));
             wireDraggableIcon(btn);
         });
     }
@@ -505,8 +619,24 @@
 
     function wireDraggableIcon(btn) {
         let drag = null;
+        function finishDrag(event) {
+            if (!drag) return;
+            if (event && event.pointerId != null && event.pointerId !== drag.pointerId) return;
+            if (drag.holdTimer) window.clearTimeout(drag.holdTimer);
+            if (event && btn.hasPointerCapture && btn.hasPointerCapture(drag.pointerId)) {
+                btn.releasePointerCapture(drag.pointerId);
+            }
+            btn.classList.remove('vd-dragging');
+            document.body.classList.remove('vd-touch-drag-active');
+            if (drag.moved) {
+                saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
+                if (event) event.preventDefault();
+            }
+            drag = null;
+        }
         btn.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
+            const touchDrag = isTouchLikePointer(event);
             closeContextMenu();
             selectDesktopIcon(btn);
             drag = {
@@ -516,31 +646,37 @@
                 y: event.clientY,
                 left: parseInt(btn.style.left, 10) || 0,
                 top: parseInt(btn.style.top, 10) || 0,
-                moved: false
+                moved: false,
+                ready: !touchDrag,
+                touchDrag,
+                holdTimer: 0
             };
+            if (touchDrag) {
+                drag.holdTimer = window.setTimeout(() => {
+                    if (drag) drag.ready = true;
+                }, TOUCH_DRAG_HOLD_MS);
+            }
             btn.setPointerCapture(event.pointerId);
         });
         btn.addEventListener('pointermove', event => {
             if (!drag) return;
             const dx = event.clientX - drag.x;
             const dy = event.clientY - drag.y;
+            if (btn.__vdLongPressTriggered) return;
+            if (drag.touchDrag && !drag.ready) {
+                if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) finishDrag(event);
+                return;
+            }
             if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
             drag.moved = true;
             btn.classList.add('vd-dragging');
+            if (drag.touchDrag) document.body.classList.add('vd-touch-drag-active');
             const pos = clampToWorkspace(drag.left + dx, drag.top + dy, btn.offsetWidth, btn.offsetHeight);
             btn.style.left = pos.x + 'px';
             btn.style.top = pos.y + 'px';
         });
-        btn.addEventListener('pointerup', event => {
-            if (!drag) return;
-            btn.releasePointerCapture(event.pointerId);
-            btn.classList.remove('vd-dragging');
-            if (drag.moved) {
-                saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
-                event.preventDefault();
-            }
-            drag = null;
-        });
+        btn.addEventListener('pointerup', finishDrag);
+        btn.addEventListener('pointercancel', finishDrag);
     }
 
     function activateDesktopItem(btn) {
@@ -606,6 +742,7 @@
             const card = host.querySelector(`[data-widget-id="${cssSel(widget.id)}"]`);
             if (!card) return;
             card.addEventListener('contextmenu', event => showWidgetContextMenu(event, widget));
+            wireLongPress(card, event => showWidgetContextMenu(event, widget));
             wireDraggableWidget(card, widget);
         });
     }
@@ -633,38 +770,61 @@
     function wireDraggableWidget(card, widget) {
         const handle = card.querySelector('.vd-widget-head') || card;
         let drag = null;
+        function finishDrag(event) {
+            if (!drag) return;
+            if (event && event.pointerId != null && event.pointerId !== drag.pointerId) return;
+            if (drag.holdTimer) window.clearTimeout(drag.holdTimer);
+            if (event && handle.hasPointerCapture && handle.hasPointerCapture(drag.pointerId)) {
+                handle.releasePointerCapture(drag.pointerId);
+            }
+            card.classList.remove('vd-dragging');
+            document.body.classList.remove('vd-touch-drag-active');
+            if (drag.moved) {
+                persistWidgetBounds(widget, card);
+                if (event) event.preventDefault();
+            }
+            drag = null;
+        }
         handle.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
+            const touchDrag = isTouchLikePointer(event);
             drag = {
+                pointerId: event.pointerId,
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(card.style.left, 10) || 0,
                 top: parseInt(card.style.top, 10) || 0,
-                moved: false
+                moved: false,
+                ready: !touchDrag,
+                touchDrag,
+                holdTimer: 0
             };
+            if (touchDrag) {
+                drag.holdTimer = window.setTimeout(() => {
+                    if (drag) drag.ready = true;
+                }, TOUCH_DRAG_HOLD_MS);
+            }
             handle.setPointerCapture(event.pointerId);
         });
         handle.addEventListener('pointermove', event => {
             if (!drag) return;
             const dx = event.clientX - drag.x;
             const dy = event.clientY - drag.y;
+            if (card.__vdLongPressTriggered) return;
+            if (drag.touchDrag && !drag.ready) {
+                if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) finishDrag(event);
+                return;
+            }
             if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
             drag.moved = true;
             card.classList.add('vd-dragging');
+            if (drag.touchDrag) document.body.classList.add('vd-touch-drag-active');
             const pos = clampToWorkspace(drag.left + dx, drag.top + dy, card.offsetWidth, card.offsetHeight);
             card.style.left = pos.x + 'px';
             card.style.top = pos.y + 'px';
         });
-        handle.addEventListener('pointerup', async event => {
-            if (!drag) return;
-            handle.releasePointerCapture(event.pointerId);
-            card.classList.remove('vd-dragging');
-            if (drag.moved) {
-                await persistWidgetBounds(widget, card);
-                event.preventDefault();
-            }
-            drag = null;
-        });
+        handle.addEventListener('pointerup', finishDrag);
+        handle.addEventListener('pointercancel', finishDrag);
     }
 
     async function persistWidgetBounds(widget, card) {
@@ -726,6 +886,7 @@
         host.querySelectorAll('[data-window-id]').forEach(btn => {
             btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
             btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
+            wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
         });
     }
 
@@ -860,22 +1021,27 @@
             .join('');
     }
 
+    function minimizeWindow(id) {
+        const item = state.windows.get(id);
+        if (!item) return;
+        item.element.style.display = 'none';
+        if (state.activeWindowId === id) state.activeWindowId = '';
+        renderTaskbar();
+    }
+
     function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         win.addEventListener('contextmenu', event => {
             if (event.target.closest('.vd-window-titlebar')) showWindowContextMenu(event, id);
         });
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
-        win.querySelector('[data-action="minimize"]').addEventListener('click', () => {
-            win.style.display = 'none';
-            if (state.activeWindowId === id) state.activeWindowId = '';
-            renderTaskbar();
-        });
+        win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
         win.querySelector('[data-action="maximize"]').addEventListener('click', () => toggleMaximizeWindow(id));
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button')) return;
+            if (isCompactViewport()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
             drag = {
                 x: event.clientX,
@@ -897,7 +1063,47 @@
             if (event.target.closest('button')) return;
             toggleMaximizeWindow(id);
         });
+        wireLongPress(bar, event => showWindowContextMenu(event, id));
+        wireWindowTouchGestures(win, id);
         wireWindowResize(win, id);
+    }
+
+    function wireWindowTouchGestures(win, id) {
+        const bar = win.querySelector('.vd-window-titlebar');
+        if (!bar) return;
+        let gesture = null;
+        bar.addEventListener('pointerdown', event => {
+            if (!isCompactViewport() || !isTouchLikePointer(event) || event.button !== 0 || event.target.closest('button')) return;
+            gesture = {
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                time: performance.now()
+            };
+            bar.setPointerCapture(event.pointerId);
+        });
+        bar.addEventListener('pointermove', event => {
+            if (!gesture || gesture.pointerId !== event.pointerId) return;
+            const dy = event.clientY - gesture.y;
+            if (dy > 12) event.preventDefault();
+        });
+        bar.addEventListener('pointerup', event => {
+            if (!gesture || gesture.pointerId !== event.pointerId) return;
+            const dx = event.clientX - gesture.x;
+            const dy = event.clientY - gesture.y;
+            const elapsed = Math.max(1, performance.now() - gesture.time);
+            gesture = null;
+            if (bar.hasPointerCapture && bar.hasPointerCapture(event.pointerId)) {
+                bar.releasePointerCapture(event.pointerId);
+            }
+            if (dy > 80 && dy > Math.abs(dx) * 1.2 && dy / elapsed > 0.25) {
+                event.preventDefault();
+                minimizeWindow(id);
+            }
+        });
+        bar.addEventListener('pointercancel', event => {
+            if (gesture && gesture.pointerId === event.pointerId) gesture = null;
+        });
     }
 
     function windowBounds(win) {
@@ -911,7 +1117,13 @@
 
     function workspaceBoundsForWindow() {
         const layer = $('vd-window-layer');
-        return { width: layer.clientWidth, height: layer.clientHeight };
+        const taskbar = document.querySelector('.vd-taskbar');
+        const width = (layer && layer.clientWidth) || window.innerWidth;
+        let height = (layer && layer.clientHeight) || window.innerHeight;
+        if (isCompactViewport() && window.visualViewport) {
+            height = Math.min(height, Math.max(1, window.visualViewport.height - ((taskbar && taskbar.offsetHeight) || 0)));
+        }
+        return { width, height };
     }
 
     function toggleMaximizeWindow(id) {
@@ -944,6 +1156,7 @@
             let resize = null;
             handle.addEventListener('pointerdown', event => {
                 const item = state.windows.get(id);
+                if (isCompactViewport()) return;
                 if (item && item.maximized) return;
                 event.preventDefault();
                 event.stopPropagation();
@@ -994,6 +1207,33 @@
         win.style.top = top + 'px';
         win.style.width = width + 'px';
         win.style.height = height + 'px';
+    }
+
+    function nearestWindowScroller(control) {
+        const content = control.closest('.vd-window-content');
+        let node = control.parentElement;
+        while (node && content && node !== content) {
+            const style = window.getComputedStyle(node);
+            if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 1) return node;
+            node = node.parentElement;
+        }
+        return content;
+    }
+
+    function ensureFocusedControlVisible(event) {
+        const control = event && event.target;
+        if (!control || !control.closest || !control.matches) return;
+        if (!control.closest('.vd-window')) return;
+        if (!control.matches('input, textarea, select, [contenteditable="true"]')) return;
+        if (!window.visualViewport) return;
+        window.setTimeout(() => {
+            const rect = control.getBoundingClientRect();
+            const viewportBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+            const targetBottom = viewportBottom - 80;
+            if (rect.bottom <= targetBottom) return;
+            const scroller = nearestWindowScroller(control);
+            if (scroller) scroller.scrollTop += Math.ceil(rect.bottom - targetBottom);
+        }, 60);
     }
 
     function focusWindow(id) {
@@ -1142,7 +1382,7 @@
         if (!item) return;
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
-            { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => { item.element.style.display = 'none'; renderTaskbar(); } },
+            { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) },
             { separator: true },
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
@@ -3400,7 +3640,7 @@
         $('vd-start-button').addEventListener('click', () => {
             const menu = $('vd-start-menu');
             menu.hidden = !menu.hidden;
-            if (!menu.hidden) $('vd-start-search').focus();
+            if (!menu.hidden && !isCompactViewport()) $('vd-start-search').focus();
         });
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
         $('vd-start-search').addEventListener('input', (event) => {
@@ -3488,7 +3728,9 @@
     async function init() {
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         await loadIconManifest();
+        bindViewportMetrics();
         wireChrome();
+        document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         setInterval(updateClock, 15000);
         await loadBootstrap();

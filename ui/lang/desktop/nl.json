@@ -358,6 +358,7 @@
   "desktop.fm.sort_desc": "Aflopend",
   "desktop.fm.view_grid": "Rasterweergave",
   "desktop.fm.view_list": "Lijstweergave",
+  "desktop.fm.toggle_sidebar": "Zijbalk in-/uitschakelen",
   "desktop.fm.quick_access": "Snelle toegang",
   "desktop.fm.workspace_root": "Werkruimte",
   "desktop.fm.confirm_delete": "{{count}} item(s) verwijderen?",

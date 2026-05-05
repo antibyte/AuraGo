@@ -28,6 +28,7 @@
         dragOverPath: null,
         keyboardBound: false,
         activeKeyboardWindow: '',
+        sidebarOpen: false,
     };
 
     function t(key, fallback, vars) {
@@ -77,6 +78,83 @@
 
     function isReadonly() {
         return !!(fm.callbacks && fm.callbacks.readonly);
+    }
+
+    function isTouchLikePointer(event) {
+        if (event && (event.pointerType === 'touch' || event.pointerType === 'pen')) return true;
+        if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return true;
+        return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+    }
+
+    function wireLongPress(element, callback, options) {
+        options = options || {};
+        const threshold = Number(options.threshold || 600);
+        const feedbackDelay = Number(options.feedbackDelay || 300);
+        const moveTolerance = Number(options.moveTolerance || 10);
+        let timer = 0;
+        let feedbackTimer = 0;
+        let startX = 0;
+        let startY = 0;
+        let pointerId = null;
+        let triggered = false;
+        let suppressClick = false;
+
+        function clearTimers() {
+            if (timer) window.clearTimeout(timer);
+            if (feedbackTimer) window.clearTimeout(feedbackTimer);
+            timer = 0;
+            feedbackTimer = 0;
+        }
+
+        function clearPress() {
+            clearTimers();
+            element.classList.remove('vd-long-press-active');
+            pointerId = null;
+            triggered = false;
+        }
+
+        element.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || !isTouchLikePointer(event)) return;
+            clearTimers();
+            startX = event.clientX;
+            startY = event.clientY;
+            pointerId = event.pointerId;
+            triggered = false;
+            feedbackTimer = window.setTimeout(() => {
+                element.classList.add('vd-long-press-active');
+            }, feedbackDelay);
+            timer = window.setTimeout(() => {
+                triggered = true;
+                suppressClick = true;
+                element.classList.add('vd-long-press-active');
+                event.preventDefault();
+                event.stopPropagation();
+                callback(event);
+            }, threshold);
+        });
+
+        element.addEventListener('pointermove', event => {
+            if (!timer || pointerId !== event.pointerId) return;
+            if (Math.abs(event.clientX - startX) > moveTolerance || Math.abs(event.clientY - startY) > moveTolerance) {
+                clearPress();
+            }
+        });
+
+        element.addEventListener('pointerup', event => {
+            if (pointerId !== event.pointerId) return;
+            if (triggered) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            clearPress();
+        });
+        element.addEventListener('pointercancel', clearPress);
+        element.addEventListener('click', event => {
+            if (!suppressClick) return;
+            suppressClick = false;
+            event.preventDefault();
+            event.stopPropagation();
+        }, true);
     }
 
     function iconMarkup(key, fallback, className, size) {
@@ -543,7 +621,7 @@
     }
 
     function buildMarkup() {
-        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
+        return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${fm.sidebarOpen ? 'data-sidebar-open="true"' : ''} ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
             ${renderToolbarHtml()}
             ${renderSearchHtml()}
             <div class="fm-body">
@@ -565,6 +643,9 @@
         const writeDisabled = isReadonly() ? ' disabled' : '';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
+                <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}">
+                    ${iconMarkup('list', '\u2630', '', 16)}
+                </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back', 'Back'))}"${backDisabled}>
                     ${iconMarkup('chevron-left', '\u2039', '', 16)}
                 </button>
@@ -771,8 +852,16 @@
 
         // Sidebar items
         root.querySelectorAll('[data-sidebar-path]').forEach(item => {
-            item.addEventListener('click', () => navigate(item.dataset.sidebarPath));
-            item.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(item.dataset.sidebarPath); });
+            item.addEventListener('click', () => {
+                fm.sidebarOpen = false;
+                navigate(item.dataset.sidebarPath);
+            });
+            item.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    fm.sidebarOpen = false;
+                    navigate(item.dataset.sidebarPath);
+                }
+            });
         });
 
         // Search input
@@ -823,6 +912,7 @@
             item.addEventListener('click', handleItemClick);
             item.addEventListener('dblclick', handleItemDblClick);
             item.addEventListener('contextmenu', handleItemContextMenu);
+            wireLongPress(item, handleItemContextMenu);
             item.addEventListener('keydown', handleItemKeyDown);
             item.draggable = true;
             item.addEventListener('dragstart', handleDragStart);
@@ -875,7 +965,8 @@
 
     function handleActionClick(e) {
         const action = e.currentTarget.dataset.action;
-        if (action === 'back') goBack();
+        if (action === 'sidebar-toggle') handleSidebarToggle();
+        else if (action === 'back') goBack();
         else if (action === 'forward') goForward();
         else if (action === 'up') goUp();
         else if (action === 'view-grid') { fm.viewMode = 'grid'; savePreferences(); renderAll(); }
@@ -887,6 +978,11 @@
         else if (action === 'new-file') createNewFile();
         else if (action === 'new-folder') createNewFolder();
         else if (action === 'sort-menu') showSortMenu(e);
+    }
+
+    function handleSidebarToggle() {
+        fm.sidebarOpen = !fm.sidebarOpen;
+        renderAll();
     }
 
     function readonlyGuardItems(items) {
@@ -927,6 +1023,11 @@
     function handleItemClick(e) {
         const path = e.currentTarget.dataset.path;
         const type = e.currentTarget.dataset.type;
+        if (isTouchLikePointer(e)) {
+            e.preventDefault();
+            openFileItem(path, type);
+            return;
+        }
         if (e.ctrlKey || e.metaKey) {
             toggleSelection(path);
         } else if (e.shiftKey && fm.lastClickedPath) {
@@ -941,9 +1042,7 @@
         focusFileItem(path);
     }
 
-    function handleItemDblClick(e) {
-        const path = e.currentTarget.dataset.path;
-        const type = e.currentTarget.dataset.type;
+    function openFileItem(path, type) {
         const file = fm.files.find(f => f.path === path);
         if (!file) return;
         if (type === 'directory') {
@@ -953,15 +1052,18 @@
         }
     }
 
+    function handleItemDblClick(e) {
+        const path = e.currentTarget.dataset.path;
+        const type = e.currentTarget.dataset.type;
+        openFileItem(path, type);
+    }
+
     function handleItemKeyDown(e) {
         const path = e.currentTarget.dataset.path;
         const type = e.currentTarget.dataset.type;
         if (e.key === 'Enter') {
             e.preventDefault();
-            const file = fm.files.find(f => f.path === path);
-            if (!file) return;
-            if (type === 'directory') navigate(file.path);
-            else openFileEntry(file);
+            openFileItem(path, type);
         } else if (e.key === 'F2') {
             if (isReadonly()) return;
             e.preventDefault();
@@ -1071,8 +1173,13 @@
         if (!fm.host) return;
         const backBtn = fm.host.querySelector('[data-action="back"]');
         const fwdBtn = fm.host.querySelector('[data-action="forward"]');
+        const sidebarBtn = fm.host.querySelector('[data-action="sidebar-toggle"]');
         if (backBtn) backBtn.disabled = !canGoBack();
         if (fwdBtn) fwdBtn.disabled = !canGoForward();
+        if (sidebarBtn) {
+            sidebarBtn.classList.toggle('active', fm.sidebarOpen);
+            sidebarBtn.setAttribute('aria-expanded', fm.sidebarOpen ? 'true' : 'false');
+        }
     }
 
     function updateStatusBar() {
