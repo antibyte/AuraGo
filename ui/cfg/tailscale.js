@@ -78,10 +78,12 @@ async function renderTailscaleSection(section) {
 
         const serveHTTP = tsnet.serve_http === true;
         const exposeHomepage = tsnet.expose_homepage === true;
+        const exposeManifest = tsnet.expose_manifest === true;
         const exposeSpaceAgent = tsnet.expose_space_agent === true;
         const funnel = tsnet.funnel === true;
         const allowHTTPFallback = tsnet.allow_http_fallback === true;
         const homepageCfg = configData.homepage || {};
+        const manifestCfg = configData.manifest || {};
         const spaceAgentCfg = configData.space_agent || {};
         html += `<div class="ts-exposure-box">
             <div class="ts-exposure-title">${t('config.tailscale.tsnet_exposure_title')}</div>
@@ -97,6 +99,19 @@ async function renderTailscaleSection(section) {
             </div>
             <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_homepage_hint')}</small>
             ${homepageCfg.webserver_enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_homepage_requires_webserver')}</div>`}
+
+            <div class="ts-exposure-row-mt">
+                <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_manifest_label')}</span>
+                <div class="toggle ${exposeManifest ? 'on' : ''}" data-path="tailscale.tsnet.expose_manifest" onclick="toggleBool(this);setNestedValue(configData,'tailscale.tsnet.expose_manifest',this.classList.contains('on'));renderTailscaleSection(null)"></div>
+            </div>
+            <small class="ts-hint-block">${t('config.tailscale.tsnet_expose_manifest_hint')}</small>
+            ${manifestCfg.enabled ? '' : `<div class="ts-warning-box">${t('config.tailscale.tsnet_manifest_requires_enabled')}</div>`}
+
+            <label class="ts-label-block">
+                <span class="ts-toggle-label">${t('config.tailscale.tsnet_manifest_port_label')}</span>
+                <input type="number" min="1" max="65535" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 8444)}">
+                <small class="ts-hint">${t('config.tailscale.tsnet_manifest_port_hint')}</small>
+            </label>
 
             <div class="ts-exposure-row-mt">
                 <span class="ts-exposure-label">${t('config.tailscale.tsnet_expose_space_agent_label')}</span>
@@ -219,6 +234,11 @@ async function _tsnetRefreshStatus() {
                 info += `<div class="ts-url-row-lg">🏠 <strong>${escapeHtml(t('config.tailscale.tsnet_homepage_url_label'))}:</strong> <a href="${escapeAttr(data.homepage_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.homepage_url)}</a></div>`;
             } else if (data.expose_homepage) {
                 info += `<div class="ts-detail-box-lg">🏠 ${t('config.tailscale.tsnet_homepage_pending_hint')}</div>`;
+            }
+            if (data.manifest_serving && data.manifest_url) {
+                info += `<div class="ts-url-row-lg">▦ <strong>${escapeHtml(t('config.tailscale.tsnet_manifest_url_label'))}:</strong> <a href="${escapeAttr(data.manifest_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.manifest_url)}</a></div>`;
+            } else if (data.expose_manifest) {
+                info += `<div class="ts-detail-box-lg">▦ ${t('config.tailscale.tsnet_manifest_pending_hint')}</div>`;
             }
             if (data.space_agent_serving && data.space_agent_url) {
                 info += `<div class="ts-url-row-lg">🛰️ <strong>${escapeHtml(t('config.tailscale.tsnet_space_agent_url_label'))}:</strong> <a href="${escapeAttr(data.space_agent_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.space_agent_url)}</a></div>`;

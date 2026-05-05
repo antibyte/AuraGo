@@ -953,5 +953,23 @@
       "title": "Night Time Window",
       "description": "Defines the nighttime period with its own (usually longer) check interval."
     }
+  },
+  "manifest": {
+    "enabled": {
+      "title": "Enable Manifest",
+      "description": "Enables Manifest.build as a managed or external OpenAI-compatible gateway."
+    },
+    "mode": {
+      "title": "Mode",
+      "description": "Managed starts AuraGo-managed Docker sidecars. External uses an existing Manifest endpoint."
+    },
+    "url": {
+      "title": "Managed URL",
+      "description": "Internal URL used by AuraGo to reach the managed Manifest service."
+    },
+    "api_key": {
+      "title": "Manifest API Key",
+      "description": "API key copied from the Manifest admin UI. It is stored only in the vault."
+    }
   }
 }
