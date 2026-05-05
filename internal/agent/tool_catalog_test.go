@@ -396,6 +396,69 @@ func TestBuildNativeToolSchemasIncludesOfficeTools(t *testing.T) {
 	}
 }
 
+func TestDiscoverToolsReturnsOfficeToolManuals(t *testing.T) {
+	resetToolCatalogForTest(t)
+	promptsDir := filepath.Clean(filepath.Join("..", "..", "prompts"))
+	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{
+		OfficeDocumentEnabled: true,
+		OfficeWorkbookEnabled: true,
+	}, nil)
+	SetDiscoverToolsState("sess-office-manuals", schemas, nil, promptsDir)
+	cfg := &config.Config{}
+	cfg.Directories.PromptsDir = promptsDir
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	for _, tc := range []struct {
+		toolName string
+		want     []string
+	}{
+		{
+			toolName: "office_document",
+			want:     []string{"# office_document", "tools.office_document.readonly", "patch"},
+		},
+		{
+			toolName: "office_workbook",
+			want:     []string{"# office_workbook", "tools.office_workbook.readonly", "evaluate_formula"},
+		},
+	} {
+		out := handleDiscoverTools(ToolCall{
+			Params: map[string]interface{}{
+				"operation": "get_tool_info",
+				"tool_name": tc.toolName,
+			},
+		}, cfg, logger, "sess-office-manuals")
+		var payload DiscoverToolsResponse
+		decodeToolOutputJSON(t, out, &payload)
+		if payload.Status != "success" || payload.Tool == nil || payload.Tool.Name != tc.toolName {
+			t.Fatalf("discover_tools get_tool_info for %s = %+v output=%s", tc.toolName, payload, out)
+		}
+		for _, want := range tc.want {
+			if !strings.Contains(payload.Manual, want) {
+				t.Fatalf("discover_tools manual for %s missing %q: %s", tc.toolName, want, payload.Manual)
+			}
+		}
+
+		manualOut, ok := dispatchComm(context.Background(), ToolCall{
+			Action: "get_tool_manual",
+			Params: map[string]interface{}{
+				"tool_name": tc.toolName,
+			},
+		}, &DispatchContext{
+			Cfg:       cfg,
+			Logger:    logger,
+			SessionID: "sess-office-manuals",
+		})
+		if !ok {
+			t.Fatalf("dispatchComm did not handle get_tool_manual for %s", tc.toolName)
+		}
+		for _, want := range tc.want {
+			if !strings.Contains(manualOut, want) {
+				t.Fatalf("get_tool_manual for %s missing %q: %s", tc.toolName, want, manualOut)
+			}
+		}
+	}
+}
+
 func TestVirtualDesktopSchemaDocumentsPathRequirementsWithoutGlobalPathRequirement(t *testing.T) {
 	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
 	var virtualDesktop *openai.FunctionDefinition
