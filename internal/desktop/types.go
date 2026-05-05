@@ -231,6 +231,7 @@ var desktopPreferredIconNames = []string{
 	"javascript",
 	"json",
 	"key",
+	"launchpad",
 	"list",
 	"mail",
 	"markdown",
@@ -262,6 +263,7 @@ var desktopPreferredIconNames = []string{
 	"video",
 	"weather",
 	"workflow",
+	"writer",
 	"x",
 	"xml",
 	"yaml",
@@ -358,6 +360,8 @@ var desktopIconAliases = map[string]string{
 	"forms":            "forms",
 	"help":             "help",
 	"internet":         "globe",
+	"launchpad":        "launchpad",
+	"launcher":         "launchpad",
 	"library":          "book",
 	"location":         "map",
 	"mail":             "mail",
@@ -375,6 +379,7 @@ var desktopIconAliases = map[string]string{
 	"presentation":     "documents",
 	"print":            "printer",
 	"printer":          "printer",
+	"quick-launch":     "launchpad",
 	"radio":            "radio",
 	"run":              "run",
 	"screen":           "monitor",
@@ -391,6 +396,9 @@ var desktopIconAliases = map[string]string{
 	"widgets":          "apps",
 	"workflow":         "workflow",
 	"workflows":        "workflow",
+	"word":             "writer",
+	"word-processor":   "writer",
+	"writer":           "writer",
 }
 
 var desktopIconTokenPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
@@ -505,7 +513,7 @@ func BuiltinApps() []AppManifest {
 	return []AppManifest{
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
-		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "documents", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "sheets", Name: "Sheets", Version: "1.0.0", Icon: "spreadsheet", Entry: "builtin://sheets", Runtime: BuiltinRuntime, Description: "Create and edit basic spreadsheets.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Description: "Inspect virtual desktop settings."},
 		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
@@ -517,6 +525,6 @@ func BuiltinApps() []AppManifest {
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH servers with an interactive terminal."},
 		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "apps", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Description: "Quick-access launcher for local and remote web links."},
+		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "launchpad", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Description: "Quick-access launcher for local and remote web links."},
 	}
 }

@@ -78,7 +78,7 @@
         files: 'folder',
         editor: 'edit',
         forms: 'forms',
-        writer: 'documents',
+        writer: 'writer',
         sheets: 'spreadsheet',
         help: 'help',
         settings: 'settings',
@@ -105,7 +105,7 @@
         'agent-chat': 'chat',
         terminal: 'terminal',
         browser: 'browser',
-        launchpad: 'apps'
+        launchpad: 'launchpad'
     };
     appIconKeys['code-studio'] = 'code';
     const extensionIconKeys = {
@@ -3235,7 +3235,7 @@
                 </div>
                 <div class="vd-launchpad-grid"></div>
                 <div class="vd-launchpad-empty" hidden>
-                    <div class="vd-launchpad-empty-icon">${iconMarkup('apps', 'A', 'vd-launchpad-empty-papirus-icon', 42)}</div>
+                    <div class="vd-launchpad-empty-icon">${iconMarkup('launchpad', 'A', 'vd-launchpad-empty-papirus-icon', 42)}</div>
                     <div>${esc(t('desktop.launchpad_empty'))}</div>
                 </div>
             </div>`;

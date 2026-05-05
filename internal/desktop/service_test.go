@@ -214,6 +214,8 @@ func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
 		got[app.ID] = app
 	}
 	for id, wantIcon := range map[string]string{
+		"writer":       "writer",
+		"launchpad":    "launchpad",
 		"music-player": "audio-player",
 		"radio":        "radio",
 		"agent-chat":   "chat",
@@ -236,7 +238,7 @@ func TestServiceBootstrapIncludesOfficeApps(t *testing.T) {
 	for _, app := range bootstrap.BuiltinApps {
 		got[app.ID] = app
 	}
-	if got["writer"].Icon != "documents" || got["writer"].Entry != "builtin://writer" {
+	if got["writer"].Icon != "writer" || got["writer"].Entry != "builtin://writer" {
 		t.Fatalf("writer app = %+v", got["writer"])
 	}
 	if got["sheets"].Icon != "spreadsheet" || got["sheets"].Entry != "builtin://sheets" {

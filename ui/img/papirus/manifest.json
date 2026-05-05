@@ -57,6 +57,7 @@
     "javascript": "img/papirus/icons/javascript.svg",
     "json": "img/papirus/icons/json.svg",
     "key": "img/papirus/icons/key.svg",
+    "launchpad": "img/papirus/icons/launchpad.svg",
     "list": "img/papirus/icons/list.svg",
     "mail": "img/papirus/icons/mail.svg",
     "map": "img/papirus/icons/map.svg",
@@ -88,6 +89,7 @@
     "video": "img/papirus/icons/video.svg",
     "weather": "img/papirus/icons/weather.svg",
     "workflow": "img/papirus/icons/workflow.svg",
+    "writer": "img/papirus/icons/writer.svg",
     "x": "img/papirus/icons/x.svg",
     "xml": "img/papirus/icons/xml.svg",
     "yaml": "img/papirus/icons/yaml.svg"
@@ -183,6 +185,8 @@
     "forms": "forms",
     "help": "help",
     "internet": "globe",
+    "launchpad": "launchpad",
+    "launcher": "launchpad",
     "library": "book",
     "location": "map",
     "mail": "mail",
@@ -199,6 +203,7 @@
     "presentation": "documents",
     "print": "printer",
     "printer": "printer",
+    "quick-launch": "launchpad",
     "player": "audio-player",
     "radio": "radio",
     "run": "run",
@@ -215,6 +220,9 @@
     "weather": "weather",
     "widgets": "apps",
     "workflow": "workflow",
-    "workflows": "workflow"
+    "workflows": "workflow",
+    "word": "writer",
+    "word-processor": "writer",
+    "writer": "writer"
   }
 }

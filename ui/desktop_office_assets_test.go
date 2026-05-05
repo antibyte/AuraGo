@@ -26,7 +26,7 @@ func TestDesktopOfficeAssetsAreEmbeddedAndRouted(t *testing.T) {
 
 	mainJS := readDesktopOfficeTestFile(t, filepath.Join("js", "desktop", "main.js"))
 	requiredMain := []string{
-		"writer: 'documents'",
+		"writer: 'writer'",
 		"sheets: 'spreadsheet'",
 		"window.WriterApp.render",
 		"window.SheetsApp.render",
