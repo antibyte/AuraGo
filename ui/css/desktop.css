@@ -10,6 +10,8 @@
     --vd-amber: #f2b84b;
     --vd-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
     --vd-icon-glyph-size: 42px;
+    --vd-start-button-size: 52px;
+    --vd-start-recess-size: 64px;
 }
 
 .desktop-body {
@@ -155,6 +157,32 @@
 
 .vd-taskbar {
     border-top: 1px solid var(--vd-border);
+    position: relative;
+    overflow: visible;
+}
+
+.vd-taskbar::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: calc(50% - 4px);
+    width: var(--vd-start-recess-size);
+    height: var(--vd-start-recess-size);
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background:
+        radial-gradient(circle at 50% 42%, rgba(2, 6, 12, 0.72), rgba(2, 6, 12, 0.38) 62%, rgba(255, 255, 255, 0.06) 63%, transparent 65%);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        inset 0 12px 20px rgba(0, 0, 0, 0.3),
+        0 0 0 7px rgba(10, 14, 20, 0.34);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.vd-taskbar > * {
+    position: relative;
+    z-index: 1;
 }
 
 .vd-taskbar-apps {
@@ -2567,10 +2595,56 @@
     padding: 0 12px;
 }
 
+.vd-start-button {
+    width: var(--vd-start-button-size);
+    height: var(--vd-start-button-size);
+    min-width: var(--vd-start-button-size);
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.48);
+    background:
+        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.28), transparent 30%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+    box-shadow:
+        0 15px 34px rgba(0, 0, 0, 0.34),
+        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    transform: translateY(-4px);
+}
+
+.vd-start-button:hover {
+    background:
+        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.34), transparent 31%),
+        linear-gradient(145deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.24), rgba(255, 255, 255, 0.08));
+}
+
+.vd-start-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .vd-start-glyph {
-    width: 22px;
-    height: 22px;
+    width: 32px;
+    height: 32px;
     font-size: 0.7rem;
+    border-radius: 50%;
+}
+
+.vd-start-button .vd-sprite-start,
+.vd-start-button .vd-papirus-icon {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+.vd-start-button .vd-papirus-icon {
+    filter: drop-shadow(0 4px 9px rgba(0, 0, 0, 0.34));
 }
 
 .vd-taskbar-apps {

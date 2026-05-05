@@ -543,7 +543,7 @@
         const startButton = $('vd-start-button');
         if (!startButton) return;
         const startGlyph = startButton.querySelector('.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon');
-        if (startGlyph) startGlyph.outerHTML = iconMarkup('apps', 'A', 'vd-sprite-start', 28);
+        if (startGlyph) startGlyph.outerHTML = iconMarkup('home', 'A', 'vd-sprite-start', 32);
     }
 
     function renderIcons() {

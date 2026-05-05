@@ -49,6 +49,46 @@ func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopStartButtonUsesRoundPapirusHomeLauncher(t *testing.T) {
+	t.Parallel()
+
+	htmlBytes, err := Content.ReadFile("desktop.html")
+	if err != nil {
+		t.Fatalf("desktop template missing from embedded UI: %v", err)
+	}
+	html := string(htmlBytes)
+	if !strings.Contains(html, `class="vd-start-label"`) {
+		t.Fatal("start button label should remain in the DOM with the visual-hidden label class")
+	}
+
+	jsBytes, err := Content.ReadFile("js/desktop/main.js")
+	if err != nil {
+		t.Fatalf("desktop shell missing from embedded UI: %v", err)
+	}
+	js := string(jsBytes)
+	if !strings.Contains(js, "iconMarkup('home', 'A', 'vd-sprite-start', 32)") {
+		t.Fatal("start button should use the Papirus home icon as the launcher glyph")
+	}
+
+	cssBytes, err := Content.ReadFile("css/desktop.css")
+	if err != nil {
+		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
+	}
+	css := string(cssBytes)
+	for _, marker := range []string{
+		"--vd-start-button-size: 52px;",
+		"--vd-start-recess-size: 64px;",
+		".vd-taskbar::before",
+		"border-radius: 50%;",
+		".vd-start-label",
+		".vd-start-button .vd-papirus-icon",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop start button CSS is missing marker %q", marker)
+		}
+	}
+}
+
 func TestCodeStudioAgentPanelGetsVisibleColumn(t *testing.T) {
 	t.Parallel()
 
