@@ -1019,7 +1019,8 @@
 
     function appWindowMinSize(appId) {
         const mins = {
-            'system-info': { width: 560, height: 460 }
+            'system-info': { width: 560, height: 460 },
+            calculator: { width: 280, height: 420 }
         };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -1101,7 +1102,7 @@
         win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
-        const isResizable = appId !== 'calculator';
+        const isResizable = true;
         const minSize = appWindowMinSize(appId);
         win.style.minWidth = minSize.width + 'px';
         win.style.minHeight = minSize.height + 'px';
@@ -1179,7 +1180,7 @@
             win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
         });
         bar.addEventListener('pointerup', () => { drag = null; });
-        if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
+        if (win.dataset.windowId && state.windows.get(win.dataset.windowId)) {
             bar.addEventListener('dblclick', event => {
                 if (event.target.closest('button')) return;
                 toggleMaximizeWindow(id);
@@ -1187,8 +1188,7 @@
         }
         wireLongPress(bar, event => showWindowContextMenu(event, id));
         wireWindowTouchGestures(win, id);
-        const winAppId = state.windows.get(id)?.appId;
-        if (winAppId !== 'calculator') wireWindowResize(win, id);
+        wireWindowResize(win, id);
     }
 
     function wireWindowTouchGestures(win, id) {
