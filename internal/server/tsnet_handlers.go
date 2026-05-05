@@ -34,6 +34,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		host = strings.TrimSuffix(host, ".")
 		webUIURL := ""
 		homepageURL := ""
+		manifestURL := ""
 		spaceAgentURL := ""
 		publicURL := ""
 		if host != "" && status.ServingHTTP {
@@ -49,6 +50,10 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		if host != "" && status.HomepageServing {
 			homepageURL = fmt.Sprintf("https://%s:8443", host)
 		}
+		if host != "" && status.ManifestServing {
+			port := tsnetCfgManifestPort(s)
+			manifestURL = fmt.Sprintf("https://%s:%d", host, port)
+		}
 		spaceAgentHost := strings.TrimSuffix(status.SpaceAgentDNS, ".")
 		if spaceAgentHost != "" && status.SpaceAgentServing {
 			spaceAgentURL = fmt.Sprintf("https://%s", spaceAgentHost)
@@ -62,11 +67,13 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 			"serve_http":          tsnetCfg.ServeHTTP,
 			"expose_homepage":     tsnetCfg.ExposeHomepage,
 			"expose_space_agent":  tsnetCfg.ExposeSpaceAgent,
+			"expose_manifest":     tsnetCfg.ExposeManifest,
 			"funnel":              tsnetCfg.Funnel,
 			"running":             status.Running,
 			"starting":            status.Starting,
 			"serving_http":        status.ServingHTTP,
 			"homepage_serving":    status.HomepageServing,
+			"manifest_serving":    status.ManifestServing,
 			"space_agent_serving": status.SpaceAgentServing,
 			"http_fallback":       status.HTTPFallback,
 			"funnel_active":       status.FunnelActive,
@@ -76,6 +83,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 			"cert_dns":            status.CertDNS,
 			"web_ui_url":          webUIURL,
 			"homepage_url":        homepageURL,
+			"manifest_url":        manifestURL,
 			"space_agent_dns":     status.SpaceAgentDNS,
 			"space_agent_url":     spaceAgentURL,
 			"public_url":          publicURL,
@@ -83,6 +91,19 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 			"login_url":           status.LoginURL,
 		})
 	}
+}
+
+func tsnetCfgManifestPort(s *Server) int {
+	if s == nil || s.Cfg == nil {
+		return 8444
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	port := s.Cfg.Tailscale.TsNet.ManifestPort
+	if port <= 0 {
+		return 8444
+	}
+	return port
 }
 
 // handleTsNetStart (re)starts the tsnet node.

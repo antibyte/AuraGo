@@ -854,6 +854,9 @@ tailscale:
         state_dir: ""                       # persistent state directory (default: data/tsnet)
         serve_http: false                   # also expose AuraGo web UI over Tailscale (default: join network only)
         expose_homepage: false              # also expose the Homepage/Caddy web server over Tailscale on :8443
+        expose_manifest: false              # also expose managed Manifest over Tailscale on manifest_port
+        manifest_hostname: aurago-manifest  # reserved MagicDNS label for Manifest exposure
+        manifest_port: 8444                 # HTTPS port for Manifest reverse proxy on the tsnet node
         expose_space_agent: false           # expose Space Agent over Tailscale as a dedicated HTTPS hostname
         space_agent_hostname: aurago-space-agent # MagicDNS hostname for Space Agent (https://aurago-space-agent.<tailnet>.ts.net/)
         funnel: false                       # expose AuraGo publicly via Tailscale Funnel on :443

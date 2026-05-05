@@ -1084,6 +1084,9 @@ type Config struct {
 			ExposeHomepage     bool   `yaml:"expose_homepage"`      // expose the Homepage/Caddy web server over the tailnet on 8443
 			ExposeSpaceAgent   bool   `yaml:"expose_space_agent"`   // expose the Space Agent HTTPS wrapper over the tailnet
 			SpaceAgentHostname string `yaml:"space_agent_hostname"` // MagicDNS hostname for the dedicated Space Agent tsnet node
+			ExposeManifest     bool   `yaml:"expose_manifest"`      // expose Manifest over the tailnet
+			ManifestHostname   string `yaml:"manifest_hostname"`    // MagicDNS hostname for the dedicated Manifest tsnet node
+			ManifestPort       int    `yaml:"manifest_port"`        // HTTPS port for Manifest exposure
 			Funnel             bool   `yaml:"funnel"`               // expose AuraGo publicly via Tailscale Funnel on 443
 			AllowHTTPFallback  bool   `yaml:"allow_http_fallback"`  // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
 			AuthKey            string `yaml:"-"`                    // tsnet auth key (vault-only: tailscale_tsnet_authkey)

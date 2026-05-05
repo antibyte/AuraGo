@@ -1252,6 +1252,16 @@ func Load(path string) (*Config, error) {
 		}
 		cfg.Tailscale.TsNet.SpaceAgentHostname = sanitizeTsnetHostname(base + "-space-agent")
 	}
+	if strings.TrimSpace(cfg.Tailscale.TsNet.ManifestHostname) == "" {
+		base := strings.TrimSpace(cfg.Tailscale.TsNet.Hostname)
+		if base == "" {
+			base = "aurago"
+		}
+		cfg.Tailscale.TsNet.ManifestHostname = sanitizeTsnetHostname(base + "-manifest")
+	}
+	if cfg.Tailscale.TsNet.ManifestPort <= 0 {
+		cfg.Tailscale.TsNet.ManifestPort = 8444
+	}
 
 	// Ansible defaults
 	if cfg.Ansible.Mode == "" {
@@ -1501,6 +1511,9 @@ func (c *Config) Save(path string) error {
 		{[]string{"tailscale", "tsnet", "expose_homepage"}, c.Tailscale.TsNet.ExposeHomepage},
 		{[]string{"tailscale", "tsnet", "expose_space_agent"}, c.Tailscale.TsNet.ExposeSpaceAgent},
 		{[]string{"tailscale", "tsnet", "space_agent_hostname"}, c.Tailscale.TsNet.SpaceAgentHostname},
+		{[]string{"tailscale", "tsnet", "expose_manifest"}, c.Tailscale.TsNet.ExposeManifest},
+		{[]string{"tailscale", "tsnet", "manifest_hostname"}, c.Tailscale.TsNet.ManifestHostname},
+		{[]string{"tailscale", "tsnet", "manifest_port"}, c.Tailscale.TsNet.ManifestPort},
 		{[]string{"tailscale", "tsnet", "funnel"}, c.Tailscale.TsNet.Funnel},
 		{[]string{"tailscale", "tsnet", "allow_http_fallback"}, c.Tailscale.TsNet.AllowHTTPFallback},
 		{[]string{"space_agent", "enabled"}, c.SpaceAgent.Enabled},
