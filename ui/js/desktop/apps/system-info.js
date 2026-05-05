@@ -148,23 +148,46 @@
             host,
             context,
             history: [],
+            lastMetrics: null,
+            uptimeBase: null,
+            uptimeAt: null,
             gauges: {
                 cpu: createGauge(host.querySelector('[data-gauge="cpu"]'), accent),
                 memory: createGauge(host.querySelector('[data-gauge="memory"]'), coral),
                 disk: createGauge(host.querySelector('[data-gauge="disk"]'), amber)
             },
             historyChart: createHistoryChart(host.querySelector('[data-role="history"]')),
-            handler: null
+            handler: null,
+            tickTimer: null
         };
 
         instance.handler = metrics => updateFromMetrics(instance, metrics);
         instances.set(windowId, instance);
 
+        fetchMetrics(instance);
+
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('system_metrics', instance.handler);
-        } else {
-            setStatus(instance, t(context, 'desktop.system_info_unavailable'));
         }
+
+        instance.tickTimer = setInterval(() => tickUptime(instance), 1000);
+    }
+
+    function fetchMetrics(instance) {
+        fetch('/api/dashboard/system', { credentials: 'same-origin', cache: 'no-store' })
+            .then(r => r && r.ok ? r.json() : null)
+            .then(data => {
+                if (data) updateFromMetrics(instance, data);
+            })
+            .catch(() => {});
+    }
+
+    function tickUptime(instance) {
+        if (!instance.uptimeBase || !instance.host.isConnected) return;
+        const elapsed = (Date.now() - instance.uptimeAt) / 1000;
+        const uptimeSeconds = instance.uptimeBase + elapsed;
+        const uptimeEl = instance.host.querySelector('[data-detail="uptime"]');
+        if (uptimeEl) uptimeEl.textContent = formatUptime(uptimeSeconds);
     }
 
     function gaugeMarkup(key, label) {
@@ -193,6 +216,10 @@
 
     function updateFromMetrics(instance, metrics) {
         if (!metrics) return;
+        instance.lastMetrics = metrics;
+        instance.uptimeBase = Number(metrics.uptime_seconds || 0);
+        instance.uptimeAt = Date.now();
+
         const cpu = pct(metrics.cpu && metrics.cpu.usage_percent);
         const memory = pct(metrics.memory && metrics.memory.used_percent);
         const disk = pct(metrics.disk && metrics.disk.used_percent);
@@ -201,12 +228,12 @@
         updateGauge(instance, 'memory', memory);
         updateGauge(instance, 'disk', disk);
 
-        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         instance.history.push({ label: now, cpu, memory, disk });
         if (instance.history.length > maxHistory) instance.history.shift();
         updateHistory(instance);
         updateDetails(instance, metrics);
-        setStatus(instance, t(instance.context, 'desktop.system_info_updated', { time: now }));
+        setStatus(instance, t(instance.context, 'desktop.system_info_updated', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }));
     }
 
     function updateHistory(instance) {
@@ -226,23 +253,28 @@
         const network = metrics.network || {};
         const detailHost = instance.host.querySelector('[data-role="details"]');
         if (!detailHost) return;
+        const uptimeSeconds = instance.uptimeBase + (Date.now() - instance.uptimeAt) / 1000;
         const details = [
-            [t(instance.context, 'desktop.system_info_cpu_model'), cpu.model_name || '-'],
-            [t(instance.context, 'desktop.system_info_cores'), cpu.cores || '-'],
-            [t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`],
-            [t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`],
-            [t(instance.context, 'desktop.system_info_network'), `${formatBytes(network.bytes_sent)} up / ${formatBytes(network.bytes_recv)} down`],
-            [t(instance.context, 'desktop.system_info_uptime'), formatUptime(metrics.uptime_seconds)]
+            ['cpu_model', t(instance.context, 'desktop.system_info_cpu_model'), cpu.model_name || '-'],
+            ['cores', t(instance.context, 'desktop.system_info_cores'), cpu.cores || '-'],
+            ['memory', t(instance.context, 'desktop.system_info_memory'), `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`],
+            ['disk', t(instance.context, 'desktop.system_info_disk'), `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`],
+            ['network', t(instance.context, 'desktop.system_info_network'), `${formatBytes(network.bytes_sent)} up / ${formatBytes(network.bytes_recv)} down`],
+            ['uptime', t(instance.context, 'desktop.system_info_uptime'), formatUptime(uptimeSeconds)]
         ];
-        detailHost.innerHTML = details.map(([label, value]) => `<article class="vd-sysinfo-detail">
+        detailHost.innerHTML = details.map(([id, label, value]) => `<article class="vd-sysinfo-detail">
             <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value)}</strong>
+            <strong data-detail="${id}">${escapeHtml(value)}</strong>
         </article>`).join('');
     }
 
     function dispose(windowId) {
         const instance = instances.get(windowId);
         if (!instance) return;
+        if (instance.tickTimer) {
+            clearInterval(instance.tickTimer);
+            instance.tickTimer = null;
+        }
         if (window.AuraSSE && typeof window.AuraSSE.off === 'function' && instance.handler) {
             window.AuraSSE.off('system_metrics', instance.handler);
         }
