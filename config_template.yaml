@@ -421,6 +421,13 @@ s3:
     insecure: false                                         # allow HTTP (non-TLS) endpoints
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
 # LLM Providers — configure via the Setup Wizard or Config UI
+# Example: route through a managed or external Manifest.build gateway.
+# Store the mnfst_... API key in the vault via the Config UI.
+# providers:
+#   - id: manifest
+#     type: manifest
+#     name: "Manifest Gateway"
+#     model: "manifest/auto"
 providers: []
 llm:
     provider: ""

@@ -137,6 +137,15 @@ func TestShouldUseOpenAIPromptCacheKeyOnlyForOfficialOpenAI(t *testing.T) {
 	}
 }
 
+func TestManifestProviderURLMismatchIsQuietForLocalGateway(t *testing.T) {
+	if got := detectProviderURLMismatch("manifest", "http://127.0.0.1:2099/v1"); got != "" {
+		t.Fatalf("detectProviderURLMismatch(manifest local) = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("manifest", "http://manifest:2099/v1"); got != "" {
+		t.Fatalf("detectProviderURLMismatch(manifest docker) = %q, want empty", got)
+	}
+}
+
 func openAIPromptCacheKeyFromBodyForTest(t *testing.T, body []byte) string {
 	t.Helper()
 	var payload map[string]interface{}

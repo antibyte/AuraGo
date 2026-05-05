@@ -312,8 +312,8 @@ func aiGatewaySegment(providerType string) string {
 		return "google-ai-studio"
 	case "workers-ai":
 		return "workers-ai"
-	case "openrouter", "custom":
-		// OpenRouter and custom providers are OpenAI-compatible
+	case "openrouter", "custom", "manifest":
+		// OpenRouter, Manifest, and custom providers are OpenAI-compatible.
 		return "openai"
 	case "yepapi":
 		// YepAPI LLM endpoint is OpenAI-compatible
