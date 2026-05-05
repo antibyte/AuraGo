@@ -4517,9 +4517,9 @@
 
 .vd-sysinfo {
     display: grid;
-    grid-template-rows: auto auto minmax(180px, 1fr) auto;
+    grid-template-rows: auto auto 1fr auto;
     gap: 16px;
-    min-height: 100%;
+    height: 100%;
     padding: 18px;
     color: var(--vd-text);
     background:
@@ -4637,9 +4637,10 @@
 }
 
 .vd-sysinfo-history {
-    min-height: 210px;
+    min-height: 180px;
     padding: 14px;
     border-radius: 24px;
+    overflow: hidden;
 }
 
 .vd-sysinfo-section-title {
