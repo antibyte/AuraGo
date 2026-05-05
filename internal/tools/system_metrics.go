@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -152,8 +153,13 @@ func GetSystemMetrics(target string) string {
 		}
 		info, err := cpu.Info()
 		if err == nil && len(info) > 0 {
-			metrics.CPU.Cores = int(info[0].Cores)
 			metrics.CPU.ModelName = info[0].ModelName
+		}
+		logicalCores, err := cpu.Counts(true)
+		if err == nil && logicalCores > 0 {
+			metrics.CPU.Cores = logicalCores
+		} else {
+			metrics.CPU.Cores = runtime.NumCPU()
 		}
 	}
 
