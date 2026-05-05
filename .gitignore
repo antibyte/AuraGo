@@ -116,6 +116,7 @@ log_analysis_*.md
 docs
 docs/*.*
 .superpowers/
+.playwright-mcp/
 .worktrees/
 #Agent files
 .kilo/
