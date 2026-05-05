@@ -2429,7 +2429,8 @@
             </div>
             <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
             <div class="vd-calc-keys">
-                ${['C','CE','⌫','%','sin','cos','tan','√','7','8','9','÷','log','ln','π','x²','4','5','6','×','(',')','e','xʸ','1','2','3','-','n!','±','.','+','0','00','='].map(key => `<button type="button" class="${/[+\-×÷=%]|xʸ/.test(key) ? 'op' : /sin|cos|tan|log|ln|π|e|√|n!|x²|[()]/.test(key) ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
+                ${['C','CE','⌫','%','7','8','9','÷','4','5','6','×','1','2','3','-','0','00','.','+','±','='].map(key => `<button type="button" class="${/^[+\-×÷=%]$/.test(key) ? 'op' : key === '=' ? 'eq' : key === '±' ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
+                ${['sin','cos','tan','√','log','ln','π','x²','(',')','e','xʸ','n!'].map(key => `<button type="button" class="fn scientific" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
                 <button type="button" class="fn programmer" data-key="AND">AND</button>
                 <button type="button" class="fn programmer" data-key="OR">OR</button>
                 <button type="button" class="fn programmer" data-key="XOR">XOR</button>

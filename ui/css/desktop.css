@@ -2480,7 +2480,7 @@
 }
 
 .vd-calc.scientific-on .vd-calc-keys {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(8, 1fr);
 }
 
 .vd-calc-keys button {
@@ -2579,7 +2579,8 @@
     }
 }
 
-.vd-calc-keys button[data-key="="] {
+.vd-calc-keys button.eq {
+    grid-column: span 2;
     background:
         linear-gradient(145deg, rgba(39, 199, 166, 0.55), rgba(30, 160, 135, 0.4));
     color: #ffffff;
@@ -2589,7 +2590,7 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.vd-calc-keys button[data-key="="]:hover {
+.vd-calc-keys button.eq:hover {
     box-shadow:
         0 8px 24px rgba(39, 199, 166, 0.45),
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
