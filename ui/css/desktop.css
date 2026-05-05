@@ -278,6 +278,134 @@
     background: rgba(10, 132, 255, 0.1);
 }
 
+.desktop-body[data-theme="fruity"] .vd-taskbar {
+    justify-content: center;
+    gap: 12px;
+    padding: 0 18px 12px;
+    border-top: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar::before {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-button {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps {
+    flex: 0 1 auto;
+    max-width: min(900px, calc(100vw - 260px));
+    min-height: 70px;
+    align-items: end;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 14px 12px;
+    border: 1px solid rgba(78, 92, 118, 0.18);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow:
+        0 22px 54px rgba(52, 64, 84, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(30px) saturate(1.24);
+    overflow: auto hidden;
+    scrollbar-width: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps::-webkit-scrollbar {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 50px;
+    border: 0;
+    border-radius: 15px;
+    background: transparent;
+    color: var(--vd-text);
+    cursor: pointer;
+    transform-origin: bottom center;
+    transition: transform 150ms ease, filter 150ms ease;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button:hover,
+.desktop-body[data-theme="fruity"] .vd-dock-button:focus-visible {
+    transform: translateY(-8px) scale(1.28);
+    filter: drop-shadow(0 12px 18px rgba(52, 64, 84, 0.24));
+    outline: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button.running::after,
+.desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    background: rgba(102, 112, 133, 0.62);
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
+    width: 18px;
+    border-radius: 999px;
+    background: var(--vd-accent);
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-icon {
+    width: 34px !important;
+    height: 34px !important;
+    filter: drop-shadow(0 8px 12px rgba(52, 64, 84, 0.2));
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-label {
+    position: absolute;
+    bottom: calc(100% + 9px);
+    max-width: 120px;
+    padding: 5px 8px;
+    border: 1px solid rgba(78, 92, 118, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--vd-text);
+    box-shadow: 0 10px 24px rgba(52, 64, 84, 0.18);
+    font-size: 0.72rem;
+    font-weight: 760;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    transform: translateY(4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+    white-space: nowrap;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button:hover .vd-dock-label,
+.desktop-body[data-theme="fruity"] .vd-dock-button:focus-visible .vd-dock-label {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@supports selector(.vd-dock-button:has(+ .vd-dock-button:hover)) {
+    .desktop-body[data-theme="fruity"] .vd-dock-button:has(+ .vd-dock-button:hover),
+    .desktop-body[data-theme="fruity"] .vd-dock-button:hover + .vd-dock-button {
+        transform: translateY(-4px) scale(1.12);
+    }
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-system {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+}
+
 @media (prefers-color-scheme: dark) {
     .desktop-body[data-theme="fruity"] {
         color-scheme: dark;
@@ -317,6 +445,17 @@
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(14, 20, 31, 0.08));
     }
 
+    .desktop-body[data-theme="fruity"] .vd-taskbar-apps,
+    .desktop-body[data-theme="fruity"] .vd-dock-label {
+        background: rgba(24, 30, 42, 0.82);
+        border-color: rgba(255, 255, 255, 0.13);
+        box-shadow: 0 24px 62px rgba(0, 0, 0, 0.38);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-dock-button.running::after {
+        background: rgba(169, 180, 196, 0.7);
+    }
+
     .desktop-body[data-theme="fruity"] .vd-window,
     .desktop-body[data-theme="fruity"] .vd-panel,
     .desktop-body[data-theme="fruity"] .vd-settings-app,
@@ -341,6 +480,41 @@
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+}
+
+@media (max-width: 720px) {
+    .desktop-body[data-theme="fruity"] .vd-taskbar {
+        justify-content: flex-start;
+        padding: 8px 10px;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-start-button {
+        display: inline-flex;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
+        flex: 1 1 auto;
+        max-width: none;
+        justify-content: flex-start;
+        min-height: 56px;
+        padding: 7px 10px 9px;
+        border-radius: 18px;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-dock-button {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-dock-button:hover,
+    .desktop-body[data-theme="fruity"] .vd-dock-button:focus-visible {
+        transform: translateY(-4px) scale(1.12);
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-taskbar-system {
+        position: static;
     }
 }
 
@@ -2444,13 +2618,13 @@
 }
 
 .vd-calc-display div {
-    min-height: 16px;
+    min-height: 14px;
     color: rgba(167, 176, 192, 0.7);
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: clamp(10px, 1.1vw, 13px);
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
+    font-size: clamp(9px, 0.9vw, 11px);
+    letter-spacing: 0.4px;
+    margin-bottom: 1px;
     font-weight: 500;
 }
 

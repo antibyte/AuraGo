@@ -415,6 +415,10 @@
         return settingValue(key) !== 'false';
     }
 
+    function isFruityTheme() {
+        return settingValue('appearance.theme') === 'fruity';
+    }
+
     function applyDesktopSettings() {
         const body = document.body;
         body.dataset.wallpaper = settingValue('appearance.wallpaper');
@@ -429,6 +433,7 @@
         body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
+        renderTaskbar();
     }
 
     function iconGlyphPixels() {
@@ -986,11 +991,45 @@
 
     function renderTaskbar() {
         const host = $('vd-taskbar-apps');
+        if (!host) return;
+        host.classList.toggle('vd-dock', isFruityTheme());
+        if (isFruityTheme()) {
+            renderFruityDock();
+            return;
+        }
+        renderStandardTaskbar();
+    }
+
+    function renderStandardTaskbar() {
+        const host = $('vd-taskbar-apps');
         host.innerHTML = [...state.windows.values()].map(win => `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}">${esc(win.title)}</button>`).join('');
         host.querySelectorAll('[data-window-id]').forEach(btn => {
             btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
             btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
             wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+        });
+    }
+
+    function renderFruityDock() {
+        const host = $('vd-taskbar-apps');
+        const runningWindows = [...state.windows.values()];
+        host.innerHTML = allApps().map(app => {
+            const running = runningWindows.some(win => win.appId === app.id);
+            const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
+            const stateClasses = [running ? 'running' : '', active ? 'active' : ''].filter(Boolean).join(' ');
+            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(appName(app))}">
+                ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
+                <span class="vd-dock-label">${esc(appName(app))}</span>
+            </button>`;
+        }).join('');
+        host.querySelectorAll('[data-app-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
+                if (existing) focusWindow(existing.id);
+                else openApp(btn.dataset.appId);
+            });
+            btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+            wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         });
     }
 
@@ -1104,12 +1143,10 @@
         win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
-        const isResizable = true;
-        win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
-        win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
+        const isResizable = appId !== 'calculator';
         const minSize = appWindowMinSize(appId);
-        win.style.minWidth = Math.min(minSize.width, size.width) + 'px';
-        win.style.minHeight = Math.min(minSize.height, size.height) + 'px';
+        win.style.minWidth = minSize.width + 'px';
+        win.style.minHeight = minSize.height + 'px';
         if (!isResizable) {
             win.style.maxWidth = size.width + 'px';
             win.style.maxHeight = size.height + 'px';
@@ -1184,7 +1221,7 @@
             win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
         });
         bar.addEventListener('pointerup', () => { drag = null; });
-        if (win.dataset.windowId && state.windows.get(win.dataset.windowId)) {
+        if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
             bar.addEventListener('dblclick', event => {
                 if (event.target.closest('button')) return;
                 toggleMaximizeWindow(id);
@@ -1192,7 +1229,8 @@
         }
         wireLongPress(bar, event => showWindowContextMenu(event, id));
         wireWindowTouchGestures(win, id);
-        wireWindowResize(win, id);
+        const winAppId = state.windows.get(id)?.appId;
+        if (winAppId !== 'calculator') wireWindowResize(win, id);
     }
 
     function wireWindowTouchGestures(win, id) {
