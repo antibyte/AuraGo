@@ -14,7 +14,9 @@
         iconMap: new Map(),
         selectedIconId: '',
         contextMenu: null,
-        webampMusic: null
+        webampMusic: null,
+        fruityDockOcclusionFrame: 0,
+        fruityDockFootprint: null
     };
 
     const SDK_REQUEST_TYPE = 'aurago.desktop.request';
@@ -458,6 +460,7 @@
         const visual = window.visualViewport;
         const height = visual && visual.height ? visual.height : window.innerHeight;
         document.documentElement.style.setProperty('--vd-visual-height', Math.max(1, Math.round(height)) + 'px');
+        scheduleFruityDockOcclusionCheck();
     }
 
     function bindViewportMetrics() {
@@ -653,6 +656,12 @@
         if (!startButton) return;
         const startGlyph = startButton.querySelector('.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon');
         if (startGlyph) startGlyph.outerHTML = iconMarkup('home', 'A', 'vd-sprite-start', 32);
+    }
+
+    function toggleStartMenu() {
+        const menu = $('vd-start-menu');
+        menu.hidden = !menu.hidden;
+        if (!menu.hidden && !isCompactViewport()) $('vd-start-search').focus();
     }
 
     function renderIcons() {
@@ -995,8 +1004,11 @@
         host.classList.toggle('vd-dock', isFruityTheme());
         if (isFruityTheme()) {
             renderFruityDock();
+            scheduleFruityDockOcclusionCheck();
             return;
         }
+        document.body.classList.remove('fruity-dock-collapsed');
+        state.fruityDockFootprint = null;
         renderStandardTaskbar();
     }
 
@@ -1013,7 +1025,7 @@
     function renderFruityDock() {
         const host = $('vd-taskbar-apps');
         const runningWindows = [...state.windows.values()];
-        host.innerHTML = allApps().map(app => {
+        const dockApps = allApps().map(app => {
             const running = runningWindows.some(win => win.appId === app.id);
             const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
             const stateClasses = [running ? 'running' : '', active ? 'active' : ''].filter(Boolean).join(' ');
@@ -1022,6 +1034,16 @@
                 <span class="vd-dock-label">${esc(appName(app))}</span>
             </button>`;
         }).join('');
+        host.innerHTML = `<button type="button" class="vd-dock-orb" data-fruity-dock-orb title="${esc(t('desktop.start_menu'))}">
+            ${iconMarkup('home', 'A', 'vd-dock-orb-icon', 34)}
+        </button>${dockApps}`;
+        const orb = host.querySelector('[data-fruity-dock-orb]');
+        if (orb) {
+            orb.addEventListener('click', event => {
+                event.stopPropagation();
+                toggleStartMenu();
+            });
+        }
         host.querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
@@ -1031,6 +1053,57 @@
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
             wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         });
+    }
+
+    function scheduleFruityDockOcclusionCheck() {
+        if (state.fruityDockOcclusionFrame) return;
+        const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+        state.fruityDockOcclusionFrame = schedule(() => {
+            state.fruityDockOcclusionFrame = 0;
+            updateFruityDockOcclusion();
+        });
+    }
+
+    function updateFruityDockOcclusion() {
+        const body = document.body;
+        const host = $('vd-taskbar-apps');
+        if (!body || !host || !isFruityTheme()) {
+            if (body) body.classList.remove('fruity-dock-collapsed');
+            state.fruityDockFootprint = null;
+            return;
+        }
+        const dockRect = fruityDockFootprint(host);
+        const occluded = [...state.windows.values()].some(win => windowOverlapsFruityDock(win, dockRect));
+        body.classList.toggle('fruity-dock-collapsed', occluded);
+    }
+
+    function fruityDockFootprint(host) {
+        const rect = host.getBoundingClientRect();
+        const collapsed = document.body.classList.contains('fruity-dock-collapsed');
+        if (!collapsed && rect.width > 120 && rect.height > 40) {
+            state.fruityDockFootprint = {
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom
+            };
+        }
+        if (state.fruityDockFootprint) return state.fruityDockFootprint;
+        const width = Math.min(920, Math.max(160, window.innerWidth - 170));
+        const left = Math.max(0, (window.innerWidth - width) / 2);
+        const bottom = window.innerHeight - 8;
+        const height = 110;
+        return { left, top: Math.max(0, bottom - height), right: left + width, bottom };
+    }
+
+    function windowOverlapsFruityDock(win, dockRect) {
+        if (!win || !win.element || win.element.style.display === 'none' || win.element.hidden) return false;
+        const rect = win.element.getBoundingClientRect();
+        const margin = 6;
+        return rect.right > dockRect.left + margin &&
+            rect.left < dockRect.right - margin &&
+            rect.bottom > dockRect.top + margin &&
+            rect.top < dockRect.bottom - margin;
     }
 
     function windowTitle(appId) {
@@ -1221,6 +1294,7 @@
             const maxTop = window.innerHeight - 120;
             win.style.left = Math.min(maxLeft, Math.max(8, drag.left + event.clientX - drag.x)) + 'px';
             win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
+            scheduleFruityDockOcclusionCheck();
         });
         bar.addEventListener('pointerup', () => { drag = null; });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
@@ -1316,6 +1390,7 @@
             item.maximized = true;
         }
         focusWindow(id);
+        scheduleFruityDockOcclusionCheck();
     }
 
     function wireWindowResize(win, id) {
@@ -1374,6 +1449,7 @@
         win.style.top = top + 'px';
         win.style.width = width + 'px';
         win.style.height = height + 'px';
+        scheduleFruityDockOcclusionCheck();
     }
 
     function nearestWindowScroller(control) {
@@ -1411,6 +1487,7 @@
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
         renderTaskbar();
+        scheduleFruityDockOcclusionCheck();
     }
 
     function closeWindow(id) {
@@ -1421,6 +1498,7 @@
         state.windows.delete(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
+        scheduleFruityDockOcclusionCheck();
     }
 
     function callAppDispose(app, windowId) {
@@ -4115,11 +4193,7 @@
     }
 
     function wireChrome() {
-        $('vd-start-button').addEventListener('click', () => {
-            const menu = $('vd-start-menu');
-            menu.hidden = !menu.hidden;
-            if (!menu.hidden && !isCompactViewport()) $('vd-start-search').focus();
-        });
+        $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
