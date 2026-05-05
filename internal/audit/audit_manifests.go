@@ -158,6 +158,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/fritzbox/", Classification: "local-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/invasion/", Classification: "managed-remote-nest", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/jellyfin/", Classification: "configured-media-server", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/launchpad/", Classification: "user-requested-icon-fetch", RequiresSSRF: true},
 		{Path: "internal/llm/", Classification: "provider-api", Credentialed: true},
 		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},
 		{Path: "internal/memory/", Classification: "provider-api", Credentialed: true},
