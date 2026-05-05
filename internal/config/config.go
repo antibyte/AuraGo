@@ -265,6 +265,23 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.AdminUser = "admin"
 	cfg.SpaceAgent.PublicURL = ""
 
+	// Manifest defaults: disabled by default, managed Docker gateway when enabled.
+	cfg.Manifest.AutoStart = true
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = defaultSidecarURL(runningInDocker, "manifest", 2099)
+	cfg.Manifest.ExternalBaseURL = "https://app.manifest.build/v1"
+	cfg.Manifest.ContainerName = "aurago_manifest"
+	cfg.Manifest.Image = "manifestdotbuild/manifest:5"
+	cfg.Manifest.Host = "127.0.0.1"
+	cfg.Manifest.Port = 2099
+	cfg.Manifest.HostPort = 2099
+	cfg.Manifest.NetworkName = "aurago_manifest"
+	cfg.Manifest.PostgresContainerName = "aurago_manifest_postgres"
+	cfg.Manifest.PostgresImage = "postgres:15-alpine"
+	cfg.Manifest.PostgresUser = "manifest"
+	cfg.Manifest.PostgresDatabase = "manifest"
+	cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
+
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
@@ -478,6 +495,7 @@ func Load(path string) (*Config, error) {
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
+	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
 	if strings.TrimSpace(cfg.SpaceAgent.RepoURL) == "" {
 		cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
 	}
@@ -504,6 +522,54 @@ func Load(path string) (*Config, error) {
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.DataPath) == "" {
 		cfg.SpaceAgent.DataPath = "data/sidecars/space-agent/data"
+	}
+	if strings.TrimSpace(cfg.Manifest.Mode) == "" {
+		cfg.Manifest.Mode = "managed"
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.Manifest.Mode)) {
+	case "external":
+		cfg.Manifest.Mode = "external"
+	default:
+		cfg.Manifest.Mode = "managed"
+	}
+	if strings.TrimSpace(cfg.Manifest.URL) == "" {
+		cfg.Manifest.URL = defaultSidecarURL(runningInDocker, "manifest", 2099)
+	}
+	if strings.TrimSpace(cfg.Manifest.ExternalBaseURL) == "" {
+		cfg.Manifest.ExternalBaseURL = "https://app.manifest.build/v1"
+	}
+	if strings.TrimSpace(cfg.Manifest.ContainerName) == "" {
+		cfg.Manifest.ContainerName = "aurago_manifest"
+	}
+	if strings.TrimSpace(cfg.Manifest.Image) == "" {
+		cfg.Manifest.Image = "manifestdotbuild/manifest:5"
+	}
+	if strings.TrimSpace(cfg.Manifest.Host) == "" {
+		cfg.Manifest.Host = "127.0.0.1"
+	}
+	if cfg.Manifest.Port <= 0 {
+		cfg.Manifest.Port = 2099
+	}
+	if cfg.Manifest.HostPort <= 0 {
+		cfg.Manifest.HostPort = cfg.Manifest.Port
+	}
+	if strings.TrimSpace(cfg.Manifest.NetworkName) == "" {
+		cfg.Manifest.NetworkName = "aurago_manifest"
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresContainerName) == "" {
+		cfg.Manifest.PostgresContainerName = "aurago_manifest_postgres"
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresImage) == "" {
+		cfg.Manifest.PostgresImage = "postgres:15-alpine"
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresUser) == "" {
+		cfg.Manifest.PostgresUser = "manifest"
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresDatabase) == "" {
+		cfg.Manifest.PostgresDatabase = "manifest"
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresVolume) == "" {
+		cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
 	}
 	if strings.TrimSpace(cfg.VirtualDesktop.WorkspaceDir) == "" {
 		cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"

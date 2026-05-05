@@ -497,6 +497,62 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadManifestDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Manifest.Enabled {
+		t.Fatal("expected manifest.enabled to default to false")
+	}
+	if !cfg.Manifest.AutoStart {
+		t.Fatal("expected manifest.auto_start to default to true")
+	}
+	if cfg.Manifest.Mode != "managed" {
+		t.Fatalf("mode = %q, want managed", cfg.Manifest.Mode)
+	}
+	if cfg.Manifest.URL == "" {
+		t.Fatal("expected manifest.url default to be populated")
+	}
+	if cfg.Manifest.ExternalBaseURL != "https://app.manifest.build/v1" {
+		t.Fatalf("external_base_url = %q, want hosted Manifest endpoint", cfg.Manifest.ExternalBaseURL)
+	}
+	if cfg.Manifest.ContainerName != "aurago_manifest" {
+		t.Fatalf("container_name = %q, want aurago_manifest", cfg.Manifest.ContainerName)
+	}
+	if cfg.Manifest.Image != "manifestdotbuild/manifest:5" {
+		t.Fatalf("image = %q, want manifestdotbuild/manifest:5", cfg.Manifest.Image)
+	}
+	if cfg.Manifest.Host != "127.0.0.1" {
+		t.Fatalf("host = %q, want 127.0.0.1", cfg.Manifest.Host)
+	}
+	if cfg.Manifest.Port != 2099 || cfg.Manifest.HostPort != 2099 {
+		t.Fatalf("port/host_port = %d/%d, want 2099/2099", cfg.Manifest.Port, cfg.Manifest.HostPort)
+	}
+	if cfg.Manifest.NetworkName != "aurago_manifest" {
+		t.Fatalf("network_name = %q, want aurago_manifest", cfg.Manifest.NetworkName)
+	}
+	if cfg.Manifest.PostgresContainerName != "aurago_manifest_postgres" {
+		t.Fatalf("postgres_container_name = %q, want aurago_manifest_postgres", cfg.Manifest.PostgresContainerName)
+	}
+	if cfg.Manifest.PostgresImage != "postgres:15-alpine" {
+		t.Fatalf("postgres_image = %q, want postgres:15-alpine", cfg.Manifest.PostgresImage)
+	}
+	if cfg.Manifest.PostgresUser != "manifest" || cfg.Manifest.PostgresDatabase != "manifest" {
+		t.Fatalf("postgres user/db = %q/%q, want manifest/manifest", cfg.Manifest.PostgresUser, cfg.Manifest.PostgresDatabase)
+	}
+	if cfg.Manifest.PostgresVolume != "aurago_manifest_pgdata" {
+		t.Fatalf("postgres_volume = %q, want aurago_manifest_pgdata", cfg.Manifest.PostgresVolume)
+	}
+}
+
 func TestLoadSpaceAgentMigratesLegacyDefaultPortAwayFromGotenberg(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
@@ -712,6 +768,20 @@ func TestDefaultSidecarURL(t *testing.T) {
 			service:         "gotenberg",
 			port:            3000,
 			want:            "http://127.0.0.1:3000",
+		},
+		{
+			name:            "manifest inside docker uses service DNS",
+			runningInDocker: true,
+			service:         "manifest",
+			port:            2099,
+			want:            "http://manifest:2099",
+		},
+		{
+			name:            "manifest on host uses loopback",
+			runningInDocker: false,
+			service:         "manifest",
+			port:            2099,
+			want:            "http://127.0.0.1:2099",
 		},
 	}
 

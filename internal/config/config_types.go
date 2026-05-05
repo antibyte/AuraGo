@@ -217,6 +217,30 @@ type SpaceAgentConfig struct {
 	BridgeToken    string `yaml:"-" json:"-"`                             // vault-only: space_agent_bridge_token
 }
 
+// ManifestConfig holds settings for the optional managed Manifest.build gateway.
+type ManifestConfig struct {
+	Enabled               bool   `yaml:"enabled" json:"enabled"`                                 // enable Manifest integration
+	AutoStart             bool   `yaml:"auto_start" json:"auto_start"`                           // create/start managed Docker sidecars on AuraGo startup
+	Mode                  string `yaml:"mode" json:"mode"`                                       // "managed" (default) or "external"
+	URL                   string `yaml:"url" json:"url"`                                         // managed Manifest dashboard/API base URL
+	ExternalBaseURL       string `yaml:"external_base_url" json:"external_base_url"`             // external OpenAI-compatible Manifest /v1 URL
+	ContainerName         string `yaml:"container_name" json:"container_name"`                   // managed Manifest container name
+	Image                 string `yaml:"image" json:"image"`                                     // managed Manifest Docker image
+	Host                  string `yaml:"host" json:"host"`                                       // host interface for Manifest dashboard/API exposure
+	Port                  int    `yaml:"port" json:"port"`                                       // Manifest container port
+	HostPort              int    `yaml:"host_port" json:"host_port"`                             // published host port for dashboard/API access
+	NetworkName           string `yaml:"network_name" json:"network_name"`                       // Docker network for Manifest and Postgres
+	PostgresContainerName string `yaml:"postgres_container_name" json:"postgres_container_name"` // managed Postgres container name
+	PostgresImage         string `yaml:"postgres_image" json:"postgres_image"`                   // managed Postgres Docker image
+	PostgresUser          string `yaml:"postgres_user" json:"postgres_user"`                     // Postgres user
+	PostgresDatabase      string `yaml:"postgres_database" json:"postgres_database"`             // Postgres database name
+	PostgresVolume        string `yaml:"postgres_volume" json:"postgres_volume"`                 // persistent Postgres named volume
+	PostgresPassword      string `yaml:"-" json:"postgres_password,omitempty" vault:"-"`         // vault-only: manifest_postgres_password
+	BetterAuthSecret      string `yaml:"-" json:"better_auth_secret,omitempty" vault:"-"`        // vault-only: manifest_better_auth_secret
+	APIKey                string `yaml:"-" json:"api_key,omitempty" vault:"-"`                   // vault-only: manifest_api_key
+	HealthPath            string `yaml:"health_path" json:"health_path"`                         // optional explicit health path
+}
+
 // VirtualDesktopConfig holds settings for AuraGo's browser-native virtual desktop.
 type VirtualDesktopConfig struct {
 	Enabled            bool             `yaml:"enabled" json:"enabled"`                           // enable the virtual desktop web UI and APIs
@@ -1111,6 +1135,7 @@ type Config struct {
 	} `yaml:"remote_control"`
 	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
 	SpaceAgent        SpaceAgentConfig        `yaml:"space_agent"`
+	Manifest          ManifestConfig          `yaml:"manifest"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

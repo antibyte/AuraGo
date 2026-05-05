@@ -600,6 +600,28 @@ space_agent:
     data_path: data/sidecars/space-agent/data
     admin_user: admin
     public_url: ""                                        # Optional browser URL; empty derives https://<AuraGo-server-host>:3101 when https_enabled is true
+manifest:
+    enabled: false
+    auto_start: true                                      # starts managed Manifest/Postgres sidecars when enabled
+    mode: managed                                         # managed or external
+    url: "http://manifest:2099"                           # managed dashboard/API URL from inside AuraGo Docker; use http://127.0.0.1:2099 on bare metal
+    external_base_url: "https://app.manifest.build/v1"    # external/hosted OpenAI-compatible Manifest endpoint
+    container_name: aurago_manifest
+    image: manifestdotbuild/manifest:5                    # pin major version; avoid latest for unattended upgrades
+    host: "127.0.0.1"                                     # dashboard/API bind address for host port publishing
+    port: 2099
+    host_port: 2099
+    network_name: aurago_manifest
+    postgres_container_name: aurago_manifest_postgres
+    postgres_image: postgres:15-alpine
+    postgres_user: manifest
+    postgres_database: manifest
+    postgres_volume: aurago_manifest_pgdata
+    health_path: ""                                       # optional explicit health path; empty probes /health, /api/health, then TCP
+    # Vault-only fields saved via UI, never config.yaml:
+    # api_key: mnfst_...
+    # postgres_password: generated/stored in vault
+    # better_auth_secret: generated/stored in vault
 virtual_desktop:
     enabled: false
     readonly: false
