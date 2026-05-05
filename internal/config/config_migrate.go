@@ -174,7 +174,24 @@ var knownProviderTypes = map[string]bool{
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
 	"vision": true, "minimax": true, "glm": true,
-	"yepapi": true,
+	"yepapi": true, "manifest": true,
+}
+
+// ManifestProviderBaseURL returns the OpenAI-compatible /v1 endpoint for the
+// configured Manifest gateway mode.
+func (c *Config) ManifestProviderBaseURL() string {
+	mode := strings.ToLower(strings.TrimSpace(c.Manifest.Mode))
+	if mode == "external" {
+		return providerutil.NormalizeBaseURL(c.Manifest.ExternalBaseURL)
+	}
+	base := providerutil.NormalizeBaseURL(c.Manifest.URL)
+	if base == "" {
+		base = providerutil.NormalizeBaseURL(defaultSidecarURL(probeDockerContainer(), "manifest", 2099))
+	}
+	if base == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/v1"
 }
 
 // ResolveProviders populates the resolved (yaml:"-") fields on every LLM slot
@@ -192,6 +209,9 @@ func (c *Config) ResolveProviders() {
 		if lower != "" && !knownProviderTypes[lower] {
 			slog.Warn("[Config] Provider has unknown type — possible typo in config",
 				"provider_id", p.ID, "type", p.Type)
+		}
+		if lower == "manifest" && strings.TrimSpace(p.BaseURL) == "" {
+			p.BaseURL = c.ManifestProviderBaseURL()
 		}
 		p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
 	}
@@ -804,6 +824,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("grafana_api_key", &c.Grafana.APIKey)
 	apply("space_agent_admin_password", &c.SpaceAgent.AdminPassword)
 	apply("space_agent_bridge_token", &c.SpaceAgent.BridgeToken)
+	apply("manifest_api_key", &c.Manifest.APIKey)
+	apply("manifest_postgres_password", &c.Manifest.PostgresPassword)
+	apply("manifest_better_auth_secret", &c.Manifest.BetterAuthSecret)
 
 	// ── FritzBox ──
 	apply("fritzbox_password", &c.FritzBox.Password)
@@ -1114,6 +1137,9 @@ var plaintextSecretVaultPaths = map[string]string{
 	"co_agents.llm.api_key":            "provider_coagent_api_key",
 	"a2a.llm.api_key":                  "provider_a2a_api_key",
 	"personality.v2_api_key":           "provider_helper_api_key",
+	"manifest.api_key":                 "manifest_api_key",
+	"manifest.postgres_password":       "manifest_postgres_password",
+	"manifest.better_auth_secret":      "manifest_better_auth_secret",
 }
 
 func migrateNestedStringSecret(root map[string]interface{}, path []string, vaultKey string, vault SecretReadWriter, log *slog.Logger) bool {

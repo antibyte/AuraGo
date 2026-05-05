@@ -1028,6 +1028,69 @@ func TestApplyVaultSecretsLoadsSpaceAgentSecrets(t *testing.T) {
 	}
 }
 
+func TestApplyVaultSecretsLoadsManifestSecrets(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"manifest_api_key":            "mnfst_from_vault",
+		"manifest_postgres_password":  "pg-from-vault",
+		"manifest_better_auth_secret": "better-auth-from-vault",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.Manifest.APIKey != "mnfst_from_vault" {
+		t.Fatalf("APIKey = %q, want manifest API key", cfg.Manifest.APIKey)
+	}
+	if cfg.Manifest.PostgresPassword != "pg-from-vault" {
+		t.Fatalf("PostgresPassword = %q, want Postgres password", cfg.Manifest.PostgresPassword)
+	}
+	if cfg.Manifest.BetterAuthSecret != "better-auth-from-vault" {
+		t.Fatalf("BetterAuthSecret = %q, want Better Auth secret", cfg.Manifest.BetterAuthSecret)
+	}
+}
+
+func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = "http://manifest:2099"
+	cfg.Providers = []ProviderEntry{{
+		ID:    "manifest",
+		Type:  "manifest",
+		Model: "manifest/auto",
+	}}
+	cfg.LLM.Provider = "manifest"
+
+	cfg.ResolveProviders()
+
+	if cfg.Providers[0].BaseURL != "http://manifest:2099/v1" {
+		t.Fatalf("provider base_url = %q, want managed Manifest /v1 URL", cfg.Providers[0].BaseURL)
+	}
+	if cfg.LLM.BaseURL != "http://manifest:2099/v1" {
+		t.Fatalf("LLM base_url = %q, want managed Manifest /v1 URL", cfg.LLM.BaseURL)
+	}
+	if cfg.LLM.ProviderType != "manifest" {
+		t.Fatalf("ProviderType = %q, want manifest", cfg.LLM.ProviderType)
+	}
+}
+
+func TestManifestProviderExternalDefaultBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.Manifest.Mode = "external"
+	cfg.Manifest.ExternalBaseURL = "https://manifest.example.test/v1"
+	cfg.Providers = []ProviderEntry{{
+		ID:    "manifest",
+		Type:  "manifest",
+		Model: "manifest/auto",
+	}}
+	cfg.LLM.Provider = "manifest"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.BaseURL != "https://manifest.example.test/v1" {
+		t.Fatalf("LLM base_url = %q, want external Manifest /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
 func TestConfigSaveOmitsSpaceAgentSecrets(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {

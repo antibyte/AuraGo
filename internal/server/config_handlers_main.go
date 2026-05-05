@@ -1335,6 +1335,9 @@ var vaultKeyMap = map[string]string{
 	"obsidian.api_key":                 "obsidian_api_key",
 	"ldap.bind_password":               "ldap_bind_password",
 	"space_agent.admin_password":       "space_agent_admin_password",
+	"manifest.api_key":                 "manifest_api_key",
+	"manifest.postgres_password":       "manifest_postgres_password",
+	"manifest.better_auth_secret":      "manifest_better_auth_secret",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.
