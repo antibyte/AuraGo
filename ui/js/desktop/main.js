@@ -253,7 +253,7 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, papirusIconManifest, whitesurIconManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=2').catch(() => null),
             api('/img/whitesur/manifest.json?v=1').catch(() => null)
@@ -261,8 +261,8 @@
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
         state.iconThemeManifests = {
-            papirus: papirusIconManifest,
-            whitesur: whitesurIconManifest
+            papirus: defaultThemeManifest,
+            whitesur: whitesurThemeManifest
         };
     }
 

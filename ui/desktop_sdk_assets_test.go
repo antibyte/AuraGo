@@ -61,19 +61,20 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 	}
 	for _, want := range []string{
 		"/img/papirus/manifest.json",
-		"papirusIconManifest",
+		"/img/whitesur/manifest.json",
+		"iconThemeManifests",
 		"resolveIconSource",
-		"vd-papirus-icon",
-		"papirus_icon_manifest: state.papirusIconManifest",
+		"vd-theme-icon",
+		"icon_theme_manifests: state.iconThemeManifests",
 		"icon_catalog: boot.icon_catalog",
 	} {
 		if !strings.Contains(shellText, want) {
-			t.Fatalf("desktop shell is missing Papirus icon resolver marker %q", want)
+			t.Fatalf("desktop shell is missing themed icon resolver marker %q", want)
 		}
 	}
 }
 
-func TestDesktopSDKResolvesPapirusIcons(t *testing.T) {
+func TestDesktopSDKResolvesThemedIcons(t *testing.T) {
 	t.Parallel()
 
 	sdk, err := Content.ReadFile("js/desktop/aura-desktop-sdk.js")
@@ -82,19 +83,20 @@ func TestDesktopSDKResolvesPapirusIcons(t *testing.T) {
 	}
 	sdkText := string(sdk)
 	for _, want := range []string{
-		"papirus_icon_manifest",
+		"icon_theme_manifests",
 		"function resolveIconSource",
 		"ui.icon = function icon",
 		"resolve: name =>",
-		"ad-papirus-icon",
+		"ad-theme-icon",
 		"appearance.icon_theme",
 		"icon_catalog",
 		"catalog: () => context().then",
 		"sprite:",
 		"papirus:",
+		"whitesur:",
 	} {
 		if !strings.Contains(sdkText, want) {
-			t.Fatalf("SDK is missing Papirus icon resolver marker %q", want)
+			t.Fatalf("SDK is missing themed icon resolver marker %q", want)
 		}
 	}
 
@@ -102,15 +104,15 @@ func TestDesktopSDKResolvesPapirusIcons(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SDK stylesheet missing from embedded UI: %v", err)
 	}
-	if !strings.Contains(string(css), ".ad-papirus-icon") {
-		t.Fatal("SDK stylesheet does not style Papirus icons")
+	if !strings.Contains(string(css), ".ad-theme-icon") {
+		t.Fatal("SDK stylesheet does not style themed icons")
 	}
 
 	desktopCSS, err := Content.ReadFile("css/desktop.css")
 	if err != nil {
 		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
 	}
-	if !strings.Contains(string(desktopCSS), ".vd-papirus-icon") {
-		t.Fatal("desktop stylesheet does not style Papirus icons")
+	if !strings.Contains(string(desktopCSS), ".vd-theme-icon") {
+		t.Fatal("desktop stylesheet does not style themed icons")
 	}
 }

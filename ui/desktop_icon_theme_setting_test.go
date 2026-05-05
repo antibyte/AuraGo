@@ -21,8 +21,9 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"body.dataset.iconTheme = settingValue('appearance.icon_theme')",
 		"settingSelect('appearance.icon_theme'",
 		"desktop.settings_icon_theme_papirus",
-		"desktop.settings_icon_theme_aurago",
-		"settingValue('appearance.icon_theme') !== 'aurago'",
+		"desktop.settings_icon_theme_whitesur",
+		"/img/whitesur/manifest.json",
+		"iconThemeManifests",
 		"function renderStartButtonIcon()",
 		"renderStartButtonIcon();",
 		"settingIconCatalog(",
@@ -32,6 +33,9 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing icon theme setting marker %q", want)
 		}
+	}
+	if strings.Contains(shellText, "desktop.settings_icon_theme_aurago") || strings.Contains(shellText, "['aurago'") {
+		t.Fatal("desktop shell must not expose the removed AuraGo Classic icon theme")
 	}
 
 	css, err := Content.ReadFile("css/desktop.css")
@@ -56,7 +60,7 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 			"desktop.settings_icon_theme",
 			"desktop.settings_icon_theme_desc",
 			"desktop.settings_icon_theme_papirus",
-			"desktop.settings_icon_theme_aurago",
+			"desktop.settings_icon_theme_whitesur",
 			"desktop.settings_icon_catalog",
 			"desktop.settings_icon_catalog_desc",
 			"desktop.settings_icon_catalog_aliases",
@@ -65,6 +69,9 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing non-empty translation for %s", path, key)
 			}
+		}
+		if _, ok := values["desktop.settings_icon_theme_aurago"]; ok {
+			t.Fatalf("%s still exposes removed AuraGo Classic icon theme translation", path)
 		}
 	}
 }

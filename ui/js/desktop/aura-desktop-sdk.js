@@ -5,6 +5,7 @@
     const RESPONSE_TYPE = 'aurago.desktop.response';
     const RUNTIME = 'aura-desktop-sdk@1';
     const VERSION = '1.0.0';
+    const THEMED_ICON_PREFIXES = ['papirus:', 'whitesur:'];
     let requestSeq = 0;
     let contextPromise = null;
     let iconContextPromise = null;
@@ -93,10 +94,12 @@
             iconContextPromise = context()
                 .then(ctx => ({
                     sprite: ctx && ctx.icon_manifest ? ctx.icon_manifest : null,
-                    papirus: ctx && ctx.papirus_icon_manifest ? ctx.papirus_icon_manifest : null,
+                    themes: ctx && ctx.icon_theme_manifests
+                        ? ctx.icon_theme_manifests
+                        : (ctx && ctx.papirus_icon_manifest ? { papirus: ctx.papirus_icon_manifest } : {}),
                     theme: ctx && ctx.bootstrap && ctx.bootstrap.settings ? ctx.bootstrap.settings['appearance.icon_theme'] || 'papirus' : 'papirus'
                 }))
-                .catch(() => ({ sprite: null, papirus: null, theme: 'papirus' }));
+                .catch(() => ({ sprite: null, themes: {}, theme: 'papirus' }));
         }
         return iconContextPromise;
     }
@@ -105,11 +108,25 @@
         return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
     }
 
-    function papirusIconPath(manifest, name) {
-        if (!manifest || !manifest.icons) return '';
+    function themeIconPath(iconContext, name) {
+        iconContext = iconContext || {};
+        const themes = iconContext.themes || {};
         let normalized = normalizeIconName(name);
         if (!normalized || normalized.startsWith('sprite:')) return '';
-        if (normalized.startsWith('papirus:')) normalized = normalized.slice('papirus:'.length);
+        let theme = iconContext.theme || 'papirus';
+        const themeKeys = Array.from(new Set([
+            ...Object.keys(themes),
+            ...THEMED_ICON_PREFIXES.map(prefix => prefix.slice(0, -1))
+        ]));
+        themeKeys.forEach(themeKey => {
+            const prefix = themeKey + ':';
+            if (normalized.startsWith(prefix)) {
+                theme = themeKey;
+                normalized = normalized.slice(prefix.length);
+            }
+        });
+        const manifest = themes[theme] || themes.papirus;
+        if (!manifest || !manifest.icons) return '';
         const aliases = manifest.aliases || {};
         const candidates = [
             normalized,
@@ -132,9 +149,9 @@
         iconContext = iconContext || {};
         const normalized = normalizeIconName(name);
         if (!normalized) return { type: 'fallback' };
-        if (iconContext.theme !== 'aurago' && !normalized.startsWith('sprite:')) {
-            const path = papirusIconPath(iconContext.papirus, normalized);
-            if (path) return { type: 'papirus', path };
+        if (!normalized.startsWith('sprite:')) {
+            const path = themeIconPath(iconContext, normalized);
+            if (path) return { type: 'theme', path };
         }
         const spriteName = spriteIconName(normalized);
         const manifest = iconContext.sprite;
@@ -163,9 +180,9 @@
 
     function applyResolvedIcon(span, iconContext, name, size) {
         const source = resolveIconSource(name, iconContext);
-        if (source.type === 'papirus') {
+        if (source.type === 'theme') {
             span.style.backgroundImage = `url('${source.path}')`;
-            span.classList.add('ad-papirus-icon');
+            span.classList.add('ad-theme-icon', 'ad-papirus-icon');
             return;
         }
         applySpriteIcon(span, iconContext && iconContext.sprite, source.name || name, size);

@@ -165,7 +165,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.wallpaper", Default: "aurora", Values: []string{"aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
-		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "aurago"}},
+		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
@@ -428,7 +428,7 @@ func DesktopIconCatalog(settings map[string]string) IconCatalogInfo {
 }
 
 // NormalizeDesktopIconName canonicalizes generated app/widget icon names against
-// the semantic Papirus catalog while preserving explicit legacy sprite icons.
+// the semantic themed icon catalog while preserving explicit legacy sprite icons.
 func NormalizeDesktopIconName(raw, label string) (string, error) {
 	icon := strings.ToLower(strings.TrimSpace(raw))
 	if icon == "" {
@@ -437,6 +437,9 @@ func NormalizeDesktopIconName(raw, label string) (string, error) {
 	icon = strings.ReplaceAll(icon, " ", "_")
 	if strings.HasPrefix(icon, "papirus:") {
 		icon = strings.TrimPrefix(icon, "papirus:")
+	}
+	if strings.HasPrefix(icon, "whitesur:") {
+		icon = strings.TrimPrefix(icon, "whitesur:")
 	}
 	if strings.HasPrefix(icon, "sprite:") {
 		spriteName := strings.TrimPrefix(icon, "sprite:")

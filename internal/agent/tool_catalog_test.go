@@ -325,7 +325,7 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	if virtualDesktop == nil {
 		t.Fatal("missing virtual_desktop schema")
 	}
-	for _, want := range []string{"icon_catalog", "Papirus", "Emoji", "sprite:<name>"} {
+	for _, want := range []string{"icon_catalog", "semantic icons", "Emoji", "sprite:<name>"} {
 		if !strings.Contains(virtualDesktop.Description, want) {
 			t.Fatalf("virtual_desktop description missing %q: %s", want, virtualDesktop.Description)
 		}

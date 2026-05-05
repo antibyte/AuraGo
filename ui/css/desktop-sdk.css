@@ -106,6 +106,7 @@ body {
     background-size: cover;
 }
 
+.ad-theme-icon,
 .ad-papirus-icon {
     background-position: center;
     background-size: contain;
