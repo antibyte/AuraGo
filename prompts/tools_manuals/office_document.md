@@ -4,12 +4,16 @@ Use `office_document` for agent-safe Writer document work inside AuraGo's virtua
 
 The tool requires `tools.office_document.enabled`, `virtual_desktop.enabled`, and `virtual_desktop.allow_agent_control`. Paths are jailed to `virtual_desktop.workspace_dir`; never include secrets or vault values in documents unless the user explicitly asked for that content.
 
+If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`, `patch`, and `export` are blocked.
+
 ## Operations
 
 - `read`: use `path`; returns `entry`, `document`, and `office_version`.
 - `write`: use `path` plus `content`/`title` or a full `document` object.
 - `patch`: use `path`, optional seed `content`, `title`, `prepend_text`, `append_text`, and `replacements:[{find,replace}]`.
 - `export`: use `path`, `output_path`, and `format` (`docx`, `html`, `md`, or `txt`).
+
+`office_version.modified` and `office_version.mod_time` are equivalent RFC3339 timestamps; prefer `modified` in new callers.
 
 ## Examples
 

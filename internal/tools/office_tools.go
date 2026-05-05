@@ -3,7 +3,10 @@ package tools
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	stdhtml "html"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -23,7 +26,11 @@ type officeToolVersion struct {
 
 // ExecuteOfficeDocument performs agent-requested document operations inside the virtual desktop workspace.
 func ExecuteOfficeDocument(ctx context.Context, cfg *config.Config, args map[string]interface{}) VirtualDesktopExecution {
-	if err := officeToolAllowed(cfg, "document"); err != nil {
+	op := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "operation", "action_type")))
+	if op == "" {
+		op = "read"
+	}
+	if err := officeToolAllowed(cfg, "document", op); err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	svc, err := officeToolService(ctx, cfg)
@@ -31,16 +38,16 @@ func ExecuteOfficeDocument(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	defer svc.Close()
-	op := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "operation", "action_type")))
-	if op == "" {
-		op = "read"
-	}
 	return executeOfficeDocumentOperation(ctx, svc, args, op)
 }
 
 // ExecuteOfficeWorkbook performs agent-requested workbook operations inside the virtual desktop workspace.
 func ExecuteOfficeWorkbook(ctx context.Context, cfg *config.Config, args map[string]interface{}) VirtualDesktopExecution {
-	if err := officeToolAllowed(cfg, "workbook"); err != nil {
+	op := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "operation", "action_type")))
+	if op == "" {
+		op = "read"
+	}
+	if err := officeToolAllowed(cfg, "workbook", op); err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	svc, err := officeToolService(ctx, cfg)
@@ -48,14 +55,10 @@ func ExecuteOfficeWorkbook(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	defer svc.Close()
-	op := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "operation", "action_type")))
-	if op == "" {
-		op = "read"
-	}
 	return executeOfficeWorkbookOperation(ctx, svc, args, op)
 }
 
-func officeToolAllowed(cfg *config.Config, kind string) error {
+func officeToolAllowed(cfg *config.Config, kind, op string) error {
 	if cfg == nil {
 		return fmt.Errorf("configuration is unavailable")
 	}
@@ -70,12 +73,30 @@ func officeToolAllowed(cfg *config.Config, kind string) error {
 		if !cfg.Tools.OfficeDocument.Enabled {
 			return fmt.Errorf("office_document tool is disabled in config")
 		}
+		if cfg.Tools.OfficeDocument.ReadOnly && officeToolMutates(kind, op) {
+			return fmt.Errorf("office_document tool is in read-only mode")
+		}
 	case "workbook":
 		if !cfg.Tools.OfficeWorkbook.Enabled {
 			return fmt.Errorf("office_workbook tool is disabled in config")
 		}
+		if cfg.Tools.OfficeWorkbook.ReadOnly && officeToolMutates(kind, op) {
+			return fmt.Errorf("office_workbook tool is in read-only mode")
+		}
 	}
 	return nil
+}
+
+func officeToolMutates(kind, op string) bool {
+	op = strings.ToLower(strings.TrimSpace(op))
+	switch kind {
+	case "document":
+		return op != "read" && op != "read_document"
+	case "workbook":
+		return op != "read" && op != "read_workbook" && op != "evaluate_formula"
+	default:
+		return true
+	}
 }
 
 func officeToolService(ctx context.Context, cfg *config.Config) (*desktop.Service, error) {
@@ -141,7 +162,7 @@ func executeOfficeDocumentOperation(ctx context.Context, svc *desktop.Service, a
 		}
 		doc.Path = path
 		doc.Text = officePatchText(doc.Text, args)
-		doc.HTML = ""
+		doc.HTML = officePatchHTML(doc.HTML, doc.Text, args)
 		return officeWriteDocument(ctx, svc, path, doc, op)
 	case "export", "export_file":
 		sourcePath := virtualDesktopString(args, "path", "file_path", "source_path")
@@ -211,7 +232,10 @@ func executeOfficeWorkbookOperation(ctx context.Context, svc *desktop.Service, a
 		if strings.TrimSpace(cellRef) == "" {
 			return virtualDesktopJSON("error", "cell is required", nil, nil)
 		}
-		workbook := officeReadWorkbookOrEmpty(ctx, svc, path)
+		workbook, err := officeReadWorkbookOrNew(ctx, svc, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
 		cell := office.Cell{
 			Value:   virtualDesktopString(args, "value", "content"),
 			Formula: virtualDesktopString(args, "formula"),
@@ -231,7 +255,10 @@ func executeOfficeWorkbookOperation(ctx context.Context, svc *desktop.Service, a
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		workbook := officeReadWorkbookOrEmpty(ctx, svc, path)
+		workbook, err := officeReadWorkbookOrNew(ctx, svc, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
 		if err := office.SetRange(&workbook, virtualDesktopString(args, "sheet", "sheet_name"), startCell, rows); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -352,12 +379,15 @@ func officeReadWorkbook(ctx context.Context, svc *desktop.Service, rawPath strin
 	return workbook, entry, data, nil
 }
 
-func officeReadWorkbookOrEmpty(ctx context.Context, svc *desktop.Service, rawPath string) office.Workbook {
+func officeReadWorkbookOrNew(ctx context.Context, svc *desktop.Service, rawPath string) (office.Workbook, error) {
 	workbook, _, _, err := officeReadWorkbook(ctx, svc, rawPath)
 	if err == nil {
-		return workbook
+		return workbook, nil
 	}
-	return office.Workbook{Path: rawPath}
+	if errors.Is(err, os.ErrNotExist) {
+		return office.Workbook{Path: rawPath}, nil
+	}
+	return office.Workbook{}, err
 }
 
 func officeWriteWorkbook(ctx context.Context, svc *desktop.Service, rawPath string, workbook office.Workbook, op string) VirtualDesktopExecution {
@@ -387,12 +417,30 @@ func officePatchText(text string, args map[string]interface{}) string {
 	return text
 }
 
+func officePatchHTML(htmlText, patchedText string, args map[string]interface{}) string {
+	if strings.TrimSpace(htmlText) == "" {
+		return office.TextToHTML(patchedText)
+	}
+	if officeToolRawString(args, "prepend_text") != "" || officeToolRawString(args, "append_text") != "" {
+		return office.TextToHTML(patchedText)
+	}
+	patchedHTML := htmlText
+	for _, replacement := range officeToolReplacements(args["replacements"]) {
+		patchedHTML = strings.ReplaceAll(patchedHTML, replacement.find, stdhtml.EscapeString(replacement.replace))
+	}
+	return patchedHTML
+}
+
 func officeToolRawString(args map[string]interface{}, key string) string {
 	raw, ok := args[key]
 	if !ok || raw == nil {
 		return ""
 	}
-	return fmt.Sprint(raw)
+	value, ok := raw.(string)
+	if !ok {
+		return ""
+	}
+	return value
 }
 
 type officeToolReplacement struct {
@@ -487,6 +535,9 @@ func officeToolExportWorkbook(sourceName string, data []byte, outputPath, format
 	outputExt := strings.ToLower(path.Ext(cleanVirtualDesktopSlashPath(outputPath)))
 	if format != "" {
 		outputExt = "." + format
+	}
+	if outputExt == "" {
+		outputExt = ".xlsx"
 	}
 	workbook, err := office.DecodeWorkbook(sourceName, data)
 	if err != nil {

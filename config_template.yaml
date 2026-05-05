@@ -387,8 +387,10 @@ tools:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     office_document:
         enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
+        readonly: false                                    # read-only mode: allow read only; block write, patch, and export
     office_workbook:
         enabled: false                                     # enable office_workbook tool; also requires virtual_desktop.enabled and allow_agent_control
+        readonly: false                                    # read-only mode: allow read/evaluate only; block write, set_cell, set_range, and export
     skill_manager:
         enabled: true                                       # enable the Skill Manager Web UI
         allow_uploads: true                                 # allow users to upload new Python skills

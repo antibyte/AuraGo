@@ -144,6 +144,7 @@ func TestExecuteVirtualDesktopOfficeDocumentOperations(t *testing.T) {
 	t.Parallel()
 
 	cfg := testVirtualDesktopConfig(t)
+	cfg.Tools.OfficeDocument.Enabled = true
 	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
 		"operation": "write_document",
 		"path":      "Documents/notes.docx",
@@ -184,6 +185,7 @@ func TestExecuteVirtualDesktopWorkbookOperations(t *testing.T) {
 	t.Parallel()
 
 	cfg := testVirtualDesktopConfig(t)
+	cfg.Tools.OfficeWorkbook.Enabled = true
 	workbook := map[string]interface{}{
 		"sheets": []interface{}{
 			map[string]interface{}{
@@ -249,6 +251,47 @@ func TestExecuteVirtualDesktopWorkbookOperations(t *testing.T) {
 	}
 	if payload.Status != "ok" || payload.Data.Workbook.Sheets[0].Rows[2][1].Formula != "SUM(B2:B2)" {
 		t.Fatalf("read_workbook payload = %+v", payload)
+	}
+}
+
+func TestExecuteVirtualDesktopExportFileReturnsVersionedEntry(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	cfg.Tools.OfficeDocument.Enabled = true
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_document",
+		"path":      "Documents/export-source.md",
+		"content":   "Export me",
+	})
+	var writePayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &writePayload); err != nil {
+		t.Fatalf("decode write_document: %v output=%s", err, write.Output)
+	}
+	if writePayload.Status != "ok" {
+		t.Fatalf("write_document = %s", write.Output)
+	}
+
+	exported := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":   "export_file",
+		"path":        "Documents/export-source.md",
+		"output_path": "Documents/export-target.txt",
+		"format":      "txt",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			OutputPath    string                 `json:"output_path"`
+			OfficeVersion map[string]interface{} `json:"office_version"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exported.Output), &payload); err != nil {
+		t.Fatalf("decode export_file: %v output=%s", err, exported.Output)
+	}
+	if payload.Status != "ok" || payload.Data.OutputPath != "Documents/export-target.txt" || payload.Data.OfficeVersion["etag"] == "" {
+		t.Fatalf("export_file payload = %+v output=%s", payload, exported.Output)
 	}
 }
 

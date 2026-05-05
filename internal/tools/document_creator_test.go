@@ -194,28 +194,67 @@ func TestBuildHTMLFromSections_List(t *testing.T) {
 
 func TestBuildHTMLFromSections_PlainContent(t *testing.T) {
 	html := buildHTMLFromSections("Doc", "<p>Hello</p>", "")
-	if !strings.Contains(html, "<p>Hello</p>") {
-		t.Error("expected plain content passthrough")
+	if strings.Contains(html, "<p>Hello</p>") {
+		t.Fatalf("expected plain content to be escaped, got: %s", html)
+	}
+	if !strings.Contains(html, "&lt;p&gt;Hello&lt;/p&gt;") {
+		t.Fatalf("expected escaped plain content, got: %s", html)
+	}
+	if !strings.Contains(html, "white-space: pre-wrap") {
+		t.Fatalf("expected plain content style to preserve whitespace, got: %s", html)
+	}
+}
+
+func TestBuildHTMLFromSectionsEscapesPlainContent(t *testing.T) {
+	t.Parallel()
+
+	html := buildHTMLFromSections("Title", `<script>alert("x")</script>`, "")
+	if strings.Contains(html, "<script>") {
+		t.Fatalf("plain create_pdf content should be escaped, got %s", html)
+	}
+	if !strings.Contains(html, "&lt;script&gt;") {
+		t.Fatalf("escaped script marker missing from %s", html)
 	}
 }
 
 func TestParseSourceFiles(t *testing.T) {
 	// JSON array
-	result := parseSourceFiles(`["file1.pdf","file2.pdf"]`)
+	result, err := parseSourceFiles(`["file1.pdf","file2.pdf"]`)
+	if err != nil {
+		t.Fatalf("parseSourceFiles returned error: %v", err)
+	}
 	if len(result) != 2 || result[0] != "file1.pdf" {
 		t.Fatalf("expected 2 files from JSON, got: %v", result)
 	}
 
-	// Non-JSON returns nil
-	result = parseSourceFiles("a.pdf, b.pdf, c.pdf")
-	if result != nil {
-		t.Fatalf("expected nil from non-JSON, got: %v", result)
+	// Non-JSON returns a clear error
+	result, err = parseSourceFiles("a.pdf, b.pdf, c.pdf")
+	if err == nil || !strings.Contains(err.Error(), "invalid source_files JSON") {
+		t.Fatalf("expected invalid source_files JSON error, got paths=%v err=%v", result, err)
 	}
 
 	// Empty
-	result = parseSourceFiles("")
+	result, err = parseSourceFiles("")
+	if err != nil {
+		t.Fatalf("empty source_files should not error: %v", err)
+	}
 	if len(result) != 0 {
 		t.Fatalf("expected 0 files from empty string, got: %v", result)
+	}
+}
+
+func TestExecuteDocumentCreatorInWorkspaceReportsInvalidSourceFilesJSON(t *testing.T) {
+	cfg := &config.DocumentCreatorConfig{
+		Enabled:   true,
+		Backend:   "gotenberg",
+		OutputDir: t.TempDir(),
+		Gotenberg: config.GotenbergConfig{URL: "http://127.0.0.1:1"},
+	}
+
+	result := ExecuteDocumentCreatorInWorkspace(context.Background(), cfg, t.TempDir(), "convert_document", "", "", "", "", "", false, "", "not json")
+
+	if !strings.Contains(result, "invalid source_files JSON") {
+		t.Fatalf("expected invalid source_files JSON error, got: %s", result)
 	}
 }
 

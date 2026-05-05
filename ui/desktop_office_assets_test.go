@@ -132,6 +132,23 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopConfigExposesOfficeToolToggles(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopOfficeTestFile(t, filepath.Join("cfg", "virtual_desktop.js"))
+	for _, marker := range []string{
+		"tools.office_document.enabled",
+		"tools.office_document.readonly",
+		"tools.office_workbook.enabled",
+		"tools.office_workbook.readonly",
+		"config.virtual_desktop.office_tools_note",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("virtual_desktop config missing office toggle marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopSheetsDisplaysFormulaResultsWithoutLosingSourceFormula(t *testing.T) {
 	t.Parallel()
 
@@ -172,6 +189,15 @@ func TestDesktopOfficeI18NKeys(t *testing.T) {
 		"desktop.sheets_add_column",
 		"desktop.sheets_loading",
 		"desktop.sheets_sheet",
+		"config.virtual_desktop.office_tools_note",
+		"config.virtual_desktop.office_document_label",
+		"help.virtual_desktop.office_document",
+		"config.virtual_desktop.office_document_readonly_label",
+		"help.virtual_desktop.office_document_readonly",
+		"config.virtual_desktop.office_workbook_label",
+		"help.virtual_desktop.office_workbook",
+		"config.virtual_desktop.office_workbook_readonly_label",
+		"help.virtual_desktop.office_workbook_readonly",
 	}
 	entries, err := os.ReadDir(filepath.Join("lang", "desktop"))
 	if err != nil {

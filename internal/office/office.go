@@ -798,6 +798,11 @@ func textToHTML(text string) string {
 	return b.String()
 }
 
+// TextToHTML converts plain text into AuraGo's minimal safe HTML document format.
+func TextToHTML(text string) string {
+	return textToHTML(text)
+}
+
 func htmlToText(raw string) string {
 	node, err := xhtml.Parse(strings.NewReader(raw))
 	if err != nil {

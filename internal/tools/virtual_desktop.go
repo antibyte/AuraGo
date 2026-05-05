@@ -89,8 +89,14 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
 		return virtualDesktopJSON("ok", "desktop file written", map[string]interface{}{"path": path}, event)
 	case "read_document", "write_document", "patch_document":
+		if err := officeToolAllowed(cfg, "document", op); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
 		return executeOfficeDocumentOperation(ctx, svc, args, op)
 	case "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula":
+		if err := officeToolAllowed(cfg, "workbook", op); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
 		return executeOfficeWorkbookOperation(ctx, svc, args, op)
 	case "export_file":
 		path := virtualDesktopString(args, "path", "file_path", "source_path")
@@ -110,11 +116,17 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		if err := svc.WriteFileBytes(ctx, outputPath, exported, desktop.SourceAgent); err != nil {
+		outEntry, err := svc.WriteFileBytesConditional(ctx, outputPath, exported, desktop.SourceAgent, nil)
+		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path, "output_path": outputPath})
-		return virtualDesktopJSON("ok", "desktop office file exported", map[string]interface{}{"path": path, "output_path": outputPath}, event)
+		return virtualDesktopJSON("ok", "desktop office file exported", map[string]interface{}{
+			"path":           entry.Path,
+			"output_path":    outEntry.Path,
+			"entry":          outEntry,
+			"office_version": officeToolVersionForEntry(outEntry, exported),
+		}, event)
 	case "install_app":
 		manifest, err := virtualDesktopManifest(args)
 		if err != nil {
@@ -319,6 +331,14 @@ func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, form
 	outputExt := strings.ToLower(path.Ext(cleanVirtualDesktopSlashPath(outputPath)))
 	if format != "" {
 		outputExt = "." + format
+	}
+	if outputExt == "" {
+		switch strings.ToLower(path.Ext(cleanVirtualDesktopSlashPath(sourceName))) {
+		case ".xlsx", ".xlsm", ".xltx", ".xltm", ".csv":
+			outputExt = ".xlsx"
+		case ".docx", ".html", ".htm", ".md", ".txt", "":
+			outputExt = ".docx"
+		}
 	}
 	switch outputExt {
 	case ".docx", ".html", ".htm", ".md", ".txt":

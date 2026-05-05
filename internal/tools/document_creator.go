@@ -75,7 +75,10 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 		})
 	case "convert_document":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
-			paths := parseSourceFiles(sourceFilesJSON)
+			paths, err := parseSourceFiles(sourceFilesJSON)
+			if err != nil {
+				return documentCreatorError(err.Error())
+			}
 			if len(paths) == 0 {
 				return `{"status":"error","message":"source_files (JSON array with one file path) is required for convert_document"}`
 			}
@@ -83,7 +86,10 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 		})
 	case "merge_pdfs":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
-			paths := parseSourceFiles(sourceFilesJSON)
+			paths, err := parseSourceFiles(sourceFilesJSON)
+			if err != nil {
+				return documentCreatorError(err.Error())
+			}
 			if len(paths) < 2 {
 				return `{"status":"error","message":"source_files (JSON array with at least 2 PDF paths) is required for merge_pdfs"}`
 			}
@@ -117,7 +123,10 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.DocumentCreatorConfig, workspaceDir, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string) string {
 	switch operation {
 	case "convert_document", "merge_pdfs":
-		paths := parseSourceFiles(sourceFilesJSON)
+		paths, err := parseSourceFiles(sourceFilesJSON)
+		if err != nil {
+			return documentCreatorError(err.Error())
+		}
 		if len(paths) > 0 {
 			resolved := make([]string, 0, len(paths))
 			tmpCfg := &config.Config{}
@@ -356,11 +365,12 @@ h1 { color: #1a1a1a; border-bottom: 2px solid #333; padding-bottom: 10px; }
 h2 { color: #2a2a2a; margin-top: 1.5em; }
 table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-th { background: #f5f5f5; font-weight: 600; }
-tr:nth-child(even) { background: #fafafa; }
-ul { padding-left: 1.5em; }
-li { margin: 0.3em 0; }
-</style></head><body>`)
+  th { background: #f5f5f5; font-weight: 600; }
+  tr:nth-child(even) { background: #fafafa; }
+  ul { padding-left: 1.5em; }
+  li { margin: 0.3em 0; }
+  .plain-content { white-space: pre-wrap; }
+  </style></head><body>`)
 
 	if title != "" {
 		sb.WriteString("<h1>")
@@ -369,8 +379,8 @@ li { margin: 0.3em 0; }
 	}
 
 	if content != "" {
-		sb.WriteString("<div>")
-		sb.WriteString(content) // content is expected to be HTML
+		sb.WriteString(`<div class="plain-content">`)
+		sb.WriteString(escapeHTML(content))
 		sb.WriteString("</div>")
 	}
 
@@ -434,13 +444,21 @@ func escapeHTML(s string) string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-func parseSourceFiles(jsonStr string) []string {
-	if jsonStr == "" {
-		return nil
+func parseSourceFiles(jsonStr string) ([]string, error) {
+	if strings.TrimSpace(jsonStr) == "" {
+		return nil, nil
 	}
 	var paths []string
 	if err := json.Unmarshal([]byte(jsonStr), &paths); err != nil {
-		return nil
+		return nil, fmt.Errorf("invalid source_files JSON: %w", err)
 	}
-	return paths
+	return paths, nil
+}
+
+func documentCreatorError(message string) string {
+	payload, _ := json.Marshal(map[string]string{
+		"status":  "error",
+		"message": message,
+	})
+	return string(payload)
 }

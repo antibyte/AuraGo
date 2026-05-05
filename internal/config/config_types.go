@@ -1346,10 +1346,12 @@ type Config struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_desktop tool (browser desktop workspace control)
 		} `yaml:"virtual_desktop"`
 		OfficeDocument struct {
-			Enabled bool `yaml:"enabled"` // enable office_document tool (agent-safe Writer document operations)
+			Enabled  bool `yaml:"enabled"`  // enable office_document tool (agent-safe Writer document operations)
+			ReadOnly bool `yaml:"readonly"` // true = only read documents, block write/patch/export
 		} `yaml:"office_document"`
 		OfficeWorkbook struct {
-			Enabled bool `yaml:"enabled"` // enable office_workbook tool (agent-safe spreadsheet operations)
+			Enabled  bool `yaml:"enabled"`  // enable office_workbook tool (agent-safe spreadsheet operations)
+			ReadOnly bool `yaml:"readonly"` // true = only read/evaluate, block write/set/export
 		} `yaml:"office_workbook"`
 		NetworkPing struct {
 			Enabled bool `yaml:"enabled"` // enable network_ping tool (ICMP echo, default true)

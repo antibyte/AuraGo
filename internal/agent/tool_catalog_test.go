@@ -377,12 +377,16 @@ func TestBuildNativeToolSchemasIncludesOfficeTools(t *testing.T) {
 		t.Fatalf("missing office schemas document=%v workbook=%v", documentSchema != nil, workbookSchema != nil)
 	}
 	documentParams, _ := documentSchema.Parameters.(map[string]interface{})
+	assertRequiredContains(t, documentParams, "operation")
+	assertRequiredContains(t, documentParams, "path")
 	documentProps, _ := documentParams["properties"].(map[string]interface{})
 	documentOperation, _ := documentProps["operation"].(map[string]interface{})
 	if !containsInterfaceString(documentOperation["enum"], "patch") {
 		t.Fatalf("office_document operation enum missing patch: %#v", documentOperation["enum"])
 	}
 	workbookParams, _ := workbookSchema.Parameters.(map[string]interface{})
+	assertRequiredContains(t, workbookParams, "operation")
+	assertRequiredContains(t, workbookParams, "path")
 	workbookProps, _ := workbookParams["properties"].(map[string]interface{})
 	workbookOperation, _ := workbookProps["operation"].(map[string]interface{})
 	for _, want := range []string{"set_range", "evaluate_formula"} {
@@ -390,6 +394,40 @@ func TestBuildNativeToolSchemasIncludesOfficeTools(t *testing.T) {
 			t.Fatalf("office_workbook operation enum missing %s: %#v", want, workbookOperation["enum"])
 		}
 	}
+}
+
+func TestVirtualDesktopSchemaDocumentsPathRequirementsWithoutGlobalPathRequirement(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{VirtualDesktopEnabled: true}, nil)
+	var virtualDesktop *openai.FunctionDefinition
+	for _, item := range schemas {
+		if item.Function != nil && item.Function.Name == "virtual_desktop" {
+			virtualDesktop = item.Function
+			break
+		}
+	}
+	if virtualDesktop == nil {
+		t.Fatal("missing virtual_desktop schema")
+	}
+	params, _ := virtualDesktop.Parameters.(map[string]interface{})
+	if containsInterfaceString(params["required"], "path") {
+		t.Fatalf("virtual_desktop must not require path globally: %#v", params["required"])
+	}
+	props, _ := params["properties"].(map[string]interface{})
+	pathProp, _ := props["path"].(map[string]interface{})
+	description, _ := pathProp["description"].(string)
+	for _, want := range []string{"Required for file operations", "Office operations", "export_file"} {
+		if !strings.Contains(description, want) {
+			t.Fatalf("virtual_desktop path description missing %q: %s", want, description)
+		}
+	}
+}
+
+func assertRequiredContains(t *testing.T, params map[string]interface{}, want string) {
+	t.Helper()
+	if containsInterfaceString(params["required"], want) {
+		return
+	}
+	t.Fatalf("required fields %#v missing %q", params["required"], want)
 }
 
 func containsInterfaceString(raw interface{}, want string) bool {

@@ -6,6 +6,8 @@ function vdCfgEnsureData() {
     if (!configData.virtual_desktop) configData.virtual_desktop = {};
     if (!configData.tools) configData.tools = {};
     if (!configData.tools.virtual_desktop) configData.tools.virtual_desktop = {};
+    if (!configData.tools.office_document) configData.tools.office_document = {};
+    if (!configData.tools.office_workbook) configData.tools.office_workbook = {};
     const data = configData.virtual_desktop;
     if (!data.workspace_dir) data.workspace_dir = 'agent_workspace/virtual_desktop';
     if (!data.max_file_size_mb) data.max_file_size_mb = 50;
@@ -43,6 +45,13 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this.classList.contains('on'))");
     html += vdCfgToggleRow('config.virtual_desktop.generated_apps_label', 'help.virtual_desktop.allow_generated_apps', data.allow_generated_apps !== false, 'virtual_desktop.allow_generated_apps');
     html += vdCfgToggleRow('config.virtual_desktop.python_jobs_label', 'help.virtual_desktop.allow_python_jobs', data.allow_python_jobs === true, 'virtual_desktop.allow_python_jobs');
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_desktop.office_tools_note') + '</div>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow('config.virtual_desktop.office_document_label', 'help.virtual_desktop.office_document', configData.tools.office_document.enabled === true, 'tools.office_document.enabled');
+    html += vdCfgToggleRow('config.virtual_desktop.office_document_readonly_label', 'help.virtual_desktop.office_document_readonly', configData.tools.office_document.readonly === true, 'tools.office_document.readonly');
+    html += vdCfgToggleRow('config.virtual_desktop.office_workbook_label', 'help.virtual_desktop.office_workbook', configData.tools.office_workbook.enabled === true, 'tools.office_workbook.enabled');
+    html += vdCfgToggleRow('config.virtual_desktop.office_workbook_readonly_label', 'help.virtual_desktop.office_workbook_readonly', configData.tools.office_workbook.readonly === true, 'tools.office_workbook.readonly');
+    html += '</div>';
 
     html += '<div class="field-grid two-cols">';
     html += vdCfgField('config.virtual_desktop.workspace_dir_label', 'help.virtual_desktop.workspace_dir',

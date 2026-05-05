@@ -63,6 +63,17 @@ func TestDOCXPreservesBasicHTMLFormatting(t *testing.T) {
 	}
 }
 
+func TestTextToHTMLEscapesPlainText(t *testing.T) {
+	t.Parallel()
+
+	got := TextToHTML("Hello <Agent>\nSecond")
+	for _, want := range []string{"Hello &lt;Agent&gt;", "<p>Second</p>"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("TextToHTML missing %q in %q", want, got)
+		}
+	}
+}
+
 func TestWorkbookXLSXRoundTrip(t *testing.T) {
 	t.Parallel()
 
