@@ -10,7 +10,7 @@
         startQuery: '',
         desktopFiles: [],
         iconManifest: null,
-        papirusIconManifest: null,
+        iconThemeManifests: {},
         iconMap: new Map(),
         selectedIconId: '',
         contextMenu: null,
@@ -253,13 +253,17 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, papirusIconManifest] = await Promise.all([
+        const [spriteManifest, papirusIconManifest, whitesurIconManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=2').catch(() => null)
+            api('/img/papirus/manifest.json?v=2').catch(() => null),
+            api('/img/whitesur/manifest.json?v=1').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
-        state.papirusIconManifest = papirusIconManifest;
+        state.iconThemeManifests = {
+            papirus: papirusIconManifest,
+            whitesur: whitesurIconManifest
+        };
     }
 
     function iconExists(key) {
@@ -270,12 +274,19 @@
         return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
     }
 
-    function papirusIconPath(key) {
-        const manifest = state.papirusIconManifest;
-        if (!manifest || !manifest.icons) return '';
+    function themeIconPath(key) {
         let normalized = normalizeIconName(key);
         if (!normalized || normalized.startsWith('sprite:')) return '';
-        if (normalized.startsWith('papirus:')) normalized = normalized.slice('papirus:'.length);
+        let theme = settingValue('appearance.icon_theme') || 'papirus';
+        Object.keys(state.iconThemeManifests || {}).forEach(themeKey => {
+            const prefix = themeKey + ':';
+            if (normalized.startsWith(prefix)) {
+                theme = themeKey;
+                normalized = normalized.slice(prefix.length);
+            }
+        });
+        const manifest = (state.iconThemeManifests || {})[theme] || (state.iconThemeManifests || {}).papirus;
+        if (!manifest || !manifest.icons) return '';
         const aliases = manifest.aliases || {};
         const candidates = [
             normalized,
@@ -292,9 +303,9 @@
     function resolveIconSource(key) {
         const normalized = normalizeIconName(key);
         if (!normalized) return { type: 'fallback' };
-        if (settingValue('appearance.icon_theme') !== 'aurago' && !normalized.startsWith('sprite:')) {
-            const papirusPath = papirusIconPath(normalized);
-            if (papirusPath) return { type: 'papirus', path: papirusPath };
+        if (!normalized.startsWith('sprite:')) {
+            const path = themeIconPath(normalized);
+            if (path) return { type: 'theme', path };
         }
         const spriteKey = normalized.startsWith('sprite:') ? normalized.slice('sprite:'.length) : normalized;
         return iconExists(spriteKey) ? { type: 'sprite', key: spriteKey } : { type: 'fallback' };
@@ -317,9 +328,9 @@
 
     function iconMarkup(key, fallback, className, size) {
         const source = resolveIconSource(key);
-        if (source.type === 'papirus') {
+        if (source.type === 'theme') {
             const pixels = Number(size || 42) || 42;
-            return `<span class="${esc(className)} vd-papirus-icon" aria-hidden="true" style="--vd-papirus-url:url(${esc(source.path)});width:${pixels}px;height:${pixels}px"></span>`;
+            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" aria-hidden="true" style="--vd-theme-icon-url:url(${esc(source.path)});width:${pixels}px;height:${pixels}px"></span>`;
         }
         return spriteMarkup(source.key || key, fallback, className, size);
     }
@@ -990,7 +1001,7 @@
             files: { width: 920, height: 600 },
             writer: { width: 960, height: 700 },
             sheets: { width: 1040, height: 690 },
-            calculator: { width: 380, height: 520 },
+            calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
@@ -1079,8 +1090,14 @@
         win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
+        const isResizable = appId !== 'calculator';
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
+        if (!isResizable) {
+            win.style.maxWidth = size.width + 'px';
+            win.style.maxHeight = size.height + 'px';
+            win.style.resize = 'none';
+        }
         win.style.zIndex = String(++state.z);
         win.innerHTML = `<header class="vd-window-titlebar">
             <div>
@@ -1089,12 +1106,12 @@
             </div>
             <div class="vd-window-actions">
                 <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}">_</button>
-                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}">□</button>
+                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}">□</button>` : ''}
                 <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}">x</button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content></div>
-        ${resizeHandleMarkup()}`;
+        ${isResizable ? resizeHandleMarkup() : ''}`;
         $('vd-window-layer').appendChild(win);
         const windowContext = Object.assign({}, context || {});
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
@@ -1126,7 +1143,8 @@
         });
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
-        win.querySelector('[data-action="maximize"]').addEventListener('click', () => toggleMaximizeWindow(id));
+        const maximizeBtn = win.querySelector('[data-action="maximize"]');
+        if (maximizeBtn) maximizeBtn.addEventListener('click', () => toggleMaximizeWindow(id));
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
@@ -1149,13 +1167,16 @@
             win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
         });
         bar.addEventListener('pointerup', () => { drag = null; });
-        bar.addEventListener('dblclick', event => {
-            if (event.target.closest('button')) return;
-            toggleMaximizeWindow(id);
-        });
+        if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
+            bar.addEventListener('dblclick', event => {
+                if (event.target.closest('button')) return;
+                toggleMaximizeWindow(id);
+            });
+        }
         wireLongPress(bar, event => showWindowContextMenu(event, id));
         wireWindowTouchGestures(win, id);
-        wireWindowResize(win, id);
+        const winAppId = state.windows.get(id)?.appId;
+        if (winAppId !== 'calculator') wireWindowResize(win, id);
     }
 
     function wireWindowTouchGestures(win, id) {
@@ -1971,7 +1992,7 @@
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
                     ]),
                     settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
-                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['aurago', 'desktop.settings_icon_theme_aurago']
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur']
                     ]),
                     settingIconCatalog('desktop.settings_icon_catalog', 'desktop.settings_icon_catalog_desc')
                 ]
@@ -2367,10 +2388,36 @@
             <div class="vd-calc-tabs">
                 <button type="button" class="active" data-mode="standard">${esc(t('desktop.calc_standard'))}</button>
                 <button type="button" data-mode="scientific">${esc(t('desktop.calc_scientific'))}</button>
+                <button type="button" data-mode="programmer">${esc(t('desktop.calc_programmer'))}</button>
+            </div>
+            <div class="vd-calc-base" data-base-selector hidden>
+                <button type="button" class="active" data-base="10">${esc(t('desktop.calc_dec'))}</button>
+                <button type="button" data-base="16">${esc(t('desktop.calc_hex'))}</button>
+                <button type="button" data-base="2">${esc(t('desktop.calc_bin'))}</button>
+                <button type="button" data-base="8">${esc(t('desktop.calc_oct'))}</button>
             </div>
             <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
+            <div class="vd-calc-prog-display" data-prog-display hidden>
+                <div><span>HEX</span><span data-hex>0</span></div>
+                <div><span>DEC</span><span data-dec>0</span></div>
+                <div><span>OCT</span><span data-oct>0</span></div>
+                <div><span>BIN</span><span data-bin>0</span></div>
+            </div>
             <div class="vd-calc-keys">
                 ${['C','CE','⌫','%','sin','cos','tan','√','7','8','9','÷','log','ln','π','x²','4','5','6','×','(',')','e','xʸ','1','2','3','-','n!','±','.','+','0','00','='].map(key => `<button type="button" class="${/[+\-×÷=%]|xʸ/.test(key) ? 'op' : /sin|cos|tan|log|ln|π|e|√|n!|x²|[()]/.test(key) ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
+                <button type="button" class="fn programmer" data-key="AND">AND</button>
+                <button type="button" class="fn programmer" data-key="OR">OR</button>
+                <button type="button" class="fn programmer" data-key="XOR">XOR</button>
+                <button type="button" class="fn programmer" data-key="NOT">NOT</button>
+                <button type="button" class="fn programmer" data-key="SHL">SHL</button>
+                <button type="button" class="fn programmer" data-key="SHR">SHR</button>
+                <button type="button" class="fn programmer" data-key="MOD">MOD</button>
+                <button type="button" class="fn programmer" data-key="A">A</button>
+                <button type="button" class="fn programmer" data-key="B">B</button>
+                <button type="button" class="fn programmer" data-key="C">C</button>
+                <button type="button" class="fn programmer" data-key="D">D</button>
+                <button type="button" class="fn programmer" data-key="E">E</button>
+                <button type="button" class="fn programmer" data-key="F">F</button>
             </div>
             <aside class="vd-calc-history"><div>${esc(t('desktop.calc_history'))}</div><ol></ol></aside>
         </div>`;
@@ -2378,16 +2425,39 @@
         const expressionEl = host.querySelector('[data-expression]');
         const resultEl = host.querySelector('[data-result]');
         const historyEl = host.querySelector('.vd-calc-history ol');
+        const baseSelector = host.querySelector('[data-base-selector]');
+        const progDisplay = host.querySelector('[data-prog-display]');
         let expression = '';
+        let mode = 'standard';
+        let progBase = 10;
         const history = [];
         const update = (result) => {
             expressionEl.textContent = expression || '0';
-            resultEl.textContent = result == null ? '0' : String(result);
+            const displayResult = result == null ? '0' : String(result);
+            resultEl.textContent = displayResult;
+            if (mode === 'programmer' && progDisplay) {
+                const num = parseInt(displayResult, 10);
+                const safeNum = Number.isFinite(num) ? num : 0;
+                progDisplay.querySelector('[data-hex]').textContent = safeNum.toString(16).toUpperCase();
+                progDisplay.querySelector('[data-dec]').textContent = String(safeNum);
+                progDisplay.querySelector('[data-oct]').textContent = safeNum.toString(8);
+                progDisplay.querySelector('[data-bin]').textContent = safeNum.toString(2);
+            }
         };
         const evaluate = () => {
             if (!expression) return;
-            const value = evaluateCalculatorExpression(expression);
-            const result = Number(value.toFixed(10));
+            let value;
+            if (mode === 'programmer') {
+                value = evaluateProgrammerExpression(expression, progBase);
+            } else {
+                value = evaluateCalculatorExpression(expression);
+            }
+            let result;
+            if (mode === 'programmer') {
+                result = value;
+            } else {
+                result = Number(value.toFixed(10));
+            }
             history.unshift(`${expression} = ${result}`);
             history.splice(8);
             historyEl.innerHTML = history.map(item => `<li>${esc(item)}</li>`).join('');
@@ -2404,6 +2474,13 @@
             resultEl.classList.add('typing');
             setTimeout(() => resultEl.classList.remove('typing'), 150);
         };
+        const validDigitForBase = ch => {
+            if (progBase === 2) return /[01]/.test(ch);
+            if (progBase === 8) return /[0-7]/.test(ch);
+            if (progBase === 10) return /[0-9]/.test(ch);
+            if (progBase === 16) return /[0-9A-Fa-f]/.test(ch);
+            return true;
+        };
         const press = key => {
             try {
                 if (key === 'C') expression = '';
@@ -2413,6 +2490,17 @@
                     evaluate();
                     animateButton('=');
                     return;
+                }
+                else if (mode === 'programmer') {
+                    if (['AND','OR','XOR','SHL','SHR','MOD'].includes(key)) expression += ` ${key} `;
+                    else if (key === 'NOT') expression += 'NOT ';
+                    else if (/^[0-9A-Fa-f]$/.test(key)) {
+                        if (validDigitForBase(key)) expression += key;
+                    }
+                    else if (['+','-','×','÷','%','(',')'].includes(key)) expression += key;
+                    else if (key === '.') {
+                        if (progBase === 10) expression += '.';
+                    }
                 }
                 else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
                 else if (key === 'x²') expression += '²';
@@ -2433,11 +2521,31 @@
         }));
         host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
             host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('active', item === btn));
-            root.classList.toggle('scientific-on', btn.dataset.mode === 'scientific');
+            mode = btn.dataset.mode;
+            root.classList.toggle('scientific-on', mode === 'scientific');
+            root.classList.toggle('programmer-on', mode === 'programmer');
+            if (baseSelector) baseSelector.hidden = mode !== 'programmer';
+            if (progDisplay) progDisplay.hidden = mode !== 'programmer';
+            expression = '';
+            update();
+        }));
+        host.querySelectorAll('[data-base]').forEach(btn => btn.addEventListener('click', () => {
+            host.querySelectorAll('[data-base]').forEach(item => item.classList.toggle('active', item === btn));
+            progBase = parseInt(btn.dataset.base, 10);
+            expression = '';
+            update();
         }));
         root.addEventListener('keydown', event => {
             const map = { Enter: '=', Backspace: '⌫', Escape: 'C', '*': '×', '/': '÷' };
             const key = map[event.key] || event.key;
+            if (mode === 'programmer') {
+                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','⌫','C','×','÷'].includes(key)) {
+                    event.preventDefault();
+                    animateButton(key.toUpperCase());
+                    press(key.toUpperCase());
+                    return;
+                }
+            }
             if (/^[0-9.+\-()%]$/.test(key) || ['=', '⌫', 'C', '×', '÷'].includes(key)) {
                 event.preventDefault();
                 animateButton(key);
@@ -2447,6 +2555,200 @@
         root.focus();
     }
 
+    function evaluateProgrammerExpression(expression, base) {
+        const tokens = tokenizeProgrammerExpression(expression, base);
+        return parseProgrammerExpression(tokens);
+    }
+
+    function tokenizeProgrammerExpression(expression, base) {
+        const tokens = [];
+        let index = 0;
+        const isDigit = ch => {
+            if (base === 2) return ch === '0' || ch === '1';
+            if (base === 8) return ch >= '0' && ch <= '7';
+            if (base === 10) return ch >= '0' && ch <= '9';
+            if (base === 16) return /[0-9A-Fa-f]/.test(ch);
+            return false;
+        };
+        while (index < expression.length) {
+            const ch = expression[index];
+            if (ch === ' ' || ch === '\t') { index++; continue; }
+            if (isDigit(ch)) {
+                let value = '';
+                while (index < expression.length && isDigit(expression[index])) {
+                    value += expression[index];
+                    index++;
+                }
+                tokens.push({ type: 'number', value: parseInt(value, base) });
+                continue;
+            }
+            if (ch === 'N' && expression.slice(index, index + 3) === 'NOT') {
+                tokens.push({ type: 'operator', value: 'NOT' });
+                index += 3;
+                continue;
+            }
+            if (ch === 'A' && expression.slice(index, index + 3) === 'AND') {
+                tokens.push({ type: 'operator', value: 'AND' });
+                index += 3;
+                continue;
+            }
+            if (ch === 'O' && expression.slice(index, index + 2) === 'OR') {
+                tokens.push({ type: 'operator', value: 'OR' });
+                index += 2;
+                continue;
+            }
+            if (ch === 'X' && expression.slice(index, index + 3) === 'XOR') {
+                tokens.push({ type: 'operator', value: 'XOR' });
+                index += 3;
+                continue;
+            }
+            if (ch === 'M' && expression.slice(index, index + 3) === 'MOD') {
+                tokens.push({ type: 'operator', value: 'MOD' });
+                index += 3;
+                continue;
+            }
+            if (ch === 'S' && expression.slice(index, index + 3) === 'SHL') {
+                tokens.push({ type: 'operator', value: 'SHL' });
+                index += 3;
+                continue;
+            }
+            if (ch === 'S' && expression.slice(index, index + 3) === 'SHR') {
+                tokens.push({ type: 'operator', value: 'SHR' });
+                index += 3;
+                continue;
+            }
+            if (ch === '<' && expression[index + 1] === '<') {
+                tokens.push({ type: 'operator', value: 'SHL' });
+                index += 2;
+                continue;
+            }
+            if (ch === '>' && expression[index + 1] === '>') {
+                tokens.push({ type: 'operator', value: 'SHR' });
+                index += 2;
+                continue;
+            }
+            if (ch === '&') { tokens.push({ type: 'operator', value: 'AND' }); index++; continue; }
+            if (ch === '|') { tokens.push({ type: 'operator', value: 'OR' }); index++; continue; }
+            if (ch === '^') { tokens.push({ type: 'operator', value: 'XOR' }); index++; continue; }
+            if (ch === '~') { tokens.push({ type: 'operator', value: 'NOT' }); index++; continue; }
+            if (ch === '%') { tokens.push({ type: 'operator', value: 'MOD' }); index++; continue; }
+            if (ch === '+') { tokens.push({ type: 'operator', value: '+' }); index++; continue; }
+            if (ch === '-') { tokens.push({ type: 'operator', value: '-' }); index++; continue; }
+            if (ch === '*' || ch === '×') { tokens.push({ type: 'operator', value: '*' }); index++; continue; }
+            if (ch === '/' || ch === '÷') { tokens.push({ type: 'operator', value: '/' }); index++; continue; }
+            if (ch === '(') { tokens.push({ type: 'lparen', value: '(' }); index++; continue; }
+            if (ch === ')') { tokens.push({ type: 'rparen', value: ')' }); index++; continue; }
+            throw new Error('Invalid expression');
+        }
+        tokens.push({ type: 'eof', value: '' });
+        return tokens;
+    }
+
+    function parseProgrammerExpression(tokens) {
+        let index = 0;
+        const current = () => tokens[index];
+        const consume = () => tokens[index++];
+        const expect = type => {
+            if (current().type !== type) throw new Error('Invalid expression');
+            return consume();
+        };
+
+        const parseExpression = () => parseOrExpression();
+
+        const parseOrExpression = () => {
+            let left = parseXorExpression();
+            while (current().value === 'OR') {
+                consume();
+                left = left | parseXorExpression();
+            }
+            return left;
+        };
+
+        const parseXorExpression = () => {
+            let left = parseAndExpression();
+            while (current().value === 'XOR') {
+                consume();
+                left = left ^ parseAndExpression();
+            }
+            return left;
+        };
+
+        const parseAndExpression = () => {
+            let left = parseShiftExpression();
+            while (current().value === 'AND') {
+                consume();
+                left = left & parseShiftExpression();
+            }
+            return left;
+        };
+
+        const parseShiftExpression = () => {
+            let left = parseAdditiveExpression();
+            while (['SHL', 'SHR'].includes(current().value)) {
+                const op = consume().value;
+                const right = parseAdditiveExpression();
+                left = op === 'SHL' ? left << right : left >> right;
+            }
+            return left;
+        };
+
+        const parseAdditiveExpression = () => {
+            let left = parseMultiplicativeExpression();
+            while (['+', '-'].includes(current().value)) {
+                const op = consume().value;
+                const right = parseMultiplicativeExpression();
+                left = op === '+' ? left + right : left - right;
+            }
+            return left;
+        };
+
+        const parseMultiplicativeExpression = () => {
+            let left = parseUnaryExpression();
+            while (['*', '/', 'MOD'].includes(current().value)) {
+                const op = consume().value;
+                const right = parseUnaryExpression();
+                if (op === '*') left = left * right;
+                else if (op === '/') {
+                    if (right === 0) throw new Error('Invalid expression');
+                    left = Math.trunc(left / right);
+                } else {
+                    if (right === 0) throw new Error('Invalid expression');
+                    left = left % right;
+                }
+            }
+            return left;
+        };
+
+        const parseUnaryExpression = () => {
+            if (current().value === 'NOT') {
+                consume();
+                return ~parseUnaryExpression();
+            }
+            if (current().value === '-') {
+                consume();
+                return -parseUnaryExpression();
+            }
+            return parsePrimaryExpression();
+        };
+
+        const parsePrimaryExpression = () => {
+            if (current().type === 'number') {
+                return consume().value;
+            }
+            if (current().type === 'lparen') {
+                consume();
+                const value = parseExpression();
+                expect('rparen');
+                return value;
+            }
+            throw new Error('Invalid expression');
+        };
+
+        const result = parseExpression();
+        if (current().type !== 'eof') throw new Error('Invalid expression');
+        if (!Number.isFinite(result) || !Number.isInteger(result)) throw new Error('Invalid expression');
+        return result;
+    }
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -3624,7 +3926,7 @@
                     widget: client.widget || null,
                     bootstrap: sdkBootstrap(),
                     icon_manifest: state.iconManifest,
-                    papirus_icon_manifest: state.papirusIconManifest
+                    icon_theme_manifests: state.iconThemeManifests
                 };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);

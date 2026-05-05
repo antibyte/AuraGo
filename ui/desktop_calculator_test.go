@@ -57,7 +57,8 @@ func TestDesktopCalculatorRejectsNonFiniteResults(t *testing.T) {
 		"if (!Number.isFinite(value)) throw new Error('Invalid expression');",
 		"if (value > 170) throw new Error('Invalid expression');",
 		"value = operator === '!' ? calculatorFactorial(value) : Math.pow(value, 2);",
-		"const result = Number(value.toFixed(10));",
+		"result = Number(value.toFixed(10));",
+		"result = value;",
 	} {
 		if !strings.Contains(script, marker) {
 			t.Fatalf("desktop calculator script missing finite-result guard marker %q", marker)

@@ -364,9 +364,10 @@
     height: 26px;
 }
 
+.vd-theme-icon,
 .vd-papirus-icon {
     display: inline-block;
-    background-image: var(--vd-papirus-url);
+    background-image: var(--vd-theme-icon-url, var(--vd-papirus-url));
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
@@ -1185,7 +1186,7 @@
 }
 .fm-col-size {
     width: 80px;
-    text-align: right;
+    text-align: center;
     justify-content: flex-end;
 }
 .fm-col-date {
@@ -2185,7 +2186,7 @@
     color: rgba(167, 176, 192, 0.7);
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 15px;
+    font-size: 16px;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
     font-weight: 500;
@@ -2193,7 +2194,7 @@
 
 .vd-calc-display strong {
     display: block;
-    font-size: 38px;
+    font-size: 46px;
     font-weight: 300;
     color: #c8f0e8;
     letter-spacing: -0.5px;
@@ -2220,7 +2221,7 @@
 }
 
 .vd-calc-keys button {
-    min-height: 48px;
+    min-height: 40px;
     border: 0;
     border-radius: 14px;
     color: var(--vd-text);
@@ -2228,7 +2229,7 @@
         linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
     font-weight: 700;
     cursor: pointer;
-    font-size: 17px;
+    font-size: 15px;
     position: relative;
     overflow: hidden;
     transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2287,7 +2288,7 @@
     background:
         linear-gradient(145deg, rgba(39, 199, 166, 0.28), rgba(39, 199, 166, 0.12));
     color: #a8ece0;
-    font-size: 14px;
+    font-size: 13px;
     box-shadow:
         0 2px 8px rgba(39, 199, 166, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -2319,7 +2320,7 @@
     background:
         linear-gradient(145deg, rgba(39, 199, 166, 0.55), rgba(30, 160, 135, 0.4));
     color: #ffffff;
-    font-size: 22px;
+    font-size: 18px;
     box-shadow:
         0 4px 12px rgba(39, 199, 166, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -2424,6 +2425,90 @@
     background: rgba(255, 255, 255, 0.07);
     border-left-color: rgba(39, 199, 166, 0.5);
     transform: translateX(2px);
+}
+
+.vd-calc-base {
+    display: flex;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+}
+
+.vd-calc-base button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--vd-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.vd-calc-base button.active {
+    border-color: rgba(242, 184, 75, 0.5);
+    background: rgba(242, 184, 75, 0.15);
+    color: #ffe4a1;
+    box-shadow: 0 0 10px rgba(242, 184, 75, 0.1);
+}
+
+.vd-calc-prog-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(7, 16, 20, 0.8), rgba(5, 12, 16, 0.85));
+    border: 1px solid rgba(154, 216, 207, 0.1);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.vd-calc-prog-display > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+}
+
+.vd-calc-prog-display > div span:first-child {
+    color: rgba(167, 176, 192, 0.5);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    min-width: 28px;
+}
+
+.vd-calc-prog-display > div span:last-child {
+    color: #c8f0e8;
+    font-weight: 500;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-calc.programmer-on .vd-calc-keys button.scientific {
+    display: none;
+}
+
+.vd-calc.programmer-on .vd-calc-keys button.programmer {
+    display: block;
+    animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.vd-calc.programmer-on .vd-calc-history {
+    display: none;
 }
 
 .vd-todo {
