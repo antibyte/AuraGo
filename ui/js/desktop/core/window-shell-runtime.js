@@ -420,7 +420,8 @@
             'code-studio': { width: 1280, height: 850 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
-            'agent-chat': { width: 800, height: 620 }
+            'agent-chat': { width: 800, height: 620 },
+            'looper': { width: 900, height: 750 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();

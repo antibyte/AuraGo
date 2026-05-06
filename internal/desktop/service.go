@@ -220,6 +220,13 @@ func (s *Service) CodeContainer() *CodeContainerService {
 	return s.codeContainer
 }
 
+// DB returns the underlying SQLite database handle.
+func (s *Service) DB() *sql.DB {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.db
+}
+
 func (s *Service) ensureReady(ctx context.Context) error {
 	s.mu.Lock()
 	ready := s.db != nil && !s.closed

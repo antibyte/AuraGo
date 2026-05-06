@@ -470,6 +470,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		desktopSSHHandler(w, r)
 	})
+	mux.HandleFunc("/api/desktop/looper/presets", handleLooperPresets(s))
+	mux.HandleFunc("/api/desktop/looper/presets/", handleLooperPresetByID(s))
+	mux.HandleFunc("/api/desktop/looper/examples", handleLooperExamples(s))
+	mux.HandleFunc("/api/desktop/looper/run", handleLooperRun(s))
+	mux.HandleFunc("/api/desktop/looper/stop", handleLooperStop(s))
+	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
 	registerCodeStudioRoutes(mux, s)
 
 	s.registerConfigAPIRoutes(mux, sse)

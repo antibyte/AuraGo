@@ -785,6 +785,21 @@
             return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
         if (appId === 'launchpad') return renderLaunchpad(id);
+        if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
+            return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc,
+                api,
+                t,
+                iconMarkup,
+                notify: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
+                loadBootstrap,
+                updateWindowContext: updateWindowContext,
+                setWindowMenus,
+                clearWindowMenus,
+                wireContextMenuBoundary
+            }));
+        }
         return renderGeneratedApp(id, appId);
     }
 
