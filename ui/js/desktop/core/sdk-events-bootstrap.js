@@ -344,6 +344,7 @@
 
     async function init() {
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
+        ensureDesktopRadialMenuAnchor();
         await loadIconManifest();
         bindViewportMetrics();
         wireChrome();
@@ -354,5 +355,6 @@
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
     }
 
+    ensureDesktopRadialMenuAnchor();
     document.addEventListener('DOMContentLoaded', init);
 })();
