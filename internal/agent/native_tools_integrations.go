@@ -1114,7 +1114,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
-					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "show_notification"},
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
 				},
 				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'."),
 				"file_path": prop("string", "Alias for path."),
@@ -1150,7 +1150,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
-				"app_id":      prop("string", "Desktop app ID for open_app or widget ownership."),
+				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, or widget ownership."),
 				"manifest": map[string]interface{}{
 					"type":                 "object",
 					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is optional but should come from icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; when omitted AuraGo infers one from id/name/entry/description. runtime defaults to aura-desktop-sdk@1.",

@@ -332,6 +332,15 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	}
 	params, _ := virtualDesktop.Parameters.(map[string]interface{})
 	props, _ := params["properties"].(map[string]interface{})
+	operation, _ := props["operation"].(map[string]interface{})
+	if !containsInterfaceString(operation["enum"], "open_in_app") {
+		t.Fatalf("virtual_desktop operation enum missing open_in_app: %#v", operation["enum"])
+	}
+	appID, _ := props["app_id"].(map[string]interface{})
+	appIDDescription, _ := appID["description"].(string)
+	if !strings.Contains(appIDDescription, "open_in_app") {
+		t.Fatalf("app_id description missing open_in_app guidance: %s", appIDDescription)
+	}
 	manifest, _ := props["manifest"].(map[string]interface{})
 	manifestDescription, _ := manifest["description"].(string)
 	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
@@ -346,6 +355,35 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	}
 	if !strings.Contains(widgetDescription, "inferred") {
 		t.Fatalf("widget description missing inferred icon guidance: %s", widgetDescription)
+	}
+}
+
+func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
+	t.Parallel()
+
+	manualPath := filepath.Join("..", "..", "prompts", "tools_manuals", "virtual_desktop.md")
+	data, err := os.ReadFile(manualPath)
+	if err != nil {
+		t.Fatalf("read virtual desktop manual: %v", err)
+	}
+	manual := string(data)
+	for _, want := range []string{
+		"`open_app` / `open_in_app`",
+		"`AuraDesktop.menu.set(menus)`",
+		"`AuraDesktop.menu.clear()`",
+		"`AuraDesktop.menu.onAction(handler)`",
+		"`select`",
+		"`toast`",
+		"`analytics`",
+		"`backup`",
+		"`camera`",
+		"`workflow`",
+		"Fruity",
+		"WhiteSur",
+	} {
+		if !strings.Contains(manual, want) {
+			t.Fatalf("virtual desktop manual missing %q", want)
+		}
 	}
 }
 

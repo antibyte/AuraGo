@@ -19,6 +19,10 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 		"widgets.register",
 		"fs.read",
 		"ui.button",
+		"ui.select",
+		"ui.toast",
+		"menu: ui.menu",
+		"onAction(handler)",
 	} {
 		if !strings.Contains(sdkText, want) {
 			t.Fatalf("SDK asset does not expose %q", want)

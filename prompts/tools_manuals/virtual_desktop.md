@@ -45,7 +45,7 @@ The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place 
 }
 ```
 
-Prefer AuraGo's semantic themed icon names from `status.icon_catalog.preferred`: `apps`, `archive`, `audio`, `browser`, `calendar`, `calculator`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `go`, `html`, `image`, `javascript`, `json`, `markdown`, `network`, `notes`, `pdf`, `python`, `settings`, `spreadsheet`, `terminal`, `text`, `trash`, `video`, `weather`, `xml`, or `yaml`. The desktop and SDK resolve these through the active Papirus or WhiteSur SVG theme and fall back to the built-in sprite sheet when needed. `status.icon_catalog.aliases` lists friendly aliases such as `sparkles -> apps`, `edit -> editor`, `note -> notes`, `todo -> notes`, and `music-player -> audio-player`. App and widget icons are normalized against this catalog; emoji icons and unknown custom names are rejected. If `icon` is omitted, AuraGo infers a catalog icon from app/widget id, name/title, type, entry, or description. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
+Prefer AuraGo's semantic themed icon names from `status.icon_catalog.preferred`: `analytics`, `apps`, `archive`, `audio`, `audio-player`, `backup`, `book`, `browser`, `calendar`, `calculator`, `camera`, `chat`, `cloud`, `code`, `css`, `database`, `desktop`, `documents`, `downloads`, `editor`, `folder`, `forms`, `go`, `help`, `html`, `image`, `javascript`, `json`, `mail`, `markdown`, `map`, `network`, `notes`, `pdf`, `phone`, `printer`, `python`, `radio`, `run`, `settings`, `spreadsheet`, `terminal`, `text`, `tools`, `trash`, `video`, `weather`, `workflow`, `writer`, `xml`, or `yaml`. The desktop and SDK resolve these through the active Papirus or WhiteSur SVG theme and fall back to the built-in sprite sheet when needed. The Fruity UI theme pairs especially well with the WhiteSur icon theme, but app and widget icon choice stays independent from UI theme choice. `status.icon_catalog.aliases` lists friendly aliases such as `chart -> analytics`, `sparkles -> apps`, `edit -> editor`, `email -> mail`, `note -> notes`, `todo -> notes`, and `music-player -> audio-player`. App and widget icons are normalized against this catalog; emoji icons and unknown custom names are rejected. If `icon` is omitted, AuraGo infers a catalog icon from app/widget id, name/title, type, entry, or description. Use `sprite:<name>` only when you deliberately need a legacy sprite icon.
 The app `entry` file must exist in `files` and must contain real HTML. Do not install placeholder or empty entry files.
 
 ## Office Examples
@@ -98,9 +98,26 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 - Add `/css/desktop-sdk.css` and `/js/desktop/aura-desktop-sdk.js` to the app entry HTML.
 - Set `manifest.runtime` to `aura-desktop-sdk@1` or omit it to use that default.
 - Request only the permissions the app needs, for example `files:read`, `files:write`, `widgets:write`, `notifications`, or `apps:open`.
-- Build controls with `AuraDesktop.ui` (`icon`, `button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `toggle`, `emptyState`) instead of custom per-app styling. Pass semantic icon names to `icon`, `button`, `card`, and `emptyState`; do not use emoji as app or tool icons.
+- Build controls with `AuraDesktop.ui` (`icon`, `button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `select`, `toggle`, `emptyState`, `toast`) instead of custom per-app styling. Pass semantic icon names to `icon`, `button`, `card`, and `emptyState`; do not use emoji as app or tool icons.
 - Use `await AuraDesktop.icons.catalog()` when an app needs to choose icons dynamically. It returns the same `icon_catalog` object from desktop bootstrap, including the active theme, preferred semantic names, aliases, and the legacy `sprite:` prefix.
 - Use `AuraDesktop.fs`, `AuraDesktop.widgets.register`, `AuraDesktop.notifications.show`, and `AuraDesktop.desktop.openApp` for desktop actions. The SDK talks to the desktop shell through a safe iframe bridge.
+- Use `AuraDesktop.menu.set(menus)` to register optional window menus for generated app windows, `AuraDesktop.menu.clear()` during cleanup when needed, and `AuraDesktop.menu.onAction(handler)` when menu items use string action IDs. Menu items support separators, submenus, icons, shortcuts, disabled/checked/hidden states, and direct function actions.
+
+Example generated app menu:
+
+```js
+AuraDesktop.menu.set([
+  {
+    id: 'file',
+    label: 'File',
+    items: [
+      { id: 'save', label: 'Save', icon: 'save', shortcut: 'Ctrl+S', action: save },
+      { type: 'separator' },
+      { id: 'close', label: 'Close', icon: 'x', disabled: true }
+    ]
+  }
+]);
+```
 
 ## Widget Registration
 
