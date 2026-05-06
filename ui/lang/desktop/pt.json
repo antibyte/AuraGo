@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Falha ao excluir.",
     "desktop.looper_start_error": "Falha ao iniciar.",
     "desktop.looper_stop_error": "Falha ao parar.",
-    "desktop.looper_already_running": "Um loop já está em execução."
+    "desktop.looper_already_running": "Um loop já está em execução.",
+    "desktop.app_camera": "Câmera",
+    "desktop.camera_capture": "Capturar",
+    "desktop.camera_retake": "Refazer",
+    "desktop.camera_save": "Salvar",
+    "desktop.camera_send_agent": "Enviar ao agente",
+    "desktop.camera_switch": "Trocar câmera",
+    "desktop.camera_saved": "Foto salva",
+    "desktop.camera_sending": "Enviando ao agente...",
+    "desktop.camera_sent": "Enviado ao agente",
+    "desktop.camera_no_camera": "Nenhuma câmera encontrada",
+    "desktop.camera_permission_denied": "Acesso à câmera negado",
+    "desktop.camera_analyzing": "Analisando imagem...",
+    "desktop.camera_insecure": "A câmera requer HTTPS",
+    "desktop.camera_analyze_prompt": "Por favor, analise esta foto.",
+    "desktop.camera_save_error": "Falha ao salvar a foto",
+    "desktop.camera_send_error": "Falha ao enviar ao agente"
 }

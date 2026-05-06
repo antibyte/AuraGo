@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Αποτυχία διαγραφής.",
     "desktop.looper_start_error": "Αποτυχία έναρξης.",
     "desktop.looper_stop_error": "Αποτυχία διακοπής.",
-    "desktop.looper_already_running": "Ένας βρόχος εκτελείται ήδη."
+    "desktop.looper_already_running": "Ένας βρόχος εκτελείται ήδη.",
+    "desktop.app_camera": "Κάμερα",
+    "desktop.camera_capture": "Λήψη",
+    "desktop.camera_retake": "Επανάληψη λήψης",
+    "desktop.camera_save": "Αποθήκευση",
+    "desktop.camera_send_agent": "Αποστολή στον πράκτορα",
+    "desktop.camera_switch": "Αλλαγή κάμερας",
+    "desktop.camera_saved": "Η φωτογραφία αποθηκεύτηκε",
+    "desktop.camera_sending": "Αποστολή στον πράκτορα...",
+    "desktop.camera_sent": "Απεστάλη στον πράκτορα",
+    "desktop.camera_no_camera": "Δεν βρέθηκε κάμερα",
+    "desktop.camera_permission_denied": "Η πρόσβαση στην κάμερα απορρίφθηκε",
+    "desktop.camera_analyzing": "Ανάλυση εικόνας...",
+    "desktop.camera_insecure": "Η κάμερα απαιτεί HTTPS",
+    "desktop.camera_analyze_prompt": "Παρακαλώ αναλύστε αυτή τη φωτογραφία.",
+    "desktop.camera_save_error": "Η αποθήκευση της φωτογραφίας απέτυχε",
+    "desktop.camera_send_error": "Η αποστολή στον πράκτορα απέτυχε"
 }

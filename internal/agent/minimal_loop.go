@@ -25,6 +25,10 @@ type MinimalLoopResult struct {
 // ExecuteMinimalLoop runs a single-turn agent execution with tools but without
 // personality, memory, RAG, or other heavy agent-loop features. It is used by
 // the Looper app and similar structured workflows.
+//
+// If history is non-empty the conversation is continued; the systemPrompt is
+// only injected when history is empty so the caller can maintain a multi-turn
+// thread across loop steps.
 func ExecuteMinimalLoop(
 	ctx context.Context,
 	client llm.ChatClient,
@@ -33,22 +37,26 @@ func ExecuteMinimalLoop(
 	userPrompt string,
 	tools []openai.Tool,
 	dispatchCtx *DispatchContext,
+	history []openai.ChatCompletionMessage,
 	logger *slog.Logger,
-) (MinimalLoopResult, error) {
+) (MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 	start := time.Now()
 	result := MinimalLoopResult{}
 
 	if client == nil {
-		return result, fmt.Errorf("llm client is required")
+		return result, history, fmt.Errorf("llm client is required")
 	}
 	if dispatchCtx == nil {
-		return result, fmt.Errorf("dispatch context is required")
+		return result, history, fmt.Errorf("dispatch context is required")
 	}
 
-	messages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-		{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+	messages := make([]openai.ChatCompletionMessage, 0, len(history)+2)
+	if len(history) == 0 && systemPrompt != "" {
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: systemPrompt})
+	} else {
+		messages = append(messages, history...)
 	}
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userPrompt})
 
 	req := openai.ChatCompletionRequest{
 		Model:    model,
@@ -61,10 +69,10 @@ func ExecuteMinimalLoop(
 	for round := 0; round <= maxToolRounds; round++ {
 		resp, err := client.CreateChatCompletion(ctx, req)
 		if err != nil {
-			return result, fmt.Errorf("llm call failed: %w", err)
+			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
 		}
 		if len(resp.Choices) == 0 {
-			return result, fmt.Errorf("empty response from llm")
+			return result, req.Messages, fmt.Errorf("empty response from llm")
 		}
 
 		choice := resp.Choices[0]
@@ -74,7 +82,7 @@ func ExecuteMinimalLoop(
 		if len(msg.ToolCalls) == 0 {
 			result.Response = security.StripThinkingTags(msg.Content)
 			result.Duration = time.Since(start)
-			return result, nil
+			return result, req.Messages, nil
 		}
 
 		// Execute tool calls
@@ -103,7 +111,7 @@ func ExecuteMinimalLoop(
 		result.Response = ""
 	}
 	result.Duration = time.Since(start)
-	return result, nil
+	return result, req.Messages, nil
 }
 
 func executeMinimalToolCall(

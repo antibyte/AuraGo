@@ -984,6 +984,7 @@ type desktopChatContext struct {
 	CursorColumn    int      `json:"cursor_column"`
 	SelectedText    string   `json:"selected_text"`
 	OpenFiles       []string `json:"open_files"`
+	ImageBase64     string   `json:"image_base64,omitempty"`
 }
 
 func handleDesktopWS(s *Server) http.HandlerFunc {
@@ -1143,6 +1144,10 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 	}
 	b.WriteString("\n\nUser request:\n")
 	b.WriteString(desktopExternalData("desktop_user_request", message, 12000))
+	if strings.TrimSpace(chatContext.ImageBase64) != "" {
+		b.WriteString("\n\nThe user has attached a photo taken with the Camera app. The image is provided as base64-encoded JPEG data below. Describe and analyze what you see in the image.\n")
+		b.WriteString(desktopExternalData("desktop_camera_image_base64", chatContext.ImageBase64, 614400))
+	}
 	return b.String()
 }
 

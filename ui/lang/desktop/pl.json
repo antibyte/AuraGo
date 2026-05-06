@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Usuwanie nie powiodło się.",
     "desktop.looper_start_error": "Uruchomienie nie powiodło się.",
     "desktop.looper_stop_error": "Zatrzymanie nie powiodło się.",
-    "desktop.looper_already_running": "Pętla już działa."
+    "desktop.looper_already_running": "Pętla już działa.",
+    "desktop.app_camera": "Aparat",
+    "desktop.camera_capture": "Zrób zdjęcie",
+    "desktop.camera_retake": "Powtórz",
+    "desktop.camera_save": "Zapisz",
+    "desktop.camera_send_agent": "Wyślij do agenta",
+    "desktop.camera_switch": "Przełącz kamerę",
+    "desktop.camera_saved": "Zdjęcie zapisane",
+    "desktop.camera_sending": "Wysyłanie do agenta...",
+    "desktop.camera_sent": "Wysłano do agenta",
+    "desktop.camera_no_camera": "Nie znaleziono kamery",
+    "desktop.camera_permission_denied": "Brak dostępu do kamery",
+    "desktop.camera_analyzing": "Analiza obrazu...",
+    "desktop.camera_insecure": "Kamera wymaga HTTPS",
+    "desktop.camera_analyze_prompt": "Proszę przeanalizować to zdjęcie.",
+    "desktop.camera_save_error": "Nie udało się zapisać zdjęcia",
+    "desktop.camera_send_error": "Nie udało się wysłać do agenta"
 }

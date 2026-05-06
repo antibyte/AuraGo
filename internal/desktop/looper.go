@@ -33,7 +33,7 @@ type LooperLogEntry struct {
 	Step      string `json:"step"`
 	Prompt    string `json:"prompt"`
 	Response  string `json:"response"`
-	Duration  int64  `json:"duration_ms"`
+	Duration  int64  `json:"duration"`
 }
 
 // LooperRunState is the live status of a running or finished loop.

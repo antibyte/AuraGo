@@ -800,6 +800,19 @@
                 wireContextMenuBoundary
             }));
         }
+        if (appId === 'camera' && window.CameraApp && typeof window.CameraApp.render === 'function') {
+            return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc,
+                api,
+                t,
+                iconMarkup,
+                notify: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
+                loadBootstrap,
+                setWindowMenus,
+                clearWindowMenus
+            }));
+        }
         return renderGeneratedApp(id, appId);
     }
 

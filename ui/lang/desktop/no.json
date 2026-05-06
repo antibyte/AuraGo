@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Sletting mislyktes.",
     "desktop.looper_start_error": "Start mislyktes.",
     "desktop.looper_stop_error": "Stopp mislyktes.",
-    "desktop.looper_already_running": "En løkke kjører allerede."
+    "desktop.looper_already_running": "En løkke kjører allerede.",
+    "desktop.app_camera": "Kamera",
+    "desktop.camera_capture": "Ta bilde",
+    "desktop.camera_retake": "Ta på nytt",
+    "desktop.camera_save": "Lagre",
+    "desktop.camera_send_agent": "Send til agent",
+    "desktop.camera_switch": "Bytt kamera",
+    "desktop.camera_saved": "Bilde lagret",
+    "desktop.camera_sending": "Sender til agent...",
+    "desktop.camera_sent": "Sendt til agent",
+    "desktop.camera_no_camera": "Ingen kamera funnet",
+    "desktop.camera_permission_denied": "Kameratilgang nektet",
+    "desktop.camera_analyzing": "Analyserer bilde...",
+    "desktop.camera_insecure": "Kamera krever HTTPS",
+    "desktop.camera_analyze_prompt": "Vennligst analyser dette bildet.",
+    "desktop.camera_save_error": "Kunne ikke lagre bilde",
+    "desktop.camera_send_error": "Kunne ikke sende til agent"
 }

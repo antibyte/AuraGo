@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Smazání předvolby selhalo.",
     "desktop.looper_start_error": "Spuštění smyčky selhalo.",
     "desktop.looper_stop_error": "Zastavení smyčky selhalo.",
-    "desktop.looper_already_running": "Smyčka již běží."
+    "desktop.looper_already_running": "Smyčka již běží.",
+    "desktop.app_camera": "Fotoaparát",
+    "desktop.camera_capture": "Pořídit",
+    "desktop.camera_retake": "Znovu pořídit",
+    "desktop.camera_save": "Uložit",
+    "desktop.camera_send_agent": "Odeslat agentovi",
+    "desktop.camera_switch": "Přepnout kameru",
+    "desktop.camera_saved": "Foto uloženo",
+    "desktop.camera_sending": "Odesílání agentovi...",
+    "desktop.camera_sent": "Odesláno agentovi",
+    "desktop.camera_no_camera": "Kamera nebyla nalezena",
+    "desktop.camera_permission_denied": "Přístup ke kameře odepřen",
+    "desktop.camera_analyzing": "Analýza obrázku...",
+    "desktop.camera_insecure": "Kamera vyžaduje HTTPS",
+    "desktop.camera_analyze_prompt": "Prosím analyzujte tuto fotografii.",
+    "desktop.camera_save_error": "Uložení fotky selhalo",
+    "desktop.camera_send_error": "Odeslání agentovi selhalo"
 }

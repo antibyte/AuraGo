@@ -509,7 +509,8 @@
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'agent-chat': { width: 800, height: 620 },
-            'looper': { width: 900, height: 750 }
+            'looper': { width: 900, height: 750 },
+            camera: { width: 720, height: 600 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();

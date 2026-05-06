@@ -88,11 +88,12 @@ func (r *LooperRunner) Execute(
 	}
 
 	sysPrompt := agent.MinimalSystemPromptBuilder(nil)
+	var history []openai.ChatCompletionMessage
 
 	// PREPARE
 	r.holder.SetStep("prepare")
 	broadcast()
-	prepRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Prepare, tools, dispatchCtx, r.logger)
+	prepRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Prepare, tools, dispatchCtx, history, r.logger)
 	if err != nil {
 		return r.setErrorAndReturn(err)
 	}
@@ -112,7 +113,7 @@ func (r *LooperRunner) Execute(
 		// PLAN
 		r.holder.SetStep("plan")
 		broadcast()
-		planRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Plan, tools, dispatchCtx, r.logger)
+		planRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Plan, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -122,7 +123,7 @@ func (r *LooperRunner) Execute(
 		// ACTION
 		r.holder.SetStep("action")
 		broadcast()
-		actionRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Action, tools, dispatchCtx, r.logger)
+		actionRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Action, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -132,7 +133,7 @@ func (r *LooperRunner) Execute(
 		// TEST
 		r.holder.SetStep("test")
 		broadcast()
-		testRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Test, tools, dispatchCtx, r.logger)
+		testRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Test, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -143,7 +144,7 @@ func (r *LooperRunner) Execute(
 		// EXIT CONDITION
 		r.holder.SetStep("exit")
 		broadcast()
-		exitRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.ExitCond, tools, dispatchCtx, r.logger)
+		exitRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.ExitCond, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -159,7 +160,7 @@ func (r *LooperRunner) Execute(
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
 		broadcast()
-		finishRes, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Finish, tools, dispatchCtx, r.logger)
+		finishRes, _, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Finish, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}

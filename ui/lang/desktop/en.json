@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Failed to delete preset.",
     "desktop.looper_start_error": "Failed to start loop.",
     "desktop.looper_stop_error": "Failed to stop loop.",
-    "desktop.looper_already_running": "A loop is already running."
+    "desktop.looper_already_running": "A loop is already running.",
+    "desktop.app_camera": "Camera",
+    "desktop.camera_capture": "Capture",
+    "desktop.camera_retake": "Retake",
+    "desktop.camera_save": "Save",
+    "desktop.camera_send_agent": "Send to Agent",
+    "desktop.camera_switch": "Switch Camera",
+    "desktop.camera_saved": "Photo saved",
+    "desktop.camera_sending": "Sending to agent...",
+    "desktop.camera_sent": "Sent to agent",
+    "desktop.camera_no_camera": "No camera found",
+    "desktop.camera_permission_denied": "Camera access denied",
+    "desktop.camera_analyzing": "Analyzing image...",
+    "desktop.camera_insecure": "Camera requires HTTPS",
+    "desktop.camera_analyze_prompt": "Please analyze this photo.",
+    "desktop.camera_save_error": "Failed to save photo",
+    "desktop.camera_send_error": "Failed to send to agent"
 }

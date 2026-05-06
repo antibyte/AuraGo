@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Löschen fehlgeschlagen.",
     "desktop.looper_start_error": "Starten fehlgeschlagen.",
     "desktop.looper_stop_error": "Stoppen fehlgeschlagen.",
-    "desktop.looper_already_running": "Eine Schleife läuft bereits."
+    "desktop.looper_already_running": "Eine Schleife läuft bereits.",
+    "desktop.app_camera": "Kamera",
+    "desktop.camera_capture": "Aufnehmen",
+    "desktop.camera_retake": "Erneut aufnehmen",
+    "desktop.camera_save": "Speichern",
+    "desktop.camera_send_agent": "An Agent senden",
+    "desktop.camera_switch": "Kamera wechseln",
+    "desktop.camera_saved": "Foto gespeichert",
+    "desktop.camera_sending": "Sende an Agent...",
+    "desktop.camera_sent": "An Agent gesendet",
+    "desktop.camera_no_camera": "Keine Kamera gefunden",
+    "desktop.camera_permission_denied": "Kamerazugriff verweigert",
+    "desktop.camera_analyzing": "Bild wird analysiert...",
+    "desktop.camera_insecure": "Kamera erfordert HTTPS",
+    "desktop.camera_analyze_prompt": "Bitte analysiere dieses Foto.",
+    "desktop.camera_save_error": "Foto konnte nicht gespeichert werden",
+    "desktop.camera_send_error": "Senden an Agent fehlgeschlagen"
 }

@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Kunne ikke slette forudindstilling.",
     "desktop.looper_start_error": "Kunne ikke starte loop.",
     "desktop.looper_stop_error": "Kunne ikke stoppe loop.",
-    "desktop.looper_already_running": "En løkke kører allerede."
+    "desktop.looper_already_running": "En løkke kører allerede.",
+    "desktop.app_camera": "Kamera",
+    "desktop.camera_capture": "Optag",
+    "desktop.camera_retake": "Optag igen",
+    "desktop.camera_save": "Gem",
+    "desktop.camera_send_agent": "Send til agent",
+    "desktop.camera_switch": "Skift kamera",
+    "desktop.camera_saved": "Foto gemt",
+    "desktop.camera_sending": "Sender til agent...",
+    "desktop.camera_sent": "Sendt til agent",
+    "desktop.camera_no_camera": "Intet kamera fundet",
+    "desktop.camera_permission_denied": "Kameraadgang nægtet",
+    "desktop.camera_analyzing": "Analyserer billede...",
+    "desktop.camera_insecure": "Kamera kræver HTTPS",
+    "desktop.camera_analyze_prompt": "Analyser venligst dette foto.",
+    "desktop.camera_save_error": "Kunne ikke gemme foto",
+    "desktop.camera_send_error": "Kunne ikke sende til agent"
 }

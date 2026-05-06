@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Verwijderen mislukt.",
     "desktop.looper_start_error": "Starten mislukt.",
     "desktop.looper_stop_error": "Stoppen mislukt.",
-    "desktop.looper_already_running": "Een lus draait al."
+    "desktop.looper_already_running": "Een lus draait al.",
+    "desktop.app_camera": "Camera",
+    "desktop.camera_capture": "Opnemen",
+    "desktop.camera_retake": "Opnieuw opnemen",
+    "desktop.camera_save": "Opslaan",
+    "desktop.camera_send_agent": "Naar agent sturen",
+    "desktop.camera_switch": "Camera wisselen",
+    "desktop.camera_saved": "Foto opgeslagen",
+    "desktop.camera_sending": "Bezig met verzenden naar agent...",
+    "desktop.camera_sent": "Verzonden naar agent",
+    "desktop.camera_no_camera": "Geen camera gevonden",
+    "desktop.camera_permission_denied": "Cameratoegang geweigerd",
+    "desktop.camera_analyzing": "Afbeelding analyseren...",
+    "desktop.camera_insecure": "Camera vereist HTTPS",
+    "desktop.camera_analyze_prompt": "Analyseer deze foto alstublieft.",
+    "desktop.camera_save_error": "Foto opslaan mislukt",
+    "desktop.camera_send_error": "Verzenden naar agent mislukt"
 }

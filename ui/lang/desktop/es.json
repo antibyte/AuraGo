@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Error al eliminar.",
     "desktop.looper_start_error": "Error al iniciar.",
     "desktop.looper_stop_error": "Error al detener.",
-    "desktop.looper_already_running": "Un bucle ya está en ejecución."
+    "desktop.looper_already_running": "Un bucle ya está en ejecución.",
+    "desktop.app_camera": "Cámara",
+    "desktop.camera_capture": "Capturar",
+    "desktop.camera_retake": "Repetir",
+    "desktop.camera_save": "Guardar",
+    "desktop.camera_send_agent": "Enviar al agente",
+    "desktop.camera_switch": "Cambiar cámara",
+    "desktop.camera_saved": "Foto guardada",
+    "desktop.camera_sending": "Enviando al agente...",
+    "desktop.camera_sent": "Enviado al agente",
+    "desktop.camera_no_camera": "No se encontró cámara",
+    "desktop.camera_permission_denied": "Acceso a la cámara denegado",
+    "desktop.camera_analyzing": "Analizando imagen...",
+    "desktop.camera_insecure": "La cámara requiere HTTPS",
+    "desktop.camera_analyze_prompt": "Por favor, analiza esta foto.",
+    "desktop.camera_save_error": "Error al guardar la foto",
+    "desktop.camera_send_error": "Error al enviar al agente"
 }

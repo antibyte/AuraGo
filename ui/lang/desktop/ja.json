@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "削除に失敗しました。",
     "desktop.looper_start_error": "開始に失敗しました。",
     "desktop.looper_stop_error": "停止に失敗しました。",
-    "desktop.looper_already_running": "ループは既に実行中です。"
+    "desktop.looper_already_running": "ループは既に実行中です。",
+    "desktop.app_camera": "カメラ",
+    "desktop.camera_capture": "撮影",
+    "desktop.camera_retake": "撮り直し",
+    "desktop.camera_save": "保存",
+    "desktop.camera_send_agent": "エージェントに送信",
+    "desktop.camera_switch": "カメラ切替",
+    "desktop.camera_saved": "写真を保存しました",
+    "desktop.camera_sending": "エージェントに送信中...",
+    "desktop.camera_sent": "エージェントに送信しました",
+    "desktop.camera_no_camera": "カメラが見つかりません",
+    "desktop.camera_permission_denied": "カメラへのアクセスが拒否されました",
+    "desktop.camera_analyzing": "画像を分析中...",
+    "desktop.camera_insecure": "カメラにはHTTPSが必要です",
+    "desktop.camera_analyze_prompt": "この写真を分析してください。",
+    "desktop.camera_save_error": "写真の保存に失敗しました",
+    "desktop.camera_send_error": "エージェントへの送信に失敗しました"
 }

@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Kunde inte ta bort.",
     "desktop.looper_start_error": "Kunde inte starta.",
     "desktop.looper_stop_error": "Kunde inte stoppa.",
-    "desktop.looper_already_running": "En loop körs redan."
+    "desktop.looper_already_running": "En loop körs redan.",
+    "desktop.app_camera": "Kamera",
+    "desktop.camera_capture": "Ta foto",
+    "desktop.camera_retake": "Ta igen",
+    "desktop.camera_save": "Spara",
+    "desktop.camera_send_agent": "Skicka till agent",
+    "desktop.camera_switch": "Byt kamera",
+    "desktop.camera_saved": "Foto sparat",
+    "desktop.camera_sending": "Skickar till agent...",
+    "desktop.camera_sent": "Skickat till agent",
+    "desktop.camera_no_camera": "Ingen kamera hittades",
+    "desktop.camera_permission_denied": "Kameraåtkomst nekad",
+    "desktop.camera_analyzing": "Analyserar bild...",
+    "desktop.camera_insecure": "Kamera kräver HTTPS",
+    "desktop.camera_analyze_prompt": "Vänligen analysera detta foto.",
+    "desktop.camera_save_error": "Kunde inte spara foto",
+    "desktop.camera_send_error": "Kunde inte skicka till agent"
 }

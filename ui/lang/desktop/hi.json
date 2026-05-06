@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "हटाने में विफल।",
     "desktop.looper_start_error": "शुरू करने में विफल।",
     "desktop.looper_stop_error": "रोकने में विफल।",
-    "desktop.looper_already_running": "एक लूप पहले से चल रहा है।"
+    "desktop.looper_already_running": "एक लूप पहले से चल रहा है।",
+    "desktop.app_camera": "कैमरा",
+    "desktop.camera_capture": "कैप्चर",
+    "desktop.camera_retake": "फिर से लें",
+    "desktop.camera_save": "सहेजें",
+    "desktop.camera_send_agent": "एजेंट को भेजें",
+    "desktop.camera_switch": "कैमरा बदलें",
+    "desktop.camera_saved": "फोटो सहेजी गई",
+    "desktop.camera_sending": "एजेंट को भेज रहे हैं...",
+    "desktop.camera_sent": "एजेंट को भेजा गया",
+    "desktop.camera_no_camera": "कोई कैमरा नहीं मिला",
+    "desktop.camera_permission_denied": "कैमरा एक्सेस अस्वीकृत",
+    "desktop.camera_analyzing": "छवि का विश्लेषण हो रहा है...",
+    "desktop.camera_insecure": "कैमरे के लिए HTTPS आवश्यक है",
+    "desktop.camera_analyze_prompt": "कृपया इस फोटो का विश्लेषण करें।",
+    "desktop.camera_save_error": "फोटो सहेजने में विफल",
+    "desktop.camera_send_error": "एजेंट को भेजने में विफल"
 }

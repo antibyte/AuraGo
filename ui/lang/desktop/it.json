@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Eliminazione fallita.",
     "desktop.looper_start_error": "Avvio fallito.",
     "desktop.looper_stop_error": "Arresto fallito.",
-    "desktop.looper_already_running": "Un ciclo è già in esecuzione."
+    "desktop.looper_already_running": "Un ciclo è già in esecuzione.",
+    "desktop.app_camera": "Fotocamera",
+    "desktop.camera_capture": "Acquisisci",
+    "desktop.camera_retake": "Ripeti",
+    "desktop.camera_save": "Salva",
+    "desktop.camera_send_agent": "Invia all'agente",
+    "desktop.camera_switch": "Cambia fotocamera",
+    "desktop.camera_saved": "Foto salvata",
+    "desktop.camera_sending": "Invio all'agente...",
+    "desktop.camera_sent": "Inviata all'agente",
+    "desktop.camera_no_camera": "Nessuna fotocamera trovata",
+    "desktop.camera_permission_denied": "Accesso alla fotocamera negato",
+    "desktop.camera_analyzing": "Analisi dell'immagine...",
+    "desktop.camera_insecure": "La fotocamera richiede HTTPS",
+    "desktop.camera_analyze_prompt": "Analizza questa foto.",
+    "desktop.camera_save_error": "Salvataggio foto fallito",
+    "desktop.camera_send_error": "Invio all'agente fallito"
 }

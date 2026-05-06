@@ -545,5 +545,21 @@
     "desktop.looper_delete_error": "Échec de la suppression.",
     "desktop.looper_start_error": "Échec du démarrage.",
     "desktop.looper_stop_error": "Échec de l'arrêt.",
-    "desktop.looper_already_running": "Une boucle est déjà en cours."
+    "desktop.looper_already_running": "Une boucle est déjà en cours.",
+    "desktop.app_camera": "Caméra",
+    "desktop.camera_capture": "Capturer",
+    "desktop.camera_retake": "Reprendre",
+    "desktop.camera_save": "Enregistrer",
+    "desktop.camera_send_agent": "Envoyer à l'agent",
+    "desktop.camera_switch": "Changer de caméra",
+    "desktop.camera_saved": "Photo enregistrée",
+    "desktop.camera_sending": "Envoi à l'agent...",
+    "desktop.camera_sent": "Envoyé à l'agent",
+    "desktop.camera_no_camera": "Aucune caméra détectée",
+    "desktop.camera_permission_denied": "Accès à la caméra refusé",
+    "desktop.camera_analyzing": "Analyse de l'image...",
+    "desktop.camera_insecure": "La caméra nécessite HTTPS",
+    "desktop.camera_analyze_prompt": "Veuillez analyser cette photo.",
+    "desktop.camera_save_error": "Échec de l'enregistrement de la photo",
+    "desktop.camera_send_error": "Échec de l'envoi à l'agent"
 }
