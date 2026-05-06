@@ -445,7 +445,7 @@
 
 .code-studio-editor .cm-editor {
     height: 100%;
-    font-size: 13px;
+    font-size: var(--cs-editor-font-size, 13px);
 }
 
 .code-studio-editor .cm-scroller {
@@ -516,7 +516,7 @@
     resize: none;
     color: var(--cs-text);
     background: #10151c;
-    font: 13px/1.5 Consolas, "Liberation Mono", monospace;
+    font: var(--cs-editor-font-size, 13px)/1.5 Consolas, "Liberation Mono", monospace;
     white-space: pre;
     overflow: auto;
 }

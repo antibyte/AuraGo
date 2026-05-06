@@ -125,6 +125,9 @@ func TestDesktopWindowMenuTranslations(t *testing.T) {
 		"desktop.menu_favorite",
 		"desktop.menu_reopen_player",
 		"desktop.menu_load_folder",
+		"codeStudio.zoomIn",
+		"codeStudio.zoomOut",
+		"codeStudio.zoomReset",
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		path := filepath.Join("lang", "desktop", lang+".json")
@@ -238,6 +241,52 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 			if !strings.Contains(check.body, marker) {
 				t.Fatalf("%s lost retained direct UX marker %s", check.name, marker)
 			}
+		}
+	}
+}
+
+func TestCodeStudioWindowMenuEditorZoom(t *testing.T) {
+	t.Parallel()
+
+	codeStudioText := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", "code-studio.js"))
+	codeStudioCSS := readDesktopAssetText(t, filepath.Join("css", "code-studio.css"))
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+
+	menuBody := jsFunctionBodyInWindowMenuTest(t, codeStudioText, "function renderWindowMenus()")
+	for _, want := range []string{
+		`id: 'zoom-in'`,
+		`id: 'zoom-out'`,
+		`id: 'zoom-reset'`,
+		`codeStudio.zoomIn`,
+		`codeStudio.zoomOut`,
+		`codeStudio.zoomReset`,
+		`shortcut: 'Ctrl+='`,
+		`shortcut: 'Ctrl+-'`,
+		`shortcut: 'Ctrl+0'`,
+	} {
+		if !strings.Contains(menuBody, want) {
+			t.Fatalf("Code Studio view menu missing editor zoom marker %q", want)
+		}
+	}
+
+	for _, want := range []string{
+		"editorFontSize:",
+		"saved.editorFontSize",
+		"editorFontSize: state.editorFontSize",
+		"function adjustEditorZoom(",
+		"function resetEditorZoom()",
+		"--cs-editor-font-size",
+	} {
+		if !strings.Contains(codeStudioText, want) {
+			t.Fatalf("Code Studio editor zoom implementation missing marker %q", want)
+		}
+	}
+	if !strings.Contains(codeStudioCSS, "font-size: var(--cs-editor-font-size") {
+		t.Fatalf("Code Studio CSS does not bind editor font size to --cs-editor-font-size")
+	}
+	for _, shortcut := range []string{"ctrl+=", "ctrl+-", "ctrl+0"} {
+		if !strings.Contains(mainText, shortcut) {
+			t.Fatalf("desktop menu shortcut router does not allow editor zoom shortcut %q", shortcut)
 		}
 	}
 }

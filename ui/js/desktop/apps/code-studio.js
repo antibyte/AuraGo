@@ -1,6 +1,9 @@
 (function () {
     const STATE_KEY = 'aurago.codeStudio.state.v1';
     const WORKSPACE_ROOT = '/workspace';
+    const DEFAULT_EDITOR_FONT_SIZE = 13;
+    const MIN_EDITOR_FONT_SIZE = 10;
+    const MAX_EDITOR_FONT_SIZE = 24;
 
     const instances = new Map();
     let state = null;
@@ -26,6 +29,7 @@
             terminalHeight: 220,
             sidebarVisible: true,
             sidebarWidth: 280,
+            editorFontSize: DEFAULT_EDITOR_FONT_SIZE,
             searchVisible: false,
             searchResults: [],
             agentVisible: false,
@@ -102,6 +106,12 @@
             if (state === owner) state.disposers = state.disposers.filter(item => item !== disposeFn);
             else owner.disposers = owner.disposers.filter(item => item !== disposeFn);
         };
+    }
+
+    function clampEditorFontSize(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return DEFAULT_EDITOR_FONT_SIZE;
+        return Math.min(MAX_EDITOR_FONT_SIZE, Math.max(MIN_EDITOR_FONT_SIZE, Math.round(numeric)));
     }
 
     function destroyTabView(tab) {
@@ -221,6 +231,7 @@
             state.activeTabIndex = Number(saved.activeTabIndex ?? -1);
             state.sidebarVisible = saved.sidebarVisible !== false;
             state.sidebarWidth = Number(saved.sidebarWidth || 280);
+            state.editorFontSize = clampEditorFontSize(saved.editorFontSize);
             state.terminalVisible = saved.terminalVisible !== false;
             state.terminalHeight = Number(saved.terminalHeight || 220);
             state.recentFiles = Array.isArray(saved.recentFiles) ? saved.recentFiles.slice(0, 20) : [];
@@ -242,6 +253,7 @@
             activeTabIndex: state.activeTabIndex,
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: state.sidebarWidth,
+            editorFontSize: state.editorFontSize,
             terminalVisible: state.terminalVisible,
             terminalHeight: state.terminalHeight,
             recentFiles: state.recentFiles.slice(0, 20)
@@ -356,6 +368,7 @@
         const root = ensureShellRoot();
         root.style.setProperty('--cs-sidebar-width', Math.max(220, state.sidebarWidth) + 'px');
         root.style.setProperty('--cs-terminal-height', Math.max(120, state.terminalHeight) + 'px');
+        root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
         root.dataset.agent = state.agentVisible ? 'visible' : 'hidden';
@@ -399,7 +412,11 @@
                 labelKey: 'desktop.menu_view',
                 items: [
                     { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
-                    { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) }
+                    { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) },
+                    { type: 'separator' },
+                    { id: 'zoom-in', label: tr('codeStudio.zoomIn', 'Zoom In'), icon: 'zoom-in', shortcut: 'Ctrl+=', disabled: state.editorFontSize >= MAX_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(1)) },
+                    { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), icon: 'zoom-out', shortcut: 'Ctrl+-', disabled: state.editorFontSize <= MIN_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(-1)) },
+                    { id: 'zoom-reset', label: tr('codeStudio.zoomReset', 'Reset Zoom'), icon: 'zoom-reset', shortcut: 'Ctrl+0', disabled: state.editorFontSize === DEFAULT_EDITOR_FONT_SIZE, action: bind(resetEditorZoom) }
                 ]
             },
             {
@@ -668,6 +685,31 @@
             <strong>${esc(tr('codeStudio.terminal', 'Terminal'))}</strong>
             <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
         </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
+    }
+
+    function applyEditorZoom() {
+        const root = shellPart('.code-studio');
+        if (!root) return;
+        root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
+    }
+
+    function adjustEditorZoom(delta) {
+        const nextSize = clampEditorFontSize(state.editorFontSize + delta);
+        if (nextSize === state.editorFontSize) return;
+        state.editorFontSize = nextSize;
+        applyEditorZoom();
+        saveState();
+        renderWindowMenus();
+        renderStatus();
+    }
+
+    function resetEditorZoom() {
+        if (state.editorFontSize === DEFAULT_EDITOR_FONT_SIZE) return;
+        state.editorFontSize = DEFAULT_EDITOR_FONT_SIZE;
+        applyEditorZoom();
+        saveState();
+        renderWindowMenus();
+        renderStatus();
     }
 
     function renderStatus(message) {

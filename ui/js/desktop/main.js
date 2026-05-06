@@ -2035,7 +2035,7 @@
         if (!target || !target.closest) return false;
         if (!target.closest('input, textarea, select, [contenteditable="true"]')) return false;
         const normalized = String(shortcut || '').toLowerCase();
-        return !['ctrl+s', 'meta+s', 'f5'].includes(normalized);
+        return !['ctrl+s', 'meta+s', 'f5', 'ctrl+=', 'meta+=', 'ctrl+-', 'meta+-', 'ctrl+0', 'meta+0'].includes(normalized);
     }
 
     function handleWindowMenuShortcut(event) {
