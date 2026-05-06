@@ -37,11 +37,6 @@
 
         host.innerHTML = `<div class="office-app office-sheets" data-office-sheets="${esc(windowId)}">
             <div class="vd-toolbar office-toolbar">
-                <button class="vd-tool-button" type="button" data-action="save">${iconMarkup('save', 'S', 'vd-tool-icon', 15)}<span>${esc(t('desktop.sheets_save', 'Save'))}</span></button>
-                <a class="vd-tool-button" data-action="download" href="#" download>${iconMarkup('download', 'D', 'vd-tool-icon', 15)}<span>${esc(t('desktop.sheets_download_xlsx', 'XLSX'))}</span></a>
-                <a class="vd-tool-button" data-action="export-csv" href="#" download>${iconMarkup('spreadsheet', 'C', 'vd-tool-icon', 15)}<span>${esc(t('desktop.sheets_export_csv', 'CSV'))}</span></a>
-                <button class="vd-tool-button" type="button" data-action="add-row">${iconMarkup('list', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.sheets_add_row', 'Row'))}</span></button>
-                <button class="vd-tool-button" type="button" data-action="add-col">${iconMarkup('grid', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.sheets_add_column', 'Column'))}</span></button>
                 <input class="office-path-input" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
                 <span class="vd-chat-meta" data-status>${esc(t('desktop.sheets_loading', 'Loading...'))}</span>
             </div>
@@ -74,12 +69,7 @@
         }
 
         function updateExportLinks() {
-            const path = pathInput.value.trim() || DEFAULT_PATH;
-            const base = '/api/desktop/office/export?path=' + encodeURIComponent(path);
-            const download = host.querySelector('[data-action="download"]');
-            const csv = host.querySelector('[data-action="export-csv"]');
-            if (download) download.href = base + '&format=xlsx';
-            if (csv) csv.href = base + '&format=csv';
+            setWindowMenus();
         }
 
         function renderWorkbook() {
@@ -650,21 +640,6 @@
             renderWorkbook();
         }
 
-        host.querySelector('[data-action="save"]').addEventListener('click', () => {
-            if (readonly) return;
-            save().catch(err => {
-                setStatus(err.message || String(err));
-                notify({ type: 'error', message: err.message || String(err) });
-            });
-        });
-        host.querySelector('[data-action="add-row"]').addEventListener('click', () => {
-            if (readonly) return;
-            insertRow(captureDisplayRows().length);
-        });
-        host.querySelector('[data-action="add-col"]').addEventListener('click', () => {
-            if (readonly) return;
-            insertColumn(Math.max(MIN_COLS, maxCols(captureDisplayRows())));
-        });
         host.querySelector('[data-action="apply-formula"]').addEventListener('click', applyFormulaBar);
         formulaInput.addEventListener('keydown', event => {
             if (event.key === 'Enter') {
@@ -681,7 +656,7 @@
         load();
 
         function applyReadonlyState() {
-            host.querySelectorAll('[data-action="save"], [data-action="add-row"], [data-action="add-col"], [data-action="apply-formula"]').forEach(button => {
+            host.querySelectorAll('[data-action="apply-formula"]').forEach(button => {
                 button.disabled = readonly;
             });
             if (formulaInput) formulaInput.disabled = readonly;

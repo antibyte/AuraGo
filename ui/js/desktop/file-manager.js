@@ -703,7 +703,6 @@
     function renderToolbarHtml() {
         const backDisabled = !canGoBack() ? ' disabled' : '';
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
-        const writeDisabled = isReadonly() ? ' disabled' : '';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}">
@@ -729,29 +728,8 @@
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list', 'List View'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
-                <div class="fm-dropdown-wrap">
-                    <button type="button" class="fm-toolbtn" data-action="sort-menu" title="${esc(t('desktop.fm.sort_by', 'Sort by'))}">
-                        ${iconMarkup('sort', '\u2195', '', 16)}
-                    </button>
-                </div>
                 <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search', 'Search'))} (Ctrl+F)">
                     ${iconMarkup('search', '\u2315', '', 16)}
-                </button>
-                <button type="button" class="fm-toolbtn" data-action="refresh" title="${esc(t('desktop.fm.refresh', 'Refresh'))}">
-                    ${iconMarkup('refresh', '\u21BB', '', 16)}
-                </button>
-                <div class="fm-separator"></div>
-                <button type="button" class="fm-btn" data-action="upload"${writeDisabled}>
-                    ${iconMarkup('upload', '\u2191', 'fm-btn-icon', 14)}
-                    ${esc(t('desktop.fm.upload', 'Upload'))}
-                </button>
-                <button type="button" class="fm-btn" data-action="new-file"${writeDisabled}>
-                    ${iconMarkup('file-plus', '+', 'fm-btn-icon', 14)}
-                    ${esc(t('desktop.fm.new_file', 'New File'))}
-                </button>
-                <button type="button" class="fm-btn" data-action="new-folder"${writeDisabled}>
-                    ${iconMarkup('folder-plus', '+', 'fm-btn-icon', 14)}
-                    ${esc(t('desktop.fm.new_folder', 'New Folder'))}
                 </button>
             </div>
         </div>`;

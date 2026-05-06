@@ -143,3 +143,137 @@ func TestDesktopWindowMenuTranslations(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	fileManagerText := readDesktopAssetText(t, filepath.Join("js", "desktop", "file-manager.js"))
+	sheetsText := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", "sheets.js"))
+
+	fileToolbar := jsFunctionBodyInWindowMenuTest(t, fileManagerText, "function renderToolbarHtml()")
+	for _, movedAction := range []string{
+		`data-action="sort-menu"`,
+		`data-action="refresh"`,
+		`data-action="upload"`,
+		`data-action="new-file"`,
+		`data-action="new-folder"`,
+	} {
+		if strings.Contains(fileToolbar, movedAction) {
+			t.Fatalf("file manager toolbar still contains menu-migrated action %s", movedAction)
+		}
+	}
+	for _, retainedAction := range []string{
+		`data-action="back"`,
+		`data-action="forward"`,
+		`data-action="up"`,
+		`data-action="search-toggle"`,
+		`data-action="view-grid"`,
+		`data-action="view-list"`,
+	} {
+		if !strings.Contains(fileToolbar, retainedAction) {
+			t.Fatalf("file manager toolbar lost direct UX action %s", retainedAction)
+		}
+	}
+
+	sheetsMarkup := jsFunctionBodyInWindowMenuTest(t, sheetsText, "function render(host, windowId, context)")
+	for _, movedAction := range []string{
+		`data-action="save"`,
+		`data-action="download"`,
+		`data-action="export-csv"`,
+		`data-action="add-row"`,
+		`data-action="add-col"`,
+	} {
+		if strings.Contains(sheetsMarkup, movedAction) {
+			t.Fatalf("sheets primary toolbar still contains menu-migrated action %s", movedAction)
+		}
+	}
+	if !strings.Contains(sheetsMarkup, `data-action="apply-formula"`) {
+		t.Fatalf("sheets lost direct formula apply action")
+	}
+
+	for _, check := range []struct {
+		name     string
+		body     string
+		removed  []string
+		retained []string
+	}{
+		{
+			name:    "calendar",
+			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderCalendar(id)"),
+			removed: []string{`data-cal-new`},
+			retained: []string{`data-cal-today`, `data-cal-nav`, `data-cal-view`},
+		},
+		{
+			name:    "gallery",
+			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderGallery(id)"),
+			removed: []string{`data-gallery-refresh`},
+			retained: []string{`data-gallery-tab`, `data-gallery-more`},
+		},
+		{
+			name:    "quick connect",
+			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)"),
+			removed: []string{`data-action="add"`, `data-action="refresh"`},
+			retained: []string{`data-device-list`, `data-terminal-area`},
+		},
+		{
+			name:    "music player",
+			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderMusicPlayer(id)"),
+			removed: []string{`vd-webamp-launcher-actions`, `data-action="refresh-music"`, `data-action="load-folder"`, `data-action="reopen-webamp"`},
+			retained: []string{`data-track-count`, `data-folder`},
+		},
+		{
+			name:    "launchpad",
+			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "function renderLaunchpad(id)"),
+			removed: []string{`data-action="add"`},
+			retained: []string{`vd-launchpad-search`, `vd-launchpad-category`},
+		},
+	} {
+		for _, marker := range check.removed {
+			if strings.Contains(check.body, marker) {
+				t.Fatalf("%s still contains menu-migrated action %s", check.name, marker)
+			}
+		}
+		for _, marker := range check.retained {
+			if !strings.Contains(check.body, marker) {
+				t.Fatalf("%s lost retained direct UX marker %s", check.name, marker)
+			}
+		}
+	}
+}
+
+func readDesktopAssetText(t *testing.T, path string) string {
+	t.Helper()
+	data, err := Content.ReadFile(filepath.ToSlash(path))
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
+}
+
+func jsFunctionBodyInWindowMenuTest(t *testing.T, source, signature string) string {
+	t.Helper()
+	start := strings.Index(source, signature)
+	if start < 0 {
+		t.Fatalf("missing JS function %q", signature)
+	}
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("missing opening brace for %q", signature)
+	}
+	pos := start + open
+	depth := 0
+	for i := pos; i < len(source); i++ {
+		switch source[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[pos : i+1]
+			}
+		}
+	}
+	t.Fatalf("missing closing brace for %q", signature)
+	return ""
+}

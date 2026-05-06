@@ -26,6 +26,12 @@
                 .replace(/>/g, '&gt;');
         },
 
+        translate(key, fallback) {
+            const translator = window.t || (() => '');
+            const translated = translator(key);
+            return translated && translated !== key ? translated : fallback;
+        },
+
         getMarkdown() {
             if (this._md) return this._md;
             if (typeof window.markdownit === 'undefined') return null;
@@ -165,10 +171,9 @@
             let finalHTML = md.render(contentForRender);
             finalHTML = finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g,
                 '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
-            const t = window.t || (() => '');
             thinkingBlocks.forEach((innerText, idx) => {
                 const innerHtml = md.render(innerText);
-                const label = t('chat.thinking_label') || 'Reasoning';
+                const label = this.translate('chat.thinking_label', 'Reasoning');
                 const detailsHtml = '<details class="vd-thinking-block"><summary>' + label + '</summary><div class="vd-thinking-content">' + innerHtml + '</div></details>';
                 finalHTML = finalHTML.replace(new RegExp('<p>%%THINKING_BLOCK_' + idx + '%%</p>', 'g'), detailsHtml);
                 finalHTML = finalHTML.replace(new RegExp('%%THINKING_BLOCK_' + idx + '%%', 'g'), detailsHtml);
@@ -299,8 +304,7 @@
         appendDocumentMessage(chatLog, docData) {
             if (!docData || !docData.path || this.seenSSEDocuments.has(docData.path)) return;
             this.seenSSEDocuments.add(docData.path);
-            const t = window.t || (() => '');
-            const title = this.escapeHtml(docData.title || docData.filename || t('desktop.chat_document') || 'Document');
+            const title = this.escapeHtml(docData.title || docData.filename || this.translate('desktop.chat_document', 'Document'));
             const fmt = this.escapeHtml((docData.format || '').toUpperCase() || 'FILE');
             const downloadPath = docData.path;
             const card = document.createElement('div');
@@ -310,7 +314,7 @@
                 '<div class="vd-chat-document-info"><div class="vd-chat-document-title">' + title + '</div>' +
                 '<div class="vd-chat-document-format">' + fmt + '</div></div>' +
                 '<div class="vd-chat-document-actions">' +
-                (downloadPath ? '<a href="' + this.escapeAttr(downloadPath) + '" download="' + this.escapeHtml(docData.filename || 'document') + '" title="' + this.escapeHtml(t('desktop.media_download') || 'Download') + '">&#11015;</a>' : '') +
+                (downloadPath ? '<a href="' + this.escapeAttr(downloadPath) + '" download="' + this.escapeHtml(docData.filename || 'document') + '" title="' + this.escapeHtml(this.translate('desktop.media_download', 'Download')) + '">&#11015;</a>' : '') +
                 '</div>';
             const bubble = this.createBubble('agent', '');
             bubble.appendChild(card);
@@ -319,10 +323,9 @@
         },
 
         createThinkingStatus() {
-            const t = window.t || (() => '');
             const el = document.createElement('div');
             el.className = 'vd-chat-status';
-            el.innerHTML = '<span class="vd-chat-status-dot"></span><span class="vd-chat-status-text">' + this.escapeHtml(t('desktop.thinking') || 'Working...') + '</span>';
+            el.innerHTML = '<span class="vd-chat-status-dot"></span><span class="vd-chat-status-text">' + this.escapeHtml(this.translate('desktop.thinking', 'Working...')) + '</span>';
             return el;
         },
 
@@ -333,16 +336,15 @@
         },
 
         createOpenInAppButton(appId, path) {
-            const t = window.t || (() => '');
             const appNames = {
-                writer: t('desktop.app_writer') || 'Writer',
-                sheets: t('desktop.app_sheets') || 'Sheets',
-                'code-studio': t('desktop.app_code_studio') || 'Code Studio'
+                writer: this.translate('desktop.app_writer', 'Writer'),
+                sheets: this.translate('desktop.app_sheets', 'Sheets'),
+                'code-studio': this.translate('desktop.app_code_studio', 'Code Studio')
             };
             const label = appNames[appId] || appId;
             const btn = document.createElement('button');
             btn.className = 'vd-chat-open-app-btn';
-            btn.textContent = (t('desktop.chat_open_in') || 'Open in') + ' ' + label;
+            btn.textContent = this.translate('desktop.chat_open_in', 'Open in') + ' ' + label;
             btn.dataset.appId = appId;
             if (path) btn.dataset.path = path;
             return btn;

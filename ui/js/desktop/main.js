@@ -1838,6 +1838,11 @@
         return translated && translated !== item.labelKey ? translated : fallback;
     }
 
+    function desktopText(key, fallback) {
+        const translated = t(key);
+        return translated && translated !== key ? translated : fallback;
+    }
+
     function normalizeWindowMenuItems(items, menuId, actions, path) {
         return (Array.isArray(items) ? items : []).map((item, index) => {
             if (!item || item.hidden) return null;
@@ -3303,7 +3308,7 @@
         host.dataset.calView = host.dataset.calView || 'month';
         host.dataset.calDate = host.dataset.calDate || isoDate(new Date());
         const activeDate = new Date(host.dataset.calDate + 'T12:00:00');
-        host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button class="vd-calendar-icon-button" type="button" data-cal-nav="prev">${iconMarkup('chevron-left', 'L', 'vd-calendar-action-icon', 15)}</button><button type="button" data-cal-today>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_today'))}</span></button><button class="vd-calendar-icon-button" type="button" data-cal-nav="next">${iconMarkup('chevron-right', 'R', 'vd-calendar-action-icon', 15)}</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}<button type="button" class="vd-button vd-button-primary" data-cal-new>${iconMarkup('file-plus', 'N', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_new_appointment'))}</span></button></div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
+        host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button class="vd-calendar-icon-button" type="button" data-cal-nav="prev">${iconMarkup('chevron-left', 'L', 'vd-calendar-action-icon', 15)}</button><button type="button" data-cal-today>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_today'))}</span></button><button class="vd-calendar-icon-button" type="button" data-cal-nav="next">${iconMarkup('chevron-right', 'R', 'vd-calendar-action-icon', 15)}</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}</div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
         const render = async () => {
             const appointments = await api('/api/appointments?status=all');
             const body = host.querySelector('.vd-calendar-body');
@@ -3320,7 +3325,6 @@
             host.dataset.calDate = isoDate(activeDate);
             renderCalendar(id);
         }));
-        host.querySelector('[data-cal-new]').addEventListener('click', () => openAppointmentModal(host, null, isoDate(activeDate), render));
         setCalendarMenus(id, host, activeDate, render);
         try { await render(); } catch (err) { host.querySelector('.vd-calendar-body').innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`; }
     }
@@ -3393,7 +3397,6 @@
                     <button class="vd-tool-button" type="button" data-gallery-tab="Photos">${iconMarkup('image', 'P', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_photos'))}</span></button>
                     <button class="vd-tool-button" type="button" data-gallery-tab="Videos">${iconMarkup('video', 'V', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_videos'))}</span></button>
                 </div>
-                <button class="vd-tool-button" type="button" data-gallery-refresh>${iconMarkup('refresh', 'R', 'vd-tool-icon', 15)}<span>${esc(t('desktop.gallery_refresh'))}</span></button>
                 <span class="vd-path">${esc(t('desktop.gallery_title'))}</span>
             </div>
             <div class="vd-gallery-grid" data-gallery-grid>${esc(t('desktop.loading'))}</div>
@@ -3468,11 +3471,6 @@
                 loadGallery(false);
             });
         });
-        host.querySelector('[data-gallery-refresh]').addEventListener('click', () => {
-            host.dataset.galleryOffset = '0';
-            visibleItems = [];
-            loadGallery(false);
-        });
         moreButton.addEventListener('click', () => loadGallery(true));
         setGalleryMenus(id, host, () => {
             host.dataset.galleryOffset = '0';
@@ -3545,11 +3543,6 @@
             <div class="vd-webamp-status">
                 <span data-track-count>0 ${esc(t('desktop.winamp_tracks'))}</span>
                 <span data-folder>Music</span>
-            </div>
-            <div class="vd-webamp-launcher-actions">
-                <button class="vd-button vd-button-primary" type="button" data-action="refresh-music">${esc(t('desktop.context_refresh'))}</button>
-                <button class="vd-button" type="button" data-action="load-folder">${esc(t('desktop.winamp_load_folder'))}</button>
-                <button class="vd-button" type="button" data-action="reopen-webamp">${esc(t('desktop.context_open'))}</button>
             </div>
         </div>`;
 
@@ -3633,23 +3626,6 @@
             await ensureWebamp(currentTracks);
         };
 
-        host.querySelector('[data-action="refresh-music"]').addEventListener('click', () => {
-            loadMusicLibrary('Music').catch(notifyError);
-        });
-        host.querySelector('[data-action="load-folder"]').addEventListener('click', async () => {
-            const folder = await promptDialog(t('desktop.winamp_load_folder'), currentFolder || 'Music');
-            if (folder == null) return;
-            loadMusicLibrary(folder).catch(notifyError);
-        });
-        host.querySelector('[data-action="reopen-webamp"]').addEventListener('click', () => {
-            const current = state.webampMusic;
-            if (current && current.instance && typeof current.instance.reopen === 'function') {
-                current.instance.reopen();
-                return;
-            }
-            loadMusicLibrary(currentFolder || 'Music').catch(notifyError);
-        });
-
         setMusicPlayerMenus(id, host, {
             refresh: () => loadMusicLibrary('Music').catch(notifyError),
             loadFolder: async () => {
@@ -3697,10 +3673,6 @@
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
                     <span class="vd-qc-title">${esc(t('desktop.qc_title'))}</span>
-                    <div class="vd-qc-header-actions">
-                        <button class="vd-tool-button" type="button" data-action="add" title="${esc(t('desktop.qc_add_server'))}">${iconMarkup('server', 'S', 'vd-tool-icon', 15)}</button>
-                        <button class="vd-tool-button" type="button" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-tool-icon', 15)}<span>${esc(t('desktop.qc_refresh'))}</span></button>
-                    </div>
                 </div>
                 <div class="vd-qc-search">
                     <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
@@ -3728,8 +3700,6 @@
         setQuickConnectMenus(id, host, loadAll, showServerModal);
         loadAll();
 
-        host.querySelector('[data-action="refresh"]').addEventListener('click', loadAll);
-        host.querySelector('[data-action="add"]').addEventListener('click', () => showServerModal());
         searchInput.addEventListener('input', () => filterDevices());
 
         async function loadAll() {
@@ -4136,7 +4106,6 @@
                 <div class="vd-launchpad-toolbar">
                     <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="Search links...">
                     <select class="vd-launchpad-category"><option value="">All categories</option></select>
-                    <button class="vd-tool-button" type="button" data-action="add">${iconMarkup('file-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.launchpad_add'))}</span></button>
                 </div>
                 <div class="vd-launchpad-grid"></div>
                 <div class="vd-launchpad-empty" hidden>
@@ -4325,7 +4294,6 @@
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_save_error') }); }
         }
 
-        host.querySelector('[data-action="add"]').addEventListener('click', () => openEditModal());
         searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; render(); });
         categorySelect.addEventListener('change', (e) => { selectedCategory = e.target.value; load(); });
 
@@ -4494,12 +4462,12 @@
                 } else if (event === 'thinking_block') {
                     const state2 = data.state || '';
                     if (statusEl && state2 === 'start') {
-                        renderer.updateStatus(statusEl, t('desktop.chat_thinking') || 'Reasoning...');
+                        renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
                     }
                 } else if (event === 'thinking') {
                     if (statusEl) renderer.updateStatus(statusEl, data.detail || t('desktop.thinking'));
                 } else if (event === 'tool_start') {
-                    if (statusEl) renderer.updateStatus(statusEl, (t('desktop.chat_using_tool') || 'Using tool') + ': ' + (data.detail || ''));
+                    if (statusEl) renderer.updateStatus(statusEl, desktopText('desktop.chat_using_tool', 'Using tool') + ': ' + (data.detail || ''));
                 } else if (event === 'tool_end') {
                     if (statusEl) renderer.updateStatus(statusEl, '');
                 } else if (event === 'image') {
