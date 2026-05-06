@@ -4364,17 +4364,46 @@
     async function sendDesktopChatStream(host, message) {
         const chatLog = host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
+        if (renderer) renderer.resetDedupSets();
         const statusEl = renderer ? renderer.createThinkingStatus() : null;
         if (statusEl) chatLog.appendChild(statusEl);
         let streamingBubble = null;
         let streamingContent = '';
+        let finalized = false;
 
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
             const timeout = setTimeout(() => {
                 ctrl.abort();
-                reject(new Error('Request timed out'));
+                doReject(new Error('Request timed out'));
             }, 10 * 60 * 1000);
+
+            function doFinalize() {
+                if (finalized) return;
+                finalized = true;
+                clearTimeout(timeout);
+                if (statusEl && statusEl.parentNode) statusEl.remove();
+                if (streamingBubble) {
+                    streamingBubble.classList.remove('vd-streaming');
+                    if (renderer && streamingContent.trim()) {
+                        const html = renderer.renderMarkdown(streamingContent);
+                        streamingBubble.innerHTML = html;
+                        renderer.processImages(streamingBubble);
+                        if (window.MermaidLoader) {
+                            window.MermaidLoader.processBlocks(streamingBubble);
+                        }
+                    }
+                }
+                resolve();
+            }
+
+            function doReject(err) {
+                if (finalized) return;
+                finalized = true;
+                clearTimeout(timeout);
+                if (statusEl && statusEl.parentNode) statusEl.remove();
+                reject(err);
+            }
 
             fetch('/api/desktop/chat/stream', {
                 method: 'POST',
@@ -4394,7 +4423,7 @@
                 function processChunk() {
                     reader.read().then(({ done, value }) => {
                         if (done) {
-                            finalize();
+                            doFinalize();
                             return;
                         }
                         buffer += decoder.decode(value, { stream: true });
@@ -4404,109 +4433,90 @@
                             if (line.startsWith('data: ')) {
                                 const data = line.slice(6).trim();
                                 if (data === '[DONE]') {
-                                    finalize();
+                                    doFinalize();
+                                    reader.cancel().catch(() => {});
                                     return;
                                 }
                                 try {
-                                    handleStreamEvent(JSON.parse(data), chatLog, renderer, statusEl);
+                                    handleStreamEvent(JSON.parse(data));
                                 } catch (_) {}
                             }
                         }
                         processChunk();
                     }).catch(err => {
-                        clearTimeout(timeout);
-                        reject(err);
+                        doReject(err);
                     });
                 }
 
-                function finalize() {
-                    clearTimeout(timeout);
-                    if (statusEl) statusEl.remove();
-                    if (streamingBubble) {
-                        streamingBubble.classList.remove('vd-streaming');
-                        if (renderer && streamingContent.trim()) {
-                            const html = renderer.renderMarkdown(streamingContent);
-                            streamingBubble.innerHTML = html;
-                            renderer.processImages(streamingBubble);
-                            if (window.MermaidLoader) {
-                                window.MermaidLoader.processBlocks(streamingBubble);
+                function handleStreamEvent(data) {
+                    if (!data) return;
+                    const event = data.event || data.type;
+                    if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
+                        const content = data.content || '';
+                        if (!content) return;
+                        if (!streamingBubble) {
+                            streamingBubble = document.createElement('div');
+                            streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
+                            chatLog.appendChild(streamingBubble);
+                        }
+                        streamingContent += content;
+                        if (streamingBubble.classList.contains('vd-streaming')) {
+                            streamingBubble.textContent += content;
+                            streamingBubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                        }
+                    } else if (event === 'thinking_block') {
+                        const state2 = data.state || '';
+                        if (statusEl && state2 === 'start' && renderer) {
+                            renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
+                        }
+                    } else if (event === 'thinking') {
+                        if (statusEl && renderer) renderer.updateStatus(statusEl, data.detail || t('desktop.thinking'));
+                    } else if (event === 'tool_start') {
+                        if (statusEl && renderer) renderer.updateStatus(statusEl, desktopText('desktop.chat_using_tool', 'Using tool') + ': ' + (data.detail || ''));
+                    } else if (event === 'tool_end') {
+                        if (statusEl && renderer) renderer.updateStatus(statusEl, '');
+                    } else if (event === 'image') {
+                        try {
+                            const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) renderer.appendImageMessage(chatLog, imgData);
+                        } catch (_) {}
+                    } else if (event === 'video') {
+                        try {
+                            const videoData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) renderer.appendVideoMessage(chatLog, videoData);
+                        } catch (_) {}
+                    } else if (event === 'audio') {
+                        try {
+                            const audioData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) renderer.appendAudioMessage(chatLog, audioData);
+                        } catch (_) {}
+                    } else if (event === 'document') {
+                        try {
+                            const docData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) renderer.appendDocumentMessage(chatLog, docData);
+                        } catch (_) {}
+                    } else if (event === 'final_response') {
+                        if (data.detail || data.message) {
+                            const text = data.detail || data.message || '';
+                            if (!streamingBubble && text.trim()) {
+                                if (renderer) {
+                                    renderer.appendRichBubble(chatLog, 'agent', text);
+                                } else {
+                                    appendChat(host, 'agent', text);
+                                }
+                            } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
+                                streamingContent = text;
                             }
                         }
+                    } else if (event === 'done') {
+                        return;
                     }
-                    resolve();
                 }
 
                 processChunk();
             }).catch(err => {
-                clearTimeout(timeout);
-                if (statusEl) statusEl.remove();
-                reject(err);
+                doReject(err);
             });
-
-            function handleStreamEvent(data, chatLog, renderer, statusEl) {
-                if (!data) return;
-                const event = data.event || data.type;
-                if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
-                    const content = data.content || '';
-                    if (!content) return;
-                    if (!streamingBubble) {
-                        streamingBubble = document.createElement('div');
-                        streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
-                        chatLog.appendChild(streamingBubble);
-                    }
-                    streamingContent += content;
-                    if (streamingBubble.classList.contains('vd-streaming')) {
-                        streamingBubble.textContent = streamingContent;
-                        streamingBubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
-                    }
-                } else if (event === 'thinking_block') {
-                    const state2 = data.state || '';
-                    if (statusEl && state2 === 'start') {
-                        renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
-                    }
-                } else if (event === 'thinking') {
-                    if (statusEl) renderer.updateStatus(statusEl, data.detail || t('desktop.thinking'));
-                } else if (event === 'tool_start') {
-                    if (statusEl) renderer.updateStatus(statusEl, desktopText('desktop.chat_using_tool', 'Using tool') + ': ' + (data.detail || ''));
-                } else if (event === 'tool_end') {
-                    if (statusEl) renderer.updateStatus(statusEl, '');
-                } else if (event === 'image') {
-                    try {
-                        const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                        if (renderer) renderer.appendImageMessage(chatLog, imgData);
-                    } catch (_) {}
-                } else if (event === 'video') {
-                    try {
-                        const videoData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                        if (renderer) renderer.appendVideoMessage(chatLog, videoData);
-                    } catch (_) {}
-                } else if (event === 'audio') {
-                    try {
-                        const audioData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                        if (renderer) renderer.appendAudioMessage(chatLog, audioData);
-                    } catch (_) {}
-                } else if (event === 'document') {
-                    try {
-                        const docData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                        if (renderer) renderer.appendDocumentMessage(chatLog, docData);
-                    } catch (_) {}
-                } else if (event === 'final_response') {
-                    if (data.detail || data.message) {
-                        const text = data.detail || data.message || '';
-                        if (!streamingBubble && text.trim()) {
-                            if (renderer) {
-                                renderer.appendRichBubble(chatLog, 'agent', text);
-                            } else {
-                                appendChat(host, 'agent', text);
-                            }
-                        } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
-                            streamingContent = text;
-                        }
-                    }
-                } else if (event === 'done') {
-                    return;
-                }
-            }
         });
     }
 

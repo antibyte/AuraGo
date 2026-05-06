@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/agent"
@@ -727,10 +728,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		}
 		prompt := buildDesktopAgentPrompt(body.Message, body.Context)
 		broker := &desktopStreamBroker{
-			w:          w,
-			flusher:    flusher,
-			canFlush:   canFlush,
-			finalText:  "",
+			w:        w,
+			flusher:  flusher,
+			canFlush: canFlush,
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
 		defer cancel()
@@ -748,6 +748,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		case <-done:
 		case <-ctx.Done():
 		}
+		broker.mu.Lock()
+		broker.closed = true
+		broker.mu.Unlock()
 		sseWriteDone(w)
 		if canFlush {
 			flusher.Flush()
@@ -756,10 +759,11 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 }
 
 type desktopStreamBroker struct {
-	w          http.ResponseWriter
-	flusher    http.Flusher
-	canFlush   bool
-	finalText  string
+	w        http.ResponseWriter
+	flusher  http.Flusher
+	canFlush bool
+	mu       sync.Mutex
+	closed   bool
 }
 
 type desktopStreamCombinedBroker struct {
@@ -769,25 +773,39 @@ type desktopStreamCombinedBroker struct {
 
 func (b *desktopStreamCombinedBroker) Send(event, message string) {
 	b.sse.Send(event, message)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
 	sseWriteData(b.stream.w, event, message)
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
-	if event == "final_response" {
-		b.stream.finalText = message
-	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
 	b.sse.SendJSON(jsonStr)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
 	fmt.Fprintf(b.stream.w, "data: %s\n\n", jsonStr)
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 	b.sse.SendLLMStreamDelta(content, toolName, toolID, index, finishReason)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
 	payload := LLMStreamDeltaPayload{
 		SessionID:    b.sse.sessionID,
 		Content:      content,
@@ -801,10 +819,16 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, tool
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 	b.sse.SendLLMStreamDone(finishReason)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
 	payload := LLMStreamDonePayload{
 		SessionID:    b.sse.sessionID,
 		FinishReason: finishReason,
@@ -814,6 +838,7 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
@@ -822,6 +847,11 @@ func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total,
 
 func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state string) {
 	b.sse.SendThinkingBlock(provider, content, state)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
 	payload := ThinkingBlockPayload{
 		SessionID: b.sse.sessionID,
 		Provider:  provider,
@@ -833,6 +863,7 @@ func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) Scrub(s string) string {

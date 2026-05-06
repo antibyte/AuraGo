@@ -234,8 +234,9 @@
 
         openLightbox(src, alt) {
             const lb = this.ensureLightbox();
-            lb.querySelector('.vd-lightbox-img').src = src;
-            lb.querySelector('.vd-lightbox-img').alt = alt;
+            const img = lb.querySelector('.vd-lightbox-img');
+            img.src = src;
+            img.alt = alt;
             lb.hidden = false;
         },
 
@@ -247,18 +248,17 @@
             if (!imgData || !imgData.path || this.seenSSEImages.has(imgData.path)) return;
             this.seenSSEImages.add(imgData.path);
             const cap = this.escapeHtml(imgData.caption || '');
-            const safePath = this.escapeAttr(imgData.path);
             const bubble = this.createBubble('agent', '');
             const img = document.createElement('img');
             img.className = 'vd-chat-zoomable';
-            img.src = safePath;
+            img.src = imgData.path;
             img.alt = cap;
             img.title = cap;
             img.loading = 'lazy';
             img.style.maxWidth = '100%';
             img.style.borderRadius = '8px';
             img.style.cursor = 'pointer';
-            img.addEventListener('click', () => this.openLightbox(safePath, cap));
+            img.addEventListener('click', () => this.openLightbox(imgData.path, cap));
             bubble.appendChild(img);
             chatLog.appendChild(bubble);
             bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -269,7 +269,7 @@
             this.seenSSEVideos.add(videoData.path);
             const bubble = this.createBubble('agent', '');
             const video = document.createElement('video');
-            video.src = this.escapeAttr(videoData.path);
+            video.src = videoData.path;
             video.controls = true;
             video.style.maxWidth = '100%';
             video.style.borderRadius = '8px';
@@ -293,7 +293,7 @@
             }
             const audio = document.createElement('audio');
             audio.controls = true;
-            audio.src = this.escapeAttr(audioData.path);
+            audio.src = audioData.path;
             audio.style.width = '100%';
             wrapper.appendChild(audio);
             bubble.appendChild(wrapper);
