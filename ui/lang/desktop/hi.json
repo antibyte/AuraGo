@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "कनेक्ट हो रहा है...",
     "desktop.qc_disconnected": "कनेक्शन बंद",
     "desktop.qc_connection_error": "कनेक्शन त्रुटि",
+    "desktop.qc_host_key_warning": "इस SSH सत्र के लिए होस्ट कुंजी सत्यापन बंद है क्योंकि known_hosts उपलब्ध नहीं है।",
     "desktop.app_gallery": "गैलरी",
     "desktop.gallery_title": "गैलरी",
     "desktop.gallery_photos": "फोटो",

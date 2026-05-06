@@ -49,6 +49,12 @@ type sshControlMessage struct {
 type sshStatusMessage struct {
 	Type    string `json:"type"`
 	Message string `json:"message,omitempty"`
+	Code    string `json:"code,omitempty"`
+}
+
+type sshConfigResult struct {
+	Config          *ssh.ClientConfig
+	InsecureHostKey bool
 }
 
 // wsMessage wraps a WebSocket message for channel transport.
@@ -130,14 +136,17 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		config, err := buildSSHConfig(username, secret, logger)
+		configResult, err := buildSSHConfig(username, secret, logger)
 		if err != nil {
 			sendError(conn, fmt.Sprintf("SSH configuration error: %v", err))
 			return
 		}
+		if configResult.InsecureHostKey {
+			_ = conn.WriteJSON(sshStatusMessage{Type: "warning", Code: "insecure_host_key", Message: "SSH host key verification is disabled because known_hosts is unavailable."})
+		}
 
 		addr := fmt.Sprintf("%s:%d", host, port)
-		client, err := ssh.Dial("tcp", addr, config)
+		client, err := ssh.Dial("tcp", addr, configResult.Config)
 		if err != nil {
 			sendError(conn, fmt.Sprintf("SSH connection failed: %v", err))
 			return
@@ -320,7 +329,7 @@ func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 // buildSSHConfig creates an ssh.ClientConfig, auto-detecting password vs private-key auth.
 // Host-key verification follows the desktop Quick Connect policy: prefer known_hosts,
 // fall back to insecure with a warning when the file is absent.
-func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (*ssh.ClientConfig, error) {
+func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (sshConfigResult, error) {
 	var auth []ssh.AuthMethod
 
 	signer, err := ssh.ParsePrivateKey(secret)
@@ -331,8 +340,10 @@ func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (*ssh.Clien
 	}
 
 	var hostKeyCallback ssh.HostKeyCallback
+	insecureHostKey := false
 	if remote.InsecureHostKey {
 		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
+		insecureHostKey = true
 	} else {
 		usingKnownHosts := false
 		homeDir, err := os.UserHomeDir()
@@ -348,13 +359,14 @@ func buildSSHConfig(user string, secret []byte, logger *slog.Logger) (*ssh.Clien
 		if !usingKnownHosts {
 			logger.Warn("SSH known_hosts not found, falling back to insecure host key verification for desktop Quick Connect")
 			hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
+			insecureHostKey = true
 		}
 	}
 
-	return &ssh.ClientConfig{
+	return sshConfigResult{Config: &ssh.ClientConfig{
 		User:            user,
 		Auth:            auth,
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         15 * time.Second,
-	}, nil
+	}, InsecureHostKey: insecureHostKey}, nil
 }

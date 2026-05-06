@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Σύνδεση...",
     "desktop.qc_disconnected": "Η σύνδεση έκλεισε",
     "desktop.qc_connection_error": "Σφάλμα σύνδεσης",
+    "desktop.qc_host_key_warning": "Η επαλήθευση κλειδιού host είναι απενεργοποιημένη για αυτή τη συνεδρία SSH επειδή το known_hosts δεν είναι διαθέσιμο.",
     "desktop.app_gallery": "Syllogi",
     "desktop.gallery_title": "Syllogi",
     "desktop.gallery_photos": "Fotografies",

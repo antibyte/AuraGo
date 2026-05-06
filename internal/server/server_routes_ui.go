@@ -15,7 +15,7 @@ import (
 	"aurago/ui"
 )
 
-const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com"
+const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
 
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {
 	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")

@@ -20,8 +20,20 @@ type ContainerResources struct {
 	PidsLimit int
 }
 
+// ContainerCreateOptions holds hardening options for Docker container creation.
+type ContainerCreateOptions struct {
+	User        string
+	SecurityOpt []string
+	CapDrop     []string
+}
+
 // DockerCreateContainer creates a new container from a configuration.
 func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources) string {
+	return DockerCreateContainerWithOptions(cfg, name, image, env, ports, volumes, cmd, restart, resources, ContainerCreateOptions{})
+}
+
+// DockerCreateContainerWithOptions creates a new container with optional security hardening.
+func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources, options ContainerCreateOptions) string {
 	if err := requireDockerPermission(); err != nil {
 		return errJSON("%v", err)
 	}
@@ -35,7 +47,7 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		}
 	}
 
-	payload := buildDockerCreateContainerPayload(image, env, ports, volumes, cmd, restart, resources)
+	payload := buildDockerCreateContainerPayloadWithOptions(image, env, ports, volumes, cmd, restart, resources, options)
 	body, _ := json.Marshal(payload)
 
 	endpoint := "/containers/create"
@@ -67,6 +79,10 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 }
 
 func buildDockerCreateContainerPayload(image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources) map[string]interface{} {
+	return buildDockerCreateContainerPayloadWithOptions(image, env, ports, volumes, cmd, restart, resources, ContainerCreateOptions{})
+}
+
+func buildDockerCreateContainerPayloadWithOptions(image string, env []string, ports map[string]string, volumes []string, cmd []string, restart string, resources *ContainerResources, options ContainerCreateOptions) map[string]interface{} {
 	exposedPorts := map[string]interface{}{}
 	portBindings := map[string]interface{}{}
 	for containerPort, hostPort := range ports {
@@ -96,6 +112,12 @@ func buildDockerCreateContainerPayload(image string, env []string, ports map[str
 			hostConfig["PidsLimit"] = int64(resources.PidsLimit)
 		}
 	}
+	if len(options.SecurityOpt) > 0 {
+		hostConfig["SecurityOpt"] = append([]string(nil), options.SecurityOpt...)
+	}
+	if len(options.CapDrop) > 0 {
+		hostConfig["CapDrop"] = append([]string(nil), options.CapDrop...)
+	}
 
 	payload := map[string]interface{}{
 		"Image":        image,
@@ -105,6 +127,9 @@ func buildDockerCreateContainerPayload(image string, env []string, ports map[str
 	}
 	if len(cmd) > 0 {
 		payload["Cmd"] = cmd
+	}
+	if strings.TrimSpace(options.User) != "" {
+		payload["User"] = strings.TrimSpace(options.User)
 	}
 	return payload
 }

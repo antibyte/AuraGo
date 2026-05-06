@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Łączenie...",
     "desktop.qc_disconnected": "Połączenie zamknięte",
     "desktop.qc_connection_error": "Błąd połączenia",
+    "desktop.qc_host_key_warning": "Weryfikacja klucza hosta jest wyłączona dla tej sesji SSH, ponieważ known_hosts jest niedostępny.",
     "desktop.app_gallery": "Galeria",
     "desktop.gallery_title": "Galeria",
     "desktop.gallery_photos": "Zdjecia",

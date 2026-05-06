@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Ansluter...",
     "desktop.qc_disconnected": "Anslutning stängd",
     "desktop.qc_connection_error": "Anslutningsfel",
+    "desktop.qc_host_key_warning": "Värdnyckelkontroll är inaktiverad för denna SSH-session eftersom known_hosts inte är tillgänglig.",
     "desktop.app_gallery": "Galleri",
     "desktop.gallery_title": "Galleri",
     "desktop.gallery_photos": "Foton",

@@ -152,7 +152,12 @@ func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req deskto
 			PidsLimit: req.Resources.PidsLimit,
 		}
 	}
-	raw := tools.DockerCreateContainer(a.cfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, req.Cmd, req.Restart, resources)
+	options := tools.ContainerCreateOptions{
+		User:        req.User,
+		SecurityOpt: req.SecurityOpt,
+		CapDrop:     req.CapDrop,
+	}
+	raw := tools.DockerCreateContainerWithOptions(a.cfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, req.Cmd, req.Restart, resources, options)
 	var resp struct {
 		Status  string `json:"status"`
 		Message string `json:"message"`

@@ -133,6 +133,15 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	if len(req.Ports) != 0 {
 		t.Fatalf("ports = %#v, want no host ports", req.Ports)
 	}
+	if req.User != "developer" {
+		t.Fatalf("user = %q, want developer", req.User)
+	}
+	if len(req.SecurityOpt) != 1 || req.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("security opts = %#v, want no-new-privileges", req.SecurityOpt)
+	}
+	if len(req.CapDrop) != 1 || req.CapDrop[0] != "ALL" {
+		t.Fatalf("cap drop = %#v, want ALL", req.CapDrop)
+	}
 	if req.Resources == nil || req.Resources.MemoryMB != 2048 || req.Resources.CPUCores != 1 || req.Resources.PidsLimit != defaultCodeContainerPidsLimit {
 		t.Fatalf("resources = %#v, want configured memory/cpu and default pids", req.Resources)
 	}

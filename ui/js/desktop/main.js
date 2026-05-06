@@ -14,7 +14,9 @@
         iconMap: new Map(),
         selectedIconId: '',
         contextMenu: null,
+        contextMenuKeydown: null,
         windowMenus: new Map(),
+        windowCleanups: new Map(),
         openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
@@ -1484,6 +1486,7 @@
     function focusWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (state.z > 100000) normalizeWindowZIndexes();
         win.element.style.display = '';
         win.element.style.zIndex = String(++state.z);
         state.activeWindowId = id;
@@ -1517,6 +1520,13 @@
 
     function disposeAppWindow(win) {
         if (!win) return;
+        const cleanup = state.windowCleanups.get(win.id);
+        if (cleanup) {
+            state.windowCleanups.delete(win.id);
+            cleanup.forEach(fn => {
+                try { fn(); } catch (err) { console.warn('Desktop window cleanup failed', err); }
+            });
+        }
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
@@ -1531,6 +1541,27 @@
             state.contextMenu.remove();
             state.contextMenu = null;
         }
+        if (state.contextMenuKeydown) {
+            document.removeEventListener('keydown', state.contextMenuKeydown);
+            state.contextMenuKeydown = null;
+        }
+    }
+
+    function closeContextMenuOnEscape(event) {
+        if (event.key === 'Escape') closeContextMenu();
+    }
+
+    function registerWindowCleanup(windowId, cleanup) {
+        if (!windowId || typeof cleanup !== 'function') return;
+        const items = state.windowCleanups.get(windowId) || [];
+        items.push(cleanup);
+        state.windowCleanups.set(windowId, items);
+    }
+
+    function normalizeWindowZIndexes() {
+        const wins = [...state.windows.values()].sort((a, b) => Number(a.element.style.zIndex || 0) - Number(b.element.style.zIndex || 0));
+        state.z = 40;
+        wins.forEach(win => { win.element.style.zIndex = String(++state.z); });
     }
 
     function isNativeContextMenuTarget(target) {
@@ -1628,6 +1659,8 @@
             });
         });
         state.contextMenu = menu;
+        state.contextMenuKeydown = closeContextMenuOnEscape;
+        document.addEventListener('keydown', closeContextMenuOnEscape);
     }
 
     function showDesktopContextMenu(event) {
@@ -2230,6 +2263,7 @@
                 confirmDialog,
                 showNotification: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
+                maxFileSize: Number((((state.bootstrap || {}).workspace || {}).max_file_size) || 0),
                 setWindowMenus,
                 clearWindowMenus,
                 wireContextMenuBoundary,
@@ -2812,6 +2846,10 @@
         return value;
     }
 
+    function rejectZeroDivisor(operator, right) {
+        if ((operator === '/' || operator === '%' || operator === 'MOD') && right === 0) throw new Error('Invalid expression');
+    }
+
     function applyCalculatorOperation(name, value) {
         switch (name) {
             case 'sin':
@@ -2858,6 +2896,7 @@
             while (peek().type === 'operator' && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
                 const operator = consume().value;
                 const right = parseUnaryExpression();
+                rejectZeroDivisor(operator, right);
                 if (operator === '*') value *= right;
                 else if (operator === '/') value /= right;
                 else value %= right;
@@ -3260,12 +3299,11 @@
             while (['*', '/', 'MOD'].includes(current().value)) {
                 const op = consume().value;
                 const right = parseUnaryExpression();
+                rejectZeroDivisor(op, right);
                 if (op === '*') left = left * right;
                 else if (op === '/') {
-                    if (right === 0) throw new Error('Invalid expression');
                     left = Math.trunc(left / right);
                 } else {
-                    if (right === 0) throw new Error('Invalid expression');
                     left = left % right;
                 }
             }
@@ -3846,8 +3884,15 @@
         let activeWS = null;
         let activeTerm = null;
         let activeFitAddon = null;
+        let activeResizeObserver = null;
         let cachedDevices = null;
         let cachedCredentials = null;
+
+        registerWindowCleanup(id, () => {
+            if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+        });
 
         setQuickConnectMenus(id, host, loadAll, showServerModal);
         loadAll();
@@ -4192,6 +4237,7 @@
                 if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
             resizeObserver.observe(termContainer);
+            activeResizeObserver = resizeObserver;
 
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = proto + '//' + location.host + '/api/desktop/ssh?device_id=' + encodeURIComponent(deviceId) + '&cols=' + term.cols + '&rows=' + term.rows;
@@ -4210,6 +4256,11 @@
                     try {
                         const msg = JSON.parse(event.data);
                         if (msg.type === 'error') term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
+                        else if (msg.type === 'warning' && msg.code === 'insecure_host_key') {
+                            const warning = t('desktop.qc_host_key_warning');
+                            term.write('\r\n\x1b[33m' + warning + '\x1b[0m\r\n');
+                            showNotify(warning);
+                        }
                         else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
                     } catch(_) {}
                 } else {
@@ -4725,7 +4776,7 @@
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
-        iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+        iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals');
         iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
         return iframe;
     }

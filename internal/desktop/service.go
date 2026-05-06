@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -35,11 +36,13 @@ type mediaMount struct {
 
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
-	mu            sync.Mutex
-	cfg           Config
-	db            *sql.DB
-	codeContainer *CodeContainerService
-	closed        bool
+	mu              sync.Mutex
+	cfg             Config
+	db              *sql.DB
+	mediaRegistryDB *sql.DB
+	imageGalleryDB  *sql.DB
+	codeContainer   *CodeContainerService
+	closed          bool
 }
 
 // FileWriteState is the current target state observed while holding the shared desktop mutation lock.
@@ -183,6 +186,28 @@ func (s *Service) Close() error {
 	if s.db != nil {
 		err := s.db.Close()
 		s.db = nil
+		if s.mediaRegistryDB != nil {
+			err = errors.Join(err, s.mediaRegistryDB.Close())
+			s.mediaRegistryDB = nil
+		}
+		if s.imageGalleryDB != nil {
+			err = errors.Join(err, s.imageGalleryDB.Close())
+			s.imageGalleryDB = nil
+		}
+		return err
+	}
+	if s.mediaRegistryDB != nil {
+		err := s.mediaRegistryDB.Close()
+		s.mediaRegistryDB = nil
+		if s.imageGalleryDB != nil {
+			err = errors.Join(err, s.imageGalleryDB.Close())
+			s.imageGalleryDB = nil
+		}
+		return err
+	}
+	if s.imageGalleryDB != nil {
+		err := s.imageGalleryDB.Close()
+		s.imageGalleryDB = nil
 		return err
 	}
 	return nil
@@ -1360,14 +1385,14 @@ func (s *Service) updateMediaRegistriesAfterMove(ctx context.Context, mount medi
 	oldBase := filepath.Base(oldAbs)
 	newBase := filepath.Base(newAbs)
 	newWebPath := mediaWebPath(mount, mediaRelativePath(mount, newAbs))
-	withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+	s.withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
 		_, _ = db.ExecContext(ctx, `UPDATE media_items
 			SET filename = ?, file_path = ?, web_path = ?, updated_at = CURRENT_TIMESTAMP
 			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR filename = ?)`,
 			newBase, newAbs, newWebPath, oldAbs, oldBase)
 	})
 	if mount.Kind == "image" {
-		withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
+		s.withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
 			_, _ = db.ExecContext(ctx, "UPDATE generated_images SET filename = ? WHERE filename = ?", newBase, oldBase)
 		})
 	}
@@ -1377,33 +1402,63 @@ func (s *Service) softDeleteMediaRegistries(ctx context.Context, mount mediaMoun
 	cfg := s.Config()
 	base := filepath.Base(absPath)
 	prefix := filepath.Clean(absPath) + string(os.PathSeparator) + "%"
-	withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
+	s.withMediaRegistryDB(ctx, cfg.MediaRegistryPath, func(db *sql.DB) {
 		_, _ = db.ExecContext(ctx, `UPDATE media_items
 			SET deleted = 1, updated_at = CURRENT_TIMESTAMP
 			WHERE deleted = 0 AND (`+mediaTypeSQLClause(mount.Kind)+`) AND (file_path = ? OR file_path LIKE ? OR filename = ?)`,
 			absPath, prefix, base)
 	})
 	if mount.Kind == "image" {
-		withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
+		s.withMediaRegistryDB(ctx, cfg.ImageGalleryPath, func(db *sql.DB) {
 			_, _ = db.ExecContext(ctx, "DELETE FROM generated_images WHERE filename = ?", base)
 		})
 	}
 }
 
-func withMediaRegistryDB(ctx context.Context, dbPath string, fn func(*sql.DB)) {
+func (s *Service) withMediaRegistryDB(ctx context.Context, dbPath string, fn func(*sql.DB)) {
 	dbPath = strings.TrimSpace(dbPath)
 	if dbPath == "" {
 		return
 	}
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := s.mediaDB(ctx, dbPath)
 	if err != nil {
 		return
 	}
-	defer db.Close()
-	if err := db.PingContext(ctx); err != nil {
-		return
-	}
 	fn(db)
+}
+
+func (s *Service) mediaDB(ctx context.Context, dbPath string) (*sql.DB, error) {
+	dbPath = filepath.Clean(dbPath)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var slot **sql.DB
+	switch dbPath {
+	case filepath.Clean(s.cfg.MediaRegistryPath):
+		slot = &s.mediaRegistryDB
+	case filepath.Clean(s.cfg.ImageGalleryPath):
+		slot = &s.imageGalleryDB
+	default:
+		return nil, fmt.Errorf("unknown desktop media registry database")
+	}
+	if *slot != nil {
+		return *slot, nil
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout = 5000"); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	*slot = db
+	return db, nil
 }
 
 func mediaTypeSQLClause(kind string) string {
@@ -1523,6 +1578,27 @@ func (s *Service) DeleteApp(ctx context.Context, id, source string) error {
 			return fmt.Errorf("built-in desktop apps cannot be deleted")
 		}
 	}
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
+	appDir, err := s.ResolvePath(filepath.ToSlash(filepath.Join("Apps", id)))
+	if err != nil {
+		return err
+	}
+	stagedDir := appDir + ".delete-" + time.Now().UTC().Format("20060102150405.000000000")
+	appDirStaged := false
+	if _, err := os.Stat(appDir); err == nil {
+		if err := os.Rename(appDir, stagedDir); err != nil {
+			return fmt.Errorf("stage desktop app files for delete: %w", err)
+		}
+		appDirStaged = true
+		defer func() {
+			if appDirStaged {
+				_ = os.Rename(stagedDir, appDir)
+			}
+		}()
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("stat desktop app files: %w", err)
+	}
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
@@ -1548,11 +1624,14 @@ func (s *Service) DeleteApp(ctx context.Context, id, source string) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit desktop app delete: %w", err)
 	}
-	appDir, err := s.ResolvePath(filepath.ToSlash(filepath.Join("Apps", id)))
-	if err != nil {
-		return err
+	if appDirStaged {
+		appDirStaged = false
 	}
-	if err := os.RemoveAll(appDir); err != nil {
+	removeTarget := appDir
+	if stagedDir != "" {
+		removeTarget = stagedDir
+	}
+	if err := os.RemoveAll(removeTarget); err != nil {
 		return fmt.Errorf("delete desktop app files: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_app", id, map[string]interface{}{}, source)

@@ -71,14 +71,17 @@ type CodeDockerInspect struct {
 
 // CodeDockerCreateRequest describes the container Code Studio wants to create.
 type CodeDockerCreateRequest struct {
-	Name      string
-	Image     string
-	Env       []string
-	Ports     map[string]string
-	Volumes   []string
-	Cmd       []string
-	Restart   string
-	Resources *CodeContainerResources
+	Name        string
+	Image       string
+	Env         []string
+	Ports       map[string]string
+	Volumes     []string
+	Cmd         []string
+	Restart     string
+	User        string
+	SecurityOpt []string
+	CapDrop     []string
+	Resources   *CodeContainerResources
 }
 
 // CodeContainerResources holds Docker resource limits for Code Studio.
@@ -181,14 +184,17 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	}
 
 	createdID, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
-		Name:      codeContainerName,
-		Image:     image,
-		Env:       codeContainerEnv(),
-		Ports:     map[string]string{},
-		Volumes:   []string{codeWorkspaceDir + ":" + codeWorkspaceInContainer},
-		Cmd:       []string{"sleep", "infinity"},
-		Restart:   "unless-stopped",
-		Resources: codeStudioResourcesPtr(s.cfg.CodeStudio),
+		Name:        codeContainerName,
+		Image:       image,
+		Env:         codeContainerEnv(),
+		Ports:       map[string]string{},
+		Volumes:     []string{codeWorkspaceDir + ":" + codeWorkspaceInContainer},
+		Cmd:         []string{"sleep", "infinity"},
+		Restart:     "unless-stopped",
+		User:        "developer",
+		SecurityOpt: []string{"no-new-privileges:true"},
+		CapDrop:     []string{"ALL"},
+		Resources:   codeStudioResourcesPtr(s.cfg.CodeStudio),
 	})
 	if err != nil {
 		s.state = StateError

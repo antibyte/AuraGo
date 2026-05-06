@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "接続中...",
     "desktop.qc_disconnected": "接続が切断されました",
     "desktop.qc_connection_error": "接続エラー",
+    "desktop.qc_host_key_warning": "known_hosts を利用できないため、この SSH セッションではホスト鍵検証が無効です。",
     "desktop.app_gallery": "ギャラリー",
     "desktop.gallery_title": "ギャラリー",
     "desktop.gallery_photos": "写真",

@@ -96,6 +96,9 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 
 func handleDesktopBootstrap(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -115,6 +118,9 @@ func handleDesktopBootstrap(s *Server) http.HandlerFunc {
 
 func handleDesktopFiles(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -163,6 +169,9 @@ func parseDesktopFilesInt(raw string, fallback int) int {
 
 func handleDesktopFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -232,6 +241,9 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 
 func handleDesktopDirectory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -261,6 +273,9 @@ func handleDesktopDirectory(s *Server) http.HandlerFunc {
 
 func handleDesktopCopy(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -295,6 +310,9 @@ func handleDesktopCopy(s *Server) http.HandlerFunc {
 
 func handleDesktopPreview(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -341,6 +359,9 @@ func isDesktopPreviewImageMIME(mimeType string) bool {
 
 func handleDesktopUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -388,6 +409,9 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 
 func handleDesktopDownload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -418,6 +442,9 @@ func handleDesktopDownload(s *Server) http.HandlerFunc {
 
 func handleDesktopApps(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -460,6 +487,9 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 
 func handleDesktopShortcuts(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -500,6 +530,9 @@ func handleDesktopShortcuts(s *Server) http.HandlerFunc {
 
 func handleDesktopWidgets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -539,6 +572,9 @@ func handleDesktopWidgets(s *Server) http.HandlerFunc {
 
 func handleDesktopSettings(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -587,6 +623,9 @@ func handleDesktopSettings(s *Server) http.HandlerFunc {
 
 func handleDesktopEmbedToken(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -635,6 +674,9 @@ func handleDesktopEmbedToken(s *Server) http.HandlerFunc {
 
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -660,6 +702,9 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 
 func handleDesktopChatStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -906,6 +951,9 @@ type desktopChatContext struct {
 
 func handleDesktopWS(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -1033,34 +1081,40 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 		b.WriteString("\n\nThe user is coding in Code Studio.")
 		b.WriteString("\nImportant: Code Studio files live inside the dedicated Code Studio container workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
 		if strings.TrimSpace(chatContext.CurrentFile) != "" {
-			b.WriteString("\nCurrent file: ")
-			b.WriteString(strings.TrimSpace(chatContext.CurrentFile))
+			b.WriteString("\nCurrent file:\n")
+			b.WriteString(desktopExternalData("desktop_current_file", chatContext.CurrentFile, 2048))
 		}
 		if strings.TrimSpace(chatContext.CurrentLanguage) != "" {
-			b.WriteString("\nLanguage: ")
-			b.WriteString(strings.TrimSpace(chatContext.CurrentLanguage))
+			b.WriteString("\nLanguage:\n")
+			b.WriteString(desktopExternalData("desktop_current_language", chatContext.CurrentLanguage, 128))
 		}
 		if chatContext.CursorLine > 0 || chatContext.CursorColumn > 0 {
 			b.WriteString(fmt.Sprintf("\nCursor: line %d, column %d", chatContext.CursorLine, chatContext.CursorColumn))
 		}
 		if len(chatContext.OpenFiles) > 0 {
-			b.WriteString("\nOpen files: ")
-			b.WriteString(strings.Join(chatContext.OpenFiles, ", "))
+			b.WriteString("\nOpen files:\n")
+			b.WriteString(desktopExternalData("desktop_open_files", strings.Join(chatContext.OpenFiles, "\n"), 8192))
 		}
 		if strings.TrimSpace(chatContext.SelectedText) != "" {
-			b.WriteString("\nSelected text:\n<external_data>\n")
-			b.WriteString(chatContext.SelectedText)
-			b.WriteString("\n</external_data>")
+			b.WriteString("\nSelected text:\n")
+			b.WriteString(desktopExternalData("desktop_selected_text", chatContext.SelectedText, 24000))
 		}
 		if strings.TrimSpace(chatContext.SelectedText) == "" && strings.TrimSpace(chatContext.CurrentContent) != "" {
-			b.WriteString("\nCurrent file content:\n<external_data>\n")
-			b.WriteString(chatContext.CurrentContent)
-			b.WriteString("\n</external_data>")
+			b.WriteString("\nCurrent file content:\n")
+			b.WriteString(desktopExternalData("desktop_current_content", chatContext.CurrentContent, 48000))
 		}
 	}
-	b.WriteString("\n\nUser request:\n\n")
-	b.WriteString(message)
+	b.WriteString("\n\nUser request:\n")
+	b.WriteString(desktopExternalData("desktop_user_request", message, 12000))
 	return b.String()
+}
+
+func desktopExternalData(kind, value string, maxBytes int) string {
+	value = strings.TrimSpace(value)
+	if maxBytes > 0 && len(value) > maxBytes {
+		value = value[:maxBytes] + "\n[truncated]"
+	}
+	return fmt.Sprintf("<external_data type=%q>\n%s\n</external_data>", kind, value)
 }
 
 type desktopReplyBroker struct {

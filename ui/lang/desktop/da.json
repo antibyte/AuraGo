@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Forbinder...",
     "desktop.qc_disconnected": "Forbindelse lukket",
     "desktop.qc_connection_error": "Forbindelsesfejl",
+    "desktop.qc_host_key_warning": "Værtsnøglekontrol er deaktiveret for denne SSH-session, fordi known_hosts ikke er tilgængelig.",
     "desktop.app_gallery": "Galleri",
     "desktop.gallery_title": "Galleri",
     "desktop.gallery_photos": "Fotos",

@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Conectando...",
     "desktop.qc_disconnected": "Conexão encerrada",
     "desktop.qc_connection_error": "Erro de conexão",
+    "desktop.qc_host_key_warning": "A verificação da chave do host está desativada nesta sessão SSH porque known_hosts não está disponível.",
     "desktop.app_gallery": "Galeria",
     "desktop.gallery_title": "Galeria",
     "desktop.gallery_photos": "Fotos",

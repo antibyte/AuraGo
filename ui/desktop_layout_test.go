@@ -20,7 +20,6 @@ func TestVirtualDesktopFooterOwnsSystemControls(t *testing.T) {
 	for _, marker := range []string{
 		`<section class="vd-taskbar">`,
 		`id="vd-clock"`,
-		`id="radialMenuAnchor" class="vd-radial-anchor"`,
 		`class="vd-taskbar-system"`,
 	} {
 		if !strings.Contains(html, marker) {

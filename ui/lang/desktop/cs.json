@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Připojování...",
     "desktop.qc_disconnected": "Spojení ukončeno",
     "desktop.qc_connection_error": "Chyba připojení",
+    "desktop.qc_host_key_warning": "Ověření klíče hostitele je pro tuto relaci SSH vypnuté, protože known_hosts není dostupný.",
     "desktop.app_gallery": "Galerie",
     "desktop.gallery_title": "Galerie",
     "desktop.gallery_photos": "Fotky",

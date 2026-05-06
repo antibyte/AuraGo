@@ -236,6 +236,11 @@ func normalizeDesktopEmbedPath(rawPath string) (string, error) {
 	if cleaned == "" || cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
 		return "", fmt.Errorf("desktop embed path escapes workspace")
 	}
+	for _, segment := range strings.Split(cleaned, "/") {
+		if segment == ".." || strings.Contains(segment, `\`) {
+			return "", fmt.Errorf("desktop embed path escapes workspace")
+		}
+	}
 	return cleaned, nil
 }
 
@@ -726,7 +731,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") && isAdminProtectedPath(r.URL.Path) {
+		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") && (isAdminProtectedPath(r.URL.Path) || isDesktopScopedAPIPath(r.URL.Path)) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -18,6 +18,9 @@ import (
 
 func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -92,6 +95,9 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 
 func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
 		svc, hub, err := s.getDesktopService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -163,6 +169,9 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 
 func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return

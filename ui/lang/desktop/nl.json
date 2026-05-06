@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Verbinden...",
     "desktop.qc_disconnected": "Verbinding verbroken",
     "desktop.qc_connection_error": "Verbindingsfout",
+    "desktop.qc_host_key_warning": "Host-sleutelcontrole is uitgeschakeld voor deze SSH-sessie omdat known_hosts niet beschikbaar is.",
     "desktop.app_gallery": "Galerij",
     "desktop.gallery_title": "Galerij",
     "desktop.gallery_photos": "Foto's",

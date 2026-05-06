@@ -112,6 +112,9 @@ func (h codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*des
 }
 
 func (h codeStudioHandlers) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
 	if r.Method != http.MethodGet {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -126,6 +129,9 @@ func (h codeStudioHandlers) handleStatus(w http.ResponseWriter, r *http.Request)
 }
 
 func (h codeStudioHandlers) handleFiles(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
 	if r.Method != http.MethodGet {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -159,6 +165,9 @@ func (h codeStudioHandlers) handleFiles(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h codeStudioHandlers) handleFile(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopMethodScope(r.Method)) {
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		h.handleReadFile(w, r)
@@ -229,6 +238,9 @@ func (h codeStudioHandlers) handleReadFile(w http.ResponseWriter, r *http.Reques
 }
 
 func (h codeStudioHandlers) handleWriteFile(w http.ResponseWriter, r *http.Request) {
+	if h.rejectReadOnly(w) {
+		return
+	}
 	var body struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -266,6 +278,9 @@ func (h codeStudioHandlers) handleWriteFile(w http.ResponseWriter, r *http.Reque
 }
 
 func (h codeStudioHandlers) handleMoveFile(w http.ResponseWriter, r *http.Request) {
+	if h.rejectReadOnly(w) {
+		return
+	}
 	var body struct {
 		OldPath string `json:"old_path"`
 		NewPath string `json:"new_path"`
@@ -303,6 +318,9 @@ func (h codeStudioHandlers) handleMoveFile(w http.ResponseWriter, r *http.Reques
 }
 
 func (h codeStudioHandlers) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
+	if h.rejectReadOnly(w) {
+		return
+	}
 	path, err := sanitizeCodeStudioPath(r.URL.Query().Get("path"))
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
@@ -330,6 +348,12 @@ func (h codeStudioHandlers) handleDeleteFile(w http.ResponseWriter, r *http.Requ
 }
 
 func (h codeStudioHandlers) handleDirectory(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
 	if r.Method != http.MethodPost {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -364,6 +388,12 @@ func (h codeStudioHandlers) handleDirectory(w http.ResponseWriter, r *http.Reque
 }
 
 func (h codeStudioHandlers) handleUpload(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
 	if r.Method != http.MethodPost {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -427,6 +457,9 @@ func (h codeStudioHandlers) writeUploadedFile(w http.ResponseWriter, r *http.Req
 }
 
 func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
 	if r.Method != http.MethodGet {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -461,6 +494,12 @@ func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Reques
 }
 
 func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
 	if r.Method != http.MethodPost {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -495,6 +534,9 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
 	if r.Method != http.MethodGet {
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -532,6 +574,12 @@ func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request)
 }
 
 func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
 	if !h.isAuthenticated(r) {
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -605,6 +653,10 @@ func (h codeStudioHandlers) isAuthenticated(r *http.Request) bool {
 	if h.server == nil || h.server.Cfg == nil {
 		return false
 	}
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return desktopTokenHasScope(h.server, strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")), desktopScopeWrite)
+	}
 	h.server.CfgMu.RLock()
 	enabled := h.server.Cfg.Auth.Enabled
 	secret := h.server.Cfg.Auth.SessionSecret
@@ -613,6 +665,24 @@ func (h codeStudioHandlers) isAuthenticated(r *http.Request) bool {
 		return true
 	}
 	return IsAuthenticated(r, secret)
+}
+
+func (h codeStudioHandlers) requirePermission(w http.ResponseWriter, r *http.Request, scope string) bool {
+	return requireDesktopPermission(h.server, w, r, scope)
+}
+
+func (h codeStudioHandlers) rejectReadOnly(w http.ResponseWriter) bool {
+	if h.server == nil || h.server.Cfg == nil {
+		return false
+	}
+	h.server.CfgMu.RLock()
+	readonly := h.server.Cfg.VirtualDesktop.ReadOnly
+	h.server.CfgMu.RUnlock()
+	if !readonly {
+		return false
+	}
+	jsonError(w, "virtual desktop is read-only", http.StatusForbidden)
+	return true
 }
 
 func (h codeStudioHandlers) maxFileSizeBytes() int64 {

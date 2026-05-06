@@ -20,8 +20,8 @@ func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing
 		"Code Studio files live inside the dedicated Code Studio container workspace",
 		"not the homepage workspace",
 		"Do not use the homepage tool for Code Studio file questions",
-		"Current file: /workspace/hello.go",
-		"Current file content:\n<external_data>\npackage main",
+		"Current file:\n<external_data type=\"desktop_current_file\">\n/workspace/hello.go",
+		"Current file content:\n<external_data type=\"desktop_current_content\">\npackage main",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("Code Studio prompt missing marker %q in:\n%s", want, prompt)
@@ -39,7 +39,7 @@ func TestBuildDesktopAgentPromptPrefersSelectedCodeOverWholeFile(t *testing.T) {
 		SelectedText:   "func main() {}",
 	})
 
-	if !strings.Contains(prompt, "Selected text:\n<external_data>\nfunc main() {}") {
+	if !strings.Contains(prompt, "Selected text:\n<external_data type=\"desktop_selected_text\">\nfunc main() {}") {
 		t.Fatalf("Code Studio prompt should include selected text, got:\n%s", prompt)
 	}
 	if strings.Contains(prompt, "Current file content:") {

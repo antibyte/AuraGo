@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "连接中...",
     "desktop.qc_disconnected": "连接已关闭",
     "desktop.qc_connection_error": "连接错误",
+    "desktop.qc_host_key_warning": "由于 known_hosts 不可用，此 SSH 会话已禁用主机密钥验证。",
     "desktop.app_gallery": "图库",
     "desktop.gallery_title": "图库",
     "desktop.gallery_photos": "照片",

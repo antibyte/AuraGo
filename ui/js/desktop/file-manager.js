@@ -80,6 +80,11 @@
         return !!(fm.callbacks && fm.callbacks.readonly);
     }
 
+    function maxFileSize() {
+        const value = Number(fm.callbacks && fm.callbacks.maxFileSize);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
     function isTouchLikePointer(event) {
         if (event && (event.pointerType === 'touch' || event.pointerType === 'pen')) return true;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return true;
@@ -684,6 +689,21 @@
         updateToolbarState();
     }
 
+    function updateSelectionDOM() {
+        if (!fm.host) return;
+        const root = fm.host.querySelector('.file-manager');
+        if (!root) return;
+        root.querySelectorAll('.fm-grid-item[data-path], .fm-list-row[data-path]').forEach(item => {
+            const selected = fm.selectedPaths.has(item.dataset.path);
+            item.classList.toggle('selected', selected);
+            item.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        const status = root.querySelector('.fm-statusbar');
+        if (status) status.outerHTML = renderStatusBarHtml();
+        updateWindowMenus();
+        updateToolbarState();
+    }
+
     function buildMarkup() {
         return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${fm.sidebarOpen ? 'data-sidebar-open="true"' : ''} ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
             ${renderToolbarHtml()}
@@ -1080,7 +1100,7 @@
         }
         fm.lastClickedPath = path;
         activateKeyboardWindow();
-        renderAll();
+        updateSelectionDOM();
         focusFileItem(path);
     }
 
@@ -1419,7 +1439,12 @@
     async function uploadFileList(files) {
         if (isReadonly()) return;
         showNotification({ type: 'info', message: t('desktop.fm.upload_progress', 'Uploading...') });
+        const limit = maxFileSize();
         for (const file of Array.from(files)) {
+            if (limit > 0 && file.size > limit) {
+                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', '{{name}} exceeds the maximum upload size.', { name: file.name }) });
+                continue;
+            }
             const formData = new FormData();
             formData.append('file', file);
             formData.append('path', fm.currentPath);

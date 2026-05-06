@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Connexion...",
     "desktop.qc_disconnected": "Connexion fermée",
     "desktop.qc_connection_error": "Erreur de connexion",
+    "desktop.qc_host_key_warning": "La vérification de la clé d'hôte est désactivée pour cette session SSH, car known_hosts est indisponible.",
     "desktop.app_gallery": "Galerie",
     "desktop.gallery_title": "Galerie",
     "desktop.gallery_photos": "Photos",

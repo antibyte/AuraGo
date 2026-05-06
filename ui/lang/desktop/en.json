@@ -259,6 +259,7 @@
     "desktop.qc_connecting": "Connecting...",
     "desktop.qc_disconnected": "Connection closed",
     "desktop.qc_connection_error": "Connection error",
+    "desktop.qc_host_key_warning": "Host key verification is disabled for this SSH session because known_hosts is unavailable.",
     "desktop.app_gallery": "Gallery",
     "desktop.gallery_title": "Gallery",
     "desktop.gallery_photos": "Photos",
