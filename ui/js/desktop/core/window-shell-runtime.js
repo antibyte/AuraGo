@@ -162,7 +162,7 @@
     function defaultWidgetBounds(index) {
         const workspace = $('vd-workspace');
         const width = 320;
-        const height = 132;
+        const height = 56;
         const x = Math.max(18, ((workspace && workspace.clientWidth) || window.innerWidth) - width - 18);
         return { x, y: 18 + index * (height + 12), w: width, h: height };
     }
@@ -174,8 +174,8 @@
         return {
             x: Number(widget.x || widget.X || fallback.x) || fallback.x,
             y: Number(widget.y || widget.Y || fallback.y) || fallback.y,
-            w: w > 16 ? w : Math.max(240, w * 160 || fallback.w),
-            h: h > 16 ? h : Math.max(104, h * 86 || fallback.h)
+            w: w > 16 ? w : fallback.w,
+            h: h > 16 ? h : fallback.h
         };
     }
 
