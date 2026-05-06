@@ -204,7 +204,7 @@
     font-weight: 650;
 }
 
-.desktop-body[data-theme="fruity"] .vd-window .vd-window-actions {
+.desktop-body[data-theme="fruity"] .vd-window-actions:is(.vd-window .vd-window-actions) {
     position: absolute;
     left: 14px;
     top: 50%;
