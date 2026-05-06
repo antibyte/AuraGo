@@ -29,11 +29,7 @@ func TestDesktopMobileTaskbarStaysInVisualViewport(t *testing.T) {
 func TestVirtualDesktopHasMobileInteractionMarkers(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"function isCompactViewport()",
 		"function isTouchLikePointer(event)",

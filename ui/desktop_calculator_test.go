@@ -68,9 +68,5 @@ func TestDesktopCalculatorRejectsNonFiniteResults(t *testing.T) {
 
 func readDesktopCalculatorScript(t *testing.T) string {
 	t.Helper()
-	data, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop main script missing from embedded UI: %v", err)
-	}
-	return string(data)
+	return readDesktopAssetText(t, "js/desktop/main.js")
 }

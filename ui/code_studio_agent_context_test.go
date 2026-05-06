@@ -8,11 +8,7 @@ import (
 func TestCodeStudioAgentContextIncludesCurrentContent(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/apps/code-studio.js")
-	if err != nil {
-		t.Fatalf("Code Studio app missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
 	for _, want := range []string{
 		"const content = tab ? editorValue(tab) : '';",
 		"current_content: selection.text ? '' : content,",

@@ -8,11 +8,7 @@ import (
 func TestFileManagerInlineRenameMarkers(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
-	if err != nil {
-		t.Fatalf("file manager script missing from embedded UI: %v", err)
-	}
-	source := string(jsBytes)
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
 	for _, marker := range []string{
 		"data-rename-input",
 		"finishRename",
@@ -43,11 +39,7 @@ func TestFileManagerInlineRenameMarkers(t *testing.T) {
 func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
-	if err != nil {
-		t.Fatalf("file manager script missing from embedded UI: %v", err)
-	}
-	source := string(jsBytes)
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
 	if strings.Contains(source, "document.activeElement === document.body") {
 		t.Fatalf("file manager keyboard shortcuts must not run from body focus")
 	}
@@ -70,11 +62,7 @@ func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 func TestFileManagerToolbarAndContextMenuCleanup(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
-	if err != nil {
-		t.Fatalf("file manager script missing from embedded UI: %v", err)
-	}
-	source := string(jsBytes)
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
 	if count := strings.Count(source, "function updateToolbarState()"); count != 1 {
 		t.Fatalf("file manager toolbar updater count = %d, want 1", count)
 	}
@@ -92,11 +80,7 @@ func TestFileManagerToolbarAndContextMenuCleanup(t *testing.T) {
 func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
-	if err != nil {
-		t.Fatalf("file manager script missing from embedded UI: %v", err)
-	}
-	source := string(jsBytes)
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
 	for _, marker := range []string{
 		"function isTouchLikePointer(event)",
 		"function wireLongPress(element, callback, options)",

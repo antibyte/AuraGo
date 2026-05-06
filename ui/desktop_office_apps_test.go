@@ -38,10 +38,6 @@ func TestSheetsKeyboardNavigationIsBounded(t *testing.T) {
 func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 	t.Parallel()
 
-	mainBytes, err := os.ReadFile(filepath.Join("js", "desktop", "main.js"))
-	if err != nil {
-		t.Fatalf("read main.js: %v", err)
-	}
 	writerBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "writer.js"))
 	if err != nil {
 		t.Fatalf("read writer.js: %v", err)
@@ -51,7 +47,7 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 		t.Fatalf("read sheets.js: %v", err)
 	}
 
-	source := string(mainBytes) + "\n" + string(writerBytes) + "\n" + string(sheetsBytes)
+	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + string(writerBytes) + "\n" + string(sheetsBytes)
 	for _, marker := range []string{
 		"function findExistingAppWindow",
 		"function normalizeDesktopPath",

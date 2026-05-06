@@ -8,11 +8,7 @@ import (
 func TestDesktopMainRendersDesktopDirectoryEntries(t *testing.T) {
 	t.Parallel()
 
-	data, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop main script missing from embedded UI: %v", err)
-	}
-	script := string(data)
+	script := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"state.desktopFiles = await loadDesktopFiles()",
 		"/api/desktop/files?path=Desktop",

@@ -225,6 +225,9 @@ func TestDesktopOfficeI18NKeys(t *testing.T) {
 
 func readDesktopOfficeTestFile(t *testing.T, path string) string {
 	t.Helper()
+	if strings.HasPrefix(filepath.ToSlash(path), "js/desktop/") {
+		return readDesktopAssetText(t, path)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)

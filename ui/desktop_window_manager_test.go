@@ -8,11 +8,7 @@ import (
 )
 
 func TestDesktopWindowPlacementIsClamped(t *testing.T) {
-	sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "main.js"))
-	if err != nil {
-		t.Fatalf("read desktop window manager: %v", err)
-	}
-	source := string(sourceBytes)
+	source := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"function clampWindowSize",
 		"function nextWindowPosition",

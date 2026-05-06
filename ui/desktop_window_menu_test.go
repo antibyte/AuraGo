@@ -11,11 +11,7 @@ import (
 func TestDesktopWindowMenuAssets(t *testing.T) {
 	t.Parallel()
 
-	mainBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("read desktop shell: %v", err)
-	}
-	mainText := string(mainBytes)
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"windowMenus: new Map()",
 		"function setWindowMenus(windowId, menus)",
@@ -91,11 +87,7 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 		filepath.Join("js", "desktop", "apps", "radio.js"),
 		filepath.Join("js", "desktop", "file-manager.js"),
 	} {
-		data, err := Content.ReadFile(filepath.ToSlash(path))
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		text := string(data)
+		text := readDesktopAssetText(t, path)
 		if !strings.Contains(text, "setWindowMenus") {
 			t.Fatalf("%s missing setWindowMenus integration", path)
 		}
@@ -202,33 +194,33 @@ func TestDesktopWindowMenuSelectiveMigration(t *testing.T) {
 		retained []string
 	}{
 		{
-			name:    "calendar",
-			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderCalendar(id)"),
-			removed: []string{`data-cal-new`},
+			name:     "calendar",
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderCalendar(id)"),
+			removed:  []string{`data-cal-new`},
 			retained: []string{`data-cal-today`, `data-cal-nav`, `data-cal-view`},
 		},
 		{
-			name:    "gallery",
-			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderGallery(id)"),
-			removed: []string{`data-gallery-refresh`},
+			name:     "gallery",
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderGallery(id)"),
+			removed:  []string{`data-gallery-refresh`},
 			retained: []string{`data-gallery-tab`, `data-gallery-more`},
 		},
 		{
-			name:    "quick connect",
-			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)"),
-			removed: []string{`data-action="add"`, `data-action="refresh"`},
+			name:     "quick connect",
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id)"),
+			removed:  []string{`data-action="add"`, `data-action="refresh"`},
 			retained: []string{`data-device-list`, `data-terminal-area`},
 		},
 		{
-			name:    "music player",
-			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderMusicPlayer(id)"),
-			removed: []string{`vd-webamp-launcher-actions`, `data-action="refresh-music"`, `data-action="load-folder"`, `data-action="reopen-webamp"`},
+			name:     "music player",
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "async function renderMusicPlayer(id)"),
+			removed:  []string{`vd-webamp-launcher-actions`, `data-action="refresh-music"`, `data-action="load-folder"`, `data-action="reopen-webamp"`},
 			retained: []string{`data-track-count`, `data-folder`},
 		},
 		{
-			name:    "launchpad",
-			body:    jsFunctionBodyInWindowMenuTest(t, mainText, "function renderLaunchpad(id)"),
-			removed: []string{`data-action="add"`},
+			name:     "launchpad",
+			body:     jsFunctionBodyInWindowMenuTest(t, mainText, "function renderLaunchpad(id)"),
+			removed:  []string{`data-action="add"`},
 			retained: []string{`vd-launchpad-search`, `vd-launchpad-category`},
 		},
 	} {
@@ -297,7 +289,31 @@ func readDesktopAssetText(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
-	return string(data)
+	text := string(data)
+	if strings.Contains(text, "loadScriptParts(") {
+		var combined strings.Builder
+		for _, line := range strings.Split(text, "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "'/js/desktop/") {
+				continue
+			}
+			part := strings.Trim(line, "',")
+			if idx := strings.Index(part, "?"); idx >= 0 {
+				part = part[:idx]
+			}
+			part = strings.TrimPrefix(part, "/")
+			partData, err := Content.ReadFile(filepath.ToSlash(part))
+			if err != nil {
+				t.Fatalf("read %s referenced by %s: %v", part, path, err)
+			}
+			combined.Write(partData)
+			combined.WriteByte('\n')
+		}
+		if combined.Len() > 0 {
+			return combined.String()
+		}
+	}
+	return text
 }
 
 func jsFunctionBodyInWindowMenuTest(t *testing.T, source, signature string) string {

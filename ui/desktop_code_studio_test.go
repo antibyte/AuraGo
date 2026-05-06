@@ -8,11 +8,7 @@ import (
 func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/apps/code-studio.js")
-	if err != nil {
-		t.Fatalf("Code Studio app missing from embedded UI: %v", err)
-	}
-	source := string(jsBytes)
+	source := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
 	for _, marker := range []string{
 		"const instances = new Map()",
 		"function createInstance",
@@ -28,7 +24,7 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"if (!isLiveInstance(target)) return;",
 		"if (!isLiveInstance(instance)) return undefined;",
 		"await runAsyncStep(target, saveCurrentFile);",
-		"runWithInstance(target, () => {\n            renderStatus(tr('codeStudio.running'",
+		"renderStatus(tr('codeStudio.running'",
 		"function destroyTabView",
 		"destroyTabView(tab);",
 		"function registerDisposer",

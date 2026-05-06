@@ -31,11 +31,7 @@ func TestVirtualDesktopFooterOwnsSystemControls(t *testing.T) {
 func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"win.style.left = '0';",
 		"win.style.top = '0';",
@@ -60,11 +56,7 @@ func TestVirtualDesktopStartButtonUsesRoundPapirusHomeLauncher(t *testing.T) {
 		t.Fatal("start button label should remain in the DOM with the visual-hidden label class")
 	}
 
-	jsBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/main.js")
 	if !strings.Contains(js, "iconMarkup('home', 'A', 'vd-sprite-start', 32)") {
 		t.Fatal("start button should use the Papirus home icon as the launcher glyph")
 	}

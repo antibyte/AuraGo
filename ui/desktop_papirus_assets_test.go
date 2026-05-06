@@ -131,11 +131,7 @@ func TestDesktopPapirusManifestMatchesBackendIconCatalog(t *testing.T) {
 func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"Reports: 'analytics'",
 		"Backups: 'backup'",

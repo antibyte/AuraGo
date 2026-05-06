@@ -39,16 +39,21 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 	}
 
 	for path, wants := range markers {
-		sourcePath := filepath.FromSlash(path)
-		sourceBytes, err := os.ReadFile(sourcePath)
-		if err != nil && strings.HasPrefix(path, "ui/") {
-			sourcePath = filepath.FromSlash(strings.TrimPrefix(path, "ui/"))
-			sourceBytes, err = os.ReadFile(sourcePath)
+		var source string
+		if strings.HasPrefix(path, "ui/js/desktop/") {
+			source = readDesktopAssetText(t, strings.TrimPrefix(path, "ui/"))
+		} else {
+			sourcePath := filepath.FromSlash(path)
+			sourceBytes, err := os.ReadFile(sourcePath)
+			if err != nil && strings.HasPrefix(path, "ui/") {
+				sourcePath = filepath.FromSlash(strings.TrimPrefix(path, "ui/"))
+				sourceBytes, err = os.ReadFile(sourcePath)
+			}
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			source = string(sourceBytes)
 		}
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		source := string(sourceBytes)
 		for _, want := range wants {
 			if !strings.Contains(source, want) {
 				t.Fatalf("%s missing desktop app lifecycle marker %q", path, want)

@@ -8,11 +8,7 @@ import (
 func TestDesktopFileManagerAvoidsKnownLayoutRegressions(t *testing.T) {
 	t.Parallel()
 
-	jsBytes, err := Content.ReadFile("js/desktop/file-manager.js")
-	if err != nil {
-		t.Fatalf("file manager script missing from embedded UI: %v", err)
-	}
-	js := string(jsBytes)
+	js := readDesktopAssetText(t, "js/desktop/file-manager.js")
 	for _, bad := range []string{"'14px'", "'16px'", "'18px'", "'32px'", "'40px'", "'48px'"} {
 		if strings.Contains(js, bad) {
 			t.Fatalf("file manager should pass numeric icon sizes, found %s", bad)

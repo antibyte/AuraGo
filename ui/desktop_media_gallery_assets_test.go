@@ -13,11 +13,7 @@ import (
 func TestDesktopMediaGalleryAssets(t *testing.T) {
 	t.Parallel()
 
-	shell, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	text := string(shell)
+	text := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"appId === 'gallery'",
 		"function renderGallery(",

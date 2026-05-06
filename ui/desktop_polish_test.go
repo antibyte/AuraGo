@@ -8,10 +8,6 @@ import (
 func TestVirtualDesktopPolishRegressions(t *testing.T) {
 	t.Parallel()
 
-	mainBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
 	writerBytes, err := Content.ReadFile("js/desktop/apps/writer.js")
 	if err != nil {
 		t.Fatalf("desktop writer app missing from embedded UI: %v", err)
@@ -21,7 +17,7 @@ func TestVirtualDesktopPolishRegressions(t *testing.T) {
 		t.Fatalf("desktop sheets app missing from embedded UI: %v", err)
 	}
 
-	source := string(mainBytes) + "\n" + string(writerBytes) + "\n" + string(sheetsBytes)
+	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + string(writerBytes) + "\n" + string(sheetsBytes)
 	for _, marker := range []string{
 		"function clampDesktopIconPosition",
 		"case 'Delete':",

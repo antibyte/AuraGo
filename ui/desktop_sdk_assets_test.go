@@ -43,11 +43,7 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 		}
 	}
 
-	shell, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	shellText := string(shell)
+	shellText := readDesktopAssetText(t, "js/desktop/main.js")
 	if !strings.Contains(shellText, "aurago.desktop.request") {
 		t.Fatal("desktop shell does not handle SDK bridge requests")
 	}

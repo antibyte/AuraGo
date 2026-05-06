@@ -11,11 +11,7 @@ import (
 func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 	t.Parallel()
 
-	shell, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	shellText := string(shell)
+	shellText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"'appearance.theme': 'standard'",
 		"body.dataset.theme = settingValue('appearance.theme')",

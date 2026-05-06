@@ -25,11 +25,7 @@ var desktopWallpaperOptions = []string{
 func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	t.Parallel()
 
-	shell, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("desktop shell missing from embedded UI: %v", err)
-	}
-	shellText := string(shell)
+	shellText := readDesktopAssetText(t, "js/desktop/main.js")
 	css, err := Content.ReadFile("css/desktop.css")
 	if err != nil {
 		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
