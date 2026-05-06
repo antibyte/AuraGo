@@ -84,6 +84,19 @@
         const volume = host.querySelector('[data-volume]');
         let searchTimer = 0;
         let toastTimer = 0;
+        const showContextMenu = typeof ctx.showContextMenu === 'function' ? ctx.showContextMenu : null;
+        function showStationContextMenu(event, station) {
+            if (!showContextMenu || !station) return false;
+            event.preventDefault();
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.radio_play', icon: 'audio', action: () => playStation(station) },
+                { labelKey: 'desktop.menu_favorite', icon: 'heart', checked: isFavorite(station), action: () => toggleFavorite(station) },
+                { type: 'separator' },
+                { labelKey: 'desktop.context_refresh', icon: 'refresh', action: () => loadActive() }
+            ]);
+            return true;
+        }
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         function categoryList() {
             const list = [];
@@ -124,6 +137,10 @@
                         const station = findStation(card.dataset.playStation);
                         if (station) playStation(station);
                     }
+                });
+                card.addEventListener('contextmenu', event => {
+                    const station = findStation(card.dataset.playStation);
+                    showStationContextMenu(event, station);
                 });
             });
             grid.querySelectorAll('[data-action="favorite"]').forEach(btn => {

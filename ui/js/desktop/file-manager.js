@@ -577,6 +577,7 @@
         fm.windowId = windowId;
         fm.callbacks = callbacks || {};
         fm.directories = Array.isArray(callbacks.directories) ? callbacks.directories : [];
+        if (typeof fm.callbacks.wireContextMenuBoundary === 'function') fm.callbacks.wireContextMenuBoundary(host);
         loadPreferences();
         bindKeyboard();
         navigate(initialPath || '');

@@ -56,6 +56,7 @@
         const gridHost = host.querySelector('[data-grid]');
         const rangeName = host.querySelector('[data-range-name]');
         const formulaInput = host.querySelector('[data-formula-input]');
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         function setStatus(message) {
             if (status) status.textContent = message || '';

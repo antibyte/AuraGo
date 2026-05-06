@@ -49,6 +49,7 @@
         const statusNode = host.querySelector('[data-status]');
         const editorHost = host.querySelector('[data-editor]');
         const fallback = host.querySelector('[data-fallback]');
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         function setStatus(message, kind) {
             if (!statusNode) return;

@@ -105,6 +105,8 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 - Use `await AuraDesktop.icons.catalog()` when an app needs to choose icons dynamically. It returns the same `icon_catalog` object from desktop bootstrap, including the active theme, preferred semantic names, aliases, and the legacy `sprite:` prefix.
 - Use `AuraDesktop.fs`, `AuraDesktop.widgets.register`, `AuraDesktop.notifications.show`, and `AuraDesktop.desktop.openApp` for desktop actions. The SDK talks to the desktop shell through a safe iframe bridge.
 - Use `AuraDesktop.menu.set(menus)` to register optional window menus for generated app windows, `AuraDesktop.menu.clear()` during cleanup when needed, and `AuraDesktop.menu.onAction(handler)` when menu items use string action IDs. Menu items support separators, submenus, icons, shortcuts, disabled/checked/hidden states, and direct function actions.
+- Use `AuraDesktop.contextMenu.set(itemsOrFactory)` for right-click behavior inside generated apps and app-backed widgets. Return menu items when the target has meaningful actions, or return an empty list to suppress the Browser context menu on inert UI chrome. You can also call `AuraDesktop.contextMenu.show(items, eventOrPoint)` from your own `contextmenu` handler, remove the listener with `AuraDesktop.contextMenu.clear()`, and subscribe to string action IDs with `AuraDesktop.contextMenu.onAction(handler)`.
+- Use `AuraDesktop.clipboard.readText()` and `AuraDesktop.clipboard.writeText(text)` for text copy/paste in sandboxed apps and widgets. Keep copy/paste on fields, editors, selected rows/cells, or useful result displays; do not add paste actions to destructive or ambiguous surfaces.
 
 Example generated app menu:
 
@@ -120,6 +122,19 @@ AuraDesktop.menu.set([
     ]
   }
 ]);
+```
+
+Example generated app context menu:
+
+```js
+AuraDesktop.contextMenu.set(event => {
+  const row = event.target.closest('[data-note-id]');
+  if (!row) return [];
+  return [
+    { id: 'open', label: 'Open', icon: 'folder-open', action: () => openNote(row.dataset.noteId) },
+    { id: 'copy-title', label: 'Copy title', icon: 'copy', action: () => AuraDesktop.clipboard.writeText(row.textContent.trim()) }
+  ];
+});
 ```
 
 ## Widget Registration

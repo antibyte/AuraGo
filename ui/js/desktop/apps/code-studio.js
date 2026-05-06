@@ -366,6 +366,7 @@
 
     function renderShell() {
         const root = ensureShellRoot();
+        if (state.context && typeof state.context.wireContextMenuBoundary === 'function') state.context.wireContextMenuBoundary(root);
         root.style.setProperty('--cs-sidebar-width', Math.max(220, state.sidebarWidth) + 'px');
         root.style.setProperty('--cs-terminal-height', Math.max(120, state.terminalHeight) + 'px');
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');

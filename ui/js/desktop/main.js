@@ -1270,9 +1270,7 @@
 
     function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
-        win.addEventListener('contextmenu', event => {
-            if (event.target.closest('.vd-window-titlebar')) showWindowContextMenu(event, id);
-        });
+        wireWindowContextMenu(win, id);
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
         const maximizeBtn = win.querySelector('[data-action="maximize"]');
@@ -1535,24 +1533,96 @@
         }
     }
 
+    function isNativeContextMenuTarget(target) {
+        if (!target || !target.closest) return false;
+        return !!target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea');
+    }
+
+    function shouldAllowBrowserContextMenu(event) {
+        const target = event && event.target;
+        if (isNativeContextMenuTarget(target)) return true;
+        const selection = window.getSelection && window.getSelection();
+        if (!selection || selection.isCollapsed || !String(selection).trim()) return false;
+        if (!target || !target.closest) return false;
+        return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text');
+    }
+
+    function suppressBrowserContextMenu(event) {
+        if (!event || event.defaultPrevented || shouldAllowBrowserContextMenu(event)) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        closeContextMenu();
+        return true;
+    }
+
+    function wireContextMenuBoundary(root, options) {
+        if (!root || root.dataset.contextSuppressed === 'true') return;
+        root.dataset.contextSuppressed = 'true';
+        root.addEventListener('contextmenu', event => {
+            if (event.defaultPrevented) return;
+            if (options && typeof options.onContextMenu === 'function' && options.onContextMenu(event) === true) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            suppressBrowserContextMenu(event);
+        });
+    }
+
+    function wireWindowContextMenu(win, id) {
+        win.addEventListener('contextmenu', event => {
+            if (event.defaultPrevented) return;
+            if (event.target.closest('.vd-window-titlebar')) {
+                showWindowContextMenu(event, id);
+                return;
+            }
+            suppressBrowserContextMenu(event);
+        });
+    }
+
+    function normalizeContextMenuItems(items) {
+        return (Array.isArray(items) ? items : []).map(item => {
+            if (!item || item.hidden) return null;
+            if (item.type === 'separator' || item.separator) return { separator: true };
+            return Object.assign({}, item, {
+                label: item.label || (item.labelKey ? t(item.labelKey) : ''),
+                disabled: typeof item.disabled === 'function' ? !!item.disabled() : !!item.disabled
+            });
+        }).filter(Boolean);
+    }
+
     function showContextMenu(x, y, items) {
         closeContextMenu();
+        items = normalizeContextMenuItems(items);
+        if (!items.length) return;
+        const actions = new Map();
+        const renderItems = (menuItems, path) => (menuItems || []).map((item, index) => {
+            if (item.separator) return '<div class="vd-context-separator" role="separator"></div>';
+            const actionKey = path.concat(String(item.id || index)).join('/');
+            const icon = `<span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>`;
+            const label = `<span>${esc(item.label)}</span>`;
+            const disabled = item.disabled ? 'disabled' : '';
+            const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
+            if (submenuItems.length) {
+                return `<div class="vd-context-submenu" role="none">
+                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}<span class="vd-context-arrow">›</span></button>
+                    <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
+                </div>`;
+            }
+            actions.set(actionKey, item);
+            return `<button type="button" class="vd-context-item" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}</button>`;
+        }).join('');
         const menu = document.createElement('div');
         menu.className = 'vd-context-menu';
         menu.setAttribute('role', 'menu');
-        menu.innerHTML = items.map((item, index) => item.separator
-            ? '<div class="vd-context-separator" role="separator"></div>'
-            : `<button type="button" class="vd-context-item" role="menuitem" data-index="${index}" ${item.disabled ? 'disabled' : ''}>
-                <span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>
-                <span>${esc(item.label)}</span>
-            </button>`).join('');
+        menu.innerHTML = renderItems(items, []);
         document.body.appendChild(menu);
         const rect = menu.getBoundingClientRect();
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
         menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
-        menu.querySelectorAll('[data-index]').forEach(btn => {
+        menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const item = items[Number(btn.dataset.index)];
+                const item = actions.get(btn.dataset.contextAction);
                 closeContextMenu();
                 if (item && item.action) item.action();
             });
@@ -2101,7 +2171,8 @@
                 loadBootstrap,
                 updateWindowContext: updateWindowContext,
                 setWindowMenus,
-                clearWindowMenus
+                clearWindowMenus,
+                wireContextMenuBoundary
             }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
@@ -2115,7 +2186,8 @@
                 loadBootstrap,
                 updateWindowContext: updateWindowContext,
                 setWindowMenus,
-                clearWindowMenus
+                clearWindowMenus,
+                wireContextMenuBoundary
             }));
         }
         if (appId === 'settings') return renderSettings(id);
@@ -2125,7 +2197,7 @@
         if (appId === 'gallery') return renderGallery(id);
         if (appId === 'music-player') return renderMusicPlayer(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
-            return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus }));
+            return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
         if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
             return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
@@ -2133,7 +2205,7 @@
         if (appId === 'agent-chat') return renderChat(id);
         if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
-            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus }));
+            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
         if (appId === 'launchpad') return renderLaunchpad(id);
         return renderGeneratedApp(id, appId);
@@ -2160,6 +2232,7 @@
                 readonly: !!((state.bootstrap || {}).readonly),
                 setWindowMenus,
                 clearWindowMenus,
+                wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
@@ -2898,6 +2971,20 @@
         let mode = 'standard';
         let progBase = 10;
         const history = [];
+        const showCalculatorContextMenu = event => {
+            if (!event.target.closest('.vd-calc-display')) return false;
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.fm.copy', icon: 'copy', action: async () => {
+                    try {
+                        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(resultEl.textContent || '0');
+                    } catch (err) {
+                        showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                    }
+                } }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(root, { onContextMenu: showCalculatorContextMenu });
         const update = (result) => {
             expressionEl.textContent = expression || '0';
             const displayResult = result == null ? '0' : String(result);
@@ -3222,6 +3309,17 @@
         host.innerHTML = `<div class="vd-todo"><aside class="vd-todo-sidebar">
             ${['all', 'open', 'in_progress', 'done'].map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}">${esc(t('desktop.todo_' + status))}</button>`).join('')}
         </aside><main class="vd-todo-main"><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}"><select><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary">${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail"><div class="vd-empty">${esc(t('desktop.todo_select_task'))}</div></section></div>`;
+        const showTodoContextMenu = (event, todo, reload) => {
+            event.preventDefault();
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload) },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                { separator: true },
+                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(host);
         const load = async (selectedID) => {
             const todos = await api('/api/todos?status=all');
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
@@ -3229,6 +3327,10 @@
             const list = host.querySelector('.vd-todo-list');
             list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load)));
+            list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('contextmenu', event => {
+                const todo = todos.find(item => item.id === card.dataset.todoId);
+                if (todo) showTodoContextMenu(event, todo, load);
+            }));
             const selected = todos.find(todo => todo.id === selectedID) || filtered[0];
             if (selected) renderTodoDetail(host, selected, load);
         };
@@ -3309,12 +3411,30 @@
         host.dataset.calDate = host.dataset.calDate || isoDate(new Date());
         const activeDate = new Date(host.dataset.calDate + 'T12:00:00');
         host.innerHTML = `<div class="vd-calendar"><div class="vd-calendar-toolbar"><button class="vd-calendar-icon-button" type="button" data-cal-nav="prev">${iconMarkup('chevron-left', 'L', 'vd-calendar-action-icon', 15)}</button><button type="button" data-cal-today>${iconMarkup('calendar', 'C', 'vd-calendar-action-icon', 15)}<span>${esc(t('desktop.cal_today'))}</span></button><button class="vd-calendar-icon-button" type="button" data-cal-nav="next">${iconMarkup('chevron-right', 'R', 'vd-calendar-action-icon', 15)}</button><strong>${esc(activeDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}</strong><span></span>${['month','week','day'].map(view => `<button type="button" data-cal-view="${view}" class="${host.dataset.calView === view ? 'active' : ''}">${esc(t('desktop.cal_' + view))}</button>`).join('')}</div><div class="vd-calendar-body">${esc(t('desktop.loading'))}</div></div>`;
+        const showCalendarContextMenu = (event, appointments, render) => {
+            const apptEl = event.target.closest('[data-appt-id]');
+            const cellEl = event.target.closest('[data-cal-date]');
+            if (!apptEl && !cellEl) return false;
+            const appt = apptEl ? appointments.find(item => item.id === apptEl.dataset.apptId) : null;
+            const date = cellEl ? cellEl.dataset.calDate : isoDate(activeDate);
+            showContextMenu(event.clientX, event.clientY, [
+                appt
+                    ? { labelKey: 'desktop.launchpad_edit', icon: 'edit', action: () => openAppointmentModal(host, appt, '', render) }
+                    : { labelKey: 'desktop.cal_new_appointment', icon: 'calendar', action: () => openAppointmentModal(host, null, date, render) },
+                { labelKey: 'desktop.context_refresh', icon: 'refresh', action: render }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(host);
         const render = async () => {
             const appointments = await api('/api/appointments?status=all');
             const body = host.querySelector('.vd-calendar-body');
             body.innerHTML = host.dataset.calView === 'month' ? calendarMonthHTML(activeDate, appointments) : calendarAgendaHTML(activeDate, appointments, host.dataset.calView);
             body.querySelectorAll('[data-cal-date]').forEach(cell => cell.addEventListener('click', () => openAppointmentModal(host, null, cell.dataset.calDate, render)));
             body.querySelectorAll('[data-appt-id]').forEach(btn => btn.addEventListener('click', event => { event.stopPropagation(); openAppointmentModal(host, appointments.find(a => a.id === btn.dataset.apptId), '', render); }));
+            body.oncontextmenu = event => {
+                if (showCalendarContextMenu(event, appointments, render)) event.preventDefault();
+            };
         };
         host.querySelectorAll('[data-cal-view]').forEach(btn => btn.addEventListener('click', () => { host.dataset.calView = btn.dataset.calView; renderCalendar(id); }));
         host.querySelector('[data-cal-today]').addEventListener('click', () => { host.dataset.calDate = isoDate(new Date()); renderCalendar(id); });
@@ -3408,6 +3528,18 @@
         const grid = host.querySelector('[data-gallery-grid]');
         const moreButton = host.querySelector('[data-gallery-more]');
         let visibleItems = [];
+        const showGalleryContextMenu = (event, file, refreshGallery) => {
+            event.preventDefault();
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.gallery_open', icon: 'folder-open', action: () => openMediaPreview(file) },
+                { labelKey: 'desktop.gallery_download', icon: 'download', action: () => downloadMediaPath(file.web_path, file.name) },
+                { labelKey: 'desktop.gallery_rename', icon: 'edit', action: async () => { await renamePath(file.path); await refreshGallery(false); } },
+                { separator: true },
+                { labelKey: 'desktop.gallery_delete', icon: 'trash', action: async () => { await deletePath(file.path); await refreshGallery(false); } }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(host);
 
         const renderItems = (items, kind) => {
             grid.innerHTML = items.length ? items.map(file => {
@@ -3440,6 +3572,7 @@
                 if (rename) rename.addEventListener('click', async () => { await renamePath(file.path); await loadGallery(false); });
                 const del = card.querySelector('[data-gallery-delete]');
                 if (del) del.addEventListener('click', async () => { await deletePath(file.path); await loadGallery(false); });
+                card.addEventListener('contextmenu', event => showGalleryContextMenu(event, file, loadGallery));
             });
         };
 
@@ -3626,6 +3759,24 @@
             await ensureWebamp(currentTracks);
         };
 
+        const showMusicPlayerContextMenu = event => {
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.menu_load_folder', icon: 'folder-open', action: async () => {
+                    const folder = await promptDialog(t('desktop.winamp_load_folder'), currentFolder || 'Music');
+                    if (folder != null) loadMusicLibrary(folder).catch(notifyError);
+                } },
+                { labelKey: 'desktop.context_refresh', icon: 'refresh', action: () => loadMusicLibrary('Music').catch(notifyError) },
+                { separator: true },
+                { labelKey: 'desktop.menu_reopen_player', icon: 'audio-player', action: () => {
+                    const current = state.webampMusic;
+                    if (current && current.instance && typeof current.instance.reopen === 'function') current.instance.reopen();
+                    else loadMusicLibrary(currentFolder || 'Music').catch(notifyError);
+                } }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(host, { onContextMenu: showMusicPlayerContextMenu });
+
         setMusicPlayerMenus(id, host, {
             refresh: () => loadMusicLibrary('Music').catch(notifyError),
             loadFolder: async () => {
@@ -3686,6 +3837,7 @@
                 </div>
             </div>
         </div>`;
+        wireContextMenuBoundary(host);
 
         const searchInput = host.querySelector('.vd-qc-search input');
         searchInput.placeholder = t('desktop.qc_search_placeholder');
@@ -4118,6 +4270,18 @@
         const empty = host.querySelector('.vd-launchpad-empty');
         const searchInput = host.querySelector('.vd-launchpad-search');
         const categorySelect = host.querySelector('.vd-launchpad-category');
+        const showLaunchpadContextMenu = (event, linkId) => {
+            const link = links.find(item => item.id === linkId);
+            if (!link) return false;
+            showContextMenu(event.clientX, event.clientY, [
+                { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => openTileLink(linkId) },
+                { labelKey: 'desktop.launchpad_edit', icon: 'edit', action: () => openEditModal(linkId) },
+                { separator: true },
+                { labelKey: 'desktop.launchpad_delete', icon: 'trash', action: () => deleteLink(linkId) }
+            ]);
+            return true;
+        };
+        wireContextMenuBoundary(host);
 
         async function load() {
             try {
@@ -4155,6 +4319,10 @@
             }).join('');
             grid.querySelectorAll('.vd-launchpad-tile').forEach(tile => {
                 tile.addEventListener('click', (e) => { if (!e.target.closest('.vd-launchpad-tile-actions')) openTileLink(tile.dataset.id); });
+                tile.addEventListener('contextmenu', event => {
+                    event.preventDefault();
+                    showLaunchpadContextMenu(event, tile.dataset.id);
+                });
             });
             grid.querySelectorAll('[data-action="edit"]').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(btn.closest('.vd-launchpad-tile').dataset.id); });
@@ -4558,6 +4726,7 @@
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
         iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+        iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
         return iframe;
     }
 
@@ -4624,6 +4793,17 @@
         }, window.location.origin);
     }
 
+    function postSDKContextMenuAction(client, actionId) {
+        const frame = client.windowId
+            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(client.windowId)}"]`)
+            : document.querySelector(`.vd-widget-frame[data-widget-id="${cssSel(client.widgetId)}"]`);
+        if (!frame || !frame.contentWindow || !actionId) return;
+        frame.contentWindow.postMessage({
+            type: 'aurago.desktop.context-menu-action',
+            actionId: String(actionId)
+        }, window.location.origin);
+    }
+
     function sdkMenuItems(client, items) {
         return (Array.isArray(items) ? items : []).map(item => {
             if (!item || item.hidden) return null;
@@ -4656,6 +4836,31 @@
             labelKey: menu && menu.labelKey || '',
             items: sdkMenuItems(client, menu && menu.items)
         }));
+    }
+
+    function sdkContextMenuItems(client, items) {
+        return (Array.isArray(items) ? items : []).map(item => {
+            if (!item || item.hidden) return null;
+            if (item.type === 'separator' || item.separator) return { type: 'separator' };
+            const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';
+            const normalized = {
+                id: item.id || actionId,
+                label: item.label || '',
+                labelKey: item.labelKey || '',
+                icon: item.icon || '',
+                fallback: item.fallback || '',
+                shortcut: item.shortcut || '',
+                disabled: !!item.disabled,
+                checked: !!item.checked
+            };
+            const submenuItems = item.items || item.children;
+            if (submenuItems) {
+                normalized.items = sdkContextMenuItems(client, submenuItems);
+            } else if (actionId) {
+                normalized.action = () => postSDKContextMenuAction(client, actionId);
+            }
+            return normalized;
+        }).filter(Boolean);
     }
 
     function declaredPermissions(client) {
@@ -4708,6 +4913,20 @@
                 return { status: 'ok' };
             case 'desktop:menu:clear':
                 if (client.windowId) clearWindowMenus(client.windowId);
+                return { status: 'ok' };
+            case 'desktop:context-menu:show':
+                showContextMenu(Number(payload.x) || 0, Number(payload.y) || 0, sdkContextMenuItems(client, payload.items || []));
+                return { status: 'ok' };
+            case 'desktop:context-menu:clear':
+                closeContextMenu();
+                return { status: 'ok' };
+            case 'desktop:clipboard:read-text': {
+                if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error('Clipboard read is not available.');
+                return { text: await navigator.clipboard.readText() };
+            }
+            case 'desktop:clipboard:write-text':
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error('Clipboard write is not available.');
+                await navigator.clipboard.writeText(String(payload.text || ''));
                 return { status: 'ok' };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);

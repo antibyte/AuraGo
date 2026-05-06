@@ -3994,7 +3994,7 @@
 .vd-context-item {
     width: 100%;
     display: grid;
-    grid-template-columns: 24px 1fr;
+    grid-template-columns: 24px 1fr auto;
     align-items: center;
     gap: 8px;
     min-height: 44px;
@@ -4011,6 +4011,33 @@
 
 .vd-context-item:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.1);
+}
+
+.vd-context-submenu {
+    position: relative;
+}
+
+.vd-context-submenu-popover {
+    position: absolute;
+    display: none;
+    left: calc(100% + 6px);
+    top: -7px;
+    min-width: 214px;
+    padding: 7px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: rgba(13, 18, 26, 0.96);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px);
+}
+
+.vd-context-submenu:hover > .vd-context-submenu-popover,
+.vd-context-submenu:focus-within > .vd-context-submenu-popover {
+    display: block;
+}
+
+.vd-context-arrow {
+    opacity: 0.65;
 }
 
 .vd-context-item:disabled {

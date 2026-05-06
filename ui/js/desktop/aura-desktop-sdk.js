@@ -4,6 +4,7 @@
     const REQUEST_TYPE = 'aurago.desktop.request';
     const RESPONSE_TYPE = 'aurago.desktop.response';
     const MENU_ACTION_TYPE = 'aurago.desktop.menu-action';
+    const CONTEXT_MENU_ACTION_TYPE = 'aurago.desktop.context-menu-action';
     const RUNTIME = 'aura-desktop-sdk@1';
     const VERSION = '1.0.0';
     const THEMED_ICON_PREFIXES = ['papirus:', 'whitesur:'];
@@ -14,7 +15,11 @@
     const pending = new Map();
     const menuActionHandlers = new Map();
     const menuDirectActions = new Map();
+    const contextMenuActionHandlers = new Map();
+    const contextMenuDirectActions = new Map();
     let menuActionSeq = 0;
+    let contextMenuActionSeq = 0;
+    let contextMenuDisposer = null;
 
     function parentRequest(action, payload) {
         const id = 'sdk-' + Date.now() + '-' + (++requestSeq);
@@ -42,6 +47,10 @@
             dispatchMenuAction(msg.actionId);
             return;
         }
+        if (msg && msg.type === CONTEXT_MENU_ACTION_TYPE) {
+            dispatchContextMenuAction(msg.actionId);
+            return;
+        }
         if (!msg || msg.type !== RESPONSE_TYPE || !pending.has(msg.id)) return;
         const item = pending.get(msg.id);
         pending.delete(msg.id);
@@ -61,6 +70,18 @@
             return;
         }
         menuActionHandlers.forEach(handler => {
+            if (typeof handler === 'function') handler(id);
+        });
+    }
+
+    function dispatchContextMenuAction(actionId) {
+        const id = String(actionId || '');
+        const direct = contextMenuDirectActions.get(id);
+        if (typeof direct === 'function') {
+            direct(id);
+            return;
+        }
+        contextMenuActionHandlers.forEach(handler => {
             if (typeof handler === 'function') handler(id);
         });
     }
@@ -286,6 +307,45 @@
         }));
     }
 
+    function serializeContextMenuItems(items) {
+        return (Array.isArray(items) ? items : []).map((item, index) => {
+            if (!item) return null;
+            if (item.type === 'separator' || item.separator) return { type: 'separator' };
+            const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || ('context-item-' + index);
+            const serialized = {
+                id: item.id || actionId,
+                label: item.label || '',
+                labelKey: item.labelKey || '',
+                icon: item.icon || '',
+                fallback: item.fallback || '',
+                shortcut: item.shortcut || '',
+                disabled: !!item.disabled,
+                checked: !!item.checked,
+                hidden: !!item.hidden
+            };
+            const children = item.items || item.children;
+            if (children) {
+                serialized.items = serializeContextMenuItems(children);
+            } else {
+                serialized.actionId = actionId;
+                if (typeof item.action === 'function') contextMenuDirectActions.set(actionId, item.action);
+            }
+            return serialized;
+        }).filter(Boolean);
+    }
+
+    function contextMenuPoint(eventOrPoint) {
+        if (eventOrPoint && typeof eventOrPoint.preventDefault === 'function') {
+            eventOrPoint.preventDefault();
+            if (typeof eventOrPoint.stopPropagation === 'function') eventOrPoint.stopPropagation();
+            return { x: eventOrPoint.clientX || 0, y: eventOrPoint.clientY || 0 };
+        }
+        if (eventOrPoint && typeof eventOrPoint === 'object') {
+            return { x: Number(eventOrPoint.x || eventOrPoint.clientX || 0), y: Number(eventOrPoint.y || eventOrPoint.clientY || 0) };
+        }
+        return { x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) };
+    }
+
     ui.menu = {
         set(menus) {
             return parentRequest('desktop:menu:set', { menus: serializeMenus(menus) });
@@ -298,6 +358,60 @@
             const id = 'handler-' + (++menuActionSeq);
             menuActionHandlers.set(id, handler);
             return () => menuActionHandlers.delete(id);
+        }
+    };
+
+    ui.contextMenu = {
+        set(itemsOrFactory) {
+            if (contextMenuDisposer) {
+                contextMenuDisposer();
+                contextMenuDisposer = null;
+            }
+            contextMenuDirectActions.clear();
+            parentRequest('desktop:context-menu:clear').catch(() => {});
+            const handler = event => {
+                const items = typeof itemsOrFactory === 'function' ? itemsOrFactory(event) : itemsOrFactory;
+                if (!items || (Array.isArray(items) && !items.length)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                ui.contextMenu.show(items, event);
+            };
+            document.addEventListener('contextmenu', handler);
+            contextMenuDisposer = () => document.removeEventListener('contextmenu', handler);
+            return contextMenuDisposer;
+        },
+        show(items, eventOrPoint) {
+            contextMenuDirectActions.clear();
+            const point = contextMenuPoint(eventOrPoint);
+            return parentRequest('desktop:context-menu:show', {
+                x: point.x,
+                y: point.y,
+                items: serializeContextMenuItems(items)
+            });
+        },
+        clear() {
+            if (contextMenuDisposer) {
+                contextMenuDisposer();
+                contextMenuDisposer = null;
+            }
+            contextMenuDirectActions.clear();
+            return parentRequest('desktop:context-menu:clear');
+        },
+        onAction(handler) {
+            const id = 'context-handler-' + (++contextMenuActionSeq);
+            contextMenuActionHandlers.set(id, handler);
+            return () => contextMenuActionHandlers.delete(id);
+        }
+    };
+
+    ui.clipboard = {
+        readText() {
+            return parentRequest('desktop:clipboard:read-text').then(body => body && body.text || '');
+        },
+        writeText(text) {
+            return parentRequest('desktop:clipboard:write-text', { text: String(text == null ? '' : text) });
         }
     };
 
@@ -457,6 +571,8 @@
         el,
         ui,
         menu: ui.menu,
+        contextMenu: ui.contextMenu,
+        clipboard: ui.clipboard,
         fs,
         widgets,
         notifications,
