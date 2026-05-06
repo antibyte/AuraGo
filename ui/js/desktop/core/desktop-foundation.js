@@ -38,6 +38,9 @@
     const LONG_PRESS_MS = 600;
     const LONG_PRESS_FEEDBACK_MS = 300;
     const LONG_PRESS_MOVE_TOLERANCE = 10;
+    const WIDGET_MIN_HEIGHT = 56;
+    const WIDGET_MIN_FRAME_HEIGHT = 80;
+    const WIDGET_MAX_BOTTOM_GAP = 18;
 
     const els = {};
     const directoryIconKeys = {
@@ -825,27 +828,17 @@
         const cards = [];
         widgets.forEach((widget, index) => {
             const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
-            const hasExplicitSize = (Number(widget.w || widget.W || 0) > 16) && (Number(widget.h || widget.H || 0) > 16);
+            const autoSize = widgetShouldAutoSize(widget);
             const bounds = widgetBounds(widget, index);
-            let sizeClass = '';
-            let heightStyle = '';
-            if (hasExplicitSize) {
-                heightStyle = `height:${bounds.h}px;`;
-            } else if (isBuiltinType) {
-                if (widget.id === 'builtin-quickchat') {
-                    sizeClass = ' vd-widget-auto vd-widget-quickchat';
-                } else {
-                    sizeClass = ' vd-widget-auto';
-                }
-            } else {
-                sizeClass = ' vd-widget-auto';
-            }
+            let sizeClass = autoSize ? ' vd-widget-auto' : '';
+            if (widget.id === 'builtin-quickchat') sizeClass += ' vd-widget-quickchat';
+            const autoSizeAttr = autoSize ? ' data-widget-auto-size="true"' : '';
             const widgetBody = isBuiltinType
                 ? `<div class="vd-widget-builtin" data-builtin-type="${esc(widget.id)}"></div>`
                 : widget.entry
                     ? `<div class="vd-widget-frame-wrap"></div>`
                     : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
-            cards.push(`<article class="vd-widget${sizeClass}" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" title="${esc(widget.title || widget.id)}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;${heightStyle}">
+            cards.push(`<article class="vd-widget${sizeClass}" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}"${autoSizeAttr} title="${esc(widget.title || widget.id)}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;">
                 ${widgetBody}
             </article>`);
         });
@@ -862,3 +855,4 @@
             }
             card.addEventListener('contextmenu', event => showWidgetContextMenu(event, widget));
             wireLongPress(card, event => showWidgetContextMenu(event, widget));
+            scheduleWidgetAutoSize(card, widget);

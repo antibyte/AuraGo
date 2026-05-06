@@ -79,7 +79,7 @@
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
         const client = findSDKClient(event.source);
-        if (!client || !client.app) return;
+        if (!client || (!client.app && msg.action !== 'desktop:widget:resize')) return;
         try {
             const result = await runSDKAction(client, msg.action, msg.payload || {});
             sendSDKResponse(event.source, msg.id, true, result);
@@ -99,6 +99,10 @@
                     icon_manifest: state.iconManifest,
                     icon_theme_manifests: state.iconThemeManifests
                 };
+            case 'desktop:widget:resize':
+                if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
+                resizeWidgetToContent(client.widgetId, payload || {});
+                return { status: 'ok' };
             case 'desktop:menu:set':
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));

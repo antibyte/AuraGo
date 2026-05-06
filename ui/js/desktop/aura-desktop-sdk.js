@@ -20,6 +20,9 @@
     let menuActionSeq = 0;
     let contextMenuActionSeq = 0;
     let contextMenuDisposer = null;
+    let widgetAutoResizeStarted = false;
+    let widgetAutoResizeFrame = 0;
+    let widgetAutoResizeObserver = null;
 
     function parentRequest(action, payload) {
         const id = 'sdk-' + Date.now() + '-' + (++requestSeq);
@@ -89,6 +92,67 @@
     function context() {
         if (!contextPromise) contextPromise = parentRequest('desktop:context');
         return contextPromise;
+    }
+
+    function widgetIdFromLocation() {
+        try {
+            return new URLSearchParams(window.location.search).get('widget_id') || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function measureWidgetContentSize() {
+        const doc = document.documentElement;
+        const body = document.body;
+        return {
+            width: Math.ceil(Math.max(
+                doc ? doc.scrollWidth : 0,
+                doc ? doc.offsetWidth : 0,
+                body ? body.scrollWidth : 0,
+                body ? body.offsetWidth : 0
+            )),
+            height: Math.ceil(Math.max(
+                doc ? doc.scrollHeight : 0,
+                doc ? doc.offsetHeight : 0,
+                body ? body.scrollHeight : 0,
+                body ? body.offsetHeight : 0
+            ))
+        };
+    }
+
+    function normalizeWidgetResizePayload(options) {
+        const measured = measureWidgetContentSize();
+        const data = options && typeof options === 'object' ? options : measured;
+        return {
+            width: Math.ceil(Number(data.width || data.w || measured.width || 0)),
+            height: Math.ceil(Number(data.height || data.h || measured.height || 0))
+        };
+    }
+
+    function queueWidgetAutoResize() {
+        if (!widgetAutoResizeStarted) return;
+        if (widgetAutoResizeFrame) window.cancelAnimationFrame(widgetAutoResizeFrame);
+        widgetAutoResizeFrame = window.requestAnimationFrame(() => {
+            widgetAutoResizeFrame = 0;
+            widgets.resize(measureWidgetContentSize()).catch(() => {});
+        });
+    }
+
+    function startWidgetAutoResize() {
+        if (widgetAutoResizeStarted || !widgetIdFromLocation()) return;
+        widgetAutoResizeStarted = true;
+        queueWidgetAutoResize();
+        if (window.ResizeObserver) {
+            widgetAutoResizeObserver = new ResizeObserver(queueWidgetAutoResize);
+            if (document.documentElement) widgetAutoResizeObserver.observe(document.documentElement);
+            if (document.body) widgetAutoResizeObserver.observe(document.body);
+        }
+        window.addEventListener('load', queueWidgetAutoResize, { once: true });
+        window.addEventListener('resize', queueWidgetAutoResize);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(queueWidgetAutoResize).catch(() => {});
+        }
     }
 
     function append(parent, child) {
@@ -529,6 +593,7 @@
 
     const widgets = {};
     widgets.register = definition => parentRequest('widget:upsert', definition || {});
+    widgets.resize = options => parentRequest('desktop:widget:resize', normalizeWidgetResizePayload(options));
 
     const notifications = {};
     notifications.show = options => parentRequest('notification:show', options || {});
@@ -585,4 +650,9 @@
             load: loadIcons
         }
     };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startWidgetAutoResize, { once: true });
+    } else {
+        startWidgetAutoResize();
+    }
 })();
