@@ -425,7 +425,9 @@
         overlay.innerHTML = `<div class="vd-widget-manager" role="dialog" aria-modal="true">
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.widget_manager'))}</div>
-                <button type="button" class="vd-wm-close" data-close>&times;</button>
+                <div class="vd-window-actions">
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}">x</button>
+                </div>
             </div>
             <div class="vd-wm-cards">${renderCards()}</div>
         </div>`;
@@ -462,6 +464,7 @@
 
         function close() { overlay.remove(); }
         overlay.querySelector('[data-close]').addEventListener('click', close);
+        overlay.querySelector('.vd-window-actions').addEventListener('click', event => event.stopPropagation());
         overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
         wireButtons();
     }

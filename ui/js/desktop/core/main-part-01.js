@@ -825,13 +825,16 @@
         const cards = [];
         widgets.forEach((widget, index) => {
             const isBuiltinType = widget.type === 'builtin' || widget.runtime === 'builtin';
+            const hasExplicitSize = (Number(widget.w || widget.W || 0) > 16) && (Number(widget.h || widget.H || 0) > 16);
             const bounds = widgetBounds(widget, index);
+            const autoClass = !hasExplicitSize && !isBuiltinType ? ' vd-widget-auto' : '';
+            const heightStyle = hasExplicitSize || isBuiltinType ? `height:${bounds.h}px;` : '';
             const widgetBody = isBuiltinType
                 ? `<div class="vd-widget-builtin" data-builtin-type="${esc(widget.id)}"></div>`
                 : widget.entry
                     ? `<div class="vd-widget-frame-wrap"></div>`
                     : `<div class="vd-widget-body">${esc(widget.type || widget.app_id || t('desktop.widget_custom'))}</div>`;
-            cards.push(`<article class="vd-widget" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" title="${esc(widget.title || widget.id)}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;height:${bounds.h}px">
+            cards.push(`<article class="vd-widget${autoClass}" data-widget-id="${esc(widget.id)}" data-app-id="${esc(widget.app_id || '')}" title="${esc(widget.title || widget.id)}" style="left:${bounds.x}px;top:${bounds.y}px;width:${bounds.w}px;${heightStyle}">
                 ${widgetBody}
             </article>`);
         });

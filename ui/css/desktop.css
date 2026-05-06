@@ -241,7 +241,8 @@
     transition: opacity 120ms ease;
 }
 
-.desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-button::after {
+.desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-button::after,
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button::after {
     opacity: 0.54;
 }
 
@@ -1162,14 +1163,28 @@
 
 .vd-widget {
     position: absolute;
-    min-height: 92px;
-    padding: 14px;
+    min-height: 56px;
+    padding: 10px;
     border-radius: 8px;
     border: 1px solid var(--vd-border);
     background: rgba(12, 17, 24, 0.58);
     backdrop-filter: blur(20px);
     pointer-events: auto;
     overflow: hidden;
+    transition: height 200ms ease;
+}
+
+.vd-widget.vd-widget-auto {
+    height: auto;
+}
+
+.vd-widget.vd-widget-auto .vd-widget-frame-wrap {
+    height: auto;
+    min-height: 80px;
+}
+
+.vd-widget.vd-widget-auto .vd-widget-body {
+    min-height: 24px;
 }
 
 .vd-widget-head {
@@ -1212,8 +1227,8 @@
 }
 
 .vd-widget-frame-wrap {
-    height: 118px;
-    margin-top: 10px;
+    min-height: 80px;
+    margin-top: 6px;
     overflow: hidden;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1248,6 +1263,15 @@
     width: 100%;
     height: 100%;
     gap: 6px;
+}
+
+.vd-quickchat.vd-quickchat-collapsed {
+    height: auto;
+    min-height: 0;
+}
+
+.vd-quickchat-collapsed .vd-quickchat-response {
+    display: none;
 }
 
 .vd-quickchat-response {
@@ -1327,30 +1351,12 @@
     justify-content: space-between;
     padding: 14px 18px;
     border-bottom: 1px solid var(--vd-border);
+    position: relative;
 }
 
 .vd-wm-title {
     font-weight: 900;
     font-size: 0.92rem;
-}
-
-.vd-wm-close {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--vd-border);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--vd-muted);
-    font-size: 1.1rem;
-    cursor: pointer;
-}
-
-.vd-wm-close:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--vd-text);
 }
 
 .vd-wm-cards {

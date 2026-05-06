@@ -62,7 +62,7 @@
     }
 
     function renderQuickChatWidget(container) {
-        container.innerHTML = `<div class="vd-quickchat">
+        container.innerHTML = `<div class="vd-quickchat vd-quickchat-collapsed">
             <div class="vd-quickchat-response"></div>
             <form class="vd-quickchat-form">
                 <input class="vd-quickchat-input" autocomplete="off" placeholder="${esc(t('desktop.chat_placeholder'))}">
@@ -71,6 +71,7 @@
         </div>`;
         const input = container.querySelector('.vd-quickchat-input');
         const responseEl = container.querySelector('.vd-quickchat-response');
+        const wrapper = container.querySelector('.vd-quickchat');
         container.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
             if (state.chatBusy) return;
@@ -80,6 +81,7 @@
             state.chatBusy = true;
             responseEl.textContent = t('desktop.thinking');
             responseEl.classList.add('vd-quickchat-active');
+            wrapper.classList.remove('vd-quickchat-collapsed');
             try {
                 await sendQuickChatStream(responseEl, message);
             } catch (err) {
