@@ -387,11 +387,12 @@
 .desktop-body[data-theme="fruity"] .vd-taskbar-apps {
     position: relative;
     flex: 0 1 auto;
-    max-width: min(920px, calc(100vw - 170px));
+    width: fit-content;
+    max-width: calc(100vw - 170px);
     min-height: 78px;
     align-items: end;
     justify-content: center;
-    gap: 10px;
+    gap: 7px;
     padding: 15px 17px 13px;
     border: 1px solid rgba(255, 255, 255, 0.36);
     border-radius: 26px;
@@ -405,8 +406,7 @@
         inset 0 0 0 1px rgba(255, 255, 255, 0.22);
     backdrop-filter: blur(40px) saturate(1.42) contrast(1.04);
     -webkit-backdrop-filter: blur(40px) saturate(1.42) contrast(1.04);
-    overflow: auto hidden;
-    scrollbar-width: none;
+    overflow: visible;
     transition:
         max-width 520ms cubic-bezier(0.2, 1, 0.22, 1),
         min-height 520ms cubic-bezier(0.2, 1, 0.22, 1),
@@ -436,8 +436,65 @@
     z-index: 1;
 }
 
-.desktop-body[data-theme="fruity"] .vd-taskbar-apps::-webkit-scrollbar {
+.desktop-body[data-theme="fruity"] .vd-dock-scroll {
+    min-width: 0;
+    max-width: 100%;
+    overflow: auto hidden;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-scroll::-webkit-scrollbar {
     display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-track {
+    width: max-content;
+    min-width: 100%;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 2px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-track {
+    justify-content: flex-start;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-scroll-button {
+    width: 34px;
+    height: 42px;
+    display: none;
+    place-items: center;
+    flex: 0 0 34px;
+    align-self: center;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.34);
+    color: var(--vd-text);
+    box-shadow:
+        0 12px 24px rgba(52, 64, 84, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    cursor: pointer;
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+
+.desktop-body[data-theme="fruity"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-scroll-button {
+    display: grid;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-scroll-button:disabled {
+    opacity: 0.34;
+    cursor: default;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-scroll-icon {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 0.96rem;
+    font-weight: 900;
 }
 
 .desktop-body[data-theme="fruity"] .vd-dock-button {
@@ -626,6 +683,14 @@
     opacity: 0;
     pointer-events: none;
     transform: translateY(26px) scale(0.16);
+}
+
+.desktop-body[data-theme="fruity"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within) .vd-dock-scroll,
+.desktop-body[data-theme="fruity"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within) .vd-dock-scroll-button {
+    width: 0;
+    flex-basis: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .desktop-body[data-theme="fruity"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within) .vd-dock-orb {

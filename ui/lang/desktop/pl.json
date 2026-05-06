@@ -4,6 +4,8 @@
     "desktop.subtitle": "Wirtualny pulpit",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Przewiń dock w lewo",
+    "desktop.dock_scroll_right": "Przewiń dock w prawo",
     "desktop.disabled_title": "Wirtualny pulpit jest wyłączony",
     "desktop.disabled_copy": "Włącz go w konfiguracji, aby używać obszaru roboczego pulpitu w przeglądarce.",
     "desktop.open_config": "Otwórz konfigurację",

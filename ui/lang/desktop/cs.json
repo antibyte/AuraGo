@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtuální plocha",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Posunout dok doleva",
+    "desktop.dock_scroll_right": "Posunout dok doprava",
     "desktop.disabled_title": "Virtuální plocha je vypnutá",
     "desktop.disabled_copy": "Zapněte ji v konfiguraci, abyste mohli používat pracovní prostor v prohlížeči.",
     "desktop.open_config": "Otevřít konfiguraci",

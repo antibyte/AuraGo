@@ -391,6 +391,11 @@
         }
         document.body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
+        host.classList.remove('vd-dock-overflowing', 'vd-dock-at-start', 'vd-dock-at-end');
+        if (host._fruityDockResizeObserver) {
+            host._fruityDockResizeObserver.disconnect();
+            host._fruityDockResizeObserver = null;
+        }
         renderStandardTaskbar();
     }
 
@@ -418,7 +423,16 @@
         }).join('');
         host.innerHTML = `<button type="button" class="vd-dock-orb" data-fruity-dock-orb title="${esc(t('desktop.start_menu'))}">
             ${iconMarkup('home', 'A', 'vd-dock-orb-icon', 34)}
-        </button>${dockApps}`;
+        </button>
+        <button type="button" class="vd-dock-scroll-button vd-dock-scroll-button-left" data-fruity-dock-scroll-button="left" aria-label="${esc(t('desktop.dock_scroll_left'))}">
+            ${iconMarkup('arrow-left', '<', 'vd-dock-scroll-icon', 18)}
+        </button>
+        <div class="vd-dock-scroll" data-fruity-dock-scroll-region>
+            <div class="vd-dock-track" data-fruity-dock-track>${dockApps}</div>
+        </div>
+        <button type="button" class="vd-dock-scroll-button vd-dock-scroll-button-right" data-fruity-dock-scroll-button="right" aria-label="${esc(t('desktop.dock_scroll_right'))}">
+            ${iconMarkup('arrow-right', '>', 'vd-dock-scroll-icon', 18)}
+        </button>`;
         const orb = host.querySelector('[data-fruity-dock-orb]');
         if (orb) {
             orb.addEventListener('click', event => {
@@ -434,6 +448,53 @@
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
             wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
+        });
+        wireFruityDockScroll(host);
+    }
+
+    function wireFruityDockScroll(host) {
+        const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]');
+        const track = host && host.querySelector('[data-fruity-dock-track]');
+        if (!host || !scroller || !track) return;
+        const queueUpdate = () => {
+            const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+            if (host._fruityDockScrollFrame) return;
+            host._fruityDockScrollFrame = schedule(() => {
+                host._fruityDockScrollFrame = 0;
+                updateFruityDockScrollControls(host);
+            });
+        };
+        host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const direction = button.dataset.fruityDockScrollButton === 'left' ? -1 : 1;
+                const distance = Math.max(180, Math.floor(scroller.clientWidth * 0.72));
+                scroller.scrollBy({ left: direction * distance, behavior: 'smooth' });
+            });
+        });
+        scroller.addEventListener('scroll', queueUpdate, { passive: true });
+        if (host._fruityDockResizeObserver) host._fruityDockResizeObserver.disconnect();
+        if (window.ResizeObserver) {
+            host._fruityDockResizeObserver = new ResizeObserver(queueUpdate);
+            host._fruityDockResizeObserver.observe(scroller);
+            host._fruityDockResizeObserver.observe(track);
+        }
+        queueUpdate();
+    }
+
+    function updateFruityDockScrollControls(host) {
+        const scroller = host && host.querySelector('[data-fruity-dock-scroll-region]');
+        if (!host || !scroller) return;
+        const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+        const overflowing = maxScroll > 2;
+        const atStart = !overflowing || scroller.scrollLeft <= 2;
+        const atEnd = !overflowing || scroller.scrollLeft >= maxScroll - 2;
+        host.classList.toggle('vd-dock-overflowing', overflowing);
+        host.classList.toggle('vd-dock-at-start', atStart);
+        host.classList.toggle('vd-dock-at-end', atEnd);
+        host.querySelectorAll('[data-fruity-dock-scroll-button]').forEach(button => {
+            const left = button.dataset.fruityDockScrollButton === 'left';
+            button.disabled = !overflowing || (left ? atStart : atEnd);
         });
     }
 

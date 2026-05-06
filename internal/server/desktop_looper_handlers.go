@@ -240,8 +240,10 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		}
 
 		statusCh := make(chan desktop.LooperRunState, 16)
+		loopCtx, loopCancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer loopCancel()
 		go func() {
-			_ = runner.Execute(context.Background(), desktop.LooperRunConfig{
+			_ = runner.Execute(loopCtx, desktop.LooperRunConfig{
 				Prepare:    req.Prepare,
 				Plan:       req.Plan,
 				Action:     req.Action,
@@ -313,6 +315,7 @@ func handleLooperStatus(s *Server) http.HandlerFunc {
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 		lastJSON := string(data)
+		idleTicks := 0
 		for {
 			select {
 			case <-r.Context().Done():
@@ -326,7 +329,10 @@ func handleLooperStatus(s *Server) http.HandlerFunc {
 					flusher.Flush()
 				}
 				if !state.Running && state.CurrentStep == "idle" {
-					return
+					idleTicks++
+					if idleTicks >= 3 {
+						return
+					}
 				}
 			}
 		}

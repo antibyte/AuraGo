@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
@@ -65,22 +66,23 @@ func (r *LooperRunner) Execute(
 	r.holder.SetCancelFn(cancel)
 	r.holder.SetRunning(cfg.MaxIter)
 
-	defer func() {
-		r.holder.SetIdle()
-		if statusCh != nil {
-			close(statusCh)
-		}
-	}()
-
 	broadcast := func() {
 		if statusCh == nil {
 			return
 		}
 		select {
 		case statusCh <- r.holder.State():
-		case <-ctx.Done():
+		default:
 		}
 	}
+
+	defer func() {
+		r.holder.SetIdle()
+		broadcast()
+		if statusCh != nil {
+			close(statusCh)
+		}
+	}()
 
 	model := cfg.Model
 	if model == "" {
@@ -90,10 +92,26 @@ func (r *LooperRunner) Execute(
 	sysPrompt := agent.MinimalSystemPromptBuilder(nil)
 	var history []openai.ChatCompletionMessage
 
+	// stepExec runs one minimal-loop step with a per-step timeout and logging.
+	// It mutates the outer history slice directly.
+	stepExec := func(stepName, prompt string, system string) (agent.MinimalLoopResult, error) {
+		stepCtx, stepCancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer stepCancel()
+		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration)
+		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, tools, dispatchCtx, history, r.logger)
+		if err != nil {
+			r.logger.Error("[Looper] step failed", "step", stepName, "error", err)
+			return res, err
+		}
+		history = h
+		r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
+		return res, nil
+	}
+
 	// PREPARE
 	r.holder.SetStep("prepare")
 	broadcast()
-	prepRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, sysPrompt, cfg.Prepare, tools, dispatchCtx, history, r.logger)
+	prepRes, err := stepExec("prepare", cfg.Prepare, sysPrompt)
 	if err != nil {
 		return r.setErrorAndReturn(err)
 	}
@@ -113,7 +131,7 @@ func (r *LooperRunner) Execute(
 		// PLAN
 		r.holder.SetStep("plan")
 		broadcast()
-		planRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Plan, tools, dispatchCtx, history, r.logger)
+		planRes, err := stepExec("plan", cfg.Plan, "")
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -123,7 +141,7 @@ func (r *LooperRunner) Execute(
 		// ACTION
 		r.holder.SetStep("action")
 		broadcast()
-		actionRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Action, tools, dispatchCtx, history, r.logger)
+		actionRes, err := stepExec("action", cfg.Action, "")
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -133,7 +151,7 @@ func (r *LooperRunner) Execute(
 		// TEST
 		r.holder.SetStep("test")
 		broadcast()
-		testRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Test, tools, dispatchCtx, history, r.logger)
+		testRes, err := stepExec("test", cfg.Test, "")
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -144,7 +162,7 @@ func (r *LooperRunner) Execute(
 		// EXIT CONDITION
 		r.holder.SetStep("exit")
 		broadcast()
-		exitRes, history, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.ExitCond, tools, dispatchCtx, history, r.logger)
+		exitRes, err := stepExec("exit", cfg.ExitCond, "")
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -160,7 +178,7 @@ func (r *LooperRunner) Execute(
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
 		broadcast()
-		finishRes, _, err := agent.ExecuteMinimalLoop(ctx, client, model, "", cfg.Finish, tools, dispatchCtx, history, r.logger)
+		finishRes, err := stepExec("finish", cfg.Finish, "")
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}

@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtueel bureaublad",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Dock naar links scrollen",
+    "desktop.dock_scroll_right": "Dock naar rechts scrollen",
     "desktop.disabled_title": "Virtueel bureaublad is uitgeschakeld",
     "desktop.disabled_copy": "Schakel het in de configuratie in om de browserwerkruimte te gebruiken.",
     "desktop.open_config": "Configuratie openen",

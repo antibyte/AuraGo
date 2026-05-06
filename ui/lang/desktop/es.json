@@ -4,6 +4,8 @@
     "desktop.subtitle": "Escritorio virtual",
     "desktop.start_menu": "Inicio",
     "desktop.agent_chat": "Agente",
+    "desktop.dock_scroll_left": "Desplazar dock a la izquierda",
+    "desktop.dock_scroll_right": "Desplazar dock a la derecha",
     "desktop.disabled_title": "El escritorio virtual está desactivado",
     "desktop.disabled_copy": "Actívalo en la configuración para usar el espacio de trabajo del escritorio en el navegador.",
     "desktop.open_config": "Abrir configuración",

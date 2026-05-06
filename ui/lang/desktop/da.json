@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtuelt skrivebord",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Rul dock til venstre",
+    "desktop.dock_scroll_right": "Rul dock til højre",
     "desktop.disabled_title": "Virtuelt skrivebord er slået fra",
     "desktop.disabled_copy": "Slå det til i konfigurationen for at bruge browserens skrivebordsarbejdsområde.",
     "desktop.open_config": "Åbn konfiguration",

@@ -4,6 +4,8 @@
     "desktop.subtitle": "虚拟桌面",
     "desktop.start_menu": "开始",
     "desktop.agent_chat": "智能体",
+    "desktop.dock_scroll_left": "向左滚动程序坞",
+    "desktop.dock_scroll_right": "向右滚动程序坞",
     "desktop.disabled_title": "虚拟桌面已禁用",
     "desktop.disabled_copy": "请在配置中启用它，以使用浏览器桌面工作区。",
     "desktop.open_config": "打开配置",

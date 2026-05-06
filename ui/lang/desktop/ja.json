@@ -4,6 +4,8 @@
     "desktop.subtitle": "仮想デスクトップ",
     "desktop.start_menu": "スタート",
     "desktop.agent_chat": "エージェント",
+    "desktop.dock_scroll_left": "ドックを左へスクロール",
+    "desktop.dock_scroll_right": "ドックを右へスクロール",
     "desktop.disabled_title": "仮想デスクトップは無効です",
     "desktop.disabled_copy": "ブラウザー上のデスクトップ作業領域を使うには設定で有効にしてください。",
     "desktop.open_config": "設定を開く",

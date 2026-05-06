@@ -4,6 +4,8 @@
     "desktop.subtitle": "Bureau virtuel",
     "desktop.start_menu": "Démarrer",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Faire défiler le dock vers la gauche",
+    "desktop.dock_scroll_right": "Faire défiler le dock vers la droite",
     "desktop.disabled_title": "Le bureau virtuel est désactivé",
     "desktop.disabled_copy": "Activez-le dans la configuration pour utiliser l'espace de travail du bureau dans le navigateur.",
     "desktop.open_config": "Ouvrir la configuration",

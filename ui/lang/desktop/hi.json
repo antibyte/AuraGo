@@ -4,6 +4,8 @@
     "desktop.subtitle": "वर्चुअल डेस्कटॉप",
     "desktop.start_menu": "स्टार्ट",
     "desktop.agent_chat": "एजेंट",
+    "desktop.dock_scroll_left": "डॉक को बाईं ओर स्क्रोल करें",
+    "desktop.dock_scroll_right": "डॉक को दाईं ओर स्क्रोल करें",
     "desktop.disabled_title": "वर्चुअल डेस्कटॉप बंद है",
     "desktop.disabled_copy": "ब्राउज़र डेस्कटॉप कार्यक्षेत्र उपयोग करने के लिए इसे कॉन्फ़िगरेशन में चालू करें।",
     "desktop.open_config": "कॉन्फ़िगरेशन खोलें",

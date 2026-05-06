@@ -4,6 +4,8 @@
     "desktop.subtitle": "Desktop virtual",
     "desktop.start_menu": "Iniciar",
     "desktop.agent_chat": "Agente",
+    "desktop.dock_scroll_left": "Rolar dock para a esquerda",
+    "desktop.dock_scroll_right": "Rolar dock para a direita",
     "desktop.disabled_title": "O desktop virtual está desativado",
     "desktop.disabled_copy": "Ative-o na configuração para usar o espaço de trabalho do desktop no navegador.",
     "desktop.open_config": "Abrir configuração",

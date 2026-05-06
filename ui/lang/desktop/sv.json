@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtuellt skrivbord",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Rulla dockan åt vänster",
+    "desktop.dock_scroll_right": "Rulla dockan åt höger",
     "desktop.disabled_title": "Virtuellt skrivbord är avstängt",
     "desktop.disabled_copy": "Aktivera det i konfigurationen för att använda skrivbordets arbetsyta i webbläsaren.",
     "desktop.open_config": "Öppna konfiguration",

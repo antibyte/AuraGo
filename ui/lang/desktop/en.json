@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtual desktop",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Scroll dock left",
+    "desktop.dock_scroll_right": "Scroll dock right",
     "desktop.disabled_title": "Virtual Desktop is disabled",
     "desktop.disabled_copy": "Enable it in configuration to use the browser desktop workspace.",
     "desktop.open_config": "Open configuration",

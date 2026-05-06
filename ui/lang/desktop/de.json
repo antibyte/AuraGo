@@ -4,6 +4,8 @@
     "desktop.subtitle": "Virtueller Desktop",
     "desktop.start_menu": "Start",
     "desktop.agent_chat": "Agent",
+    "desktop.dock_scroll_left": "Dock nach links scrollen",
+    "desktop.dock_scroll_right": "Dock nach rechts scrollen",
     "desktop.disabled_title": "Virtueller Desktop ist deaktiviert",
     "desktop.disabled_copy": "Aktiviere ihn in der Konfiguration, um den Browser-Desktop-Arbeitsbereich zu nutzen.",
     "desktop.open_config": "Konfiguration öffnen",
