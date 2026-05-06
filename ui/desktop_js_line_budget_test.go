@@ -41,3 +41,28 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestVirtualDesktopJSUsesSemanticChunkNames(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("js", "desktop")
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := entry.Name()
+		if strings.Contains(name, "-part-") || strings.HasPrefix(name, "part-") {
+			t.Errorf("%s uses a mechanical chunk name", filepath.ToSlash(path))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
