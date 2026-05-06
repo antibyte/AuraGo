@@ -15,6 +15,8 @@ import (
 	"aurago/ui"
 )
 
+const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com"
+
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {
 	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
@@ -493,7 +495,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'")
+		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
 		desktopFileHandler.ServeHTTP(w, r)
 	})
 

@@ -52,9 +52,8 @@ func TestSecurityHeadersSetStrictTransportSecurityForHTTPS(t *testing.T) {
 }
 
 func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
-	const desktopCSP = "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'"
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", desktopCSP)
+		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
 		w.WriteHeader(http.StatusNoContent)
 	}), true, false)
 
@@ -65,7 +64,18 @@ func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	if got := rec.Header().Get("X-Frame-Options"); got != "" {
 		t.Fatalf("X-Frame-Options = %q, want empty for desktop iframe files", got)
 	}
-	if got := rec.Header().Get("Content-Security-Policy"); got != desktopCSP {
+	if got := rec.Header().Get("Content-Security-Policy"); got != desktopWorkspaceCSP {
 		t.Fatalf("Content-Security-Policy = %q, want desktop CSP", got)
+	}
+}
+
+func TestDesktopWorkspaceCSPAllowsWeatherWidgets(t *testing.T) {
+	if !strings.Contains(desktopWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com") {
+		t.Fatalf("desktop workspace CSP does not allow Open-Meteo weather widgets: %s", desktopWorkspaceCSP)
+	}
+	for _, field := range strings.Fields(strings.ReplaceAll(desktopWorkspaceCSP, ";", " ")) {
+		if field == "https:" {
+			t.Fatalf("desktop workspace CSP must not allow arbitrary HTTPS fetches: %s", desktopWorkspaceCSP)
+		}
 	}
 }

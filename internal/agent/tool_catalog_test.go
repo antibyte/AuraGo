@@ -378,6 +378,10 @@ func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
 		"`backup`",
 		"`camera`",
 		"`workflow`",
+		"https://api.open-meteo.com",
+		"connect-src",
+		"window.top",
+		"window.parent",
 		"Fruity",
 		"WhiteSur",
 	} {
