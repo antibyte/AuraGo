@@ -461,6 +461,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/settings", handleDesktopSettings(s))
 	mux.HandleFunc("/api/desktop/embed-token", handleDesktopEmbedToken(s))
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
+	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
 	mux.HandleFunc("/api/desktop/ssh", desktop.HandleSSHProxy(s.InventoryDB, s.Vault, s.Logger))
 	registerCodeStudioRoutes(mux, s)

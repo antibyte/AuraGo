@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Åpne spiller igjen",
     "desktop.menu_load_folder": "Last mappe",
     "desktop.menu_undo": "Angre",
-    "desktop.menu_redo": "Gjør om"
+    "desktop.menu_redo": "Gjør om",
+    "desktop.chat_thinking": "Tenker...",
+    "desktop.chat_using_tool": "Bruker verktøy",
+    "desktop.chat_open_in": "Åpne i",
+    "desktop.chat_document": "Dokument"
 }

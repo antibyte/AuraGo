@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "प्लेयर फिर खोलें",
     "desktop.menu_load_folder": "फ़ोल्डर लोड करें",
     "desktop.menu_undo": "पूर्ववत",
-    "desktop.menu_redo": "फिर करें"
+    "desktop.menu_redo": "फिर करें",
+    "desktop.chat_thinking": "विचार कर रहा है...",
+    "desktop.chat_using_tool": "टूल का उपयोग",
+    "desktop.chat_open_in": "में खोलें",
+    "desktop.chat_document": "दस्तावेज़"
 }

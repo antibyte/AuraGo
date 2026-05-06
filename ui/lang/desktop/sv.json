@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Öppna spelaren igen",
     "desktop.menu_load_folder": "Ladda mapp",
     "desktop.menu_undo": "Ångra",
-    "desktop.menu_redo": "Gör om"
+    "desktop.menu_redo": "Gör om",
+    "desktop.chat_thinking": "Resonemang...",
+    "desktop.chat_using_tool": "Använder verktyg",
+    "desktop.chat_open_in": "Öppna i",
+    "desktop.chat_document": "Dokument"
 }

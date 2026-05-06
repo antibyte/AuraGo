@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Rouvrir le lecteur",
     "desktop.menu_load_folder": "Charger un dossier",
     "desktop.menu_undo": "Annuler",
-    "desktop.menu_redo": "Rétablir"
+    "desktop.menu_redo": "Rétablir",
+    "desktop.chat_thinking": "Réflexion...",
+    "desktop.chat_using_tool": "Utilisation de l'outil",
+    "desktop.chat_open_in": "Ouvrir dans",
+    "desktop.chat_document": "Document"
 }

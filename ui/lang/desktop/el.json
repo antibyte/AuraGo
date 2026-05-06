@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Άνοιγμα player ξανά",
     "desktop.menu_load_folder": "Φόρτωση φακέλου",
     "desktop.menu_undo": "Αναίρεση",
-    "desktop.menu_redo": "Επανάληψη"
+    "desktop.menu_redo": "Επανάληψη",
+    "desktop.chat_thinking": "Σκέψη...",
+    "desktop.chat_using_tool": "Χρήση εργαλείου",
+    "desktop.chat_open_in": "Άνοιγμα σε",
+    "desktop.chat_document": "Έγγραφο"
 }

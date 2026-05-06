@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Znovu otevrit prehravac",
     "desktop.menu_load_folder": "Nacist slozku",
     "desktop.menu_undo": "Zpet",
-    "desktop.menu_redo": "Znovu"
+    "desktop.menu_redo": "Znovu",
+    "desktop.chat_thinking": "Uvažování...",
+    "desktop.chat_using_tool": "Použití nástroje",
+    "desktop.chat_open_in": "Otevřít v",
+    "desktop.chat_document": "Dokument"
 }

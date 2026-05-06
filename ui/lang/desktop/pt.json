@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Reabrir player",
     "desktop.menu_load_folder": "Carregar pasta",
     "desktop.menu_undo": "Desfazer",
-    "desktop.menu_redo": "Refazer"
+    "desktop.menu_redo": "Refazer",
+    "desktop.chat_thinking": "Raciocinando...",
+    "desktop.chat_using_tool": "Usando ferramenta",
+    "desktop.chat_open_in": "Abrir no",
+    "desktop.chat_document": "Documento"
 }

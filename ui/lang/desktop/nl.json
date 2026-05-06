@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Speler opnieuw openen",
     "desktop.menu_load_folder": "Map laden",
     "desktop.menu_undo": "Ongedaan maken",
-    "desktop.menu_redo": "Opnieuw"
+    "desktop.menu_redo": "Opnieuw",
+    "desktop.chat_thinking": "Nadenken...",
+    "desktop.chat_using_tool": "Hulpmiddel gebruiken",
+    "desktop.chat_open_in": "Openen in",
+    "desktop.chat_document": "Document"
 }

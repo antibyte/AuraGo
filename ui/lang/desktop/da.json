@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Abn afspiller igen",
     "desktop.menu_load_folder": "Indlaes mappe",
     "desktop.menu_undo": "Fortryd",
-    "desktop.menu_redo": "Gentag"
+    "desktop.menu_redo": "Gentag",
+    "desktop.chat_thinking": "Tænker...",
+    "desktop.chat_using_tool": "Bruger værktøj",
+    "desktop.chat_open_in": "Åbn i",
+    "desktop.chat_document": "Dokument"
 }

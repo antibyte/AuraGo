@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Player erneut öffnen",
     "desktop.menu_load_folder": "Ordner laden",
     "desktop.menu_undo": "Rückgängig",
-    "desktop.menu_redo": "Wiederholen"
+    "desktop.menu_redo": "Wiederholen",
+    "desktop.chat_thinking": "Denke nach...",
+    "desktop.chat_using_tool": "Tool wird verwendet",
+    "desktop.chat_open_in": "Öffnen in",
+    "desktop.chat_document": "Dokument"
 }

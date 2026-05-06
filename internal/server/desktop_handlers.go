@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/desktop"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"github.com/gorilla/websocket"
@@ -656,6 +657,200 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleDesktopChatStream(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var body struct {
+			Message string             `json:"message"`
+			Context desktopChatContext `json:"context"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		body.Message = strings.TrimSpace(body.Message)
+		if body.Message == "" {
+			jsonError(w, "Message is required", http.StatusBadRequest)
+			return
+		}
+
+		flusher, canFlush := w.(http.Flusher)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		if s == nil || s.Cfg == nil {
+			sseWriteData(w, "error", "server not configured")
+			return
+		}
+
+		s.CfgMu.RLock()
+		cfg := *s.Cfg
+		s.CfgMu.RUnlock()
+		sessionID := "virtual-desktop"
+		runCfg := agent.RunConfig{
+			Config:             &cfg,
+			Logger:             s.Logger,
+			LLMClient:          s.LLMClient,
+			ShortTermMem:       s.ShortTermMem,
+			HistoryManager:     s.HistoryManager,
+			LongTermMem:        s.LongTermMem,
+			KG:                 s.KG,
+			InventoryDB:        s.InventoryDB,
+			InvasionDB:         s.InvasionDB,
+			CheatsheetDB:       s.CheatsheetDB,
+			ImageGalleryDB:     s.ImageGalleryDB,
+			MediaRegistryDB:    s.MediaRegistryDB,
+			HomepageRegistryDB: s.HomepageRegistryDB,
+			ContactsDB:         s.ContactsDB,
+			PlannerDB:          s.PlannerDB,
+			SQLConnectionsDB:   s.SQLConnectionsDB,
+			SQLConnectionPool:  s.SQLConnectionPool,
+			RemoteHub:          s.RemoteHub,
+			Vault:              s.Vault,
+			Registry:           s.Registry,
+			Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
+			CronManager:        s.CronManager,
+			MissionManagerV2:   s.MissionManagerV2,
+			CoAgentRegistry:    s.CoAgentRegistry,
+			BudgetTracker:      s.BudgetTracker,
+			DaemonSupervisor:   s.DaemonSupervisor,
+			LLMGuardian:        s.LLMGuardian,
+			PreparationService: s.PreparationService,
+			SessionID:          sessionID,
+			MessageSource:      "virtual_desktop_chat",
+			VoiceOutputActive:  GetSpeakerMode(),
+		}
+		prompt := buildDesktopAgentPrompt(body.Message, body.Context)
+		broker := &desktopStreamBroker{
+			w:          w,
+			flusher:    flusher,
+			canFlush:   canFlush,
+			finalText:  "",
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+		defer cancel()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, sessionID)
+			combinedBroker := &desktopStreamCombinedBroker{
+				stream: broker,
+				sse:    sseBroker,
+			}
+			agent.Loopback(runCfg, prompt, combinedBroker)
+		}()
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
+		if broker.finalText != "" {
+			sseWriteData(w, "final_response", broker.finalText)
+		}
+		sseWriteDone(w)
+		if canFlush {
+			flusher.Flush()
+		}
+	}
+}
+
+type desktopStreamBroker struct {
+	w          http.ResponseWriter
+	flusher    http.Flusher
+	canFlush   bool
+	finalText  string
+}
+
+type desktopStreamCombinedBroker struct {
+	stream *desktopStreamBroker
+	sse    *SSEBrokerAdapter
+}
+
+func (b *desktopStreamCombinedBroker) Send(event, message string) {
+	b.sse.Send(event, message)
+	sseWriteData(b.stream.w, event, message)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+	if event == "final_response" {
+		b.stream.finalText = message
+	}
+}
+
+func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
+	b.sse.SendJSON(jsonStr)
+	fmt.Fprintf(b.stream.w, "data: %s\n\n", jsonStr)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+}
+
+func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+	b.sse.SendLLMStreamDelta(content, toolName, toolID, index, finishReason)
+	payload := LLMStreamDeltaPayload{
+		SessionID:    b.sse.sessionID,
+		Content:      content,
+		ToolName:     toolName,
+		ToolID:       toolID,
+		Index:        index,
+		FinishReason: finishReason,
+	}
+	data, _ := json.Marshal(payload)
+	fmt.Fprintf(b.stream.w, "event: llm_stream_delta\ndata: %s\n\n", data)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+}
+
+func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
+	b.sse.SendLLMStreamDone(finishReason)
+	payload := LLMStreamDonePayload{
+		SessionID:    b.sse.sessionID,
+		FinishReason: finishReason,
+	}
+	data, _ := json.Marshal(payload)
+	fmt.Fprintf(b.stream.w, "event: llm_stream_done\ndata: %s\n\n", data)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+}
+
+func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+	b.sse.SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal, isEstimated, isFinal, source)
+}
+
+func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state string) {
+	b.sse.SendThinkingBlock(provider, content, state)
+	payload := ThinkingBlockPayload{
+		SessionID: b.sse.sessionID,
+		Provider:  provider,
+		Content:   content,
+		State:     state,
+	}
+	data, _ := json.Marshal(payload)
+	fmt.Fprintf(b.stream.w, "event: thinking_block\ndata: %s\n\n", data)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+}
+
+func (b *desktopStreamCombinedBroker) Scrub(s string) string {
+	return security.Scrub(s)
+}
+
+func sseWriteData(w http.ResponseWriter, event, data string) {
+	encoded, _ := json.Marshal(map[string]string{"event": event, "detail": data})
+	fmt.Fprintf(w, "data: %s\n\n", encoded)
+}
+
+func sseWriteDone(w http.ResponseWriter) {
+	fmt.Fprint(w, "data: [DONE]\n\n")
+}
+
 type desktopChatContext struct {
 	Source          string   `json:"source"`
 	CurrentFile     string   `json:"current_file"`
@@ -791,6 +986,7 @@ func runDesktopAgentChat(s *Server, message string, chatContext desktopChatConte
 func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) string {
 	var b strings.Builder
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
+	b.WriteString("\n\nYou can open files in desktop apps using the virtual_desktop tool with operation \"open_in_app\". Available apps: writer (documents, docx, html, md, txt), sheets (spreadsheets, xlsx, csv), code-studio (code files, scripts). After creating or writing a file, proactively open it in the appropriate app so the user can see it immediately. Example: after writing a document, use open_in_app with app_id \"writer\" and path to the file.")
 	if chatContext.Source == "code-studio" {
 		b.WriteString("\n\nThe user is coding in Code Studio.")
 		b.WriteString("\nImportant: Code Studio files live inside the dedicated Code Studio container workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")

@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Reopen Player",
     "desktop.menu_load_folder": "Load Folder",
     "desktop.menu_undo": "Undo",
-    "desktop.menu_redo": "Redo"
+    "desktop.menu_redo": "Redo",
+    "desktop.chat_thinking": "Reasoning...",
+    "desktop.chat_using_tool": "Using tool",
+    "desktop.chat_open_in": "Open in",
+    "desktop.chat_document": "Document"
 }

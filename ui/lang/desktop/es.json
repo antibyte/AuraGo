@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Reabrir reproductor",
     "desktop.menu_load_folder": "Cargar carpeta",
     "desktop.menu_undo": "Deshacer",
-    "desktop.menu_redo": "Rehacer"
+    "desktop.menu_redo": "Rehacer",
+    "desktop.chat_thinking": "Razonando...",
+    "desktop.chat_using_tool": "Usando herramienta",
+    "desktop.chat_open_in": "Abrir en",
+    "desktop.chat_document": "Documento"
 }

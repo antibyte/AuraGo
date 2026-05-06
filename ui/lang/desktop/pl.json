@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Otwórz odtwarzacz ponownie",
     "desktop.menu_load_folder": "Wczytaj folder",
     "desktop.menu_undo": "Cofnij",
-    "desktop.menu_redo": "Ponów"
+    "desktop.menu_redo": "Ponów",
+    "desktop.chat_thinking": "Rozumowanie...",
+    "desktop.chat_using_tool": "Użycie narzędzia",
+    "desktop.chat_open_in": "Otwórz w",
+    "desktop.chat_document": "Dokument"
 }

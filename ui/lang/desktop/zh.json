@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "重新打开播放器",
     "desktop.menu_load_folder": "加载文件夹",
     "desktop.menu_undo": "撤销",
-    "desktop.menu_redo": "重做"
+    "desktop.menu_redo": "重做",
+    "desktop.chat_thinking": "推理中...",
+    "desktop.chat_using_tool": "使用工具",
+    "desktop.chat_open_in": "在...中打开",
+    "desktop.chat_document": "文档"
 }

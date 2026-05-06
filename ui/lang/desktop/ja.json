@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "プレーヤーを再度開く",
     "desktop.menu_load_folder": "フォルダーを読み込む",
     "desktop.menu_undo": "元に戻す",
-    "desktop.menu_redo": "やり直す"
+    "desktop.menu_redo": "やり直す",
+    "desktop.chat_thinking": "思考中...",
+    "desktop.chat_using_tool": "ツール使用中",
+    "desktop.chat_open_in": "で開く",
+    "desktop.chat_document": "ドキュメント"
 }

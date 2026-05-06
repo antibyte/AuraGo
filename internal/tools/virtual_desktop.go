@@ -151,13 +151,18 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "widget_id": widget.ID})
 		return virtualDesktopJSON("ok", "desktop widget saved", map[string]interface{}{"widget_id": widget.ID}, event)
-	case "open_app":
+	case "open_app", "open_in_app":
 		appID := virtualDesktopString(args, "app_id", "id")
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
-		event := virtualDesktopEvent("open_app", map[string]interface{}{"app_id": appID})
-		return virtualDesktopJSON("ok", "desktop app open event emitted", map[string]interface{}{"app_id": appID}, event)
+		filePath := virtualDesktopString(args, "path", "file_path")
+		payload := map[string]interface{}{"app_id": appID}
+		if filePath != "" {
+			payload["path"] = filePath
+		}
+		event := virtualDesktopEvent("open_app", payload)
+		return virtualDesktopJSON("ok", "desktop app open event emitted", payload, event)
 	case "show_notification":
 		title := virtualDesktopString(args, "title", "name")
 		message := virtualDesktopString(args, "message", "content")

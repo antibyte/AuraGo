@@ -479,5 +479,9 @@
     "desktop.menu_reopen_player": "Riapri lettore",
     "desktop.menu_load_folder": "Carica cartella",
     "desktop.menu_undo": "Annulla",
-    "desktop.menu_redo": "Ripeti"
+    "desktop.menu_redo": "Ripeti",
+    "desktop.chat_thinking": "Ragionamento...",
+    "desktop.chat_using_tool": "Uso strumento",
+    "desktop.chat_open_in": "Apri in",
+    "desktop.chat_document": "Documento"
 }
