@@ -748,9 +748,6 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		case <-done:
 		case <-ctx.Done():
 		}
-		if broker.finalText != "" {
-			sseWriteData(w, "final_response", broker.finalText)
-		}
 		sseWriteDone(w)
 		if canFlush {
 			flusher.Flush()
@@ -800,7 +797,7 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, tool
 		FinishReason: finishReason,
 	}
 	data, _ := json.Marshal(payload)
-	fmt.Fprintf(b.stream.w, "event: llm_stream_delta\ndata: %s\n\n", data)
+	sseWriteJSON(b.stream.w, "llm_stream_delta", data)
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
@@ -813,7 +810,7 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 		FinishReason: finishReason,
 	}
 	data, _ := json.Marshal(payload)
-	fmt.Fprintf(b.stream.w, "event: llm_stream_done\ndata: %s\n\n", data)
+	sseWriteJSON(b.stream.w, "llm_stream_done", data)
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
@@ -832,7 +829,7 @@ func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state
 		State:     state,
 	}
 	data, _ := json.Marshal(payload)
-	fmt.Fprintf(b.stream.w, "event: thinking_block\ndata: %s\n\n", data)
+	sseWriteJSON(b.stream.w, "thinking_block", data)
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
@@ -844,6 +841,20 @@ func (b *desktopStreamCombinedBroker) Scrub(s string) string {
 
 func sseWriteData(w http.ResponseWriter, event, data string) {
 	encoded, _ := json.Marshal(map[string]string{"event": event, "detail": data})
+	fmt.Fprintf(w, "data: %s\n\n", encoded)
+}
+
+func sseWriteJSON(w http.ResponseWriter, event string, jsonPayload []byte) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(jsonPayload, &raw); err == nil {
+		evt, _ := json.Marshal(event)
+		raw["event"] = evt
+		if enriched, err := json.Marshal(raw); err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", enriched)
+			return
+		}
+	}
+	encoded, _ := json.Marshal(map[string]string{"event": event, "detail": string(jsonPayload)})
 	fmt.Fprintf(w, "data: %s\n\n", encoded)
 }
 
