@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "思考中...",
     "desktop.chat_using_tool": "ツール使用中",
     "desktop.chat_open_in": "で開く",
-    "desktop.chat_document": "ドキュメント"
+    "desktop.chat_document": "ドキュメント",
+    "desktop.widget_manager": "ウィジェット管理",
+    "desktop.widget_add_to_desktop": "デスクトップに追加",
+    "desktop.widget_remove_from_desktop": "デスクトップから削除",
+    "desktop.widget_delete_permanent": "完全に削除",
+    "desktop.widget_on_desktop": "デスクトップ上",
+    "desktop.widget_available": "利用可能",
+    "desktop.widget_builtin": "内蔵",
+    "desktop.widget_analog_clock": "アナログ時計",
+    "desktop.widget_quickchat": "クイックチャット",
+    "desktop.widget_confirm_delete": "このウィジェットを完全に削除しますか？",
+    "desktop.widget_confirm_delete_msg": "この操作は元に戻せません。ウィジェット：{{name}}"
 }

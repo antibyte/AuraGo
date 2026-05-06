@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Réflexion...",
     "desktop.chat_using_tool": "Utilisation de l'outil",
     "desktop.chat_open_in": "Ouvrir dans",
-    "desktop.chat_document": "Document"
+    "desktop.chat_document": "Document",
+    "desktop.widget_manager": "Gestionnaire de widgets",
+    "desktop.widget_add_to_desktop": "Ajouter au bureau",
+    "desktop.widget_remove_from_desktop": "Retirer du bureau",
+    "desktop.widget_delete_permanent": "Supprimer définitivement",
+    "desktop.widget_on_desktop": "Sur le bureau",
+    "desktop.widget_available": "Disponibles",
+    "desktop.widget_builtin": "Intégré",
+    "desktop.widget_analog_clock": "Horloge analogique",
+    "desktop.widget_quickchat": "Chat rapide",
+    "desktop.widget_confirm_delete": "Supprimer ce widget définitivement ?",
+    "desktop.widget_confirm_delete_msg": "Cette action est irréversible. Widget : {{name}}"
 }

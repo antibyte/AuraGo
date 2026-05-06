@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "विचार कर रहा है...",
     "desktop.chat_using_tool": "टूल का उपयोग",
     "desktop.chat_open_in": "में खोलें",
-    "desktop.chat_document": "दस्तावेज़"
+    "desktop.chat_document": "दस्तावेज़",
+    "desktop.widget_manager": "विजेट प्रबंधक",
+    "desktop.widget_add_to_desktop": "डेस्कटॉप में जोड़ें",
+    "desktop.widget_remove_from_desktop": "डेस्कटॉप से हटाएं",
+    "desktop.widget_delete_permanent": "स्थायी रूप से हटाएं",
+    "desktop.widget_on_desktop": "डेस्कटॉप पर",
+    "desktop.widget_available": "उपलब्ध",
+    "desktop.widget_builtin": "बuilt-in",
+    "desktop.widget_analog_clock": "एनालॉग घड़ी",
+    "desktop.widget_quickchat": "त्वरित चैट",
+    "desktop.widget_confirm_delete": "इस विजेट को स्थायी रूप से हटाएं?",
+    "desktop.widget_confirm_delete_msg": "इसे वापस नहीं किया जा सकता। विजेट: {{name}}"
 }

@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Raciocinando...",
     "desktop.chat_using_tool": "Usando ferramenta",
     "desktop.chat_open_in": "Abrir no",
-    "desktop.chat_document": "Documento"
+    "desktop.chat_document": "Documento",
+    "desktop.widget_manager": "Gerenciador de widgets",
+    "desktop.widget_add_to_desktop": "Adicionar à área de trabalho",
+    "desktop.widget_remove_from_desktop": "Remover da área de trabalho",
+    "desktop.widget_delete_permanent": "Excluir permanentemente",
+    "desktop.widget_on_desktop": "Na área de trabalho",
+    "desktop.widget_available": "Disponíveis",
+    "desktop.widget_builtin": "Integrado",
+    "desktop.widget_analog_clock": "Relógio analógico",
+    "desktop.widget_quickchat": "Chat rápido",
+    "desktop.widget_confirm_delete": "Excluir este widget permanentemente?",
+    "desktop.widget_confirm_delete_msg": "Isso não pode ser desfeito. Widget: {{name}}"
 }

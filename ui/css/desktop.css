@@ -1228,6 +1228,245 @@
     background: transparent;
 }
 
+.vd-widget-builtin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-analog-clock-svg {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.vd-quickchat {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 6px;
+}
+
+.vd-quickchat-response {
+    flex: 1;
+    color: var(--vd-muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.vd-quickchat-response.vd-quickchat-active {
+    opacity: 1;
+    color: var(--vd-text);
+}
+
+.vd-quickchat-form {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-quickchat-input {
+    flex: 1;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.24);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.72rem;
+    min-width: 0;
+}
+
+.vd-quickchat-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(39, 199, 166, 0.15);
+    color: var(--vd-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.vd-quickchat-send-icon {
+    display: block;
+}
+
+.vd-widget-manager-backdrop {
+    z-index: 210;
+}
+
+.vd-widget-manager {
+    width: min(580px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+    overflow: hidden;
+}
+
+.vd-wm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-wm-title {
+    font-weight: 900;
+    font-size: 0.92rem;
+}
+
+.vd-wm-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.vd-wm-close:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+}
+
+.vd-wm-cards {
+    padding: 12px 18px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vd-wm-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+    gap: 10px;
+}
+
+.vd-wm-card-builtin {
+    border-color: rgba(39, 199, 166, 0.2);
+}
+
+.vd-wm-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vd-wm-card-info {
+    min-width: 0;
+}
+
+.vd-wm-card-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-wm-card-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-wm-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vd-wm-badge-on {
+    background: rgba(39, 199, 166, 0.18);
+    color: var(--vd-accent);
+}
+
+.vd-wm-badge-off {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--vd-muted);
+}
+
+.vd-wm-badge-builtin {
+    background: rgba(242, 184, 75, 0.18);
+    color: var(--vd-amber);
+}
+
+.vd-wm-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.vd-wm-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.vd-wm-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+}
+
+.vd-wm-btn-add {
+    border-color: rgba(39, 199, 166, 0.3);
+    color: var(--vd-accent);
+}
+
+.vd-wm-btn-add:hover {
+    background: rgba(39, 199, 166, 0.12);
+}
+
+.vd-wm-btn-delete {
+    border-color: rgba(255, 128, 102, 0.3);
+    color: var(--vd-coral);
+}
+
+.vd-wm-btn-delete:hover {
+    background: rgba(255, 128, 102, 0.12);
+}
+
 .vd-window-layer {
     position: absolute;
     inset: 0;

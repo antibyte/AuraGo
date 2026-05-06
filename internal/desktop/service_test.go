@@ -1275,3 +1275,128 @@ func assertSingleString(t *testing.T, db *sql.DB, query string, arg interface{},
 		t.Fatalf("%q returned %q, want %q", query, got, want)
 	}
 }
+
+func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	bootstrap, err := svc.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	widgetMap := map[string]Widget{}
+	for _, w := range bootstrap.AllWidgets {
+		widgetMap[w.ID] = w
+	}
+	clock, ok := widgetMap["builtin-analog-clock"]
+	if !ok {
+		t.Fatal("builtin-analog-clock widget not seeded")
+	}
+	if !clock.Builtin {
+		t.Fatal("analog clock widget should be builtin")
+	}
+	if !clock.Visible {
+		t.Fatal("analog clock widget should be visible by default")
+	}
+	chat, ok := widgetMap["builtin-quickchat"]
+	if !ok {
+		t.Fatal("builtin-quickchat widget not seeded")
+	}
+	if !chat.Builtin {
+		t.Fatal("quickchat widget should be builtin")
+	}
+}
+
+func TestServiceBootstrapSeparatesVisibleAndAllWidgets(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	widget := Widget{ID: "hidden-test", Title: "Hidden", Icon: "apps"}
+	if err := svc.UpsertWidget(ctx, widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget: %v", err)
+	}
+	if err := svc.SetWidgetVisible(ctx, "hidden-test", false, SourceUser); err != nil {
+		t.Fatalf("SetWidgetVisible false: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, w := range bootstrap.Widgets {
+		if w.ID == "hidden-test" {
+			t.Fatal("hidden widget should not be in visible Widgets list")
+		}
+	}
+	var found bool
+	for _, w := range bootstrap.AllWidgets {
+		if w.ID == "hidden-test" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("hidden widget should be in AllWidgets list")
+	}
+}
+
+func TestServiceDeleteWidgetRejectsBuiltinWidgets(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.DeleteWidget(context.Background(), "builtin-analog-clock", SourceUser)
+	if err == nil {
+		t.Fatal("expected deleting builtin widget to be rejected")
+	}
+	if !strings.Contains(err.Error(), "built-in") {
+		t.Fatalf("error = %q, want builtin rejection", err)
+	}
+}
+
+func TestServiceSetWidgetVisibleToggles(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	widget := Widget{ID: "toggle-test", Title: "Toggle", Icon: "apps"}
+	if err := svc.UpsertWidget(ctx, widget, SourceAgent); err != nil {
+		t.Fatalf("UpsertWidget: %v", err)
+	}
+	if err := svc.SetWidgetVisible(ctx, "toggle-test", false, SourceUser); err != nil {
+		t.Fatalf("SetWidgetVisible false: %v", err)
+	}
+	allWidgets, err := svc.ListAllWidgets(ctx)
+	if err != nil {
+		t.Fatalf("ListAllWidgets: %v", err)
+	}
+	for _, w := range allWidgets {
+		if w.ID == "toggle-test" && w.Visible {
+			t.Fatal("widget should be hidden after SetWidgetVisible(false)")
+		}
+	}
+	if err := svc.SetWidgetVisible(ctx, "toggle-test", true, SourceUser); err != nil {
+		t.Fatalf("SetWidgetVisible true: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	var found bool
+	for _, w := range bootstrap.Widgets {
+		if w.ID == "toggle-test" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("widget should be back in visible Widgets after SetWidgetVisible(true)")
+	}
+}
+
+func TestServiceSetWidgetVisibleRejectsUnknownWidget(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	err := svc.SetWidgetVisible(context.Background(), "nonexistent", true, SourceUser)
+	if err == nil {
+		t.Fatal("expected unknown widget visibility toggle to fail")
+	}
+}

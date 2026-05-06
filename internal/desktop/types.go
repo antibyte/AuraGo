@@ -71,6 +71,7 @@ type BootstrapPayload struct {
 	InstalledApps      []AppManifest     `json:"installed_apps"`
 	Shortcuts          []Shortcut        `json:"shortcuts"`
 	Widgets            []Widget          `json:"widgets"`
+	AllWidgets         []Widget          `json:"all_widgets"`
 	Settings           map[string]string `json:"settings"`
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
 }
@@ -139,6 +140,8 @@ type Widget struct {
 	Y           int                    `json:"y"`
 	W           int                    `json:"w"`
 	H           int                    `json:"h"`
+	Visible     bool                   `json:"visible"`
+	Builtin     bool                   `json:"builtin"`
 	Config      map[string]interface{} `json:"config,omitempty"`
 	Metadata    map[string]string      `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at,omitempty"`

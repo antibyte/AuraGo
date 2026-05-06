@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Tænker...",
     "desktop.chat_using_tool": "Bruger værktøj",
     "desktop.chat_open_in": "Åbn i",
-    "desktop.chat_document": "Dokument"
+    "desktop.chat_document": "Dokument",
+    "desktop.widget_manager": "Widget-manager",
+    "desktop.widget_add_to_desktop": "Føj til skrivebord",
+    "desktop.widget_remove_from_desktop": "Fjern fra skrivebord",
+    "desktop.widget_delete_permanent": "Slet permanent",
+    "desktop.widget_on_desktop": "På skrivebordet",
+    "desktop.widget_available": "Tilgængelige",
+    "desktop.widget_builtin": "Indbygget",
+    "desktop.widget_analog_clock": "Analogt ur",
+    "desktop.widget_quickchat": "Hurtig chat",
+    "desktop.widget_confirm_delete": "Slet denne widget permanent?",
+    "desktop.widget_confirm_delete_msg": "Dette kan ikke fortrydes. Widget: {{name}}"
 }

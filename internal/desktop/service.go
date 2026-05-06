@@ -293,6 +293,15 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "widget_json", "TEXT NOT NULL DEFAULT '{}'"); err != nil {
 		return err
 	}
+	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "visible", "INTEGER NOT NULL DEFAULT 1"); err != nil {
+		return err
+	}
+	if err := s.ensureColumnLocked(ctx, "desktop_widgets", "builtin", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := s.seedBuiltinWidgetsLocked(ctx); err != nil {
+		return err
+	}
 	if err := s.seedDesktopShortcutsLocked(ctx); err != nil {
 		return err
 	}
@@ -328,6 +337,42 @@ func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_shortcuts_seeded', 'true')
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
 		return fmt.Errorf("mark desktop shortcuts seeded: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
+	var seeded string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_builtin_widgets_seeded'`).Scan(&seeded)
+	if err == nil && seeded == "true" {
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read desktop builtin widgets seed state: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	defaults := []Widget{
+		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
+		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin desktop builtin widgets seed: %w", err)
+	}
+	defer tx.Rollback()
+	for _, widget := range defaults {
+		widgetJSON, _ := json.Marshal(widget)
+		configJSON, _ := json.Marshal(widget.Config)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, visible, builtin, created_at, updated_at)
+			VALUES(?, '', ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+			ON CONFLICT(id) DO NOTHING`,
+			widget.ID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON), now, now); err != nil {
+			return fmt.Errorf("seed desktop builtin widget %s: %w", widget.ID, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('desktop_builtin_widgets_seeded', 'true')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("mark desktop builtin widgets seeded: %w", err)
 	}
 	return tx.Commit()
 }
@@ -407,6 +452,12 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		return BootstrapPayload{}, err
 	}
 	cfg := s.Config()
+	var visibleWidgets []Widget
+	for _, w := range widgets {
+		if w.Visible {
+			visibleWidgets = append(visibleWidgets, w)
+		}
+	}
 	return BootstrapPayload{
 		Enabled:            cfg.Enabled,
 		ReadOnly:           cfg.ReadOnly,
@@ -422,7 +473,8 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		BuiltinApps:   BuiltinApps(),
 		InstalledApps: apps,
 		Shortcuts:     shortcuts,
-		Widgets:       widgets,
+		Widgets:       visibleWidgets,
+		AllWidgets:    widgets,
 		Settings:      settings,
 		IconCatalog:   DesktopIconCatalog(settings),
 	}, nil
@@ -1695,6 +1747,21 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 	if widget.Config == nil {
 		widget.Config = map[string]interface{}{}
 	}
+	if !widget.Builtin {
+		var existingVisible int
+		s.mu.Lock()
+		db := s.db
+		s.mu.Unlock()
+		err = db.QueryRowContext(ctx, `SELECT COALESCE(visible, 1) FROM desktop_widgets WHERE id = ?`, widget.ID).Scan(&existingVisible)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("check desktop widget visibility: %w", err)
+		}
+		if err == sql.ErrNoRows {
+			widget.Visible = true
+		} else {
+			widget.Visible = existingVisible != 0
+		}
+	}
 	configJSON, err := json.Marshal(widget.Config)
 	if err != nil {
 		return fmt.Errorf("marshal desktop widget config: %w", err)
@@ -1709,8 +1776,8 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
-	_, err = db.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, created_at, updated_at)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err = db.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, visible, builtin, created_at, updated_at)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			app_id = excluded.app_id,
 			title = excluded.title,
@@ -1720,8 +1787,10 @@ func (s *Service) UpsertWidget(ctx context.Context, widget Widget, source string
 			h = excluded.h,
 			config_json = excluded.config_json,
 			widget_json = excluded.widget_json,
+			visible = excluded.visible,
+			builtin = excluded.builtin,
 			updated_at = excluded.updated_at`,
-		widget.ID, widget.AppID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+		widget.ID, widget.AppID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON), boolToInt(widget.Visible), boolToInt(widget.Builtin), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("save desktop widget: %w", err)
 	}
@@ -1744,11 +1813,53 @@ func (s *Service) DeleteWidget(ctx context.Context, id, source string) error {
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
+	var isBuiltin int
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(builtin, 0) FROM desktop_widgets WHERE id = ?`, id).Scan(&isBuiltin); err != nil {
+		return fmt.Errorf("desktop widget not found")
+	}
+	if isBuiltin != 0 {
+		return fmt.Errorf("built-in desktop widgets cannot be deleted")
+	}
 	if _, err := db.ExecContext(ctx, `DELETE FROM desktop_widgets WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("delete desktop widget: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_widget", id, map[string]interface{}{}, source)
 	return nil
+}
+
+// SetWidgetVisible toggles the visibility of a desktop widget.
+func (s *Service) SetWidgetVisible(ctx context.Context, id string, visible bool, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	if !desktopIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid desktop widget id")
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	result, err := db.ExecContext(ctx, `UPDATE desktop_widgets SET visible = ?, updated_at = ? WHERE id = ?`,
+		boolToInt(visible), time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return fmt.Errorf("update desktop widget visibility: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("desktop widget not found")
+	}
+	_ = s.Audit(ctx, "set_widget_visible", id, map[string]interface{}{"visible": visible}, source)
+	return nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // AddDesktopAppShortcut pins an existing built-in or installed app to the desktop.
@@ -2060,10 +2171,14 @@ func (s *Service) listShortcuts(ctx context.Context) ([]Shortcut, error) {
 }
 
 func (s *Service) listWidgets(ctx context.Context) ([]Widget, error) {
+	return s.ListAllWidgets(ctx)
+}
+
+func (s *Service) ListAllWidgets(ctx context.Context) ([]Widget, error) {
 	s.mu.Lock()
 	db := s.db
 	s.mu.Unlock()
-	rows, err := db.QueryContext(ctx, `SELECT id, app_id, title, x, y, w, h, config_json, widget_json, created_at, updated_at FROM desktop_widgets ORDER BY y, x, title COLLATE NOCASE`)
+	rows, err := db.QueryContext(ctx, `SELECT id, app_id, title, x, y, w, h, config_json, widget_json, visible, builtin, created_at, updated_at FROM desktop_widgets ORDER BY y, x, title COLLATE NOCASE`)
 	if err != nil {
 		return nil, fmt.Errorf("list desktop widgets: %w", err)
 	}
@@ -2072,12 +2187,15 @@ func (s *Service) listWidgets(ctx context.Context) ([]Widget, error) {
 	for rows.Next() {
 		var widget Widget
 		var configJSON, widgetJSON, createdAt, updatedAt string
-		if err := rows.Scan(&widget.ID, &widget.AppID, &widget.Title, &widget.X, &widget.Y, &widget.W, &widget.H, &configJSON, &widgetJSON, &createdAt, &updatedAt); err != nil {
+		var visible, builtin int
+		if err := rows.Scan(&widget.ID, &widget.AppID, &widget.Title, &widget.X, &widget.Y, &widget.W, &widget.H, &configJSON, &widgetJSON, &visible, &builtin, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan desktop widget: %w", err)
 		}
 		if strings.TrimSpace(widgetJSON) != "" && strings.TrimSpace(widgetJSON) != "{}" {
 			_ = json.Unmarshal([]byte(widgetJSON), &widget)
 		}
+		widget.Visible = visible != 0
+		widget.Builtin = builtin != 0
 		if strings.TrimSpace(configJSON) != "" {
 			_ = json.Unmarshal([]byte(configJSON), &widget.Config)
 		}

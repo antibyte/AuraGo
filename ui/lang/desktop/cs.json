@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Uvažování...",
     "desktop.chat_using_tool": "Použití nástroje",
     "desktop.chat_open_in": "Otevřít v",
-    "desktop.chat_document": "Dokument"
+    "desktop.chat_document": "Dokument",
+    "desktop.widget_manager": "Správce widgetů",
+    "desktop.widget_add_to_desktop": "Přidat na plochu",
+    "desktop.widget_remove_from_desktop": "Odebrat z plochy",
+    "desktop.widget_delete_permanent": "Smazat trvale",
+    "desktop.widget_on_desktop": "Na ploše",
+    "desktop.widget_available": "Dostupné",
+    "desktop.widget_builtin": "Vestavěné",
+    "desktop.widget_analog_clock": "Analogové hodiny",
+    "desktop.widget_quickchat": "Rychlý chat",
+    "desktop.widget_confirm_delete": "Trvale smazat tento widget?",
+    "desktop.widget_confirm_delete_msg": "Toto nelze vrátit zpět. Widget: {{name}}"
 }

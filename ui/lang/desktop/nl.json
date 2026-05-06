@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Nadenken...",
     "desktop.chat_using_tool": "Hulpmiddel gebruiken",
     "desktop.chat_open_in": "Openen in",
-    "desktop.chat_document": "Document"
+    "desktop.chat_document": "Document",
+    "desktop.widget_manager": "Widgetbeheer",
+    "desktop.widget_add_to_desktop": "Aan bureaublad toevoegen",
+    "desktop.widget_remove_from_desktop": "Van bureaublad verwijderen",
+    "desktop.widget_delete_permanent": "Permanent verwijderen",
+    "desktop.widget_on_desktop": "Op het bureaublad",
+    "desktop.widget_available": "Beschikbaar",
+    "desktop.widget_builtin": "Ingebouwd",
+    "desktop.widget_analog_clock": "Analoge klok",
+    "desktop.widget_quickchat": "Snelle chat",
+    "desktop.widget_confirm_delete": "Deze widget permanent verwijderen?",
+    "desktop.widget_confirm_delete_msg": "Dit kan niet ongedaan worden gemaakt. Widget: {{name}}"
 }

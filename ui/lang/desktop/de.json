@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Denke nach...",
     "desktop.chat_using_tool": "Tool wird verwendet",
     "desktop.chat_open_in": "Öffnen in",
-    "desktop.chat_document": "Dokument"
+    "desktop.chat_document": "Dokument",
+    "desktop.widget_manager": "Widget-Manager",
+    "desktop.widget_add_to_desktop": "Zum Desktop hinzufügen",
+    "desktop.widget_remove_from_desktop": "Vom Desktop entfernen",
+    "desktop.widget_delete_permanent": "Dauerhaft löschen",
+    "desktop.widget_on_desktop": "Auf dem Desktop",
+    "desktop.widget_available": "Verfügbar",
+    "desktop.widget_builtin": "Eingebaut",
+    "desktop.widget_analog_clock": "Analoge Uhr",
+    "desktop.widget_quickchat": "Schnell-Chat",
+    "desktop.widget_confirm_delete": "Dieses Widget dauerhaft löschen?",
+    "desktop.widget_confirm_delete_msg": "Dies kann nicht rückgängig gemacht werden. Widget: {{name}}"
 }

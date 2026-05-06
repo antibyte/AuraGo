@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Σκέψη...",
     "desktop.chat_using_tool": "Χρήση εργαλείου",
     "desktop.chat_open_in": "Άνοιγμα σε",
-    "desktop.chat_document": "Έγγραφο"
+    "desktop.chat_document": "Έγγραφο",
+    "desktop.widget_manager": "Διαχειριστής widget",
+    "desktop.widget_add_to_desktop": "Προσθήκη στην επιφάνεια εργασίας",
+    "desktop.widget_remove_from_desktop": "Αφαίρεση από την επιφάνεια εργασίας",
+    "desktop.widget_delete_permanent": "Μόνιμη διαγραφή",
+    "desktop.widget_on_desktop": "Στην επιφάνεια εργασίας",
+    "desktop.widget_available": "Διαθέσιμα",
+    "desktop.widget_builtin": "Ενσωματωμένο",
+    "desktop.widget_analog_clock": "Αναλογικό ρολόι",
+    "desktop.widget_quickchat": "Γρήγορη συνομιλία",
+    "desktop.widget_confirm_delete": "Μόνιμη διαγραφή αυτού του widget;",
+    "desktop.widget_confirm_delete_msg": "Αυτό δεν μπορεί να αναιρεθεί. Widget: {{name}}"
 }

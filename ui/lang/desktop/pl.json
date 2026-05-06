@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Rozumowanie...",
     "desktop.chat_using_tool": "Użycie narzędzia",
     "desktop.chat_open_in": "Otwórz w",
-    "desktop.chat_document": "Dokument"
+    "desktop.chat_document": "Dokument",
+    "desktop.widget_manager": "Menedżer widżetów",
+    "desktop.widget_add_to_desktop": "Dodaj do pulpitu",
+    "desktop.widget_remove_from_desktop": "Usuń z pulpitu",
+    "desktop.widget_delete_permanent": "Usuń na stałe",
+    "desktop.widget_on_desktop": "Na pulpicie",
+    "desktop.widget_available": "Dostępne",
+    "desktop.widget_builtin": "Wbudowany",
+    "desktop.widget_analog_clock": "Zegar analogowy",
+    "desktop.widget_quickchat": "Szybki czat",
+    "desktop.widget_confirm_delete": "Usunąć ten widżet na stałe?",
+    "desktop.widget_confirm_delete_msg": "Tego nie można cofnąć. Widżet: {{name}}"
 }

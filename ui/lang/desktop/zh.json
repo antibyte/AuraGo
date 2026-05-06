@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "推理中...",
     "desktop.chat_using_tool": "使用工具",
     "desktop.chat_open_in": "在...中打开",
-    "desktop.chat_document": "文档"
+    "desktop.chat_document": "文档",
+    "desktop.widget_manager": "小组件管理器",
+    "desktop.widget_add_to_desktop": "添加到桌面",
+    "desktop.widget_remove_from_desktop": "从桌面移除",
+    "desktop.widget_delete_permanent": "永久删除",
+    "desktop.widget_on_desktop": "在桌面上",
+    "desktop.widget_available": "可用",
+    "desktop.widget_builtin": "内置",
+    "desktop.widget_analog_clock": "模拟时钟",
+    "desktop.widget_quickchat": "快速聊天",
+    "desktop.widget_confirm_delete": "永久删除此小组件？",
+    "desktop.widget_confirm_delete_msg": "此操作无法撤销。小组件：{{name}}"
 }

@@ -487,5 +487,16 @@
     "desktop.chat_thinking": "Resonemang...",
     "desktop.chat_using_tool": "Använder verktyg",
     "desktop.chat_open_in": "Öppna i",
-    "desktop.chat_document": "Dokument"
+    "desktop.chat_document": "Dokument",
+    "desktop.widget_manager": "Widget-hanterare",
+    "desktop.widget_add_to_desktop": "Lägg till på skrivbordet",
+    "desktop.widget_remove_from_desktop": "Ta bort från skrivbordet",
+    "desktop.widget_delete_permanent": "Ta bort permanent",
+    "desktop.widget_on_desktop": "På skrivbordet",
+    "desktop.widget_available": "Tillgängliga",
+    "desktop.widget_builtin": "Inbyggd",
+    "desktop.widget_analog_clock": "Analog klocka",
+    "desktop.widget_quickchat": "Snabbchatt",
+    "desktop.widget_confirm_delete": "Ta bort denna widget permanent?",
+    "desktop.widget_confirm_delete_msg": "Detta kan inte ångras. Widget: {{name}}"
 }
