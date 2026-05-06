@@ -269,6 +269,52 @@ func TestHandleTodoItemsEndpointsManageChecklist(t *testing.T) {
 	}
 }
 
+func TestHandleTodoItemCanBeUncheckedAfterTodoDone(t *testing.T) {
+	t.Parallel()
+
+	server, db := testPlannerServer(t)
+	defer db.Close()
+
+	todoID, err := planner.CreateTodo(db, planner.Todo{
+		Title:    "Publish release",
+		Priority: "medium",
+		Status:   "open",
+		Items: []planner.TodoItem{
+			{Title: "Tag version"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("planner.CreateTodo() error = %v", err)
+	}
+	todo, err := planner.GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("planner.GetTodo() error = %v", err)
+	}
+	itemID := todo.Items[0].ID
+
+	completeReq := httptest.NewRequest(http.MethodPost, "/api/todos/"+todoID+"/complete", strings.NewReader(`{"complete_items_too":true}`))
+	completeRec := httptest.NewRecorder()
+	handleTodoByID(server).ServeHTTP(completeRec, completeReq)
+	if completeRec.Code != http.StatusOK {
+		t.Fatalf("complete status = %d, want %d; body=%s", completeRec.Code, http.StatusOK, completeRec.Body.String())
+	}
+
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/todos/"+todoID+"/items/"+itemID, strings.NewReader(`{"is_done":false}`))
+	updateRec := httptest.NewRecorder()
+	handleTodoByID(server).ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("uncheck status = %d, want %d; body=%s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+
+	todo, err = planner.GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("planner.GetTodo() error = %v", err)
+	}
+	if todo.Status == "done" || todo.ProgressPercent == 100 || todo.Items[0].IsDone {
+		t.Fatalf("todo remained complete after uncheck: status=%q progress=%d item_done=%v", todo.Status, todo.ProgressPercent, todo.Items[0].IsDone)
+	}
+}
+
 func TestHandleTodoCompleteMarksItemsDone(t *testing.T) {
 	t.Parallel()
 

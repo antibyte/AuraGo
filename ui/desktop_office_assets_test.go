@@ -132,6 +132,26 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	}
 }
 
+func TestDesktopWriterUsesFullWhiteWritingSurface(t *testing.T) {
+	t.Parallel()
+
+	desktopCSS := readDesktopOfficeTestFile(t, filepath.Join("css", "desktop.css"))
+	for _, marker := range []string{
+		".office-writer {",
+		"grid-template-rows: auto auto minmax(0, 1fr);",
+		"background: #ffffff;",
+		"color: #111827;",
+		".office-writer .ql-stroke {",
+		"stroke: #334155;",
+		".office-writer .ql-fill {",
+		"fill: #334155;",
+	} {
+		if !strings.Contains(desktopCSS, marker) {
+			t.Fatalf("writer white-surface styling missing marker %q", marker)
+		}
+	}
+}
+
 func TestVirtualDesktopConfigExposesOfficeToolToggles(t *testing.T) {
 	t.Parallel()
 

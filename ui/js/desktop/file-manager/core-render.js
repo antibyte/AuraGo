@@ -305,7 +305,11 @@
             // Convert file-manager format {action: string, handler: fn} to main.js format {action: fn}
             const converted = items.map(item => {
                 if (item.separator) return item;
-                const converted = { label: item.label, icon: contextIconGlyph(item.icon) };
+                const converted = {
+                    label: item.label,
+                    icon: item.icon || 'tools',
+                    fallback: contextIconGlyph(item.icon)
+                };
                 if (item.disabled) converted.disabled = true;
                 converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
                 return converted;

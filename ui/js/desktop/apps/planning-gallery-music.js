@@ -206,6 +206,12 @@
             const list = host.querySelector('.vd-todo-list');
             list.innerHTML = filtered.length ? filtered.map(todo => renderTodoCard(todo, selectedID)).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('click', () => renderTodoDetail(host, todos.find(todo => todo.id === card.dataset.todoId), load)));
+            list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('click', event => event.stopPropagation()));
+            list.querySelectorAll('[data-todo-status-toggle]').forEach(input => input.addEventListener('change', async event => {
+                event.stopPropagation();
+                const todo = todos.find(item => item.id === input.dataset.todoStatusToggle);
+                if (todo) await setTodoDone(todo, input.checked, load);
+            }));
             list.querySelectorAll('[data-todo-id]').forEach(card => card.addEventListener('contextmenu', event => {
                 const todo = todos.find(item => item.id === card.dataset.todoId);
                 if (todo) showTodoContextMenu(event, todo, load);
@@ -233,16 +239,43 @@
         const due = todo.due_date ? new Date(todo.due_date) : null;
         const overdue = due && due < new Date() && todo.status !== 'done';
         return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
-            <div><strong>${esc(todo.title)}</strong><span class="vd-todo-priority ${esc(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span></div>
-            <small>${esc(t('desktop.todo_' + todo.status))}${due ? ' Â· ' + esc(due.toLocaleDateString()) : ''}${overdue ? ' Â· ' + esc(t('desktop.todo_overdue')) : ''}</small>
+            <div class="vd-todo-card-grid">
+                <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}">
+                <div class="vd-todo-card-copy">
+                    <strong>${esc(todo.title)}</strong>
+                    <small>${esc(t('desktop.todo_' + todo.status))}${due ? ' &middot; ' + esc(due.toLocaleDateString()) : ''}${overdue ? ' &middot; ' + esc(t('desktop.todo_overdue')) : ''}</small>
+                </div>
+                <span class="vd-todo-priority ${esc(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span>
+            </div>
             <div class="vd-todo-progress"><span style="width:${Number(todo.progress_percent) || 0}%"></span></div>
         </article>`;
+    }
+
+    async function setTodoDone(todo, done, reload) {
+        if (!todo) return;
+        if (done) {
+            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
+            await reload(todo.id);
+            return;
+        }
+        const payload = { status: 'open' };
+        if (Array.isArray(todo.items) && todo.items.length) {
+            payload.items = todo.items.map(item => Object.assign({}, item, { is_done: false }));
+        }
+        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
+        await reload(todo.id);
+    }
+
+    async function updateTodoItem(todo, itemID, patch, reload) {
+        if (!todo || !itemID) return;
+        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
+        await reload(todo.id);
     }
 
     function renderTodoDetail(host, todo, reload) {
         const pane = host.querySelector('.vd-todo-detail');
         const items = todo.items || [];
-        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<label class="vd-todo-item"><input type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}><span>${esc(item.title)}</span><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></label>`).join('')}</div>`;
+        pane.innerHTML = `<form class="vd-todo-form"><input name="title" value="${esc(todo.title)}"><textarea name="description" placeholder="${esc(t('desktop.todo_description'))}">${esc(todo.description || '')}</textarea><div class="vd-todo-form-row"><label>${esc(t('desktop.todo_priority'))}<select name="priority">${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label>${esc(t('desktop.todo_due_date'))}<input type="date" name="due_date" value="${esc(todo.due_date || '')}"></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save">${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete">${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button" data-action="delete">${esc(t('desktop.delete'))}</button></div></form><h3>${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"><button class="vd-button">${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('')}</div>`;
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -252,7 +285,29 @@
         pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
         pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
         pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
-        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(input.dataset.itemToggle), 'PUT', { is_done: input.checked }); await reload(todo.id); }));
+        pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
+        pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
+            titleInput.addEventListener('keydown', async event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    titleInput.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    const item = items.find(entry => entry.id === titleInput.dataset.itemTitle);
+                    titleInput.value = item ? item.title : '';
+                    titleInput.blur();
+                }
+            });
+            titleInput.addEventListener('change', async () => {
+                const title = titleInput.value.trim();
+                const item = items.find(entry => entry.id === titleInput.dataset.itemTitle);
+                if (!title || !item || title === item.title) {
+                    titleInput.value = item ? item.title : '';
+                    return;
+                }
+                await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload);
+            });
+        });
         pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
         setTodoMenus(host, todo, reload);
     }

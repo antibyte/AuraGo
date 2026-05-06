@@ -1333,9 +1333,7 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 	}
 	todo.Items = items
 	todo.UpdatedAt = updatedAt
-	if err := prepareTodoForPersistence(todo, updatedAt); err != nil {
-		return err
-	}
+	deriveTodoStateFromChecklist(todo, updatedAt)
 	res, err := tx.Exec(
 		`UPDATE todos SET status=?, completed_at=?, updated_at=? WHERE id=?`,
 		todo.Status, todo.CompletedAt, updatedAt, todoID,
@@ -1361,6 +1359,39 @@ func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
 		}
 	}
 	return nil
+}
+
+func deriveTodoStateFromChecklist(todo *Todo, updatedAt string) {
+	if todo == nil {
+		return
+	}
+	sort.SliceStable(todo.Items, func(i, j int) bool { return todo.Items[i].Position < todo.Items[j].Position })
+	if len(todo.Items) > 0 {
+		doneCount := 0
+		for index := range todo.Items {
+			if todo.Items[index].IsDone {
+				doneCount++
+			}
+		}
+		switch {
+		case doneCount == len(todo.Items):
+			todo.Status = "done"
+		case doneCount > 0:
+			if todo.Status == "done" || todo.Status == "open" {
+				todo.Status = "in_progress"
+			}
+		case todo.Status == "done" || todo.Status == "in_progress":
+			todo.Status = "open"
+		}
+	}
+	if todo.Status == "done" {
+		if todo.CompletedAt == "" {
+			todo.CompletedAt = updatedAt
+		}
+	} else {
+		todo.CompletedAt = ""
+	}
+	ComputeTodoProgress(todo)
 }
 
 func getTodoTx(tx *sql.Tx, id string) (*Todo, error) {

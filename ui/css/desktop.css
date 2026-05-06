@@ -2733,9 +2733,28 @@
     background: rgba(5, 8, 12, 0.2);
 }
 
+.office-writer {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    background: #ffffff;
+    color: #111827;
+}
+
 .office-toolbar {
     gap: 8px;
     min-width: 0;
+}
+
+.office-writer .office-toolbar {
+    border-bottom: 1px solid #dbe3ee;
+    background: #f8fafc;
+    color: #334155;
+}
+
+.office-writer .office-path-input,
+.office-writer .office-title-input {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #111827;
 }
 
 .office-path-input,
@@ -2805,13 +2824,14 @@
 
 .office-writer-tools {
     border: 0;
-    border-bottom: 1px solid var(--vd-border);
-    background: rgba(8, 12, 18, 0.45);
+    border-bottom: 1px solid #dbe3ee;
+    background: #f8fafc;
+    color: #334155;
 }
 
 .office-writer .ql-toolbar.ql-snow,
 .office-writer .ql-container.ql-snow {
-    border-color: var(--vd-border);
+    border-color: #dbe3ee;
 }
 
 .office-writer .ql-toolbar.ql-snow {
@@ -2822,26 +2842,36 @@
     border-width: 0;
 }
 
-.office-writer .ql-picker,
+.office-writer .ql-picker {
+    color: #334155;
+}
+
 .office-writer .ql-stroke {
-    color: var(--vd-text);
-    stroke: var(--vd-text);
+    stroke: #334155;
 }
 
 .office-writer .ql-fill {
-    fill: var(--vd-text);
+    fill: #334155;
 }
 
 .office-writer .ql-picker-options {
-    background: rgba(12, 18, 28, 0.98);
-    border-color: var(--vd-border);
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #111827;
 }
 
 .office-writer-editor {
+    grid-row: 3;
     min-height: 0;
     overflow: auto;
-    background: rgba(255, 255, 255, 0.94);
+    background: #ffffff;
     color: #111827;
+}
+
+.office-writer-editor.ql-container,
+.office-writer-editor .ql-container {
+    height: 100%;
+    min-height: 0;
 }
 
 .office-writer-editor .ql-editor {
@@ -2852,12 +2882,13 @@
 }
 
 .office-writer-fallback {
+    grid-row: 3;
     min-height: 0;
     resize: none;
     border: 0;
     border-radius: 0;
     padding: 18px;
-    background: rgba(255, 255, 255, 0.94);
+    background: #ffffff;
     color: #111827;
     font: inherit;
     line-height: 1.6;
@@ -3723,7 +3754,7 @@
     margin-bottom: 12px;
 }
 
-.vd-todo input,
+.vd-todo input:not([type="checkbox"]),
 .vd-todo textarea,
 .vd-todo select,
 .vd-calendar-modal textarea,
@@ -3735,6 +3766,13 @@
     padding: 9px 10px;
     color: var(--vd-text);
     background: rgba(0, 0, 0, 0.22);
+}
+
+.vd-todo input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--vd-accent);
 }
 
 .vd-todo-list,
@@ -3753,6 +3791,34 @@
     cursor: pointer;
 }
 
+.vd-todo-card-grid {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+}
+
+.vd-todo-card-done {
+    margin-top: 3px;
+}
+
+.vd-todo-card-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.vd-todo-card-copy strong,
+.vd-todo-card-copy small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.vd-todo-card-copy small {
+    color: var(--vd-muted);
+    line-height: 1.35;
+}
+
 .vd-todo-card:hover,
 .vd-todo-card.active {
     border-color: rgba(39, 199, 166, 0.5);
@@ -3763,17 +3829,13 @@
     border-color: rgba(255, 128, 102, 0.55);
 }
 
-.vd-todo-card div:first-child {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-}
-
 .vd-todo-priority {
+    align-self: start;
     border-radius: 999px;
     padding: 2px 7px;
     font-size: 11px;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .vd-todo-priority.high { background: rgba(255, 128, 102, 0.22); color: #ffb2a3; }
@@ -3799,18 +3861,28 @@
     resize: vertical;
 }
 
-.vd-check,
-.vd-todo-item {
+.vd-check {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .vd-todo-item {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) 30px;
+    align-items: center;
+    gap: 8px;
     padding: 8px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
+}
+
+.vd-todo-item-title {
+    min-width: 0;
+}
+
+.vd-todo-item-check {
+    justify-self: center;
 }
 
 .vd-todo-item-delete {

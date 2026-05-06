@@ -77,6 +77,23 @@ func TestFileManagerToolbarAndContextMenuCleanup(t *testing.T) {
 	}
 }
 
+func TestFileManagerContextMenuPreservesThemeIconKeys(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []string{
+		"icon: item.icon || 'tools'",
+		"fallback: contextIconGlyph(item.icon)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager context menu theme icon conversion missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "icon: contextIconGlyph(item.icon)") {
+		t.Fatal("file manager context menu must not pass legacy glyphs as icon keys")
+	}
+}
+
 func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 	t.Parallel()
 
