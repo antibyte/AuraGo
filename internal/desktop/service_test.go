@@ -397,6 +397,94 @@ func TestServiceRejectsWorkspaceEscape(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsSymlinkEscapeForMissingChild(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	root := svc.Config().WorkspaceDir
+	outside := t.TempDir()
+	link := filepath.Join(root, "Documents", "outside-link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := svc.ResolvePath("Documents/outside-link/new.txt"); err == nil {
+		t.Fatal("expected symlink escape with missing child to be rejected")
+	}
+	if err := svc.WriteFile(context.Background(), "Documents/outside-link/new.txt", "nope", SourceAgent); err == nil {
+		t.Fatal("expected write through symlink escape to be rejected")
+	}
+}
+
+func TestServiceRejectsBrokenSymlinkTraversal(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	root := svc.Config().WorkspaceDir
+	link := filepath.Join(root, "Documents", "broken-link")
+	if err := os.Symlink(filepath.Join(root, "missing-target"), link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := svc.ResolvePath("Documents/broken-link/new.txt"); err == nil {
+		t.Fatal("expected broken symlink traversal to be rejected")
+	}
+}
+
+func TestServiceRejectsSymlinkLoopTraversal(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	root := svc.Config().WorkspaceDir
+	linkA := filepath.Join(root, "Documents", "loop-a")
+	linkB := filepath.Join(root, "Documents", "loop-b")
+	if err := os.Symlink(linkB, linkA); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := os.Symlink(linkA, linkB); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := svc.ResolvePath("Documents/loop-a/file.txt"); err == nil {
+		t.Fatal("expected symlink loop traversal to be rejected")
+	}
+}
+
+func TestServiceCopyRejectsNestedSymlinkEscape(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	root := svc.Config().WorkspaceDir
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("outside"), 0o644); err != nil {
+		t.Fatalf("write outside fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "Documents", "source"), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	link := filepath.Join(root, "Documents", "source", "secret-link.txt")
+	if err := os.Symlink(filepath.Join(outside, "secret.txt"), link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := svc.CopyPath(context.Background(), "Documents/source", "Documents/copy", SourceAgent); err == nil {
+		t.Fatal("expected copy with nested symlink escape to be rejected")
+	}
+}
+
+func TestServiceCopyRejectsDirectoryTreesPastDepthLimit(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	root := svc.Config().WorkspaceDir
+	current := filepath.Join(root, "Documents", "deep")
+	for i := 0; i < 70; i++ {
+		current = filepath.Join(current, "d")
+	}
+	if err := os.MkdirAll(current, 0o755); err != nil {
+		t.Fatalf("create deep fixture: %v", err)
+	}
+	if err := svc.CopyPath(context.Background(), "Documents/deep", "Documents/deep-copy", SourceAgent); err == nil {
+		t.Fatal("expected deep copy to be rejected")
+	}
+}
+
 func TestServiceWritesAndReadsFilesInsideWorkspace(t *testing.T) {
 	t.Parallel()
 

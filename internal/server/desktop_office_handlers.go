@@ -44,7 +44,7 @@ func handleDesktopOfficeDocument(s *Server) http.HandlerFunc {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "document": doc, "office_version": officeVersionForEntry(entry, data)})
 		case http.MethodPut, http.MethodPost:
 			var body officeDocumentSaveRequest
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopLargeJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -121,7 +121,7 @@ func handleDesktopOfficeWorkbook(s *Server) http.HandlerFunc {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "workbook": workbook, "office_version": officeVersionForEntry(entry, data)})
 		case http.MethodPut, http.MethodPost:
 			var body officeWorkbookSaveRequest
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopLargeJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}

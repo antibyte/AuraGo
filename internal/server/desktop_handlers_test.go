@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -44,5 +45,61 @@ func TestBuildDesktopAgentPromptPrefersSelectedCodeOverWholeFile(t *testing.T) {
 	}
 	if strings.Contains(prompt, "Current file content:") {
 		t.Fatalf("Code Studio prompt should not include whole file when selected text is available:\n%s", prompt)
+	}
+}
+
+func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile("desktop_handlers.go")
+	if err != nil {
+		t.Fatalf("ReadFile desktop_handlers.go: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"runDesktopAgentChat(r.Context(), s, body.Message, body.Context)",
+		"agent.LoopbackContext(ctx, runCfg, prompt, combinedBroker)",
+		"agent.LoopbackContext(ctx, runCfg, prompt, broker)",
+		"context.WithTimeout(ctx, 10*time.Minute)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat cancellation missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "context.WithTimeout(context.Background(), 10*time.Minute)") {
+		t.Fatal("desktop chat must not use context.Background for agent loopback timeout")
+	}
+}
+
+func TestDesktopJSONHandlersUseBodyLimits(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"desktop_handlers.go", "desktop_office_handlers.go", "desktop_looper_handlers.go"} {
+		sourceBytes, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("ReadFile %s: %v", name, err)
+		}
+		source := string(sourceBytes)
+		if name != "desktop_handlers.go" && strings.Contains(source, "json.NewDecoder(r.Body).Decode") {
+			t.Fatalf("%s decodes request JSON without desktop body limit helper", name)
+		}
+	}
+	sourceBytes, err := os.ReadFile("desktop_handlers.go")
+	if err != nil {
+		t.Fatalf("ReadFile desktop_handlers.go: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"const desktopSmallJSONBodyLimit",
+		"func decodeDesktopJSON",
+		"http.MaxBytesReader(w, r.Body, maxBytes)",
+		"decodeDesktopJSON(w, r,",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop body limit helper missing marker %q", marker)
+		}
+	}
+	if strings.Count(source, "json.NewDecoder(r.Body).Decode") != 1 {
+		t.Fatal("desktop_handlers.go should use json.NewDecoder(r.Body) only inside decodeDesktopJSON")
 	}
 }

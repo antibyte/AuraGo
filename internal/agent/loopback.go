@@ -53,13 +53,33 @@ func buildLoopbackConversationMessages(base []openai.ChatCompletionMessage, hist
 // messages through the full agent pipeline including tool execution.
 // The caller should invoke this in a goroutine for non-blocking operation.
 func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
-	loopbackLimiter <- struct{}{}
+	LoopbackContext(context.Background(), runCfg, message, broker)
+}
+
+// LoopbackContext injects an external message into the agent loop and cancels
+// the work when ctx is canceled.
+func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, broker FeedbackBroker) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case loopbackLimiter <- struct{}{}:
+	case <-ctx.Done():
+		return
+	}
 	defer func() { <-loopbackLimiter }()
 
 	cfg := runCfg.Config
 	logger := runCfg.Logger
 	shortTermMem := runCfg.ShortTermMem
 	historyManager := runCfg.HistoryManager
+
+	if err := ctx.Err(); err != nil {
+		if logger != nil {
+			logger.Info("[Loopback] Canceled before start", "error", err)
+		}
+		return
+	}
 
 	if shortTermMem == nil || historyManager == nil || cfg == nil {
 		if logger != nil {
@@ -114,7 +134,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		Messages: finalMessages,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)

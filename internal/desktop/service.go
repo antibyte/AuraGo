@@ -27,6 +27,17 @@ var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
 var desktopMutationMu sync.Mutex
 
+const (
+	desktopCopyMaxDepth   = 64
+	desktopCopyMaxEntries = 10000
+	desktopCopyMaxBytes   = int64(512 * 1024 * 1024)
+)
+
+type desktopCopyStats struct {
+	entries int
+	bytes   int64
+}
+
 type mediaMount struct {
 	Name      string
 	Dir       string
@@ -518,8 +529,8 @@ func (s *Service) ResolvePath(rawPath string) (string, error) {
 	if !isWithinPath(rootAbs, candidateAbs) {
 		return "", fmt.Errorf("desktop path escapes workspace")
 	}
-	if evaluated, err := filepath.EvalSymlinks(candidateAbs); err == nil && !isWithinPath(rootAbs, evaluated) {
-		return "", fmt.Errorf("desktop path follows symlink outside workspace")
+	if err := validatePathComponentsWithinRoot(rootAbs, candidateAbs, "workspace"); err != nil {
+		return "", err
 	}
 	return candidateAbs, nil
 }
@@ -563,6 +574,67 @@ func isWithinPath(root, candidate string) bool {
 		return false
 	}
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel))
+}
+
+func validatePathComponentsWithinRoot(rootAbs, candidateAbs, label string) error {
+	rootAbs, err := filepath.Abs(rootAbs)
+	if err != nil {
+		return fmt.Errorf("resolve desktop %s root: %w", label, err)
+	}
+	candidateAbs, err = filepath.Abs(candidateAbs)
+	if err != nil {
+		return fmt.Errorf("resolve desktop %s path: %w", label, err)
+	}
+	if !isWithinPath(rootAbs, candidateAbs) {
+		return fmt.Errorf("desktop path escapes %s", label)
+	}
+	rel, err := filepath.Rel(rootAbs, candidateAbs)
+	if err != nil {
+		return fmt.Errorf("resolve desktop %s relative path: %w", label, err)
+	}
+	if rel == "." {
+		return nil
+	}
+	current := rootAbs
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("inspect desktop %s path: %w", label, err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		target, err := os.Readlink(current)
+		if err != nil {
+			return fmt.Errorf("read desktop %s symlink: %w", label, err)
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(current), target)
+		}
+		targetAbs, err := filepath.Abs(target)
+		if err != nil {
+			return fmt.Errorf("resolve desktop %s symlink: %w", label, err)
+		}
+		if !isWithinPath(rootAbs, targetAbs) {
+			return fmt.Errorf("desktop path follows symlink outside %s", label)
+		}
+		evaluated, err := filepath.EvalSymlinks(targetAbs)
+		if err != nil {
+			return fmt.Errorf("desktop path follows invalid symlink in %s: %w", label, err)
+		}
+		if !isWithinPath(rootAbs, evaluated) {
+			return fmt.Errorf("desktop path follows symlink outside %s", label)
+		}
+		current = evaluated
+	}
+	return nil
 }
 
 func (s *Service) relativePath(absPath string) string {
@@ -612,11 +684,15 @@ func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string,
 		if err != nil {
 			return mount, "", "", true, fmt.Errorf("resolve desktop media path: %w", err)
 		}
-		if !isWithinPath(mount.Dir, candidateAbs) {
+		mountAbs, err := filepath.Abs(mount.Dir)
+		if err != nil {
+			return mount, "", "", true, fmt.Errorf("resolve desktop media root: %w", err)
+		}
+		if !isWithinPath(mountAbs, candidateAbs) {
 			return mount, "", "", true, fmt.Errorf("desktop media path escapes mount")
 		}
-		if evaluated, err := filepath.EvalSymlinks(candidateAbs); err == nil && !isWithinPath(mount.Dir, evaluated) {
-			return mount, "", "", true, fmt.Errorf("desktop media path follows symlink outside mount")
+		if err := validatePathComponentsWithinRoot(mountAbs, candidateAbs, "media mount"); err != nil {
+			return mount, "", "", true, err
 		}
 		return mount, filepath.Clean(candidateAbs), filepath.ToSlash(rel), true, nil
 	}
@@ -1360,12 +1436,34 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 
 // copyPath copies a file or directory tree from src to dst.
 func copyPath(src, dst string) error {
-	info, err := os.Stat(src)
+	stats := &desktopCopyStats{}
+	return copyPathLimited(src, dst, 0, stats)
+}
+
+func copyPathLimited(src, dst string, depth int, stats *desktopCopyStats) error {
+	if depth > desktopCopyMaxDepth {
+		return fmt.Errorf("copy exceeds maximum directory depth of %d", desktopCopyMaxDepth)
+	}
+	info, err := os.Lstat(src)
 	if err != nil {
 		return err
 	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("copying symlinks is not supported")
+	}
+	stats.entries++
+	if stats.entries > desktopCopyMaxEntries {
+		return fmt.Errorf("copy exceeds maximum entry count of %d", desktopCopyMaxEntries)
+	}
 	if info.IsDir() {
-		return copyDir(src, dst)
+		return copyDirLimited(src, dst, depth, stats)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("copy source is not a regular file")
+	}
+	stats.bytes += info.Size()
+	if stats.bytes > desktopCopyMaxBytes {
+		return fmt.Errorf("copy exceeds maximum size of %d bytes", desktopCopyMaxBytes)
 	}
 	return copyFile(src, dst)
 }
@@ -1376,6 +1474,13 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer in.Close()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("copy source is not a regular file")
+	}
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -1387,7 +1492,7 @@ func copyFile(src, dst string) error {
 	return out.Sync()
 }
 
-func copyDir(src, dst string) error {
+func copyDirLimited(src, dst string, depth int, stats *desktopCopyStats) error {
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return err
 	}
@@ -1398,14 +1503,8 @@ func copyDir(src, dst string) error {
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
-		if entry.IsDir() {
-			if err := copyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if err := copyFile(srcPath, dstPath); err != nil {
-				return err
-			}
+		if err := copyPathLimited(srcPath, dstPath, depth+1, stats); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -36,7 +36,7 @@ func handleLooperPresets(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "presets": presets})
 		case http.MethodPost:
 			var p desktop.LooperPreset
-			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			if err := decodeDesktopJSON(w, r, &p, desktopMediumJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -79,7 +79,7 @@ func handleLooperPresetByID(s *Server) http.HandlerFunc {
 				return
 			}
 			var p desktop.LooperPreset
-			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			if err := decodeDesktopJSON(w, r, &p, desktopMediumJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -151,7 +151,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			Model      string `json:"model"`
 			MaxIter    int    `json:"max_iter"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeDesktopJSON(w, r, &req, desktopMediumJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -193,38 +193,38 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		// Build dispatch context
 		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 		dispatchCtx := &agent.DispatchContext{
-			Cfg:                 cfg,
-			Logger:              s.Logger,
-			LLMClient:           s.LLMClient,
-			Vault:               s.Vault,
-			Registry:            s.Registry,
-			Manifest:            manifest,
-			CronManager:         s.CronManager,
-			MissionManagerV2:    s.MissionManagerV2,
-			LongTermMem:         s.LongTermMem,
-			ShortTermMem:        s.ShortTermMem,
-			KG:                  s.KG,
-			InventoryDB:         s.InventoryDB,
-			InvasionDB:          s.InvasionDB,
-			CheatsheetDB:        s.CheatsheetDB,
-			ImageGalleryDB:      s.ImageGalleryDB,
-			MediaRegistryDB:     s.MediaRegistryDB,
-			HomepageRegistryDB:  s.HomepageRegistryDB,
-			ContactsDB:          s.ContactsDB,
-			PlannerDB:           s.PlannerDB,
-			SQLConnectionsDB:    s.SQLConnectionsDB,
-			SQLConnectionPool:   s.SQLConnectionPool,
-			RemoteHub:           s.RemoteHub,
-			HistoryMgr:          s.HistoryManager,
-			IsMaintenance:       tools.IsBusy(),
-			Guardian:            s.Guardian,
-			LLMGuardian:         s.LLMGuardian,
-			SessionID:           "looper",
-			CoAgentRegistry:     s.CoAgentRegistry,
-			BudgetTracker:       s.BudgetTracker,
-			DaemonSupervisor:    s.DaemonSupervisor,
-			PreparationService:  s.PreparationService,
-			MessageSource:       "looper",
+			Cfg:                cfg,
+			Logger:             s.Logger,
+			LLMClient:          s.LLMClient,
+			Vault:              s.Vault,
+			Registry:           s.Registry,
+			Manifest:           manifest,
+			CronManager:        s.CronManager,
+			MissionManagerV2:   s.MissionManagerV2,
+			LongTermMem:        s.LongTermMem,
+			ShortTermMem:       s.ShortTermMem,
+			KG:                 s.KG,
+			InventoryDB:        s.InventoryDB,
+			InvasionDB:         s.InvasionDB,
+			CheatsheetDB:       s.CheatsheetDB,
+			ImageGalleryDB:     s.ImageGalleryDB,
+			MediaRegistryDB:    s.MediaRegistryDB,
+			HomepageRegistryDB: s.HomepageRegistryDB,
+			ContactsDB:         s.ContactsDB,
+			PlannerDB:          s.PlannerDB,
+			SQLConnectionsDB:   s.SQLConnectionsDB,
+			SQLConnectionPool:  s.SQLConnectionPool,
+			RemoteHub:          s.RemoteHub,
+			HistoryMgr:         s.HistoryManager,
+			IsMaintenance:      tools.IsBusy(),
+			Guardian:           s.Guardian,
+			LLMGuardian:        s.LLMGuardian,
+			SessionID:          "looper",
+			CoAgentRegistry:    s.CoAgentRegistry,
+			BudgetTracker:      s.BudgetTracker,
+			DaemonSupervisor:   s.DaemonSupervisor,
+			PreparationService: s.PreparationService,
+			MessageSource:      "looper",
 		}
 
 		runner, err := getLooperRunner(s)

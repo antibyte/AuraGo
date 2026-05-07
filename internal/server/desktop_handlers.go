@@ -32,6 +32,30 @@ var desktopWSUpgrader = websocket.Upgrader{
 	},
 }
 
+const desktopSmallJSONBodyLimit = int64(64 * 1024)
+const desktopMediumJSONBodyLimit = int64(1024 * 1024)
+const desktopLargeJSONBodyLimit = int64(8 * 1024 * 1024)
+const desktopChatJSONBodyLimit = int64(2 * 1024 * 1024)
+
+func decodeDesktopJSON(w http.ResponseWriter, r *http.Request, dst interface{}, maxBytes int64) error {
+	if maxBytes <= 0 {
+		maxBytes = desktopMediumJSONBodyLimit
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	return json.NewDecoder(r.Body).Decode(dst)
+}
+
+func desktopFileJSONBodyLimit(svc *desktop.Service) int64 {
+	if svc == nil {
+		return 50*1024*1024 + 4096
+	}
+	maxSize := int64(svc.Config().MaxFileSizeMB) * 1024 * 1024
+	if maxSize <= 0 {
+		maxSize = 50 * 1024 * 1024
+	}
+	return maxSize + maxSize/4 + 4096
+}
+
 func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desktop.Hub, error) {
 	s.CfgMu.RLock()
 	cfgSnapshot := *s.Cfg
@@ -191,7 +215,7 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 				Path    string `json:"path"`
 				Content string `json:"content"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopFileJSONBodyLimit(svc)); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -211,7 +235,7 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 				OldPath string `json:"old_path"`
 				NewPath string `json:"new_path"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -256,7 +280,7 @@ func handleDesktopDirectory(s *Server) http.HandlerFunc {
 		var body struct {
 			Path string `json:"path"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -289,7 +313,7 @@ func handleDesktopCopy(s *Server) http.HandlerFunc {
 			SourcePath string `json:"source_path"`
 			DestPath   string `json:"dest_path"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -476,7 +500,7 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 				DockVisible  *bool `json:"dock_visible"`
 				StartVisible *bool `json:"start_visible"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -509,7 +533,7 @@ func handleDesktopApps(s *Server) http.HandlerFunc {
 			Manifest desktop.AppManifest `json:"manifest"`
 			Files    map[string]string   `json:"files"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeDesktopJSON(w, r, &body, desktopLargeJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -539,7 +563,7 @@ func handleDesktopShortcuts(s *Server) http.HandlerFunc {
 			var body struct {
 				AppID string `json:"app_id"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -608,7 +632,7 @@ func handleDesktopWidgets(s *Server) http.HandlerFunc {
 			var body struct {
 				Visible *bool `json:"visible"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -631,7 +655,7 @@ func handleDesktopWidgets(s *Server) http.HandlerFunc {
 			return
 		}
 		var widget desktop.Widget
-		if err := json.NewDecoder(r.Body).Decode(&widget); err != nil {
+		if err := decodeDesktopJSON(w, r, &widget, desktopMediumJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -671,7 +695,7 @@ func handleDesktopSettings(s *Server) http.HandlerFunc {
 				Value    string            `json:"value"`
 				Settings map[string]string `json:"settings"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := decodeDesktopJSON(w, r, &body, desktopMediumJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
@@ -761,7 +785,7 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			Message string             `json:"message"`
 			Context desktopChatContext `json:"context"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeDesktopJSON(w, r, &body, desktopChatJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -770,7 +794,7 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "Message is required", http.StatusBadRequest)
 			return
 		}
-		answer := runDesktopAgentChat(s, body.Message, body.Context)
+		answer := runDesktopAgentChat(r.Context(), s, body.Message, body.Context)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
 	}
@@ -789,7 +813,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			Message string             `json:"message"`
 			Context desktopChatContext `json:"context"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeDesktopJSON(w, r, &body, desktopChatJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -863,7 +887,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 				stream: broker,
 				sse:    sseBroker,
 			}
-			agent.Loopback(runCfg, prompt, combinedBroker)
+			agent.LoopbackContext(ctx, runCfg, prompt, combinedBroker)
 		}()
 		select {
 		case <-done:
@@ -1092,7 +1116,7 @@ func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {
 	}
 }
 
-func runDesktopAgentChat(s *Server, message string, chatContext desktopChatContext) string {
+func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatContext desktopChatContext) string {
 	if s == nil || s.Cfg == nil {
 		return ""
 	}
@@ -1135,12 +1159,12 @@ func runDesktopAgentChat(s *Server, message string, chatContext desktopChatConte
 	}
 	prompt := buildDesktopAgentPrompt(message, chatContext)
 	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		agent.Loopback(runCfg, prompt, broker)
+		agent.LoopbackContext(ctx, runCfg, prompt, broker)
 	}()
 	select {
 	case <-done:
