@@ -202,11 +202,13 @@ func ParseExitBoolean(raw string) bool {
 		return false
 	}
 
-	// Look for standalone true/false words
+	// Look for standalone true/false words — scan backwards so the last
+	// boolean in the response takes precedence.
 	words := strings.FieldsFunc(s, func(r rune) bool {
 		return r == ' ' || r == '\n' || r == '\t' || r == ',' || r == '.' || r == ';' || r == ':' || r == '!' || r == '?'
 	})
-	for _, w := range words {
+	for i := len(words) - 1; i >= 0; i-- {
+		w := words[i]
 		if w == "true" {
 			return true
 		}

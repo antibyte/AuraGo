@@ -42,26 +42,10 @@ func (r *LooperRunner) Stop() {
 	r.holder.CancelRun()
 }
 
-// Execute runs the loop workflow.
-func (r *LooperRunner) Execute(
-	ctx context.Context,
-	cfg desktop.LooperRunConfig,
-	auraCfg *config.Config,
-	client llm.ChatClient,
-	tools []openai.Tool,
-	dispatchCtx *agent.DispatchContext,
-	statusCh chan<- desktop.LooperRunState,
-) error {
-	ctx, cancel := context.WithCancel(ctx)
-	if err := r.holder.TryStart(cfg.MaxIter, cancel); err != nil {
-		cancel()
-		if statusCh != nil {
-			close(statusCh)
-		}
-		return err
-	}
-	defer cancel()
-	return r.executeStarted(ctx, cfg, auraCfg, client, tools, dispatchCtx, statusCh)
+// Shutdown cancels any running loop and resets the runner state.
+func (r *LooperRunner) Shutdown() {
+	r.holder.CancelRun()
+	r.holder.SetIdle()
 }
 
 func (r *LooperRunner) TryStart(maxIter int, cancel context.CancelFunc) error {
@@ -75,25 +59,8 @@ func (r *LooperRunner) executeStarted(
 	client llm.ChatClient,
 	tools []openai.Tool,
 	dispatchCtx *agent.DispatchContext,
-	statusCh chan<- desktop.LooperRunState,
 ) error {
-	broadcast := func() {
-		if statusCh == nil {
-			return
-		}
-		select {
-		case statusCh <- r.holder.State():
-		default:
-		}
-	}
-
-	defer func() {
-		r.holder.SetIdle()
-		broadcast()
-		if statusCh != nil {
-			close(statusCh)
-		}
-	}()
+	defer r.holder.SetIdle()
 
 	model := cfg.Model
 	if model == "" {
@@ -101,33 +68,42 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	sysPrompt := agent.MinimalSystemPromptBuilder(nil)
-	var history []openai.ChatCompletionMessage
 
-	// stepExec runs one minimal-loop step with a per-step timeout and logging.
-	// It mutates the outer history slice directly.
-	stepExec := func(stepName, prompt string, system string) (agent.MinimalLoopResult, error) {
+	stepExec := func(stepName, prompt string, system string, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 		stepCtx, stepCancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer stepCancel()
 		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration)
 		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, tools, dispatchCtx, history, r.logger)
 		if err != nil {
 			r.logger.Error("[Looper] step failed", "step", stepName, "error", err)
-			return res, err
+			return res, nil, err
 		}
-		history = h
 		r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
-		return res, nil
+		return res, h, nil
 	}
 
-	// PREPARE
+	// PREPARE — runs once, result preserved as shared context for every iteration
 	r.holder.SetStep("prepare")
-	broadcast()
-	prepRes, err := stepExec("prepare", cfg.Prepare, sysPrompt)
+	prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, nil)
 	if err != nil {
 		return r.setErrorAndReturn(err)
 	}
 	r.holder.AppendLog(0, "prepare", cfg.Prepare, prepRes.Response, prepRes.Duration)
-	broadcast()
+
+	// Build iteration seed: system prompt + prepare result summary so each
+	// iteration starts fresh but retains the preparation context.
+	iterSeed := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+		{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
+		{Role: openai.ChatMessageRoleAssistant, Content: prepRes.Response},
+	}
+
+	ctxMode := cfg.ContextMode
+	if ctxMode == "" {
+		ctxMode = "every_iteration"
+	}
+
+	var fullHistory []openai.ChatCompletionMessage
 
 	// ITERATIONS
 	for i := 1; i <= cfg.MaxIter; i++ {
@@ -139,46 +115,100 @@ func (r *LooperRunner) executeStarted(
 
 		r.holder.SetIteration(i)
 
+		var history []openai.ChatCompletionMessage
+
+		switch ctxMode {
+		case "never":
+			if i == 1 {
+				history = make([]openai.ChatCompletionMessage, len(iterSeed))
+				copy(history, iterSeed)
+			} else {
+				history = fullHistory
+			}
+
+		case "every_step":
+			history = make([]openai.ChatCompletionMessage, len(iterSeed))
+			copy(history, iterSeed)
+
+		default: // "every_iteration"
+			history = make([]openai.ChatCompletionMessage, len(iterSeed))
+			copy(history, iterSeed)
+			if i > 1 && fullHistory != nil {
+				lastAssistant := ""
+				for mi := len(fullHistory) - 1; mi >= 0; mi-- {
+					if fullHistory[mi].Role == openai.ChatMessageRoleAssistant {
+						lastAssistant = fullHistory[mi].Content
+						break
+					}
+				}
+				if lastAssistant != "" {
+					history = append(history, openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleUser,
+						Content: "Previous iteration test result: " + lastAssistant,
+					})
+				}
+			}
+		}
+
 		// PLAN
 		r.holder.SetStep("plan")
-		broadcast()
-		planRes, err := stepExec("plan", cfg.Plan, "")
+		planRes, history, err := stepExec("plan", cfg.Plan, "", history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "plan", cfg.Plan, planRes.Response, planRes.Duration)
-		broadcast()
+
+		if ctxMode == "every_step" {
+			history = []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: planRes.Response},
+			}
+		}
 
 		// ACTION
 		r.holder.SetStep("action")
-		broadcast()
-		actionRes, err := stepExec("action", cfg.Action, "")
+		actionRes, history, err := stepExec("action", cfg.Action, "", history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "action", cfg.Action, actionRes.Response, actionRes.Duration)
-		broadcast()
+
+		if ctxMode == "every_step" {
+			history = []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: actionRes.Response},
+			}
+		}
 
 		// TEST
 		r.holder.SetStep("test")
-		broadcast()
-		testRes, err := stepExec("test", cfg.Test, "")
+		testRes, history, err := stepExec("test", cfg.Test, "", history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "test", cfg.Test, testRes.Response, testRes.Duration)
 		r.holder.SetLastResult(testRes.Response)
-		broadcast()
+
+		if ctxMode == "every_step" {
+			history = []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: testRes.Response},
+			}
+		}
 
 		// EXIT CONDITION
 		r.holder.SetStep("exit")
-		broadcast()
-		exitRes, err := stepExec("exit", cfg.ExitCond, "")
+		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
-		broadcast()
+
+		if ctxMode == "never" {
+			fullHistory = history
+		} else {
+			fullHistory = history
+		}
 
 		if agent.ParseExitBoolean(exitRes.Response) {
 			break
@@ -188,14 +218,12 @@ func (r *LooperRunner) executeStarted(
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-		broadcast()
-		finishRes, err := stepExec("finish", cfg.Finish, "")
+		finishRes, _, err := stepExec("finish", cfg.Finish, "", iterSeed)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(0, "finish", cfg.Finish, finishRes.Response, finishRes.Duration)
 		r.holder.SetLastResult(finishRes.Response)
-		broadcast()
 	}
 
 	return nil
@@ -232,4 +260,12 @@ func getLooperRunner(s *Server) (*LooperRunner, error) {
 	}
 	looperRunner = NewLooperRunner(store, s.Logger)
 	return looperRunner, nil
+}
+
+func shutdownLooper() {
+	looperRunnerMu.Lock()
+	defer looperRunnerMu.Unlock()
+	if looperRunner != nil {
+		looperRunner.Shutdown()
+	}
 }

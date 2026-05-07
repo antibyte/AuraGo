@@ -1221,6 +1221,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
+		// Shut down Looper if running
+		shutdownLooper()
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
 		// Shut down MQTT client

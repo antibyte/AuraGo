@@ -48,6 +48,14 @@
                             <label>${esc(t('desktop.looper_max_iter'))}</label>
                             <input type="number" id="looper-max-iter-${windowId}" value="20" min="1" max="100">
                         </div>
+                        <div class="vd-looper-field vd-looper-field-small">
+                            <label>${esc(t('desktop.looper_context_mode'))}</label>
+                            <select id="looper-context-mode-${windowId}">
+                                <option value="every_iteration">${esc(t('desktop.looper_context_every_iteration'))}</option>
+                                <option value="never">${esc(t('desktop.looper_context_never'))}</option>
+                                <option value="every_step">${esc(t('desktop.looper_context_every_step'))}</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="vd-looper-steps">
@@ -155,6 +163,7 @@
             $(`looper-provider-${windowId}`).value = p.provider_id || '';
             $(`looper-model-${windowId}`).value = p.model || '';
             $(`looper-max-iter-${windowId}`).value = p.max_iter || 20;
+            $(`looper-context-mode-${windowId}`).value = p.context_mode || 'every_iteration';
         }
 
         function readForm() {
@@ -167,7 +176,8 @@
                 finish: $(`looper-finish-${windowId}`).value,
                 provider_id: $(`looper-provider-${windowId}`).value,
                 model: $(`looper-model-${windowId}`).value,
-                max_iter: parseInt($(`looper-max-iter-${windowId}`).value, 10) || 20
+                max_iter: parseInt($(`looper-max-iter-${windowId}`).value, 10) || 20,
+                context_mode: $(`looper-context-mode-${windowId}`).value || 'every_iteration'
             };
         }
 
@@ -215,7 +225,7 @@
             try {
                 await api('/api/desktop/looper/presets/' + id, { method: 'DELETE' });
                 await loadPresets();
-                context.notify({ title: t('desktop.looper_title'), message: t('desktop.looper_deleted') });
+                if (context.notify) context.notify({ title: t('desktop.looper_title'), message: t('desktop.looper_deleted') });
             } catch (e) {
                 if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
             }

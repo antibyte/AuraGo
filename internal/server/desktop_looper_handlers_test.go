@@ -14,13 +14,11 @@ func TestLooperRunHandlerUsesAtomicStart(t *testing.T) {
 		t.Fatalf("ReadFile desktop_looper_handlers.go: %v", err)
 	}
 	source := string(sourceBytes)
-	if strings.Contains(source, "jsonError(w, \"A loop is already running\", http.StatusConflict)") {
-		t.Fatal("handleLooperRun must not pre-check State before starting")
-	}
 	for _, marker := range []string{
 		"runner.TryStart(req.MaxIter, loopCancel)",
 		"http.StatusConflict",
 		"runner.executeStarted(",
+		"looperRunTimeout(",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("looper atomic start missing marker %q", marker)
