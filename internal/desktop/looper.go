@@ -256,12 +256,31 @@ func (h *LooperRunStateHolder) SetRunning(maxIter int) {
 	}
 }
 
+// TryStart atomically reserves a new run and stores its cancel function.
+func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.Running {
+		return fmt.Errorf("a loop is already running")
+	}
+	h.cancelFn = cancel
+	h.state = LooperRunState{
+		Running:       true,
+		CurrentStep:   "prepare",
+		MaxIterations: maxIter,
+		Logs:          make([]LooperLogEntry, 0),
+		Error:         "",
+	}
+	return nil
+}
+
 // SetIdle marks the run as finished.
 func (h *LooperRunStateHolder) SetIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Running = false
 	h.state.CurrentStep = "idle"
+	h.cancelFn = nil
 }
 
 // SetStep updates the current step.

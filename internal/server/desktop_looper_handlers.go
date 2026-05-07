@@ -233,16 +233,16 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			return
 		}
 
-		state := runner.State()
-		if state.Running {
-			jsonError(w, "A loop is already running", http.StatusConflict)
-			return
-		}
-
 		statusCh := make(chan desktop.LooperRunState, 16)
 		loopCtx, loopCancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		if err := runner.TryStart(req.MaxIter, loopCancel); err != nil {
+			loopCancel()
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 		go func() {
-			_ = runner.Execute(loopCtx, desktop.LooperRunConfig{
+			defer loopCancel() // release timer after loop finishes
+			_ = runner.executeStarted(loopCtx, desktop.LooperRunConfig{
 				Prepare:    req.Prepare,
 				Plan:       req.Plan,
 				Action:     req.Action,
@@ -253,7 +253,6 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 				Model:      model,
 				MaxIter:    req.MaxIter,
 			}, cfg, client, toolSchemas, dispatchCtx, statusCh)
-			loopCancel() // release timer after loop finishes
 		}()
 
 		w.Header().Set("Content-Type", "application/json")

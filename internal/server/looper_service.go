@@ -52,20 +52,31 @@ func (r *LooperRunner) Execute(
 	dispatchCtx *agent.DispatchContext,
 	statusCh chan<- desktop.LooperRunState,
 ) error {
-	state := r.holder.State()
-	if state.Running {
+	ctx, cancel := context.WithCancel(ctx)
+	if err := r.holder.TryStart(cfg.MaxIter, cancel); err != nil {
+		cancel()
 		if statusCh != nil {
 			close(statusCh)
 		}
-		return fmt.Errorf("a loop is already running")
+		return err
 	}
-	r.holder.CancelRun() // cancel any previous run just in case
-
-	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	r.holder.SetCancelFn(cancel)
-	r.holder.SetRunning(cfg.MaxIter)
+	return r.executeStarted(ctx, cfg, auraCfg, client, tools, dispatchCtx, statusCh)
+}
 
+func (r *LooperRunner) TryStart(maxIter int, cancel context.CancelFunc) error {
+	return r.holder.TryStart(maxIter, cancel)
+}
+
+func (r *LooperRunner) executeStarted(
+	ctx context.Context,
+	cfg desktop.LooperRunConfig,
+	auraCfg *config.Config,
+	client llm.ChatClient,
+	tools []openai.Tool,
+	dispatchCtx *agent.DispatchContext,
+	statusCh chan<- desktop.LooperRunState,
+) error {
 	broadcast := func() {
 		if statusCh == nil {
 			return
