@@ -6,7 +6,7 @@
     }
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=9',
-        '/js/desktop/core/window-shell-runtime.js?v=4',
+        '/js/desktop/core/window-shell-runtime.js?v=5',
         '/js/desktop/core/lifecycle-cleanup.js?v=1',
         '/js/desktop/core/widget-autosize-runtime.js?v=2',
         '/js/desktop/core/shortcut-runtime.js?v=1',

@@ -310,6 +310,11 @@
     transition: opacity 120ms ease;
 }
 
+.desktop-body[data-theme="fruity"] .vd-window-button::before,
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button::before {
+    display: none;
+}
+
 .desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-button::after,
 .desktop-body[data-theme="fruity"] .vd-widget-manager:hover .vd-window-button::after {
     opacity: 0.54;
@@ -1782,6 +1787,41 @@
 .vd-window-button {
     width: 28px;
     height: 28px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    font-size: 0;
+    line-height: 0;
+}
+
+.vd-window-button::before {
+    content: "";
+    display: block;
+    box-sizing: border-box;
+    color: currentColor;
+}
+
+.vd-window-button[data-action="minimize"]::before {
+    width: 12px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    transform: translateY(4px);
+}
+
+.vd-window-button[data-action="maximize"]::before {
+    width: 11px;
+    height: 11px;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+}
+
+.vd-window-button[data-action="close"]::before {
+    width: 12px;
+    height: 12px;
+    background:
+        linear-gradient(45deg, transparent calc(50% - 1px), currentColor calc(50% - 1px), currentColor calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(-45deg, transparent calc(50% - 1px), currentColor calc(50% - 1px), currentColor calc(50% + 1px), transparent calc(50% + 1px));
 }
 
 .vd-window-menubar {

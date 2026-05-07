@@ -594,9 +594,9 @@
                 <div class="vd-window-subtitle">${esc(t('desktop.window_ready'))}</div>
             </div>
             <div class="vd-window-actions">
-                <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}">_</button>
-                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}">â–¡</button>` : ''}
-                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}">x</button>
+                <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
+                ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>` : ''}
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
             </div>
         </header>
         <div class="vd-window-content" data-window-content></div>

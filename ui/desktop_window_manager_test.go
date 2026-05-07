@@ -44,3 +44,37 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	openAppBody := jsFunctionBodyInWindowMenuTest(t, source, "function openApp(appId, context)")
+	for _, bad := range []string{"â", ">_</button>", ">x</button>"} {
+		if strings.Contains(openAppBody, bad) {
+			t.Fatalf("desktop window chrome should not render visible text fallback %q in control buttons", bad)
+		}
+	}
+	for _, want := range []string{
+		`data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>`,
+		`data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>`,
+		`data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>`,
+	} {
+		if !strings.Contains(openAppBody, want) {
+			t.Fatalf("desktop window chrome missing icon-only button markup %q", want)
+		}
+	}
+
+	cssBytes, err := os.ReadFile(filepath.Join("css", "desktop.css"))
+	if err != nil {
+		t.Fatalf("read desktop stylesheet: %v", err)
+	}
+	css := string(cssBytes)
+	for _, want := range []string{
+		`.vd-window-button[data-action="maximize"]::before`,
+		"border: 2px solid currentColor;",
+		`.desktop-body[data-theme="fruity"] .vd-window-button::before`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop window chrome CSS missing marker %q", want)
+		}
+	}
+}
