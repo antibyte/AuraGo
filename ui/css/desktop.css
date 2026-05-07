@@ -109,7 +109,6 @@
     background-image: linear-gradient(180deg, rgba(4, 7, 12, 0.06), rgba(4, 7, 12, 0.24)), url('/img/wallpapers/paper_waves.jpg');
 }
 
-.desktop-body[data-theme="standard"],
 .desktop-body[data-theme="light"] {
     color-scheme: light;
     --vd-bg: #edf2f7;
@@ -126,32 +125,21 @@
     --vd-control-hover: rgba(15, 143, 122, 0.12);
 }
 
-.desktop-body[data-theme="standard"] .vd-topbar,
-.desktop-body[data-theme="standard"] .vd-taskbar,
 .desktop-body[data-theme="light"] .vd-topbar,
 .desktop-body[data-theme="light"] .vd-taskbar {
     background: rgba(255, 255, 255, 0.7);
     box-shadow: 0 12px 34px rgba(31, 41, 55, 0.1);
 }
 
-.desktop-body[data-theme="standard"] .vd-window-titlebar,
 .desktop-body[data-theme="light"] .vd-window-titlebar {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(244, 247, 251, 0.74));
     border-color: rgba(57, 72, 93, 0.16);
 }
 
-.desktop-body[data-theme="standard"] .vd-window-content,
 .desktop-body[data-theme="light"] .vd-window-content {
     background: rgba(255, 255, 255, 0.18);
 }
 
-.desktop-body[data-theme="standard"] .vd-button,
-.desktop-body[data-theme="standard"] .vd-start-button,
-.desktop-body[data-theme="standard"] .vd-agent-button,
-.desktop-body[data-theme="standard"] .vd-tool-button,
-.desktop-body[data-theme="standard"] .vd-chat-send,
-.desktop-body[data-theme="standard"] .vd-setting-select,
-.desktop-body[data-theme="standard"] .vd-modal-input,
 .desktop-body[data-theme="light"] .vd-button,
 .desktop-body[data-theme="light"] .vd-start-button,
 .desktop-body[data-theme="light"] .vd-agent-button,
@@ -163,11 +151,6 @@
     color: var(--vd-text);
 }
 
-.desktop-body[data-theme="standard"] .vd-button:hover,
-.desktop-body[data-theme="standard"] .vd-start-button:hover,
-.desktop-body[data-theme="standard"] .vd-agent-button:hover,
-.desktop-body[data-theme="standard"] .vd-tool-button:hover,
-.desktop-body[data-theme="standard"] .vd-chat-send:hover,
 .desktop-body[data-theme="light"] .vd-button:hover,
 .desktop-body[data-theme="light"] .vd-start-button:hover,
 .desktop-body[data-theme="light"] .vd-agent-button:hover,

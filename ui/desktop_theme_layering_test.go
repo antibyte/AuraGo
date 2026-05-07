@@ -49,19 +49,33 @@ func TestDesktopThemeLayeringZIndexScale(t *testing.T) {
 	}
 }
 
-func TestDesktopStandardLightThemeAndWriterSurface(t *testing.T) {
+func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 	t.Parallel()
 
 	desktopCSS := readDesktopAssetText(t, "css/desktop.css")
+	for _, forbidden := range []string{
+		".desktop-body[data-theme=\"standard\"],\n.desktop-body[data-theme=\"light\"]",
+		".desktop-body[data-theme=\"standard\"] .vd-topbar",
+		".desktop-body[data-theme=\"standard\"] .vd-taskbar",
+		".desktop-body[data-theme=\"standard\"] .vd-window-titlebar",
+		".desktop-body[data-theme=\"standard\"] .vd-window-content",
+		".desktop-body[data-theme=\"standard\"] .vd-button",
+	} {
+		if strings.Contains(desktopCSS, forbidden) {
+			t.Fatalf("standard theme must not use light theme override %q", forbidden)
+		}
+	}
+
 	for _, marker := range []string{
-		"--vd-control-bg:",
-		"--vd-control-hover:",
+		"--vd-bg: #11151c;",
+		"--vd-surface: rgba(23, 28, 37, 0.88);",
+		"--vd-text: #f6f7fb;",
+		"--vd-control-bg: rgba(255, 255, 255, 0.08);",
+		"--vd-control-hover: rgba(255, 255, 255, 0.12);",
 		"--vd-editor-bg: #ffffff;",
 		"--vd-editor-text: #111827;",
 		"--vd-editor-icon:",
-		".desktop-body[data-theme=\"standard\"]",
 		".desktop-body[data-theme=\"light\"]",
-		".desktop-body[data-theme=\"standard\"] .vd-window-titlebar",
 		".desktop-body[data-theme=\"light\"] .vd-window-titlebar",
 		".office-writer",
 		"background: var(--vd-editor-bg);",
@@ -76,7 +90,7 @@ func TestDesktopStandardLightThemeAndWriterSurface(t *testing.T) {
 		"color: var(--vd-editor-text);",
 	} {
 		if !strings.Contains(desktopCSS, marker) {
-			t.Fatalf("desktop CSS is missing standard light/writer marker %q", marker)
+			t.Fatalf("desktop CSS is missing standard dark/writer marker %q", marker)
 		}
 	}
 }
