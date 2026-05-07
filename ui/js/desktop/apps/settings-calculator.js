@@ -644,54 +644,107 @@
 
     function calcButton(def) {
         const label = def.label || def.key;
-        const classes = [def.kind || '', def.mode || '', def.hideInProgrammer ? 'programmer-hide' : ''].filter(Boolean).join(' ');
+        const classes = [def.kind || '', def.className || ''].filter(Boolean).join(' ');
         return `<button type="button" class="${esc(classes)}" data-key="${esc(def.key)}">${esc(label)}</button>`;
     }
 
     function renderCalculator(id) {
         const host = contentEl(id);
         if (!host) return;
-        const scientificKeys = [
-            { key: 'sin', mode: 'scientific', kind: 'fn' },
-            { key: 'cos', mode: 'scientific', kind: 'fn' },
-            { key: 'tan', mode: 'scientific', kind: 'fn' },
-            { key: '√', mode: 'scientific', kind: 'fn' },
-            { key: 'log', mode: 'scientific', kind: 'fn' },
-            { key: 'ln', mode: 'scientific', kind: 'fn' },
-            { key: 'π', mode: 'scientific', kind: 'fn' },
-            { key: 'x²', mode: 'scientific', kind: 'fn' },
-            { key: '(', mode: 'scientific', kind: 'fn' },
-            { key: ')', mode: 'scientific', kind: 'fn' },
-            { key: 'e', mode: 'scientific', kind: 'fn' },
-            { key: 'xʸ', mode: 'scientific', kind: 'fn' },
-            { key: 'n!', mode: 'scientific', kind: 'fn' }
-        ];
-        const standardKeys = [
-            { key: 'C', kind: 'danger' },
-            { key: 'CE', kind: 'danger' },
-            { key: '⌫' },
-            { key: '%', kind: 'op', hideInProgrammer: true },
-            { key: '7' },
-            { key: '8' },
-            { key: '9' },
-            { key: '÷', kind: 'op' },
-            { key: '4' },
-            { key: '5' },
-            { key: '6' },
-            { key: '×', kind: 'op' },
-            { key: '1' },
-            { key: '2' },
-            { key: '3' },
-            { key: '-', kind: 'op' },
-            { key: '0' },
-            { key: '00', hideInProgrammer: true },
-            { key: '.', hideInProgrammer: true },
-            { key: '+', kind: 'op' },
-            { key: '±', hideInProgrammer: true },
-            { key: '=', kind: 'eq' }
-        ];
-        const programmerKeys = ['AND', 'OR', 'XOR', 'NOT', 'SHL', 'SHR', 'MOD', 'A', 'B', 'HEX_C', 'D', 'E', 'F']
-            .map(key => ({ key, label: key === 'HEX_C' ? 'C' : key, mode: 'programmer', kind: 'fn' }));
+        const keySets = {
+            standard: [
+                { key: 'C', kind: 'danger' },
+                { key: 'CE', kind: 'danger' },
+                { key: '⌫' },
+                { key: '÷', kind: 'op' },
+                { key: '7' },
+                { key: '8' },
+                { key: '9' },
+                { key: '×', kind: 'op' },
+                { key: '4' },
+                { key: '5' },
+                { key: '6' },
+                { key: '-', kind: 'op' },
+                { key: '1' },
+                { key: '2' },
+                { key: '3' },
+                { key: '+', kind: 'op' },
+                { key: '±' },
+                { key: '0' },
+                { key: '.' },
+                { key: '=', kind: 'eq' }
+            ],
+            scientific: [
+                { key: 'sin', kind: 'fn' },
+                { key: 'cos', kind: 'fn' },
+                { key: 'tan', kind: 'fn' },
+                { key: 'log', kind: 'fn' },
+                { key: 'ln', kind: 'fn' },
+                { key: 'π', kind: 'fn' },
+                { key: 'e', kind: 'fn' },
+                { key: 'x²', kind: 'fn' },
+                { key: 'xʸ', kind: 'fn' },
+                { key: 'n!', kind: 'fn' },
+                { key: '√', kind: 'fn' },
+                { key: '(', kind: 'fn' },
+                { key: ')', kind: 'fn' },
+                { key: 'C', kind: 'danger' },
+                { key: 'CE', kind: 'danger' },
+                { key: '⌫' },
+                { key: '%', kind: 'op' },
+                { key: '7' },
+                { key: '8' },
+                { key: '9' },
+                { key: '÷', kind: 'op' },
+                { key: '4' },
+                { key: '5' },
+                { key: '6' },
+                { key: '×', kind: 'op' },
+                { key: '1' },
+                { key: '2' },
+                { key: '3' },
+                { key: '-', kind: 'op' },
+                { key: '0' },
+                { key: '00' },
+                { key: '.' },
+                { key: '+', kind: 'op' },
+                { key: '±' },
+                { key: '=', kind: 'eq' }
+            ],
+            programmer: [
+                { key: 'C', kind: 'danger' },
+                { key: 'CE', kind: 'danger' },
+                { key: '⌫' },
+                { key: 'AND', kind: 'fn' },
+                { key: 'OR', kind: 'fn' },
+                { key: '7' },
+                { key: '8' },
+                { key: '9' },
+                { key: 'XOR', kind: 'fn' },
+                { key: 'NOT', kind: 'fn' },
+                { key: '4' },
+                { key: '5' },
+                { key: '6' },
+                { key: 'SHL', kind: 'fn' },
+                { key: 'SHR', kind: 'fn' },
+                { key: '1' },
+                { key: '2' },
+                { key: '3' },
+                { key: 'MOD', kind: 'fn' },
+                { key: '÷', kind: 'op' },
+                { key: '0' },
+                { key: 'A', kind: 'fn' },
+                { key: 'B', kind: 'fn' },
+                { key: 'HEX_C', label: 'C', kind: 'fn' },
+                { key: '×', kind: 'op' },
+                { key: 'D', kind: 'fn' },
+                { key: 'E', kind: 'fn' },
+                { key: 'F', kind: 'fn' },
+                { key: '+', kind: 'op' },
+                { key: '-', kind: 'op' },
+                { key: '=', kind: 'eq', className: 'wide' }
+            ]
+        };
         host.innerHTML = `<div class="vd-calc" tabindex="0">
             <div class="vd-calc-tabs">
                 <button type="button" class="active" data-mode="standard">${esc(t('desktop.calc_standard'))}</button>
@@ -714,9 +767,7 @@
             </div>
             <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
             <div class="vd-calc-keys">
-                ${scientificKeys.map(calcButton).join('')}
-                ${standardKeys.map(calcButton).join('')}
-                ${programmerKeys.map(calcButton).join('')}
+                ${keySets.standard.map(calcButton).join('')}
             </div>
             <aside class="vd-calc-history"><div>${esc(t('desktop.calc_history'))}</div><ol></ol></aside>
         </div>`;
@@ -724,6 +775,7 @@
         const expressionEl = host.querySelector('[data-expression]');
         const resultEl = host.querySelector('[data-result]');
         const historyEl = host.querySelector('.vd-calc-history ol');
+        const keysEl = host.querySelector('.vd-calc-keys');
         const baseSelector = host.querySelector('[data-base-selector]');
         const progDisplay = host.querySelector('[data-prog-display]');
         const progSection = host.querySelector('[data-prog-section]');
@@ -829,17 +881,26 @@
                 resultEl.textContent = err.message;
             }
         };
-        host.querySelectorAll('[data-key]').forEach(btn => btn.addEventListener('click', () => {
-            btn.classList.add('pressed');
-            setTimeout(() => btn.classList.remove('pressed'), 120);
-            press(btn.dataset.key);
-        }));
+        const bindKeyButtons = () => {
+            host.querySelectorAll('[data-key]').forEach(btn => btn.addEventListener('click', () => {
+                btn.classList.add('pressed');
+                setTimeout(() => btn.classList.remove('pressed'), 120);
+                press(btn.dataset.key);
+            }));
+        };
+        const renderCalculatorKeys = () => {
+            if (!keysEl) return;
+            keysEl.innerHTML = (keySets[mode] || keySets.standard).map(calcButton).join('');
+            bindKeyButtons();
+        };
+        renderCalculatorKeys();
         host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
             host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('active', item === btn));
             mode = btn.dataset.mode;
             root.classList.toggle('scientific-on', mode === 'scientific');
             root.classList.toggle('programmer-on', mode === 'programmer');
             if (progSection) progSection.hidden = mode !== 'programmer';
+            renderCalculatorKeys();
             expression = '';
             update();
         }));

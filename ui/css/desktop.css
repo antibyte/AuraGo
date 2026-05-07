@@ -3671,7 +3671,7 @@
 }
 
 .vd-calc.programmer-on {
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto 88px minmax(0, 1fr);
     gap: 8px;
     padding: 12px;
 }
@@ -3747,7 +3747,7 @@
 }
 
 .vd-calc-keys button.fn {
-    display: none;
+    display: block;
     background:
         linear-gradient(145deg, rgba(39, 199, 166, 0.28), rgba(39, 199, 166, 0.12));
     color: #a8ece0;
@@ -3761,11 +3761,6 @@
     box-shadow:
         0 6px 20px rgba(39, 199, 166, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.vd-calc.scientific-on .vd-calc-keys button.fn.scientific {
-    display: block;
-    animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes calcFnFadeIn {
@@ -3795,12 +3790,8 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-.vd-calc-keys button.eq {
-    grid-column: span 2;
-}
-
-.vd-calc.programmer-on .vd-calc-keys button.eq {
-    grid-column: span 1;
+.vd-calc-keys button.wide {
+    grid-column: 1 / -1;
 }
 
 .vd-calc-keys button[data-key="C"],
@@ -3970,21 +3961,9 @@
     text-overflow: ellipsis;
 }
 
-.vd-calc.programmer-on .vd-calc-keys button.scientific {
-    display: none;
-}
-
-.vd-calc.programmer-on .vd-calc-keys button.programmer-hide {
-    display: none;
-}
-
-.vd-calc.programmer-on .vd-calc-keys button.programmer {
-    display: block;
-    animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
 .vd-calc.programmer-on .vd-calc-display {
     padding: 8px 12px;
+    min-height: 0;
 }
 
 .vd-calc.programmer-on .vd-calc-display strong {
