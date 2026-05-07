@@ -75,3 +75,33 @@ func TestDesktopAppManagerTranslations(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
+	t.Parallel()
+
+	desktopHTML := readDesktopAssetText(t, "desktop.html")
+	for _, want := range []string{
+		`/css/desktop.css?v=26`,
+		`/js/desktop/main.js?v=26`,
+		`/js/desktop/apps/looper.js?v=2`,
+	} {
+		if !strings.Contains(desktopHTML, want) {
+			t.Fatalf("desktop.html missing cache-busting asset version %q", want)
+		}
+	}
+
+	mainBytes, err := Content.ReadFile("js/desktop/main.js")
+	if err != nil {
+		t.Fatalf("read main.js: %v", err)
+	}
+	mainJS := string(mainBytes)
+	for _, want := range []string{
+		`/js/desktop/core/desktop-foundation.js?v=4`,
+		`/js/desktop/core/window-shell-runtime.js?v=4`,
+		`/js/desktop/core/menus-and-routing.js?v=2`,
+	} {
+		if !strings.Contains(mainJS, want) {
+			t.Fatalf("desktop main loader missing cache-busting part version %q", want)
+		}
+	}
+}
