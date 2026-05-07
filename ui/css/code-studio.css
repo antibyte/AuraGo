@@ -19,7 +19,6 @@
     overflow: hidden;
 }
 
-.desktop-body[data-theme="standard"] .code-studio,
 .desktop-body[data-theme="light"] .code-studio,
 .desktop-body[data-theme="fruity"] .code-studio {
     --cs-bg: #f7fafc;

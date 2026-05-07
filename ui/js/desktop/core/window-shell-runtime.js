@@ -482,6 +482,7 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 960, height: 680 },
+            gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
             'quick-connect': { width: 920, height: 640 },
             'code-studio': { width: 1280, height: 850 },
@@ -498,7 +499,8 @@
     function appWindowMinSize(appId) {
         const mins = {
             'system-info': { width: 560, height: 460 },
-            calculator: { width: 280, height: 420 }
+            calculator: { width: 280, height: 420 },
+            gallery: { width: 640, height: 480 }
         };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
@@ -545,6 +547,14 @@
     }
 
     function findExistingAppWindow(appId, context) {
+        state.windows.forEach((win, id) => {
+            if (!win || !win.element || !win.element.isConnected) {
+                clearWindowMenus(id);
+                disposeAppWindow(win);
+                state.windows.delete(id);
+                if (state.activeWindowId === id) state.activeWindowId = '';
+            }
+        });
         return [...state.windows.values()].find(win => {
             if (win.appId !== appId) return false;
             if ((appId === 'writer' || appId === 'sheets') && context && context.path != null) {

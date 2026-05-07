@@ -560,7 +560,16 @@
     }
 
     function webampHostNode() {
-        return $('vd-window-layer') || document.body;
+        const parent = $('vd-window-layer') || document.body;
+        let host = $('vd-webamp-host');
+        if (!host || host.parentElement !== parent) {
+            if (host) host.remove();
+            host = document.createElement('div');
+            host.id = 'vd-webamp-host';
+            host.className = 'vd-webamp-host';
+            parent.appendChild(host);
+        }
+        return host;
     }
 
     function disposeWebampMusic(windowId, options) {
@@ -576,6 +585,8 @@
             }
         }
         state.webampMusic = null;
+        const host = $('vd-webamp-host');
+        if (host) host.remove();
     }
 
     async function loadWebampConstructor() {
