@@ -17,6 +17,7 @@
         contextMenuKeydown: null,
         windowMenus: new Map(),
         windowCleanups: new Map(),
+        widgetCleanups: [],
         openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
@@ -396,9 +397,12 @@
 
     function appGlobalName(appId) {
         return {
+            files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',
-            'code-studio': 'CodeStudioApp'
+            'code-studio': 'CodeStudioApp',
+            looper: 'LooperApp',
+            camera: 'CameraApp'
         }[appId] || '';
     }
 
@@ -860,6 +864,7 @@
 
     function renderWidgets() {
         const host = $('vd-widgets');
+        clearWidgetRuntime();
         const boot = state.bootstrap || {};
         const widgets = boot.widgets || [];
         const cards = [];

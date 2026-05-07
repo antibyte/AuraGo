@@ -840,6 +840,7 @@
 
     function renderAppContent(id, appId, context) {
         clearWindowMenus(id);
+        try {
         if (appId === 'files') {
             const path = Object.prototype.hasOwnProperty.call(context || {}, 'path')
                 ? (context.path || '')
@@ -929,6 +930,7 @@
             }));
         }
         return renderGeneratedApp(id, appId);
+        } catch (err) { renderAppError(id, appId, err); return undefined; }
     }
 
     async function renderFiles(id, path) {

@@ -13,7 +13,10 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 	markers := map[string][]string{
 		"ui/js/desktop/main.js": {
 			"function appGlobalName",
+			"files: 'FileManager'",
 			"'code-studio': 'CodeStudioApp'",
+			"looper: 'LooperApp'",
+			"camera: 'CameraApp'",
 			"function appGlobalFallbackName",
 			"'code-studio': 'CodeStudio'",
 			"function callAppDispose",
@@ -25,6 +28,14 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"const disposed = callAppDispose",
 			"!disposed && fallbackName",
 			"closeWindow(id)",
+		},
+		"ui/js/desktop/file-manager.js": {
+			"const instances = new Map()",
+			"function createInstance",
+			"instances.set(windowId, instance)",
+			"function dispose(windowId)",
+			"instances.delete(windowId)",
+			"window.FileManager = { render, navigateTo, dispose }",
 		},
 		"ui/js/desktop/apps/sheets.js": {
 			"SheetsApp.dispose",

@@ -20,6 +20,10 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"ResizeObserver",
 		"--vd-widget-auto-height",
 		"--vd-widget-frame-height",
+		"function clearWidgetRuntime",
+		"state.widgetCleanups",
+		"clearInterval",
+		"disconnect()",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop widget autosize implementation missing marker %q", marker)

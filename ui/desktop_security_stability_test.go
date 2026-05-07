@@ -18,6 +18,8 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 		`iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals')`,
 		`const cleanup = state.windowCleanups.get(win.id)`,
 		`function registerWindowCleanup(windowId, cleanup)`,
+		`function renderAppError`,
+		`catch (err)`,
 		`if (state.z > 100000) normalizeWindowZIndexes();`,
 		`document.addEventListener('keydown', closeContextMenuOnEscape)`,
 	} {

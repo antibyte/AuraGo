@@ -6,30 +6,44 @@
     const PREVIEW_IMAGE_EXTS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
     const PREVIEW_IMAGE_MIMES = new Set(['image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp']);
 
-    const fm = {
-        windowId: '',
-        host: null,
-        callbacks: null,
-        currentPath: '',
-        files: [],
-        filteredFiles: null,
-        selectedPaths: new Set(),
-        clipboard: null,
-        viewMode: 'list',
-        sortBy: 'name',
-        sortAsc: true,
-        history: [],
-        historyIndex: -1,
-        searchQuery: '',
-        directories: [],
-        loading: false,
-        lastClickedPath: null,
-        renamePath: null,
-        dragOverPath: null,
-        keyboardBound: false,
-        activeKeyboardWindow: '',
-        sidebarOpen: false,
-    };
+    const instances = new Map();
+    let fm = createInstance();
+
+    function createInstance() {
+        return {
+            windowId: '',
+            host: null,
+            callbacks: null,
+            currentPath: '',
+            files: [],
+            filteredFiles: null,
+            selectedPaths: new Set(),
+            clipboard: null,
+            viewMode: 'list',
+            sortBy: 'name',
+            sortAsc: true,
+            history: [],
+            historyIndex: -1,
+            searchQuery: '',
+            directories: [],
+            loading: false,
+            lastClickedPath: null,
+            renamePath: null,
+            dragOverPath: null,
+            keyboardBound: false,
+            activeKeyboardWindow: '',
+            sidebarOpen: false,
+        };
+    }
+
+    function setActiveInstance(instance) {
+        if (instance) fm = instance;
+        return fm;
+    }
+
+    function instanceForWindow(windowId) {
+        return instances.get(windowId) || null;
+    }
 
     function t(key, fallback, vars) {
         if (fallback && typeof fallback === 'object' && !Array.isArray(fallback)) {
@@ -582,10 +596,14 @@
     }
 
     function render(host, windowId, initialPath, callbacks) {
+        dispose(windowId);
+        const instance = createInstance();
+        setActiveInstance(instance);
         fm.host = host;
         fm.windowId = windowId;
         fm.callbacks = callbacks || {};
         fm.directories = Array.isArray(callbacks.directories) ? callbacks.directories : [];
+        instances.set(windowId, instance);
         if (typeof fm.callbacks.wireContextMenuBoundary === 'function') fm.callbacks.wireContextMenuBoundary(host);
         loadPreferences();
         bindKeyboard();

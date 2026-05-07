@@ -17,6 +17,7 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"instance.ws.close()",
 		"function runWithInstance(instance, fn)",
 		"finally {",
+		"return await fn(instance);",
 		"async function runAsyncStep",
 		"instances.get(state.windowId) === state",
 		"if (!isLiveInstance(instance)) return;",

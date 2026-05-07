@@ -68,13 +68,11 @@
         if (!isLiveInstance(instance)) return undefined;
         const previous = state;
         state = instance;
-        let result;
         try {
-            result = fn(instance);
+            return await fn(instance);
         } finally {
             state = previous;
         }
-        return result;
     }
 
     function withCurrentInstance(fn) {

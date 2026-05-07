@@ -30,6 +30,19 @@
             });
             card._widgetResizeObserver = observer;
         }
+        if (!card._widgetCleanupRegistered) {
+            card._widgetCleanupRegistered = true;
+            registerWidgetCleanup(() => {
+                if (card._widgetResizeFrame) {
+                    window.cancelAnimationFrame(card._widgetResizeFrame);
+                    card._widgetResizeFrame = 0;
+                }
+                if (card._widgetResizeObserver) {
+                    card._widgetResizeObserver.disconnect();
+                    card._widgetResizeObserver = null;
+                }
+            });
+        }
         schedule();
     }
 
@@ -145,6 +158,10 @@
         updateClockHands();
         const timer = setInterval(updateClockHands, 1000);
         container._clockTimer = timer;
+        registerWidgetCleanup(() => {
+            clearInterval(timer);
+            if (container._clockTimer === timer) container._clockTimer = 0;
+        });
     }
 
     function renderQuickChatWidget(container) {
@@ -942,35 +959,6 @@
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
-    }
-
-    function callAppDispose(app, windowId) {
-        if (!app || typeof app.dispose !== 'function') return false;
-        try {
-            app.dispose(windowId);
-            return true;
-        } catch (err) {
-            console.warn('Desktop app dispose failed', err);
-            return false;
-        }
-    }
-
-    function disposeAppWindow(win) {
-        if (!win) return;
-        const cleanup = state.windowCleanups.get(win.id);
-        if (cleanup) {
-            state.windowCleanups.delete(win.id);
-            cleanup.forEach(fn => {
-                try { fn(); } catch (err) { console.warn('Desktop window cleanup failed', err); }
-            });
-        }
-        if (win.appId === 'music-player') disposeWebampMusic(win.id);
-        if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
-        if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
-        const disposeName = appGlobalName(win.appId);
-        const fallbackName = appGlobalFallbackName(win.appId);
-        const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
-        if (!disposed && fallbackName) callAppDispose(window[fallbackName], win.id);
     }
 
     function closeContextMenu() {
