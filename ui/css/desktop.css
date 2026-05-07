@@ -6600,7 +6600,8 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--vd-text-muted, #9aa3ad);
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.25;
 }
 
 .vd-looper-field select,
@@ -6638,8 +6639,9 @@
     flex: 1;
 }
 
-.vd-looper-field-xs { flex: 0 0 72px; width: 72px; min-width: 72px; }
-.vd-looper-field-sm { flex: 0 0 130px; width: 130px; min-width: 130px; }
+.vd-looper-field-xs { flex: 0 0 100px; width: 100px; min-width: 100px; }
+.vd-looper-field-sm { flex: 0 0 175px; width: 175px; min-width: 175px; }
+.vd-looper-field-xs input { text-align: center; }
 .vd-looper-field-xs input { text-align: center; }
 
 .vd-looper-icon-btn {
@@ -6692,9 +6694,9 @@
 .vd-looper-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    width: 220px;
-    min-width: 180px;
+    gap: 5px;
+    width: 260px;
+    min-width: 220px;
     flex-shrink: 0;
     overflow-y: auto;
 }
@@ -6712,6 +6714,10 @@
     cursor: pointer;
     transition: all 0.15s ease;
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .vd-looper-step-btn:hover {
@@ -6746,18 +6752,13 @@
 .vd-looper-step-btn-name {
     font-weight: 600;
     flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .vd-looper-step-btn-tag {
-    font-size: 9px;
-    font-weight: 500;
-    color: var(--vd-text-muted, #9aa3ad);
-    background: rgba(255,255,255,0.06);
-    padding: 1px 5px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    flex-shrink: 0;
+    display: none;
 }
 
 .vd-looper-sidebar-actions {

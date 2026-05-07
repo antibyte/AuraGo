@@ -81,7 +81,6 @@
                                 <span class="vd-looper-step-btn-icon">${step.icon}</span>
                                 <span class="vd-looper-step-btn-num">${idx + 1}</span>
                                 <span class="vd-looper-step-btn-name">${esc(t(step.labelKey))}</span>
-                                ${step.key === 'finish' ? `<span class="vd-looper-step-btn-tag">${esc(t('desktop.optional'))}</span>` : ''}
                             </button>
                         `).join('')}
                         <div class="vd-looper-sidebar-actions">
@@ -151,7 +150,10 @@
 
             const header = $(`looper-editor-header-${windowId}`);
             const textarea = $(`looper-editor-textarea-${windowId}`);
-            header.textContent = esc(t(meta.labelKey));
+            const headerText = meta.key === 'finish'
+                ? esc(t(meta.labelKey)) + ' (' + esc(t('desktop.optional')).toLowerCase() + ')'
+                : esc(t(meta.labelKey));
+            header.textContent = headerText;
             header.style.color = meta.color;
             textarea.placeholder = esc(t(meta.descKey));
             textarea.value = state.stepValues[key] || '';

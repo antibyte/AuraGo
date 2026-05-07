@@ -113,6 +113,11 @@
             const left = rect ? rect.left + (window.scrollX || 0) : 0;
             const top = rect ? rect.top + (window.scrollY || 0) : 0;
             contentWidth = Math.max(contentWidth, node.scrollWidth || 0, node.offsetWidth || 0, node.clientWidth || 0, rect ? rect.right + (window.scrollX || 0) : 0, left + (node.scrollWidth || 0));
+            if (node === doc || node === body) return;
+            const viewportHeight = window.innerHeight || doc.clientHeight || (body && body.clientHeight) || 0;
+            const nodeHeight = Math.max(node.clientHeight || 0, node.offsetHeight || 0, rect ? rect.height : 0);
+            const fillsViewport = viewportHeight > 0 && nodeHeight >= viewportHeight - 2 && (node.scrollHeight || 0) <= nodeHeight + 2 && node.children && node.children.length;
+            if (fillsViewport) return;
             contentHeight = Math.max(contentHeight, node.scrollHeight || 0, node.offsetHeight || 0, node.clientHeight || 0, rect ? rect.bottom + (window.scrollY || 0) : 0, top + (node.scrollHeight || 0));
         };
         include(doc);
@@ -120,7 +125,7 @@
         if (body) body.querySelectorAll('*').forEach(include);
         return {
             width: Math.ceil(contentWidth),
-            height: Math.ceil(contentHeight)
+            height: Math.ceil(Math.max(contentHeight, 1))
         };
     }
 
