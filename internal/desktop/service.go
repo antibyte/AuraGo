@@ -2209,6 +2209,9 @@ func validateDesktopSetting(key, value string) error {
 		if def.Key != key {
 			continue
 		}
+		if len(def.Values) == 0 {
+			return validateFreeformDesktopSetting(key, value)
+		}
 		for _, allowed := range def.Values {
 			if value == allowed {
 				return nil
@@ -2217,6 +2220,22 @@ func validateDesktopSetting(key, value string) error {
 		return fmt.Errorf("invalid desktop setting value for %s", key)
 	}
 	return fmt.Errorf("unsupported desktop setting %s", key)
+}
+
+func validateFreeformDesktopSetting(key, value string) error {
+	if key != "agent.provider" {
+		return fmt.Errorf("invalid desktop setting value for %s", key)
+	}
+	if len(value) > 128 {
+		return fmt.Errorf("invalid desktop setting value for %s", key)
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' || r == ':' || r == '/' {
+			continue
+		}
+		return fmt.Errorf("invalid desktop setting value for %s", key)
+	}
+	return nil
 }
 
 func (s *Service) validateWidgetEntryFile(appID, entry string) error {

@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -114,8 +116,43 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 			{ID: "dir-Trash", TargetType: desktop.ShortcutTargetDirectory, Path: "Trash", Name: "Trash", Icon: "trash"},
 		},
 		Settings:    settings,
+		Providers:   s.desktopProviderOptions(),
 		IconCatalog: desktop.DesktopIconCatalog(settings),
 	}
+}
+
+func (s *Server) enrichDesktopBootstrap(payload *desktop.BootstrapPayload) {
+	if payload == nil {
+		return
+	}
+	payload.Providers = s.desktopProviderOptions()
+}
+
+func (s *Server) desktopProviderOptions() []desktop.ProviderOption {
+	if s == nil || s.Cfg == nil {
+		return nil
+	}
+	s.CfgMu.RLock()
+	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
+	s.CfgMu.RUnlock()
+	out := make([]desktop.ProviderOption, 0, len(providers))
+	for _, p := range providers {
+		id := strings.TrimSpace(p.ID)
+		if id == "" {
+			continue
+		}
+		name := strings.TrimSpace(p.Name)
+		if name == "" {
+			name = id
+		}
+		out = append(out, desktop.ProviderOption{
+			ID:    id,
+			Name:  name,
+			Type:  strings.TrimSpace(p.Type),
+			Model: strings.TrimSpace(p.Model),
+		})
+	}
+	return out
 }
 
 func handleDesktopBootstrap(s *Server) http.HandlerFunc {
@@ -135,6 +172,7 @@ func handleDesktopBootstrap(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to load desktop", http.StatusInternalServerError)
 			return
 		}
+		s.enrichDesktopBootstrap(&payload)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(payload)
 	}
@@ -837,11 +875,12 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		cfg := *s.Cfg
 		s.CfgMu.RUnlock()
+		llmClient := applyDesktopAgentProvider(r.Context(), s, &cfg)
 		sessionID := "virtual-desktop"
 		runCfg := agent.RunConfig{
 			Config:             &cfg,
 			Logger:             s.Logger,
-			LLMClient:          s.LLMClient,
+			LLMClient:          llmClient,
 			ShortTermMem:       s.ShortTermMem,
 			HistoryManager:     s.HistoryManager,
 			LongTermMem:        s.LongTermMem,
@@ -1072,6 +1111,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 		}
 		defer cancel()
 		if bootstrap, err := svc.Bootstrap(r.Context()); err == nil {
+			s.enrichDesktopBootstrap(&bootstrap)
 			_ = conn.WriteJSON(map[string]interface{}{"type": "welcome", "payload": bootstrap})
 		}
 
@@ -1116,6 +1156,41 @@ func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {
 	}
 }
 
+func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Config) llm.ChatClient {
+	if s == nil || cfg == nil {
+		return nil
+	}
+	selected := desktopAgentProviderID(ctx, s)
+	if selected == "" {
+		return s.LLMClient
+	}
+	provider := cfg.FindProvider(selected)
+	if provider == nil {
+		return s.LLMClient
+	}
+	cfg.LLM.Provider = provider.ID
+	cfg.LLM.ProviderType = provider.Type
+	cfg.LLM.BaseURL = provider.BaseURL
+	cfg.LLM.APIKey = provider.APIKey
+	cfg.LLM.AccountID = provider.AccountID
+	if strings.TrimSpace(provider.Model) != "" {
+		cfg.LLM.Model = provider.Model
+	}
+	return llm.NewClientFromProviderDetails(provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+}
+
+func desktopAgentProviderID(ctx context.Context, s *Server) string {
+	svc, _, err := s.getDesktopService(ctx)
+	if err != nil {
+		return ""
+	}
+	payload, err := svc.Bootstrap(ctx)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(payload.Settings["agent.provider"])
+}
+
 func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatContext desktopChatContext) string {
 	if s == nil || s.Cfg == nil {
 		return ""
@@ -1123,11 +1198,12 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
+	llmClient := applyDesktopAgentProvider(ctx, s, &cfg)
 	sessionID := "virtual-desktop"
 	runCfg := agent.RunConfig{
 		Config:             &cfg,
 		Logger:             s.Logger,
-		LLMClient:          s.LLMClient,
+		LLMClient:          llmClient,
 		ShortTermMem:       s.ShortTermMem,
 		HistoryManager:     s.HistoryManager,
 		LongTermMem:        s.LongTermMem,

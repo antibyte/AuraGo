@@ -58,6 +58,14 @@ type WorkspaceInfo struct {
 	MaxFileSize int64    `json:"max_file_size"`
 }
 
+// ProviderOption is a safe, secret-free LLM provider choice for desktop UI.
+type ProviderOption struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Model string `json:"model"`
+}
+
 // BootstrapPayload is the initial state used by the virtual desktop UI.
 type BootstrapPayload struct {
 	Enabled            bool              `json:"enabled"`
@@ -73,6 +81,7 @@ type BootstrapPayload struct {
 	Widgets            []Widget          `json:"widgets"`
 	AllWidgets         []Widget          `json:"all_widgets"`
 	Settings           map[string]string `json:"settings"`
+	Providers          []ProviderOption  `json:"providers,omitempty"`
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
 }
 
@@ -181,6 +190,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "files.confirm_delete", Default: "true", Values: []string{"true", "false"}},
 		{Key: "files.default_folder", Default: "Documents", Values: []string{"Desktop", "Documents", "Downloads", "Pictures", "Shared"}},
 		{Key: "agent.show_chat_button", Default: "true", Values: []string{"true", "false"}},
+		{Key: "agent.provider", Default: ""},
 	}
 }
 

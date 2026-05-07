@@ -284,6 +284,7 @@
             {
                 id: 'agent', icon: 'apps', fallback: 'A', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
                     settingToggle('agent.show_chat_button', 'desktop.settings_show_agent_button', 'desktop.settings_show_agent_button_desc'),
+                    settingSelect('agent.provider', 'desktop.settings_agent_provider', 'desktop.settings_agent_provider_desc', desktopAgentProviderOptions(boot)),
                     settingInfo('desktop.setting_agent_control', boot.allow_agent_control ? t('desktop.on') : t('desktop.off'))
                 ]
             },
@@ -296,6 +297,18 @@
                 ]
             }
         ];
+    }
+
+    function desktopAgentProviderOptions(boot) {
+        const providers = Array.isArray(boot.providers) ? boot.providers : [];
+        const options = [{ value: '', labelKey: 'desktop.settings_agent_provider_default' }];
+        providers.forEach(provider => {
+            if (!provider || !provider.id) return;
+            const name = provider.name || provider.id;
+            const model = provider.model ? ` (${provider.model})` : '';
+            options.push({ value: provider.id, label: `${name}${model}` });
+        });
+        return options;
     }
 
     function settingSelect(key, label, desc, options) {
@@ -360,7 +373,10 @@
         }
         const control = item.type === 'toggle'
             ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
-            : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => `<option value="${esc(option[0])}" ${settingValue(item.key) === option[0] ? 'selected' : ''}>${esc(t(option[1]))}</option>`).join('')}</select>`;
+            : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => {
+                const normalized = normalizeSettingOption(option);
+                return `<option value="${esc(normalized.value)}" ${settingValue(item.key) === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
+            }).join('')}</select>`;
         return `<article class="vd-setting-row">
             <div>
                 <div class="vd-setting-label">${esc(t(item.label))}</div>
@@ -368,6 +384,15 @@
             </div>
             ${control}
         </article>`;
+    }
+
+    function normalizeSettingOption(option) {
+        if (Array.isArray(option)) {
+            return { value: String(option[0] || ''), label: t(option[1]) };
+        }
+        const value = String((option && option.value) || '');
+        const label = option && option.labelKey ? t(option.labelKey) : String((option && option.label) || value);
+        return { value, label };
     }
 
     async function saveDesktopSetting(key, value, host) {
