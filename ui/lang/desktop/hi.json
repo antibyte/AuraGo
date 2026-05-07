@@ -590,5 +590,8 @@
     "desktop.sheets_insert_col_left": "बाईं ओर कॉलम जोड़ें",
     "desktop.sheets_insert_col_right": "दाईं ओर कॉलम जोड़ें",
     "desktop.sheets_delete_rows": "चयनित पंक्तियाँ हटाएँ",
-    "desktop.sheets_delete_columns": "चयनित कॉलम हटाएँ"
+    "desktop.sheets_delete_columns": "चयनित कॉलम हटाएँ",
+    "desktop.looper_logs_title": "लॉग्स",
+    "desktop.looper_clear": "साफ़ करें",
+    "desktop.looper_no_logs": "अभी तक कोई निष्पादन लॉग नहीं"
 }

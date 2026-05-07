@@ -590,5 +590,8 @@
     "desktop.sheets_insert_col_left": "Inserisci colonna a sinistra",
     "desktop.sheets_insert_col_right": "Inserisci colonna a destra",
     "desktop.sheets_delete_rows": "Elimina righe selezionate",
-    "desktop.sheets_delete_columns": "Elimina colonne selezionate"
+    "desktop.sheets_delete_columns": "Elimina colonne selezionate",
+    "desktop.looper_logs_title": "Log",
+    "desktop.looper_clear": "Cancella",
+    "desktop.looper_no_logs": "Nessun log di esecuzione ancora"
 }
