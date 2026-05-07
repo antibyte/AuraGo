@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -16,6 +17,71 @@ import (
 )
 
 const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
+const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
+const desktopWidgetAutoResizeScript = `<script data-aurago-widget-auto-resize>(function(){if(window.__auragoWidgetAutoResize)return;window.__auragoWidgetAutoResize=true;var params=new URLSearchParams(location.search);if(!params.get('widget_id')||!window.parent||window.parent===window)return;var frame=0;function measure(){var width=0,height=0,sx=window.scrollX||0,sy=window.scrollY||0;function include(node){if(!node)return;var rect=typeof node.getBoundingClientRect==='function'?node.getBoundingClientRect():null;var left=rect?rect.left+sx:0,top=rect?rect.top+sy:0;width=Math.max(width,node.scrollWidth||0,node.offsetWidth||0,node.clientWidth||0,rect?rect.right+sx:0,left+(node.scrollWidth||0));height=Math.max(height,node.scrollHeight||0,node.offsetHeight||0,node.clientHeight||0,rect?rect.bottom+sy:0,top+(node.scrollHeight||0));}include(document.documentElement);include(document.body);if(document.body)document.body.querySelectorAll('*').forEach(include);return{width:Math.ceil(width),height:Math.ceil(height)};}function send(){if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(function(){frame=0;window.parent.postMessage({type:'aurago.desktop.request',action:'desktop:widget:resize',payload:measure()},'*');});}function start(){send();if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.documentElement)ro.observe(document.documentElement);if(document.body)ro.observe(document.body);}if(window.MutationObserver&&document.body)new MutationObserver(send).observe(document.body,{childList:true,subtree:true,attributes:true,characterData:true});window.addEventListener('load',send,{once:true});window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(send).catch(function(){});[100,500,1500].forEach(function(ms){setTimeout(send,ms);});}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();})();</script>`
+
+func shouldInjectDesktopWidgetAutoResize(r *http.Request) bool {
+	if r == nil || (r.Method != http.MethodGet && r.Method != http.MethodHead) {
+		return false
+	}
+	if strings.TrimSpace(r.URL.Query().Get("widget_id")) == "" {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(r.URL.Path))
+	return ext == ".html" || ext == ".htm"
+}
+
+func injectDesktopWidgetAutoResizeHTML(content []byte) []byte {
+	if len(content) == 0 || bytes.Contains(content, []byte(desktopWidgetAutoResizeMarker)) {
+		return content
+	}
+	lower := bytes.ToLower(content)
+	if idx := bytes.LastIndex(lower, []byte("</body>")); idx >= 0 {
+		out := make([]byte, 0, len(content)+len(desktopWidgetAutoResizeScript))
+		out = append(out, content[:idx]...)
+		out = append(out, desktopWidgetAutoResizeScript...)
+		out = append(out, content[idx:]...)
+		return out
+	}
+	out := make([]byte, 0, len(content)+len(desktopWidgetAutoResizeScript))
+	out = append(out, content...)
+	out = append(out, desktopWidgetAutoResizeScript...)
+	return out
+}
+
+func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, desktopDir string) bool {
+	if !shouldInjectDesktopWidgetAutoResize(r) {
+		return false
+	}
+	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
+	if err != nil {
+		http.NotFound(w, r)
+		return true
+	}
+	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
+	rootAbs, rootErr := filepath.Abs(desktopDir)
+	fullAbs, fullErr := filepath.Abs(fullPath)
+	if rootErr != nil || fullErr != nil {
+		http.NotFound(w, r)
+		return true
+	}
+	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
+	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
+		http.NotFound(w, r)
+		return true
+	}
+	info, err := os.Stat(fullAbs)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	content, err := os.ReadFile(fullAbs)
+	if err != nil {
+		return false
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
+	return true
+}
 
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {
 	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")
@@ -496,6 +562,9 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
+		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir) {
+			return
+		}
 		desktopFileHandler.ServeHTTP(w, r)
 	})
 

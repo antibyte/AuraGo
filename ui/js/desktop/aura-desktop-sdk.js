@@ -105,19 +105,22 @@
     function measureWidgetContentSize() {
         const doc = document.documentElement;
         const body = document.body;
+        let contentWidth = 0;
+        let contentHeight = 0;
+        const include = node => {
+            if (!node) return;
+            const rect = typeof node.getBoundingClientRect === 'function' ? node.getBoundingClientRect() : null;
+            const left = rect ? rect.left + (window.scrollX || 0) : 0;
+            const top = rect ? rect.top + (window.scrollY || 0) : 0;
+            contentWidth = Math.max(contentWidth, node.scrollWidth || 0, node.offsetWidth || 0, node.clientWidth || 0, rect ? rect.right + (window.scrollX || 0) : 0, left + (node.scrollWidth || 0));
+            contentHeight = Math.max(contentHeight, node.scrollHeight || 0, node.offsetHeight || 0, node.clientHeight || 0, rect ? rect.bottom + (window.scrollY || 0) : 0, top + (node.scrollHeight || 0));
+        };
+        include(doc);
+        include(body);
+        if (body) body.querySelectorAll('*').forEach(include);
         return {
-            width: Math.ceil(Math.max(
-                doc ? doc.scrollWidth : 0,
-                doc ? doc.offsetWidth : 0,
-                body ? body.scrollWidth : 0,
-                body ? body.offsetWidth : 0
-            )),
-            height: Math.ceil(Math.max(
-                doc ? doc.scrollHeight : 0,
-                doc ? doc.offsetHeight : 0,
-                body ? body.scrollHeight : 0,
-                body ? body.offsetHeight : 0
-            ))
+            width: Math.ceil(contentWidth),
+            height: Math.ceil(contentHeight)
         };
     }
 

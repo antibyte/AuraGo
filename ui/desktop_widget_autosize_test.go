@@ -36,6 +36,7 @@ func TestDesktopWidgetSDKCanReportContentSize(t *testing.T) {
 		"widgets.resize = options => parentRequest('desktop:widget:resize'",
 		"function measureWidgetContentSize(",
 		"function startWidgetAutoResize(",
+		"body.querySelectorAll('*').forEach(include)",
 		"new ResizeObserver",
 	} {
 		if !strings.Contains(sdk, marker) {
