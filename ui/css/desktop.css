@@ -9,9 +9,26 @@
     --vd-coral: #ff8066;
     --vd-amber: #f2b84b;
     --vd-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+    --vd-control-bg: rgba(255, 255, 255, 0.08);
+    --vd-control-hover: rgba(255, 255, 255, 0.12);
+    --vd-editor-bg: #ffffff;
+    --vd-editor-text: #111827;
+    --vd-editor-muted: #334155;
+    --vd-editor-border: #dbe3ee;
+    --vd-editor-toolbar-bg: #f8fafc;
+    --vd-editor-toolbar-text: #334155;
+    --vd-editor-icon: #475569;
     --vd-icon-glyph-size: 42px;
     --vd-start-button-size: 52px;
     --vd-start-recess-size: 64px;
+    --vd-z-desktop: 0;
+    --vd-z-widget: 10;
+    --vd-z-window: 100;
+    --vd-z-dock: 400;
+    --vd-z-menu: 700;
+    --vd-z-modal: 800;
+    --vd-z-context-menu: 900;
+    --vd-z-toast: 1000;
 }
 
 .desktop-body {
@@ -90,6 +107,73 @@
 
 .desktop-body[data-wallpaper="paper_waves"] {
     background-image: linear-gradient(180deg, rgba(4, 7, 12, 0.06), rgba(4, 7, 12, 0.24)), url('/img/wallpapers/paper_waves.jpg');
+}
+
+.desktop-body[data-theme="standard"],
+.desktop-body[data-theme="light"] {
+    color-scheme: light;
+    --vd-bg: #edf2f7;
+    --vd-surface: rgba(255, 255, 255, 0.82);
+    --vd-surface-strong: rgba(255, 255, 255, 0.95);
+    --vd-border: rgba(57, 72, 93, 0.18);
+    --vd-text: #1f2937;
+    --vd-muted: #64748b;
+    --vd-accent: #0f8f7a;
+    --vd-coral: #d94b3d;
+    --vd-amber: #b7791f;
+    --vd-shadow: 0 24px 58px rgba(31, 41, 55, 0.18);
+    --vd-control-bg: rgba(255, 255, 255, 0.66);
+    --vd-control-hover: rgba(15, 143, 122, 0.12);
+}
+
+.desktop-body[data-theme="standard"] .vd-topbar,
+.desktop-body[data-theme="standard"] .vd-taskbar,
+.desktop-body[data-theme="light"] .vd-topbar,
+.desktop-body[data-theme="light"] .vd-taskbar {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 12px 34px rgba(31, 41, 55, 0.1);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-titlebar,
+.desktop-body[data-theme="light"] .vd-window-titlebar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(244, 247, 251, 0.74));
+    border-color: rgba(57, 72, 93, 0.16);
+}
+
+.desktop-body[data-theme="standard"] .vd-window-content,
+.desktop-body[data-theme="light"] .vd-window-content {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.desktop-body[data-theme="standard"] .vd-button,
+.desktop-body[data-theme="standard"] .vd-start-button,
+.desktop-body[data-theme="standard"] .vd-agent-button,
+.desktop-body[data-theme="standard"] .vd-tool-button,
+.desktop-body[data-theme="standard"] .vd-chat-send,
+.desktop-body[data-theme="standard"] .vd-setting-select,
+.desktop-body[data-theme="standard"] .vd-modal-input,
+.desktop-body[data-theme="light"] .vd-button,
+.desktop-body[data-theme="light"] .vd-start-button,
+.desktop-body[data-theme="light"] .vd-agent-button,
+.desktop-body[data-theme="light"] .vd-tool-button,
+.desktop-body[data-theme="light"] .vd-chat-send,
+.desktop-body[data-theme="light"] .vd-setting-select,
+.desktop-body[data-theme="light"] .vd-modal-input {
+    background: var(--vd-control-bg);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="standard"] .vd-button:hover,
+.desktop-body[data-theme="standard"] .vd-start-button:hover,
+.desktop-body[data-theme="standard"] .vd-agent-button:hover,
+.desktop-body[data-theme="standard"] .vd-tool-button:hover,
+.desktop-body[data-theme="standard"] .vd-chat-send:hover,
+.desktop-body[data-theme="light"] .vd-button:hover,
+.desktop-body[data-theme="light"] .vd-start-button:hover,
+.desktop-body[data-theme="light"] .vd-agent-button:hover,
+.desktop-body[data-theme="light"] .vd-tool-button:hover,
+.desktop-body[data-theme="light"] .vd-chat-send:hover {
+    background: var(--vd-control-hover);
 }
 
 .desktop-body[data-theme="fruity"] {
@@ -639,7 +723,7 @@
     top: auto;
     right: max(10px, env(safe-area-inset-right));
     bottom: calc(18px + env(safe-area-inset-bottom));
-    z-index: 10000;
+    z-index: var(--vd-z-context-menu);
     width: 38px;
     height: 38px;
 }
@@ -941,7 +1025,7 @@
     background: rgba(10, 14, 20, 0.62);
     border-color: var(--vd-border);
     backdrop-filter: blur(22px);
-    z-index: 30;
+    z-index: var(--vd-z-dock);
 }
 
 .vd-topbar {
@@ -1079,7 +1163,7 @@
 .vd-icons {
     position: absolute;
     inset: 0;
-    z-index: 2;
+    z-index: var(--vd-z-desktop);
     pointer-events: none;
 }
 
@@ -1295,7 +1379,7 @@
 .vd-dragging {
     opacity: 0.82;
     transform: scale(1.015);
-    z-index: 80 !important;
+    z-index: var(--vd-z-modal) !important;
     box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
 }
 
@@ -1430,7 +1514,7 @@
 }
 
 .vd-widget-manager-backdrop {
-    z-index: 210;
+    z-index: var(--vd-z-modal);
 }
 
 .vd-widget-manager {
@@ -1610,7 +1694,7 @@
 .vd-window-layer {
     position: absolute;
     inset: 0;
-    z-index: 10;
+    z-index: var(--vd-z-window);
     pointer-events: none;
 }
 
@@ -1637,6 +1721,10 @@
 }
 
 .vd-window.maximized {
+    top: env(safe-area-inset-top, 0px) !important;
+    left: env(safe-area-inset-left, 0px) !important;
+    width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
@@ -1759,7 +1847,7 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: 9000;
+    z-index: var(--vd-z-menu);
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
@@ -2379,7 +2467,7 @@
 .fm-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    grid-auto-rows: max-content;
+    grid-auto-rows: minmax(112px, auto);
     align-content: start;
     align-items: start;
     gap: 6px;
@@ -2398,7 +2486,7 @@
     touch-action: manipulation;
     position: relative;
     align-self: start;
-    min-height: 0;
+    min-height: 112px;
     transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 .fm-grid-item:hover {
@@ -2425,7 +2513,8 @@
 .fm-grid-name {
     font-size: 0.75rem;
     line-height: 1.3;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    word-break: normal;
     max-height: 2.6em;
     overflow: hidden;
     width: 100%;
@@ -2661,7 +2750,7 @@
     border-radius: 8px;
     padding: 4px;
     min-width: 160px;
-    z-index: 50;
+    z-index: var(--vd-z-context-menu);
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .fm-context-separator {
@@ -2717,7 +2806,7 @@
 .fm-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 80;
+    z-index: var(--vd-z-modal);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2844,8 +2933,8 @@
 
 .office-writer {
     grid-template-rows: auto auto minmax(0, 1fr);
-    background: #ffffff;
-    color: #111827;
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
 }
 
 .office-toolbar {
@@ -2854,16 +2943,16 @@
 }
 
 .office-writer .office-toolbar {
-    border-bottom: 1px solid #dbe3ee;
-    background: #f8fafc;
-    color: #334155;
+    border-bottom: 1px solid var(--vd-editor-border);
+    background: var(--vd-editor-toolbar-bg);
+    color: var(--vd-editor-toolbar-text);
 }
 
 .office-writer .office-path-input,
 .office-writer .office-title-input {
-    border-color: #cbd5e1;
-    background: #ffffff;
-    color: #111827;
+    border-color: var(--vd-editor-border);
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
 }
 
 .office-path-input,
@@ -2933,14 +3022,14 @@
 
 .office-writer-tools {
     border: 0;
-    border-bottom: 1px solid #dbe3ee;
-    background: #f8fafc;
-    color: #334155;
+    border-bottom: 1px solid var(--vd-editor-border);
+    background: var(--vd-editor-toolbar-bg);
+    color: var(--vd-editor-toolbar-text);
 }
 
 .office-writer .ql-toolbar.ql-snow,
 .office-writer .ql-container.ql-snow {
-    border-color: #dbe3ee;
+    border-color: var(--vd-editor-border);
 }
 
 .office-writer .ql-toolbar.ql-snow {
@@ -2952,40 +3041,45 @@
 }
 
 .office-writer .ql-picker {
-    color: #334155;
+    color: var(--vd-editor-toolbar-text);
 }
 
 .office-writer .ql-stroke {
-    stroke: #334155;
+    stroke: var(--vd-editor-icon);
 }
 
 .office-writer .ql-fill {
-    fill: #334155;
+    fill: var(--vd-editor-icon);
 }
 
 .office-writer .ql-picker-options {
-    background: #ffffff;
-    border-color: #cbd5e1;
-    color: #111827;
+    background: var(--vd-editor-bg);
+    border-color: var(--vd-editor-border);
+    color: var(--vd-editor-text);
 }
 
 .office-writer-editor {
     grid-row: 3;
     min-height: 0;
     overflow: auto;
-    background: #ffffff;
-    color: #111827;
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
 }
 
 .office-writer-editor.ql-container,
 .office-writer-editor .ql-container {
     height: 100%;
     min-height: 0;
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
 }
 
 .office-writer-editor .ql-editor {
+    height: 100%;
     min-height: 100%;
     padding: 28px clamp(22px, 5vw, 64px);
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
     line-height: 1.65;
     font-size: 1rem;
 }
@@ -2997,8 +3091,8 @@
     border: 0;
     border-radius: 0;
     padding: 18px;
-    background: #ffffff;
-    color: #111827;
+    background: var(--vd-editor-bg);
+    color: var(--vd-editor-text);
     font: inherit;
     line-height: 1.6;
 }
@@ -3100,7 +3194,7 @@
 
 .office-sheet-context-menu {
     position: fixed;
-    z-index: 260;
+    z-index: var(--vd-z-menu);
     min-width: 210px;
     padding: 6px;
     border: 1px solid var(--vd-border);
@@ -4390,7 +4484,7 @@
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
     backdrop-filter: blur(24px);
-    z-index: 40;
+    z-index: var(--vd-z-menu);
     overflow: hidden;
 }
 
@@ -4438,7 +4532,7 @@
     background: rgba(13, 18, 26, 0.96);
     box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(24px);
-    z-index: 10000;
+    z-index: var(--vd-z-context-menu);
     animation: vd-menu-in 90ms ease-out;
 }
 
@@ -4518,7 +4612,7 @@
     place-items: center;
     background: rgba(4, 7, 12, 0.58);
     backdrop-filter: blur(8px);
-    z-index: 200;
+    z-index: var(--vd-z-modal);
 }
 
 .vd-modal {
@@ -5249,7 +5343,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: var(--vd-z-modal);
     backdrop-filter: blur(2px);
 }
 
@@ -6411,7 +6505,7 @@
 .vd-lightbox-overlay {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: var(--vd-z-context-menu);
     display: flex;
     align-items: center;
     justify-content: center;

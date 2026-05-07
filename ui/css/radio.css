@@ -15,6 +15,34 @@
         linear-gradient(145deg, rgba(5, 13, 24, 0.35), rgba(5, 13, 24, 0.74));
 }
 
+.desktop-body[data-theme="standard"] .radio-app,
+.desktop-body[data-theme="light"] .radio-app,
+.desktop-body[data-theme="fruity"] .radio-app {
+    --radio-glass: rgba(255, 255, 255, 0.68);
+    --radio-glass-strong: rgba(255, 255, 255, 0.88);
+    --radio-line: rgba(51, 65, 85, 0.16);
+    --radio-text-muted: rgba(71, 85, 105, 0.78);
+    color: var(--vd-text);
+    background:
+        radial-gradient(circle at 16% 8%, rgba(15, 143, 122, 0.16), transparent 32%),
+        radial-gradient(circle at 92% 12%, rgba(99, 179, 255, 0.16), transparent 34%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.5), rgba(238, 244, 250, 0.74));
+}
+
+@media (prefers-color-scheme: dark) {
+    .desktop-body[data-theme="fruity"] .radio-app {
+        --radio-glass: rgba(9, 18, 32, 0.58);
+        --radio-glass-strong: rgba(10, 24, 42, 0.82);
+        --radio-line: rgba(255, 255, 255, 0.13);
+        --radio-text-muted: rgba(232, 244, 255, 0.68);
+        color: var(--vd-text, #eff7ff);
+        background:
+            radial-gradient(circle at 16% 8%, rgba(57, 213, 199, 0.22), transparent 32%),
+            radial-gradient(circle at 92% 12%, rgba(64, 130, 255, 0.18), transparent 34%),
+            linear-gradient(145deg, rgba(5, 13, 24, 0.35), rgba(5, 13, 24, 0.74));
+    }
+}
+
 .radio-scroll {
     flex: 1 1 auto;
     min-height: 0;
@@ -321,7 +349,7 @@
     position: absolute;
     top: 18px;
     right: 18px;
-    z-index: 5;
+    z-index: var(--vd-z-toast);
     max-width: min(360px, calc(100% - 36px));
     border: 1px solid rgba(255, 134, 134, 0.35);
     border-radius: 16px;

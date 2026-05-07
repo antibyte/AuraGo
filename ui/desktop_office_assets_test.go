@@ -139,12 +139,12 @@ func TestDesktopWriterUsesFullWhiteWritingSurface(t *testing.T) {
 	for _, marker := range []string{
 		".office-writer {",
 		"grid-template-rows: auto auto minmax(0, 1fr);",
-		"background: #ffffff;",
-		"color: #111827;",
+		"background: var(--vd-editor-bg);",
+		"color: var(--vd-editor-text);",
 		".office-writer .ql-stroke {",
-		"stroke: #334155;",
+		"stroke: var(--vd-editor-icon);",
 		".office-writer .ql-fill {",
-		"fill: #334155;",
+		"fill: var(--vd-editor-icon);",
 	} {
 		if !strings.Contains(desktopCSS, marker) {
 			t.Fatalf("writer white-surface styling missing marker %q", marker)

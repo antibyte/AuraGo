@@ -19,6 +19,31 @@
     overflow: hidden;
 }
 
+.desktop-body[data-theme="standard"] .code-studio,
+.desktop-body[data-theme="light"] .code-studio,
+.desktop-body[data-theme="fruity"] .code-studio {
+    --cs-bg: #f7fafc;
+    --cs-panel: #ffffff;
+    --cs-panel-soft: #eef3f8;
+    --cs-border: rgba(51, 65, 85, 0.18);
+    --cs-text: #172033;
+    --cs-muted: #64748b;
+    --cs-accent: var(--vd-accent);
+    background: var(--cs-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+    .desktop-body[data-theme="fruity"] .code-studio {
+        --cs-bg: #12161d;
+        --cs-panel: #171d26;
+        --cs-panel-soft: #1d2530;
+        --cs-border: rgba(172, 185, 204, 0.18);
+        --cs-text: #edf2f8;
+        --cs-muted: #9baabc;
+        --cs-accent: #3ec6b5;
+    }
+}
+
 .code-studio-toolbar,
 .code-studio-search,
 .code-studio-statusbar,
@@ -77,7 +102,7 @@
     border: 1px solid var(--cs-border);
     border-radius: 6px;
     color: var(--cs-text);
-    background: #10151c;
+    background: var(--cs-panel-soft);
 }
 
 .cs-search-form input[type="checkbox"] {
@@ -134,7 +159,7 @@
 
 .cs-search-result code {
     font: 12px/1.4 Consolas, "Liberation Mono", monospace;
-    color: #d8e2ef;
+    color: var(--cs-text);
 }
 
 .code-studio-body {
@@ -440,7 +465,7 @@
 .code-studio-editor {
     min-height: 0;
     overflow: hidden;
-    background: #10151c;
+    background: var(--cs-panel-soft);
 }
 
 .code-studio-editor .cm-editor {
@@ -515,7 +540,7 @@
     outline: 0;
     resize: none;
     color: var(--cs-text);
-    background: #10151c;
+    background: var(--cs-panel-soft);
     font: var(--cs-editor-font-size, 13px)/1.5 Consolas, "Liberation Mono", monospace;
     white-space: pre;
     overflow: auto;
@@ -523,7 +548,7 @@
 
 .code-studio-preview {
     border-left: 1px solid var(--cs-border);
-    color: #d8e2ef;
+    color: var(--cs-text);
 }
 
 .code-studio-terminal {
@@ -629,14 +654,14 @@
     border: 1px solid var(--cs-border);
     border-radius: 6px;
     color: var(--cs-text);
-    background: #10151c;
+    background: var(--cs-panel-soft);
 }
 
 .code-studio-diff {
     min-height: 0;
     max-height: 190px;
     border-top: 1px solid var(--cs-border);
-    background: #10151c;
+    background: var(--cs-panel-soft);
 }
 
 .cs-diff-head {
@@ -652,20 +677,20 @@
     margin: 0;
     padding: 10px;
     overflow: auto;
-    color: #d8e2ef;
+    color: var(--cs-text);
     font: 12px/1.45 Consolas, "Liberation Mono", monospace;
     white-space: pre;
 }
 
 .cs-context-menu {
     position: fixed;
-    z-index: 10001;
+    z-index: var(--vd-z-context-menu);
     display: grid;
     min-width: 190px;
     padding: 6px;
-    border: 1px solid rgba(172, 185, 204, 0.18);
+    border: 1px solid var(--cs-border);
     border-radius: 8px;
-    background: #171d26;
+    background: var(--cs-panel);
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.36);
 }
 
@@ -674,7 +699,7 @@
     padding: 0 9px;
     border: 0;
     border-radius: 6px;
-    color: #edf2f8;
+    color: var(--cs-text);
     background: transparent;
     font: inherit;
     text-align: left;
@@ -688,7 +713,7 @@
 .cs-modal-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: var(--vd-z-modal);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -717,7 +742,7 @@
     border: 1px solid var(--cs-border);
     border-radius: 6px;
     color: var(--cs-text);
-    background: #10151c;
+    background: var(--cs-panel-soft);
 }
 
 .cs-modal p {
