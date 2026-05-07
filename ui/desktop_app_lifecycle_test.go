@@ -72,3 +72,27 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopMainBundleOrdersSplitShellFragmentsBeforeLifecycleHelpers(t *testing.T) {
+	t.Parallel()
+
+	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	orderedParts := []string{
+		"/js/desktop/core/desktop-foundation.js",
+		"/js/desktop/core/window-shell-runtime.js",
+		"/js/desktop/core/lifecycle-cleanup.js",
+		"/js/desktop/core/widget-autosize-runtime.js",
+		"/js/desktop/core/menus-and-routing.js",
+	}
+	last := -1
+	for _, part := range orderedParts {
+		index := strings.Index(main, part)
+		if index < 0 {
+			t.Fatalf("desktop main bundle missing script part %s", part)
+		}
+		if index <= last {
+			t.Fatalf("desktop main bundle loads %s before the preceding split-shell dependency", part)
+		}
+		last = index
+	}
+}

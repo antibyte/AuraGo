@@ -283,6 +283,51 @@ func TestCodeStudioWindowMenuEditorZoom(t *testing.T) {
 	}
 }
 
+func TestWindowMenuShortcutRouterMatchesBrowserZoomKeyCodes(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function shortcutKeyMatches(eventKey, eventCode, wanted)",
+		"const codeAliases = {",
+		"equal: ['=', '+']",
+		"numpadadd: ['=', '+']",
+		"minus: ['-']",
+		"numpadsubtract: ['-']",
+		"digit0: ['0']",
+		"numpad0: ['0']",
+		"shortcutKeyMatches(eventKey, eventCode, wanted)",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop menu shortcut router missing browser zoom key-code support marker %q", want)
+		}
+	}
+}
+
+func TestDesktopLooperUsesThemeIconMapping(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"looper: 'refresh'",
+		"looper: 'Lp'",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop shell missing Looper theme icon marker %q", want)
+		}
+	}
+
+	for _, manifestPath := range []string{
+		filepath.Join("img", "papirus", "manifest.json"),
+		filepath.Join("img", "whitesur", "manifest.json"),
+	} {
+		manifest := readDesktopAssetText(t, manifestPath)
+		if !strings.Contains(manifest, `"refresh"`) {
+			t.Fatalf("%s does not expose the Looper refresh icon through the active theme manifest", manifestPath)
+		}
+	}
+}
+
 func readDesktopAssetText(t *testing.T, path string) string {
 	t.Helper()
 	data, err := Content.ReadFile(filepath.ToSlash(path))

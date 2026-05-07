@@ -119,6 +119,7 @@
         terminal: 'terminal',
         browser: 'browser',
         launchpad: 'launchpad',
+        looper: 'refresh',
         'system-info': 'analytics'
     };
     appIconKeys['code-studio'] = 'code';
@@ -262,7 +263,8 @@
             gallery: 'G',
             'quick-connect': 'QC',
             'code-studio': 'CS',
-            launchpad: 'LP'
+            launchpad: 'LP',
+            looper: 'Lp'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }

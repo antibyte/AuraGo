@@ -824,18 +824,19 @@
         const wantMeta = parts.includes('meta') || parts.includes('cmd') || parts.includes('command');
         const wantAlt = parts.includes('alt') || parts.includes('option');
         const wantShift = parts.includes('shift');
+        const key = parts.find(part => !['ctrl', 'control', 'meta', 'cmd', 'command', 'alt', 'option', 'shift'].includes(part));
+        if (!key) return false;
+        const allowsImplicitShift = !wantShift && (key === '=' || key === '+');
         if (wantCtrl && !(event.ctrlKey || event.metaKey)) return false;
         if (wantMeta && !event.metaKey) return false;
         if (!wantCtrl && !wantMeta && (event.ctrlKey || event.metaKey)) return false;
         if (wantAlt !== !!event.altKey) return false;
-        if (wantShift !== !!event.shiftKey) return false;
-        const key = parts.find(part => !['ctrl', 'control', 'meta', 'cmd', 'command', 'alt', 'option', 'shift'].includes(part));
-        if (!key) return false;
+        if (wantShift !== !!event.shiftKey && !(allowsImplicitShift && event.shiftKey)) return false;
         const eventKey = String(event.key || '').toLowerCase();
         const eventCode = String(event.code || '').toLowerCase();
         const aliases = { del: 'delete', esc: 'escape', space: ' ', return: 'enter' };
         const wanted = aliases[key] || key;
-        return eventKey === wanted || eventCode === wanted || eventCode === ('key' + wanted);
+        return shortcutKeyMatches(eventKey, eventCode, wanted);
     }
 
     function renderAppContent(id, appId, context) {
