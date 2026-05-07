@@ -140,7 +140,9 @@
         }
 
         function setActiveStep(key) {
-            saveCurrentStepValue();
+            if (state.activeStep !== key) {
+                saveCurrentStepValue();
+            }
             state.activeStep = key;
             const meta = STEP_META.find(s => s.key === key);
 
@@ -233,7 +235,11 @@
                 exit: p.exit_cond || '',
                 finish: p.finish || ''
             };
-            setActiveStep(state.activeStep);
+            // Refresh textarea for current step without triggering saveCurrentStepValue
+            const textarea = $(`looper-editor-textarea-${windowId}`);
+            if (textarea) {
+                textarea.value = state.stepValues[state.activeStep] || '';
+            }
             $(`looper-provider-${windowId}`).value = p.provider_id || '';
             $(`looper-model-${windowId}`).value = p.model || '';
             $(`looper-max-iter-${windowId}`).value = p.max_iter || 20;
@@ -426,7 +432,8 @@
                 if (e && e.status === 409) {
                     if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
                 } else {
-                    if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_start_error') });
+                    const msg = e && e.message ? e.message : t('desktop.looper_start_error');
+                    if (notify) notify({ title: t('desktop.notification'), message: msg });
                 }
             }
         });
