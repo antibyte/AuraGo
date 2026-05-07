@@ -82,7 +82,7 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
 	for _, want := range []string{
 		`/css/desktop.css?v=26`,
-		`/js/desktop/main.js?v=26`,
+		`/js/desktop/main.js?v=27`,
 		`/js/desktop/apps/looper.js?v=2`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
@@ -103,5 +103,24 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 		if !strings.Contains(mainJS, want) {
 			t.Fatalf("desktop main loader missing cache-busting part version %q", want)
 		}
+	}
+}
+
+func TestDesktopWindowRuntimeContainsFruityDockScrollHelper(t *testing.T) {
+	t.Parallel()
+
+	runtimeJS := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, want := range []string{
+		"function wireFruityDockScroll(host)",
+		"function updateFruityDockScrollControls(host)",
+		"wireFruityDockScroll(host)",
+	} {
+		if !strings.Contains(runtimeJS, want) {
+			t.Fatalf("window shell runtime missing fruity dock helper marker %q", want)
+		}
+	}
+	mainJS := readDesktopAssetText(t, "js/desktop/main.js")
+	if strings.Contains(mainJS, "/js/desktop/core/fruity-dock-scroll.js") {
+		t.Fatal("fruity dock helper must not be loaded as a separate main chunk because desktop chunks are split across function bodies")
 	}
 }

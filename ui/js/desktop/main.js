@@ -7,7 +7,6 @@
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=4',
         '/js/desktop/core/window-shell-runtime.js?v=4',
-        '/js/desktop/core/fruity-dock-scroll.js?v=1',
         '/js/desktop/core/menus-and-routing.js?v=2',
         '/js/desktop/apps/settings-calculator.js?v=1',
         '/js/desktop/apps/planning-gallery-music.js?v=2',
