@@ -2,9 +2,9 @@
         wins.forEach(win => { win.element.style.zIndex = String(++state.z); });
     }
 
+    function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) {
-        if (!target || !target.closest) return false;
-        return !!target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea');
+        return isEditableTarget(target);
     }
 
     function shouldAllowBrowserContextMenu(event) {

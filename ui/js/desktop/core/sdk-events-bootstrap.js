@@ -283,7 +283,7 @@
 
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
-        if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+        if (isEditableTarget(event.target)) return;
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();

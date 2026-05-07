@@ -23,6 +23,7 @@
         fruityDockOcclusionFrame: 0,
         fruityDockFootprint: null
     };
+    let bootstrapReloadPromise = null;
 
     const SDK_REQUEST_TYPE = 'aurago.desktop.request';
     const SDK_RESPONSE_TYPE = 'aurago.desktop.response';
@@ -433,7 +434,11 @@
     }
 
     function settingBool(key) {
-        return settingValue(key) !== 'false';
+        const value = settingValue(key);
+        if (value === false || value === 0) return false;
+        if (value === true || value === 1) return true;
+        if (value == null || value === '') return true;
+        return String(value).toLowerCase() !== 'false' && String(value) !== '0';
     }
 
     function isFruityTheme() {
@@ -643,9 +648,16 @@
     }
 
     async function loadBootstrap() {
-        state.bootstrap = await api('/api/desktop/bootstrap');
-        state.desktopFiles = await loadDesktopFiles();
-        renderDesktop();
+        if (bootstrapReloadPromise) return bootstrapReloadPromise;
+        bootstrapReloadPromise = (async () => {
+            state.bootstrap = await api('/api/desktop/bootstrap');
+            state.desktopFiles = await loadDesktopFiles();
+            renderDesktop();
+            return state.bootstrap;
+        })();
+        try {
+            return await bootstrapReloadPromise;
+        } finally { bootstrapReloadPromise = null; }
     }
 
     async function loadDesktopFiles() {
