@@ -108,6 +108,12 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 	case statusCode == 529:
 		// Anthropic "overloaded" error - explicitly retryable
 		return ErrCategoryTemporaryTransport
+	case statusCode == http.StatusNotFound:
+		lowerErr := strings.ToLower(errMsg)
+		if strings.Contains(lowerErr, "<!doctype html") || strings.Contains(lowerErr, "<html") {
+			return ErrCategoryTemporaryTransport
+		}
+		return ErrCategoryProviderValidation
 	case statusCode >= 500 && statusCode < 600:
 		return ErrCategoryTemporaryTransport
 	default:

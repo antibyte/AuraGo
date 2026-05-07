@@ -67,7 +67,7 @@ func ExecuteMinimalLoop(
 	// Single-turn with up to 10 tool-call follow-ups
 	maxToolRounds := 10
 	for round := 0; round <= maxToolRounds; round++ {
-		resp, err := client.CreateChatCompletion(ctx, req)
+		resp, err := llm.ExecuteWithRetry(ctx, client, req, logger, nil)
 		if err != nil {
 			return result, req.Messages, fmt.Errorf("llm call failed: %w", err)
 		}
