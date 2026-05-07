@@ -760,7 +760,7 @@
         const items = desktopShortcutItems();
         const positions = iconPositions();
         icons.innerHTML = items.map(item => {
-            const iconKey = item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app);
+            const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
             const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
             return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
@@ -796,6 +796,7 @@
                     type: 'app',
                     app,
                     path: shortcut.path || '',
+                    icon: shortcut.icon || '',
                     shortcut
                 };
             }
@@ -805,6 +806,7 @@
                     name: shortcut.name || shortcut.path,
                     type: 'directory',
                     path: shortcut.path || shortcut.target_id || '',
+                    icon: shortcut.icon || '',
                     shortcut
                 };
             }
