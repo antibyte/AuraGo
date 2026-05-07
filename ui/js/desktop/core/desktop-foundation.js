@@ -697,6 +697,20 @@
         });
     }
 
+    function widgetShouldAutoSize(widget) {
+        if (!widget) return true;
+        const configured = widget.auto_size !== undefined ? widget.auto_size : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
+        return !(configured === false || configured === 0 || String(configured).toLowerCase() === 'false');
+    }
+
+    function scheduleWidgetAutoSize(card, widget) {
+        if (card && widgetShouldAutoSize(widget)) card.dataset.widgetAutoSize = 'true';
+    }
+
+    function applyWidgetAutoSize(card, payload) { }
+
+    function resizeWidgetToContent(widgetId, payload) { }
+
     function renderAppError(id, appId, err) {
         console.error('Desktop app render failed', { appId, windowId: id, error: err });
         const host = contentEl(id);

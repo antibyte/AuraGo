@@ -105,6 +105,10 @@ func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testin
 		"function disposeAppWindow(win)",
 		"function clearWidgetRuntime()",
 		"function registerWidgetCleanup(cleanup)",
+		"function widgetShouldAutoSize(widget)",
+		"function scheduleWidgetAutoSize(card, widget)",
+		"function applyWidgetAutoSize(card, payload)",
+		"function resizeWidgetToContent(widgetId, payload)",
 		"function renderAppError(id, appId, err)",
 	} {
 		if !strings.Contains(foundation, want) {
@@ -116,6 +120,8 @@ func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testin
 		user   string
 	}{
 		{helper: "function clearWidgetRuntime()", user: "function renderWidgets()"},
+		{helper: "function widgetShouldAutoSize(widget)", user: "function renderWidgets()"},
+		{helper: "function scheduleWidgetAutoSize(card, widget)", user: "function renderWidgets()"},
 		{helper: "function disposeAppWindow(win)", user: "function renderDesktop()"},
 	} {
 		helperAt := strings.Index(foundation, check.helper)

@@ -565,14 +565,14 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 	}
 }
 
-func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.T) {
+func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing.T) {
 	addSetupCSRFTokenForTest("minimax-current-config-token")
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
-	input, err := os.ReadFile(filepath.Join("..", "..", "config.yaml"))
+	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
 	if err != nil {
-		t.Fatalf("read config.yaml: %v", err)
+		t.Fatalf("read config_template.yaml: %v", err)
 	}
 	if err := os.WriteFile(configPath, input, 0o600); err != nil {
 		t.Fatalf("write config: %v", err)

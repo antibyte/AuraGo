@@ -8,17 +8,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestRepositoryConfigYAMLIsParseable(t *testing.T) {
+func TestRepositoryConfigTemplateYAMLIsParseable(t *testing.T) {
 	t.Parallel()
 
-	path := filepath.Join("..", "..", "config.yaml")
+	path := filepath.Join("..", "..", "config_template.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read config.yaml: %v", err)
+		t.Fatalf("read config_template.yaml: %v", err)
 	}
 
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("parse config.yaml: %v", err)
+		t.Fatalf("parse config_template.yaml: %v", err)
 	}
 }
