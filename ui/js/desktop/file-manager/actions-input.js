@@ -121,6 +121,8 @@
 
     function attachFileItemEvents(root) {
         root.querySelectorAll('[data-path]').forEach(item => {
+            if (item.dataset.fmBound === 'true') return;
+            item.dataset.fmBound = 'true';
             item.addEventListener('click', handleItemClick);
             item.addEventListener('dblclick', handleItemDblClick);
             item.addEventListener('contextmenu', handleItemContextMenu);

@@ -7,5 +7,5 @@
     window.AuraDesktopModules.loadScriptParts('code-studio', [
         '/js/desktop/apps/code-studio/core-shell-files.js?v=1',
         '/js/desktop/apps/code-studio/actions-agent-editor.js?v=1'
-    ]);
+    ]).catch(err => console.error('Failed to load Aura desktop code-studio bundle', err));
 })();

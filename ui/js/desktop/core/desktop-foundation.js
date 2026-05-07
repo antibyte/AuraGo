@@ -18,6 +18,8 @@
         windowMenus: new Map(),
         windowCleanups: new Map(),
         widgetCleanups: [],
+        appsCache: [],
+        appsCacheBootstrap: null,
         openWindowMenu: null,
         webampMusic: null,
         fruityDockOcclusionFrame: 0,
@@ -381,7 +383,10 @@
 
     function allApps() {
         const boot = state.bootstrap || {};
-        return [...(boot.builtin_apps || []), ...(boot.installed_apps || [])];
+        if (state.appsCacheBootstrap === boot) return state.appsCache;
+        state.appsCacheBootstrap = boot;
+        state.appsCache = [...(boot.builtin_apps || []), ...(boot.installed_apps || [])];
+        return state.appsCache;
     }
 
     function startMenuApps() {

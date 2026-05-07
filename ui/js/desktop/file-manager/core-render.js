@@ -5,6 +5,8 @@
     const LS_SORT_KEY = 'aurago.fm.sort';
     const PREVIEW_IMAGE_EXTS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
     const PREVIEW_IMAGE_MIMES = new Set(['image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp']);
+    const FILE_RENDER_BATCH_SIZE = 250;
+    const FILE_INCREMENTAL_THRESHOLD = 600;
 
     const instances = new Map();
     let fm = createInstance();
@@ -33,6 +35,7 @@
             keyboardBound: false,
             activeKeyboardWindow: '',
             sidebarOpen: false,
+            incrementalRenderToken: 0,
         };
     }
 
@@ -612,9 +615,11 @@
 
     function renderAll() {
         if (!fm.host) return;
+        fm.incrementalRenderToken++;
         updateWindowMenus();
         fm.host.innerHTML = buildMarkup();
         attachEvents();
+        scheduleIncrementalFileRender(fm.host.querySelector('.file-manager'));
         updateToolbarState();
         updateStatusBar();
     }
@@ -708,6 +713,7 @@
         if (status) status.outerHTML = renderStatusBarHtml();
         attachFileItemEvents(root);
         attachMainAreaEvents(root, false);
+        scheduleIncrementalFileRender(root);
         updateToolbarState();
     }
 
@@ -826,8 +832,10 @@
             }
             return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder', 'This folder is empty'))}</div></div>`;
         }
+        const renderFiles = files.length > FILE_INCREMENTAL_THRESHOLD ? files.slice(0, FILE_RENDER_BATCH_SIZE) : files;
+        const incrementalAttr = files.length > FILE_INCREMENTAL_THRESHOLD ? ` data-fm-incremental="${esc(String(files.length))}"` : '';
         if (fm.viewMode === 'grid') {
-            return `<div class="fm-grid">${files.map(f => renderGridItem(f)).join('')}</div>`;
+            return `<div class="fm-grid"${incrementalAttr}>${renderFiles.map(f => renderGridItem(f)).join('')}</div>`;
         }
         return `<div class="fm-list">
             <div class="fm-list-header">
@@ -848,8 +856,32 @@
                     ${fm.sortBy === 'type' ? iconMarkup(fm.sortAsc ? 'chevron-up' : 'chevron-down', fm.sortAsc ? '\u2191' : '\u2193', 'fm-sort-indicator', 12) : ''}
                 </div>
             </div>
-            <div class="fm-list-body">${files.map(f => renderListRow(f)).join('')}</div>
+            <div class="fm-list-body"${incrementalAttr}>${renderFiles.map(f => renderListRow(f)).join('')}</div>
         </div>`;
+    }
+
+    function scheduleIncrementalFileRender(root) {
+        if (!root) return;
+        const files = getDisplayFiles();
+        if (files.length <= FILE_INCREMENTAL_THRESHOLD) return;
+        const target = root.querySelector('[data-fm-incremental]');
+        if (!target) return;
+        const token = ++fm.incrementalRenderToken;
+        let index = FILE_RENDER_BATCH_SIZE;
+        const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+        function pump() {
+            if (token !== fm.incrementalRenderToken || !fm.host || !target.isConnected) return;
+            const chunk = files.slice(index, index + FILE_RENDER_BATCH_SIZE);
+            if (chunk.length) {
+                const html = chunk.map(file => fm.viewMode === 'grid' ? renderGridItem(file) : renderListRow(file)).join('');
+                target.insertAdjacentHTML('beforeend', html);
+                attachFileItemEvents(root);
+            }
+            index += chunk.length;
+            if (index < files.length) schedule(pump);
+            else delete target.dataset.fmIncremental;
+        }
+        schedule(pump);
     }
 
     function renderGridItem(file) {

@@ -2,105 +2,6 @@
         });
     }
 
-    function widgetShouldAutoSize(widget) {
-        if (!widget) return true;
-        const configured = widget.auto_size !== undefined
-            ? widget.auto_size
-            : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
-        if (configured === undefined || configured === null || configured === '') return true;
-        if (configured === false || configured === 0) return false;
-        return String(configured).toLowerCase() !== 'false';
-    }
-
-    function scheduleWidgetAutoSize(card, widget) {
-        if (!card || !widgetShouldAutoSize(widget)) return;
-        card.dataset.widgetAutoSize = 'true';
-        if (card._widgetResizeFrame) window.cancelAnimationFrame(card._widgetResizeFrame);
-        const schedule = () => {
-            if (!document.body.contains(card)) return;
-            if (card._widgetResizeFrame) window.cancelAnimationFrame(card._widgetResizeFrame);
-            card._widgetResizeFrame = window.requestAnimationFrame(() => applyWidgetAutoSize(card));
-        };
-        if (window.ResizeObserver && !card._widgetResizeObserver) {
-            const observer = new ResizeObserver(schedule);
-            observer.observe(card);
-            ['.vd-widget-builtin', '.vd-widget-body', '.vd-widget-frame-wrap', '.vd-quickchat-response'].forEach(selector => {
-                const target = card.querySelector(selector);
-                if (target) observer.observe(target);
-            });
-            card._widgetResizeObserver = observer;
-        }
-        if (!card._widgetCleanupRegistered) {
-            card._widgetCleanupRegistered = true;
-            registerWidgetCleanup(() => {
-                if (card._widgetResizeFrame) {
-                    window.cancelAnimationFrame(card._widgetResizeFrame);
-                    card._widgetResizeFrame = 0;
-                }
-                if (card._widgetResizeObserver) {
-                    card._widgetResizeObserver.disconnect();
-                    card._widgetResizeObserver = null;
-                }
-            });
-        }
-        schedule();
-    }
-
-    function applyWidgetAutoSize(card, payload) {
-        if (!card || card.dataset.widgetAutoSize !== 'true') return;
-        const data = payload && typeof payload === 'object' ? payload : {};
-        const frameWrap = card.querySelector('.vd-widget-frame-wrap');
-        const reportedFrameHeight = Number(data.height || data.h || 0);
-        if (frameWrap && reportedFrameHeight > 0) {
-            const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight);
-            card.style.setProperty('--vd-widget-frame-height', frameHeight + 'px');
-            frameWrap.style.setProperty('--vd-widget-frame-height', frameHeight + 'px');
-        }
-        const desiredHeight = Math.max(
-            WIDGET_MIN_HEIGHT,
-            Math.ceil(Number(data.cardHeight || data.card_height || 0)),
-            Math.ceil(card.scrollHeight || 0)
-        );
-        card.style.setProperty('--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT) + 'px');
-    }
-
-    function resizeWidgetToContent(widgetId, payload) {
-        const id = String(widgetId || '');
-        if (!id) return;
-        const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(id)}"]`);
-        if (!card || card.dataset.widgetAutoSize !== 'true') return;
-        const data = payload && typeof payload === 'object' ? payload : {};
-        const reportedWidth = Number(data.width || data.w || 0);
-        if (reportedWidth > 16) {
-            const nextWidth = Math.max(220, Math.min(Math.ceil(reportedWidth), widgetMaxWidth(card)));
-            card.style.width = nextWidth + 'px';
-        }
-        applyWidgetAutoSize(card, data);
-    }
-
-    function clampWidgetFrameHeight(card, height) {
-        const available = Math.max(WIDGET_MIN_FRAME_HEIGHT, widgetAvailableHeight(card) - 32);
-        return Math.max(WIDGET_MIN_FRAME_HEIGHT, Math.min(Math.ceil(height), available));
-    }
-
-    function clampWidgetHeight(card, height, minimum) {
-        return Math.max(minimum, Math.min(Math.ceil(height), widgetAvailableHeight(card)));
-    }
-
-    function widgetAvailableHeight(card) {
-        const workspace = $('vd-workspace');
-        const workspaceHeight = (workspace && workspace.clientHeight) || window.innerHeight || 600;
-        const top = parseInt(card.style.top, 10) || card.offsetTop || 0;
-        return Math.max(WIDGET_MIN_HEIGHT, workspaceHeight - top - WIDGET_MAX_BOTTOM_GAP);
-    }
-
-    function widgetMaxWidth(card) {
-        const workspace = $('vd-workspace');
-        const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth || 960;
-        const left = parseInt(card.style.left, 10) || card.offsetLeft || 0;
-        return Math.max(220, workspaceWidth - left - 18);
-    }
-
     function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
@@ -724,6 +625,29 @@
         renderTaskbar();
     }
 
+    function scheduleWindowPointerFrame(target, callback) {
+        if (!target) return;
+        target.pendingFrame = callback;
+        if (target.raf) return;
+        const schedule = window.requestAnimationFrame || ((fn) => window.setTimeout(fn, 16));
+        target.raf = schedule(() => {
+            const pending = target.pendingFrame;
+            target.raf = 0;
+            target.pendingFrame = null;
+            if (pending) pending();
+        });
+    }
+
+    function cancelWindowPointerFrame(target, flush) {
+        if (!target || !target.raf) return;
+        const pending = target.pendingFrame;
+        const cancel = window.cancelAnimationFrame || window.clearTimeout;
+        cancel(target.raf);
+        target.raf = 0;
+        target.pendingFrame = null;
+        if (flush && pending) pending();
+    }
+
     function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         wireWindowContextMenu(win, id);
@@ -741,19 +665,34 @@
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(win.style.left, 10) || 0,
-                top: parseInt(win.style.top, 10) || 0
+                top: parseInt(win.style.top, 10) || 0,
+                raf: 0,
+                pendingFrame: null
             };
             bar.setPointerCapture(event.pointerId);
         });
         bar.addEventListener('pointermove', (event) => {
             if (!drag) return;
-            const maxLeft = window.innerWidth - 80;
-            const maxTop = window.innerHeight - 120;
-            win.style.left = Math.min(maxLeft, Math.max(8, drag.left + event.clientX - drag.x)) + 'px';
-            win.style.top = Math.min(maxTop, Math.max(8, drag.top + event.clientY - drag.y)) + 'px';
-            scheduleFruityDockOcclusionCheck();
+            drag.clientX = event.clientX;
+            drag.clientY = event.clientY;
+            const activeDrag = drag;
+            scheduleWindowPointerFrame(drag, () => {
+                if (drag !== activeDrag) return;
+                const maxLeft = window.innerWidth - 80;
+                const maxTop = window.innerHeight - 120;
+                win.style.left = Math.min(maxLeft, Math.max(8, activeDrag.left + activeDrag.clientX - activeDrag.x)) + 'px';
+                win.style.top = Math.min(maxTop, Math.max(8, activeDrag.top + activeDrag.clientY - activeDrag.y)) + 'px';
+                scheduleFruityDockOcclusionCheck();
+            });
         });
-        bar.addEventListener('pointerup', () => { drag = null; });
+        bar.addEventListener('pointerup', () => {
+            cancelWindowPointerFrame(drag, true);
+            drag = null;
+        });
+        bar.addEventListener('pointercancel', () => {
+            cancelWindowPointerFrame(drag);
+            drag = null;
+        });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
             bar.addEventListener('dblclick', event => {
                 if (event.target.closest('button, .vd-window-menubar')) return;
@@ -865,19 +804,32 @@
                     edge: handle.dataset.resize,
                     x: event.clientX,
                     y: event.clientY,
-                    bounds: windowBounds(win)
+                    bounds: windowBounds(win),
+                    raf: 0,
+                    pendingFrame: null
                 };
                 handle.setPointerCapture(event.pointerId);
             });
             handle.addEventListener('pointermove', event => {
                 if (!resize) return;
-                const dx = event.clientX - resize.x;
-                const dy = event.clientY - resize.y;
-                applyResize(win, resize.edge, resize.bounds, dx, dy);
+                resize.clientX = event.clientX;
+                resize.clientY = event.clientY;
+                const activeResize = resize;
+                scheduleWindowPointerFrame(resize, () => {
+                    if (resize !== activeResize) return;
+                    const dx = activeResize.clientX - activeResize.x;
+                    const dy = activeResize.clientY - activeResize.y;
+                    applyResize(win, activeResize.edge, activeResize.bounds, dx, dy);
+                });
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
                 handle.releasePointerCapture(event.pointerId);
+                cancelWindowPointerFrame(resize, true);
+                resize = null;
+            });
+            handle.addEventListener('pointercancel', () => {
+                cancelWindowPointerFrame(resize);
                 resize = null;
             });
         });

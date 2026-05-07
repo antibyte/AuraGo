@@ -579,6 +579,7 @@
         if (statusEl) chatLog.appendChild(statusEl);
         let streamingBubble = null;
         let streamingContent = '';
+        let streamTextFrame = 0;
         let finalized = false;
 
         return new Promise((resolve, reject) => {
@@ -592,6 +593,7 @@
                 if (finalized) return;
                 finalized = true;
                 clearTimeout(timeout);
+                flushStreamingBubble();
                 if (statusEl && statusEl.parentNode) statusEl.remove();
                 if (streamingBubble) {
                     streamingBubble.classList.remove('vd-streaming');
@@ -611,8 +613,26 @@
                 if (finalized) return;
                 finalized = true;
                 clearTimeout(timeout);
+                if (streamTextFrame) {
+                    const cancel = window.cancelAnimationFrame || window.clearTimeout;
+                    cancel(streamTextFrame);
+                    streamTextFrame = 0;
+                }
                 if (statusEl && statusEl.parentNode) statusEl.remove();
                 reject(err);
+            }
+
+            function flushStreamingBubble() {
+                streamTextFrame = 0;
+                if (!streamingBubble || !streamingBubble.classList.contains('vd-streaming')) return;
+                streamingBubble.textContent = streamingContent;
+                streamingBubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            }
+
+            function queueStreamingBubbleFlush() {
+                if (streamTextFrame) return;
+                const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+                streamTextFrame = schedule(flushStreamingBubble);
             }
 
             fetch('/api/desktop/chat/stream', {
@@ -671,8 +691,7 @@
                         }
                         streamingContent += content;
                         if (streamingBubble.classList.contains('vd-streaming')) {
-                            streamingBubble.textContent += content;
-                            streamingBubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                            queueStreamingBubbleFlush();
                         }
                     } else if (event === 'thinking_block') {
                         const state2 = data.state || '';
