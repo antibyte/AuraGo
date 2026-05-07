@@ -67,8 +67,8 @@
             if (ch === '%') { tokens.push({ type: 'operator', value: 'MOD' }); index++; continue; }
             if (ch === '+') { tokens.push({ type: 'operator', value: '+' }); index++; continue; }
             if (ch === '-') { tokens.push({ type: 'operator', value: '-' }); index++; continue; }
-            if (ch === '*' || ch === 'Ã—') { tokens.push({ type: 'operator', value: '*' }); index++; continue; }
-            if (ch === '/' || ch === 'Ã·') { tokens.push({ type: 'operator', value: '/' }); index++; continue; }
+            if (ch === '*' || ch === '×') { tokens.push({ type: 'operator', value: '*' }); index++; continue; }
+            if (ch === '/' || ch === '÷') { tokens.push({ type: 'operator', value: '/' }); index++; continue; }
             if (ch === '(') { tokens.push({ type: 'lparen', value: '(' }); index++; continue; }
             if (ch === ')') { tokens.push({ type: 'rparen', value: ')' }); index++; continue; }
             throw new Error('Invalid expression');
@@ -409,7 +409,7 @@
         start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
         const today = isoDate(new Date());
         const cells = Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
-        return `<div class="vd-calendar-month">${cells.map(d => { const key = isoDate(d); const dayItems = appointments.filter(a => String(a.date_time || '').startsWith(key)); return `<button type="button" class="vd-calendar-cell ${d.getMonth() !== activeDate.getMonth() ? 'muted' : ''} ${key === today ? 'today' : ''}" data-cal-date="${key}"><span>${d.getDate()}</span>${dayItems.slice(0, 3).map(a => `<i class="${esc(a.status || 'upcoming')}" data-appt-id="${esc(a.id)}">${esc(a.title)}</i>`).join('')}</button>`; }).join('')}</div><aside class="vd-calendar-upcoming"><h3>${esc(t('desktop.cal_new_appointment'))}</h3>${appointments.slice(0, 8).map(a => `<button type="button" data-appt-id="${esc(a.id)}">${esc(new Date(a.date_time).toLocaleString())} Â· ${esc(a.title)}</button>`).join('')}</aside>`;
+        return `<div class="vd-calendar-month">${cells.map(d => { const key = isoDate(d); const dayItems = appointments.filter(a => String(a.date_time || '').startsWith(key)); return `<button type="button" class="vd-calendar-cell ${d.getMonth() !== activeDate.getMonth() ? 'muted' : ''} ${key === today ? 'today' : ''}" data-cal-date="${key}"><span>${d.getDate()}</span>${dayItems.slice(0, 3).map(a => `<i class="${esc(a.status || 'upcoming')}" data-appt-id="${esc(a.id)}">${esc(a.title)}</i>`).join('')}</button>`; }).join('')}</div><aside class="vd-calendar-upcoming"><h3>${esc(t('desktop.cal_new_appointment'))}</h3>${appointments.slice(0, 8).map(a => `<button type="button" data-appt-id="${esc(a.id)}">${esc(new Date(a.date_time).toLocaleString())} · ${esc(a.title)}</button>`).join('')}</aside>`;
     }
 
     function calendarAgendaHTML(activeDate, appointments, view) {

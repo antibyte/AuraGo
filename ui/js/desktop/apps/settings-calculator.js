@@ -488,27 +488,27 @@
                 tokens.push({ type: 'identifier', value: expression.slice(start, index) });
                 continue;
             }
-            if (char === 'Ï€') {
+            if (char === 'π') {
                 tokens.push({ type: 'identifier', value: 'PI' });
                 index += 1;
                 continue;
             }
-            if (char === 'âˆš') {
+            if (char === '√') {
                 tokens.push({ type: 'identifier', value: 'sqrt' });
                 index += 1;
                 continue;
             }
-            if (char === 'Ã—') {
+            if (char === '×') {
                 tokens.push({ type: 'operator', value: '*' });
                 index += 1;
                 continue;
             }
-            if (char === 'Ã·') {
+            if (char === '÷') {
                 tokens.push({ type: 'operator', value: '/' });
                 index += 1;
                 continue;
             }
-            if ('+-*/%^()!Â²'.includes(char)) {
+            if ('+-*/%^()!²'.includes(char)) {
                 tokens.push({ type: 'operator', value: char });
                 index += 1;
                 continue;
@@ -607,7 +607,7 @@
         };
         const parsePostfixExpression = () => {
             let value = parsePrimaryExpression();
-            while (peek().type === 'operator' && (peek().value === '!' || peek().value === 'Â²')) {
+            while (peek().type === 'operator' && (peek().value === '!' || peek().value === '²')) {
                 const operator = consume().value;
                 value = operator === '!' ? calculatorFactorial(value) : Math.pow(value, 2);
             }
@@ -642,9 +642,56 @@
         return ensureFiniteCalculatorResult(value);
     }
 
+    function calcButton(def) {
+        const label = def.label || def.key;
+        const classes = [def.kind || '', def.mode || '', def.hideInProgrammer ? 'programmer-hide' : ''].filter(Boolean).join(' ');
+        return `<button type="button" class="${esc(classes)}" data-key="${esc(def.key)}">${esc(label)}</button>`;
+    }
+
     function renderCalculator(id) {
         const host = contentEl(id);
         if (!host) return;
+        const scientificKeys = [
+            { key: 'sin', mode: 'scientific', kind: 'fn' },
+            { key: 'cos', mode: 'scientific', kind: 'fn' },
+            { key: 'tan', mode: 'scientific', kind: 'fn' },
+            { key: '√', mode: 'scientific', kind: 'fn' },
+            { key: 'log', mode: 'scientific', kind: 'fn' },
+            { key: 'ln', mode: 'scientific', kind: 'fn' },
+            { key: 'π', mode: 'scientific', kind: 'fn' },
+            { key: 'x²', mode: 'scientific', kind: 'fn' },
+            { key: '(', mode: 'scientific', kind: 'fn' },
+            { key: ')', mode: 'scientific', kind: 'fn' },
+            { key: 'e', mode: 'scientific', kind: 'fn' },
+            { key: 'xʸ', mode: 'scientific', kind: 'fn' },
+            { key: 'n!', mode: 'scientific', kind: 'fn' }
+        ];
+        const standardKeys = [
+            { key: 'C', kind: 'danger' },
+            { key: 'CE', kind: 'danger' },
+            { key: '⌫' },
+            { key: '%', kind: 'op', hideInProgrammer: true },
+            { key: '7' },
+            { key: '8' },
+            { key: '9' },
+            { key: '÷', kind: 'op' },
+            { key: '4' },
+            { key: '5' },
+            { key: '6' },
+            { key: '×', kind: 'op' },
+            { key: '1' },
+            { key: '2' },
+            { key: '3' },
+            { key: '-', kind: 'op' },
+            { key: '0' },
+            { key: '00', hideInProgrammer: true },
+            { key: '.', hideInProgrammer: true },
+            { key: '+', kind: 'op' },
+            { key: '±', hideInProgrammer: true },
+            { key: '=', kind: 'eq' }
+        ];
+        const programmerKeys = ['AND', 'OR', 'XOR', 'NOT', 'SHL', 'SHR', 'MOD', 'A', 'B', 'HEX_C', 'D', 'E', 'F']
+            .map(key => ({ key, label: key === 'HEX_C' ? 'C' : key, mode: 'programmer', kind: 'fn' }));
         host.innerHTML = `<div class="vd-calc" tabindex="0">
             <div class="vd-calc-tabs">
                 <button type="button" class="active" data-mode="standard">${esc(t('desktop.calc_standard'))}</button>
@@ -667,21 +714,9 @@
             </div>
             <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
             <div class="vd-calc-keys">
-                ${['C','CE','âŒ«','%','7','8','9','Ã·','4','5','6','Ã—','1','2','3','-','0','00','.','+','Â±','='].map(key => `<button type="button" class="${/^[+\-Ã—Ã·=%]$/.test(key) ? 'op' : key === '=' ? 'eq' : key === 'Â±' ? 'fn scientific' : ''}" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
-                ${['sin','cos','tan','âˆš','log','ln','Ï€','xÂ²','(',')','e','xÊ¸','n!'].map(key => `<button type="button" class="fn scientific" data-key="${esc(key)}">${esc(key)}</button>`).join('')}
-                <button type="button" class="fn programmer" data-key="AND">AND</button>
-                <button type="button" class="fn programmer" data-key="OR">OR</button>
-                <button type="button" class="fn programmer" data-key="XOR">XOR</button>
-                <button type="button" class="fn programmer" data-key="NOT">NOT</button>
-                <button type="button" class="fn programmer" data-key="SHL">SHL</button>
-                <button type="button" class="fn programmer" data-key="SHR">SHR</button>
-                <button type="button" class="fn programmer" data-key="MOD">MOD</button>
-                <button type="button" class="fn programmer" data-key="A">A</button>
-                <button type="button" class="fn programmer" data-key="B">B</button>
-                <button type="button" class="fn programmer" data-key="C">C</button>
-                <button type="button" class="fn programmer" data-key="D">D</button>
-                <button type="button" class="fn programmer" data-key="E">E</button>
-                <button type="button" class="fn programmer" data-key="F">F</button>
+                ${scientificKeys.map(calcButton).join('')}
+                ${standardKeys.map(calcButton).join('')}
+                ${programmerKeys.map(calcButton).join('')}
             </div>
             <aside class="vd-calc-history"><div>${esc(t('desktop.calc_history'))}</div><ol></ol></aside>
         </div>`;
@@ -754,6 +789,7 @@
             setTimeout(() => resultEl.classList.remove('typing'), 150);
         };
         const validDigitForBase = ch => {
+            if (ch === 'HEX_C') return progBase === 16;
             if (progBase === 2) return /[01]/.test(ch);
             if (progBase === 8) return /[0-7]/.test(ch);
             if (progBase === 10) return /[0-9]/.test(ch);
@@ -764,7 +800,7 @@
             try {
                 if (key === 'C') expression = '';
                 else if (key === 'CE') expression = '';
-                else if (key === 'âŒ«') expression = expression.slice(0, -1);
+                else if (key === '⌫') expression = expression.slice(0, -1);
                 else if (key === '=') {
                     evaluate();
                     animateButton('=');
@@ -773,19 +809,19 @@
                 else if (mode === 'programmer') {
                     if (['AND','OR','XOR','SHL','SHR','MOD'].includes(key)) expression += ` ${key} `;
                     else if (key === 'NOT') expression += 'NOT ';
+                    else if (key === 'HEX_C') {
+                        if (validDigitForBase(key)) expression += 'C';
+                    }
                     else if (/^[0-9A-Fa-f]$/.test(key)) {
                         if (validDigitForBase(key)) expression += key;
                     }
-                    else if (['+','-','Ã—','Ã·','%','(',')'].includes(key)) expression += key;
-                    else if (key === '.') {
-                        if (progBase === 10) expression += '.';
-                    }
+                    else if (['+','-','×','÷','(',')'].includes(key)) expression += key;
                 }
-                else if (key === 'Â±') expression = expression ? `(-1*(${expression}))` : '-';
-                else if (key === 'xÂ²') expression += 'Â²';
-                else if (key === 'xÊ¸') expression += '^';
+                else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
+                else if (key === 'x²') expression += '²';
+                else if (key === 'xʸ') expression += '^';
                 else if (key === 'n!') expression += '!';
-                else if (['sin', 'cos', 'tan', 'log', 'ln', 'âˆš'].includes(key)) expression += `${key}(`;
+                else if (['sin', 'cos', 'tan', 'log', 'ln', '√'].includes(key)) expression += `${key}(`;
                 else expression += key;
                 update();
                 flashDisplay();
@@ -814,17 +850,18 @@
             update();
         }));
         root.addEventListener('keydown', event => {
-            const map = { Enter: '=', Backspace: 'âŒ«', Escape: 'C', '*': 'Ã—', '/': 'Ã·' };
+            const map = { Enter: '=', Backspace: '⌫', Escape: 'C', '*': '×', '/': '÷' };
             const key = map[event.key] || event.key;
             if (mode === 'programmer') {
-                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','âŒ«','C','Ã—','Ã·'].includes(key)) {
+                const programmerKey = key === 'c' || key === 'C' ? 'HEX_C' : key.toUpperCase();
+                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','⌫','×','÷'].includes(key)) {
                     event.preventDefault();
-                    animateButton(key.toUpperCase());
-                    press(key.toUpperCase());
+                    animateButton(programmerKey);
+                    press(programmerKey);
                     return;
                 }
             }
-            if (/^[0-9.+\-()%]$/.test(key) || ['=', 'âŒ«', 'C', 'Ã—', 'Ã·'].includes(key)) {
+            if (/^[0-9.+\-()%]$/.test(key) || ['=', '⌫', 'C', '×', '÷'].includes(key)) {
                 event.preventDefault();
                 animateButton(key);
                 press(key);
