@@ -6793,8 +6793,9 @@
     flex-direction: column;
     gap: 5px;
     width: 260px;
-    min-width: 220px;
-    flex-shrink: 0;
+    min-width: 260px;
+    max-width: 260px;
+    flex: 0 0 260px;
     overflow-y: auto;
 }
 
