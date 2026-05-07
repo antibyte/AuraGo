@@ -361,7 +361,11 @@
 
     function renderStandardTaskbar() {
         const host = $('vd-taskbar-apps');
-        host.innerHTML = [...state.windows.values()].map(win => `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}">${esc(win.title)}</button>`).join('');
+        host.innerHTML = [...state.windows.values()].map(win => {
+            const app = appById(win.appId);
+            const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+            return `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}">${icon}<span class="vd-task-label">${esc(win.title)}</span></button>`;
+        }).join('');
         host.querySelectorAll('[data-window-id]').forEach(btn => {
             btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
             btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
@@ -565,6 +569,7 @@
             return;
         }
         const title = windowTitle(appId);
+        const app = appById(appId);
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';
@@ -589,9 +594,10 @@
         }
         win.style.zIndex = String(++state.z);
         win.innerHTML = `<header class="vd-window-titlebar">
-            <div>
+            <div class="vd-window-title-group">
+                <span class="vd-window-header-icon-wrap">${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-window-header-icon', 16)}</span>
                 <div class="vd-window-title">${esc(title)}</div>
-                <div class="vd-window-subtitle">${esc(t('desktop.window_ready'))}</div>
+                <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
                 <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>

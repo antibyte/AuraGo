@@ -1092,6 +1092,10 @@
     font-size: 0.78rem;
 }
 
+.vd-window-subtitle:empty {
+    display: none;
+}
+
 .vd-status-strip {
     display: flex;
     align-items: center;
@@ -1760,6 +1764,63 @@
 .vd-window-title {
     font-weight: 800;
     font-size: 0.88rem;
+}
+
+.vd-window-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vd-window-header-icon-wrap {
+    display: none;
+    flex: 0 0 auto;
+}
+
+.vd-window-header-icon-wrap .vd-window-header-icon {
+    display: block;
+}
+
+.vd-window-header-icon-wrap .vd-icon-letter {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Show window header icon only in standard theme */
+.desktop-body[data-theme="standard"] .vd-window-header-icon-wrap,
+.desktop-body:not([data-theme]) .vd-window-header-icon-wrap {
+    display: inline-flex;
+}
+
+.vd-task-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vd-task-icon {
+    display: none;
+    flex: 0 0 auto;
+}
+
+.vd-task-icon .vd-icon-letter {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.vd-task-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Show taskbar icon only in standard theme */
+.desktop-body[data-theme="standard"] .vd-task-icon,
+.desktop-body:not([data-theme]) .vd-task-icon {
+    display: inline-flex;
 }
 
 .vd-window-actions {
