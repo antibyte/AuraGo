@@ -510,6 +510,8 @@
 .desktop-body[data-theme="fruity"] .vd-dock-scroll {
     min-width: 0;
     max-width: 100%;
+    margin-top: -28px;
+    padding-top: 28px;
     overflow: auto hidden;
     scrollbar-width: none;
     scroll-behavior: smooth;
