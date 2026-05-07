@@ -22,12 +22,19 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"iconThemeManifests",
 		"function renderStartButtonIcon()",
 		"renderStartButtonIcon();",
-		"settingIconCatalog(",
-		"function renderIconCatalogSetting(",
-		"desktop.settings_icon_catalog_aliases",
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing icon theme setting marker %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"settingIconCatalog(",
+		"function renderIconCatalogSetting(",
+		"type === 'icon_catalog'",
+		"desktop.settings_icon_catalog",
+	} {
+		if strings.Contains(shellText, forbidden) {
+			t.Fatalf("desktop settings must not expose icon catalog UI marker %q", forbidden)
 		}
 	}
 	if strings.Contains(shellText, "desktop.settings_icon_theme_aurago") || strings.Contains(shellText, "['aurago'") {
@@ -38,8 +45,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
 	}
-	if !strings.Contains(string(css), ".vd-icon-catalog") {
-		t.Fatalf("desktop stylesheet is missing icon catalog settings styles")
+	if strings.Contains(string(css), ".vd-icon-catalog") {
+		t.Fatalf("desktop stylesheet still contains icon catalog settings styles")
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
@@ -57,13 +64,19 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 			"desktop.settings_icon_theme_desc",
 			"desktop.settings_icon_theme_papirus",
 			"desktop.settings_icon_theme_whitesur",
+		} {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			}
+		}
+		for _, key := range []string{
 			"desktop.settings_icon_catalog",
 			"desktop.settings_icon_catalog_desc",
 			"desktop.settings_icon_catalog_aliases",
 			"desktop.settings_icon_catalog_empty",
 		} {
-			if strings.TrimSpace(values[key]) == "" {
-				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			if _, ok := values[key]; ok {
+				t.Fatalf("%s still exposes removed settings translation %s", path, key)
 			}
 		}
 		if _, ok := values["desktop.settings_icon_theme_aurago"]; ok {

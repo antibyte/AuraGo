@@ -81,8 +81,8 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
 	for _, want := range []string{
-		`/css/desktop.css?v=28`,
-		`/js/desktop/main.js?v=33`,
+		`/css/desktop.css?v=29`,
+		`/js/desktop/main.js?v=34`,
 		`/js/desktop/apps/looper.js?v=3`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
@@ -101,6 +101,7 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 		`/js/desktop/core/window-shell-runtime.js?v=5`,
 		`/js/desktop/core/menus-and-routing.js?v=3`,
 		`/js/desktop/core/shortcut-runtime.js?v=1`,
+		`/js/desktop/apps/settings-calculator.js?v=2`,
 	} {
 		if !strings.Contains(mainJS, want) {
 			t.Fatalf("desktop main loader missing cache-busting part version %q", want)
