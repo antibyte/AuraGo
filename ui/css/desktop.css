@@ -1446,6 +1446,10 @@
     overflow: hidden;
 }
 
+.vd-app-manager {
+    width: min(760px, calc(100vw - 32px));
+}
+
 .vd-wm-header {
     display: flex;
     align-items: center;
@@ -1504,6 +1508,7 @@
 
 .vd-wm-card-badges {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
     margin-top: 3px;
 }
@@ -1533,10 +1538,26 @@
     color: var(--vd-amber);
 }
 
+.vd-wm-badge-user {
+    background: rgba(125, 167, 255, 0.18);
+    color: #9db9ff;
+}
+
+.vd-wm-badge-dock,
+.vd-wm-badge-start {
+    text-transform: none;
+}
+
 .vd-wm-card-actions {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
     flex-shrink: 0;
+}
+
+.vd-app-manager .vd-wm-card-actions {
+    max-width: 390px;
 }
 
 .vd-wm-btn {
@@ -1572,6 +1593,18 @@
 
 .vd-wm-btn-delete:hover {
     background: rgba(255, 128, 102, 0.12);
+}
+
+@media (max-width: 720px) {
+    .vd-app-manager .vd-wm-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .vd-app-manager .vd-wm-card-actions {
+        justify-content: flex-start;
+        max-width: none;
+    }
 }
 
 .vd-window-layer {

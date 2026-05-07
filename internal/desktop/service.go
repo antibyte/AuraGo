@@ -21,7 +21,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
@@ -253,6 +253,12 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS desktop_app_visibility (
+			app_id TEXT PRIMARY KEY,
+			dock_visible INTEGER NOT NULL DEFAULT 1,
+			start_visible INTEGER NOT NULL DEFAULT 1,
+			updated_at TEXT NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS desktop_widgets (
 			id TEXT PRIMARY KEY,
 			app_id TEXT,
@@ -289,7 +295,7 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			details_json TEXT NOT NULL,
 			created_at TEXT NOT NULL
 		)`,
-		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '3')
+		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '4')
 			ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 	}
 	for _, stmt := range stmts {
@@ -446,6 +452,10 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	if err != nil {
 		return BootstrapPayload{}, err
 	}
+	appVisibility, err := s.listAppVisibility(ctx)
+	if err != nil {
+		return BootstrapPayload{}, err
+	}
 	widgets, err := s.listWidgets(ctx)
 	if err != nil {
 		return BootstrapPayload{}, err
@@ -477,8 +487,8 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 			Directories: DefaultDirectories(),
 			MaxFileSize: int64(cfg.MaxFileSizeMB) * 1024 * 1024,
 		},
-		BuiltinApps:   BuiltinApps(),
-		InstalledApps: apps,
+		BuiltinApps:   applyAppVisibility(BuiltinApps(), true, appVisibility),
+		InstalledApps: applyAppVisibility(apps, false, appVisibility),
 		Shortcuts:     shortcuts,
 		Widgets:       visibleWidgets,
 		AllWidgets:    widgets,
@@ -1680,6 +1690,9 @@ func (s *Service) DeleteApp(ctx context.Context, id, source string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM desktop_widgets WHERE app_id = ?`, id); err != nil {
 		return fmt.Errorf("delete desktop app widgets: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM desktop_app_visibility WHERE app_id = ?`, id); err != nil {
+		return fmt.Errorf("delete desktop app visibility: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit desktop app delete: %w", err)
 	}
@@ -1859,6 +1872,61 @@ func (s *Service) SetWidgetVisible(ctx context.Context, id string, visible bool,
 		return fmt.Errorf("desktop widget not found")
 	}
 	_ = s.Audit(ctx, "set_widget_visible", id, map[string]interface{}{"visible": visible}, source)
+	return nil
+}
+
+// SetAppVisibility toggles whether an app appears in the dock and start menu.
+func (s *Service) SetAppVisibility(ctx context.Context, id string, dockVisible, startVisible *bool, source string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	if !desktopIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid desktop app id")
+	}
+	if dockVisible == nil && startVisible == nil {
+		return fmt.Errorf("dock_visible or start_visible field is required")
+	}
+	if _, ok, err := s.findApp(ctx, id); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("desktop app not found")
+	}
+	visibility := defaultAppVisibility()
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	var existingDock, existingStart int
+	err := db.QueryRowContext(ctx, `SELECT dock_visible, start_visible FROM desktop_app_visibility WHERE app_id = ?`, id).Scan(&existingDock, &existingStart)
+	if err == nil {
+		visibility.DockVisible = existingDock != 0
+		visibility.StartVisible = existingStart != 0
+	} else if err != sql.ErrNoRows {
+		return fmt.Errorf("read desktop app visibility: %w", err)
+	}
+	if dockVisible != nil {
+		visibility.DockVisible = *dockVisible
+	}
+	if startVisible != nil {
+		visibility.StartVisible = *startVisible
+	}
+	_, err = db.ExecContext(ctx, `INSERT INTO desktop_app_visibility(app_id, dock_visible, start_visible, updated_at)
+		VALUES(?, ?, ?, ?)
+		ON CONFLICT(app_id) DO UPDATE SET
+			dock_visible = excluded.dock_visible,
+			start_visible = excluded.start_visible,
+			updated_at = excluded.updated_at`,
+		id, boolToInt(visibility.DockVisible), boolToInt(visibility.StartVisible), time.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("update desktop app visibility: %w", err)
+	}
+	_ = s.Audit(ctx, "set_app_visibility", id, map[string]interface{}{
+		"dock_visible":  visibility.DockVisible,
+		"start_visible": visibility.StartVisible,
+	}, source)
 	return nil
 }
 
@@ -2101,6 +2169,55 @@ func (s *Service) Audit(ctx context.Context, action, target string, details inte
 	return nil
 }
 
+type appVisibility struct {
+	DockVisible  bool
+	StartVisible bool
+}
+
+func defaultAppVisibility() appVisibility {
+	return appVisibility{DockVisible: true, StartVisible: true}
+}
+
+func applyAppVisibility(apps []AppManifest, builtin bool, visibility map[string]appVisibility) []AppManifest {
+	out := make([]AppManifest, 0, len(apps))
+	for _, app := range apps {
+		app.Builtin = builtin
+		app.Deletable = !builtin
+		v, ok := visibility[strings.ToLower(app.ID)]
+		if !ok {
+			v = defaultAppVisibility()
+		}
+		app.DockVisible = v.DockVisible
+		app.StartVisible = v.StartVisible
+		out = append(out, app)
+	}
+	return out
+}
+
+func (s *Service) listAppVisibility(ctx context.Context) (map[string]appVisibility, error) {
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	rows, err := db.QueryContext(ctx, `SELECT app_id, dock_visible, start_visible FROM desktop_app_visibility`)
+	if err != nil {
+		return nil, fmt.Errorf("list desktop app visibility: %w", err)
+	}
+	defer rows.Close()
+	visibility := map[string]appVisibility{}
+	for rows.Next() {
+		var id string
+		var dockVisible, startVisible int
+		if err := rows.Scan(&id, &dockVisible, &startVisible); err != nil {
+			return nil, fmt.Errorf("scan desktop app visibility: %w", err)
+		}
+		visibility[strings.ToLower(id)] = appVisibility{
+			DockVisible:  dockVisible != 0,
+			StartVisible: startVisible != 0,
+		}
+	}
+	return visibility, rows.Err()
+}
+
 func (s *Service) listApps(ctx context.Context) ([]AppManifest, error) {
 	s.mu.Lock()
 	db := s.db
@@ -2122,6 +2239,10 @@ func (s *Service) listApps(ctx context.Context) ([]AppManifest, error) {
 		}
 		app.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 		app.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+		app.Builtin = false
+		app.Deletable = true
+		app.DockVisible = true
+		app.StartVisible = true
 		apps = append(apps, app)
 	}
 	return apps, rows.Err()

@@ -110,6 +110,7 @@
             { label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { separator: true },
             { label: t('desktop.widget_manager'), icon: 'widgets', fallback: 'W', action: () => showWidgetManager() },
+            { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
             { separator: true },
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
@@ -381,6 +382,20 @@
         }
     }
 
+    async function setAppVisibility(id, patch) {
+        if (!id || !patch) return;
+        try {
+            await api('/api/desktop/apps?id=' + encodeURIComponent(id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(patch)
+            });
+            await loadBootstrap();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
     async function showWidgetManager() {
         closeContextMenu();
         const boot = state.bootstrap || {};
@@ -454,6 +469,106 @@
                     if (!confirmed) return;
                     try {
                         await api('/api/desktop/widgets?id=' + encodeURIComponent(btn.dataset.id), { method: 'DELETE' });
+                        await refresh();
+                    } catch (err) {
+                        showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                    }
+                });
+            });
+        }
+
+        function close() { overlay.remove(); }
+        overlay.querySelector('[data-close]').addEventListener('click', close);
+        overlay.querySelector('.vd-window-actions').addEventListener('click', event => event.stopPropagation());
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+        wireButtons();
+    }
+
+    async function showAppManager() {
+        closeContextMenu();
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-modal-backdrop vd-app-manager-backdrop';
+
+        function renderCards() {
+            return allApps().map(app => {
+                const inDock = app.dock_visible !== false;
+                const inStart = app.start_visible !== false;
+                const isBuiltin = app.builtin === true || isBuiltinApp(app.id);
+                const canDelete = app.deletable === true && !isBuiltin;
+                const dockBadge = inDock
+                    ? `<span class="vd-wm-badge vd-wm-badge-on vd-wm-badge-dock">${esc(t('desktop.app_in_dock'))}</span>`
+                    : `<span class="vd-wm-badge vd-wm-badge-off vd-wm-badge-dock">${esc(t('desktop.app_hidden_from_dock'))}</span>`;
+                const startBadge = inStart
+                    ? `<span class="vd-wm-badge vd-wm-badge-on vd-wm-badge-start">${esc(t('desktop.app_in_start'))}</span>`
+                    : `<span class="vd-wm-badge vd-wm-badge-off vd-wm-badge-start">${esc(t('desktop.app_hidden_from_start'))}</span>`;
+                const sourceBadge = isBuiltin
+                    ? `<span class="vd-wm-badge vd-wm-badge-builtin">${esc(t('desktop.app_system'))}</span>`
+                    : `<span class="vd-wm-badge vd-wm-badge-user">${esc(t('desktop.app_generated'))}</span>`;
+                const actions = [];
+                if (inDock) {
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-remove" data-action="hide-dock" data-id="${esc(app.id)}">${esc(t('desktop.app_remove_from_dock'))}</button>`);
+                } else {
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-add" data-action="show-dock" data-id="${esc(app.id)}">${esc(t('desktop.app_add_to_dock'))}</button>`);
+                }
+                if (inStart) {
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-remove" data-action="hide-start" data-id="${esc(app.id)}">${esc(t('desktop.app_remove_from_start'))}</button>`);
+                } else {
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-add" data-action="show-start" data-id="${esc(app.id)}">${esc(t('desktop.app_add_to_start'))}</button>`);
+                }
+                if (canDelete) {
+                    actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-delete" data-action="delete" data-id="${esc(app.id)}">${esc(t('desktop.app_delete_permanent'))}</button>`);
+                }
+                return `<div class="vd-wm-card${isBuiltin ? ' vd-wm-card-builtin' : ''}" data-app-id="${esc(app.id)}">
+                    <div class="vd-wm-card-head">
+                        ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-file', 24)}
+                        <div class="vd-wm-card-info">
+                            <div class="vd-wm-card-title">${esc(appName(app))}</div>
+                            <div class="vd-wm-card-badges">${dockBadge}${startBadge}${sourceBadge}</div>
+                        </div>
+                    </div>
+                    <div class="vd-wm-card-actions">${actions.join('')}</div>
+                </div>`;
+            }).join('');
+        }
+
+        overlay.innerHTML = `<div class="vd-widget-manager vd-app-manager" role="dialog" aria-modal="true">
+            <div class="vd-wm-header">
+                <div class="vd-wm-title">${esc(t('desktop.app_manager'))}</div>
+                <div class="vd-window-actions">
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}">x</button>
+                </div>
+            </div>
+            <div class="vd-wm-cards">${renderCards()}</div>
+        </div>`;
+        document.body.appendChild(overlay);
+
+        async function refresh() {
+            await loadBootstrap();
+            overlay.querySelector('.vd-wm-cards').innerHTML = renderCards();
+            wireButtons();
+        }
+
+        function wireButtons() {
+            overlay.querySelectorAll('.vd-wm-btn[data-action="hide-dock"]').forEach(btn => {
+                btn.addEventListener('click', () => setAppVisibility(btn.dataset.id, { dock_visible: false }).then(refresh));
+            });
+            overlay.querySelectorAll('.vd-wm-btn[data-action="show-dock"]').forEach(btn => {
+                btn.addEventListener('click', () => setAppVisibility(btn.dataset.id, { dock_visible: true }).then(refresh));
+            });
+            overlay.querySelectorAll('.vd-wm-btn[data-action="hide-start"]').forEach(btn => {
+                btn.addEventListener('click', () => setAppVisibility(btn.dataset.id, { start_visible: false }).then(refresh));
+            });
+            overlay.querySelectorAll('.vd-wm-btn[data-action="show-start"]').forEach(btn => {
+                btn.addEventListener('click', () => setAppVisibility(btn.dataset.id, { start_visible: true }).then(refresh));
+            });
+            overlay.querySelectorAll('.vd-wm-btn[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const app = allApps().find(candidate => candidate.id === btn.dataset.id);
+                    const name = app ? appName(app) : btn.dataset.id;
+                    const confirmed = await confirmDialog(t('desktop.confirm_delete_app'), t('desktop.confirm_delete_app_msg', { name }));
+                    if (!confirmed) return;
+                    try {
+                        await api('/api/desktop/apps?id=' + encodeURIComponent(btn.dataset.id), { method: 'DELETE' });
                         await refresh();
                     } catch (err) {
                         showDesktopNotification({ title: t('desktop.notification'), message: err.message });

@@ -22,66 +22,66 @@
             <div class="vd-looper">
                 <div class="vd-looper-toolbar">
                     <div class="vd-looper-field">
-                        <label>${esc(t('desktop.looper_preset') || 'Preset')}</label>
+                        <label>${esc(t('desktop.looper_preset'))}</label>
                         <select id="looper-preset-${windowId}">
-                            <option value="">-- ${esc(t('desktop.looper_select_preset') || 'Select preset')} --</option>
+                            <option value="">-- ${esc(t('desktop.looper_select_preset'))} --</option>
                         </select>
-                        <button type="button" class="vd-looper-btn" id="looper-save-${windowId}">${esc(t('desktop.looper_save') || 'Save')}</button>
-                        <button type="button" class="vd-looper-btn vd-looper-btn-danger" id="looper-delete-${windowId}">${esc(t('desktop.looper_delete') || 'Delete')}</button>
+                        <button type="button" class="vd-looper-btn" id="looper-save-${windowId}">${esc(t('desktop.looper_save'))}</button>
+                        <button type="button" class="vd-looper-btn vd-looper-btn-danger" id="looper-delete-${windowId}">${esc(t('desktop.looper_delete'))}</button>
                     </div>
                     <div class="vd-looper-field">
-                        <label>${esc(t('desktop.looper_examples') || 'Examples')}</label>
+                        <label>${esc(t('desktop.looper_examples'))}</label>
                         <select id="looper-example-${windowId}">
-                            <option value="">-- ${esc(t('desktop.looper_select_example') || 'Select example')} --</option>
+                            <option value="">-- ${esc(t('desktop.looper_select_example'))} --</option>
                         </select>
                     </div>
                     <div class="vd-looper-field-row">
                         <div class="vd-looper-field">
-                            <label>${esc(t('desktop.looper_provider') || 'Provider')}</label>
+                            <label>${esc(t('desktop.looper_provider'))}</label>
                             <select id="looper-provider-${windowId}"></select>
                         </div>
                         <div class="vd-looper-field">
-                            <label>${esc(t('desktop.looper_model') || 'Model')}</label>
-                            <input type="text" id="looper-model-${windowId}" placeholder="${esc(t('desktop.looper_model_placeholder') || 'Default model')}">
+                            <label>${esc(t('desktop.looper_model'))}</label>
+                            <input type="text" id="looper-model-${windowId}" placeholder="${esc(t('desktop.looper_model_placeholder'))}">
                         </div>
                         <div class="vd-looper-field vd-looper-field-small">
-                            <label>${esc(t('desktop.looper_max_iter') || 'Max Iterations')}</label>
+                            <label>${esc(t('desktop.looper_max_iter'))}</label>
                             <input type="number" id="looper-max-iter-${windowId}" value="20" min="1" max="100">
                         </div>
                     </div>
                 </div>
                 <div class="vd-looper-steps">
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_prepare') || 'Prepare')}</label>
-                        <textarea id="looper-prepare-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_prepare_placeholder') || 'Initial setup prompt...')}"></textarea>
+                        <label>${esc(t('desktop.looper_prepare'))}</label>
+                        <textarea id="looper-prepare-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_prepare_placeholder'))}"></textarea>
                     </div>
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_plan') || 'Plan')}</label>
-                        <textarea id="looper-plan-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_plan_placeholder') || 'Planning prompt...')}"></textarea>
+                        <label>${esc(t('desktop.looper_plan'))}</label>
+                        <textarea id="looper-plan-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_plan_placeholder'))}"></textarea>
                     </div>
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_action') || 'Action')}</label>
-                        <textarea id="looper-action-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_action_placeholder') || 'Action prompt...')}"></textarea>
+                        <label>${esc(t('desktop.looper_action'))}</label>
+                        <textarea id="looper-action-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_action_placeholder'))}"></textarea>
                     </div>
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_test') || 'Test')}</label>
-                        <textarea id="looper-test-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_test_placeholder') || 'Test / evaluation prompt...')}"></textarea>
+                        <label>${esc(t('desktop.looper_test'))}</label>
+                        <textarea id="looper-test-${windowId}" rows="3" placeholder="${esc(t('desktop.looper_test_placeholder'))}"></textarea>
                     </div>
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_exit') || 'Exit Condition')}</label>
-                        <textarea id="looper-exit-${windowId}" rows="2" placeholder="${esc(t('desktop.looper_exit_placeholder') || 'Exit condition prompt (answer true/false)...')}"></textarea>
+                        <label>${esc(t('desktop.looper_exit'))}</label>
+                        <textarea id="looper-exit-${windowId}" rows="2" placeholder="${esc(t('desktop.looper_exit_placeholder'))}"></textarea>
                     </div>
                     <div class="vd-looper-step">
-                        <label>${esc(t('desktop.looper_finish') || 'Finish Prompt')} <span class="vd-looper-optional">(${esc(t('desktop.optional') || 'optional')})</span></label>
-                        <textarea id="looper-finish-${windowId}" rows="2" placeholder="${esc(t('desktop.looper_finish_placeholder') || 'Optional final action after loop ends...')}"></textarea>
+                        <label>${esc(t('desktop.looper_finish'))} <span class="vd-looper-optional">(${esc(t('desktop.optional'))})</span></label>
+                        <textarea id="looper-finish-${windowId}" rows="2" placeholder="${esc(t('desktop.looper_finish_placeholder'))}"></textarea>
                     </div>
                 </div>
                 <div class="vd-looper-controls">
-                    <button type="button" class="vd-looper-start" id="looper-start-${windowId}">▶ ${esc(t('desktop.looper_start') || 'Start Loop')}</button>
-                    <button type="button" class="vd-looper-stop" id="looper-stop-${windowId}" disabled>⏹ ${esc(t('desktop.looper_stop') || 'Stop Loop')}</button>
+                    <button type="button" class="vd-looper-start" id="looper-start-${windowId}">▶ ${esc(t('desktop.looper_start'))}</button>
+                    <button type="button" class="vd-looper-stop" id="looper-stop-${windowId}" disabled>⏹ ${esc(t('desktop.looper_stop'))}</button>
                 </div>
                 <div class="vd-looper-monitor" id="looper-monitor-${windowId}">
-                    <div class="vd-looper-status" id="looper-status-${windowId}">${esc(t('desktop.looper_status_idle') || 'Ready')}</div>
+                    <div class="vd-looper-status" id="looper-status-${windowId}">${esc(t('desktop.looper_status_idle'))}</div>
                     <div class="vd-looper-progress"><div class="vd-looper-progress-bar" id="looper-progress-${windowId}"></div></div>
                     <div class="vd-looper-logs" id="looper-logs-${windowId}"></div>
                 </div>
@@ -93,7 +93,7 @@
         // Load providers from config
         async function loadProviders() {
             const select = $(`looper-provider-${windowId}`);
-            select.innerHTML = `<option value="">${esc(t('desktop.looper_default_provider') || 'System Default')}</option>`;
+            select.innerHTML = `<option value="">${esc(t('desktop.looper_default_provider'))}</option>`;
             try {
                 const res = await api('/api/providers');
                 const providers = Array.isArray(res) ? res : ((res && res.providers) || []);
@@ -115,7 +115,7 @@
                 if (res && res.presets) {
                     state.presets = res.presets;
                     const select = $(`looper-preset-${windowId}`);
-                    select.innerHTML = `<option value="">-- ${esc(t('desktop.looper_select_preset') || 'Select preset')} --</option>`;
+                    select.innerHTML = `<option value="">-- ${esc(t('desktop.looper_select_preset'))} --</option>`;
                     res.presets.forEach(p => {
                         const opt = document.createElement('option');
                         opt.value = p.id;
@@ -131,7 +131,7 @@
                 if (res && res.examples) {
                     state.examples = res.examples;
                     const select = $(`looper-example-${windowId}`);
-                    select.innerHTML = `<option value="">-- ${esc(t('desktop.looper_select_example') || 'Select example')} --</option>`;
+                    select.innerHTML = `<option value="">-- ${esc(t('desktop.looper_select_example'))} --</option>`;
                     res.examples.forEach((p, idx) => {
                         const opt = document.createElement('option');
                         opt.value = idx;
@@ -189,7 +189,7 @@
 
         // Event: save preset
         $(`looper-save-${windowId}`).addEventListener('click', async () => {
-            const name = prompt(t('desktop.looper_save_prompt') || 'Enter preset name:');
+            const name = prompt(t('desktop.looper_save_prompt'));
             if (!name) return;
             const body = readForm();
             body.name = name;
@@ -200,9 +200,9 @@
                     body: JSON.stringify(body)
                 });
                 await loadPresets();
-                context.notify({ title: 'Looper', message: t('desktop.looper_saved') || 'Preset saved.' });
+                context.notify({ title: 'Looper', message: t('desktop.looper_saved') });
             } catch (e) {
-                if (context.notify) context.notify({ title: t('desktop.notification') || 'Notification', message: t('desktop.looper_save_error') || 'Failed to save preset.' });
+                if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_save_error') });
             }
         });
 
@@ -211,13 +211,13 @@
             const select = $(`looper-preset-${windowId}`);
             const id = select.value;
             if (!id) return;
-            if (!confirm(t('desktop.looper_delete_confirm') || 'Delete this preset?')) return;
+            if (!confirm(t('desktop.looper_delete_confirm'))) return;
             try {
                 await api('/api/desktop/looper/presets/' + id, { method: 'DELETE' });
                 await loadPresets();
-                context.notify({ title: 'Looper', message: t('desktop.looper_deleted') || 'Preset deleted.' });
+                context.notify({ title: 'Looper', message: t('desktop.looper_deleted') });
             } catch (e) {
-                if (context.notify) context.notify({ title: t('desktop.notification') || 'Notification', message: t('desktop.looper_delete_error') || 'Failed to delete preset.' });
+                if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
             }
         });
 
@@ -259,7 +259,7 @@
             stopBtn.disabled = !data.running;
 
             if (data.error) {
-                statusEl.textContent = (t('desktop.looper_error') || 'Error') + ': ' + data.error;
+                statusEl.textContent = t('desktop.looper_error') + ': ' + data.error;
                 statusEl.classList.add('vd-looper-error');
             } else if (data.running) {
                 statusEl.classList.remove('vd-looper-error');
@@ -267,13 +267,13 @@
                 if (data.current_step === 'prepare' || data.current_step === 'finish') {
                     statusEl.textContent = stepLabel;
                 } else {
-                    statusEl.textContent = (t('desktop.looper_iteration') || 'Iteration {n} / {max}')
+                    statusEl.textContent = t('desktop.looper_iteration')
                         .replace('{n}', data.iteration)
                         .replace('{max}', data.max_iterations) + ' — ' + stepLabel;
                 }
             } else {
                 statusEl.classList.remove('vd-looper-error');
-                statusEl.textContent = t('desktop.looper_status_idle') || 'Ready';
+                statusEl.textContent = t('desktop.looper_status_idle');
             }
 
             // Progress bar
@@ -316,9 +316,9 @@
                 connectStatus();
             } catch (e) {
                 if (e && e.status === 409) {
-                    if (context.notify) context.notify({ title: t('desktop.notification') || 'Notification', message: t('desktop.looper_already_running') || 'A loop is already running.' });
+                    if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
                 } else {
-                    if (context.notify) context.notify({ title: t('desktop.notification') || 'Notification', message: t('desktop.looper_start_error') || 'Failed to start loop.' });
+                    if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_start_error') });
                 }
             }
         });
@@ -328,7 +328,7 @@
             try {
                 await api('/api/desktop/looper/stop', { method: 'POST' });
             } catch (e) {
-                if (context.notify) context.notify({ title: t('desktop.notification') || 'Notification', message: t('desktop.looper_stop_error') || 'Failed to stop loop.' });
+                if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_stop_error') });
             }
         });
     }

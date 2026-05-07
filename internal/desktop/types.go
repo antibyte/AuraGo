@@ -101,17 +101,21 @@ type FileEntry struct {
 
 // AppManifest describes a browser-side desktop application.
 type AppManifest struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Version     string            `json:"version"`
-	Icon        string            `json:"icon"`
-	Entry       string            `json:"entry"`
-	Runtime     string            `json:"runtime,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Permissions []string          `json:"permissions,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	CreatedAt   time.Time         `json:"created_at,omitempty"`
-	UpdatedAt   time.Time         `json:"updated_at,omitempty"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Version      string            `json:"version"`
+	Icon         string            `json:"icon"`
+	Entry        string            `json:"entry"`
+	Runtime      string            `json:"runtime,omitempty"`
+	Description  string            `json:"description,omitempty"`
+	Permissions  []string          `json:"permissions,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	Builtin      bool              `json:"builtin"`
+	Deletable    bool              `json:"deletable"`
+	DockVisible  bool              `json:"dock_visible"`
+	StartVisible bool              `json:"start_visible"`
+	CreatedAt    time.Time         `json:"created_at,omitempty"`
+	UpdatedAt    time.Time         `json:"updated_at,omitempty"`
 }
 
 // Shortcut describes one persistent icon pinned to the desktop surface.
@@ -517,7 +521,7 @@ func workspaceDirectories() []string {
 
 // BuiltinApps returns the first-party applications always available in the shell.
 func BuiltinApps() []AppManifest {
-	return []AppManifest{
+	apps := []AppManifest{
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
 		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
@@ -536,4 +540,11 @@ func BuiltinApps() []AppManifest {
 		{ID: "looper", Name: "Looper", Version: "1.0.0", Icon: "refresh", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Iterative agent loop with prepare, plan, action, test and exit condition.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "camera", Name: "Camera", Version: "1.0.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Description: "Capture photos with your camera and save or analyze them.", Permissions: []string{"files:write", "notifications"}},
 	}
+	for i := range apps {
+		apps[i].Builtin = true
+		apps[i].Deletable = false
+		apps[i].DockVisible = true
+		apps[i].StartVisible = true
+	}
+	return apps
 }

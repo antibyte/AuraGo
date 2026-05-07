@@ -382,6 +382,14 @@
         return [...(boot.builtin_apps || []), ...(boot.installed_apps || [])];
     }
 
+    function startMenuApps() {
+        return allApps().filter(app => app.start_visible !== false);
+    }
+
+    function dockApps() {
+        return allApps().filter(app => app.dock_visible !== false);
+    }
+
     function appById(appId) {
         return allApps().find(app => app.id === appId);
     }

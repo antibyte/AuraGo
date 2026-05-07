@@ -366,7 +366,7 @@
 
     function renderStartApps() {
         const query = state.startQuery.trim().toLowerCase();
-        const apps = allApps().filter(app => !query || appName(app).toLowerCase().includes(query));
+        const apps = startMenuApps().filter(app => !query || appName(app).toLowerCase().includes(query));
         $('vd-start-apps').innerHTML = apps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}</span>
@@ -412,7 +412,7 @@
     function renderFruityDock() {
         const host = $('vd-taskbar-apps');
         const runningWindows = [...state.windows.values()];
-        const dockApps = allApps().map(app => {
+        const dockItems = dockApps().map(app => {
             const running = runningWindows.some(win => win.appId === app.id);
             const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
             const stateClasses = [running ? 'running' : '', active ? 'active' : ''].filter(Boolean).join(' ');
@@ -428,7 +428,7 @@
             ${iconMarkup('arrow-left', '<', 'vd-dock-scroll-icon', 18)}
         </button>
         <div class="vd-dock-scroll" data-fruity-dock-scroll-region>
-            <div class="vd-dock-track" data-fruity-dock-track>${dockApps}</div>
+            <div class="vd-dock-track" data-fruity-dock-track>${dockItems}</div>
         </div>
         <button type="button" class="vd-dock-scroll-button vd-dock-scroll-button-right" data-fruity-dock-scroll-button="right" aria-label="${esc(t('desktop.dock_scroll_right'))}">
             ${iconMarkup('arrow-right', '>', 'vd-dock-scroll-icon', 18)}

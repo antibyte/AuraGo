@@ -83,6 +83,21 @@ func stringSliceContains(values []string, want string) bool {
 	return false
 }
 
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func testFindApp(t *testing.T, apps []AppManifest, id string) AppManifest {
+	t.Helper()
+	for _, app := range apps {
+		if app.ID == id {
+			return app
+		}
+	}
+	t.Fatalf("app %q not found in %+v", id, apps)
+	return AppManifest{}
+}
+
 func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "workspace")
 	dbPath := filepath.Join(t.TempDir(), "desktop.db")
@@ -764,6 +779,101 @@ func TestServiceDeleteAppRemovesGeneratedAppShortcutAndFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(svc.Config().WorkspaceDir, "Apps", "quick-notes")); !os.IsNotExist(err) {
 		t.Fatalf("app files still exist or unexpected stat error: %v", err)
+	}
+}
+
+func TestServiceAppVisibilityDefaultsAndTogglesBuiltinAndInstalledApps(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{"index.html": "<main>Quick Notes</main>"}, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	files := testFindApp(t, bootstrap.BuiltinApps, "files")
+	if !files.Builtin || files.Deletable || !files.DockVisible || !files.StartVisible {
+		t.Fatalf("builtin app default visibility/deletable flags wrong: %+v", files)
+	}
+	quickNotes := testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if quickNotes.Builtin || !quickNotes.Deletable || !quickNotes.DockVisible || !quickNotes.StartVisible {
+		t.Fatalf("installed app default visibility/deletable flags wrong: %+v", quickNotes)
+	}
+
+	if err := svc.SetAppVisibility(ctx, "files", boolPtr(false), boolPtr(false), SourceUser); err != nil {
+		t.Fatalf("SetAppVisibility builtin false: %v", err)
+	}
+	if err := svc.SetAppVisibility(ctx, "quick-notes", boolPtr(false), nil, SourceUser); err != nil {
+		t.Fatalf("SetAppVisibility installed dock false: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after visibility: %v", err)
+	}
+	files = testFindApp(t, bootstrap.BuiltinApps, "files")
+	if files.DockVisible || files.StartVisible {
+		t.Fatalf("builtin app should be hidden from dock and start menu: %+v", files)
+	}
+	quickNotes = testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if quickNotes.DockVisible || !quickNotes.StartVisible {
+		t.Fatalf("installed app should only be hidden from dock: %+v", quickNotes)
+	}
+
+	if err := svc.SetAppVisibility(ctx, "files", boolPtr(true), boolPtr(true), SourceUser); err != nil {
+		t.Fatalf("SetAppVisibility builtin true: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after restore: %v", err)
+	}
+	files = testFindApp(t, bootstrap.BuiltinApps, "files")
+	if !files.DockVisible || !files.StartVisible {
+		t.Fatalf("builtin app should be restored to dock and start menu: %+v", files)
+	}
+}
+
+func TestServiceDeleteAppRemovesGeneratedAppVisibility(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{"index.html": "<main>Quick Notes</main>"}, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	if err := svc.SetAppVisibility(ctx, "quick-notes", boolPtr(false), boolPtr(false), SourceUser); err != nil {
+		t.Fatalf("SetAppVisibility: %v", err)
+	}
+	if err := svc.DeleteApp(ctx, "quick-notes", SourceUser); err != nil {
+		t.Fatalf("DeleteApp: %v", err)
+	}
+
+	svc.mu.Lock()
+	db := svc.db
+	svc.mu.Unlock()
+	var rows int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM desktop_app_visibility WHERE app_id = ?`, "quick-notes").Scan(&rows); err != nil {
+		t.Fatalf("query app visibility rows: %v", err)
+	}
+	if rows != 0 {
+		t.Fatalf("deleted app visibility rows = %d, want 0", rows)
 	}
 }
 
