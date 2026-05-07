@@ -96,3 +96,35 @@ func TestDesktopMainBundleOrdersSplitShellFragmentsBeforeLifecycleHelpers(t *tes
 		last = index
 	}
 }
+
+func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testing.T) {
+	t.Parallel()
+
+	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	for _, want := range []string{
+		"function disposeAppWindow(win)",
+		"function clearWidgetRuntime()",
+		"function registerWidgetCleanup(cleanup)",
+		"function renderAppError(id, appId, err)",
+	} {
+		if !strings.Contains(foundation, want) {
+			t.Fatalf("desktop foundation missing early lifecycle helper %q", want)
+		}
+	}
+	for _, check := range []struct {
+		helper string
+		user   string
+	}{
+		{helper: "function clearWidgetRuntime()", user: "function renderWidgets()"},
+		{helper: "function disposeAppWindow(win)", user: "function renderDesktop()"},
+	} {
+		helperAt := strings.Index(foundation, check.helper)
+		userAt := strings.Index(foundation, check.user)
+		if helperAt < 0 || userAt < 0 {
+			t.Fatalf("desktop foundation cannot compare helper %q and user %q", check.helper, check.user)
+		}
+		if helperAt > userAt {
+			t.Fatalf("desktop foundation defines %q after %q; shell startup can miss it when fragments are cached independently", check.helper, check.user)
+		}
+	}
+}
