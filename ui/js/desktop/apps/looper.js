@@ -200,7 +200,7 @@
                     body: JSON.stringify(body)
                 });
                 await loadPresets();
-                context.notify({ title: 'Looper', message: t('desktop.looper_saved') });
+                context.notify({ title: t('desktop.looper_title'), message: t('desktop.looper_saved') });
             } catch (e) {
                 if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_save_error') });
             }
@@ -215,7 +215,7 @@
             try {
                 await api('/api/desktop/looper/presets/' + id, { method: 'DELETE' });
                 await loadPresets();
-                context.notify({ title: 'Looper', message: t('desktop.looper_deleted') });
+                context.notify({ title: t('desktop.looper_title'), message: t('desktop.looper_deleted') });
             } catch (e) {
                 if (context.notify) context.notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
             }
@@ -268,8 +268,8 @@
                     statusEl.textContent = stepLabel;
                 } else {
                     statusEl.textContent = t('desktop.looper_iteration')
-                        .replace('{n}', data.iteration)
-                        .replace('{max}', data.max_iterations) + ' — ' + stepLabel;
+                        .replace('{{n}}', data.iteration)
+                        .replace('{{max}}', data.max_iterations) + ' - ' + stepLabel;
                 }
             } else {
                 statusEl.classList.remove('vd-looper-error');

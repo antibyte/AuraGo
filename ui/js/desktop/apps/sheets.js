@@ -307,15 +307,15 @@
             const items = [
                 { action: 'copy-range', icon: 'copy', label: t('desktop.fm.copy', 'Copy') },
                 { action: 'paste-range', icon: 'clipboard', label: t('desktop.fm.paste', 'Paste') },
-                { action: 'clear-range', icon: 'x', label: t('desktop.sheets_clear_range', 'Clear contents') },
+                { action: 'clear-range', icon: 'x', label: t('desktop.sheets_clear_range') },
                 { separator: true },
-                { action: 'insert-row-above', icon: 'list', label: t('desktop.sheets_insert_row_above', 'Insert row above') },
-                { action: 'insert-row-below', icon: 'list', label: t('desktop.sheets_insert_row_below', 'Insert row below') },
-                { action: 'insert-col-left', icon: 'grid', label: t('desktop.sheets_insert_col_left', 'Insert column left') },
-                { action: 'insert-col-right', icon: 'grid', label: t('desktop.sheets_insert_col_right', 'Insert column right') },
+                { action: 'insert-row-above', icon: 'list', label: t('desktop.sheets_insert_row_above') },
+                { action: 'insert-row-below', icon: 'list', label: t('desktop.sheets_insert_row_below') },
+                { action: 'insert-col-left', icon: 'grid', label: t('desktop.sheets_insert_col_left') },
+                { action: 'insert-col-right', icon: 'grid', label: t('desktop.sheets_insert_col_right') },
                 { separator: true },
-                { action: 'delete-selected-rows', icon: 'trash', label: t('desktop.sheets_delete_rows', 'Delete selected rows') },
-                { action: 'delete-selected-cols', icon: 'trash', label: t('desktop.sheets_delete_columns', 'Delete selected columns') }
+                { action: 'delete-selected-rows', icon: 'trash', label: t('desktop.sheets_delete_rows') },
+                { action: 'delete-selected-cols', icon: 'trash', label: t('desktop.sheets_delete_columns') }
             ];
             const menu = document.createElement('div');
             menu.className = 'office-sheet-context-menu';

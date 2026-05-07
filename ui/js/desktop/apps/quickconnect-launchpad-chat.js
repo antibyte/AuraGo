@@ -298,8 +298,8 @@
         host.innerHTML = `
             <div class="vd-launchpad">
                 <div class="vd-launchpad-toolbar">
-                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="Search links...">
-                    <select class="vd-launchpad-category"><option value="">All categories</option></select>
+                    <input type="search" class="vd-launchpad-search" data-i18n-placeholder="desktop.launchpad_search" placeholder="${esc(t('desktop.launchpad_search'))}">
+                    <select class="vd-launchpad-category"><option value="">${esc(t('desktop.launchpad_all_categories'))}</option></select>
                 </div>
                 <div class="vd-launchpad-grid"></div>
                 <div class="vd-launchpad-empty" hidden>
@@ -403,8 +403,8 @@
                         <input type="text" class="vd-modal-input lp-description" placeholder="${esc(t('desktop.launchpad_label_description'))}" value="${esc(link ? link.description : '')}">
                         <div class="vd-launchpad-field-label">${esc(t('desktop.launchpad_label_icon'))}</div>
                         <div class="lp-icon-tabs"><button type="button" class="lp-icon-tab active" data-tab="search">${esc(t('desktop.launchpad_tab_search'))}</button><button type="button" class="lp-icon-tab" data-tab="url">${esc(t('desktop.launchpad_tab_url'))}</button></div>
-                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="plex, nginx..."><button type="button" class="vd-tool-button lp-icon-search-btn">${iconMarkup('search', 'S', 'vd-tool-icon', 15)}</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" hidden></div></div>
-                        <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="https://..."><div class="lp-icon-preview"></div></div>
+                        <div class="lp-icon-panel active" data-panel="search"><div class="lp-icon-search-row"><input type="text" class="lp-icon-search" placeholder="${esc(t('desktop.launchpad_icon_search_placeholder'))}"><button type="button" class="vd-tool-button lp-icon-search-btn">${iconMarkup('search', 'S', 'vd-tool-icon', 15)}</button></div><div class="lp-icon-results"></div><div class="lp-icon-selected-preview" hidden></div></div>
+                        <div class="lp-icon-panel" data-panel="url"><input type="url" class="lp-icon-url" placeholder="${esc(t('desktop.launchpad_icon_url_placeholder'))}"><div class="lp-icon-preview"></div></div>
                         <input type="hidden" class="lp-icon-path" value="${esc(link && link.icon_path ? link.icon_path : '')}">
                     </div>
                     <div class="vd-modal-actions">
