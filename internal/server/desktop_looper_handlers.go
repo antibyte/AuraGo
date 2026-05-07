@@ -241,7 +241,6 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 
 		statusCh := make(chan desktop.LooperRunState, 16)
 		loopCtx, loopCancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer loopCancel()
 		go func() {
 			_ = runner.Execute(loopCtx, desktop.LooperRunConfig{
 				Prepare:    req.Prepare,
@@ -254,6 +253,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 				Model:      model,
 				MaxIter:    req.MaxIter,
 			}, cfg, client, toolSchemas, dispatchCtx, statusCh)
+			loopCancel() // release timer after loop finishes
 		}()
 
 		w.Header().Set("Content-Type", "application/json")
@@ -314,12 +314,17 @@ func handleLooperStatus(s *Server) http.HandlerFunc {
 		// Poll for updates
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
+		heartbeat := time.NewTicker(15 * time.Second)
+		defer heartbeat.Stop()
 		lastJSON := string(data)
 		idleTicks := 0
 		for {
 			select {
 			case <-r.Context().Done():
 				return
+			case <-heartbeat.C:
+				fmt.Fprintf(w, ":heartbeat\n\n")
+				flusher.Flush()
 			case <-ticker.C:
 				state := runner.State()
 				data, _ := json.Marshal(state)

@@ -239,6 +239,10 @@
             evtSource.onerror = () => {
                 evtSource.close();
                 state.sse = null;
+                // Auto-reconnect after 2s if loop is still running
+                if (state.running) {
+                    setTimeout(() => connectStatus(), 2000);
+                }
             };
         }
 

@@ -285,7 +285,7 @@ func (h *LooperRunStateHolder) SetLastResult(res string) {
 	h.state.LastResult = res
 }
 
-// AppendLog adds a log entry.
+// AppendLog adds a log entry. Keeps at most 200 entries to prevent unbounded growth.
 func (h *LooperRunStateHolder) AppendLog(iteration int, step, prompt, response string, duration time.Duration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -296,6 +296,10 @@ func (h *LooperRunStateHolder) AppendLog(iteration int, step, prompt, response s
 		Response:  response,
 		Duration:  duration.Milliseconds(),
 	})
+	const maxLogs = 200
+	if len(h.state.Logs) > maxLogs {
+		h.state.Logs = h.state.Logs[len(h.state.Logs)-maxLogs:]
+	}
 }
 
 // SetError sets the error field.
