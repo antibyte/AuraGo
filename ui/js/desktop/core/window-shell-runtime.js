@@ -333,7 +333,7 @@
         </button>`).join('');
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                $('vd-start-menu').hidden = true;
+                closeStartMenu();
                 openApp(btn.dataset.appId);
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
@@ -361,10 +361,10 @@
 
     function renderStandardTaskbar() {
         const host = $('vd-taskbar-apps');
-        host.innerHTML = [...state.windows.values()].map(win => {
+        host.innerHTML = [...state.windows.values()].map((win, index) => {
             const app = appById(win.appId);
             const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
-            return `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}">${icon}<span class="vd-task-label">${esc(win.title)}</span></button>`;
+            return `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}" style="--dock-index:${index}">${icon}<span class="vd-task-label">${esc(win.title)}</span></button>`;
         }).join('');
         host.querySelectorAll('[data-window-id]').forEach(btn => {
             btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
@@ -376,11 +376,11 @@
     function renderFruityDock() {
         const host = $('vd-taskbar-apps');
         const runningWindows = [...state.windows.values()];
-        const dockItems = dockApps().map(app => {
+        const dockItems = dockApps().map((app, index) => {
             const running = runningWindows.some(win => win.appId === app.id);
             const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
             const stateClasses = [running ? 'running' : '', active ? 'active' : ''].filter(Boolean).join(' ');
-            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(appName(app))}">
+            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(appName(app))}" style="--dock-index:${index}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
                 <span class="vd-dock-label">${esc(appName(app))}</span>
             </button>`;
@@ -622,6 +622,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
+        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
         focusWindow(id);
         renderAppContent(id, appId, windowContext);
         renderTaskbar();
@@ -636,9 +637,15 @@
     function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
-        item.element.style.display = 'none';
+        if (item.minimizing) return;
+        item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
+        animateThen(item.element, 'vd-window-minimizing', isFruityTheme() ? 180 : 130, () => {
+            item.element.style.display = 'none';
+            item.minimizing = false;
+            scheduleFruityDockOcclusionCheck();
+        });
     }
 
     function scheduleWindowPointerFrame(target, callback) {
@@ -783,6 +790,7 @@
         const item = state.windows.get(id);
         if (!item) return;
         const win = item.element;
+        animateThen(win, 'vd-window-state-changing', isFruityTheme() ? 180 : 120);
         if (item.maximized) {
             const b = item.restoreBounds || { left: 80, top: 48, width: 820, height: 560 };
             win.classList.remove('maximized');
@@ -909,10 +917,13 @@
         const win = state.windows.get(id);
         if (!win) return;
         if (state.z > 100000) normalizeWindowZIndexes();
+        const wasHidden = win.element.style.display === 'none' || win.element.hidden;
+        win.minimizing = false;
         win.element.style.display = '';
         win.element.style.zIndex = String(++state.z);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
+        if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 210 : 140);
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
     }
@@ -920,19 +931,29 @@
     function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (win.closing) return;
+        win.closing = true;
         clearWindowMenus(id);
-        disposeAppWindow(win);
-        win.element.remove();
-        state.windows.delete(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
         renderTaskbar();
-        scheduleFruityDockOcclusionCheck();
+        animateThen(win.element, 'vd-window-closing', isFruityTheme() ? 180 : 130, () => {
+            disposeAppWindow(win);
+            win.element.remove();
+            state.windows.delete(id);
+            renderTaskbar();
+            scheduleFruityDockOcclusionCheck();
+        });
     }
 
-    function closeContextMenu() {
+    function closeContextMenu(immediate) {
         if (state.contextMenu) {
-            state.contextMenu.remove();
+            const menu = state.contextMenu;
             state.contextMenu = null;
+            if (immediate || menu.classList.contains('vd-context-menu-closing')) {
+                menu.remove();
+            } else {
+                animateThen(menu, 'vd-context-menu-closing', isFruityTheme() ? 150 : 100, () => menu.remove());
+            }
         }
         if (state.contextMenuKeydown) {
             document.removeEventListener('keydown', state.contextMenuKeydown);

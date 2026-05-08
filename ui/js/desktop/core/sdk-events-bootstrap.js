@@ -257,7 +257,7 @@
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
             if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button')) {
-                menu.hidden = true;
+                closeStartMenu();
             }
         });
         const taskbarEl = document.querySelector('.vd-taskbar');
@@ -305,7 +305,7 @@
         case 'Escape':
             closeContextMenu();
             closeWindowMenu();
-            $('vd-start-menu').hidden = true;
+            closeStartMenu();
             return;
         case 'Enter': {
             const icon = selectedDesktopIcon();

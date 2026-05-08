@@ -61,7 +61,7 @@
     }
 
     function showContextMenu(x, y, items) {
-        closeContextMenu();
+        closeContextMenu(true);
         items = normalizeContextMenuItems(items);
         if (!items.length) return;
         const actions = new Map();
@@ -89,6 +89,7 @@
         const rect = menu.getBoundingClientRect();
         menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
         menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+        animateThen(menu, 'vd-context-menu-opening', isFruityTheme() ? 150 : 100);
         menu.querySelectorAll('[data-context-action]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const item = actions.get(btn.dataset.contextAction);
@@ -763,11 +764,6 @@
         if (isOpen) return;
         menu.classList.add('open');
         state.openWindowMenu = { windowId, menuId };
-    }
-
-    function closeWindowMenu() {
-        document.querySelectorAll('.vd-window-menu.open').forEach(menu => menu.classList.remove('open'));
-        state.openWindowMenu = null;
     }
 
     function runWindowMenuAction(windowId, actionKey) {

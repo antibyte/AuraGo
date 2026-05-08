@@ -765,12 +765,6 @@
         if (startGlyph) startGlyph.outerHTML = iconMarkup('home', 'A', 'vd-sprite-start', 32);
     }
 
-    function toggleStartMenu() {
-        const menu = $('vd-start-menu');
-        menu.hidden = !menu.hidden;
-        if (!menu.hidden && !isCompactViewport()) $('vd-start-search').focus();
-    }
-
     function renderIcons() {
         const icons = $('vd-icons');
         const items = desktopShortcutItems();

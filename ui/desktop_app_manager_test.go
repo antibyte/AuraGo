@@ -81,8 +81,8 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
 	for _, want := range []string{
-		`/css/desktop.css?v=33`,
-		`/js/desktop/main.js?v=38`,
+		`/css/desktop.css?v=34`,
+		`/js/desktop/main.js?v=39`,
 		`/js/desktop/apps/looper.js?v=3`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
@@ -96,10 +96,11 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	}
 	mainJS := string(mainBytes)
 	for _, want := range []string{
-		`/js/desktop/core/desktop-foundation.js?v=9`,
+		`/js/desktop/core/desktop-foundation.js?v=10`,
+		`/js/desktop/core/motion-runtime.js?v=1`,
 		`/js/desktop/core/widget-autosize-runtime.js?v=2`,
-		`/js/desktop/core/window-shell-runtime.js?v=6`,
-		`/js/desktop/core/menus-and-routing.js?v=3`,
+		`/js/desktop/core/window-shell-runtime.js?v=7`,
+		`/js/desktop/core/menus-and-routing.js?v=4`,
 		`/js/desktop/core/shortcut-runtime.js?v=1`,
 		`/js/desktop/apps/settings-calculator.js?v=5`,
 		`/js/desktop/apps/planning-gallery-music.js?v=4`,
