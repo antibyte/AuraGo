@@ -52,11 +52,11 @@
                         <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-out">${viewerGlyph('-')}</button>
                         <span class="vd-viewer-zoom-label" data-zoom-label>100%</span>
                         <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-in">${viewerGlyph('+')}</button>
-                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-reset">${viewerIcon('maximize', '1:1')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-reset">${viewerGlyph('1:1')}</button>
                         <span class="vd-viewer-sep"></span>
-                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-prev">${viewerIcon('chevron-left', '<')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-prev">${viewerGlyph('<')}</button>
                         <span class="vd-viewer-page-label" data-page-label>1 / 1</span>
-                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-next">${viewerIcon('chevron-right', '>')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-next">${viewerGlyph('>')}</button>
                     </div>
                 </div>
             </div>
@@ -128,16 +128,16 @@
         }
 
         async function printFile() {
-            if (viewerType !== 'pdf') {
-                window.print();
-                return;
-            }
-            if (!pdfDoc) {
-                notify(t('viewer.loading', 'Loading...'));
-                return;
-            }
             try {
-                await printPdfDocument();
+                if (viewerType === 'pdf') {
+                    if (!pdfDoc) {
+                        notify(t('viewer.loading', 'Loading...'));
+                        return;
+                    }
+                    await printPdfDocument();
+                } else {
+                    await printRenderedContent();
+                }
             } catch (err) {
                 notify(t('viewer.error', 'Failed to load file') + ': ' + err.message);
             }
@@ -182,6 +182,54 @@
             await Promise.all(Array.from(printDoc.images).map(img => img.complete ? Promise.resolve() : new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
+            })));
+            printWindow.addEventListener('afterprint', cleanup, { once: true });
+            window.setTimeout(cleanup, 60000);
+            printWindow.focus();
+            printWindow.print();
+        }
+
+        async function printRenderedContent() {
+            const source = contentEl.querySelector('.vd-viewer-rendered, .vd-viewer-xlsx') || contentEl.firstElementChild || contentEl;
+            if (!source || source.classList.contains('vd-viewer-loading') || source.classList.contains('vd-viewer-error')) {
+                notify(t('viewer.loading', 'Loading...'));
+                return;
+            }
+            const frame = document.createElement('iframe');
+            frame.className = 'vd-print-frame';
+            frame.title = 'Print';
+            let cleaned = false;
+            const cleanup = () => {
+                if (cleaned) return;
+                cleaned = true;
+                frame.remove();
+            };
+            document.body.appendChild(frame);
+            const printDoc = frame.contentDocument;
+            const printWindow = frame.contentWindow;
+            if (!printDoc || !printWindow) {
+                cleanup();
+                throw new Error('print frame unavailable');
+            }
+            printDoc.open();
+            printDoc.write(`<!doctype html><html><head><title>${esc(fileName)}</title><style>
+                @page { margin: 14mm; }
+                html, body { margin: 0; padding: 0; background: #fff; color: #111; font: 14px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+                body { padding: 0; }
+                h1, h2, h3, h4, h5, h6 { color: #111; page-break-after: avoid; }
+                pre { white-space: pre-wrap; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f7f7f7; }
+                code { font-family: "Cascadia Code", "JetBrains Mono", monospace; font-size: 12px; }
+                blockquote { border-left: 3px solid #ccc; margin-left: 0; padding-left: 12px; color: #444; }
+                img { max-width: 100%; height: auto; }
+                table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
+                th { background: #f2f2f2; }
+            </style></head><body></body></html>`);
+            printDoc.close();
+            printDoc.body.appendChild(source.cloneNode(true));
+            await Promise.all(Array.from(printDoc.images).map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
             })));
             printWindow.addEventListener('afterprint', cleanup, { once: true });
             window.setTimeout(cleanup, 60000);
