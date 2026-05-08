@@ -3,26 +3,9 @@
     }
 
     function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
-    function isNativeContextMenuTarget(target) {
-        return isEditableTarget(target);
-    }
-
-    function shouldAllowBrowserContextMenu(event) {
-        const target = event && event.target;
-        if (isNativeContextMenuTarget(target)) return true;
-        const selection = window.getSelection && window.getSelection();
-        if (!selection || selection.isCollapsed || !String(selection).trim()) return false;
-        if (!target || !target.closest) return false;
-        return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text');
-    }
-
-    function suppressBrowserContextMenu(event) {
-        if (!event || event.defaultPrevented || shouldAllowBrowserContextMenu(event)) return false;
-        event.preventDefault();
-        event.stopPropagation();
-        closeContextMenu();
-        return true;
-    }
+    function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
+    function shouldAllowBrowserContextMenu(event) { const target = event && event.target; if (isNativeContextMenuTarget(target)) return true; const selection = window.getSelection && window.getSelection(); if (!selection || selection.isCollapsed || !String(selection).trim()) return false; if (!target || !target.closest) return false; return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text'); }
+    function suppressBrowserContextMenu(event) { if (!event || event.defaultPrevented || shouldAllowBrowserContextMenu(event)) return false; event.preventDefault(); event.stopPropagation(); closeContextMenu(); return true; }
 
     function wireContextMenuBoundary(root, options) {
         if (!root || root.dataset.contextSuppressed === 'true') return;
