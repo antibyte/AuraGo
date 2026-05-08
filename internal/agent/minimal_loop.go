@@ -205,6 +205,7 @@ func GetLooperToolSchemas(cfg *config.Config) []openai.Tool {
 		"execute_python": true, "docker": true, "api_request": true,
 		"smart_file_read": true, "file_reader_advanced": true,
 		"web_scraper": true, "manage_memory": true, "query_memory": true,
+		"virtual_desktop": true,
 		"discover_tools": true, "invoke_tool": true, "execute_skill": true,
 		"run_tool": true,
 	}
