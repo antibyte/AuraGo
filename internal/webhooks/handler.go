@@ -243,8 +243,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 
-	// 10. Async delivery
-	go func() {
+	// 10. Delivery. Silent mode only records local state, so keep it synchronous
+	// to avoid leaving test temp directories in use after the handler returns.
+	deliver := func() {
 		defer releaseDelivery()
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -280,7 +281,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.manager.RecordFire(wh.ID)
 		h.manager.NotifyWebhookFired(wh.ID, body)
 		h.logEvent(wh.ID, wh.Name, 200, sourceIP, rawPayloadSize, delivered, deliveryErr)
-	}()
+	}
+	if wh.Delivery.Mode == DeliveryModeSilent {
+		deliver()
+		return
+	}
+	go deliver()
 }
 
 func (h *Handler) acquireDeliverySlot() (func(), bool) {

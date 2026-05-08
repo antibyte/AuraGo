@@ -18,6 +18,7 @@ func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, 
 	cmd.Stdout = info
 	cmd.Stderr = info
 	SetupCmd(cmd)
+	timeout := GetBackgroundTimeout()
 
 	if err := cmd.Start(); err != nil {
 		return 0, err
@@ -28,11 +29,11 @@ func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, 
 	info.State = ProcessStateRunning
 	registry.Register(info)
 
-	go superviseBackgroundProcess(cmd, info, registry, cleanup)
+	go superviseBackgroundProcess(cmd, info, registry, cleanup, timeout)
 	return info.PID, nil
 }
 
-func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *ProcessRegistry, cleanup func()) {
+func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *ProcessRegistry, cleanup func(), timeout time.Duration) {
 	defer func() {
 		registry.Remove(info.PID)
 		if cleanup != nil {
@@ -47,7 +48,6 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 
 	var err error
 	timedOut := false
-	timeout := GetBackgroundTimeout()
 	if timeout > 0 {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
