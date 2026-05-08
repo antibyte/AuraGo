@@ -2056,6 +2056,33 @@
     flex-shrink: 0;
 }
 
+.vd-viewer-file-icon,
+.vd-viewer-action-icon,
+.vd-viewer-glyph-icon {
+    width: 17px;
+    height: 17px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.vd-viewer-file-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.vd-viewer-glyph-icon {
+    color: var(--vd-text);
+    font-size: 16px;
+    font-weight: 850;
+    line-height: 1;
+}
+
+.vd-viewer-icon-button {
+    width: 44px;
+    padding-inline: 0;
+}
+
 .vd-window-button:hover,
 .vd-button:hover,
 .vd-start-button:hover,

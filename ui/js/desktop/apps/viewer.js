@@ -41,22 +41,22 @@
         host.innerHTML = `<div class="vd-viewer" data-viewer="${esc(windowId)}">
             <div class="vd-viewer-toolbar">
                 <div class="vd-viewer-toolbar-left">
-                    ${iconMarkup(fileIconKey, 'D', 'vd-tool-icon vd-viewer-file-icon', 17)}
+                    ${viewerIcon(fileIconKey, 'D', 'vd-viewer-file-icon', 20)}
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${iconMarkup('edit', 'E', 'vd-tool-icon', 15)}<span>${esc(t('viewer.edit', 'Edit'))}</span></button>` : ''}
-                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D', 'vd-tool-icon', 15)}<span>${esc(t('viewer.download', 'Download'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="print">${iconMarkup('printer', 'P', 'vd-tool-icon', 15)}<span>${esc(t('viewer.print', 'Print'))}</span></button>
+                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${viewerIcon('edit', 'E')}<span>${esc(t('viewer.edit', 'Edit'))}</span></button>` : ''}
+                    <button class="vd-tool-button" type="button" data-action="download">${viewerIcon('download', 'D')}<span>${esc(t('viewer.download', 'Download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="print">${viewerIcon('printer', 'P')}<span>${esc(t('viewer.print', 'Print'))}</span></button>
                     <div class="vd-viewer-pdf-controls" data-pdf-controls style="display:none">
-                        <button class="vd-tool-button" type="button" data-action="zoom-out">${iconMarkup('minus', '-', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-out">${viewerGlyph('-')}</button>
                         <span class="vd-viewer-zoom-label" data-zoom-label>100%</span>
-                        <button class="vd-tool-button" type="button" data-action="zoom-in">${iconMarkup('plus', '+', 'vd-tool-icon', 15)}</button>
-                        <button class="vd-tool-button" type="button" data-action="zoom-reset">${iconMarkup('maximize', '1:1', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-in">${viewerGlyph('+')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="zoom-reset">${viewerIcon('maximize', '1:1')}</button>
                         <span class="vd-viewer-sep"></span>
-                        <button class="vd-tool-button" type="button" data-action="page-prev">${iconMarkup('chevron-left', '<', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-prev">${viewerIcon('chevron-left', '<')}</button>
                         <span class="vd-viewer-page-label" data-page-label>1 / 1</span>
-                        <button class="vd-tool-button" type="button" data-action="page-next">${iconMarkup('chevron-right', '>', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-next">${viewerIcon('chevron-right', '>')}</button>
                     </div>
                 </div>
             </div>
@@ -77,6 +77,14 @@
         });
 
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+
+        function viewerIcon(key, fallback, className, size) {
+            return iconMarkup(key, fallback, className || 'vd-viewer-action-icon', size || 17);
+        }
+
+        function viewerGlyph(glyph) {
+            return `<span class="vd-viewer-glyph-icon" aria-hidden="true">${esc(glyph)}</span>`;
+        }
 
         function handleAction(action) {
             switch (action) {
@@ -119,12 +127,23 @@
             document.body.removeChild(link);
         }
 
-        function printFile() {
+        async function printFile() {
             if (viewerType !== 'pdf') {
                 window.print();
                 return;
             }
-            const src = '/api/desktop/viewer/content?path=' + encodeURIComponent(currentPath);
+            if (!pdfDoc) {
+                notify(t('viewer.loading', 'Loading...'));
+                return;
+            }
+            try {
+                await printPdfDocument();
+            } catch (err) {
+                notify(t('viewer.error', 'Failed to load file') + ': ' + err.message);
+            }
+        }
+
+        async function printPdfDocument() {
             const frame = document.createElement('iframe');
             frame.className = 'vd-print-frame';
             frame.title = 'Print';
@@ -134,30 +153,40 @@
                 cleaned = true;
                 frame.remove();
             };
-            const openFallback = () => {
-                cleanup();
-                const opened = window.open(src, '_blank');
-                if (opened) opened.opener = null;
-                if (!opened) notify(t('viewer.error', 'Failed to load file'));
-            };
-            frame.addEventListener('load', () => {
-                const printWindow = frame.contentWindow;
-                if (!printWindow) {
-                    openFallback();
-                    return;
-                }
-                try {
-                    printWindow.addEventListener('afterprint', cleanup, { once: true });
-                    window.setTimeout(cleanup, 60000);
-                    printWindow.focus();
-                    printWindow.print();
-                } catch (err) {
-                    openFallback();
-                }
-            }, { once: true });
-            frame.addEventListener('error', openFallback, { once: true });
             document.body.appendChild(frame);
-            frame.src = src;
+            const printDoc = frame.contentDocument;
+            const printWindow = frame.contentWindow;
+            if (!printDoc || !printWindow) {
+                cleanup();
+                throw new Error('print frame unavailable');
+            }
+            const pages = [];
+            for (let pageNumber = 1; pageNumber <= pdfDoc.numPages; pageNumber++) {
+                const page = await pdfDoc.getPage(pageNumber);
+                const viewport = page.getViewport({ scale: 2 });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(viewport.width);
+                canvas.height = Math.ceil(viewport.height);
+                const canvasContext = canvas.getContext('2d');
+                await page.render({ canvasContext, viewport }).promise;
+                pages.push(canvas.toDataURL('image/png'));
+            }
+            printDoc.open();
+            printDoc.write(`<!doctype html><html><head><title>${esc(fileName)}</title><style>
+                @page { margin: 0; }
+                html, body { margin: 0; padding: 0; background: #fff; }
+                img { display: block; width: 100%; height: auto; page-break-after: always; break-after: page; }
+                img:last-child { page-break-after: auto; break-after: auto; }
+            </style></head><body>${pages.map(src => `<img alt="" src="${src}">`).join('')}</body></html>`);
+            printDoc.close();
+            await Promise.all(Array.from(printDoc.images).map(img => img.complete ? Promise.resolve() : new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            })));
+            printWindow.addEventListener('afterprint', cleanup, { once: true });
+            window.setTimeout(cleanup, 60000);
+            printWindow.focus();
+            printWindow.print();
         }
 
         async function loadContent() {
