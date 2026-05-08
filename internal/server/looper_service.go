@@ -195,9 +195,14 @@ func (r *LooperRunner) executeStarted(
 				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(planRes.Response, 2000)},
 			}
+		} else {
+			history = append(history, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "Plan result:\n" + truncateResponse(planRes.Response, 3000),
+			})
 		}
 
-		// ACTION — only step that needs tools
+		// ACTION
 		r.holder.SetStep("action")
 		actionRes, history, err := stepExec("action", cfg.Action, "", tools, optsWithTools, history)
 		if err != nil {
