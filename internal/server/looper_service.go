@@ -118,7 +118,7 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	// optsWithTools is the default options for steps that need tools.
-	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 3}
+	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10}
 	// optsNoTools for the exit step — no tool schemas, no tool rounds.
 	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
 
