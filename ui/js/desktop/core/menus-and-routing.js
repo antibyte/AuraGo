@@ -425,7 +425,7 @@
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.widget_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}">x</button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
                 </div>
             </div>
             <div class="vd-wm-cards">${renderCards()}</div>
@@ -519,7 +519,7 @@
             <div class="vd-wm-header">
                 <div class="vd-wm-title">${esc(t('desktop.app_manager'))}</div>
                 <div class="vd-window-actions">
-                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}">x</button>
+                    <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
                 </div>
             </div>
             <div class="vd-wm-cards">${renderCards()}</div>
