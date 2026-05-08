@@ -78,20 +78,43 @@ func (r *LooperRunner) executeStarted(
 	const maxHistoryChars = 40000
 
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
-		timeout := 3 * time.Minute
-		if len(stepTools) > 0 {
-			timeout = 5 * time.Minute
+		const maxRetries = 3
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			select {
+			case <-ctx.Done():
+				return agent.MinimalLoopResult{}, nil, fmt.Errorf("aborted by user")
+			default:
+			}
+
+			timeout := 3 * time.Minute
+			if len(stepTools) > 0 {
+				timeout = 5 * time.Minute
+			}
+			stepCtx, stepCancel := context.WithTimeout(ctx, timeout)
+
+			r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration, "tools", len(stepTools), "attempt", attempt)
+			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
+			stepCancel()
+
+			if err != nil {
+				r.logger.Warn("[Looper] step error", "step", stepName, "attempt", attempt, "maxRetries", maxRetries, "error", err)
+				if attempt < maxRetries && ctx.Err() == nil {
+					backoff := time.Duration(attempt*attempt) * time.Second
+					r.logger.Info("[Looper] retrying", "step", stepName, "backoff", backoff)
+					select {
+					case <-time.After(backoff):
+						continue
+					case <-ctx.Done():
+						return agent.MinimalLoopResult{}, nil, fmt.Errorf("aborted by user")
+					}
+				}
+				r.logger.Error("[Looper] step failed after retries", "step", stepName, "error", err)
+				return res, nil, err
+			}
+			r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
+			return res, h, nil
 		}
-		stepCtx, stepCancel := context.WithTimeout(ctx, timeout)
-		defer stepCancel()
-		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration, "tools", len(stepTools))
-		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
-		if err != nil {
-			r.logger.Error("[Looper] step failed", "step", stepName, "error", err)
-			return res, nil, err
-		}
-		r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
-		return res, h, nil
+		return agent.MinimalLoopResult{}, nil, fmt.Errorf("unreachable")
 	}
 
 	// optsWithTools is the default options for steps that need tools.
