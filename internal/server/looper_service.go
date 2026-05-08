@@ -227,7 +227,7 @@ func (r *LooperRunner) executeStarted(
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-		finishRes, _, err := stepExec("finish", cfg.Finish, "", noTools, &agent.MinimalLoopOptions{}, iterSeed)
+		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, iterSeed)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
