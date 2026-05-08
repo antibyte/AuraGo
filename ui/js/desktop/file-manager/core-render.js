@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     'use strict';
 
     const LS_VIEW_KEY = 'aurago.fm.view';

@@ -1,6 +1,10 @@
 (function () {
     'use strict';
 
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/vendor/pdf.worker.min.js';
+    }
+
     const instances = new Map();
 
     function render(host, windowId, context) {

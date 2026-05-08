@@ -1,4 +1,4 @@
-﻿            toggleSearch();
+            toggleSearch();
             return;
         }
         if (e.key === '/' && !isInput) {

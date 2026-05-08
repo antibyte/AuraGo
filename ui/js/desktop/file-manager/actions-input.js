@@ -1,4 +1,4 @@
-﻿        const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
+        const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file', 'File'));
         const nameContent = fm.renamePath === file.path
