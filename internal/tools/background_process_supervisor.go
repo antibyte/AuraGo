@@ -56,6 +56,9 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 		case <-timer.C:
 			timedOut = true
 			KillProcessTree(info.PID)
+			if info.Process != nil {
+				_ = killProcess(info.Process)
+			}
 			select {
 			case err = <-waitDone:
 			case <-time.After(10 * time.Second):
