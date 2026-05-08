@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 )
@@ -300,8 +299,10 @@ func isAllowedKnowledgeExtension(s *Server, filename string) bool {
 	if len(allowed) == 0 {
 		allowed = defaultKnowledgeExtensions
 	}
-	for i, candidate := range allowed {
-		allowed[i] = strings.ToLower(strings.TrimSpace(candidate))
+	for _, candidate := range allowed {
+		if strings.ToLower(strings.TrimSpace(candidate)) == ext {
+			return true
+		}
 	}
-	return slices.Contains(allowed, ext)
+	return false
 }
