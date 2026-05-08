@@ -78,7 +78,11 @@ func (r *LooperRunner) executeStarted(
 	const maxHistoryChars = 40000
 
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
-		stepCtx, stepCancel := context.WithTimeout(ctx, 5*time.Minute)
+		timeout := 3 * time.Minute
+		if len(stepTools) > 0 {
+			timeout = 5 * time.Minute
+		}
+		stepCtx, stepCancel := context.WithTimeout(ctx, timeout)
 		defer stepCancel()
 		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration, "tools", len(stepTools))
 		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
@@ -163,9 +167,9 @@ func (r *LooperRunner) executeStarted(
 			}
 		}
 
-		// PLAN
+		// PLAN — text-only reasoning, no tools needed
 		r.holder.SetStep("plan")
-		planRes, history, err := stepExec("plan", cfg.Plan, "", tools, optsWithTools, history)
+		planRes, history, err := stepExec("plan", cfg.Plan, "", noTools, optsNoTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -178,7 +182,7 @@ func (r *LooperRunner) executeStarted(
 			}
 		}
 
-		// ACTION
+		// ACTION — only step that needs tools
 		r.holder.SetStep("action")
 		actionRes, history, err := stepExec("action", cfg.Action, "", tools, optsWithTools, history)
 		if err != nil {
@@ -193,9 +197,9 @@ func (r *LooperRunner) executeStarted(
 			}
 		}
 
-		// TEST
+		// TEST — text-only evaluation, no tools needed
 		r.holder.SetStep("test")
-		testRes, history, err := stepExec("test", cfg.Test, "", tools, optsWithTools, history)
+		testRes, history, err := stepExec("test", cfg.Test, "", noTools, optsNoTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
