@@ -182,9 +182,9 @@ func (r *LooperRunner) executeStarted(
 			}
 		}
 
-		// PLAN — text-only reasoning, no tools needed
+		// PLAN
 		r.holder.SetStep("plan")
-		planRes, history, err := stepExec("plan", cfg.Plan, "", noTools, optsNoTools, history)
+		planRes, history, err := stepExec("plan", cfg.Plan, "", tools, optsWithTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -212,9 +212,9 @@ func (r *LooperRunner) executeStarted(
 			}
 		}
 
-		// TEST — text-only evaluation, no tools needed
+		// TEST
 		r.holder.SetStep("test")
-		testRes, history, err := stepExec("test", cfg.Test, "", noTools, optsNoTools, history)
+		testRes, history, err := stepExec("test", cfg.Test, "", tools, optsWithTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
