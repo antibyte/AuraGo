@@ -83,7 +83,7 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	for _, want := range []string{
 		`/css/desktop.css?v=34`,
 		`/js/desktop/main.js?v=40`,
-		`/js/desktop/apps/looper.js?v=3`,
+		`/js/desktop/apps/looper.js?v=4`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
 			t.Fatalf("desktop.html missing cache-busting asset version %q", want)
