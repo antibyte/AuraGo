@@ -194,6 +194,29 @@ func GetBuiltinToolSchemas(cfg *config.Config) []openai.Tool {
 	return builtinToolSchemasCached(ff)
 }
 
+// GetLooperToolSchemas returns a curated minimal tool set for the Looper.
+// The looper only needs core execution tools — sending 100+ tool schemas
+// wastes thousands of tokens per step and causes API timeouts.
+func GetLooperToolSchemas(cfg *config.Config) []openai.Tool {
+	all := GetBuiltinToolSchemas(cfg)
+	looperTools := map[string]bool{
+		"filesystem": true, "file_editor": true, "execute_shell": true,
+		"execute_python": true, "docker": true, "api_request": true,
+		"smart_file_read": true, "file_reader_advanced": true,
+		"web_scraper": true, "manage_memory": true, "query_memory": true,
+	}
+	var filtered []openai.Tool
+	for _, t := range all {
+		if t.Function != nil && looperTools[t.Function.Name] {
+			filtered = append(filtered, t)
+		}
+	}
+	if len(filtered) == 0 {
+		return all
+	}
+	return filtered
+}
+
 // MinimalSystemPromptBuilder creates a minimal system prompt for the Looper.
 func MinimalSystemPromptBuilder(availableTools []string) string {
 	var b strings.Builder

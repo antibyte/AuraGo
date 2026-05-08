@@ -236,7 +236,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		}
 
 		// Build tool schemas
-		toolSchemas := agent.GetBuiltinToolSchemas(cfg)
+		toolSchemas := agent.GetLooperToolSchemas(cfg)
 
 		// Build dispatch context
 		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
