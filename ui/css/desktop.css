@@ -260,6 +260,11 @@
     pointer-events: none;
 }
 
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu .vd-window-titlebar > div:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+}
+
 .desktop-body[data-theme="fruity"] .vd-window-title {
     font-size: 0.84rem;
     font-weight: 760;
@@ -1735,7 +1740,7 @@
 .vd-window-titlebar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 10px;
     padding: 0 12px;
     background: rgba(10, 14, 20, 0.58);
@@ -1747,21 +1752,63 @@
 
 .vd-window.has-window-menu .vd-window-titlebar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: 43px 30px;
     align-items: center;
     gap: 0 10px;
     padding: 0 10px;
 }
 
+.vd-window-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 100%;
+}
+
+.vd-window.has-window-menu .vd-window-title-group {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.vd-window-header-icon-wrap {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
 .vd-window-title {
     font-weight: 800;
     font-size: 0.88rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.1;
+}
+
+.vd-window-subtitle:empty {
+    display: none;
 }
 
 .vd-window-actions {
     display: flex;
+    align-items: center;
+    order: -1;
     gap: 6px;
+    flex: 0 0 auto;
+}
+
+.vd-window.has-window-menu .vd-window-actions {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    justify-self: start;
 }
 
 .vd-window-button,
@@ -1782,6 +1829,8 @@
 .vd-window-button {
     width: 28px;
     height: 28px;
+    display: inline-grid;
+    place-items: center;
 }
 
 .vd-window-button::before {
@@ -7591,6 +7640,17 @@
     max-width: 100%;
     box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     border-radius: 2px;
+}
+
+.vd-print-frame {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    right: 0;
+    bottom: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 @media print {

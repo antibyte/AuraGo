@@ -36,26 +36,27 @@
         let pdfDoc = null;
         let pdfPage = 1;
         let pdfScale = 1.0;
+        const fileIconKey = viewerIconForExt(ext, viewerType);
 
         host.innerHTML = `<div class="vd-viewer" data-viewer="${esc(windowId)}">
             <div class="vd-viewer-toolbar">
                 <div class="vd-viewer-toolbar-left">
-                    ${iconMarkup('eye', 'V', 'vd-tool-icon', 15)}
+                    ${iconMarkup(fileIconKey, 'D', 'vd-tool-icon vd-viewer-file-icon', 17)}
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${iconMarkup('edit', '', 'vd-tool-icon', 15)}<span>${esc(t('viewer.edit', 'Edit'))}</span></button>` : ''}
-                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', '', 'vd-tool-icon', 15)}<span>${esc(t('viewer.download', 'Download'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="print">${iconMarkup('print', '', 'vd-tool-icon', 15)}<span>${esc(t('viewer.print', 'Print'))}</span></button>
+                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${iconMarkup('edit', 'E', 'vd-tool-icon', 15)}<span>${esc(t('viewer.edit', 'Edit'))}</span></button>` : ''}
+                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D', 'vd-tool-icon', 15)}<span>${esc(t('viewer.download', 'Download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="print">${iconMarkup('printer', 'P', 'vd-tool-icon', 15)}<span>${esc(t('viewer.print', 'Print'))}</span></button>
                     <div class="vd-viewer-pdf-controls" data-pdf-controls style="display:none">
-                        <button class="vd-tool-button" type="button" data-action="zoom-out">${iconMarkup('minus', '', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="zoom-out">${iconMarkup('minus', '-', 'vd-tool-icon', 15)}</button>
                         <span class="vd-viewer-zoom-label" data-zoom-label>100%</span>
-                        <button class="vd-tool-button" type="button" data-action="zoom-in">${iconMarkup('plus', '', 'vd-tool-icon', 15)}</button>
-                        <button class="vd-tool-button" type="button" data-action="zoom-reset">${iconMarkup('maximize', '', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="zoom-in">${iconMarkup('plus', '+', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="zoom-reset">${iconMarkup('maximize', '1:1', 'vd-tool-icon', 15)}</button>
                         <span class="vd-viewer-sep"></span>
-                        <button class="vd-tool-button" type="button" data-action="page-prev">${iconMarkup('chevron-left', '', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="page-prev">${iconMarkup('chevron-left', '<', 'vd-tool-icon', 15)}</button>
                         <span class="vd-viewer-page-label" data-page-label>1 / 1</span>
-                        <button class="vd-tool-button" type="button" data-action="page-next">${iconMarkup('chevron-right', '', 'vd-tool-icon', 15)}</button>
+                        <button class="vd-tool-button" type="button" data-action="page-next">${iconMarkup('chevron-right', '>', 'vd-tool-icon', 15)}</button>
                     </div>
                 </div>
             </div>
@@ -86,7 +87,7 @@
                     downloadFile();
                     break;
                 case 'print':
-                    window.print();
+                    printFile();
                     break;
                 case 'zoom-in':
                     pdfScale = Math.min(3.0, pdfScale + 0.25);
@@ -116,6 +117,47 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        function printFile() {
+            if (viewerType !== 'pdf') {
+                window.print();
+                return;
+            }
+            const src = '/api/desktop/viewer/content?path=' + encodeURIComponent(currentPath);
+            const frame = document.createElement('iframe');
+            frame.className = 'vd-print-frame';
+            frame.title = 'Print';
+            let cleaned = false;
+            const cleanup = () => {
+                if (cleaned) return;
+                cleaned = true;
+                frame.remove();
+            };
+            const openFallback = () => {
+                cleanup();
+                const opened = window.open(src, '_blank');
+                if (opened) opened.opener = null;
+                if (!opened) notify(t('viewer.error', 'Failed to load file'));
+            };
+            frame.addEventListener('load', () => {
+                const printWindow = frame.contentWindow;
+                if (!printWindow) {
+                    openFallback();
+                    return;
+                }
+                try {
+                    printWindow.addEventListener('afterprint', cleanup, { once: true });
+                    window.setTimeout(cleanup, 60000);
+                    printWindow.focus();
+                    printWindow.print();
+                } catch (err) {
+                    openFallback();
+                }
+            }, { once: true });
+            frame.addEventListener('error', openFallback, { once: true });
+            document.body.appendChild(frame);
+            frame.src = src;
         }
 
         async function loadContent() {
@@ -251,6 +293,14 @@
             case 'xlsx': case 'xlsm': case 'csv': return 'spreadsheet';
             default: return 'unknown';
         }
+    }
+
+    function viewerIconForExt(ext, viewerType) {
+        if (viewerType === 'pdf') return 'pdf';
+        if (viewerType === 'markdown') return 'markdown';
+        if (viewerType === 'document') return 'documents';
+        if (viewerType === 'spreadsheet') return 'spreadsheet';
+        return ext ? 'file-' + ext : 'text';
     }
 
     function columnName(index) {
