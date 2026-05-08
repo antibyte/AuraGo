@@ -1740,7 +1740,7 @@
 .vd-window-titlebar {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 10px;
     padding: 0 12px;
     background: rgba(10, 14, 20, 0.58);
@@ -1752,7 +1752,7 @@
 
 .vd-window.has-window-menu .vd-window-titlebar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: 43px 30px;
     align-items: center;
     gap: 0 10px;
@@ -1769,7 +1769,7 @@
 }
 
 .vd-window.has-window-menu .vd-window-title-group {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
 }
 
@@ -1799,16 +1799,15 @@
 .vd-window-actions {
     display: flex;
     align-items: center;
-    order: -1;
     gap: 6px;
     flex: 0 0 auto;
 }
 
 .vd-window.has-window-menu .vd-window-actions {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 1;
     align-self: center;
-    justify-self: start;
+    justify-self: end;
 }
 
 .vd-window-button,
