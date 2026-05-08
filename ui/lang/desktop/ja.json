@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "選択した列を削除",
     "desktop.looper_logs_title": "ログ",
     "desktop.looper_clear": "クリア",
-    "desktop.looper_no_logs": "実行ログはまだありません"
+    "desktop.looper_no_logs": "実行ログはまだありません",
+    "viewer.title": "ビューアー",
+    "viewer.edit": "編集",
+    "viewer.download": "ダウンロード",
+    "viewer.print": "印刷",
+    "viewer.zoom_in": "ズームイン",
+    "viewer.zoom_out": "ズームアウト",
+    "viewer.zoom_reset": "リセット",
+    "viewer.page": "ページ",
+    "viewer.of": "/",
+    "viewer.sheet": "シート",
+    "viewer.loading": "読み込み中...",
+    "viewer.error": "ファイルの読み込みに失敗しました",
+    "viewer.no_content": "表示するコンテンツがありません",
+    "desktop.fm.view": "表示"
 }

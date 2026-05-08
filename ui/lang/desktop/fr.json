@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Supprimer les colonnes sélectionnées",
     "desktop.looper_logs_title": "Journaux",
     "desktop.looper_clear": "Effacer",
-    "desktop.looper_no_logs": "Aucun journal d'exécution pour l'instant"
+    "desktop.looper_no_logs": "Aucun journal d'exécution pour l'instant",
+    "viewer.title": "Visionneuse",
+    "viewer.edit": "Modifier",
+    "viewer.download": "Télécharger",
+    "viewer.print": "Imprimer",
+    "viewer.zoom_in": "Zoom avant",
+    "viewer.zoom_out": "Zoom arrière",
+    "viewer.zoom_reset": "Réinitialiser",
+    "viewer.page": "Page",
+    "viewer.of": "de",
+    "viewer.sheet": "Feuille",
+    "viewer.loading": "Chargement...",
+    "viewer.error": "Impossible de charger le fichier",
+    "viewer.no_content": "Aucun contenu à afficher",
+    "desktop.fm.view": "Afficher"
 }

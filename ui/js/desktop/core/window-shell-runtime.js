@@ -490,7 +490,8 @@
             'system-info': { width: 800, height: 600 },
             'agent-chat': { width: 800, height: 620 },
             'looper': { width: 900, height: 750 },
-            camera: { width: 720, height: 600 }
+            camera: { width: 720, height: 600 },
+            viewer: { width: 900, height: 700 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();

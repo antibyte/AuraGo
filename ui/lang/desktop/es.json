@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Eliminar columnas seleccionadas",
     "desktop.looper_logs_title": "Registros",
     "desktop.looper_clear": "Limpiar",
-    "desktop.looper_no_logs": "Aún no hay registros de ejecución"
+    "desktop.looper_no_logs": "Aún no hay registros de ejecución",
+    "viewer.title": "Visor",
+    "viewer.edit": "Editar",
+    "viewer.download": "Descargar",
+    "viewer.print": "Imprimir",
+    "viewer.zoom_in": "Ampliar",
+    "viewer.zoom_out": "Reducir",
+    "viewer.zoom_reset": "Restablecer",
+    "viewer.page": "Página",
+    "viewer.of": "de",
+    "viewer.sheet": "Hoja",
+    "viewer.loading": "Cargando...",
+    "viewer.error": "Error al cargar el archivo",
+    "viewer.no_content": "Sin contenido para mostrar",
+    "desktop.fm.view": "Ver"
 }

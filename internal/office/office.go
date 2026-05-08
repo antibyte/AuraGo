@@ -838,6 +838,115 @@ const contentTypesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 const packageRelsXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`
 const stylesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/></w:style></w:styles>`
 
+func DocumentToHTML(doc Document) string {
+	if doc.HTML != "" {
+		return "<div class=\"docx-content\">" + doc.HTML + "</div>"
+	}
+	if len(doc.Delta.Ops) == 0 {
+		return "<div class=\"docx-content\"><p>" + stdhtml.EscapeString(doc.Text) + "</p></div>"
+	}
+	var b strings.Builder
+	b.WriteString("<div class=\"docx-content\">")
+	var inList bool
+	var listType string
+	var inParagraph bool
+	closeList := func() {
+		if inList {
+			if listType == "ordered" {
+				b.WriteString("</ol>")
+			} else {
+				b.WriteString("</ul>")
+			}
+			inList = false
+			listType = ""
+		}
+	}
+	for _, op := range doc.Delta.Ops {
+		insert := op.Insert
+		if insert == "" {
+			continue
+		}
+		lines := strings.Split(insert, "\n")
+		for i, line := range lines {
+			if i > 0 {
+				if inParagraph {
+					b.WriteString("</p>")
+					inParagraph = false
+				}
+				headerLevel := 0
+				if op.Attributes != nil {
+					if h, ok := op.Attributes["header"].(float64); ok {
+						headerLevel = int(h)
+					}
+				}
+				listAttr := ""
+				if op.Attributes != nil {
+					if l, ok := op.Attributes["list"].(string); ok {
+						listAttr = l
+					}
+				}
+				closeList()
+				if headerLevel > 0 && headerLevel <= 6 {
+					fmt.Fprintf(&b, "<h%d>", headerLevel)
+					inParagraph = true
+				} else if listAttr != "" {
+					newListType := "bullet"
+					if listAttr == "ordered" {
+						newListType = "ordered"
+					}
+					if !inList || listType != newListType {
+						closeList()
+						if newListType == "ordered" {
+							b.WriteString("<ol>")
+						} else {
+							b.WriteString("<ul>")
+						}
+						inList = true
+						listType = newListType
+					}
+					b.WriteString("<li>")
+					inParagraph = true
+				}
+			}
+			if line == "" && i > 0 {
+				continue
+			}
+			if !inParagraph {
+				b.WriteString("<p>")
+				inParagraph = true
+			}
+			rendered := stdhtml.EscapeString(line)
+			if op.Attributes != nil {
+				if _, ok := op.Attributes["bold"]; ok {
+					rendered = "<strong>" + rendered + "</strong>"
+				}
+				if _, ok := op.Attributes["italic"]; ok {
+					rendered = "<em>" + rendered + "</em>"
+				}
+				if _, ok := op.Attributes["underline"]; ok {
+					rendered = "<u>" + rendered + "</u>"
+				}
+				if _, ok := op.Attributes["strike"]; ok {
+					rendered = "<del>" + rendered + "</del>"
+				}
+				if _, ok := op.Attributes["code"]; ok {
+					rendered = "<code>" + rendered + "</code>"
+				}
+				if href, ok := op.Attributes["link"].(string); ok && href != "" {
+					rendered = "<a href=\"" + stdhtml.EscapeString(href) + "\">" + rendered + "</a>"
+				}
+			}
+			b.WriteString(rendered)
+		}
+	}
+	if inParagraph {
+		b.WriteString("</p>")
+	}
+	closeList()
+	b.WriteString("</div>")
+	return b.String()
+}
+
 func MarshalWorkbook(raw interface{}) (Workbook, error) {
 	b, err := json.Marshal(raw)
 	if err != nil {

@@ -85,6 +85,11 @@
         return ext === 'xlsx' || ext === 'xlsm' || ext === 'csv';
     }
 
+    function isViewerFile(file) {
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        return ['md', 'pdf', 'docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
+    }
+
     function openDesktopFileEntry(row) {
         const entry = {
             name: row.querySelector('.vd-file-name, .vd-icon-label') ? row.querySelector('.vd-file-name, .vd-icon-label').textContent : row.dataset.path,
@@ -95,6 +100,7 @@
         };
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
+        if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
         if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
         openEditorFile(entry.path);
     }
@@ -123,6 +129,7 @@
         if (!file || !file.web_path) {
             if (isWriterFile(file)) return openApp('writer', { path: file.path });
             if (isSheetsFile(file)) return openApp('sheets', { path: file.path });
+            if (isViewerFile(file)) return openApp('viewer', { path: file.path });
             if (file && file.path) openEditorFile(file.path);
             return;
         }

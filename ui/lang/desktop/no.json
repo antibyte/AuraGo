@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Slett valgte kolonner",
     "desktop.looper_logs_title": "Logger",
     "desktop.looper_clear": "Tøm",
-    "desktop.looper_no_logs": "Ingen kjøringslogger ennå"
+    "desktop.looper_no_logs": "Ingen kjøringslogger ennå",
+    "viewer.title": "Visning",
+    "viewer.edit": "Rediger",
+    "viewer.download": "Last ned",
+    "viewer.print": "Skriv ut",
+    "viewer.zoom_in": "Zoom inn",
+    "viewer.zoom_out": "Zoom ut",
+    "viewer.zoom_reset": "Tilbakestill",
+    "viewer.page": "Side",
+    "viewer.of": "av",
+    "viewer.sheet": "Ark",
+    "viewer.loading": "Laster...",
+    "viewer.error": "Kunne ikke laste filen",
+    "viewer.no_content": "Ingen innhold å vise",
+    "desktop.fm.view": "Vis"
 }

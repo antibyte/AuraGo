@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "删除选中列",
     "desktop.looper_logs_title": "日志",
     "desktop.looper_clear": "清除",
-    "desktop.looper_no_logs": "暂无执行日志"
+    "desktop.looper_no_logs": "暂无执行日志",
+    "viewer.title": "查看器",
+    "viewer.edit": "编辑",
+    "viewer.download": "下载",
+    "viewer.print": "打印",
+    "viewer.zoom_in": "放大",
+    "viewer.zoom_out": "缩小",
+    "viewer.zoom_reset": "重置",
+    "viewer.page": "页",
+    "viewer.of": "/",
+    "viewer.sheet": "工作表",
+    "viewer.loading": "加载中...",
+    "viewer.error": "文件加载失败",
+    "viewer.no_content": "无内容可显示",
+    "desktop.fm.view": "查看"
 }

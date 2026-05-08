@@ -1812,6 +1812,7 @@
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button::before {
     display: none;
 }
+
 .vd-window-menubar {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -7385,4 +7386,317 @@
 .vd-looper-steps::-webkit-scrollbar-thumb:hover,
 .vd-looper-logs::-webkit-scrollbar-thumb:hover {
     background: rgba(255,255,255,0.14);
+}
+
+.vd-viewer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.vd-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    gap: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+
+.vd-viewer-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.vd-viewer-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-viewer-filename {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-viewer-pdf-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.vd-viewer-sep {
+    width: 1px;
+    height: 16px;
+    background: rgba(255,255,255,0.15);
+    margin: 0 4px;
+}
+
+.vd-viewer-zoom-label,
+.vd-viewer-page-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    min-width: 40px;
+    text-align: center;
+    user-select: none;
+}
+
+.vd-viewer-sheets-bar {
+    display: flex;
+    gap: 2px;
+    padding: 2px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.vd-viewer-sheet-tab {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    transition: background 0.15s, color 0.15s;
+}
+
+.vd-viewer-sheet-tab:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.9);
+}
+
+.vd-viewer-sheet-tab.active {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: 500;
+}
+
+.vd-viewer-content {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+}
+
+.vd-viewer-loading,
+.vd-viewer-error,
+.vd-viewer-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+}
+
+.vd-viewer-error {
+    color: #f87171;
+}
+
+.vd-viewer-rendered {
+    padding: 20px 24px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.9);
+}
+
+.vd-viewer-md h1,
+.vd-viewer-md h2,
+.vd-viewer-md h3,
+.vd-viewer-md h4,
+.vd-viewer-md h5,
+.vd-viewer-md h6 {
+    margin: 16px 0 8px;
+    color: #fff;
+}
+
+.vd-viewer-md h1 { font-size: 22px; }
+.vd-viewer-md h2 { font-size: 18px; }
+.vd-viewer-md h3 { font-size: 16px; }
+
+.vd-viewer-md p {
+    margin: 6px 0;
+}
+
+.vd-viewer-md pre {
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.vd-viewer-md code {
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+}
+
+.vd-viewer-md :not(pre) > code {
+    background: rgba(255,255,255,0.1);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.vd-viewer-md blockquote {
+    border-left: 3px solid rgba(255,255,255,0.3);
+    margin: 8px 0;
+    padding: 4px 16px;
+    color: rgba(255,255,255,0.7);
+}
+
+.vd-viewer-md table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    width: 100%;
+}
+
+.vd-viewer-md th,
+.vd-viewer-md td {
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.vd-viewer-md th {
+    background: rgba(255,255,255,0.06);
+    font-weight: 600;
+}
+
+.vd-viewer-md a {
+    color: #60a5fa;
+    text-decoration: none;
+}
+
+.vd-viewer-md a:hover {
+    text-decoration: underline;
+}
+
+.vd-viewer-md ul,
+.vd-viewer-md ol {
+    margin: 6px 0;
+    padding-left: 24px;
+}
+
+.vd-viewer-md li {
+    margin: 2px 0;
+}
+
+.vd-viewer-md img {
+    max-width: 100%;
+    border-radius: 4px;
+}
+
+.vd-viewer-docx h1,
+.vd-viewer-docx h2,
+.vd-viewer-docx h3 {
+    margin: 16px 0 8px;
+    color: #fff;
+}
+
+.vd-viewer-docx h1 { font-size: 22px; }
+.vd-viewer-docx h2 { font-size: 18px; }
+.vd-viewer-docx h3 { font-size: 16px; }
+
+.vd-viewer-docx p {
+    margin: 4px 0;
+}
+
+.vd-viewer-docx strong { font-weight: 600; }
+.vd-viewer-docx em { font-style: italic; }
+
+.vd-viewer-docx ul,
+.vd-viewer-docx ol {
+    margin: 6px 0;
+    padding-left: 24px;
+}
+
+.vd-viewer-docx li {
+    margin: 2px 0;
+}
+
+.vd-viewer-docx a {
+    color: #60a5fa;
+    text-decoration: none;
+}
+
+.vd-viewer-xlsx {
+    padding: 0;
+    overflow: auto;
+}
+
+.vd-viewer-grid {
+    border-collapse: collapse;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    table-layout: fixed;
+}
+
+.vd-viewer-grid th,
+.vd-viewer-grid td {
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 4px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    min-width: 60px;
+}
+
+.vd-viewer-grid thead th {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.vd-viewer-grid thead th:first-child {
+    width: 36px;
+    min-width: 36px;
+}
+
+.vd-viewer-grid tbody th {
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.5);
+    font-weight: 400;
+    text-align: center;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.vd-viewer-pdf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 12px;
+}
+
+.vd-viewer-pdf-canvas {
+    max-width: 100%;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    border-radius: 2px;
+}
+
+@media print {
+    .vd-viewer-toolbar,
+    .vd-viewer-sheets-bar,
+    .vd-viewer-pdf-controls {
+        display: none !important;
+    }
+    .vd-viewer-content {
+        overflow: visible !important;
+    }
 }

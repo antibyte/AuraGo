@@ -549,6 +549,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "launchpad", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Description: "Quick-access launcher for local and remote web links."},
 		{ID: "looper", Name: "Looper", Version: "1.0.0", Icon: "refresh", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Iterative agent loop with prepare, plan, action, test and exit condition.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "camera", Name: "Camera", Version: "1.0.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Description: "Capture photos with your camera and save or analyze them.", Permissions: []string{"files:write", "notifications"}},
+		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}},
 	}
 	for i := range apps {
 		apps[i].Builtin = true

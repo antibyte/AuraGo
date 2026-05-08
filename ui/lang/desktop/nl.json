@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Geselecteerde kolommen verwijderen",
     "desktop.looper_logs_title": "Logboeken",
     "desktop.looper_clear": "Wissen",
-    "desktop.looper_no_logs": "Nog geen uitvoeringslogboeken"
+    "desktop.looper_no_logs": "Nog geen uitvoeringslogboeken",
+    "viewer.title": "Viewer",
+    "viewer.edit": "Bewerken",
+    "viewer.download": "Downloaden",
+    "viewer.print": "Afdrukken",
+    "viewer.zoom_in": "Inzoomen",
+    "viewer.zoom_out": "Uitzoomen",
+    "viewer.zoom_reset": "Resetten",
+    "viewer.page": "Pagina",
+    "viewer.of": "van",
+    "viewer.sheet": "Werkblad",
+    "viewer.loading": "Laden...",
+    "viewer.error": "Bestand kan niet worden geladen",
+    "viewer.no_content": "Geen inhoud om weer te geven",
+    "desktop.fm.view": "Bekijken"
 }

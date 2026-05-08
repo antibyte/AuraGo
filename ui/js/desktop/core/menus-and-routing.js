@@ -876,6 +876,21 @@
             return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
         }
         if (appId === 'agent-chat') return renderChat(id);
+        if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
+            return window.ViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc,
+                api,
+                t,
+                iconMarkup,
+                notify: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
+                loadBootstrap,
+                setWindowMenus,
+                clearWindowMenus,
+                wireContextMenuBoundary,
+                openApp
+            }));
+        }
         if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
@@ -939,10 +954,12 @@
                 openFile: (entry) => {
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
+                    if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
                     if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
                     openEditorFile(entry.path);
                 },
                 openMedia: (entry) => openMediaPreview(entry),
+                openApp: (appId, ctx) => openApp(appId, ctx),
                 refreshDesktop: loadBootstrap,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;

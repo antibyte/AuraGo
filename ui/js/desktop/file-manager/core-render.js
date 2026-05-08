@@ -471,6 +471,11 @@
         return ['mp4', 'mkv', 'avi', 'mov', 'webm', 'mp3', 'wav', 'flac', 'ogg', 'm4a'].includes(ext);
     }
 
+    function isViewerFile(name) {
+        const ext = String(name || '').split('.').pop().toLowerCase();
+        return ['md', 'pdf', 'docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
+    }
+
     function loadPreferences() {
         try {
             const view = localStorage.getItem(LS_VIEW_KEY);

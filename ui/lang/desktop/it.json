@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Elimina colonne selezionate",
     "desktop.looper_logs_title": "Log",
     "desktop.looper_clear": "Cancella",
-    "desktop.looper_no_logs": "Nessun log di esecuzione ancora"
+    "desktop.looper_no_logs": "Nessun log di esecuzione ancora",
+    "viewer.title": "Visualizzatore",
+    "viewer.edit": "Modifica",
+    "viewer.download": "Scarica",
+    "viewer.print": "Stampa",
+    "viewer.zoom_in": "Ingrandisci",
+    "viewer.zoom_out": "Riduci",
+    "viewer.zoom_reset": "Ripristina",
+    "viewer.page": "Pagina",
+    "viewer.of": "di",
+    "viewer.sheet": "Foglio",
+    "viewer.loading": "Caricamento...",
+    "viewer.error": "Impossibile caricare il file",
+    "viewer.no_content": "Nessun contenuto da visualizzare",
+    "desktop.fm.view": "Visualizza"
 }

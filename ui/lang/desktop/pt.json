@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Excluir colunas selecionadas",
     "desktop.looper_logs_title": "Logs",
     "desktop.looper_clear": "Limpar",
-    "desktop.looper_no_logs": "Ainda não há logs de execução"
+    "desktop.looper_no_logs": "Ainda não há logs de execução",
+    "viewer.title": "Visualizador",
+    "viewer.edit": "Editar",
+    "viewer.download": "Baixar",
+    "viewer.print": "Imprimir",
+    "viewer.zoom_in": "Ampliar",
+    "viewer.zoom_out": "Reduzir",
+    "viewer.zoom_reset": "Redefinir",
+    "viewer.page": "Página",
+    "viewer.of": "de",
+    "viewer.sheet": "Planilha",
+    "viewer.loading": "Carregando...",
+    "viewer.error": "Falha ao carregar arquivo",
+    "viewer.no_content": "Sem conteúdo para exibir",
+    "desktop.fm.view": "Visualizar"
 }

@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Delete selected columns",
     "desktop.looper_logs_title": "Logs",
     "desktop.looper_clear": "Clear",
-    "desktop.looper_no_logs": "No execution logs yet"
+    "desktop.looper_no_logs": "No execution logs yet",
+    "viewer.title": "Viewer",
+    "viewer.edit": "Edit",
+    "viewer.download": "Download",
+    "viewer.print": "Print",
+    "viewer.zoom_in": "Zoom In",
+    "viewer.zoom_out": "Zoom Out",
+    "viewer.zoom_reset": "Reset Zoom",
+    "viewer.page": "Page",
+    "viewer.of": "of",
+    "viewer.sheet": "Sheet",
+    "viewer.loading": "Loading...",
+    "viewer.error": "Failed to load file",
+    "viewer.no_content": "No content to display",
+    "desktop.fm.view": "View"
 }

@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Ta bort markerade kolumner",
     "desktop.looper_logs_title": "Loggar",
     "desktop.looper_clear": "Rensa",
-    "desktop.looper_no_logs": "Inga körningsloggar än"
+    "desktop.looper_no_logs": "Inga körningsloggar än",
+    "viewer.title": "Visare",
+    "viewer.edit": "Redigera",
+    "viewer.download": "Ladda ner",
+    "viewer.print": "Skriv ut",
+    "viewer.zoom_in": "Zooma in",
+    "viewer.zoom_out": "Zooma ut",
+    "viewer.zoom_reset": "Återställ",
+    "viewer.page": "Sida",
+    "viewer.of": "av",
+    "viewer.sheet": "Blad",
+    "viewer.loading": "Laddar...",
+    "viewer.error": "Kunde inte ladda filen",
+    "viewer.no_content": "Inget innehåll att visa",
+    "desktop.fm.view": "Visa"
 }

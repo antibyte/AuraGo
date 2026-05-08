@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Smazat vybrané sloupce",
     "desktop.looper_logs_title": "Záznamy",
     "desktop.looper_clear": "Vymazat",
-    "desktop.looper_no_logs": "Zatím žádné záznamy o provedení"
+    "desktop.looper_no_logs": "Zatím žádné záznamy o provedení",
+    "viewer.title": "Prohlížeč",
+    "viewer.edit": "Upravit",
+    "viewer.download": "Stáhnout",
+    "viewer.print": "Tisk",
+    "viewer.zoom_in": "Přiblížit",
+    "viewer.zoom_out": "Oddálit",
+    "viewer.zoom_reset": "Obnovit",
+    "viewer.page": "Stránka",
+    "viewer.of": "z",
+    "viewer.sheet": "List",
+    "viewer.loading": "Načítání...",
+    "viewer.error": "Soubor se nepodařilo načíst",
+    "viewer.no_content": "Žádný obsah k zobrazení",
+    "desktop.fm.view": "Zobrazit"
 }

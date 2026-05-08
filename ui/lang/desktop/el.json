@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Διαγραφή επιλεγμένων στηλών",
     "desktop.looper_logs_title": "Καταγραφές",
     "desktop.looper_clear": "Εκκαθάριση",
-    "desktop.looper_no_logs": "Καμία καταγραφή εκτέλεσης ακόμα"
+    "desktop.looper_no_logs": "Καμία καταγραφή εκτέλεσης ακόμα",
+    "viewer.title": "Προβολέας",
+    "viewer.edit": "Επεξεργασία",
+    "viewer.download": "Λήψη",
+    "viewer.print": "Εκτύπωση",
+    "viewer.zoom_in": "Μεγένθυση",
+    "viewer.zoom_out": "Σμίκρυνση",
+    "viewer.zoom_reset": "Επαναφορά",
+    "viewer.page": "Σελίδα",
+    "viewer.of": "από",
+    "viewer.sheet": "Φύλλο",
+    "viewer.loading": "Φόρτωση...",
+    "viewer.error": "Αποτυχία φόρτωσης αρχείου",
+    "viewer.no_content": "Δεν υπάρχει περιεχόμενο",
+    "desktop.fm.view": "Προβολή"
 }

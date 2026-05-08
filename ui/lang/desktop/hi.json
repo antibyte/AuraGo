@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "चयनित कॉलम हटाएँ",
     "desktop.looper_logs_title": "लॉग्स",
     "desktop.looper_clear": "साफ़ करें",
-    "desktop.looper_no_logs": "अभी तक कोई निष्पादन लॉग नहीं"
+    "desktop.looper_no_logs": "अभी तक कोई निष्पादन लॉग नहीं",
+    "viewer.title": "दर्शक",
+    "viewer.edit": "संपादित करें",
+    "viewer.download": "डाउनलोड",
+    "viewer.print": "प्रिंट",
+    "viewer.zoom_in": "ज़ूम इन",
+    "viewer.zoom_out": "ज़ूम आउट",
+    "viewer.zoom_reset": "रीसेट",
+    "viewer.page": "पृष्ठ",
+    "viewer.of": "का",
+    "viewer.sheet": "शीट",
+    "viewer.loading": "लोड हो रहा है...",
+    "viewer.error": "फ़ाइल लोड करने में विफल",
+    "viewer.no_content": "दिखाने के लिए कोई सामग्री नहीं",
+    "desktop.fm.view": "देखें"
 }

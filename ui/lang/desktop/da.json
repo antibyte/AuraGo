@@ -589,5 +589,19 @@
     "desktop.sheets_delete_columns": "Slet valgte kolonner",
     "desktop.looper_logs_title": "Logs",
     "desktop.looper_clear": "Ryd",
-    "desktop.looper_no_logs": "Ingen kørselslogfiler endnu"
+    "desktop.looper_no_logs": "Ingen kørselslogfiler endnu",
+    "viewer.title": "Fremviser",
+    "viewer.edit": "Rediger",
+    "viewer.download": "Download",
+    "viewer.print": "Udskriv",
+    "viewer.zoom_in": "Zoom ind",
+    "viewer.zoom_out": "Zoom ud",
+    "viewer.zoom_reset": "Nulstil",
+    "viewer.page": "Side",
+    "viewer.of": "af",
+    "viewer.sheet": "Ark",
+    "viewer.loading": "Indlæser...",
+    "viewer.error": "Kunne ikke indlæse filen",
+    "viewer.no_content": "Intet indhold at vise",
+    "desktop.fm.view": "Vis"
 }
