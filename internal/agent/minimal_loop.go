@@ -132,12 +132,22 @@ func ExecuteMinimalLoop(
 		}
 	}
 
-	// Max rounds exceeded — return last assistant content if any
-	lastMsg := req.Messages[len(req.Messages)-1]
-	if lastMsg.Role == openai.ChatMessageRoleAssistant {
-		result.Response = security.StripThinkingTags(lastMsg.Content)
-	} else {
-		result.Response = ""
+	// Max rounds exceeded — find last assistant message with content
+	for i := len(req.Messages) - 1; i >= 0; i-- {
+		if req.Messages[i].Role == openai.ChatMessageRoleAssistant {
+			content := security.StripThinkingTags(req.Messages[i].Content)
+			if content != "" {
+				result.Response = content
+				result.Duration = time.Since(start)
+				return result, req.Messages, nil
+			}
+		}
+	}
+	// Fallback: ask the LLM one more time without tools for a text summary
+	req.Tools = nil
+	resp, err := client.CreateChatCompletion(ctx, req)
+	if err == nil && len(resp.Choices) > 0 {
+		result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
 	}
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
