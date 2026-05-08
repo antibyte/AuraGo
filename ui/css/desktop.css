@@ -2120,7 +2120,7 @@
 .vd-resize-handle::after {
     content: '';
     position: absolute;
-    inset: -12px;
+    inset: -3px;
 }
 
 .vd-resize-n,
