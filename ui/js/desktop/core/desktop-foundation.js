@@ -292,6 +292,8 @@
         return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
     }
 
+    function iconAlias(name) { return ({ 'arrow-left': 'chevron-left', 'arrow-right': 'chevron-right' })[name] || ''; }
+
     function themeIconPath(key) {
         let normalized = normalizeIconName(key);
         if (!normalized || normalized.startsWith('sprite:')) return '';
@@ -306,12 +308,8 @@
         const manifest = (state.iconThemeManifests || {})[theme] || (state.iconThemeManifests || {}).papirus;
         if (!manifest || !manifest.icons) return '';
         const aliases = manifest.aliases || {};
-        const candidates = [
-            normalized,
-            aliases[normalized],
-            normalized.replaceAll('_', '-'),
-            aliases[normalized.replaceAll('_', '-')]
-        ].filter(Boolean);
+        const dashed = normalized.replaceAll('_', '-');
+        const candidates = [normalized, iconAlias(normalized), aliases[normalized], dashed, iconAlias(dashed), aliases[dashed]].filter(Boolean);
         for (const candidate of candidates) {
             if (manifest.icons[candidate]) return '/' + String(manifest.icons[candidate]).replace(/^\/+/, '');
         }
@@ -329,11 +327,16 @@
         return iconExists(spriteKey) ? { type: 'sprite', key: spriteKey } : { type: 'fallback' };
     }
 
+    function iconUrlStyle(path) { return 'url(' + String(path || '').replace(/[")\\\r\n]/g, '') + ')'; }
+    function shouldUseTileIconFallback(className) { return /\b(vd-sprite-icon|vd-sprite-start|vd-sprite-start-item|vd-sprite-file|vd-dock-icon|vd-task-icon|vd-window-header-icon|fm-thumb-fallback-icon|fm-sidebar-icon|fm-empty-icon|vd-launchpad-empty-papirus-icon|vd-launchpad-fallback-icon)\b/.test(String(className || '')); }
+    function symbolFallbackMarkup(key, fallback, className, size) { const pixels = Number(size || 16) || 16; const label = String(fallback || key || '').slice(0, 3).toUpperCase(); return `<span class="${esc(className)} vd-symbol-fallback" aria-hidden="true" style="width:${pixels}px;height:${pixels}px">${esc(label)}</span>`; }
+
     function spriteMarkup(key, fallback, className, size) {
         const manifest = state.iconManifest;
         const spriteKey = normalizeIconName(key).replace(/^sprite:/, '');
         const icon = iconExists(spriteKey) ? state.iconMap.get(spriteKey) : null;
         if (!manifest || !icon) {
+            if (!shouldUseTileIconFallback(className)) return symbolFallbackMarkup(key, fallback, className, size);
             return `<span class="${esc(className)} vd-icon-letter">${esc(String(fallback || 'D').slice(0, 2).toUpperCase())}</span>`;
         }
         const scale = (size || 42) / (manifest.icon_size || 64);
@@ -348,19 +351,13 @@
         const source = resolveIconSource(key);
         if (source.type === 'theme') {
             const pixels = Number(size || 42) || 42;
-            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" aria-hidden="true" style="--vd-theme-icon-url:url(${esc(source.path)});width:${pixels}px;height:${pixels}px"></span>`;
+            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--vd-theme-icon-url:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
         }
         return spriteMarkup(source.key || key, fallback, className, size);
     }
-
-    function iconForApp(app) {
-        if (!app) return 'apps';
-        return appIconKeys[app.id] || app.icon || 'apps';
-    }
-
-    function iconForDirectory(name) {
-        return directoryIconKeys[name] || 'folder';
-    }
+    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
+    function iconForApp(app) { return app ? (appIconKeys[app.id] || app.icon || 'apps') : 'apps'; }
+    function iconForDirectory(name) { return directoryIconKeys[name] || 'folder'; }
 
     function iconForFile(file) {
         if (file.type === 'directory') return iconForDirectory(file.name);
@@ -467,6 +464,7 @@
         body.dataset.iconSize = settingValue('desktop.icon_size');
         const sizes = { small: 34, medium: 42, large: 52 };
         body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
+        refreshThemeIconElements(document);
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
         renderTaskbar();

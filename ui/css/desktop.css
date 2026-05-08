@@ -1289,6 +1289,18 @@
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
+.vd-symbol-fallback {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    color: var(--vd-text);
+    font-size: 0.76rem;
+    font-weight: 850;
+    line-height: 1;
+    background: transparent;
+    box-shadow: none;
+}
+
 .vd-icon-label {
     max-width: 78px;
     font-size: 0.76rem;

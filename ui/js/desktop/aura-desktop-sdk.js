@@ -221,6 +221,14 @@
         return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
     }
 
+    function iconAlias(name) {
+        const aliases = {
+            'arrow-left': 'chevron-left',
+            'arrow-right': 'chevron-right'
+        };
+        return aliases[name] || '';
+    }
+
     function themeIconPath(iconContext, name) {
         iconContext = iconContext || {};
         const themes = iconContext.themes || {};
@@ -243,8 +251,10 @@
         const aliases = manifest.aliases || {};
         const candidates = [
             normalized,
+            iconAlias(normalized),
             aliases[normalized],
             normalized.replaceAll('_', '-'),
+            iconAlias(normalized.replaceAll('_', '-')),
             aliases[normalized.replaceAll('_', '-')]
         ].filter(Boolean);
         for (const candidate of candidates) {
