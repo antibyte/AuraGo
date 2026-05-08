@@ -400,7 +400,7 @@ func RecordAdaptiveToolUsage(toolName string, success bool) {
 // so that tools with failures are deprioritised without disappearing completely.
 func decayScore(count, successCount int, lastUsed time.Time, halfLifeDays float64, weightSuccess bool) float64 {
 	days := time.Since(lastUsed).Hours() / 24.0
-	if days < 0 {
+	if days < 0 || days < 1.0/(24*60*60) {
 		days = 0
 	}
 	base := float64(count) * math.Pow(0.5, days/halfLifeDays)

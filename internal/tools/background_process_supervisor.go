@@ -17,6 +17,7 @@ func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, 
 	}
 	cmd.Stdout = info
 	cmd.Stderr = info
+	SetupCmd(cmd)
 
 	if err := cmd.Start(); err != nil {
 		return 0, err

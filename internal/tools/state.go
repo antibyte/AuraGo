@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -16,6 +18,9 @@ var (
 func resolveBusyFilePath(path string) (string, error) {
 	if path == "" {
 		return "", nil
+	}
+	if strings.ContainsRune(path, 0) {
+		return "", errors.New("busy file path contains NUL byte")
 	}
 	return filepath.Abs(path)
 }
