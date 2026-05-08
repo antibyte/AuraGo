@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -34,8 +35,15 @@ func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, 
 }
 
 func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *ProcessRegistry, cleanup func(), timeout time.Duration) {
+	var removeOnce sync.Once
+	removeFromRegistry := func() {
+		removeOnce.Do(func() {
+			registry.Remove(info.PID)
+		})
+	}
+
 	defer func() {
-		registry.Remove(info.PID)
+		removeFromRegistry()
 		if cleanup != nil {
 			cleanup()
 		}
@@ -59,6 +67,7 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 			if info.Process != nil {
 				_ = killProcess(info.Process)
 			}
+			removeFromRegistry()
 			select {
 			case err = <-waitDone:
 			case <-time.After(10 * time.Second):
