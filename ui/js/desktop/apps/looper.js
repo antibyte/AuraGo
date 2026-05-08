@@ -19,13 +19,13 @@
 
         const state = {
             presets: [],
+            examples: [],
             providers: [],
             running: false,
             status: { current_step: 'idle', iteration: 0, max_iterations: 20, logs: [], last_result: '' },
             sse: null,
             selectedPresetId: null,
-            activeStep: 'prepare',
-            stepValues: { prepare: '', plan: '', action: '', test: '', exit: '', finish: '' },
+            expandedSteps: new Set(['prepare', 'plan', 'action', 'test', 'exit']),
             startTime: null,
             logCount: 0
         };
@@ -48,6 +48,12 @@
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 </button>
                             </div>
+                        </div>
+                        <div class="vd-looper-field">
+                            <label>${esc(t('desktop.looper_examples'))}</label>
+                            <select id="looper-example-${windowId}">
+                                <option value="">${esc(t('desktop.looper_select_example'))}</option>
+                            </select>
                         </div>
                     </div>
                     <div class="vd-looper-header-group vd-looper-header-group-config">
@@ -74,29 +80,45 @@
                     </div>
                 </div>
 
-                <div class="vd-looper-workspace">
-                    <div class="vd-looper-sidebar">
-                        ${STEP_META.map((step, idx) => `
-                            <button type="button" class="vd-looper-step-btn${step.key === 'finish' ? ' vd-looper-step-btn--optional' : ''}" data-step="${step.key}" id="looper-step-btn-${step.key}-${windowId}" style="--step-color: ${step.color}">
-                                <span class="vd-looper-step-btn-icon">${step.icon}</span>
-                                <span class="vd-looper-step-btn-num">${idx + 1}</span>
-                                <span class="vd-looper-step-btn-name">${esc(t(step.labelKey))}</span>
-                            </button>
-                        `).join('')}
-                        <div class="vd-looper-sidebar-actions">
-                            <button type="button" class="vd-looper-start" id="looper-start-${windowId}">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                <span>${esc(t('desktop.looper_start'))}</span>
-                            </button>
-                            <button type="button" class="vd-looper-stop" id="looper-stop-${windowId}" disabled>
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                                <span>${esc(t('desktop.looper_stop'))}</span>
-                            </button>
+                <div class="vd-looper-steps" id="looper-steps-${windowId}">
+                    ${STEP_META.map((step, idx) => `
+                        <div class="vd-looper-step" data-step="${step.key}" style="--step-color: ${step.color}">
+                            <div class="vd-looper-step-header">
+                                <div class="vd-looper-step-badge" style="background: ${step.color}20; color: ${step.color}; border-color: ${step.color}40;">
+                                    <span class="vd-looper-step-icon">${step.icon}</span>
+                                    <span class="vd-looper-step-num">${idx + 1}</span>
+                                </div>
+                                <div class="vd-looper-step-title">
+                                    <span class="vd-looper-step-name">${esc(t(step.labelKey))}</span>
+                                    ${step.key === 'finish' ? `<span class="vd-looper-step-optional">${esc(t('desktop.optional'))}</span>` : ''}
+                                </div>
+                                <button type="button" class="vd-looper-step-toggle" aria-expanded="true">
+                                    <svg class="vd-looper-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                            </div>
+                            <div class="vd-looper-step-body">
+                                <textarea id="looper-${step.key}-${windowId}" rows="${step.key === 'exit' || step.key === 'finish' ? 2 : 3}" placeholder="${esc(t(step.descKey))}"></textarea>
+                            </div>
                         </div>
-                    </div>
-                    <div class="vd-looper-editor">
-                        <div class="vd-looper-editor-header" id="looper-editor-header-${windowId}"></div>
-                        <textarea id="looper-editor-textarea-${windowId}" rows="12" placeholder=""></textarea>
+                    `).join('')}
+                </div>
+
+                <div class="vd-looper-controls">
+                    <button type="button" class="vd-looper-start" id="looper-start-${windowId}">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>${esc(t('desktop.looper_start'))}</span>
+                    </button>
+                    <button type="button" class="vd-looper-stop" id="looper-stop-${windowId}" disabled>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                        <span>${esc(t('desktop.looper_stop'))}</span>
+                    </button>
+                    <div class="vd-looper-step-actions">
+                        <button type="button" class="vd-looper-step-btn" id="looper-expand-${windowId}">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                        </button>
+                        <button type="button" class="vd-looper-step-btn" id="looper-collapse-${windowId}">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -111,6 +133,10 @@
                     <div class="vd-looper-progress-track">
                         <div class="vd-looper-progress-bar" id="looper-progress-${windowId}"></div>
                         <div class="vd-looper-progress-glow" id="looper-progress-glow-${windowId}"></div>
+                    </div>
+                    <div class="vd-looper-current-step" id="looper-current-step-${windowId}">
+                        <div class="vd-looper-current-step-label"></div>
+                        <div class="vd-looper-current-step-text"></div>
                     </div>
                     <div class="vd-looper-logs-wrap">
                         <div class="vd-looper-logs-header">
@@ -131,45 +157,67 @@
         const $ = id => container.querySelector('#' + id);
         const $$ = sel => container.querySelectorAll(sel);
 
-        // ── Step switching ──
-        function saveCurrentStepValue() {
-            const textarea = $(`looper-editor-textarea-${windowId}`);
-            if (textarea && state.activeStep) {
-                state.stepValues[state.activeStep] = textarea.value;
-            }
-        }
-
-        function setActiveStep(key) {
-            if (state.activeStep !== key) {
-                saveCurrentStepValue();
-            }
-            state.activeStep = key;
-            const meta = STEP_META.find(s => s.key === key);
-
-            $$(`.vd-looper-step-btn`).forEach(btn => {
-                btn.classList.toggle('vd-looper-step-btn--active', btn.dataset.step === key);
+        // ── Accordion ──
+        function setupAccordion() {
+            $$(`.vd-looper-step-header`).forEach(hdr => {
+                hdr.addEventListener('click', (e) => {
+                    if (e.target.closest('textarea')) return;
+                    const step = hdr.closest('.vd-looper-step');
+                    const key = step.dataset.step;
+                    const body = step.querySelector('.vd-looper-step-body');
+                    const btn = hdr.querySelector('.vd-looper-step-toggle');
+                    const isOpen = body.style.display !== 'none' && body.style.height !== '0px';
+                    if (isOpen) {
+                        body.style.height = body.scrollHeight + 'px';
+                        requestAnimationFrame(() => { body.style.height = '0px'; body.style.opacity = '0'; });
+                        setTimeout(() => { body.style.display = 'none'; }, 250);
+                        btn.setAttribute('aria-expanded', 'false');
+                        btn.querySelector('.vd-looper-chevron').style.transform = 'rotate(-90deg)';
+                        state.expandedSteps.delete(key);
+                    } else {
+                        body.style.display = 'block';
+                        body.style.height = '0px';
+                        body.style.opacity = '0';
+                        requestAnimationFrame(() => { body.style.height = body.scrollHeight + 'px'; body.style.opacity = '1'; });
+                        setTimeout(() => { body.style.height = 'auto'; }, 250);
+                        btn.setAttribute('aria-expanded', 'true');
+                        btn.querySelector('.vd-looper-chevron').style.transform = 'rotate(0deg)';
+                        state.expandedSteps.add(key);
+                    }
+                });
             });
-
-            const header = $(`looper-editor-header-${windowId}`);
-            const textarea = $(`looper-editor-textarea-${windowId}`);
-            const headerText = meta.key === 'finish'
-                ? esc(t(meta.labelKey)) + ' (' + esc(t('desktop.optional')).toLowerCase() + ')'
-                : esc(t(meta.labelKey));
-            header.textContent = headerText;
-            header.style.color = meta.color;
-            textarea.placeholder = esc(t(meta.descKey));
-            textarea.value = state.stepValues[key] || '';
-            textarea.style.borderColor = meta.color + '40';
-            textarea.focus();
         }
+        setupAccordion();
 
-        $$(`.vd-looper-step-btn`).forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (!state.running) setActiveStep(btn.dataset.step);
+        $(`looper-expand-${windowId}`).addEventListener('click', () => {
+            $$(`.vd-looper-step-body`).forEach((body, i) => {
+                const step = body.closest('.vd-looper-step');
+                const key = step.dataset.step;
+                const btn = step.querySelector('.vd-looper-step-toggle');
+                body.style.display = 'block';
+                body.style.height = '0px';
+                body.style.opacity = '0';
+                requestAnimationFrame(() => { body.style.height = body.scrollHeight + 'px'; body.style.opacity = '1'; });
+                setTimeout(() => { body.style.height = 'auto'; }, 250);
+                btn.setAttribute('aria-expanded', 'true');
+                btn.querySelector('.vd-looper-chevron').style.transform = 'rotate(0deg)';
+                state.expandedSteps.add(key);
             });
         });
 
-        setActiveStep('prepare');
+        $(`looper-collapse-${windowId}`).addEventListener('click', () => {
+            $$(`.vd-looper-step-body`).forEach(body => {
+                const step = body.closest('.vd-looper-step');
+                const key = step.dataset.step;
+                const btn = step.querySelector('.vd-looper-step-toggle');
+                body.style.height = body.scrollHeight + 'px';
+                requestAnimationFrame(() => { body.style.height = '0px'; body.style.opacity = '0'; });
+                setTimeout(() => { body.style.display = 'none'; }, 250);
+                btn.setAttribute('aria-expanded', 'false');
+                btn.querySelector('.vd-looper-chevron').style.transform = 'rotate(-90deg)';
+                state.expandedSteps.delete(key);
+            });
+        });
 
         // ── Data Loading ──
         async function loadProviders() {
@@ -196,50 +244,42 @@
                     state.presets = res.presets;
                     const select = $(`looper-preset-${windowId}`);
                     select.innerHTML = `<option value="">${esc(t('desktop.looper_select_preset'))}</option>`;
-                    const builtins = res.presets.filter(p => p.is_builtin);
-                    const users = res.presets.filter(p => !p.is_builtin);
-                    if (builtins.length) {
-                        const grp = document.createElement('optgroup');
-                        grp.label = esc(t('desktop.looper_examples'));
-                        builtins.forEach(p => {
-                            const opt = document.createElement('option');
-                            opt.value = p.id;
-                            opt.textContent = '★ ' + p.name;
-                            opt.className = 'vd-looper-opt-builtin';
-                            grp.appendChild(opt);
-                        });
-                        select.appendChild(grp);
-                    }
-                    if (users.length) {
-                        const grp = document.createElement('optgroup');
-                        grp.label = esc(t('desktop.looper_preset'));
-                        users.forEach(p => {
-                            const opt = document.createElement('option');
-                            opt.value = p.id;
-                            opt.textContent = p.name;
-                            grp.appendChild(opt);
-                        });
-                        select.appendChild(grp);
-                    }
+                    res.presets.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = (p.is_builtin ? '★ ' : '') + p.name;
+                        if (p.is_builtin) opt.className = 'vd-looper-opt-builtin';
+                        select.appendChild(opt);
+                    });
                 }
             } catch (e) { console.error('Failed to load presets', e); }
         }
+        async function loadExamples() {
+            try {
+                const res = await api('/api/desktop/looper/examples');
+                if (res && res.examples) {
+                    state.examples = res.examples;
+                    const select = $(`looper-example-${windowId}`);
+                    select.innerHTML = `<option value="">${esc(t('desktop.looper_select_example'))}</option>`;
+                    res.examples.forEach((p, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = idx;
+                        opt.textContent = p.name;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error('Failed to load examples', e); }
+        }
         loadPresets();
+        loadExamples();
 
         function fillForm(p) {
-            state.stepValues = {
-                prepare: p.prepare || '',
-                plan: p.plan || '',
-                action: p.action || '',
-                test: p.test || '',
-                exit: p.exit_cond || '',
-                finish: p.finish || ''
-            };
-            // Refresh textarea for current step without triggering saveCurrentStepValue
-            const textarea = $(`looper-editor-textarea-${windowId}`);
-            if (textarea) {
-                textarea.value = state.stepValues[state.activeStep] || '';
-            }
+            $(`looper-prepare-${windowId}`).value = p.prepare || '';
+            $(`looper-plan-${windowId}`).value = p.plan || '';
+            $(`looper-action-${windowId}`).value = p.action || '';
+            $(`looper-test-${windowId}`).value = p.test || '';
+            $(`looper-exit-${windowId}`).value = p.exit_cond || '';
+            $(`looper-finish-${windowId}`).value = p.finish || '';
             $(`looper-provider-${windowId}`).value = p.provider_id || '';
             $(`looper-model-${windowId}`).value = p.model || '';
             $(`looper-max-iter-${windowId}`).value = p.max_iter || 20;
@@ -247,14 +287,13 @@
         }
 
         function readForm() {
-            saveCurrentStepValue();
             return {
-                prepare: state.stepValues.prepare,
-                plan: state.stepValues.plan,
-                action: state.stepValues.action,
-                test: state.stepValues.test,
-                exit_cond: state.stepValues.exit,
-                finish: state.stepValues.finish,
+                prepare: $(`looper-prepare-${windowId}`).value,
+                plan: $(`looper-plan-${windowId}`).value,
+                action: $(`looper-action-${windowId}`).value,
+                test: $(`looper-test-${windowId}`).value,
+                exit_cond: $(`looper-exit-${windowId}`).value,
+                finish: $(`looper-finish-${windowId}`).value,
                 provider_id: $(`looper-provider-${windowId}`).value,
                 model: $(`looper-model-${windowId}`).value,
                 max_iter: parseInt($(`looper-max-iter-${windowId}`).value, 10) || 20,
@@ -266,6 +305,13 @@
             const id = e.target.value;
             if (!id) return;
             const p = state.presets.find(x => String(x.id) === id);
+            if (p) fillForm(p);
+        });
+
+        $(`looper-example-${windowId}`).addEventListener('change', (e) => {
+            const idx = parseInt(e.target.value, 10);
+            if (isNaN(idx)) return;
+            const p = state.examples[idx];
             if (p) fillForm(p);
         });
 
@@ -291,11 +337,6 @@
             const select = $(`looper-preset-${windowId}`);
             const id = select.value;
             if (!id) return;
-            const p = state.presets.find(x => String(x.id) === id);
-            if (p && p.is_builtin) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
-                return;
-            }
             if (!confirm(t('desktop.looper_delete_confirm'))) return;
             try {
                 await api('/api/desktop/looper/presets/' + id, { method: 'DELETE' });
@@ -375,6 +416,7 @@
             progressEl.style.width = Math.min(pct, 100) + '%';
             glowEl.style.left = Math.min(pct, 100) + '%';
 
+            // Meta info
             if (data.running && data.iteration > 0 && data.max_iterations > 0) {
                 metaEl.textContent = `${data.iteration} / ${data.max_iterations}`;
             } else if (!data.running && state.logCount > 0) {
@@ -383,11 +425,30 @@
                 metaEl.textContent = '';
             }
 
-            // Highlight running step button
-            $$(`.vd-looper-step-btn`).forEach(btn => {
-                btn.classList.toggle('vd-looper-step-btn--running', data.running && btn.dataset.step === data.current_step);
+            // Highlight active step & show current prompt in monitor
+            $$(`.vd-looper-step`).forEach(stepEl => {
+                stepEl.classList.remove('vd-looper-step--active');
             });
+            const currentStepEl = $(`looper-current-step-${windowId}`);
+            if (data.running && data.current_step && data.current_step !== 'idle') {
+                const active = container.querySelector(`.vd-looper-step[data-step="${data.current_step}"]`);
+                if (active) active.classList.add('vd-looper-step--active');
+                const textarea = $(`looper-${data.current_step}-${windowId}`);
+                const stepMeta = STEP_META.find(s => s.key === data.current_step);
+                if (textarea && textarea.value && stepMeta) {
+                    const labelEl = currentStepEl.querySelector('.vd-looper-current-step-label');
+                    const textEl = currentStepEl.querySelector('.vd-looper-current-step-text');
+                    if (labelEl) labelEl.textContent = esc(t(stepMeta.labelKey));
+                    if (textEl) textEl.textContent = textarea.value;
+                    currentStepEl.style.display = 'block';
+                } else {
+                    currentStepEl.style.display = 'none';
+                }
+            } else {
+                currentStepEl.style.display = 'none';
+            }
 
+            // Logs
             if (data.logs && data.logs.length) {
                 state.logCount = data.logs.length;
                 const html = data.logs.map((log, i) => {
@@ -432,8 +493,7 @@
                 if (e && e.status === 409) {
                     if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
                 } else {
-                    const msg = e && e.message ? e.message : t('desktop.looper_start_error');
-                    if (notify) notify({ title: t('desktop.notification'), message: msg });
+                    if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_start_error') });
                 }
             }
         });

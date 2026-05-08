@@ -69,11 +69,19 @@ func (r *LooperRunner) executeStarted(
 
 	sysPrompt := agent.MinimalSystemPromptBuilder(nil)
 
-	stepExec := func(stepName, prompt string, system string, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
+	// No-tools schema for exit step — it only needs to return true/false,
+	// so sending 50+ tool schemas wastes thousands of tokens per call.
+	noTools := []openai.Tool{}
+
+	// maxHistoryChars keeps the conversation history from growing unbounded.
+	// 40 000 chars ≈ 10 000 tokens, enough for rich context without explosion.
+	const maxHistoryChars = 40000
+
+	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 		stepCtx, stepCancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer stepCancel()
-		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration)
-		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, tools, dispatchCtx, history, r.logger)
+		r.logger.Info("[Looper] step start", "step", stepName, "iteration", r.holder.State().Iteration, "tools", len(stepTools))
+		res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
 		if err != nil {
 			r.logger.Error("[Looper] step failed", "step", stepName, "error", err)
 			return res, nil, err
@@ -82,9 +90,14 @@ func (r *LooperRunner) executeStarted(
 		return res, h, nil
 	}
 
+	// optsWithTools is the default options for steps that need tools.
+	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 3}
+	// optsNoTools for the exit step — no tool schemas, no tool rounds.
+	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
+
 	// PREPARE — runs once, result preserved as shared context for every iteration
 	r.holder.SetStep("prepare")
-	prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, nil)
+	prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, tools, optsWithTools, nil)
 	if err != nil {
 		return r.setErrorAndReturn(err)
 	}
@@ -95,7 +108,7 @@ func (r *LooperRunner) executeStarted(
 	iterSeed := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 		{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
-		{Role: openai.ChatMessageRoleAssistant, Content: prepRes.Response},
+		{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, 2000)},
 	}
 
 	ctxMode := cfg.ContextMode
@@ -144,7 +157,7 @@ func (r *LooperRunner) executeStarted(
 				if lastAssistant != "" {
 					history = append(history, openai.ChatCompletionMessage{
 						Role:    openai.ChatMessageRoleUser,
-						Content: "Previous iteration test result: " + lastAssistant,
+						Content: "Previous iteration test result: " + truncateResponse(lastAssistant, 2000),
 					})
 				}
 			}
@@ -152,7 +165,7 @@ func (r *LooperRunner) executeStarted(
 
 		// PLAN
 		r.holder.SetStep("plan")
-		planRes, history, err := stepExec("plan", cfg.Plan, "", history)
+		planRes, history, err := stepExec("plan", cfg.Plan, "", tools, optsWithTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -161,13 +174,13 @@ func (r *LooperRunner) executeStarted(
 		if ctxMode == "every_step" {
 			history = []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: planRes.Response},
+				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(planRes.Response, 2000)},
 			}
 		}
 
 		// ACTION
 		r.holder.SetStep("action")
-		actionRes, history, err := stepExec("action", cfg.Action, "", history)
+		actionRes, history, err := stepExec("action", cfg.Action, "", tools, optsWithTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -176,13 +189,13 @@ func (r *LooperRunner) executeStarted(
 		if ctxMode == "every_step" {
 			history = []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: actionRes.Response},
+				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(actionRes.Response, 2000)},
 			}
 		}
 
 		// TEST
 		r.holder.SetStep("test")
-		testRes, history, err := stepExec("test", cfg.Test, "", history)
+		testRes, history, err := stepExec("test", cfg.Test, "", tools, optsWithTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -192,33 +205,32 @@ func (r *LooperRunner) executeStarted(
 		if ctxMode == "every_step" {
 			history = []openai.ChatCompletionMessage{
 				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: testRes.Response},
+				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(testRes.Response, 2000)},
 			}
 		}
 
-		// EXIT CONDITION
+		// EXIT CONDITION — no tools needed, just a boolean evaluation
 		r.holder.SetStep("exit")
-		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", history)
+		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", noTools, optsNoTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
 
-		if ctxMode == "never" {
-			fullHistory = history
-		} else {
-			fullHistory = history
-		}
+		fullHistory = history
 
 		if agent.ParseExitBoolean(exitRes.Response) {
 			break
 		}
+
+		// Trim history between iterations to prevent unbounded context growth.
+		fullHistory = agent.TrimHistory(fullHistory, maxHistoryChars)
 	}
 
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-		finishRes, _, err := stepExec("finish", cfg.Finish, "", iterSeed)
+		finishRes, _, err := stepExec("finish", cfg.Finish, "", noTools, &agent.MinimalLoopOptions{}, iterSeed)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -227,6 +239,14 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	return nil
+}
+
+// truncateResponse shortens a response to maxLen characters for compact context passing.
+func truncateResponse(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + fmt.Sprintf("... (%d more chars)", len(s)-maxLen)
 }
 
 func (r *LooperRunner) setErrorAndReturn(err error) error {
