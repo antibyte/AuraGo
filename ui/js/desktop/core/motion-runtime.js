@@ -27,31 +27,6 @@
         timer = window.setTimeout(finish, Math.max(20, Number(fallbackMs) || 160));
     }
 
-    function toggleStartMenu() {
-        const menu = $('vd-start-menu');
-        if (menu.hidden || menu.classList.contains('vd-start-menu-closing')) openStartMenu();
-        else closeStartMenu();
-    }
-
-    function openStartMenu() {
-        const menu = $('vd-start-menu');
-        if (!menu) return;
-        menu.dataset.motionState = 'open';
-        menu.classList.remove('vd-start-menu-closing');
-        menu.hidden = false;
-        animateThen(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
-        if (!isCompactViewport()) $('vd-start-search').focus();
-    }
-
-    function closeStartMenu() {
-        const menu = $('vd-start-menu');
-        if (!menu || menu.hidden) return;
-        menu.dataset.motionState = 'closing';
-        animateThen(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => {
-            if (menu.dataset.motionState === 'closing') menu.hidden = true;
-        });
-    }
-
     function closeWindowMenu() {
         document.querySelectorAll('.vd-window-menu.open').forEach(menu => {
             const popover = menu.querySelector(':scope > .vd-window-menu-popover');

@@ -765,6 +765,19 @@
         if (startGlyph) startGlyph.outerHTML = iconMarkup('home', 'A', 'vd-sprite-start', 32);
     }
 
+    function runStartMenuMotion(menu, className, fallbackMs, done) { if (typeof animateThen === 'function') animateThen(menu, className, fallbackMs, done); else if (typeof done === 'function') done(); }
+
+    function toggleStartMenu() { const menu = $('vd-start-menu'); if (menu.hidden || menu.classList.contains('vd-start-menu-closing')) openStartMenu(); else closeStartMenu(); }
+
+    function openStartMenu() {
+        const menu = $('vd-start-menu'); if (!menu) return;
+        menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false;
+        runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
+        if (!isCompactViewport()) $('vd-start-search').focus();
+    }
+
+    function closeStartMenu() { const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing'; runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; }); }
+
     function renderIcons() {
         const icons = $('vd-icons');
         const items = desktopShortcutItems();

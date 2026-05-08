@@ -5,8 +5,8 @@
         throw new Error('Aura desktop module loader is not available for main');
     }
     window.AuraDesktopModules.loadScriptParts('main', [
-        '/js/desktop/core/desktop-foundation.js?v=10',
-        '/js/desktop/core/motion-runtime.js?v=1',
+        '/js/desktop/core/desktop-foundation.js?v=11',
+        '/js/desktop/core/motion-runtime.js?v=2',
         '/js/desktop/core/window-shell-runtime.js?v=7',
         '/js/desktop/core/lifecycle-cleanup.js?v=1',
         '/js/desktop/core/widget-autosize-runtime.js?v=2',
