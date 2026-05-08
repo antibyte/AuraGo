@@ -7,12 +7,13 @@ REM   make_release.bat            -> prompts for version tag (default: v{YYYY.MM
 REM   make_release.bat v1.2.3     -> uses given tag directly
 REM
 REM Prerequisites:
-REM   - Go 1.26+  (https://go.dev)
+REM   - Go 1.26.3+  (https://go.dev)
 REM   - gh CLI    (https://cli.github.com) -- run "gh auth login" once
 REM   - tar       (built-in Windows 10 Build 17063+)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
+set "MIN_GO_VERSION=1.26.3"
 
 echo.
 echo  +--------------------------------------------+
@@ -29,7 +30,13 @@ if errorlevel 1 (
     echo [ERROR] Go not found in PATH. Install from https://go.dev/dl/
     exit /b 1
 )
-for /f "tokens=3" %%v in ('go version') do echo     Go: %%v
+for /f "tokens=3" %%v in ('go version') do set "FOUND_GO_VERSION=%%v"
+echo     Go: !FOUND_GO_VERSION!
+powershell -nologo -noprofile -command "$v = $env:FOUND_GO_VERSION -replace '^go',''; if ([version]$v -lt [version]$env:MIN_GO_VERSION) { exit 1 }"
+if errorlevel 1 (
+    echo [ERROR] Go !MIN_GO_VERSION! or newer is required for release builds. Install from https://go.dev/dl/
+    exit /b 1
+)
 
 where gh >nul 2>&1
 if errorlevel 1 (

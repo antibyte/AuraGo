@@ -316,7 +316,7 @@
             { separator: true },
             { label: t('desktop.fm.rename', 'Rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
             { label: t('desktop.fm.delete', 'Delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
-        ];
+        );
         if (type === 'file' && file.web_path) {
             items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         } else if (type === 'file') {
