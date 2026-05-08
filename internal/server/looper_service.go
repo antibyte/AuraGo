@@ -121,6 +121,7 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	var fullHistory []openai.ChatCompletionMessage
+	var lastTestResult string
 
 	// ITERATIONS
 	for i := 1; i <= cfg.MaxIter; i++ {
@@ -150,20 +151,11 @@ func (r *LooperRunner) executeStarted(
 		default: // "every_iteration"
 			history = make([]openai.ChatCompletionMessage, len(iterSeed))
 			copy(history, iterSeed)
-			if i > 1 && fullHistory != nil {
-				lastAssistant := ""
-				for mi := len(fullHistory) - 1; mi >= 0; mi-- {
-					if fullHistory[mi].Role == openai.ChatMessageRoleAssistant {
-						lastAssistant = fullHistory[mi].Content
-						break
-					}
-				}
-				if lastAssistant != "" {
-					history = append(history, openai.ChatCompletionMessage{
-						Role:    openai.ChatMessageRoleUser,
-						Content: "Previous iteration test result: " + truncateResponse(lastAssistant, 2000),
-					})
-				}
+			if i > 1 && lastTestResult != "" {
+				history = append(history, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleUser,
+					Content: "Previous iteration test result: " + truncateResponse(lastTestResult, 2000),
+				})
 			}
 		}
 
@@ -205,6 +197,7 @@ func (r *LooperRunner) executeStarted(
 		}
 		r.holder.AppendLog(i, "test", cfg.Test, testRes.Response, testRes.Duration)
 		r.holder.SetLastResult(testRes.Response)
+		lastTestResult = testRes.Response
 
 		if ctxMode == "every_step" {
 			history = []openai.ChatCompletionMessage{
