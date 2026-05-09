@@ -267,6 +267,8 @@ func TestCodeStudioWindowMenuEditorZoom(t *testing.T) {
 		"editorFontSize: state.editorFontSize",
 		"function adjustEditorZoom(",
 		"function resetEditorZoom()",
+		"function refreshActiveEditorZoomLayout()",
+		"requestMeasure",
 		"--cs-editor-font-size",
 	} {
 		if !strings.Contains(codeStudioText, want) {

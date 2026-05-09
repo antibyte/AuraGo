@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     const STATE_KEY = 'aurago.codeStudio.state.v1';
     const WORKSPACE_ROOT = '/workspace';
     const DEFAULT_EDITOR_FONT_SIZE = 13;
@@ -690,6 +690,26 @@
         const root = shellPart('.code-studio');
         if (!root) return;
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
+        const target = state;
+        const refresh = () => {
+            if (isLiveInstance(target)) runWithInstance(target, refreshActiveEditorZoomLayout);
+        };
+        if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(refresh);
+        } else {
+            refresh();
+        }
+    }
+
+    function refreshActiveEditorZoomLayout() {
+        const tab = activeTab();
+        if (!tab || !tab.view) return;
+        if (typeof tab.view.requestMeasure === 'function') {
+            tab.view.requestMeasure();
+        }
+        if (tab.view.textarea && typeof tab.view.textarea.getBoundingClientRect === 'function') {
+            tab.view.textarea.getBoundingClientRect();
+        }
     }
 
     function adjustEditorZoom(delta) {

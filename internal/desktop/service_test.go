@@ -369,7 +369,7 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	if bootstrap.IconCatalog.LegacySpritePrefix != "sprite:" {
 		t.Fatalf("legacy sprite prefix = %q, want sprite:", bootstrap.IconCatalog.LegacySpritePrefix)
 	}
-	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop"} {
+	for _, want := range []string{"analytics", "chat", "cloud", "mail", "notes", "server", "settings", "tools", "weather", "folder", "file-plus", "folder-plus", "refresh", "search", "run", "save", "stop", "eye", "heart", "maximize", "minus", "redo", "undo", "zoom-in", "zoom-out", "zoom-reset"} {
 		if !stringSliceContains(bootstrap.IconCatalog.Preferred, want) {
 			t.Fatalf("icon catalog missing preferred icon %q: %+v", want, bootstrap.IconCatalog.Preferred)
 		}
