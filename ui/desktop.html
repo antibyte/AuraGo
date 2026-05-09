@@ -24,6 +24,7 @@
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
         const BUILD_VERSION = "{{.BuildVersion}}";
+        window.BUILD_VERSION = BUILD_VERSION;
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
         const I18N = {{.I18N}};
     </script>
@@ -77,7 +78,7 @@
     <script defer src="/js/vendor/quill.js"></script>
     <script defer src="/chart.min.js"></script>
     <script defer src="/js/desktop/core/module-loader.js"></script>
-    <script defer src="/js/desktop/apps/code-studio.js"></script>
+    <script defer src="/js/desktop/apps/code-studio.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/apps/writer.js"></script>
     <script defer src="/js/desktop/apps/sheets.js"></script>
     <script defer src="/js/desktop/apps/system-info.js"></script>

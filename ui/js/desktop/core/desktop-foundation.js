@@ -327,7 +327,13 @@
         return iconExists(spriteKey) ? { type: 'sprite', key: spriteKey } : { type: 'fallback' };
     }
 
-    function iconUrlStyle(path) { return 'url(' + String(path || '').replace(/[")\\\r\n]/g, '') + ')'; }
+    function versionedIconAssetPath(path) {
+        const clean = String(path || '').replace(/[")\\\r\n]/g, '');
+        if (!clean || clean.startsWith('data:')) return clean;
+        var v = window.BUILD_VERSION || 'dev';
+        return clean + (clean.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(v);
+    }
+    function iconUrlStyle(path) { return 'url(' + versionedIconAssetPath(path) + ')'; }
     function shouldUseTileIconFallback(className) { return /\b(vd-sprite-icon|vd-sprite-start|vd-sprite-start-item|vd-sprite-file|vd-dock-icon|vd-task-icon|vd-window-header-icon|fm-thumb-fallback-icon|fm-sidebar-icon|fm-empty-icon|vd-launchpad-empty-papirus-icon|vd-launchpad-fallback-icon)\b/.test(String(className || '')); }
     function symbolFallbackMarkup(key, fallback, className, size) { const pixels = Number(size || 16) || 16; const label = String(fallback || key || '').slice(0, 3).toUpperCase(); return `<span class="${esc(className)} vd-symbol-fallback" aria-hidden="true" style="width:${pixels}px;height:${pixels}px">${esc(label)}</span>`; }
 
