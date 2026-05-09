@@ -3048,6 +3048,10 @@
     flex-shrink: 0;
 }
 
+.vd-gallery-action-icon.vd-papirus-icon {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(17%) saturate(787%) hue-rotate(118deg) brightness(105%) contrast(94%);
+}
+
 .vd-media-preview-backdrop {
     z-index: 5000;
 }

@@ -383,10 +383,10 @@
                     <div class="vd-gallery-card-meta">
                         <span data-gallery-name title="${esc(file.name)}">${esc(file.name)}</span>
                         <div class="vd-gallery-actions">
-                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">${iconMarkup('eye', 'O', 'vd-gallery-action-icon', 14)}</button>
-                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">${iconMarkup('download', 'D', 'vd-gallery-action-icon', 14)}</a>
-                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">${iconMarkup('edit', 'E', 'vd-gallery-action-icon', 14)}</button>
-                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">${iconMarkup('trash', 'X', 'vd-gallery-action-icon', 14)}</button>
+                            <button type="button" class="vd-icon-button" data-gallery-open title="${esc(t('desktop.gallery_open'))}">${iconMarkup('gallery-action-preview', 'O', 'vd-gallery-action-icon', 16)}</button>
+                            <a class="vd-icon-button" data-gallery-download href="${esc(file.web_path)}" download="${esc(file.name)}" title="${esc(t('desktop.gallery_download'))}">${iconMarkup('gallery-action-download', 'D', 'vd-gallery-action-icon', 16)}</a>
+                            <button type="button" class="vd-icon-button" data-gallery-rename title="${esc(t('desktop.gallery_rename'))}">${iconMarkup('gallery-action-edit', 'E', 'vd-gallery-action-icon', 16)}</button>
+                            <button type="button" class="vd-icon-button danger" data-gallery-delete title="${esc(t('desktop.gallery_delete'))}">${iconMarkup('gallery-action-delete', 'X', 'vd-gallery-action-icon', 16)}</button>
                         </div>
                     </div>
                 </article>`;

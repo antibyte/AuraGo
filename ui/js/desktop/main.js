@@ -1,11 +1,11 @@
-﻿(function () {
+(function () {
     'use strict';
 
     if (!window.AuraDesktopModules || typeof window.AuraDesktopModules.loadScriptParts !== 'function') {
         throw new Error('Aura desktop module loader is not available for main');
     }
     var v = window.BUILD_VERSION || 'dev';
-    var assetV = v + '-desktop-20260509f';
+    var assetV = v + '-desktop-20260509g';
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=' + assetV,
         '/js/desktop/core/window-shell-runtime.js?v=' + assetV,

@@ -96,7 +96,7 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	}
 	mainJS := string(mainBytes)
 	for _, want := range []string{
-		`var assetV = v + '-desktop-20260509f';`,
+		`var assetV = v + '-desktop-20260509g';`,
 		`/js/desktop/core/desktop-foundation.js?v=' + assetV`,
 		`/js/desktop/core/widget-autosize-runtime.js?v=' + assetV`,
 		`/js/desktop/core/window-shell-runtime.js?v=' + assetV`,

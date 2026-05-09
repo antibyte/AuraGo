@@ -48,17 +48,24 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 	text := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		`data-gallery-name`,
-		`iconMarkup('eye', 'O', 'vd-gallery-action-icon', 14)`,
-		`iconMarkup('download', 'D', 'vd-gallery-action-icon', 14)`,
-		`iconMarkup('edit', 'E', 'vd-gallery-action-icon', 14)`,
-		`iconMarkup('trash', 'X', 'vd-gallery-action-icon', 14)`,
+		`iconMarkup('gallery-action-preview', 'O', 'vd-gallery-action-icon', 16)`,
+		`iconMarkup('gallery-action-download', 'D', 'vd-gallery-action-icon', 16)`,
+		`iconMarkup('gallery-action-edit', 'E', 'vd-gallery-action-icon', 16)`,
+		`iconMarkup('gallery-action-delete', 'X', 'vd-gallery-action-icon', 16)`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("desktop gallery card missing semantic action/name marker %q", want)
 		}
 	}
-	if strings.Contains(text, `iconMarkup('folder-open', 'O', 'vd-gallery-action-icon', 14)`) {
-		t.Fatalf("desktop gallery preview action must use an eye icon, not a folder icon")
+	for _, wrong := range []string{
+		`iconMarkup('folder-open', 'O', 'vd-gallery-action-icon'`,
+		`iconMarkup('download', 'D', 'vd-gallery-action-icon'`,
+		`iconMarkup('edit', 'E', 'vd-gallery-action-icon'`,
+		`iconMarkup('trash', 'X', 'vd-gallery-action-icon'`,
+	} {
+		if strings.Contains(text, wrong) {
+			t.Fatalf("desktop gallery action must use compact gallery action icon key, not %q", wrong)
+		}
 	}
 
 	css := readAllDesktopCSS(t)
@@ -68,10 +75,18 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 		".vd-gallery-card-meta > [data-gallery-name]",
 		".vd-gallery-actions {\n    display: inline-flex;",
 		"justify-self: end;",
+		".vd-gallery-action-icon.vd-papirus-icon",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop gallery CSS missing readable filename marker %q", want)
 		}
+	}
+	actionIconRule := css[strings.Index(css, ".vd-gallery-action-icon.vd-papirus-icon"):]
+	if idx := strings.Index(actionIconRule, "}"); idx >= 0 {
+		actionIconRule = actionIconRule[:idx]
+	}
+	if strings.Contains(actionIconRule, "drop-shadow") {
+		t.Fatalf("desktop gallery action icons must not use drop-shadow in compact buttons")
 	}
 }
 
@@ -80,9 +95,25 @@ func TestDesktopMediaGalleryActionIconsExistInBothThemes(t *testing.T) {
 
 	for _, theme := range []string{"papirus", "whitesur"} {
 		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
-		for _, key := range []string{"eye", "download", "edit", "trash"} {
+		for _, key := range []string{"gallery-action-preview", "gallery-action-download", "gallery-action-edit", "gallery-action-delete"} {
 			if !strings.Contains(manifest, `"`+key+`"`) {
 				t.Fatalf("%s theme manifest missing gallery action icon key %q", theme, key)
+			}
+		}
+	}
+}
+
+func TestDesktopMediaGalleryActionIconsAreCompactSVGs(t *testing.T) {
+	t.Parallel()
+
+	for _, theme := range []string{"papirus", "whitesur"} {
+		for _, name := range []string{"gallery-action-preview", "gallery-action-download", "gallery-action-edit", "gallery-action-delete"} {
+			svg := rawDesktopAssetText(t, "img/"+theme+"/icons/"+name+".svg")
+			if strings.Contains(svg, "<image") || strings.Contains(svg, "base64,") {
+				t.Fatalf("%s %s must be a compact action SVG, not an embedded bitmap app icon", theme, name)
+			}
+			if !strings.Contains(svg, `viewBox="0 0 16 16"`) && !strings.Contains(svg, `width="16"`) {
+				t.Fatalf("%s %s must be a 16px action icon, not a large app or file-type icon", theme, name)
 			}
 		}
 	}
