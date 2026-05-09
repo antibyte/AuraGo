@@ -1,9 +1,30 @@
 /* desktop.css — aggregator; see desktop-*.css for component styles */
-@import url('desktop-base.css?v=20260509b');
-@import url('desktop-taskbar.css?v=20260509b');
-@import url('desktop-start-menu.css?v=20260509b');
-@import url('desktop-windows.css?v=20260509b');
-@import url('desktop-icons.css?v=20260509b');
-@import url('desktop-widgets.css?v=20260509b');
-@import url('desktop-modals.css?v=20260509b');
-@import url('desktop-apps.css?v=20260509b');
+@import url('desktop-base.css?v=20260509c');
+@import url('desktop-taskbar.css?v=20260509c');
+@import url('desktop-start-menu.css?v=20260509c');
+@import url('desktop-windows.css?v=20260509c');
+@import url('desktop-icons.css?v=20260509c');
+@import url('desktop-widgets.css?v=20260509c');
+@import url('desktop-modals.css?v=20260509c');
+@import url('desktop-apps.css?v=20260509c');
+
+.desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions,
+.desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
+    position: absolute !important;
+    left: 14px !important;
+    right: auto !important;
+    top: 50% !important;
+    z-index: 4;
+    transform: translateY(-50%) !important;
+    justify-self: start !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    top: 24px !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
+    left: 18px !important;
+}
