@@ -15,12 +15,14 @@
         const schedule = () => {
             if (!document.body.contains(card)) return;
             if (card._widgetResizeFrame) window.cancelAnimationFrame(card._widgetResizeFrame);
-            card._widgetResizeFrame = window.requestAnimationFrame(() => applyWidgetAutoSize(card));
+            card._widgetResizeFrame = window.requestAnimationFrame(() => applyWidgetAutoSize(card, card._widgetLastResizePayload || {}));
         };
         if (window.ResizeObserver && !card._widgetResizeObserver) {
             const observer = new ResizeObserver(schedule);
-            observer.observe(card);
+            const isFrameWidget = !!card.querySelector('.vd-widget-frame-wrap');
+            if (!isFrameWidget) observer.observe(card);
             ['.vd-widget-builtin', '.vd-widget-body', '.vd-widget-frame-wrap', '.vd-quickchat-response'].forEach(selector => {
+                if (isFrameWidget && selector === '.vd-widget-frame-wrap') return;
                 const target = card.querySelector(selector);
                 if (target) observer.observe(target);
             });
@@ -49,8 +51,8 @@
         const reportedFrameHeight = Number(data.height || data.h || 0);
         if (frameWrap && reportedFrameHeight > 0) {
             const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER);
-            card.style.setProperty('--vd-widget-frame-height', frameHeight + 'px');
-            frameWrap.style.setProperty('--vd-widget-frame-height', frameHeight + 'px');
+            setWidgetPixelVar(card, '--vd-widget-frame-height', frameHeight);
+            setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', frameHeight);
         }
         const measuredContentHeight = widgetMeasuredContentHeight(card, data);
         const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0);
@@ -60,7 +62,7 @@
             measuredContentHeight,
             renderedScrollHeight
         );
-        card.style.setProperty('--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT) + 'px');
+        setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
     }
 
     function widgetMeasuredContentHeight(card, data) {
@@ -93,11 +95,14 @@
         const card = document.querySelector(`.vd-widget[data-widget-id="${cssSel(id)}"]`);
         if (!card || card.dataset.widgetAutoSize !== 'true') return;
         const data = payload && typeof payload === 'object' ? payload : {};
+        card._widgetLastResizePayload = data;
         const reportedWidth = Number(data.width || data.w || 0);
         const reportedViewportWidth = Number(data.viewportWidth || data.viewport_width || 0);
-        if (reportedWidth > 16 && (!reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD)) {
-            const nextWidth = Math.max(220, Math.min(Math.ceil(reportedWidth + WIDGET_FRAME_CHROME_BUFFER), widgetMaxWidth(card)));
-            card.style.width = nextWidth + 'px';
+        if (reportedWidth > 16) {
+            const shouldGrowWidth = !reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD;
+            const desiredWidth = shouldGrowWidth ? reportedWidth + WIDGET_FRAME_CHROME_BUFFER : widgetPreferredWidth(card);
+            const nextWidth = Math.max(220, Math.min(Math.ceil(desiredWidth), widgetMaxWidth(card)));
+            setWidgetWidthIfChanged(card, nextWidth);
         }
         applyWidgetAutoSize(card, data);
     }
@@ -123,4 +128,23 @@
         const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth || 960;
         const left = parseInt(card.style.left, 10) || card.offsetLeft || 0;
         return Math.max(220, workspaceWidth - left - 18);
+    }
+
+    function widgetPreferredWidth(card) {
+        const configured = Number(card && card.dataset.widgetDefaultWidth || 0);
+        const preferred = configured > 16 ? configured : 320;
+        return Math.max(220, Math.min(preferred, WIDGET_AUTO_WIDTH_MAX));
+    }
+
+    function setWidgetPixelVar(element, name, value) {
+        if (!element) return;
+        const next = Math.ceil(value) + 'px';
+        if (element.style.getPropertyValue(name) !== next) element.style.setProperty(name, next);
+    }
+
+    function setWidgetWidthIfChanged(card, width) {
+        if (!card) return;
+        const next = Math.ceil(width);
+        const current = Math.round(parseFloat(card.style.width) || card.offsetWidth || 0);
+        if (Math.abs(current - next) > 1) card.style.width = next + 'px';
     }

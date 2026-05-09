@@ -24,9 +24,11 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"WIDGET_FRAME_SCROLLBAR_BUFFER",
 		"WIDGET_FRAME_CHROME_BUFFER",
 		"WIDGET_WIDTH_GROW_THRESHOLD",
+		"WIDGET_AUTO_WIDTH_MAX",
 		"function widgetMeasuredContentHeight(",
 		"function widgetElementBottom(",
 		"function widgetMaxWidth(",
+		"function widgetPreferredWidth(",
 		"function clearWidgetRuntime",
 		"state.widgetCleanups",
 		"clearInterval",
@@ -45,22 +47,48 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER",
 		"widgetMeasuredContentHeight(card, data)",
 		"reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0)",
+		"setWidgetPixelVar(card, '--vd-widget-auto-height'",
 	} {
 		if !strings.Contains(autosizeBody, want) {
 			t.Fatalf("desktop widget autosize should measure rendered content and leave iframe scrollbar headroom; missing %q", want)
 		}
 	}
 
+	runtime := readDesktopAssetText(t, "js/desktop/core/widget-autosize-runtime.js")
+	scheduleBody := jsFunctionBodyInWindowMenuTest(t, runtime, "function scheduleWidgetAutoSize(card, widget)")
+	for _, want := range []string{
+		"applyWidgetAutoSize(card, card._widgetLastResizePayload || {})",
+		"const isFrameWidget = !!card.querySelector('.vd-widget-frame-wrap')",
+		"if (!isFrameWidget) observer.observe(card)",
+	} {
+		if !strings.Contains(scheduleBody, want) {
+			t.Fatalf("desktop widget autosize should avoid iframe resize observer feedback loops; missing %q", want)
+		}
+	}
+
 	resizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function resizeWidgetToContent(widgetId, payload)")
 	for _, want := range []string{
+		"card._widgetLastResizePayload = data",
 		"reportedViewportWidth",
 		"reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD",
+		"widgetPreferredWidth(card)",
+		"setWidgetWidthIfChanged(card, nextWidth)",
 		"reportedWidth + WIDGET_FRAME_CHROME_BUFFER",
 		"widgetMaxWidth(card)",
-		"card.style.width",
 	} {
 		if !strings.Contains(resizeBody, want) {
 			t.Fatalf("desktop widget autosize should expand the outer card for iframe chrome; missing %q", want)
+		}
+	}
+
+	persistBody := jsFunctionBodyInWindowMenuTest(t, source, "async function persistWidgetBounds(widget, card)")
+	for _, want := range []string{
+		"if (widgetShouldAutoSize(widget))",
+		"delete updated.w",
+		"delete updated.h",
+	} {
+		if !strings.Contains(persistBody, want) {
+			t.Fatalf("desktop widget drag persistence should not save autosized dimensions; missing %q", want)
 		}
 	}
 }
@@ -98,6 +126,7 @@ func TestDesktopWidgetAutoSizeCSSAndManualContract(t *testing.T) {
 		`.vd-widget[data-widget-auto-size="true"]`,
 		"--vd-widget-auto-height",
 		"--vd-widget-frame-height",
+		"transition: none",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop widget autosize CSS missing marker %q", marker)

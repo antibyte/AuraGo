@@ -24,10 +24,12 @@
 
 .vd-widget[data-widget-auto-size="true"] {
     height: var(--vd-widget-auto-height, auto) !important;
+    transition: none;
 }
 
 .vd-widget.vd-widget-auto {
     height: var(--vd-widget-auto-height, auto) !important;
+    transition: none;
 }
 
 .vd-widget[data-widget-auto-size="true"] .vd-widget-frame-wrap,

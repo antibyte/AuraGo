@@ -246,6 +246,10 @@
             w: Math.round(card.offsetWidth),
             h: Math.round(card.offsetHeight)
         });
+        if (widgetShouldAutoSize(widget)) {
+            delete updated.w;
+            delete updated.h;
+        }
         try {
             await api('/api/desktop/widgets', {
                 method: 'POST',
