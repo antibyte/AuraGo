@@ -1,7 +1,3 @@
-﻿        state.z = 40;
-        wins.forEach(win => { win.element.style.zIndex = String(++state.z); });
-    }
-
     function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
     function shouldAllowBrowserContextMenu(event) { const target = event && event.target; if (isNativeContextMenuTarget(target)) return true; const selection = window.getSelection && window.getSelection(); if (!selection || selection.isCollapsed || !String(selection).trim()) return false; if (!target || !target.closest) return false; return !!target.closest('.vd-window-content, .vd-modal, .vd-qc-modal, .vd-context-native-text'); }

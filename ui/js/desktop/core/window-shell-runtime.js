@@ -975,3 +975,9 @@
 
     function normalizeWindowZIndexes() {
         const wins = [...state.windows.values()].sort((a, b) => Number(a.element.style.zIndex || 0) - Number(b.element.style.zIndex || 0));
+        wins.forEach((win, i) => {
+            const z = (i + 1) * 10;
+            win.element.style.zIndex = String(z);
+        });
+        state.z = wins.length * 10;
+    }
