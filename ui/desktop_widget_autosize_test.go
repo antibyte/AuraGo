@@ -42,9 +42,20 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		t.Fatalf("desktop widgets still render stored widget height as a fixed inline height")
 	}
 
-	autosizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function applyWidgetAutoSize(card, payload)")
+	runtime := readDesktopAssetText(t, "js/desktop/core/widget-autosize-runtime.js")
+	for _, marker := range []string{
+		"WIDGET_FRAME_SHRINK_THRESHOLD",
+		"function stableWidgetFrameHeight(",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Fatalf("desktop widget runtime should keep small iframe height shrink corrections stable; missing %q", marker)
+		}
+	}
+
+	autosizeBody := jsFunctionBodyInWindowMenuTest(t, runtime, "function applyWidgetAutoSize(card, payload)")
 	for _, want := range []string{
 		"reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER",
+		"stableWidgetFrameHeight(card, frameHeight)",
 		"widgetMeasuredContentHeight(card, data)",
 		"reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0)",
 		"setWidgetPixelVar(card, '--vd-widget-auto-height'",
@@ -54,7 +65,6 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		}
 	}
 
-	runtime := readDesktopAssetText(t, "js/desktop/core/widget-autosize-runtime.js")
 	scheduleBody := jsFunctionBodyInWindowMenuTest(t, runtime, "function scheduleWidgetAutoSize(card, widget)")
 	for _, want := range []string{
 		"applyWidgetAutoSize(card, card._widgetLastResizePayload || {})",
