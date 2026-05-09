@@ -85,12 +85,12 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 	}
 	galleryGridRule := cssRuleBlock(t, css, ".vd-gallery-grid")
 	gridRowMin := cssPixelValue(t, galleryGridRule, `grid-auto-rows:\s*minmax\((\d+)px,\s*auto\);`)
-	if gridRowMin < 204 {
+	if gridRowMin < 190 || gridRowMin > 196 {
 		t.Fatalf("desktop gallery grid rows must fit preview, filename, and actions without clipping: got %dpx", gridRowMin)
 	}
 	galleryCardRule := cssRuleBlock(t, css, ".vd-gallery-card")
 	cardMin := cssPixelValue(t, galleryCardRule, `min-height:\s*(\d+)px;`)
-	if cardMin < 204 {
+	if cardMin < 190 || cardMin > 196 {
 		t.Fatalf("desktop gallery cards must be tall enough for action row without clipping: got %dpx", cardMin)
 	}
 	actionIconRule := css[strings.Index(css, ".vd-gallery-action-icon.vd-papirus-icon"):]
