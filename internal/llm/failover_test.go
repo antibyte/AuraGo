@@ -99,6 +99,26 @@ func TestLLMHTTPClientHasGlobalAndHeaderTimeouts(t *testing.T) {
 	}
 }
 
+func TestMiniMaxHTTPClientDisablesHTTP2(t *testing.T) {
+	client := buildLLMHTTPClient(&config.Config{}, "minimax", "", "https://api.example.test/v1")
+	if client == nil {
+		t.Fatal("buildLLMHTTPClient returned nil")
+	}
+	transport, ok := unwrapLLMTransport(client.Transport).(*http.Transport)
+	if !ok {
+		t.Fatalf("base transport = %T, want *http.Transport", unwrapLLMTransport(client.Transport))
+	}
+	if transport.ForceAttemptHTTP2 {
+		t.Fatal("MiniMax transport should not force HTTP/2")
+	}
+	if transport.TLSNextProto == nil {
+		t.Fatal("MiniMax transport should disable HTTP/2 with an explicit TLSNextProto map")
+	}
+	if _, ok := transport.TLSNextProto["h2"]; ok {
+		t.Fatal("MiniMax transport should not advertise an h2 TLSNextProto handler")
+	}
+}
+
 func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 	for {
 		switch t := rt.(type) {
