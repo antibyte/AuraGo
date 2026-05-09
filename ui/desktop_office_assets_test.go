@@ -82,7 +82,7 @@ func TestDesktopSheetsSupportsSelectionFormulaBarAndContextMenu(t *testing.T) {
 		}
 	}
 
-	desktopCSS := readDesktopOfficeTestFile(t, filepath.Join("css", "desktop.css"))
+	desktopCSS := readAllDesktopCSS(t)
 	requiredCSS := []string{
 		".office-formula-bar",
 		".office-cell-selected",
@@ -135,7 +135,7 @@ func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 func TestDesktopWriterUsesFullWhiteWritingSurface(t *testing.T) {
 	t.Parallel()
 
-	desktopCSS := readDesktopOfficeTestFile(t, filepath.Join("css", "desktop.css"))
+	desktopCSS := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		".office-writer {",
 		"grid-template-rows: auto auto minmax(0, 1fr);",

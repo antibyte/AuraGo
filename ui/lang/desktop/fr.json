@@ -624,5 +624,18 @@
     "viewer.loading": "Chargement...",
     "viewer.error": "Impossible de charger le fichier",
     "viewer.no_content": "Aucun contenu à afficher",
-    "desktop.fm.view": "Afficher"
+    "desktop.fm.view": "Afficher",
+    "desktop.ws_reconnecting": "Reconnexion...",
+    "desktop.ws_connection_lost": "Connexion perdue. Veuillez actualiser la page.",
+    "desktop.fm.uploading": "Téléchargement",
+    "desktop.fm.upload_error": "Échec du téléchargement",
+    "desktop.fm.upload_aborted": "Téléchargement annulé",
+    "desktop.keyboard_shortcuts_title": "Raccourcis clavier",
+    "desktop.keyboard_shortcuts_close": "Fermer",
+    "desktop.shortcut_start_menu": "Ouvrir le menu Démarrer",
+    "desktop.shortcut_close_window": "Fermer la fenêtre active",
+    "desktop.shortcut_switch_windows": "Changer de fenêtre",
+    "desktop.shortcut_rename": "Renommer l'élément sélectionné",
+    "desktop.shortcut_delete": "Supprimer l'élément sélectionné",
+    "desktop.shortcut_help": "Afficher les raccourcis clavier"
 }

@@ -624,5 +624,18 @@
     "viewer.loading": "Loading...",
     "viewer.error": "Failed to load file",
     "viewer.no_content": "No content to display",
-    "desktop.fm.view": "View"
+    "desktop.fm.view": "View",
+    "desktop.ws_reconnecting": "Reconnecting...",
+    "desktop.ws_connection_lost": "Connection lost. Please refresh the page.",
+    "desktop.fm.uploading": "Uploading",
+    "desktop.fm.upload_error": "Upload failed",
+    "desktop.fm.upload_aborted": "Upload aborted",
+    "desktop.keyboard_shortcuts_title": "Keyboard Shortcuts",
+    "desktop.keyboard_shortcuts_close": "Close",
+    "desktop.shortcut_start_menu": "Open Start menu",
+    "desktop.shortcut_close_window": "Close active window",
+    "desktop.shortcut_switch_windows": "Switch windows",
+    "desktop.shortcut_rename": "Rename selected item",
+    "desktop.shortcut_delete": "Delete selected item",
+    "desktop.shortcut_help": "Show keyboard shortcuts"
 }

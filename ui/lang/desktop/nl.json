@@ -624,5 +624,18 @@
     "viewer.loading": "Laden...",
     "viewer.error": "Bestand kan niet worden geladen",
     "viewer.no_content": "Geen inhoud om weer te geven",
-    "desktop.fm.view": "Bekijken"
+    "desktop.fm.view": "Bekijken",
+    "desktop.ws_reconnecting": "Opnieuw verbinden...",
+    "desktop.ws_connection_lost": "Verbinding verbroken. Ververs de pagina.",
+    "desktop.fm.uploading": "Uploaden",
+    "desktop.fm.upload_error": "Upload mislukt",
+    "desktop.fm.upload_aborted": "Upload geannuleerd",
+    "desktop.keyboard_shortcuts_title": "Toetsencombinaties",
+    "desktop.keyboard_shortcuts_close": "Sluiten",
+    "desktop.shortcut_start_menu": "Startmenu openen",
+    "desktop.shortcut_close_window": "Actief venster sluiten",
+    "desktop.shortcut_switch_windows": "Van venster wisselen",
+    "desktop.shortcut_rename": "Geselecteerd item hernoemen",
+    "desktop.shortcut_delete": "Geselecteerd item verwijderen",
+    "desktop.shortcut_help": "Toetsencombinaties weergeven"
 }

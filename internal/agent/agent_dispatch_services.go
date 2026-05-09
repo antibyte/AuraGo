@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"aurago/internal/meshcentral"
 	"aurago/internal/security"
@@ -15,7 +17,33 @@ import (
 var (
 	dispatchPreferredMCPVision     = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt = tools.AnalyzeImageWithPrompt
+
+	meshCentralCachedClient *meshcentral.CachedClient
+	meshCentralClientMu     sync.Mutex
 )
+
+// CloseMeshCentralClient closes the cached MeshCentral connection.
+func CloseMeshCentralClient() {
+	meshCentralClientMu.Lock()
+	defer meshCentralClientMu.Unlock()
+	if meshCentralCachedClient != nil {
+		meshCentralCachedClient.Close()
+		meshCentralCachedClient = nil
+	}
+}
+
+func getMeshCentralClient(url, username, password, loginToken string, insecure bool, logger *slog.Logger) *meshcentral.CachedClient {
+	meshCentralClientMu.Lock()
+	defer meshCentralClientMu.Unlock()
+
+	if meshCentralCachedClient == nil {
+		meshCentralCachedClient = meshcentral.NewCachedClient(url, username, password, loginToken, insecure, logger)
+	} else {
+		meshCentralCachedClient.SetLogger(logger)
+	}
+
+	return meshCentralCachedClient
+}
 
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
@@ -134,14 +162,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault."}`
 			}
 
-			mcClient, err := meshcentral.NewClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure)
-			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Invalid MeshCentral configuration: %v"}`, err)
-			}
-			if err := mcClient.Connect(); err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to connect to MeshCentral: %v"}`, err)
-			}
-			defer mcClient.Close()
+			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, logger)
 
 			switch op {
 			case "list_groups":

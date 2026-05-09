@@ -64,9 +64,6 @@ func desktopTokenHasScope(s *Server, rawToken, requiredScope string) bool {
 	if _, ok := s.TokenManager.Validate(rawToken, desktopScopeAdmin); ok {
 		return true
 	}
-	if _, ok := s.TokenManager.Validate(rawToken, "admin"); ok {
-		return true
-	}
 	return false
 }
 

@@ -624,5 +624,18 @@
     "viewer.loading": "Laden...",
     "viewer.error": "Datei konnte nicht geladen werden",
     "viewer.no_content": "Kein Inhalt zum Anzeigen",
-    "desktop.fm.view": "Anzeigen"
+    "desktop.fm.view": "Anzeigen",
+    "desktop.ws_reconnecting": "Wiederverbinden...",
+    "desktop.ws_connection_lost": "Verbindung verloren. Bitte laden Sie die Seite neu.",
+    "desktop.fm.uploading": "Hochladen",
+    "desktop.fm.upload_error": "Hochladen fehlgeschlagen",
+    "desktop.fm.upload_aborted": "Hochladen abgebrochen",
+    "desktop.keyboard_shortcuts_title": "Tastenkombinationen",
+    "desktop.keyboard_shortcuts_close": "Schließen",
+    "desktop.shortcut_start_menu": "Startmenü öffnen",
+    "desktop.shortcut_close_window": "Aktives Fenster schließen",
+    "desktop.shortcut_switch_windows": "Fenster wechseln",
+    "desktop.shortcut_rename": "Ausgewähltes Element umbenennen",
+    "desktop.shortcut_delete": "Ausgewähltes Element löschen",
+    "desktop.shortcut_help": "Tastenkombinationen anzeigen"
 }

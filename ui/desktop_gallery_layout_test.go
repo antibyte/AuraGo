@@ -8,11 +8,7 @@ import (
 func TestDesktopGalleryUsesStableThumbnailDimensions(t *testing.T) {
 	t.Parallel()
 
-	data, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(data)
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		"grid-auto-rows: minmax(176px, auto);",
 		"min-height: 176px;",

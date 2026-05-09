@@ -51,11 +51,15 @@ func TestBuildDesktopAgentPromptPrefersSelectedCodeOverWholeFile(t *testing.T) {
 func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	t.Parallel()
 
-	sourceBytes, err := os.ReadFile("desktop_handlers.go")
-	if err != nil {
-		t.Fatalf("ReadFile desktop_handlers.go: %v", err)
+	files := []string{"desktop_handlers.go", "desktop_handlers_chat.go"}
+	var source string
+	for _, name := range files {
+		sourceBytes, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("ReadFile %s: %v", name, err)
+		}
+		source += string(sourceBytes)
 	}
-	source := string(sourceBytes)
 	for _, marker := range []string{
 		"runDesktopAgentChat(r.Context(), s, body.Message, body.Context)",
 		"agent.LoopbackContext(ctx, runCfg, prompt, combinedBroker)",

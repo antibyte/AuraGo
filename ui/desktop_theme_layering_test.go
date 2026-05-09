@@ -8,7 +8,7 @@ import (
 func TestDesktopThemeLayeringZIndexScale(t *testing.T) {
 	t.Parallel()
 
-	desktopCSS := readDesktopAssetText(t, "css/desktop.css")
+	desktopCSS := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		"--vd-z-desktop:",
 		"--vd-z-widget:",
@@ -52,7 +52,7 @@ func TestDesktopThemeLayeringZIndexScale(t *testing.T) {
 func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 	t.Parallel()
 
-	desktopCSS := readDesktopAssetText(t, "css/desktop.css")
+	desktopCSS := readAllDesktopCSS(t)
 	for _, forbidden := range []string{
 		".desktop-body[data-theme=\"standard\"],\n.desktop-body[data-theme=\"light\"]",
 		".desktop-body[data-theme=\"standard\"] .vd-topbar",

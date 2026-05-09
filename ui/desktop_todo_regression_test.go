@@ -23,11 +23,7 @@ func TestDesktopTodoChecklistItemsAreEditableAndStable(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		"grid-template-columns: 26px minmax(0, 1fr) auto;",
 		"grid-template-columns: 22px minmax(0, 1fr) 30px;",

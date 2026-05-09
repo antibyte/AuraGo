@@ -41,11 +41,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		t.Fatal("desktop shell must not expose the removed AuraGo Classic icon theme")
 	}
 
-	css, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	if strings.Contains(string(css), ".vd-icon-catalog") {
+	css := readAllDesktopCSS(t)
+	if strings.Contains(css, ".vd-icon-catalog") {
 		t.Fatalf("desktop stylesheet still contains icon catalog settings styles")
 	}
 

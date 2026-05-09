@@ -33,11 +33,11 @@ func ExecuteOfficeDocument(ctx context.Context, cfg *config.Config, args map[str
 	if err := officeToolAllowed(cfg, "document", op); err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	svc, err := officeToolService(ctx, cfg)
+	svc, cleanup, err := getToolDesktopService(ctx, cfg)
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	defer svc.Close()
+	defer cleanup()
 	return executeOfficeDocumentOperation(ctx, svc, args, op)
 }
 
@@ -50,11 +50,11 @@ func ExecuteOfficeWorkbook(ctx context.Context, cfg *config.Config, args map[str
 	if err := officeToolAllowed(cfg, "workbook", op); err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	svc, err := officeToolService(ctx, cfg)
+	svc, cleanup, err := getToolDesktopService(ctx, cfg)
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	defer svc.Close()
+	defer cleanup()
 	return executeOfficeWorkbookOperation(ctx, svc, args, op)
 }
 
@@ -97,18 +97,6 @@ func officeToolMutates(kind, op string) bool {
 	default:
 		return true
 	}
-}
-
-func officeToolService(ctx context.Context, cfg *config.Config) (*desktop.Service, error) {
-	svc, err := desktop.NewService(desktop.ConfigFromAuraConfig(cfg))
-	if err != nil {
-		return nil, err
-	}
-	if err := svc.Init(ctx); err != nil {
-		_ = svc.Close()
-		return nil, err
-	}
-	return svc, nil
 }
 
 func executeOfficeDocumentOperation(ctx context.Context, svc *desktop.Service, args map[string]interface{}, op string) VirtualDesktopExecution {

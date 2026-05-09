@@ -75,7 +75,7 @@ func TestDesktopWidgetSDKCanReportContentSize(t *testing.T) {
 }
 
 func TestDesktopWidgetAutoSizeCSSAndManualContract(t *testing.T) {
-	css := readDesktopAssetText(t, "css/desktop.css")
+	css := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		`.vd-widget[data-widget-auto-size="true"]`,
 		"--vd-widget-auto-height",

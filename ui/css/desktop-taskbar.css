@@ -117,6 +117,17 @@
     box-shadow: 0 0 0 4px rgba(39, 199, 166, 0.16);
 }
 
+.vd-status-dot[data-state="reconnecting"] {
+    background: var(--vd-amber);
+    box-shadow: 0 0 0 4px rgba(242, 184, 75, 0.16);
+    animation: vd-status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vd-status-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.92); }
+}
+
 .vd-window-button,
 .vd-button,
 .vd-start-button,

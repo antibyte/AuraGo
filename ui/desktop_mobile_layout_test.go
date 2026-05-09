@@ -8,11 +8,7 @@ import (
 func TestDesktopMobileTaskbarStaysInVisualViewport(t *testing.T) {
 	t.Parallel()
 
-	data, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(data)
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		"@supports (height: 100dvh)",
 		"height: 100dvh;",
@@ -49,11 +45,7 @@ func TestVirtualDesktopHasMobileInteractionMarkers(t *testing.T) {
 func TestVirtualDesktopHasMobileLayoutMarkers(t *testing.T) {
 	t.Parallel()
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".vd-long-press-active",
 		"overscroll-behavior: none",

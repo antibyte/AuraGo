@@ -624,5 +624,18 @@
     "viewer.loading": "Laster...",
     "viewer.error": "Kunne ikke laste filen",
     "viewer.no_content": "Ingen innhold å vise",
-    "desktop.fm.view": "Vis"
+    "desktop.fm.view": "Vis",
+    "desktop.ws_reconnecting": "Kobler til på nytt...",
+    "desktop.ws_connection_lost": "Tilkobling mistet. Oppdater siden.",
+    "desktop.fm.uploading": "Laster opp",
+    "desktop.fm.upload_error": "Opplasting feilet",
+    "desktop.fm.upload_aborted": "Opplasting avbrutt",
+    "desktop.keyboard_shortcuts_title": "Tastatursnarveier",
+    "desktop.keyboard_shortcuts_close": "Lukk",
+    "desktop.shortcut_start_menu": "Åpne Start-menyen",
+    "desktop.shortcut_close_window": "Lukk aktivt vindu",
+    "desktop.shortcut_switch_windows": "Bytt vindu",
+    "desktop.shortcut_rename": "Gi nytt navn til valgt element",
+    "desktop.shortcut_delete": "Slett valgt element",
+    "desktop.shortcut_help": "Vis tastatursnarveier"
 }

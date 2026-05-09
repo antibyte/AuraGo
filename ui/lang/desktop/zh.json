@@ -624,5 +624,18 @@
     "viewer.loading": "加载中...",
     "viewer.error": "文件加载失败",
     "viewer.no_content": "无内容可显示",
-    "desktop.fm.view": "查看"
+    "desktop.fm.view": "查看",
+    "desktop.ws_reconnecting": "重新连接中...",
+    "desktop.ws_connection_lost": "连接丢失。请刷新页面。",
+    "desktop.fm.uploading": "正在上传",
+    "desktop.fm.upload_error": "上传失败",
+    "desktop.fm.upload_aborted": "上传已中止",
+    "desktop.keyboard_shortcuts_title": "键盘快捷键",
+    "desktop.keyboard_shortcuts_close": "关闭",
+    "desktop.shortcut_start_menu": "打开开始菜单",
+    "desktop.shortcut_close_window": "关闭活动窗口",
+    "desktop.shortcut_switch_windows": "切换窗口",
+    "desktop.shortcut_rename": "重命名所选项目",
+    "desktop.shortcut_delete": "删除所选项目",
+    "desktop.shortcut_help": "显示键盘快捷键"
 }

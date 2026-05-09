@@ -186,15 +186,39 @@
         };
     }
 
+    let wsReconnectAttempts = 0;
+    let wsReconnectDelay = 2000;
+    let wsReconnectTimer = null;
+    const MAX_WS_RETRIES = 10;
+    const WS_MAX_DELAY = 30000;
+
     function connectWS() {
-        if (state.ws) state.ws.close();
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
+        }
+        if (state.ws) {
+            try { state.ws.close(); } catch (_) {}
+        }
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(proto + '//' + location.host + '/api/desktop/ws');
         state.ws = ws;
-        ws.addEventListener('open', () => setWSState(true));
+        ws.addEventListener('open', () => {
+            wsReconnectAttempts = 0;
+            wsReconnectDelay = 2000;
+            setWSState(true);
+        });
         ws.addEventListener('close', () => {
+            if (wsReconnectAttempts >= MAX_WS_RETRIES) {
+                setWSState(false, true);
+                return;
+            }
             setWSState(false);
-            setTimeout(connectWS, 4000);
+            wsReconnectTimer = setTimeout(() => {
+                wsReconnectAttempts++;
+                wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_DELAY);
+                connectWS();
+            }, wsReconnectDelay);
         });
         ws.addEventListener('message', async (event) => {
             let msg;
@@ -203,8 +227,18 @@
         });
     }
 
-    function setWSState(online) {
-        $('vd-ws-state').dataset.state = online ? 'online' : 'offline';
+    function setWSState(online, failed) {
+        const dot = $('vd-ws-state');
+        if (online) {
+            dot.dataset.state = 'online';
+            dot.title = '';
+        } else if (failed) {
+            dot.dataset.state = 'offline';
+            dot.title = t('desktop.ws_connection_lost', 'Connection lost. Please refresh the page.');
+        } else {
+            dot.dataset.state = 'reconnecting';
+            dot.title = t('desktop.ws_reconnecting', 'Reconnecting...');
+        }
     }
 
     async function handleDesktopEvent(event) {
@@ -247,9 +281,11 @@
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
+        let startSearchTimer = null;
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
-            renderStartApps();
+            clearTimeout(startSearchTimer);
+            startSearchTimer = setTimeout(renderStartApps, 150);
         });
         renderStartButtonIcon();
         document.addEventListener('click', (event) => {
@@ -284,6 +320,16 @@
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
+        if ((event.ctrlKey || event.metaKey) && event.key === '/') {
+            event.preventDefault();
+            toggleShortcutsHelp();
+            return;
+        }
+        if (event.key === 'F1') {
+            event.preventDefault();
+            toggleShortcutsHelp();
+            return;
+        }
         if (event.ctrlKey && event.code === 'Space') {
             event.preventDefault();
             $('vd-start-button').click();
@@ -302,11 +348,14 @@
             focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
         }
         switch (event.key) {
-        case 'Escape':
+        case 'Escape': {
+            const shortcuts = document.getElementById('vd-shortcuts-help');
+            if (shortcuts) { shortcuts.remove(); return; }
             closeContextMenu();
             closeWindowMenu();
             closeStartMenu();
             return;
+        }
         case 'Enter': {
             const icon = selectedDesktopIcon();
             if (icon) activateDesktopItem(icon);
@@ -329,6 +378,45 @@
             return;
         }
         }
+    }
+
+    function toggleShortcutsHelp() {
+        const existing = document.getElementById('vd-shortcuts-help');
+        if (existing) { existing.remove(); return; }
+        showShortcutsHelp();
+    }
+
+    function showShortcutsHelp() {
+        const shortcuts = [
+            { keys: 'Ctrl+Space', action: t('desktop.shortcut_start_menu', 'Open Start menu') },
+            { keys: 'Alt+F4', action: t('desktop.shortcut_close_window', 'Close active window') },
+            { keys: 'Alt+Tab', action: t('desktop.shortcut_switch_windows', 'Switch windows') },
+            { keys: 'F2', action: t('desktop.shortcut_rename', 'Rename selected item') },
+            { keys: 'Delete', action: t('desktop.shortcut_delete', 'Delete selected item') },
+            { keys: 'Ctrl+/  /  F1', action: t('desktop.shortcut_help', 'Show keyboard shortcuts') }
+        ];
+        const overlay = document.createElement('div');
+        overlay.id = 'vd-shortcuts-help';
+        overlay.className = 'vd-shortcuts-overlay';
+        overlay.innerHTML = `
+            <div class="vd-shortcuts-modal">
+                <div class="vd-shortcuts-header">
+                    <span class="vd-shortcuts-title">${esc(t('desktop.keyboard_shortcuts_title', 'Keyboard Shortcuts'))}</span>
+                    <button class="vd-shortcuts-close" aria-label="${esc(t('desktop.keyboard_shortcuts_close', 'Close'))}">×</button>
+                </div>
+                <div class="vd-shortcuts-body">
+                    ${shortcuts.map(s => `
+                        <div class="vd-shortcuts-row">
+                            <kbd class="vd-shortcuts-keys">${esc(s.keys)}</kbd>
+                            <span class="vd-shortcuts-action">${esc(s.action)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        overlay.querySelector('.vd-shortcuts-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
     }
 
     function selectedDesktopIcon() {

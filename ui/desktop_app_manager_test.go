@@ -28,7 +28,7 @@ func TestDesktopAppManagerAssets(t *testing.T) {
 		}
 	}
 
-	css := readDesktopAssetText(t, "css/desktop.css")
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".vd-app-manager",
 		".vd-wm-badge-user",
@@ -81,9 +81,9 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
 	for _, want := range []string{
-		`/css/desktop.css?v=41`,
-		`/js/desktop/main.js?v=42`,
-		`/js/desktop/apps/looper.js?v=4`,
+		`/css/desktop.css?v={{.BuildVersion}}`,
+		`/js/desktop/main.js?v={{.BuildVersion}}`,
+		`/js/desktop/apps/looper.js?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
 			t.Fatalf("desktop.html missing cache-busting asset version %q", want)
@@ -96,13 +96,13 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	}
 	mainJS := string(mainBytes)
 	for _, want := range []string{
-		`/js/desktop/core/desktop-foundation.js?v=13`,
-		`/js/desktop/core/widget-autosize-runtime.js?v=2`,
-		`/js/desktop/core/window-shell-runtime.js?v=7`,
-		`/js/desktop/core/menus-and-routing.js?v=5`,
-		`/js/desktop/core/shortcut-runtime.js?v=1`,
-		`/js/desktop/apps/settings-calculator.js?v=5`,
-		`/js/desktop/apps/planning-gallery-music.js?v=4`,
+		`/js/desktop/core/desktop-foundation.js?v=' + v`,
+		`/js/desktop/core/widget-autosize-runtime.js?v=' + v`,
+		`/js/desktop/core/window-shell-runtime.js?v=' + v`,
+		`/js/desktop/core/menus-and-routing.js?v=' + v`,
+		`/js/desktop/core/shortcut-runtime.js?v=' + v`,
+		`/js/desktop/apps/settings-calculator.js?v=' + v`,
+		`/js/desktop/apps/planning-gallery-music.js?v=' + v`,
 	} {
 		if !strings.Contains(mainJS, want) {
 			t.Fatalf("desktop main loader missing cache-busting part version %q", want)

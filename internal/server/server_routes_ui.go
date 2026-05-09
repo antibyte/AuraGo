@@ -544,6 +544,10 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			http.NotFound(w, r)
 			return
 		}
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			s.Logger.Warn("unauthorized access attempt to desktop files", "path", r.URL.Path, "remote_addr", r.RemoteAddr)
+			return
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir) {

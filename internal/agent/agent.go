@@ -92,6 +92,8 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
+	CloseMeshCentralClient()
+
 	a.Logger.Info("Agent shutdown completed.")
 	return nil
 }

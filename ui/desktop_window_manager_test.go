@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -30,11 +28,7 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := os.ReadFile(filepath.Join("css", "desktop.css"))
-	if err != nil {
-		t.Fatalf("read desktop stylesheet: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		"min-width: 0 !important;",
 		"min-height: 0 !important;",
@@ -63,11 +57,7 @@ func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := os.ReadFile(filepath.Join("css", "desktop.css"))
-	if err != nil {
-		t.Fatalf("read desktop stylesheet: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		`.vd-window-button[data-action="maximize"]::before`,
 		"border: 2px solid currentColor;",

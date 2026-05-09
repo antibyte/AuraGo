@@ -370,9 +370,18 @@
                 if (!menu.contains(event.target)) {
                     closeContextMenu();
                     document.removeEventListener('mousedown', closeHandler);
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            const escapeHandler = event => {
+                if (event.key === 'Escape') {
+                    closeContextMenu();
+                    document.removeEventListener('mousedown', closeHandler);
+                    document.removeEventListener('keydown', escapeHandler);
                 }
             };
             document.addEventListener('mousedown', closeHandler);
+            document.addEventListener('keydown', escapeHandler);
         }, 0);
     }
 
@@ -708,7 +717,6 @@
         const root = fm.host.querySelector('.file-manager');
         const main = root && root.querySelector('[data-fm-main]');
         if (!root || !main) {
-            renderAll();
             return;
         }
         const nextMain = main.cloneNode(false);

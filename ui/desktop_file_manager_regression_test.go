@@ -24,11 +24,7 @@ func TestDesktopFileManagerAvoidsKnownLayoutRegressions(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".fm-search-bar[hidden]",
 		"grid-template-columns: minmax(160px, 1fr) 80px 110px 80px;",

@@ -345,6 +345,14 @@ func (c *Client) addAuthCookies(header http.Header) {
 	}
 }
 
+// IsConnected returns true if the WebSocket connection is open.
+func (c *Client) IsConnected() bool {
+	c.wsMu.RLock()
+	ws := c.ws
+	c.wsMu.RUnlock()
+	return ws != nil
+}
+
 // Close gracefully closes the WebSocket connection. Safe to call multiple times.
 func (c *Client) Close() {
 	c.closeOnce.Do(func() {
@@ -364,7 +372,6 @@ func (c *Client) Close() {
 			case pr.ch <- response{err: fmt.Errorf("client closed")}:
 			default:
 			}
-			close(pr.ch)
 			delete(c.pendingReqs, reqid)
 		}
 		c.reqsMu.Unlock()
@@ -421,15 +428,21 @@ func (c *Client) readPump() {
 			// Primary routing: by reqid (exact match, race-free)
 			if pr, ok := c.pendingReqs[reqid]; ok {
 				select {
-				case pr.ch <- response{data: data}:
-					delivered = true
-					c.log("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
 				case <-c.done:
 					c.reqsMu.Unlock()
 					return
 				default:
-					// Channel full, skip (shouldn't happen with buffered channels)
 				}
+				func() {
+					defer func() { recover() }()
+					select {
+					case pr.ch <- response{data: data}:
+						delivered = true
+						c.log("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
+					default:
+						// Channel full, skip (shouldn't happen with buffered channels)
+					}
+				}()
 			}
 		}
 		c.reqsMu.Unlock()
@@ -486,6 +499,12 @@ func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (ma
 
 	select {
 	case res := <-pr.ch:
+		c.reqsMu.Lock()
+		if c.pendingReqs[reqid] == pr {
+			delete(c.pendingReqs, reqid)
+		}
+		close(pr.ch)
+		c.reqsMu.Unlock()
 		if res.err != nil {
 			return nil, res.err
 		}
@@ -495,9 +514,16 @@ func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (ma
 		if c.pendingReqs[reqid] == pr {
 			delete(c.pendingReqs, reqid)
 		}
+		close(pr.ch)
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for reqid %d (action=%s)", reqid, action)
 	case <-c.done:
+		c.reqsMu.Lock()
+		if c.pendingReqs[reqid] == pr {
+			delete(c.pendingReqs, reqid)
+		}
+		close(pr.ch)
+		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("client disconnected")
 	}
 }

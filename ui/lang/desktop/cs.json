@@ -624,5 +624,18 @@
     "viewer.loading": "Načítání...",
     "viewer.error": "Soubor se nepodařilo načíst",
     "viewer.no_content": "Žádný obsah k zobrazení",
-    "desktop.fm.view": "Zobrazit"
+    "desktop.fm.view": "Zobrazit",
+    "desktop.ws_reconnecting": "Opětovné připojování...",
+    "desktop.ws_connection_lost": "Spojení ztraceno. Obnovte stránku.",
+    "desktop.fm.uploading": "Nahrávání",
+    "desktop.fm.upload_error": "Nahrání selhalo",
+    "desktop.fm.upload_aborted": "Nahrání přerušeno",
+    "desktop.keyboard_shortcuts_title": "Klávesové zkratky",
+    "desktop.keyboard_shortcuts_close": "Zavřít",
+    "desktop.shortcut_start_menu": "Otevřít nabídku Start",
+    "desktop.shortcut_close_window": "Zavřít aktivní okno",
+    "desktop.shortcut_switch_windows": "Přepnout okna",
+    "desktop.shortcut_rename": "Přejmenovat vybranou položku",
+    "desktop.shortcut_delete": "Smazat vybranou položku",
+    "desktop.shortcut_help": "Zobrazit klávesové zkratky"
 }

@@ -39,11 +39,7 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		}
 	}
 
-	css, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	cssText := string(css)
+	cssText := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".desktop-body[data-theme=\"fruity\"]",
 		"@media (prefers-color-scheme: dark)",

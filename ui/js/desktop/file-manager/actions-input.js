@@ -593,24 +593,77 @@
         input.click();
     }
 
+    function uploadWithXHR(file, path, onProgress) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', path);
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    onProgress(Math.round((e.loaded / e.total) * 100));
+                }
+            });
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(xhr.response);
+                } else {
+                    let errMsg = t('desktop.fm.upload_error', 'Upload failed');
+                    try {
+                        const resp = JSON.parse(xhr.responseText);
+                        errMsg = resp.error || resp.message || errMsg;
+                    } catch (_) {
+                        errMsg = xhr.statusText || errMsg;
+                    }
+                    reject(new Error(errMsg));
+                }
+            });
+            xhr.addEventListener('error', () => reject(new Error(t('desktop.fm.upload_error', 'Upload failed'))));
+            xhr.addEventListener('abort', () => reject(new Error(t('desktop.fm.upload_aborted', 'Upload aborted'))));
+            xhr.open('POST', '/api/desktop/upload');
+            xhr.send(formData);
+        });
+    }
+
     async function uploadFileList(files) {
         if (isReadonly()) return;
-        showNotification({ type: 'info', message: t('desktop.fm.upload_progress', 'Uploading...') });
+        const totalFiles = files.length;
+        let completedFiles = 0;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'fm-upload-overlay';
+        overlay.innerHTML = `
+            <div class="fm-upload-panel">
+                <div class="fm-upload-title">${esc(t('desktop.fm.uploading', 'Uploading'))}</div>
+                <div class="fm-upload-bar-bg"><div class="fm-upload-bar-fill" style="width:0%"></div></div>
+                <div class="fm-upload-percent">0%</div>
+                <div class="fm-upload-file"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const barFill = overlay.querySelector('.fm-upload-bar-fill');
+        const percentEl = overlay.querySelector('.fm-upload-percent');
+        const fileEl = overlay.querySelector('.fm-upload-file');
+
         const limit = maxFileSize();
         for (const file of Array.from(files)) {
+            completedFiles++;
             if (limit > 0 && file.size > limit) {
                 showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', '{{name}} exceeds the maximum upload size.', { name: file.name }) });
                 continue;
             }
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('path', fm.currentPath);
+            fileEl.textContent = `${esc(file.name)} (${completedFiles}/${totalFiles})`;
             try {
-                await api('/api/desktop/upload', { method: 'POST', body: formData });
+                await uploadWithXHR(file, fm.currentPath, (pct) => {
+                    barFill.style.width = pct + '%';
+                    percentEl.textContent = pct + '%';
+                });
             } catch (err) {
                 showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) });
             }
         }
+        overlay.remove();
         refresh();
     }
 

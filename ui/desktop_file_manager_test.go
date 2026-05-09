@@ -27,11 +27,8 @@ func TestFileManagerInlineRenameMarkers(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	if !strings.Contains(string(cssBytes), ".fm-rename-input") {
+	cssText := readAllDesktopCSS(t)
+	if !strings.Contains(cssText, ".fm-rename-input") {
 		t.Fatalf("desktop stylesheet missing file manager rename input rule")
 	}
 }

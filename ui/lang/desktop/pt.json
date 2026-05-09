@@ -624,5 +624,18 @@
     "viewer.loading": "Carregando...",
     "viewer.error": "Falha ao carregar arquivo",
     "viewer.no_content": "Sem conteúdo para exibir",
-    "desktop.fm.view": "Visualizar"
+    "desktop.fm.view": "Visualizar",
+    "desktop.ws_reconnecting": "Reconectando...",
+    "desktop.ws_connection_lost": "Conexão perdida. Atualize a página.",
+    "desktop.fm.uploading": "Enviando",
+    "desktop.fm.upload_error": "Falha no envio",
+    "desktop.fm.upload_aborted": "Envio cancelado",
+    "desktop.keyboard_shortcuts_title": "Atalhos de teclado",
+    "desktop.keyboard_shortcuts_close": "Fechar",
+    "desktop.shortcut_start_menu": "Abrir menu Iniciar",
+    "desktop.shortcut_close_window": "Fechar janela ativa",
+    "desktop.shortcut_switch_windows": "Alternar janelas",
+    "desktop.shortcut_rename": "Renomear item selecionado",
+    "desktop.shortcut_delete": "Excluir item selecionado",
+    "desktop.shortcut_help": "Mostrar atalhos de teclado"
 }

@@ -220,3 +220,86 @@
 .vd-lightbox-close:hover {
     background: rgba(255,255,255,0.3);
 }
+
+/* Keyboard shortcuts help */
+.vd-shortcuts-overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(4, 7, 12, 0.58);
+    backdrop-filter: blur(8px);
+    z-index: var(--vd-z-modal);
+    padding: 18px;
+}
+
+.vd-shortcuts-modal {
+    width: min(420px, calc(100vw - 32px));
+    padding: 18px;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+}
+
+.vd-shortcuts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.vd-shortcuts-title {
+    font-weight: 900;
+    font-size: 1rem;
+}
+
+.vd-shortcuts-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--vd-border);
+    background: rgba(255,255,255,0.08);
+    color: var(--vd-text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-shortcuts-close:hover {
+    background: rgba(255,255,255,0.14);
+}
+
+.vd-shortcuts-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vd-shortcuts-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+}
+
+.vd-shortcuts-keys {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--vd-border);
+    color: var(--vd-text);
+    white-space: nowrap;
+}
+
+.vd-shortcuts-action {
+    font-size: 0.85rem;
+    color: var(--vd-muted);
+}

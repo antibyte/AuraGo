@@ -624,5 +624,18 @@
     "viewer.loading": "読み込み中...",
     "viewer.error": "ファイルの読み込みに失敗しました",
     "viewer.no_content": "表示するコンテンツがありません",
-    "desktop.fm.view": "表示"
+    "desktop.fm.view": "表示",
+    "desktop.ws_reconnecting": "再接続中...",
+    "desktop.ws_connection_lost": "接続が切断されました。ページを更新してください。",
+    "desktop.fm.uploading": "アップロード中",
+    "desktop.fm.upload_error": "アップロードに失敗しました",
+    "desktop.fm.upload_aborted": "アップロードが中止されました",
+    "desktop.keyboard_shortcuts_title": "キーボードショートカット",
+    "desktop.keyboard_shortcuts_close": "閉じる",
+    "desktop.shortcut_start_menu": "スタートメニューを開く",
+    "desktop.shortcut_close_window": "アクティブなウィンドウを閉じる",
+    "desktop.shortcut_switch_windows": "ウィンドウを切り替える",
+    "desktop.shortcut_rename": "選択したアイテムの名前を変更",
+    "desktop.shortcut_delete": "選択したアイテムを削除",
+    "desktop.shortcut_help": "キーボードショートカットを表示"
 }

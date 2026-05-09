@@ -408,11 +408,11 @@ func TestExecuteOfficeWorkbookSetCellDoesNotOverwriteUnreadableWorkbook(t *testi
 	cfg := testVirtualDesktopConfig(t)
 	cfg.Tools.OfficeWorkbook.Enabled = true
 
-	svc, err := officeToolService(context.Background(), cfg)
+	svc, cleanup, err := getToolDesktopService(context.Background(), cfg)
 	if err != nil {
-		t.Fatalf("officeToolService: %v", err)
+		t.Fatalf("getToolDesktopService: %v", err)
 	}
-	defer svc.Close()
+	defer cleanup()
 	if err := svc.WriteFileBytes(context.Background(), "Documents/corrupt.xlsx", []byte("not an xlsx"), desktop.SourceAgent); err != nil {
 		t.Fatalf("seed corrupt workbook: %v", err)
 	}

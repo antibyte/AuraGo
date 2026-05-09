@@ -26,11 +26,7 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
-	css, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	cssText := string(css)
+	cssText := readAllDesktopCSS(t)
 
 	defs := desktop.DesktopSettingDefinitions()
 	wallpaperValues := map[string]bool{}

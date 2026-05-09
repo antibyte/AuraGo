@@ -108,11 +108,8 @@ func TestDesktopSDKResolvesThemedIcons(t *testing.T) {
 		t.Fatal("SDK stylesheet does not style themed icons")
 	}
 
-	desktopCSS, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	if !strings.Contains(string(desktopCSS), ".vd-theme-icon") {
+	desktopCSS := readAllDesktopCSS(t)
+	if !strings.Contains(desktopCSS, ".vd-theme-icon") {
 		t.Fatal("desktop stylesheet does not style themed icons")
 	}
 }

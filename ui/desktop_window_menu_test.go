@@ -60,11 +60,7 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 		}
 	}
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("read desktop css: %v", err)
-	}
-	cssText := string(cssBytes)
+	cssText := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".vd-window.has-window-menu",
 		".vd-window-menubar",
@@ -365,6 +361,31 @@ func readDesktopAssetText(t *testing.T, path string) string {
 		}
 	}
 	return text
+}
+
+func readAllDesktopCSS(t *testing.T) string {
+	t.Helper()
+	var cssFiles = []string{
+		"css/desktop-base.css",
+		"css/desktop-taskbar.css",
+		"css/desktop-start-menu.css",
+		"css/desktop-windows.css",
+		"css/desktop-icons.css",
+		"css/desktop-widgets.css",
+		"css/desktop-modals.css",
+		"css/desktop-apps.css",
+		"css/desktop-sdk.css",
+	}
+	var buf strings.Builder
+	for _, f := range cssFiles {
+		data, err := Content.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+	return buf.String()
 }
 
 func jsFunctionBodyInWindowMenuTest(t *testing.T, source, signature string) string {

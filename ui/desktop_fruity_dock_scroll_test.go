@@ -26,7 +26,7 @@ func TestFruityDockShowsScrollButtonsWhenAppsOverflow(t *testing.T) {
 		}
 	}
 
-	css := readDesktopAssetText(t, "css/desktop.css")
+	css := readAllDesktopCSS(t)
 	for _, want := range []string{
 		".desktop-body[data-theme=\"fruity\"] .vd-dock-scroll",
 		".desktop-body[data-theme=\"fruity\"] .vd-dock-track",

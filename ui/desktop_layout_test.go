@@ -61,11 +61,7 @@ func TestVirtualDesktopStartButtonUsesRoundPapirusHomeLauncher(t *testing.T) {
 		t.Fatal("start button should use the Papirus home icon as the launcher glyph")
 	}
 
-	cssBytes, err := Content.ReadFile("css/desktop.css")
-	if err != nil {
-		t.Fatalf("desktop stylesheet missing from embedded UI: %v", err)
-	}
-	css := string(cssBytes)
+	css := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		"--vd-start-button-size: 52px;",
 		"--vd-start-recess-size: 64px;",
