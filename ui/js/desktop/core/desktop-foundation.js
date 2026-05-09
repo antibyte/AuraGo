@@ -114,13 +114,13 @@
         music: 'audio-player',
         'music-player': 'audio-player',
         player: 'audio-player',
-        radio: 'radio',
+        radio: 'audio-player',
         todo: 'notes',
-        'agent-chat': 'chat',
-        terminal: 'terminal',
-        browser: 'browser',
-        launchpad: 'launchpad',
-        looper: 'refresh',
+        'agent-chat': 'mail',
+        terminal: 'server', 'quick-connect': 'server',
+        browser: 'browser', viewer: 'documents',
+        launchpad: 'apps',
+        looper: 'workflow',
         'system-info': 'analytics'
     };
     appIconKeys['code-studio'] = 'code';
