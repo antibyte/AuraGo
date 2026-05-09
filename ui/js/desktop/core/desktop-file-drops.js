@@ -161,7 +161,9 @@
     }
 
     function wireDesktopFileIconDrag(btn) {
-        if (!btn || btn.dataset.desktopEntry !== 'true') return;
+        if (!btn) return;
+        if (isTrashIcon(btn)) { wireDesktopFileTrashDrop(btn); return; }
+        if (btn.dataset.desktopEntry !== 'true') return;
         btn.draggable = true;
         btn.addEventListener('dragstart', event => {
             const path = normalizeDesktopPath(btn.dataset.path || '');
@@ -172,6 +174,29 @@
             btn.classList.add('vd-dragging');
         });
         btn.addEventListener('dragend', () => btn.classList.remove('vd-dragging'));
+    }
+
+    function wireDesktopFileTrashDrop(btn) {
+        btn.addEventListener('dragover', event => {
+            if (!hasDesktopFileDragPayload(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = 'move';
+            btn.classList.add('vd-trash-drop-target');
+        });
+        btn.addEventListener('dragleave', () => btn.classList.remove('vd-trash-drop-target'));
+        btn.addEventListener('drop', async event => {
+            const payload = desktopFileDragPayload(event);
+            if (!payload) return;
+            event.preventDefault();
+            event.stopPropagation();
+            btn.classList.remove('vd-trash-drop-target');
+            try {
+                for (const path of payload.paths) await movePathToTrash(path);
+            } catch (err) {
+                showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            }
+        });
     }
 
     function handleDesktopFileDragOver(event) {

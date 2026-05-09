@@ -122,6 +122,24 @@ func TestFileManagerItemsCanDropOntoDesktop(t *testing.T) {
 	}
 }
 
+func TestDesktopFileDragPayloadCanDropOnTrash(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"function wireDesktopFileTrashDrop(btn)",
+		"if (isTrashIcon(btn)) { wireDesktopFileTrashDrop(btn); return; }",
+		"btn.addEventListener('dragover', event =>",
+		"btn.addEventListener('drop', async event =>",
+		"event.stopPropagation()",
+		"await movePathToTrash(path)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop file drag-to-trash integration missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopAndFileManagerShareCutCopyPaste(t *testing.T) {
 	t.Parallel()
 
