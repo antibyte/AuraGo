@@ -7,7 +7,6 @@
     var v = window.BUILD_VERSION || 'dev';
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=' + v,
-        '/js/desktop/core/desktop-taskbar-helpers.js?v=' + v,
         '/js/desktop/core/window-shell-runtime.js?v=' + v,
         '/js/desktop/core/lifecycle-cleanup.js?v=' + v,
         '/js/desktop/core/widget-autosize-runtime.js?v=' + v,

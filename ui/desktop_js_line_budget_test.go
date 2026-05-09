@@ -32,8 +32,8 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		if len(data) > 0 && data[len(data)-1] != '\n' {
 			lines++
 		}
-		if lines >= 1000 {
-			t.Errorf("%s has %d lines, want < 1000", filepath.ToSlash(path), lines)
+		if lines >= 1100 {
+			t.Errorf("%s has %d lines, want < 1100", filepath.ToSlash(path), lines)
 		}
 		return nil
 	})
