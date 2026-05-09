@@ -252,7 +252,15 @@
             await loadBootstrap();
             return;
         }
+        if (event.type === 'open_widget' && event.payload && event.payload.path) {
+            openStandaloneWidget(event.payload.path, event.payload.widget_id, event.payload);
+            return;
+        }
         if (event.type === 'open_app' && event.payload && event.payload.app_id) {
+            if (event.payload.path && isStandaloneWidgetPath(event.payload.path) && !appById(event.payload.app_id)) {
+                openStandaloneWidget(event.payload.path, event.payload.widget_id || event.payload.app_id, event.payload);
+                return;
+            }
             openApp(event.payload.app_id, event.payload.path ? { path: event.payload.path } : undefined);
             return;
         }

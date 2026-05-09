@@ -1,10 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" version="1">
- <path style="opacity:0.2" d="m 58,7 -4,4 0,2 6,-6 -2,0 z m -38,29 0,2 c 0,1.662 1.338,3 3,3 l 28,0 c 1.662,0 3,-1.338 3,-3 l 0,-2 c 0,1.662 -1.338,3 -3,3 l -28,0 c -1.662,0 -3,-1.338 -3,-3 z"/>
- <path style="opacity:0.2" d="m 4,25 6,6 0,-2 -4,-4 -2,0 z m 6,29 0,2 c 0,1.662 1.338,3 3,3 l 28,0 c 1.662,0 3,-1.338 3,-3 l 0,-2 c 0,1.662 -1.338,3 -3,3 l -28,0 c -1.662,0 -3,-1.338 -3,-3 z"/>
- <path style="fill:#0286c2" d="m 23,6 c -1.662,0 -3,1.338 -3,3 l 0,28 c 0,1.662 1.338,3 3,3 l 28,0 c 1.662,0 3,-1.338 3,-3 L 54,12 60,6 23,6 Z"/>
- <path style="opacity:0.1;fill:#ffffff" d="M 23 6 C 21.338 6 20 7.338 20 9 L 20 10 C 20 8.338 21.338 7 23 7 L 59 7 L 60 6 L 23 6 z"/>
- <path style="fill:#35b9f5" d="m 4,24 6,6 0,25 c 0,1.662 1.338,3 3,3 l 28,0 c 1.662,0 3,-1.338 3,-3 l 0,-28 c 0,-1.662 -1.338,-3 -3,-3 L 4,24 Z"/>
- <path style="opacity:0.2" d="m 16,35 0,2 22,0 0,-2 z m 0,6 0,2 22,0 0,-2 z m 0,6 0,2 16.8,0 0,-2 z"/>
- <path style="fill:#aee3fb" d="m 16,34 0,2 22,0 0,-2 z m 0,6 0,2 22,0 0,-2 z m 0,6 0,2 16.8,0 0,-2 z"/>
- <path style="opacity:0.1;fill:#ffffff" d="M 4 24 L 5 25 L 41 25 C 42.662 25 44 26.338 44 28 L 44 27 C 44 25.338 42.662 24 41 24 L 4 24 z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" version="1.1">
+ <defs>
+  <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#444444; }</style>
+ </defs>
+ <path class="ColorScheme-Text" fill="currentColor" fill-rule="evenodd" d="M5.5 5h13c.8 0 1.5.7 1.5 1.5v8c0 .8-.7 1.5-1.5 1.5H10l-4.2 3.2c-.7.5-1.8 0-1.8-.9V6.5C4 5.7 4.7 5 5.5 5zm.5 2v9.2L9.3 14H18V7H6zm2 2h8v1.5H8V9zm0 3h5.5v1.5H8V12z"/>
 </svg>

@@ -170,6 +170,91 @@ func TestExecuteVirtualDesktopUpsertWidgetNormalizesExistingStandaloneWidgetFile
 	t.Fatalf("space-invaders widget not registered: %+v", bootstrap.Data.Widgets)
 }
 
+func TestExecuteVirtualDesktopOpenInAppOpensStandaloneWidgetFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/space-invaders.html",
+		"content":   "<main>Space Invaders</main>",
+	})
+	var writePayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &writePayload); err != nil {
+		t.Fatalf("unmarshal write output: %v\n%s", err, write.Output)
+	}
+	if writePayload.Status != "ok" {
+		t.Fatalf("write_file status = %q, output = %s", writePayload.Status, write.Output)
+	}
+
+	open := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"app_id":    "space-invaders",
+		"path":      "Widgets/space-invaders.html",
+	})
+	var openPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			WidgetID string `json:"widget_id"`
+			Path     string `json:"path"`
+			Icon     string `json:"icon"`
+		} `json:"data"`
+		Event struct {
+			Type    string `json:"type"`
+			Payload struct {
+				WidgetID string `json:"widget_id"`
+				Path     string `json:"path"`
+			} `json:"payload"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(open.Output), &openPayload); err != nil {
+		t.Fatalf("unmarshal open output: %v\n%s", err, open.Output)
+	}
+	if openPayload.Status != "ok" {
+		t.Fatalf("open_in_app status = %q, output = %s", openPayload.Status, open.Output)
+	}
+	if openPayload.Event.Type != "open_widget" {
+		t.Fatalf("event type = %q, want open_widget: %s", openPayload.Event.Type, open.Output)
+	}
+	if openPayload.Data.WidgetID != "space-invaders" || openPayload.Event.Payload.WidgetID != "space-invaders" {
+		t.Fatalf("widget IDs = data:%q event:%q, want space-invaders", openPayload.Data.WidgetID, openPayload.Event.Payload.WidgetID)
+	}
+	if openPayload.Data.Path != "Widgets/space-invaders.html" || openPayload.Event.Payload.Path != "Widgets/space-invaders.html" {
+		t.Fatalf("paths = data:%q event:%q, want Widgets/space-invaders.html", openPayload.Data.Path, openPayload.Event.Payload.Path)
+	}
+	if openPayload.Data.Icon == "" {
+		t.Fatalf("icon is empty: %s", open.Output)
+	}
+	if open.Event == nil || open.Event.Type != "open_widget" {
+		t.Fatalf("execution event = %#v, want open_widget", open.Event)
+	}
+}
+
+func TestExecuteVirtualDesktopOpenInAppRejectsMissingApp(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	open := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"app_id":    "missing-app",
+	})
+	var payload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(open.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open output: %v\n%s", err, open.Output)
+	}
+	if payload.Status != "error" {
+		t.Fatalf("status = %q, want error: %s", payload.Status, open.Output)
+	}
+	if open.Event != nil {
+		t.Fatalf("event = %#v, want nil", open.Event)
+	}
+}
+
 func TestExecuteVirtualDesktopStatusExposesIconCatalog(t *testing.T) {
 	t.Parallel()
 

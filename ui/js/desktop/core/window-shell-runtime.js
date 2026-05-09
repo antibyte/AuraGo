@@ -363,7 +363,7 @@
         const host = $('vd-taskbar-apps');
         host.innerHTML = [...state.windows.values()].map((win, index) => {
             const app = appById(win.appId);
-            const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-task-icon', 16);
             return `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}" style="--dock-index:${index}">${icon}<span class="vd-task-label">${esc(win.title)}</span></button>`;
         }).join('');
         host.querySelectorAll('[data-window-id]').forEach(btn => {
@@ -566,7 +566,105 @@
         });
     }
 
+    function isStandaloneWidgetPath(path) {
+        const normalized = normalizeDesktopPath(path);
+        return /^Widgets\/[^/]+\.html$/i.test(normalized);
+    }
+
+    function standaloneWidgetIDFromPath(path) {
+        const file = normalizeDesktopPath(path).split('/').pop() || '';
+        return file.replace(/\.html$/i, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^[_-]+|[_-]+$/g, '');
+    }
+
+    function standaloneWidgetById(widgetId) {
+        const boot = state.bootstrap || {};
+        const widgets = [...(boot.widgets || []), ...(boot.all_widgets || [])];
+        return widgets.find(item => item && item.id === widgetId);
+    }
+
+    function findExistingStandaloneWidgetWindow(path, widgetId) {
+        const normalizedPath = normalizeDesktopPath(path);
+        return [...state.windows.values()].find(win => {
+            const context = win.context || {};
+            return context.standaloneWidget === true &&
+                normalizeDesktopPath(context.path) === normalizedPath &&
+                (!widgetId || context.widgetId === widgetId);
+        });
+    }
+
+    function openStandaloneWidget(path, widgetId, options) {
+        const normalizedPath = normalizeDesktopPath(path);
+        if (!isStandaloneWidgetPath(normalizedPath)) {
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.app_missing') });
+            return;
+        }
+        const safeWidgetId = widgetId || standaloneWidgetIDFromPath(normalizedPath);
+        const existing = findExistingStandaloneWidgetWindow(normalizedPath, safeWidgetId);
+        if (existing) {
+            focusWindow(existing.id);
+            return;
+        }
+        const widget = standaloneWidgetById(safeWidgetId) || {};
+        const title = (options && options.title) || widget.title || windowTitle(safeWidgetId);
+        const icon = (options && options.icon) || widget.icon || 'apps';
+        const id = 'w-widget-' + safeWidgetId + '-' + Date.now();
+        const win = document.createElement('section');
+        win.className = 'vd-window';
+        win.dataset.windowId = id;
+        const size = clampWindowSize({ width: 900, height: 650 });
+        const position = nextWindowPosition(size);
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
+        win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
+        win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
+        win.style.zIndex = String(++state.z);
+        win.innerHTML = `<header class="vd-window-titlebar">
+            <div class="vd-window-title-group">
+                <span class="vd-window-header-icon-wrap">${iconMarkup(icon, '', 'vd-window-header-icon', 16)}</span>
+                <div class="vd-window-title">${esc(title)}</div>
+                <div class="vd-window-subtitle"></div>
+            </div>
+            <div class="vd-window-actions">
+                <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
+                <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>
+                <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
+            </div>
+        </header>
+        <div class="vd-window-content" data-window-content><div class="vd-empty">${esc(t('desktop.loading'))}</div></div>
+        ${resizeHandleMarkup()}`;
+        $('vd-window-layer').appendChild(win);
+        const context = { path: normalizedPath, widgetId: safeWidgetId, standaloneWidget: true };
+        state.windows.set(id, { id, appId: 'widget:' + safeWidgetId, title, element: win, maximized: false, restoreBounds: null, context, icon, iconGlyph: '' });
+        wireWindow(win, id);
+        animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        focusWindow(id);
+        renderStandaloneWidgetContent(id, normalizedPath, safeWidgetId, title);
+        renderTaskbar();
+    }
+
+    function renderStandaloneWidgetContent(id, path, widgetId, title) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
+        desktopEmbedURL(path, { widget_id: widgetId })
+            .then(async src => {
+                await ensureDesktopEmbedHasContent(src);
+                if (!contentEl(id)) return;
+                host.replaceChildren(makeSandboxedFrame(src, '', widgetId, id, 'vd-generated-frame', title));
+            })
+            .catch(err => {
+                if (!contentEl(id)) return;
+                host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
+            });
+    }
+
     function openApp(appId, context) {
+        if (context && context.path && isStandaloneWidgetPath(context.path) && !appById(appId)) {
+            openStandaloneWidget(context.path, context.widgetId || appId, context);
+            return;
+        }
         if (appId === 'music-player') {
             launchStandaloneWebamp(context).catch(err => {
                 showDesktopNotification({ title: t('desktop.notification'), message: (err && err.message) || String(err) });

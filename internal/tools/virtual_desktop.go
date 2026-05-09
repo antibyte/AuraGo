@@ -210,10 +210,28 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("ok", "desktop widget saved", map[string]interface{}{"widget_id": widget.ID}, event)
 	case "open_app", "open_in_app":
 		appID := virtualDesktopString(args, "app_id", "id")
+		filePath := virtualDesktopString(args, "path", "file_path")
+		if filePath != "" {
+			widget, event, ok, err := virtualDesktopStandaloneWidgetOpenEvent(ctx, svc, filePath)
+			if err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			if ok {
+				payload := map[string]interface{}{
+					"widget_id": widget.ID,
+					"path":      cleanVirtualDesktopSlashPath(filePath),
+					"title":     widget.Title,
+					"icon":      widget.Icon,
+				}
+				return virtualDesktopJSON("ok", "desktop widget open event emitted", payload, event)
+			}
+		}
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
-		filePath := virtualDesktopString(args, "path", "file_path")
+		if !virtualDesktopAppExists(ctx, svc, appID) {
+			return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q is not installed", appID), nil, nil)
+		}
 		payload := map[string]interface{}{"app_id": appID}
 		if filePath != "" {
 			payload["path"] = filePath
@@ -369,6 +387,47 @@ func normalizeVirtualDesktopStandaloneWidget(ctx context.Context, svc *desktop.S
 	if widget.Title == "" {
 		widget.Title = virtualDesktopTitleFromID(strings.TrimSuffix(cleanEntry, path.Ext(cleanEntry)))
 	}
+}
+
+func virtualDesktopStandaloneWidgetOpenEvent(ctx context.Context, svc *desktop.Service, rawPath string) (desktop.Widget, *desktop.Event, bool, error) {
+	widget, ok := virtualDesktopStandaloneWidgetFromFile(rawPath)
+	if !ok {
+		return desktop.Widget{}, nil, false, nil
+	}
+	cleanPath := cleanVirtualDesktopSlashPath(rawPath)
+	content, _, err := svc.ReadFile(ctx, cleanPath)
+	if err != nil {
+		return desktop.Widget{}, nil, true, err
+	}
+	if strings.TrimSpace(content) == "" {
+		return desktop.Widget{}, nil, true, fmt.Errorf("desktop widget entry file is empty")
+	}
+	if err := svc.UpsertWidget(ctx, widget, desktop.SourceAgent); err != nil {
+		return desktop.Widget{}, nil, true, err
+	}
+	event := virtualDesktopEvent("open_widget", map[string]interface{}{
+		"widget_id": widget.ID,
+		"path":      cleanPath,
+		"title":     widget.Title,
+		"icon":      widget.Icon,
+	})
+	return widget, event, true, nil
+}
+
+func virtualDesktopAppExists(ctx context.Context, svc *desktop.Service, appID string) bool {
+	if svc == nil || strings.TrimSpace(appID) == "" {
+		return false
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		return false
+	}
+	for _, app := range append(append([]desktop.AppManifest{}, bootstrap.BuiltinApps...), bootstrap.InstalledApps...) {
+		if app.ID == appID {
+			return true
+		}
+	}
+	return false
 }
 
 func virtualDesktopDocument(args map[string]interface{}) (office.Document, error) {

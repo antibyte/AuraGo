@@ -134,3 +134,31 @@ func TestDesktopFoundationKeepsLifecycleHelpersAvailableForEarlyRender(t *testin
 		}
 	}
 }
+
+func TestDesktopStandaloneWidgetFilesOpenAsWidgets(t *testing.T) {
+	t.Parallel()
+
+	runtime := rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, want := range []string{
+		"function isStandaloneWidgetPath(path)",
+		"function openStandaloneWidget(path, widgetId, options)",
+		"function renderStandaloneWidgetContent(id, path, widgetId, title)",
+		"context.standaloneWidget === true",
+		"desktopEmbedURL(path, { widget_id: widgetId })",
+	} {
+		if !strings.Contains(runtime, want) {
+			t.Fatalf("desktop window runtime missing standalone widget marker %q", want)
+		}
+	}
+
+	events := rawDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	for _, want := range []string{
+		"event.type === 'open_widget'",
+		"openStandaloneWidget(event.payload.path, event.payload.widget_id, event.payload)",
+		"isStandaloneWidgetPath(event.payload.path) && !appById(event.payload.app_id)",
+	} {
+		if !strings.Contains(events, want) {
+			t.Fatalf("desktop event bootstrap missing standalone widget marker %q", want)
+		}
+	}
+}
