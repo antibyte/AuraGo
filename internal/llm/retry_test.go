@@ -115,6 +115,43 @@ func TestExecuteWithRetry_TransientRetries(t *testing.T) {
 	}
 }
 
+func TestSelectRetryWaitTimeUsesFirstIntervalForFirstRetry(t *testing.T) {
+	intervals := []time.Duration{10 * time.Second, 2 * time.Minute}
+	wait := selectRetryWaitTime(1, intervals, 5*time.Minute, errors.New("connection timeout"))
+	if wait != 10*time.Second {
+		t.Fatalf("first retry wait = %v, want 10s", wait)
+	}
+}
+
+func TestSelectRetryWaitTimeUsesFinalIntervalAfterConfiguredIntervals(t *testing.T) {
+	intervals := []time.Duration{10 * time.Second, 2 * time.Minute}
+	wait := selectRetryWaitTime(3, intervals, 5*time.Minute, errors.New("connection timeout"))
+	if wait != 5*time.Minute {
+		t.Fatalf("third retry wait = %v, want 5m", wait)
+	}
+}
+
+func TestConfigureDefaultRetryIntervalsParsesConfig(t *testing.T) {
+	original := defaultRetryIntervalsCopy()
+	t.Cleanup(func() {
+		defaultRetryIntervalsMu.Lock()
+		defaultRetryIntervals = original
+		defaultRetryIntervalsMu.Unlock()
+	})
+
+	ConfigureDefaultRetryIntervals([]string{"10s", "bad", "2m"}, nil)
+	updated := defaultRetryIntervalsCopy()
+	want := []time.Duration{10 * time.Second, 2 * time.Minute}
+	if len(updated) != len(want) {
+		t.Fatalf("configured intervals len = %d, want %d (%v)", len(updated), len(want), updated)
+	}
+	for i := range want {
+		if updated[i] != want[i] {
+			t.Fatalf("configured interval %d = %v, want %v", i, updated[i], want[i])
+		}
+	}
+}
+
 func TestExecuteWithRetry_MaxRetryAttempts(t *testing.T) {
 	client := &infiniteRetryClient{
 		mockRetryClient: mockRetryClient{

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,10 +22,47 @@ const FinalRetryInterval = 5 * time.Minute
 
 const maxRetryAttempts = 10
 
+var defaultRetryIntervalsMu sync.RWMutex
+
 func defaultRetryIntervalsCopy() []time.Duration {
+	defaultRetryIntervalsMu.RLock()
+	defer defaultRetryIntervalsMu.RUnlock()
+
 	result := make([]time.Duration, len(defaultRetryIntervals))
 	copy(result, defaultRetryIntervals)
 	return result
+}
+
+// ConfigureDefaultRetryIntervals updates the shared retry backoff used by
+// ExecuteWithRetry. Invalid entries are ignored so one bad config value does
+// not disable the retry policy entirely.
+func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger) {
+	if len(intervalSpecs) == 0 {
+		return
+	}
+
+	intervals := make([]time.Duration, 0, len(intervalSpecs))
+	for _, spec := range intervalSpecs {
+		spec = strings.TrimSpace(spec)
+		if spec == "" {
+			continue
+		}
+		interval, err := time.ParseDuration(spec)
+		if err != nil || interval <= 0 {
+			if logger != nil {
+				logger.Warn("[LLM Retry] Ignoring invalid retry interval", "interval", spec, "error", err)
+			}
+			continue
+		}
+		intervals = append(intervals, interval)
+	}
+	if len(intervals) == 0 {
+		return
+	}
+
+	defaultRetryIntervalsMu.Lock()
+	defaultRetryIntervals = intervals
+	defaultRetryIntervalsMu.Unlock()
 }
 
 var perAttemptTimeoutNanos atomic.Int64
@@ -91,14 +130,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			return openai.ChatCompletionResponse{}, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
 		}
 
-		var waitTime time.Duration
-		if retryAfter := GetRetryAfter(err); retryAfter > 0 {
-			waitTime = retryAfter
-		} else if attempt < len(intervals) {
-			waitTime = intervals[attempt]
-		} else {
-			waitTime = finalInterval
-		}
+		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
 
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			remaining := time.Until(deadline)
@@ -163,14 +195,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			return nil, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
 		}
 
-		var waitTime time.Duration
-		if retryAfter := GetRetryAfter(err); retryAfter > 0 {
-			waitTime = retryAfter
-		} else if attempt < len(intervals) {
-			waitTime = intervals[attempt]
-		} else {
-			waitTime = finalInterval
-		}
+		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
 
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			remaining := time.Until(deadline)
@@ -195,6 +220,17 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func selectRetryWaitTime(attempt int, intervals []time.Duration, finalInterval time.Duration, err error) time.Duration {
+	if retryAfter := GetRetryAfter(err); retryAfter > 0 {
+		return retryAfter
+	}
+	intervalIndex := attempt - 1
+	if intervalIndex >= 0 && intervalIndex < len(intervals) {
+		return intervals[intervalIndex]
+	}
+	return finalInterval
 }
 
 func waitForRetry(ctx context.Context, waitTime time.Duration) bool {

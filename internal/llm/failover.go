@@ -43,8 +43,11 @@ type failoverProbeSnapshot struct {
 }
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
-	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+	if cfg != nil {
+		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
+			SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+		}
+		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
 	}
 	primary := NewClient(cfg)
 
@@ -85,8 +88,11 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 }
 
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
-	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+	if cfg != nil {
+		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
+			SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+		}
+		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, fm.logger)
 	}
 	fm.Stop()
 
