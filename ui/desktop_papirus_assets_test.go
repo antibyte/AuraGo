@@ -56,7 +56,7 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 
 	for _, key := range []string{
 		"analytics", "apps", "archive", "audio", "audio-player", "backup", "book", "browser", "calendar",
-		"calculator", "camera", "chat", "cloud", "code", "css", "database", "desktop",
+		"calculator", "camera", "chat", "cloud", "code", "code-studio", "css", "database", "desktop",
 		"documents", "downloads", "editor", "eye", "folder", "forms", "globe", "go", "heart", "help",
 		"home", "html", "image", "javascript", "json", "key", "mail", "markdown",
 		"map", "maximize", "minus", "monitor", "network", "notes", "package", "pdf", "phone", "printer",
@@ -64,7 +64,7 @@ func TestDesktopPapirusAssetsAreEmbedded(t *testing.T) {
 		"trash", "undo", "video", "weather", "workflow", "writer", "xml", "yaml", "zoom-in", "zoom-out", "zoom-reset",
 		"arrow-up", "check-square", "chevron-down", "chevron-left", "chevron-right",
 		"chevron-up", "clipboard", "copy", "download", "file-plus", "folder-open",
-		"folder-plus", "grid", "info", "launchpad", "list", "refresh", "run", "save", "scissors",
+		"folder-plus", "grid", "info", "launchpad", "list", "looper", "refresh", "run", "save", "scissors",
 		"search", "sort", "stop", "upload", "x",
 	} {
 		path, ok := manifest.Icons[key]
@@ -168,13 +168,14 @@ func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
 		"launchpad: 'apps'",
 		"'music-player': 'audio-player'",
 		"player: 'audio-player'",
-		"Trash: 'package'",
-		"radio: 'audio'",
+		"Trash: 'trash'",
+		"radio: 'radio'",
 		"'agent-chat': 'mail'",
 		"'quick-connect': 'server'",
 		"terminal: 'terminal'",
 		"viewer: 'documents'",
-		"looper: 'workflow'",
+		"looper: 'looper'",
+		"appIconKeys['code-studio'] = 'code-studio'",
 		"music: 'audio-player'",
 		"iconMarkup('launchpad', 'A', 'vd-launchpad-empty-papirus-icon', 42)",
 		"function launchpadCategoryIconKey(category)",

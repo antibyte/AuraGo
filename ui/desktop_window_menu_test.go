@@ -311,7 +311,7 @@ func TestDesktopLooperUsesThemeIconMapping(t *testing.T) {
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
-		"looper: 'workflow'",
+		"looper: 'looper'",
 		"looper: 'Lp'",
 	} {
 		if !strings.Contains(mainText, want) {
@@ -324,8 +324,8 @@ func TestDesktopLooperUsesThemeIconMapping(t *testing.T) {
 		filepath.Join("img", "whitesur", "manifest.json"),
 	} {
 		manifest := readDesktopAssetText(t, manifestPath)
-		if !strings.Contains(manifest, `"workflow"`) {
-			t.Fatalf("%s does not expose the Looper workflow icon through the active theme manifest", manifestPath)
+		if !strings.Contains(manifest, `"looper"`) {
+			t.Fatalf("%s does not expose the Looper icon through the active theme manifest", manifestPath)
 		}
 	}
 }

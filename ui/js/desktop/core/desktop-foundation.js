@@ -78,7 +78,7 @@
         Weather: 'weather',
         Workflows: 'workflow',
         'AuraGo Documents': 'documents',
-        Trash: 'package',
+        Trash: 'trash',
         Shared: 'share'
     };
     const appIconKeys = {
@@ -114,16 +114,16 @@
         music: 'audio-player',
         'music-player': 'audio-player',
         player: 'audio-player',
-        radio: 'audio',
+        radio: 'radio',
         todo: 'notes',
         'agent-chat': 'mail',
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'documents',
         launchpad: 'apps',
-        looper: 'workflow',
+        looper: 'looper',
         'system-info': 'analytics'
     };
-    appIconKeys['code-studio'] = 'code';
+    appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -292,7 +292,7 @@
         return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_');
     }
 
-    function iconAlias(name) { return ({ 'arrow-left': 'chevron-left', 'arrow-right': 'chevron-right', trash: 'package' })[name] || ''; }
+    function iconAlias(name) { return ({ 'arrow-left': 'chevron-left', 'arrow-right': 'chevron-right' })[name] || ''; }
 
     function themeIconPath(key) {
         let normalized = normalizeIconName(key);
@@ -309,7 +309,7 @@
         if (!manifest || !manifest.icons) return '';
         const aliases = manifest.aliases || {};
         const dashed = normalized.replaceAll('_', '-');
-        const candidates = [iconAlias(normalized), normalized, aliases[normalized], iconAlias(dashed), dashed, aliases[dashed]].filter(Boolean);
+        const candidates = [normalized, iconAlias(normalized), aliases[normalized], dashed, iconAlias(dashed), aliases[dashed]].filter(Boolean);
         for (const candidate of candidates) {
             if (manifest.icons[candidate]) return '/' + String(manifest.icons[candidate]).replace(/^\/+/, '');
         }
