@@ -27,7 +27,7 @@ func TestDesktopHTMLBustsDesktopCSSAggregatorCache(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260509c`) {
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260509d`) {
 		t.Fatalf("desktop.html must bust the desktop.css aggregator cache with the current desktop asset version")
 	}
 }
@@ -38,11 +38,18 @@ func TestDesktopCSSCarriesFinalFruityWindowControlOverride(t *testing.T) {
 	css := readDesktopAssetText(t, "css/desktop.css")
 	for _, want := range []string{
 		".desktop-body[data-theme=\"fruity\"] .vd-window > .vd-window-titlebar > .vd-window-actions",
+		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar",
+		"grid-template-columns: 78px minmax(0, 1fr) 78px !important;",
+		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group",
+		"grid-column: 2 !important;",
+		"justify-content: center !important;",
 		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions",
 		"left: 14px !important;",
 		"right: auto !important;",
 		"justify-self: start !important;",
 		"grid-column: 1 !important;",
+		"position: static !important;",
+		"transform: none !important;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop.css missing final Fruity window control override marker %q", want)

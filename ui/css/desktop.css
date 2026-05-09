@@ -1,12 +1,12 @@
 /* desktop.css — aggregator; see desktop-*.css for component styles */
-@import url('desktop-base.css?v=20260509c');
-@import url('desktop-taskbar.css?v=20260509c');
-@import url('desktop-start-menu.css?v=20260509c');
-@import url('desktop-windows.css?v=20260509c');
-@import url('desktop-icons.css?v=20260509c');
-@import url('desktop-widgets.css?v=20260509c');
-@import url('desktop-modals.css?v=20260509c');
-@import url('desktop-apps.css?v=20260509c');
+@import url('desktop-base.css?v=20260509d');
+@import url('desktop-taskbar.css?v=20260509d');
+@import url('desktop-start-menu.css?v=20260509d');
+@import url('desktop-windows.css?v=20260509d');
+@import url('desktop-icons.css?v=20260509d');
+@import url('desktop-widgets.css?v=20260509d');
+@import url('desktop-modals.css?v=20260509d');
+@import url('desktop-apps.css?v=20260509d');
 
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions,
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
@@ -20,9 +20,22 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-actions {
+    position: static !important;
     grid-column: 1 !important;
     grid-row: 1 !important;
-    top: 24px !important;
+    align-self: center !important;
+    justify-self: start !important;
+    transform: none !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar {
+    grid-template-columns: 78px minmax(0, 1fr) 78px !important;
+}
+
+.desktop-body[data-theme="fruity"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group {
+    grid-column: 2 !important;
+    justify-content: center !important;
+    padding: 0 8px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {
