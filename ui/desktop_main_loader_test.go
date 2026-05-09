@@ -51,3 +51,26 @@ func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 		t.Fatal("menus runtime must start at the context-menu runtime boundary")
 	}
 }
+
+func TestDesktopMainLoadsCalendarAfterSplitAppContinuations(t *testing.T) {
+	t.Parallel()
+
+	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	planningIndex := strings.Index(main, "'/js/desktop/apps/planning-gallery-music.js?v=' + v")
+	quickConnectIndex := strings.Index(main, "'/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + v")
+	sdkIndex := strings.Index(main, "'/js/desktop/core/sdk-events-bootstrap.js?v=' + v")
+	calendarIndex := strings.Index(main, "'/js/desktop/apps/calendar.js?v=' + v")
+	for name, index := range map[string]int{
+		"planning-gallery-music":       planningIndex,
+		"quickconnect-launchpad-chat":  quickConnectIndex,
+		"sdk-events-bootstrap":         sdkIndex,
+		"calendar":                     calendarIndex,
+	} {
+		if index < 0 {
+			t.Fatalf("desktop main loader missing %s module", name)
+		}
+	}
+	if !(planningIndex < quickConnectIndex && quickConnectIndex < sdkIndex && sdkIndex < calendarIndex) {
+		t.Fatalf("desktop main loader must keep split app continuations before calendar: planning=%d quickconnect=%d sdk=%d calendar=%d", planningIndex, quickConnectIndex, sdkIndex, calendarIndex)
+	}
+}

@@ -5,22 +5,26 @@ import (
 	"testing"
 )
 
-func TestDesktopTrashAndRadioIconsStayThemeConsistent(t *testing.T) {
+func TestDesktopTrashAndRadioUseDistinctThemeAppIcons(t *testing.T) {
 	t.Parallel()
 
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"Trash: 'package'",
+		"radio: 'audio'",
+		"music: 'audio-player'",
+		"trash: 'package'",
+		"const candidates = [iconAlias(normalized), normalized",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop theme icon resolver missing marker %q", marker)
+		}
+	}
 	for _, theme := range []string{"papirus", "whitesur"} {
-		for _, key := range []string{"radio", "trash"} {
-			path := "img/" + theme + "/icons/" + key + ".svg"
-			svg := rawDesktopAssetText(t, path)
-			for _, marker := range []string{`width="24"`, `height="24"`, "currentColor"} {
-				if !strings.Contains(svg, marker) {
-					t.Fatalf("%s must be a compact theme-consistent icon, missing %q", path, marker)
-				}
-			}
-			for _, forbidden := range []string{"<image", "base64", `width="64"`, `height="64"`, `width="16"`, `height="16"`, `fill="#`} {
-				if strings.Contains(svg, forbidden) {
-					t.Fatalf("%s must not use raster, full-size, legacy 16px, or hard-coded filled artwork, found %q", path, forbidden)
-				}
+		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
+		for _, key := range []string{"package", "audio", "audio-player"} {
+			if !strings.Contains(manifest, `"`+key+`"`) {
+				t.Fatalf("%s theme manifest missing %q", theme, key)
 			}
 		}
 	}
