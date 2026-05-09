@@ -22,8 +22,8 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 			t.Fatalf("desktop main loader must load bundle fragment %s with cache busting", part)
 		}
 	}
-	if !strings.Contains(main, `'/js/desktop/apps/calendar.js?v=' + v`) {
-		t.Fatal("desktop main loader must include the calendar module with cache busting")
+	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
+		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
 	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
@@ -52,25 +52,34 @@ func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	}
 }
 
-func TestDesktopMainLoadsCalendarAfterSplitAppContinuations(t *testing.T) {
+func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 	t.Parallel()
 
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
 	planningIndex := strings.Index(main, "'/js/desktop/apps/planning-gallery-music.js?v=' + v")
 	quickConnectIndex := strings.Index(main, "'/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + v")
 	sdkIndex := strings.Index(main, "'/js/desktop/core/sdk-events-bootstrap.js?v=' + v")
-	calendarIndex := strings.Index(main, "'/js/desktop/apps/calendar.js?v=' + v")
 	for name, index := range map[string]int{
 		"planning-gallery-music":       planningIndex,
 		"quickconnect-launchpad-chat":  quickConnectIndex,
 		"sdk-events-bootstrap":         sdkIndex,
-		"calendar":                     calendarIndex,
 	} {
 		if index < 0 {
 			t.Fatalf("desktop main loader missing %s module", name)
 		}
 	}
-	if !(planningIndex < quickConnectIndex && quickConnectIndex < sdkIndex && sdkIndex < calendarIndex) {
-		t.Fatalf("desktop main loader must keep split app continuations before calendar: planning=%d quickconnect=%d sdk=%d calendar=%d", planningIndex, quickConnectIndex, sdkIndex, calendarIndex)
+	if !(planningIndex < quickConnectIndex && quickConnectIndex < sdkIndex) {
+		t.Fatalf("desktop main loader must keep split app continuations before sdk bootstrap: planning=%d quickconnect=%d sdk=%d", planningIndex, quickConnectIndex, sdkIndex)
+	}
+
+	sdk := rawDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	calendarIndex := strings.Index(sdk, "async function renderCalendar(id)")
+	initIndex := strings.Index(sdk, "async function init()")
+	closeIndex := strings.LastIndex(sdk, "})();")
+	if calendarIndex < 0 {
+		t.Fatal("sdk-events-bootstrap must embed renderCalendar inside the desktop runtime closure")
+	}
+	if !(calendarIndex < initIndex && initIndex < closeIndex) {
+		t.Fatalf("renderCalendar must be inside the runtime closure before init: calendar=%d init=%d close=%d", calendarIndex, initIndex, closeIndex)
 	}
 }
