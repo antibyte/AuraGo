@@ -95,9 +95,9 @@ go build -o aurago ./cmd/aurago
 |:---------:|:----:|:----------:|:-------------:|
 | ![Dashboard](documentation/screenshots/dashboard.png) | ![Chat](documentation/screenshots/chat.png) | ![Containers](documentation/screenshots/containers.png) | ![Config](documentation/screenshots/config.png) |
 
-| Desktop |
-|:-------:|
-| ![Desktop](documentation/screenshots/desktop.png) |
+| Virtual Desktop in Browser |
+|:--------------------------:|
+| ![Virtual Desktop in Browser](documentation/screenshots/desktop.png) |
 
 ### Theme Variants
 
