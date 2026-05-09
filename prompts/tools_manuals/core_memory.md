@@ -2,6 +2,8 @@
 
 Add or remove critical, permanent facts from `core_memory.md`. This file is injected into your system prompt **every single turn** — each entry costs tokens on every request.
 
+Core Memory is agent-owned. No background maintenance, startup migration, dashboard form, memory analysis, media registry, or tool integration may add or update facts here. Only the agent may write through `manage_memory/core_memory` or `remember` when it deliberately records a durable fact.
+
 Core Memory is not a task list, maintenance scratchpad, or bulk cleanup surface. Use the agent's dedicated notes, planner, journal, or internal task list for operational work.
 
 ## When to use — Decision Tree
@@ -60,6 +62,7 @@ Is it a preference, constraint, or environment fact?
 
 - **Token cost**: Every fact in core memory is included in every LLM request. Keep facts concise.
 - **Write gate**: The backend rejects transient operational entries even if the agent explicitly asks for Core Memory.
+- **Agent-only writes**: System jobs and dashboard APIs must not add or update Core Memory. Deletion/cleanup is administrative; new facts must come from the agent.
 - **Permanence**: Facts here persist until explicitly removed. Only add information that is truly permanent.
 - **Removal**: Use `remove` with the **exact** fact text to delete it.
 - **ID deletion**: Use `delete` only with one numeric ID from a recent `list` result. Never bulk-delete guessed entries, and stop after any warning or error.

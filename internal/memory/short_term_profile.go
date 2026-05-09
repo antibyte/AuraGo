@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"bufio"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -189,34 +188,6 @@ func (s *SQLiteMemory) DeleteAllCoreMemoryFacts() (int64, error) {
 	}
 	affected, _ := res.RowsAffected()
 	return affected, nil
-}
-
-// PruneTransientCoreMemoryFacts removes entries that violate the current core
-// memory policy. It is meant for startup cleanup after older builds polluted
-// core memory with operational history, generated media metadata, or tool state.
-func (s *SQLiteMemory) PruneTransientCoreMemoryFacts(logger *slog.Logger) (int64, error) {
-	facts, err := s.GetCoreMemoryFacts()
-	if err != nil {
-		return 0, err
-	}
-	var deleted int64
-	var firstErr error
-	for _, fact := range facts {
-		if err := ValidateCoreMemoryFact(fact.Fact); err == nil {
-			continue
-		}
-		if err := s.DeleteCoreMemoryFact(fact.ID); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			if logger != nil {
-				logger.Warn("Core memory prune: failed to delete transient fact", "id", fact.ID, "error", err)
-			}
-			continue
-		}
-		deleted++
-	}
-	return deleted, firstErr
 }
 
 // FindCoreMemoryIDByFact returns the ID of the first entry whose fact text
@@ -639,10 +610,9 @@ func (s *SQLiteMemory) enforceProfileCategoryLimit(category string, maxEntries i
 	return err
 }
 
-// MigrateCoreMemoryFromMarkdown reads the legacy core_memory.md file,
-// imports its bullet-point lines into SQLite, renames the file to
-// core_memory.md.migrated, and returns whether the system is on its
-// first start (no prior facts existed).
+// MigrateCoreMemoryFromMarkdown preserves the legacy first-start sentinel
+// behavior without importing facts. Core memory is agent-owned; startup
+// migration must never write facts on the agent's behalf.
 func (s *SQLiteMemory) MigrateCoreMemoryFromMarkdown(dataDir string, logger *slog.Logger) (isFirstStart bool) {
 	mdPath := filepath.Join(dataDir, "core_memory.md")
 	migratedPath := mdPath + ".migrated"
@@ -656,55 +626,31 @@ func (s *SQLiteMemory) MigrateCoreMemoryFromMarkdown(dataDir string, logger *slo
 
 	count, _ := s.GetCoreMemoryCount()
 
-	data, err := os.ReadFile(mdPath)
-	if err != nil {
+	if _, err := os.Stat(mdPath); err != nil {
 		// No .md file. If the table is also empty, this is a genuine first start.
 		if count == 0 {
 			// Write the sentinel now so that a future DB wipe or corruption recovery
 			// does not re-trigger the naming prompt. The prompt fires exactly once.
 			if werr := os.WriteFile(migratedPath, []byte(""), 0644); werr != nil {
-				logger.Warn("[Memory] Could not create first-start sentinel", "path", migratedPath, "error", werr)
+				if logger != nil {
+					logger.Warn("[Memory] Could not create first-start sentinel", "path", migratedPath, "error", werr)
+				}
 			}
 			return true
 		}
 		return false
 	}
 
-	var facts []string
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "- ") {
-			fact := strings.TrimPrefix(line, "- ")
-			if fact != "" {
-				facts = append(facts, fact)
-			}
-		}
-	}
-
-	if len(facts) > 0 && count == 0 {
-		imported := 0
-		skipped := 0
-		for _, f := range facts {
-			if err := ValidateCoreMemoryFact(f); err != nil {
-				skipped++
-				logger.Warn("Core memory migration: skipped transient fact", "error", err)
-				continue
-			}
-			if _, err := s.AddCoreMemoryFact(f); err != nil {
-				logger.Error("Core memory migration: failed to insert fact", "fact", f, "error", err)
-				continue
-			}
-			imported++
-		}
-		logger.Info("Core memory migrated from markdown", "facts_imported", imported, "facts_skipped", skipped)
+	if logger != nil {
+		logger.Info("Core memory markdown migration skipped; core memory writes are agent-only")
 	}
 
 	// Rename the .md file so migration only runs once.
 	if err := os.Rename(mdPath, migratedPath); err != nil {
-		logger.Warn("Could not rename core_memory.md after migration", "error", err)
+		if logger != nil {
+			logger.Warn("Could not rename core_memory.md after migration", "error", err)
+		}
 	}
 
-	// isFirstStart: no prior facts in either source.
-	return len(facts) == 0 && count == 0
+	return false
 }

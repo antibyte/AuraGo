@@ -228,7 +228,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && !longTermMem.IsDisabled() {
 		consolidateSTMtoLTM(cfg, logger, client, shortTermMem, longTermMem, kg)
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
-		promoteStableLongTermMemoriesToCore(logger, shortTermMem, longTermMem)
 		detectMemoryConflictsAcrossLTM(logger, shortTermMem, longTermMem)
 	}
 
@@ -1070,44 +1069,6 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			RelatedDocIDs:  uniqueHierarchyStrings(related),
 		})
 		_ = stm.MarkEpisodicMemoriesHierarchy(episodeIDs, 2)
-	}
-}
-
-func promoteStableLongTermMemoriesToCore(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
-	if stm == nil || ltm == nil || ltm.IsDisabled() {
-		return
-	}
-	metas, err := stm.GetAllMemoryMeta(500, 0)
-	if err != nil {
-		return
-	}
-	for _, meta := range metas {
-		if meta.KeepForever || meta.Protected || meta.VerificationStatus == "contradicted" {
-			continue
-		}
-		if meta.AccessCount < 2 || meta.ExtractionConfidence < 0.85 || meta.SourceReliability < 0.8 {
-			continue
-		}
-		if meta.UsefulCount > 0 && meta.UsefulCount < meta.UselessCount {
-			continue
-		}
-		content, err := ltm.GetByID(meta.DocID)
-		if err != nil || strings.TrimSpace(content) == "" {
-			continue
-		}
-		fact := truncateHierarchySummary(strings.Join(strings.Fields(content), " "), 260)
-		if fact == "" || stm.CoreMemoryFactExists(fact) {
-			continue
-		}
-		if err := memory.ValidateCoreMemoryFact(fact); err != nil {
-			logger.Debug("[Hierarchy] Skipping transient memory promotion to core", "doc_id", meta.DocID, "error", err)
-			continue
-		}
-		if _, err := stm.AddCoreMemoryFact(fact); err != nil {
-			logger.Warn("[Hierarchy] Failed to promote memory to core", "doc_id", meta.DocID, "error", err)
-			continue
-		}
-		_ = stm.SetMemoryMetaProtection(meta.DocID, true, true)
 	}
 }
 

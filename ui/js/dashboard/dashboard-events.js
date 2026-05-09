@@ -235,10 +235,6 @@
                 const facts = data.facts || [];
 
                 let html = `<div class="cf-add-bar">
-                    <div class="cf-add-wrap">
-                        <input type="text" class="cf-add-input" id="cfAddInput" placeholder="${t('dashboard.core_facts_modal_add_placeholder')}" onkeydown="if(event.key==='Enter')cfAddFact()">
-                        <button class="cf-add-btn" onclick="cfAddFact()">＋</button>
-                    </div>
                     <button class="cf-add-btn cf-delete-all-btn" onclick="cfDeleteAllFacts()" ${facts.length === 0 ? 'disabled' : ''}>${t('dashboard.core_facts_modal_delete_all')}</button>
                 </div>`;
 
@@ -250,7 +246,6 @@
                             <span class="cf-id">[${f.id}]</span>
                             <span class="cf-fact-text" id="cf-text-${f.id}">${esc(f.fact)}</span>
                             <span class="cf-fact-actions">
-                                <button class="cf-fact-btn" onclick="cfEditFact(${f.id})" title="${t('dashboard.core_facts_modal_edit')}">✏️</button>
                                 <button class="cf-fact-btn danger" onclick="cfDeleteFact(${f.id})" title="${t('dashboard.core_facts_modal_delete')}">🗑️</button>
                             </span>
                         </div>`
@@ -259,62 +254,6 @@
                 body.innerHTML = html;
             } catch (e) {
                 body.innerHTML = '<div class="empty-state">' + t('dashboard.core_facts_modal_error_load') + '</div>';
-            }
-        }
-
-        async function cfAddFact() {
-            const input = document.getElementById('cfAddInput');
-            const fact = (input.value || '').trim();
-            if (!fact) return;
-            input.disabled = true;
-            try {
-                const resp = await fetch('/api/dashboard/core-memory/mutate', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fact })
-                });
-                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_add'));
-                await openCoreFactsModal(); // reload
-            } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
-                input.disabled = false;
-            }
-        }
-
-        function cfEditFact(id) {
-            const textEl = document.getElementById('cf-text-' + id);
-            if (!textEl) return;
-            const currentText = textEl.textContent;
-            const factDiv = textEl.closest('.cf-fact');
-            const actionsEl = factDiv.querySelector('.cf-fact-actions');
-
-            // Replace text with inline input
-            textEl.outerHTML = `<input type="text" class="cf-add-input cf-edit-input" id="cf-edit-${id}" value="${esc(currentText)}" onkeydown="if(event.key==='Enter')cfSaveEdit(${id});if(event.key==='Escape')openCoreFactsModal();">`;
-            actionsEl.innerHTML = `
-                <button class="cf-fact-btn cf-fact-btn-success" onclick="cfSaveEdit(${id})" title="${t('dashboard.core_facts_modal_save')}">✅</button>
-                <button class="cf-fact-btn" onclick="openCoreFactsModal()" title="${t('dashboard.core_facts_modal_cancel')}">❌</button>`;
-            document.getElementById('cf-edit-' + id).focus();
-        }
-
-        async function cfSaveEdit(id) {
-            const input = document.getElementById('cf-edit-' + id);
-            if (!input) return;
-            const fact = (input.value || '').trim();
-            if (!fact) return;
-            input.disabled = true;
-            try {
-                const resp = await fetch('/api/dashboard/core-memory/mutate', {
-                    method: 'PUT',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, fact })
-                });
-                if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_save'));
-                await openCoreFactsModal(); // reload
-            } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
-                input.disabled = false;
             }
         }
 

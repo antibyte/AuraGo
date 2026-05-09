@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -338,29 +340,25 @@ func TestCoreMemoryUpdatedAt_DeleteOnlyFactReturnsZero(t *testing.T) {
 	}
 }
 
-func TestPruneTransientCoreMemoryFactsRemovesOnlyPolicyViolations(t *testing.T) {
+func TestMigrateCoreMemoryFromMarkdownDoesNotImportFacts(t *testing.T) {
 	stm := newTestProfileDB(t)
-
-	if _, err := stm.AddCoreMemoryFact("Username is Andi"); err != nil {
-		t.Fatalf("AddCoreMemoryFact durable: %v", err)
-	}
-	if _, err := stm.AddCoreMemoryFact(`2026-05-08: Created "Chaos Symphony XIII", uploaded to Koofr /aurago/music. Media Registry ID: 2320.`); err != nil {
-		t.Fatalf("AddCoreMemoryFact transient: %v", err)
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "core_memory.md"), []byte("- Username is Andi\n"), 0o644); err != nil {
+		t.Fatalf("write legacy core memory: %v", err)
 	}
 
-	deleted, err := stm.PruneTransientCoreMemoryFacts(nil)
+	if firstStart := stm.MigrateCoreMemoryFromMarkdown(dataDir, nil); firstStart {
+		t.Fatal("legacy core_memory.md must not be treated as first start")
+	}
+
+	count, err := stm.GetCoreMemoryCount()
 	if err != nil {
-		t.Fatalf("PruneTransientCoreMemoryFacts: %v", err)
+		t.Fatalf("GetCoreMemoryCount: %v", err)
 	}
-	if deleted != 1 {
-		t.Fatalf("deleted = %d, want 1", deleted)
+	if count != 0 {
+		t.Fatalf("core memory count = %d, want 0; migration must not write facts", count)
 	}
-
-	facts, err := stm.GetCoreMemoryFacts()
-	if err != nil {
-		t.Fatalf("GetCoreMemoryFacts: %v", err)
-	}
-	if len(facts) != 1 || facts[0].Fact != "Username is Andi" {
-		t.Fatalf("remaining facts = %+v, want only durable fact", facts)
+	if _, err := os.Stat(filepath.Join(dataDir, "core_memory.md.migrated")); err != nil {
+		t.Fatalf("legacy sentinel not renamed: %v", err)
 	}
 }

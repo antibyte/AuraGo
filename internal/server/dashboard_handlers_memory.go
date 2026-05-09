@@ -226,47 +226,12 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			var req struct {
-				Fact string `json:"fact"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Fact == "" {
-				jsonError(w, `{"error":"fact is required"}`, http.StatusBadRequest)
-				return
-			}
-			if err := memory.ValidateCoreMemoryFact(req.Fact); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			id, err := s.ShortTermMem.AddCoreMemoryFact(req.Fact)
-			if err != nil {
-				jsonError(w, `{"error":"Failed to add core memory fact"}`, http.StatusInternalServerError)
-				return
-			}
-			go pushMemoryStats()
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "id": id})
+			jsonError(w, "Core memory writes are agent-only. Use the agent's manage_memory/remember tools.", http.StatusForbidden)
+			return
 
 		case http.MethodPut:
-			var req struct {
-				ID   int64  `json:"id"`
-				Fact string `json:"fact"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 || req.Fact == "" {
-				jsonError(w, `{"error":"id and fact are required"}`, http.StatusBadRequest)
-				return
-			}
-			if err := memory.ValidateCoreMemoryFact(req.Fact); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			if err := s.ShortTermMem.UpdateCoreMemoryFact(req.ID, req.Fact); err != nil {
-				jsonError(w, `{"error":"Failed to update core memory fact"}`, http.StatusInternalServerError)
-				return
-			}
-			go pushMemoryStats()
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			jsonError(w, "Core memory writes are agent-only. Use the agent's manage_memory/remember tools.", http.StatusForbidden)
+			return
 
 		case http.MethodDelete:
 			var req struct {

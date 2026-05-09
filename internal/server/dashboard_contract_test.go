@@ -193,7 +193,7 @@ func TestHandleDashboardCoreMemoryMutateDeleteAllRequiresConfirmation(t *testing
 	}
 }
 
-func TestHandleDashboardCoreMemoryMutateRejectsTransientFacts(t *testing.T) {
+func TestHandleDashboardCoreMemoryMutateRejectsWrites(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {
@@ -207,14 +207,14 @@ func TestHandleDashboardCoreMemoryMutateRejectsTransientFacts(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/dashboard/core-memory/mutate",
-		bytes.NewReader([]byte(`{"fact":"[recent_operational_details] Virtual desktop app path: Apps/space-invaders.html, app_id: space-invaders"}`)),
+		bytes.NewReader([]byte(`{"fact":"User prefers concise German answers"}`)),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
 	count, err := stm.GetCoreMemoryCount()
 	if err != nil {

@@ -4,6 +4,8 @@ A simplified single-entry-point for storing useful information. The system auto-
 
 Core Memory is a tiny permanent profile injected into every prompt. It is not the default destination. If content is not clearly a stable user fact, durable preference, hard constraint, or rarely-changing environment fact, route it to Journal or Notes instead.
 
+Core Memory writes are agent-only. `remember` may route to Core Memory only when the agent deliberately records a durable fact; background systems, dashboard forms, migration jobs, and tool integrations must not create or update Core Memory entries.
+
 ## Auto-Classification
 
 | Content pattern | Stored as | Example |
