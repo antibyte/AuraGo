@@ -189,7 +189,7 @@ func TestServiceBootstrapIncludesMediaMountsAndGalleryApp(t *testing.T) {
 	var foundGallery bool
 	for _, app := range bootstrap.BuiltinApps {
 		if app.ID == "gallery" {
-			foundGallery = app.Icon == "image" && app.Entry == "builtin://gallery"
+			foundGallery = app.Icon == "gallery" && app.Entry == "builtin://gallery"
 		}
 	}
 	if !foundGallery {
@@ -208,7 +208,7 @@ func TestServiceBootstrapIncludesCodeStudioApp(t *testing.T) {
 	var foundCodeStudio bool
 	for _, app := range bootstrap.BuiltinApps {
 		if app.ID == "code-studio" {
-			foundCodeStudio = app.Icon == "code" && app.Entry == "builtin://code-studio"
+			foundCodeStudio = app.Icon == "code-studio" && app.Entry == "builtin://code-studio"
 		}
 	}
 	if !foundCodeStudio {
@@ -231,9 +231,12 @@ func TestServiceBootstrapUsesDistinctBuiltinAppIcons(t *testing.T) {
 	for id, wantIcon := range map[string]string{
 		"writer":       "writer",
 		"launchpad":    "launchpad",
+		"gallery":      "gallery",
 		"music-player": "audio-player",
 		"radio":        "radio",
-		"agent-chat":   "chat",
+		"agent-chat":   "agent-chat",
+		"code-studio":  "code-studio",
+		"looper":       "looper",
 	} {
 		if got[id].Icon != wantIcon {
 			t.Fatalf("builtin app %q icon = %q, want %q", id, got[id].Icon, wantIcon)

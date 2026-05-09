@@ -205,6 +205,7 @@ func DesktopSettingDefaults() map[string]string {
 
 var desktopPreferredIconNames = []string{
 	"analytics",
+	"agent-chat",
 	"apps",
 	"apps-symbolic",
 	"arrow-up",
@@ -243,6 +244,7 @@ var desktopPreferredIconNames = []string{
 	"folder-plus",
 	"folder-symbolic",
 	"forms",
+	"gallery",
 	"globe",
 	"go",
 	"grid",
@@ -305,7 +307,7 @@ var desktopPreferredIconNames = []string{
 }
 
 var desktopIconAliases = map[string]string{
-	"agent_chat":       "chat",
+	"agent_chat":       "agent-chat",
 	"automation":       "workflow",
 	"backup":           "backup",
 	"backups":          "backup",
@@ -557,14 +559,14 @@ func BuiltinApps() []AppManifest {
 		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
 		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Description: "Scientific calculator with standard and advanced modes."},
 		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Description: "Task management connected to the backend planner."},
-		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "image", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
+		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "gallery", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
 		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio-player", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Description: "Stream popular internet radio stations by category and search."},
-		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
+		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH servers with an interactive terminal."},
-		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code-studio", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "launchpad", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Description: "Quick-access launcher for local and remote web links."},
-		{ID: "looper", Name: "Looper", Version: "1.0.0", Icon: "refresh", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Iterative agent loop with prepare, plan, action, test and exit condition.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "looper", Name: "Looper", Version: "1.0.0", Icon: "looper", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Iterative agent loop with prepare, plan, action, test and exit condition.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "camera", Name: "Camera", Version: "1.0.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Description: "Capture photos with your camera and save or analyze them.", Permissions: []string{"files:write", "notifications"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}},
 	}

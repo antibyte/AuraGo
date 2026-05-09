@@ -98,7 +98,7 @@
         settings: 'settings',
         calendar: 'calendar',
         calculator: 'calculator',
-        gallery: 'image',
+        gallery: 'gallery',
         mail: 'mail',
         map: 'map',
         maps: 'map',
@@ -116,10 +116,10 @@
         player: 'audio-player',
         radio: 'radio',
         todo: 'notes',
-        'agent-chat': 'mail',
+        'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'documents',
-        launchpad: 'apps',
+        launchpad: 'launchpad',
         looper: 'looper',
         'system-info': 'analytics'
     };
@@ -273,8 +273,8 @@
     async function loadIconManifest() {
         const [spriteManifest, defaultThemeManifest, whitesurThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
-            api('/img/papirus/manifest.json?v=2').catch(() => null),
-            api('/img/whitesur/manifest.json?v=1').catch(() => null)
+            api('/img/papirus/manifest.json?v=3').catch(() => null),
+            api('/img/whitesur/manifest.json?v=2').catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
@@ -825,7 +825,7 @@
                     type: 'app',
                     app,
                     path: shortcut.path || '',
-                    icon: shortcut.icon || '',
+                    icon: appIconKeys[app.id] || shortcut.icon || app.icon || '',
                     shortcut
                 };
             }

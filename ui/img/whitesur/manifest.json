@@ -11,6 +11,7 @@
                ],
     "icons":  {
                   "analytics":  "img/whitesur/icons/analytics.svg",
+                  "agent-chat":  "img/whitesur/icons/agent-chat.svg",
                   "apps":  "img/whitesur/icons/apps.svg",
                   "apps-symbolic":  "img/whitesur/icons/apps-symbolic.svg",
                   "archive":  "img/whitesur/icons/archive.svg",
@@ -49,6 +50,7 @@
                   "folder-plus":  "img/whitesur/icons/folder-plus.svg",
                   "folder-symbolic":  "img/whitesur/icons/folder-symbolic.svg",
                   "forms":  "img/whitesur/icons/forms.svg",
+                  "gallery":  "img/whitesur/icons/gallery.svg",
                   "globe":  "img/whitesur/icons/globe.svg",
                   "go":  "img/whitesur/icons/go.svg",
                   "grid":  "img/whitesur/icons/grid.svg",
@@ -110,7 +112,7 @@
                   "zoom-reset":  "img/whitesur/icons/zoom-reset.svg"
               },
     "aliases":  {
-                    "agent_chat":  "chat",
+                    "agent_chat":  "agent-chat",
                     "automation":  "workflow",
                     "backup":  "backup",
                     "backups":  "backup",

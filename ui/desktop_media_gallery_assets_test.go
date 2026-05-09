@@ -33,7 +33,7 @@ func TestDesktopMediaGalleryAssets(t *testing.T) {
 
 	var hasGallery bool
 	for _, app := range desktop.BuiltinApps() {
-		if app.ID == "gallery" && app.Icon == "image" {
+		if app.ID == "gallery" && app.Icon == "gallery" {
 			hasGallery = true
 		}
 	}

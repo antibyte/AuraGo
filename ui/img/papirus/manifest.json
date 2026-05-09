@@ -13,6 +13,7 @@
   ],
   "icons": {
     "analytics": "img/papirus/icons/analytics.svg",
+    "agent-chat": "img/papirus/icons/agent-chat.svg",
     "apps": "img/papirus/icons/apps.svg",
     "apps-symbolic": "img/papirus/icons/apps-symbolic.svg",
     "arrow-up": "img/papirus/icons/arrow-up.svg",
@@ -51,6 +52,7 @@
     "folder-plus": "img/papirus/icons/folder-plus.svg",
     "folder-symbolic": "img/papirus/icons/folder-symbolic.svg",
     "forms": "img/papirus/icons/forms.svg",
+    "gallery": "img/papirus/icons/gallery.svg",
     "globe": "img/papirus/icons/globe.svg",
     "go": "img/papirus/icons/go.svg",
     "grid": "img/papirus/icons/grid.svg",
@@ -112,7 +114,7 @@
     "zoom-reset": "img/papirus/icons/zoom-reset.svg"
   },
   "aliases": {
-    "agent_chat": "chat",
+    "agent_chat": "agent-chat",
     "automation": "workflow",
     "backup": "backup",
     "backups": "backup",
