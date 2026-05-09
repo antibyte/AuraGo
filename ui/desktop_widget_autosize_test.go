@@ -22,8 +22,10 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"--vd-widget-frame-height",
 		"WIDGET_AUTO_SIZE_PADDING",
 		"WIDGET_FRAME_SCROLLBAR_BUFFER",
+		"WIDGET_FRAME_CHROME_BUFFER",
 		"function widgetMeasuredContentHeight(",
 		"function widgetElementBottom(",
+		"function widgetMaxWidth(",
 		"function clearWidgetRuntime",
 		"state.widgetCleanups",
 		"clearInterval",
@@ -45,6 +47,17 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 	} {
 		if !strings.Contains(autosizeBody, want) {
 			t.Fatalf("desktop widget autosize should measure rendered content and leave iframe scrollbar headroom; missing %q", want)
+		}
+	}
+
+	resizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function resizeWidgetToContent(widgetId, payload)")
+	for _, want := range []string{
+		"reportedWidth + WIDGET_FRAME_CHROME_BUFFER",
+		"widgetMaxWidth(card)",
+		"card.style.width",
+	} {
+		if !strings.Contains(resizeBody, want) {
+			t.Fatalf("desktop widget autosize should expand the outer card for iframe chrome; missing %q", want)
 		}
 	}
 }

@@ -32,6 +32,8 @@ func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
 		"desktop:widget:resize",
 		"ResizeObserver",
 		"MutationObserver",
+		"doc.scrollHeight",
+		"body.scrollHeight",
 		"</script></body>",
 	} {
 		if !strings.Contains(body, want) {

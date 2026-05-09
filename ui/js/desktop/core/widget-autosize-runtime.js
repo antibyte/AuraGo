@@ -94,7 +94,7 @@
         const data = payload && typeof payload === 'object' ? payload : {};
         const reportedWidth = Number(data.width || data.w || 0);
         if (reportedWidth > 16) {
-            const nextWidth = Math.max(220, Math.min(Math.ceil(reportedWidth), widgetMaxWidth(card)));
+            const nextWidth = Math.max(220, Math.min(Math.ceil(reportedWidth + WIDGET_FRAME_CHROME_BUFFER), widgetMaxWidth(card)));
             card.style.width = nextWidth + 'px';
         }
         applyWidgetAutoSize(card, data);
