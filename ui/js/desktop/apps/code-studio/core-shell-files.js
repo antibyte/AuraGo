@@ -687,7 +687,7 @@
     }
 
     function applyEditorZoom() {
-        const root = shellPart('.code-studio');
+        const root = studioRoot();
         if (!root) return;
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
         const target = state;

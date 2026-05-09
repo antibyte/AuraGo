@@ -270,10 +270,14 @@ func TestCodeStudioWindowMenuEditorZoom(t *testing.T) {
 		"function refreshActiveEditorZoomLayout()",
 		"requestMeasure",
 		"--cs-editor-font-size",
+		"const root = studioRoot();",
 	} {
 		if !strings.Contains(codeStudioText, want) {
 			t.Fatalf("Code Studio editor zoom implementation missing marker %q", want)
 		}
+	}
+	if strings.Contains(codeStudioText, "shellPart('.code-studio')") {
+		t.Fatalf("Code Studio editor zoom must update the shell root itself, not query for a nested .code-studio element")
 	}
 	if !strings.Contains(codeStudioCSS, "font-size: var(--cs-editor-font-size") {
 		t.Fatalf("Code Studio CSS does not bind editor font size to --cs-editor-font-size")
