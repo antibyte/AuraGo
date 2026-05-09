@@ -27,7 +27,7 @@ func TestDesktopHTMLBustsDesktopCSSAggregatorCache(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260509d`) {
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260509e`) {
 		t.Fatalf("desktop.html must bust the desktop.css aggregator cache with the current desktop asset version")
 	}
 }
@@ -40,6 +40,7 @@ func TestDesktopCSSCarriesFinalFruityWindowControlOverride(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"] .vd-window > .vd-window-titlebar > .vd-window-actions",
 		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar",
 		"grid-template-columns: 78px minmax(0, 1fr) 78px !important;",
+		"padding: 0 14px !important;",
 		".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu > .vd-window-titlebar > .vd-window-title-group",
 		"grid-column: 2 !important;",
 		"justify-content: center !important;",
