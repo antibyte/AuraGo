@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -81,6 +83,16 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 			t.Fatalf("desktop gallery CSS missing readable filename marker %q", want)
 		}
 	}
+	galleryGridRule := cssRuleBlock(t, css, ".vd-gallery-grid")
+	gridRowMin := cssPixelValue(t, galleryGridRule, `grid-auto-rows:\s*minmax\((\d+)px,\s*auto\);`)
+	if gridRowMin < 204 {
+		t.Fatalf("desktop gallery grid rows must fit preview, filename, and actions without clipping: got %dpx", gridRowMin)
+	}
+	galleryCardRule := cssRuleBlock(t, css, ".vd-gallery-card")
+	cardMin := cssPixelValue(t, galleryCardRule, `min-height:\s*(\d+)px;`)
+	if cardMin < 204 {
+		t.Fatalf("desktop gallery cards must be tall enough for action row without clipping: got %dpx", cardMin)
+	}
 	actionIconRule := css[strings.Index(css, ".vd-gallery-action-icon.vd-papirus-icon"):]
 	if idx := strings.Index(actionIconRule, "}"); idx >= 0 {
 		actionIconRule = actionIconRule[:idx]
@@ -88,6 +100,32 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 	if strings.Contains(actionIconRule, "drop-shadow") {
 		t.Fatalf("desktop gallery action icons must not use drop-shadow in compact buttons")
 	}
+}
+
+func cssRuleBlock(t *testing.T, css, selector string) string {
+	t.Helper()
+	start := strings.Index(css, selector+" {")
+	if start < 0 {
+		t.Fatalf("desktop gallery CSS missing rule %q", selector)
+	}
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		t.Fatalf("desktop gallery CSS rule %q is not closed", selector)
+	}
+	return css[start : start+end+1]
+}
+
+func cssPixelValue(t *testing.T, css, pattern string) int {
+	t.Helper()
+	matches := regexp.MustCompile(pattern).FindStringSubmatch(css)
+	if len(matches) != 2 {
+		t.Fatalf("desktop gallery CSS missing pixel rule %q", pattern)
+	}
+	value, err := strconv.Atoi(matches[1])
+	if err != nil {
+		t.Fatalf("parse CSS pixel value %q: %v", matches[1], err)
+	}
+	return value
 }
 
 func TestDesktopMediaGalleryActionIconsExistInBothThemes(t *testing.T) {

@@ -10,8 +10,8 @@ func TestDesktopGalleryUsesStableThumbnailDimensions(t *testing.T) {
 
 	css := readAllDesktopCSS(t)
 	for _, want := range []string{
-		"grid-auto-rows: minmax(176px, auto);",
-		"min-height: 176px;",
+		"grid-auto-rows: minmax(208px, auto);",
+		"min-height: 208px;",
 		"flex: 0 0 126px;",
 		"height: 126px;",
 		"min-height: 126px;",
