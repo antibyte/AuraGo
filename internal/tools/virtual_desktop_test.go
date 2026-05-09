@@ -232,6 +232,36 @@ func TestExecuteVirtualDesktopOpenInAppOpensStandaloneWidgetFile(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopOpenInAppRejectsMissingStandaloneWidgetFileWithCode(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	open := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"app_id":    "space-invaders",
+		"path":      "Widgets/space-invaders.html",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code string `json:"code"`
+			Path string `json:"path"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(open.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open output: %v\n%s", err, open.Output)
+	}
+	if payload.Status != "error" {
+		t.Fatalf("status = %s, want error: %s", payload.Status, open.Output)
+	}
+	if payload.Data.Code != "desktop_widget_not_registered" {
+		t.Fatalf("code = %s, want desktop_widget_not_registered: %s", payload.Data.Code, open.Output)
+	}
+	if open.Event != nil {
+		t.Fatalf("event = %#v, want nil", open.Event)
+	}
+}
+
 func TestExecuteVirtualDesktopOpenInAppRejectsMissingApp(t *testing.T) {
 	t.Parallel()
 

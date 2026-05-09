@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Removes stale tool transition data after X days.",
   "help.agent.adaptive_tools.decay_half_life_days": "Half-life for usage scoring in days. Older usage data loses influence. Higher values = slower forgetting.",
   "help.agent.adaptive_tools.enabled": "Learns from usage history which tools are used most and prioritizes them. Less-used tools are offered less frequently.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maximum adaptive/preferred tool schemas. Required and always-include tools may be added on top.",
   "help.agent.adaptive_tools.weight_success_rate": "Prefers tools with higher success rates in adaptive selection.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic used for AuraGo availability messages. Default: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads used for online and offline availability messages.",
   "help.mqtt.availability_qos": "QoS level used for availability messages.",
-  "help.mqtt.availability_retain": "When enabled, the broker retains the latest availability state for new subscribers."
+  "help.mqtt.availability_retain": "When enabled, the broker retains the latest availability state for new subscribers.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximum final native tool schemas after hard-required tools are kept.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Applies provider-specific stability profiles for tool limits and response-header timeouts.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "How many recent turns keep used tools visible as soft always-include tools."
 }

@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Usuwa nieaktualne dane przejść narzędzi po X dniach.",
   "help.agent.adaptive_tools.decay_half_life_days": "Okres półtrwania dla oceny wykorzystania w dniach. Starsze dane o użyciu tracą wpływ. Wyższe wartości = wolniejsze zapominanie.",
   "help.agent.adaptive_tools.enabled": "Uczy się z historii użycia, które narzędzia są używane najczęściej i nadaje im priorytet. Rzadziej używane narzędzia są oferowane rzadziej.",
-  "help.agent.adaptive_tools.max_tools": "Maksymalna liczba narzędzi oferowanych jednocześnie do LLM. Zmniejsza zużycie tokenów.",
+  "help.agent.adaptive_tools.max_tools": "Maksymalna liczba adaptacyjnych/preferowanych narzedzi. Narzedzia wymagane i zawsze widoczne moga dojsc dodatkowo.",
   "help.agent.adaptive_tools.weight_success_rate": "Preferuje narzędzia o wyższych wskaźnikach sukcesu w doborze adaptacyjnym.",
   "help.agent.additional_prompt": "Dowolny tekst, który jest zawsze dołączany na końcu promptu systemowego. Idealny dla reguł specyficznych dla użytkownika, informacji kontekstowych lub stałych instrukcji, które powinny dotyczyć każdego żądania.",
   "help.agent.allow_filesystem_write": "Gdy wyłączone, dozwolone są tylko operacje odczytu (list, read). Operacje zapisu (write, delete, move, mkdir…) są blokowane.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic używany dla wiadomości dostępności AuraGo. Domyślnie: aurago/status.",
   "help.mqtt.availability_payloads": "Payloady używane dla wiadomości dostępności online i offline.",
   "help.mqtt.availability_qos": "Poziom QoS dla wiadomości dostępności.",
-  "help.mqtt.availability_retain": "Gdy włączone, broker zachowuje ostatni stan dostępności dla nowych subskrybentów."
+  "help.mqtt.availability_retain": "Gdy włączone, broker zachowuje ostatni stan dostępności dla nowych subskrybentów.",
+  "help.agent.adaptive_tools.max_total_tools": "Maksymalna koncowa liczba natywnych schematow narzedzi po zachowaniu narzedzi wymaganych.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Stosuje profile stabilnosci dostawcy dla limitow narzedzi i timeoutow naglowkow odpowiedzi.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Liczba ostatnich tur, w ktorych uzyte narzedzia pozostaja widoczne jako miekkie always-include."
 }

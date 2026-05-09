@@ -23,7 +23,7 @@
   "dashboard.activity_title": "Activité",
   "dashboard.activity_webhooks": "Webhooks",
   "dashboard.adaptive_tools_active": "Outils actifs",
-  "dashboard.adaptive_tools_max": "Max outils",
+  "dashboard.adaptive_tools_max": "Limite adaptive",
   "dashboard.adaptive_tools_title": "Filtrage adaptatif des outils",
   "dashboard.adaptive_tools_total_calls": "Appels totaux",
   "dashboard.agent_banner_context": "Contexte :",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Rendez-vous",
   "dashboard.quickstatus_todos": "Tâches",
   "dashboard.quickstatus_plans": "Plans",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Limite adaptive",
+  "dashboard.adaptive_tools_total_cap": "Limite totale",
+  "dashboard.adaptive_tools_last_count": "Dernier nombre"
 }

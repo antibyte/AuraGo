@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Supprime les données de transition d'outils obsolètes après X jours.",
   "help.agent.adaptive_tools.decay_half_life_days": "Demi-vie pour le score d'utilisation en jours. Les données d'utilisation plus anciennes perdent de l'influence. Valeurs plus élevées = oubli plus lent.",
   "help.agent.adaptive_tools.enabled": "Apprend de l'historique d'utilisation quels outils sont les plus utilisés et les priorise. Les outils moins utilisés sont proposés moins fréquemment.",
-  "help.agent.adaptive_tools.max_tools": "Nombre maximum d'outils proposés au LLM à la fois. Réduit la consommation de tokens.",
+  "help.agent.adaptive_tools.max_tools": "Nombre maximal d'outils adaptatifs/preferes. Les outils requis et toujours inclus peuvent s'ajouter en plus.",
   "help.agent.adaptive_tools.weight_success_rate": "Préfère les outils avec des taux de réussite plus élevés dans la sélection adaptative.",
   "help.agent.additional_prompt": "Texte arbitraire qui est toujours ajouté à la fin de l'invite système. Idéal pour les règles spécifiques à l'utilisateur, les informations contextuelles ou les instructions fixes qui doivent s'appliquer à chaque demande.",
   "help.agent.allow_filesystem_write": "Lorsqu'elle est désactivée, seules les opérations de lecture (liste, lecture) sont autorisées. Les opérations d'écriture (écriture, suppression, déplacement, mkdir…) sont bloquées.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic utilisé pour les messages de disponibilité AuraGo. Par défaut : aurago/status.",
   "help.mqtt.availability_payloads": "Payloads utilisés pour les messages de disponibilité en ligne et hors ligne.",
   "help.mqtt.availability_qos": "Niveau QoS utilisé pour les messages de disponibilité.",
-  "help.mqtt.availability_retain": "Si activé, le broker conserve le dernier état de disponibilité pour les nouveaux abonnés."
+  "help.mqtt.availability_retain": "Si activé, le broker conserve le dernier état de disponibilité pour les nouveaux abonnés.",
+  "help.agent.adaptive_tools.max_total_tools": "Nombre maximal final de schemas d'outils natifs apres conservation des outils obligatoires.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Applique des profils de stabilite par fournisseur pour les limites d'outils et les delais d'en-tete.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Nombre de tours recents gardant les outils utilises visibles comme toujours inclus souples."
 }

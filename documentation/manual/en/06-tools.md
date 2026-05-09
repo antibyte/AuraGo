@@ -156,7 +156,10 @@ The related tools are `generate_image`, `generate_music`, and `generate_video`. 
 agent:
   adaptive_tools:
     enabled: true
-    max_tools: 20               # Max tools in context
+    max_tools: 16               # Adaptive/preferred tool cap
+    max_total_tools: 32         # Final native schema cap
+    provider_profiles_enabled: true
+    session_tool_retention_turns: 8
     
     # Always available (don't filter):
     always_include:
@@ -167,9 +170,13 @@ agent:
 
 | Aspect | Without Adaptive | With Adaptive |
 |--------|------------------|---------------|
-| **Tokens** | 50+ tools in prompt | Only relevant tools |
+| **Tokens** | 50+ tools in prompt | Relevant tools within a total budget |
 | **Cost** | Higher | Lower |
 | **Accuracy** | LLM overwhelmed | Precise tool selection |
+
+The `max_tools` setting caps adaptive/preferred tools only. AuraGo first keeps hard-required recovery tools, then soft always-include tools such as recent session tools, then adaptive tools.
+
+The final native schema budget is controlled by `max_total_tools` where it can be applied. Provider profiles are only stability overlays; regular chat, bots, missions, background tasks, and desktop sessions all use the same budget path.
 
 ---
 

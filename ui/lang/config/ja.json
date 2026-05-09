@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "デフォルトカメラ",
   "config.frigate_readonly": "読み取り専用",
   "config.frigate_event_relay": "MQTT でイベントを中継",
-  "config.frigate_test_connection": "接続テスト"
+  "config.frigate_test_connection": "接続テスト",
+  "config.section.optimizations.group.tool_context": "ツールコンテキスト",
+  "config.section.optimizations.group.tool_visibility": "ツール表示"
 }

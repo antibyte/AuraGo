@@ -255,6 +255,8 @@ func TestHandleDashboardToolStatsContract(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AdaptiveTools.Enabled = true
 	cfg.Agent.AdaptiveTools.MaxTools = 17
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 32
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
 	cfg.Agent.AdaptiveTools.DecayHalfLifeDays = 7
 	cfg.Agent.AdaptiveTools.WeightSuccessRate = true
 
@@ -283,7 +285,19 @@ func TestHandleDashboardToolStatsContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"total_calls", "by_tool", "top_tools", "recent", "adaptive_enabled", "adaptive_scores", "max_tools", "agent_telemetry"} {
+	for _, key := range []string{
+		"total_calls",
+		"by_tool",
+		"top_tools",
+		"recent",
+		"adaptive_enabled",
+		"adaptive_scores",
+		"max_tools",
+		"max_total_tools",
+		"provider_tool_profile",
+		"last_tool_filter_report",
+		"agent_telemetry",
+	} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("tool stats missing key %q", key)
 		}
@@ -296,6 +310,9 @@ func TestHandleDashboardToolStatsContract(t *testing.T) {
 	}
 	if got := int(body["max_tools"].(float64)); got != 17 {
 		t.Fatalf("max_tools = %d, want 17", got)
+	}
+	if got := int(body["max_total_tools"].(float64)); got != 32 {
+		t.Fatalf("max_total_tools = %d, want 32", got)
 	}
 	telemetry, ok := body["agent_telemetry"].(map[string]interface{})
 	if !ok {

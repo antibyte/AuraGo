@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "X日後に古いツール遷移データを削除します。",
   "help.agent.adaptive_tools.decay_half_life_days": "使用スコアリングの半減期（日数）。古い使用データは影響力を失います。高い値 = より遅い忘却。",
   "help.agent.adaptive_tools.enabled": "使用履歴からどのツールが最も使用されているかを学習し、優先します。あまり使用されないツールは頻度を下げて提案されます。",
-  "help.agent.adaptive_tools.max_tools": "LLMに一度に提供するツールの最大数。トークン消費を削減します。",
+  "help.agent.adaptive_tools.max_tools": "適応/優先ツールの最大数です。必須ツールと常時表示ツールは追加で含まれる場合があります。",
   "help.agent.adaptive_tools.weight_success_rate": "適応選択で成功率の高いツールを優先します。",
   "help.agent.additional_prompt": "システム プロンプトの最後に常に追加される任意のテキスト。すべてのリクエストに適用する必要があるユーザー固有のルール、コンテキスト情報、または固定命令に最適です。",
   "help.agent.allow_filesystem_write": "無効にすると、読み取り操作 (リスト、読み取り) のみが許可されます。書き込み操作 (書き込み、削除、移動、mkdir など) はブロックされます。",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "AuraGo 可用性メッセージに使用する topic。デフォルト: aurago/status。",
   "help.mqtt.availability_payloads": "online/offline 可用性メッセージに使用する payload。",
   "help.mqtt.availability_qos": "可用性メッセージに使用する QoS レベル。",
-  "help.mqtt.availability_retain": "有効にすると、broker は新しい subscriber 向けに最新の可用性状態を保持します。"
+  "help.mqtt.availability_retain": "有効にすると、broker は新しい subscriber 向けに最新の可用性状態を保持します。",
+  "help.agent.adaptive_tools.max_total_tools": "必須ツールを保持した後の最終的なネイティブツールスキーマ数の上限です。",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "プロバイダー別の安定化プロファイルを適用し、ツール数と応答ヘッダー待ち時間を調整します。",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "最近使ったツールをソフトな常時表示として保持する会話ターン数です。"
 }

@@ -234,7 +234,7 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 }
 
 func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
-	transport := http.RoundTripper(defaultLLMHTTPTransport())
+	transport := http.RoundTripper(defaultLLMHTTPTransport(responseHeaderTimeoutForProvider(cfg, providerType)))
 	hasCustomTransport := false
 
 	if token := strings.TrimSpace(aiGatewayToken); token != "" {
@@ -272,14 +272,31 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	return &http.Client{Transport: transport, Timeout: 3 * time.Minute}
 }
 
-func defaultLLMHTTPTransport() *http.Transport {
+func defaultLLMHTTPTransport(responseHeaderTimeout time.Duration) *http.Transport {
 	base, _ := http.DefaultTransport.(*http.Transport)
 	if base == nil {
 		base = &http.Transport{}
 	}
 	transport := base.Clone()
-	transport.ResponseHeaderTimeout = 30 * time.Second
+	if responseHeaderTimeout <= 0 {
+		responseHeaderTimeout = 30 * time.Second
+	}
+	transport.ResponseHeaderTimeout = responseHeaderTimeout
 	return transport
+}
+
+func responseHeaderTimeoutForProvider(cfg *config.Config, providerType string) time.Duration {
+	if cfg != nil && !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		return 30 * time.Second
+	}
+	switch strings.ToLower(strings.TrimSpace(providerType)) {
+	case "minimax":
+		return 90 * time.Second
+	case "glm":
+		return 60 * time.Second
+	default:
+		return 30 * time.Second
+	}
 }
 
 func shouldUseOpenAIPromptCacheKey(providerType, baseURL string) bool {

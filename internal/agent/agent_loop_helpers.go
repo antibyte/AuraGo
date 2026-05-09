@@ -643,23 +643,15 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 			add(expanded)
 		}
 	}
-
-	// The discovery tool is the generic escape hatch for every tool hidden by
-	// adaptive filtering. If it disappears, the model has no reliable way to
-	// inspect and re-include enabled tools.
-	add("discover_tools")
-	add("invoke_tool")
-	add("execute_skill")
-	add("run_tool")
-
-	// MCP must stay callable once the user enabled it. Hiding the generic bridge
-	// causes the model to improvise fake direct tool names like
-	// "minimax_understand_image" instead of using mcp_call.
-	if cfg.Agent.AllowMCP && cfg.MCP.Enabled {
-		add("mcp_call")
+	for _, name := range adaptiveHardAlwaysInclude(cfg) {
+		add(name)
 	}
 
 	return out
+}
+
+func adaptiveHardAlwaysInclude(cfg *config.Config) []string {
+	return hardAlwaysToolNames(cfg)
 }
 
 func expandAdaptiveAlwaysIncludeAlias(name string) []string {
@@ -808,6 +800,32 @@ func extractErrorMessage(resultContent string) string {
 	return resultContent
 }
 
+type toolSchemaFilterOptions struct {
+	PreferredTools   []string
+	HardAlwaysTools  []string
+	SoftAlwaysTools  []string
+	MaxAdaptiveTools int
+	MaxTotalTools    int
+}
+
+type toolSchemaFilterReport struct {
+	OriginalToolCount          int      `json:"original_tool_count"`
+	FinalToolCount             int      `json:"final_tool_count"`
+	KeptHardAlways             int      `json:"kept_hard_always"`
+	KeptSoftAlways             int      `json:"kept_soft_always"`
+	KeptAdaptive               int      `json:"kept_adaptive"`
+	Dropped                    int      `json:"dropped"`
+	MaxAdaptive                int      `json:"max_adaptive"`
+	MaxTotal                   int      `json:"max_total"`
+	DroppedTools               []string `json:"dropped_tools,omitempty"`
+	HardAlwaysExceededTotalCap bool     `json:"hard_always_exceeded_total_cap,omitempty"`
+}
+
+type toolSchemaFilterResult struct {
+	Tools  []openai.Tool
+	Report toolSchemaFilterReport
+}
+
 // filterToolSchemas removes tools that are neither in the preferred-tools list
 // nor in the always-include list, keeping at most maxTools schemas.
 // alwaysInclude tools are never dropped. maxTools is a hard cap applied to
@@ -815,99 +833,179 @@ func extractErrorMessage(resultContent string) string {
 // maxTools=0 disables the cap entirely.
 // This reduces token overhead for rarely-used tools without breaking any dispatch.
 func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []string, maxTools int, logger *slog.Logger) []openai.Tool {
-	keepAlways := make(map[string]bool, len(alwaysInclude))
-	for _, t := range alwaysInclude {
-		keepAlways[t] = true
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   frequentTools,
+		SoftAlwaysTools:  alwaysInclude,
+		MaxAdaptiveTools: maxTools,
+		MaxTotalTools:    0,
+	}, logger)
+	return result.Tools
+}
+
+func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOptions, logger *slog.Logger) toolSchemaFilterResult {
+	report := toolSchemaFilterReport{
+		OriginalToolCount: len(schemas),
+		MaxAdaptive:       opts.MaxAdaptiveTools,
+		MaxTotal:          opts.MaxTotalTools,
 	}
-	preferredOrder := make([]string, 0, len(frequentTools))
-	keepPreferred := make(map[string]bool, len(frequentTools))
-	for _, t := range frequentTools {
-		if t == "" || keepAlways[t] || keepPreferred[t] {
+	hardSet := stringSet(opts.HardAlwaysTools)
+	softSet := stringSet(opts.SoftAlwaysTools)
+
+	preferredOrder := make([]string, 0, len(opts.PreferredTools))
+	preferredSet := make(map[string]bool, len(opts.PreferredTools))
+	for _, t := range opts.PreferredTools {
+		t = strings.TrimSpace(t)
+		if t == "" || hardSet[t] || softSet[t] || preferredSet[t] {
 			continue
 		}
-		keepPreferred[t] = true
+		preferredSet[t] = true
 		preferredOrder = append(preferredOrder, t)
 	}
 
-	var keptAlways []openai.Tool
 	schemaByName := make(map[string]openai.Tool, len(schemas))
 	schemaOrder := make([]string, 0, len(schemas))
+	var kept []openai.Tool
+	consumed := make(map[string]bool, len(schemas))
+	add := func(schema openai.Tool, class string) bool {
+		if schema.Function == nil {
+			kept = append(kept, schema)
+			report.KeptHardAlways++
+			return true
+		}
+		name := schema.Function.Name
+		if consumed[name] {
+			return false
+		}
+		if class != "hard" && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
+			return false
+		}
+		consumed[name] = true
+		kept = append(kept, schema)
+		switch class {
+		case "hard":
+			report.KeptHardAlways++
+		case "soft":
+			report.KeptSoftAlways++
+		default:
+			report.KeptAdaptive++
+		}
+		return true
+	}
+
 	for _, s := range schemas {
 		if s.Function == nil {
-			keptAlways = append(keptAlways, s)
+			add(s, "hard")
 			continue
 		}
 		name := s.Function.Name
 		schemaByName[name] = s
 		schemaOrder = append(schemaOrder, name)
-		if keepAlways[name] {
-			keptAlways = append(keptAlways, s)
-		}
 	}
 
-	var keptFrequent, dropped []openai.Tool
-	consumed := make(map[string]bool, len(preferredOrder))
-	for _, name := range preferredOrder {
-		schema, ok := schemaByName[name]
-		if !ok || consumed[name] {
-			continue
+	for _, name := range schemaOrder {
+		if hardSet[name] {
+			add(schemaByName[name], "hard")
 		}
-		if keepAlways[name] {
-			continue
+	}
+	if opts.MaxTotalTools > 0 && report.KeptHardAlways > opts.MaxTotalTools {
+		report.HardAlwaysExceededTotalCap = true
+		if logger != nil {
+			logger.Warn("[AdaptiveTools] Hard-required tools exceed total cap",
+				"kept_hard_always", report.KeptHardAlways,
+				"max_total", opts.MaxTotalTools)
 		}
-		keptFrequent = append(keptFrequent, schema)
-		consumed[name] = true
 	}
 	for _, name := range schemaOrder {
-		if consumed[name] || keepAlways[name] {
+		if softSet[name] && !hardSet[name] {
+			add(schemaByName[name], "soft")
+		}
+	}
+
+	canAddAdaptive := func() bool {
+		return opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools
+	}
+	for _, name := range preferredOrder {
+		schema, ok := schemaByName[name]
+		if !ok || consumed[name] || !canAddAdaptive() {
 			continue
 		}
-		dropped = append(dropped, schemaByName[name])
+		add(schema, "adaptive")
 	}
-
-	// Enforce maxTools cap on frequent tools. Dynamic skill__/tool__ shortcuts are
-	// intentionally not exempt; they remain available via discover_tools,
-	// execute_skill, run_tool, or invoke_tool.
-	if maxTools > 0 {
-		if len(keptFrequent) > maxTools {
-			// Push excess frequent tools back to dropped (preserving order)
-			dropped = append(keptFrequent[maxTools:], dropped...)
-			keptFrequent = keptFrequent[:maxTools]
+	for _, name := range schemaOrder {
+		if consumed[name] || hardSet[name] || softSet[name] || !canAddAdaptive() {
+			continue
 		}
-	}
-
-	kept := append(keptAlways, keptFrequent...)
-
-	// Fill remaining slots from dropped tools (preserving original order)
-	// Note: we only count keptFrequent towards maxTools, not keptAlways
-	if maxTools > 0 {
-		remaining := maxTools - len(keptFrequent)
-		for i := 0; i < remaining && i < len(dropped); i++ {
-			kept = append(kept, dropped[i])
-		}
-	} else {
-		kept = append(kept, dropped...)
+		add(schemaByName[name], "adaptive")
 	}
 
 	finalDropped := len(schemas) - len(kept)
-	if logger != nil && finalDropped > 0 {
-		var droppedNames []string
-		keptSet := make(map[string]bool, len(kept))
-		for _, k := range kept {
-			if k.Function != nil {
-				keptSet[k.Function.Name] = true
-			}
+	report.FinalToolCount = len(kept)
+	report.Dropped = finalDropped
+	keptSet := make(map[string]bool, len(kept))
+	for _, k := range kept {
+		if k.Function != nil {
+			keptSet[k.Function.Name] = true
 		}
-		for _, s := range schemas {
-			if s.Function != nil && !keptSet[s.Function.Name] {
-				droppedNames = append(droppedNames, s.Function.Name)
-			}
-		}
-		logger.Info("[AdaptiveTools] Filtered tool schemas",
-			"kept_always", len(keptAlways), "kept_adaptive", len(kept)-len(keptAlways), "dropped", finalDropped, "max_adaptive", maxTools,
-			"dropped_tools", strings.Join(droppedNames, ", "))
 	}
-	return kept
+	for _, s := range schemas {
+		if s.Function != nil && !keptSet[s.Function.Name] {
+			report.DroppedTools = append(report.DroppedTools, s.Function.Name)
+		}
+	}
+	if logger != nil && finalDropped > 0 {
+		logger.Info("[AdaptiveTools] Filtered tool schemas",
+			"kept_hard_always", report.KeptHardAlways,
+			"kept_soft_always", report.KeptSoftAlways,
+			"kept_adaptive", report.KeptAdaptive,
+			"dropped", finalDropped,
+			"max_adaptive", opts.MaxAdaptiveTools,
+			"max_total", opts.MaxTotalTools,
+			"dropped_tools", strings.Join(report.DroppedTools, ", "))
+	}
+	return toolSchemaFilterResult{Tools: kept, Report: report}
+}
+
+func stringSet(values []string) map[string]bool {
+	set := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			set[value] = true
+		}
+	}
+	return set
+}
+
+func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, turns int) []string {
+	if turns <= 0 {
+		turns = len(messages)
+	}
+	seenTurns := 0
+	seen := map[string]bool{}
+	outReversed := make([]string, 0)
+	for i := len(messages) - 1; i >= 0 && seenTurns < turns; i-- {
+		msg := messages[i]
+		if msg.Role == openai.ChatMessageRoleUser {
+			seenTurns++
+			continue
+		}
+		if msg.Role != openai.ChatMessageRoleAssistant {
+			continue
+		}
+		for _, tc := range msg.ToolCalls {
+			name := strings.TrimSpace(tc.Function.Name)
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			outReversed = append(outReversed, name)
+		}
+	}
+	names := make([]string, 0, len(outReversed))
+	for i := len(outReversed) - 1; i >= 0; i-- {
+		names = append(names, outReversed[i])
+	}
+	return names
 }
 
 func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dataDir string) {

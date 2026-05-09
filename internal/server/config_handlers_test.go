@@ -52,6 +52,39 @@ func TestExtractSecretsToVaultStoresProxmoxSecret(t *testing.T) {
 	}
 }
 
+func TestAdaptiveToolHelpKeysExistInAllLocales(t *testing.T) {
+	required := []string{
+		"help.agent.adaptive_tools.max_tools",
+		"help.agent.adaptive_tools.max_total_tools",
+		"help.agent.adaptive_tools.provider_profiles_enabled",
+		"help.agent.adaptive_tools.session_tool_retention_turns",
+	}
+	localeDir := filepath.Join("..", "..", "ui", "lang", "help")
+	entries, err := os.ReadDir(localeDir)
+	if err != nil {
+		t.Fatalf("ReadDir(%s): %v", localeDir, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		path := filepath.Join(localeDir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("Unmarshal(%s): %v", path, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing %s", entry.Name(), key)
+			}
+		}
+	}
+}
+
 func TestExtractSecretsToVaultStoresMappedClientSecret(t *testing.T) {
 	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

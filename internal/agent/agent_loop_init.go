@@ -308,7 +308,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				guideSearcher = gs
 			}
 			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, adaptiveUserContext, guideSearcher, logger)
-			maxTools := cfg.Agent.AdaptiveTools.MaxTools
+			maxTools := toolingPolicy.EffectiveMaxAdaptiveTools
 
 			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
 			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
@@ -330,14 +330,23 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			for tool := range sessionUsedTools {
 				alwaysInclude = append(alwaysInclude, tool)
 			}
+			for _, tool := range recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns) {
+				alwaysInclude = append(alwaysInclude, tool)
+			}
 			// Re-include hidden tools the agent explicitly inspected via discover_tools
 			// so the next turn can use native function-calling instead of improvising.
 			alwaysInclude = append(alwaysInclude, GetDiscoverRequestedTools(sessionID)...)
 			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
 
-			if maxTools > 0 && len(prioritized) > 0 {
-				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
-			}
+			filterResult := filterToolSchemasWithReport(ntSchemas, toolSchemaFilterOptions{
+				PreferredTools:   prioritized,
+				HardAlwaysTools:  adaptiveHardAlwaysInclude(cfg),
+				SoftAlwaysTools:  alwaysInclude,
+				MaxAdaptiveTools: maxTools,
+				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
+			}, logger)
+			ntSchemas = filterResult.Tools
+			RecordToolFilterReport(filterResult.Report)
 			// Track tools removed by adaptive filtering so their guides are also skipped
 			remainingSet := make(map[string]bool, len(ntSchemas))
 			for _, t := range ntSchemas {
@@ -381,7 +390,12 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if toolingPolicy.ParallelToolCallsEnabled {
 				req.ParallelToolCalls = true
 			}
-			logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
+			logger.Info("[NativeTools] Native function calling enabled",
+				"tool_count", len(ntSchemas),
+				"parallel", toolingPolicy.ParallelToolCallsEnabled,
+				"provider_tool_profile", toolingPolicy.ProviderToolProfile,
+				"max_adaptive", toolingPolicy.EffectiveMaxAdaptiveTools,
+				"max_total", toolingPolicy.EffectiveMaxTotalTools)
 		}
 	}
 

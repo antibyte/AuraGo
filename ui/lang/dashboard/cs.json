@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "Naplánované úkoly",
   "dashboard.activity_title": "Aktivita",
   "dashboard.activity_webhooks": "Webhooky",
-  "dashboard.adaptive_tools_active": "Aktivní nástroje",
-  "dashboard.adaptive_tools_max": "Max nástrojů",
+  "dashboard.adaptive_tools_active": "Aktivni nastroje",
+  "dashboard.adaptive_tools_max": "Adaptivni limit",
   "dashboard.adaptive_tools_title": "Adaptivní filtrování nástrojů",
-  "dashboard.adaptive_tools_total_calls": "Celkem volání",
+  "dashboard.adaptive_tools_total_calls": "Celkem volani",
   "dashboard.agent_banner_context": "Kontext",
   "dashboard.agent_banner_days_ago": "před {{n}} d",
   "dashboard.agent_banner_hours_ago": "před {{n}} h",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Schůzky",
   "dashboard.quickstatus_todos": "Úkoly",
   "dashboard.quickstatus_plans": "Plány",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Adaptivni limit",
+  "dashboard.adaptive_tools_total_cap": "Celkovy limit",
+  "dashboard.adaptive_tools_last_count": "Posledni pocet"
 }

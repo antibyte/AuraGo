@@ -23,9 +23,9 @@
   "dashboard.activity_title": "活动",
   "dashboard.activity_webhooks": "Webhook",
   "dashboard.adaptive_tools_active": "活动工具",
-  "dashboard.adaptive_tools_max": "最大工具",
+  "dashboard.adaptive_tools_max": "自适应上限",
   "dashboard.adaptive_tools_title": "自适应工具过滤",
-  "dashboard.adaptive_tools_total_calls": "总调用次数",
+  "dashboard.adaptive_tools_total_calls": "调用总数",
   "dashboard.agent_banner_context": "上下文",
   "dashboard.agent_banner_days_ago": "{{n}}天前",
   "dashboard.agent_banner_hours_ago": "{{n}}小时前",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "日程",
   "dashboard.quickstatus_todos": "待办事项",
   "dashboard.quickstatus_plans": "计划",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "自适应上限",
+  "dashboard.adaptive_tools_total_cap": "总上限",
+  "dashboard.adaptive_tools_last_count": "上次数量"
 }

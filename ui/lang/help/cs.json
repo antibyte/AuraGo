@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Odstraňuje zastaralá data o přechodech nástrojů po X dnech.",
   "help.agent.adaptive_tools.decay_half_life_days": "Poločas rozpadu pro hodnocení využití ve dnech. Starší data o využití ztrácejí vliv. Vyšší hodnoty = pomalejší zapomínání.",
   "help.agent.adaptive_tools.enabled": "Učí se z historie používání, které nástroje jsou používány nejvíce, a upřednostňuje je. Méně používané nástroje jsou nabízeny méně často.",
-  "help.agent.adaptive_tools.max_tools": "Maximální počet nástrojů nabízených LLM najednou. Snižuje spotřebu tokenů.",
+  "help.agent.adaptive_tools.max_tools": "Maximum adaptivnich/preferovanych nastroju. Povinne a vzdy zahrnute nastroje se mohou pridat navic.",
   "help.agent.adaptive_tools.weight_success_rate": "Upřednostňuje nástroje s vyšší úspěšností v adaptivním výběru.",
   "help.agent.additional_prompt": "Dodatecny text k promptu.",
   "help.agent.allow_filesystem_write": "Kdyz zakazano, pouze cteni.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic pro zprávy dostupnosti AuraGo. Výchozí: aurago/status.",
   "help.mqtt.availability_payloads": "Payloady používané pro online a offline stav dostupnosti.",
   "help.mqtt.availability_qos": "Úroveň QoS pro zprávy dostupnosti.",
-  "help.mqtt.availability_retain": "Pokud je zapnuto, broker uchová poslední stav dostupnosti pro nové odběratele."
+  "help.mqtt.availability_retain": "Pokud je zapnuto, broker uchová poslední stav dostupnosti pro nové odběratele.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximum finalnich nativnich schemat nastroju po zachovani povinnych nastroju.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Pouzije poskytovatelske stabilizacni profily pro limity nastroju a timeout hlavicek odpovedi.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Kolik poslednich tahu ma zachovat jiz pouzite nastroje jako mekce vzdy zahrnute."
 }

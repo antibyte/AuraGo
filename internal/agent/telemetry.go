@@ -38,20 +38,24 @@ type AgentTelemetryScopeSnapshot struct {
 }
 
 type AgentTelemetrySnapshot struct {
-	ParseSources    map[string]int                `json:"parse_sources"`
-	RecoveryEvents  map[string]int                `json:"recovery_events"`
-	PolicyEvents    map[string]int                `json:"policy_events"`
-	RetrievalEvents map[string]int                `json:"retrieval_events"`
-	Scopes          []AgentTelemetryScopeSnapshot `json:"scopes"`
+	ParseSources         map[string]int                `json:"parse_sources"`
+	RecoveryEvents       map[string]int                `json:"recovery_events"`
+	PolicyEvents         map[string]int                `json:"policy_events"`
+	RetrievalEvents      map[string]int                `json:"retrieval_events"`
+	LastToolFilterReport AgentToolFilterReport         `json:"last_tool_filter_report,omitempty"`
+	Scopes               []AgentTelemetryScopeSnapshot `json:"scopes"`
 }
 
+type AgentToolFilterReport = toolSchemaFilterReport
+
 type agentTelemetryCollector struct {
-	mu              sync.RWMutex
-	parseSources    map[string]int
-	recoveryEvents  map[string]int
-	policyEvents    map[string]int
-	retrievalEvents map[string]int
-	scoped          map[string]*AgentTelemetryScopeSnapshot
+	mu                   sync.RWMutex
+	parseSources         map[string]int
+	recoveryEvents       map[string]int
+	policyEvents         map[string]int
+	retrievalEvents      map[string]int
+	lastToolFilterReport AgentToolFilterReport
+	scoped               map[string]*AgentTelemetryScopeSnapshot
 }
 
 var globalAgentTelemetry = &agentTelemetryCollector{
@@ -130,6 +134,12 @@ func RecordRetrievalEventForScope(scope AgentTelemetryScope, name string) {
 	globalAgentTelemetry.mu.Unlock()
 	persistAgentTelemetry("retrieval_event", name)
 	persistScopedAgentTelemetry(scope, "retrieval_event", name)
+}
+
+func RecordToolFilterReport(report AgentToolFilterReport) {
+	globalAgentTelemetry.mu.Lock()
+	globalAgentTelemetry.lastToolFilterReport = report
+	globalAgentTelemetry.mu.Unlock()
 }
 
 func RecordScopedToolResult(scope AgentTelemetryScope, success bool) {
@@ -226,11 +236,12 @@ func GetAgentTelemetrySnapshot() AgentTelemetrySnapshot {
 	})
 
 	return AgentTelemetrySnapshot{
-		ParseSources:    parseSources,
-		RecoveryEvents:  recoveryEvents,
-		PolicyEvents:    policyEvents,
-		RetrievalEvents: retrievalEvents,
-		Scopes:          scopes,
+		ParseSources:         parseSources,
+		RecoveryEvents:       recoveryEvents,
+		PolicyEvents:         policyEvents,
+		RetrievalEvents:      retrievalEvents,
+		LastToolFilterReport: globalAgentTelemetry.lastToolFilterReport,
+		Scopes:               scopes,
 	}
 }
 
@@ -286,6 +297,7 @@ func resetAgentTelemetryForTest() {
 	globalAgentTelemetry.recoveryEvents = make(map[string]int)
 	globalAgentTelemetry.policyEvents = make(map[string]int)
 	globalAgentTelemetry.retrievalEvents = make(map[string]int)
+	globalAgentTelemetry.lastToolFilterReport = AgentToolFilterReport{}
 	globalAgentTelemetry.scoped = make(map[string]*AgentTelemetryScopeSnapshot)
 	agentTelemetryStoreMu.Lock()
 	defer agentTelemetryStoreMu.Unlock()

@@ -235,7 +235,10 @@ agent:
     # Adaptive tool filtering (reduces token usage for tool schemas)
     adaptive_tools:
         enabled: false
-        max_tools: 60
+        max_tools: 16               # adaptive/preferred tool schemas
+        max_total_tools: 32         # final native schemas after required tools
+        provider_profiles_enabled: true
+        session_tool_retention_turns: 8
         decay_half_life_days: 7
         always_include: [filesystem, execute_shell, manage_memory, query_memory, execute_python, docker, api_request]
 

@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "Προεπιλεγμένη κάμερα",
   "config.frigate_readonly": "Μόνο ανάγνωση",
   "config.frigate_event_relay": "Προώθηση συμβάντων μέσω MQTT",
-  "config.frigate_test_connection": "Δοκιμή σύνδεσης"
+  "config.frigate_test_connection": "Δοκιμή σύνδεσης",
+  "config.section.optimizations.group.tool_context": "Πλαισιο εργαλειων",
+  "config.section.optimizations.group.tool_visibility": "Ορατοτητα εργαλειων"
 }

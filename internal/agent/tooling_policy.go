@@ -47,6 +47,10 @@ type ToolingPolicy struct {
 	VercelEnabled              bool
 	WOLEnabled                 bool
 	EffectiveMaxToolGuides     int
+	ProviderToolProfile        string
+	EffectiveMaxAdaptiveTools  int
+	EffectiveMaxTotalTools     int
+	EffectiveHeaderTimeoutSec  int
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
 }
 
@@ -201,6 +205,8 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 			effectiveMaxToolGuides--
 		}
 	}
+	providerToolProfile, effectiveMaxAdaptiveTools, effectiveMaxTotalTools, effectiveHeaderTimeoutSec :=
+		resolveProviderToolProfile(cfg, caps, cfg.Agent.AdaptiveTools.MaxTools, cfg.Agent.AdaptiveTools.MaxTotalTools)
 
 	return ToolingPolicy{
 		Capabilities:               caps,
@@ -221,8 +227,43 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		VercelEnabled:              cfg.Vercel.Enabled,
 		WOLEnabled:                 wolEnabled,
 		EffectiveMaxToolGuides:     effectiveMaxToolGuides,
+		ProviderToolProfile:        providerToolProfile,
+		EffectiveMaxAdaptiveTools:  effectiveMaxAdaptiveTools,
+		EffectiveMaxTotalTools:     effectiveMaxTotalTools,
+		EffectiveHeaderTimeoutSec:  effectiveHeaderTimeoutSec,
 		EffectiveGuideStrategy:     guideStrategy,
 	}
+}
+
+func resolveProviderToolProfile(cfg *config.Config, caps ModelCapabilities, maxAdaptiveTools, maxTotalTools int) (string, int, int, int) {
+	headerTimeoutSec := 30
+	if cfg == nil || !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		return "default", maxAdaptiveTools, maxTotalTools, headerTimeoutSec
+	}
+	lowerProvider := strings.ToLower(strings.TrimSpace(caps.ProviderType))
+	lowerModel := strings.ToLower(strings.TrimSpace(caps.Model))
+	isMiniMax := lowerProvider == "minimax" || strings.Contains(lowerModel, "minimax") || strings.HasPrefix(lowerModel, "abab")
+	isGLM := strings.Contains(lowerModel, "glm-") || strings.Contains(lowerModel, "/glm-") || strings.Contains(lowerModel, "zhipuai/")
+	if isMiniMax {
+		return "minimax_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), 90
+	}
+	if isGLM {
+		return "glm_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), 60
+	}
+	if caps.IsOllama {
+		return "ollama_local", maxAdaptiveTools, maxTotalTools, 30
+	}
+	return "default", maxAdaptiveTools, maxTotalTools, headerTimeoutSec
+}
+
+func minPositive(value, cap int) int {
+	if value <= 0 {
+		return cap
+	}
+	if cap <= 0 || value < cap {
+		return value
+	}
+	return cap
 }
 
 func applyTelemetryAwarePromptTier(policy ToolingPolicy, flags prompts.ContextFlags, baseTier string) string {

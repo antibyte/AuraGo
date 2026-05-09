@@ -214,6 +214,12 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if filePath != "" {
 			widget, event, ok, err := virtualDesktopStandaloneWidgetOpenEvent(ctx, svc, filePath)
 			if err != nil {
+				if op == "open_in_app" && isVirtualDesktopStandaloneWidgetHTML(filePath) {
+					return virtualDesktopJSON("error", "open_in_app widget path must refer to an existing non-empty Widgets/*.html file; use write_file or upsert_widget first", map[string]string{
+						"code": "desktop_widget_not_registered",
+						"path": cleanVirtualDesktopSlashPath(filePath),
+					}, nil)
+				}
 				return virtualDesktopJSON("error", err.Error(), nil, nil)
 			}
 			if ok {

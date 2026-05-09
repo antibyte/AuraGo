@@ -34,6 +34,8 @@ func decodeDesktopJSON(w http.ResponseWriter, r *http.Request, dst interface{}, 
 	if maxBytes <= 0 {
 		maxBytes = desktopMediumJSONBodyLimit
 	}
+	// Desktop JSON handlers should call decodeDesktopJSON(w, r, ...) so every
+	// request body is capped before decoding.
 	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 	return json.NewDecoder(r.Body).Decode(dst)
 }

@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "Default Camera",
   "config.frigate_readonly": "Read Only",
   "config.frigate_event_relay": "Relay Events via MQTT",
-  "config.frigate_test_connection": "Test Connection"
+  "config.frigate_test_connection": "Test Connection",
+  "config.section.optimizations.group.tool_context": "Tool Context",
+  "config.section.optimizations.group.tool_visibility": "Tool Visibility"
 }

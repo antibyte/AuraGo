@@ -699,14 +699,21 @@ function renderOptimizations() {
         agentData, 'agent'
     );
 
-    // Group 2: Tool Optimization
-    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_optimization')}</div>`;
+    // Group 2: Tool Context
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_context')}</div>`;
     html += renderFields(
-        agentF('tool_output_limit', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode', 'adaptive_tools'),
+        agentF('tool_output_limit', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode'),
         agentData, 'agent'
     );
 
-    // Group 3: Safety Limits & Recovery
+    // Group 3: Tool Visibility
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_visibility')}</div>`;
+    html += renderFields(
+        agentF('adaptive_tools'),
+        agentData, 'agent'
+    );
+
+    // Group 4: Safety Limits & Recovery
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.safety_limits')}</div>`;
     html += renderFields(
         cbF('max_tool_calls', 'llm_timeout_seconds', 'maintenance_timeout_minutes', 'retry_intervals'),
@@ -714,7 +721,7 @@ function renderOptimizations() {
     );
     html += renderFields(agentF('recovery'), agentData, 'agent');
 
-    // Group 4: Background Processing
+    // Group 5: Background Processing
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.background_tasks')}</div>`;
     html += renderFields(agentF('background_tasks'), agentData, 'agent');
 

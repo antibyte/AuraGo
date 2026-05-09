@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "Geplande taken",
   "dashboard.activity_title": "Activiteit",
   "dashboard.activity_webhooks": "Webhooks",
-  "dashboard.adaptive_tools_active": "Tools actief",
-  "dashboard.adaptive_tools_max": "Max tools",
+  "dashboard.adaptive_tools_active": "Actieve tools",
+  "dashboard.adaptive_tools_max": "Adaptieve limiet",
   "dashboard.adaptive_tools_title": "Adaptieve tool-filtering",
-  "dashboard.adaptive_tools_total_calls": "Totaal aanroepen",
+  "dashboard.adaptive_tools_total_calls": "Totaal oproepen",
   "dashboard.agent_banner_context": "Context",
   "dashboard.agent_banner_days_ago": "{{n}}d geleden",
   "dashboard.agent_banner_hours_ago": "{{n}}u geleden",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Afspraken",
   "dashboard.quickstatus_todos": "Taken",
   "dashboard.quickstatus_plans": "Plannen",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Adaptieve limiet",
+  "dashboard.adaptive_tools_total_cap": "Totale limiet",
+  "dashboard.adaptive_tools_last_count": "Laatste aantal"
 }

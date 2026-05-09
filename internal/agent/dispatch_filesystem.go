@@ -146,7 +146,7 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		}
 
 		if !cfg.Agent.AllowFilesystemWrite {
-			return "Tool Output: [PERMISSION DENIED] file_editor operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+			return formatToolPermissionDenied("file_editor", "runtime_permissions", "agent.allow_filesystem_write", "file_editor operations are disabled in Danger Zone settings")
 		}
 		logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
 		return tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)

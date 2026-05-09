@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Elimina datos de transición de herramientas obsoletos después de X días.",
   "help.agent.adaptive_tools.decay_half_life_days": "Vida media para la puntuación de uso en días. Los datos de uso antiguos pierden influencia. Valores más altos = olvido más lento.",
   "help.agent.adaptive_tools.enabled": "Aprende del historial de uso qué herramientas se usan más y las prioriza. Las herramientas menos usadas se ofrecen con menos frecuencia.",
-  "help.agent.adaptive_tools.max_tools": "Número máximo de herramientas ofrecidas al LLM a la vez. Reduce el consumo de tokens.",
+  "help.agent.adaptive_tools.max_tools": "Maximo de herramientas adaptativas/preferidas. Las obligatorias y siempre incluidas pueden sumarse aparte.",
   "help.agent.adaptive_tools.weight_success_rate": "Prefiere herramientas con mayores tasas de éxito en la selección adaptativa.",
   "help.agent.additional_prompt": "Texto arbitrario que siempre se agrega al final del mensaje del sistema. Ideal para reglas específicas del usuario, información contextual o instrucciones fijas que deben aplicarse a cada solicitud.",
   "help.agent.allow_filesystem_write": "Cuando está deshabilitado, solo se permiten operaciones de lectura (lista, lectura). Las operaciones de escritura (escribir, eliminar, mover, mkdir…) están bloqueadas.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic usado para mensajes de disponibilidad de AuraGo. Predeterminado: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads usados para mensajes de disponibilidad online y offline.",
   "help.mqtt.availability_qos": "Nivel QoS usado para mensajes de disponibilidad.",
-  "help.mqtt.availability_retain": "Cuando está activado, el broker conserva el último estado de disponibilidad para nuevos suscriptores."
+  "help.mqtt.availability_retain": "Cuando está activado, el broker conserva el último estado de disponibilidad para nuevos suscriptores.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximo final de esquemas de herramientas nativas tras conservar las herramientas obligatorias.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Aplica perfiles de estabilidad por proveedor para limites de herramientas y timeouts de cabeceras.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Cuantos turnos recientes mantienen visibles las herramientas usadas como siempre incluidas suaves."
 }

@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "डिफ़ॉल्ट कैमरा",
   "config.frigate_readonly": "केवल पढ़ें",
   "config.frigate_event_relay": "MQTT के जरिए इवेंट रिले करें",
-  "config.frigate_test_connection": "कनेक्शन टेस्ट करें"
+  "config.frigate_test_connection": "कनेक्शन टेस्ट करें",
+  "config.section.optimizations.group.tool_context": "Tool Context",
+  "config.section.optimizations.group.tool_visibility": "Tool Visibility"
 }

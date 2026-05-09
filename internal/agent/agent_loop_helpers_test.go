@@ -242,6 +242,70 @@ func TestFilterToolSchemas_MaxToolsLimit(t *testing.T) {
 	}
 }
 
+func TestFilterToolSchemas_MaxToolsCapsAdaptiveOnly(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("filesystem"),
+		makeTool("docker"),
+		makeTool("homepage"),
+		makeTool("uptime_kuma"),
+		makeTool("adguard"),
+	}
+
+	result := filterToolSchemas(
+		schemas,
+		[]string{"docker", "homepage", "uptime_kuma"},
+		[]string{"filesystem", "adguard"},
+		2,
+		nil,
+	)
+
+	names := toolNames(result)
+	if len(names) != 4 {
+		t.Fatalf("expected 2 always tools plus 2 adaptive tools, got %d: %v", len(names), names)
+	}
+	for _, want := range []string{"filesystem", "adguard", "docker", "homepage"} {
+		if !containsName(names, want) {
+			t.Fatalf("expected %q in result, got %v", want, names)
+		}
+	}
+	if containsName(names, "uptime_kuma") {
+		t.Fatalf("expected uptime_kuma to be dropped by adaptive cap, got %v", names)
+	}
+}
+
+func TestFilterToolSchemas_RegularChatKeepsCoreToolsAndCapsAdaptive(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("discover_tools"),
+		makeTool("invoke_tool"),
+		makeTool("filesystem"),
+		makeTool("query_memory"),
+		makeTool("manage_memory"),
+		makeTool("docker"),
+		makeTool("api_request"),
+		makeTool("uptime_kuma"),
+		makeTool("adguard"),
+		makeTool("homepage"),
+	}
+
+	result := filterToolSchemas(
+		schemas,
+		[]string{"docker", "api_request", "uptime_kuma", "adguard", "homepage"},
+		[]string{"discover_tools", "invoke_tool", "filesystem", "query_memory", "manage_memory"},
+		3,
+		nil,
+	)
+
+	names := toolNames(result)
+	for _, want := range []string{"discover_tools", "invoke_tool", "filesystem", "query_memory", "manage_memory", "docker", "api_request", "uptime_kuma"} {
+		if !containsName(names, want) {
+			t.Fatalf("expected regular chat tool %q in result, got %v", want, names)
+		}
+	}
+	if containsName(names, "homepage") {
+		t.Fatalf("expected homepage to be dropped by regular-chat adaptive cap, got %v", names)
+	}
+}
+
 func TestFilterToolSchemas_MaxToolsZeroDisablesLimit(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("a"), makeTool("b"), makeTool("c"),
@@ -350,6 +414,119 @@ func TestFilterToolSchemas_PrioritizesPreferredOrder(t *testing.T) {
 	}
 	if names[0] != "homepage" || names[1] != "docker" {
 		t.Fatalf("expected prioritized order homepage,docker got %v", names)
+	}
+}
+
+func TestFilterToolSchemasWithReport_MaxTotalCapsSoftAndAdaptive(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("discover_tools"),
+		makeTool("invoke_tool"),
+		makeTool("filesystem"),
+		makeTool("docker"),
+		makeTool("homepage"),
+		makeTool("uptime_kuma"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   []string{"docker", "homepage", "uptime_kuma"},
+		HardAlwaysTools:  []string{"discover_tools", "invoke_tool"},
+		SoftAlwaysTools:  []string{"filesystem"},
+		MaxAdaptiveTools: 3,
+		MaxTotalTools:    4,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	for _, want := range []string{"discover_tools", "invoke_tool", "filesystem", "docker"} {
+		if !containsName(names, want) {
+			t.Fatalf("expected %q in result, got %v", want, names)
+		}
+	}
+	if len(names) != 4 {
+		t.Fatalf("expected 4 tools after total cap, got %d: %v", len(names), names)
+	}
+	if result.Report.KeptHardAlways != 2 || result.Report.KeptSoftAlways != 1 || result.Report.KeptAdaptive != 1 {
+		t.Fatalf("unexpected report: %+v", result.Report)
+	}
+}
+
+func TestFilterToolSchemasWithReport_HardAlwaysCanExceedTotalCap(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("discover_tools"),
+		makeTool("invoke_tool"),
+		makeTool("execute_skill"),
+		makeTool("run_tool"),
+		makeTool("filesystem"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		HardAlwaysTools: []string{"discover_tools", "invoke_tool", "execute_skill", "run_tool"},
+		SoftAlwaysTools: []string{"filesystem"},
+		MaxTotalTools:   2,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	if len(names) != 4 {
+		t.Fatalf("expected hard-always tools to exceed total cap, got %d: %v", len(names), names)
+	}
+	if containsName(names, "filesystem") {
+		t.Fatalf("expected soft tool to be trimmed before hard tools, got %v", names)
+	}
+	if result.Report.HardAlwaysExceededTotalCap != true {
+		t.Fatalf("expected hard-always cap warning, got %+v", result.Report)
+	}
+}
+
+func TestFilterToolSchemasWithReport_RegularSessionRespectsTotalCap(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("discover_tools"),
+		makeTool("invoke_tool"),
+		makeTool("filesystem"),
+		makeTool("query_memory"),
+		makeTool("manage_memory"),
+		makeTool("docker"),
+		makeTool("api_request"),
+		makeTool("uptime_kuma"),
+	}
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   []string{"docker", "api_request", "uptime_kuma"},
+		HardAlwaysTools:  []string{"discover_tools", "invoke_tool"},
+		SoftAlwaysTools:  []string{"filesystem", "query_memory", "manage_memory"},
+		MaxAdaptiveTools: 3,
+		MaxTotalTools:    6,
+	}, nil)
+
+	names := toolNames(result.Tools)
+	if len(names) != 6 {
+		t.Fatalf("expected 6 tools after regular-session total cap, got %d: %v", len(names), names)
+	}
+	for _, want := range []string{"discover_tools", "invoke_tool", "filesystem", "query_memory", "manage_memory", "docker"} {
+		if !containsName(names, want) {
+			t.Fatalf("expected %q in result, got %v", want, names)
+		}
+	}
+}
+
+func TestRecentNativeToolNamesFromMessagesKeepsRecentCalls(t *testing.T) {
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "old"},
+		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
+			ID:       "call-old",
+			Type:     openai.ToolTypeFunction,
+			Function: openai.FunctionCall{Name: "homepage", Arguments: `{}`},
+		}}},
+		{Role: openai.ChatMessageRoleTool, ToolCallID: "call-old", Content: "ok"},
+		{Role: openai.ChatMessageRoleUser, Content: "new"},
+		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
+			ID:       "call-new",
+			Type:     openai.ToolTypeFunction,
+			Function: openai.FunctionCall{Name: "docker", Arguments: `{}`},
+		}}},
+	}
+
+	names := recentNativeToolNamesFromMessages(msgs, 1)
+	if len(names) != 1 || names[0] != "docker" {
+		t.Fatalf("names = %v, want [docker]", names)
 	}
 }
 

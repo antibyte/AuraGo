@@ -882,6 +882,16 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.MaxTools = 16
 	}
+	if cfg.Agent.AdaptiveTools.MaxTotalTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
+		cfg.Agent.AdaptiveTools.MaxTotalTools = 32
+	}
+	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns <= 0 && cfg.Agent.AdaptiveTools.Enabled {
+		cfg.Agent.AdaptiveTools.SessionToolRetentionTurns = 8
+	}
+	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled &&
+		!yamlHasPath(data, "agent", "adaptive_tools", "provider_profiles_enabled") {
+		cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
+	}
 	if cfg.Agent.AdaptiveTools.DecayHalfLifeDays <= 0 {
 		cfg.Agent.AdaptiveTools.DecayHalfLifeDays = 7.0
 	}

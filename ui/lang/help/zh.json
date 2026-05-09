@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "在 X 天后删除过时的工具转换数据。",
   "help.agent.adaptive_tools.decay_half_life_days": "使用评分的半衰期（天）。较旧的使用数据失去影响力。值越高 = 遗忘越慢。",
   "help.agent.adaptive_tools.enabled": "从使用历史中学习哪些工具使用最多并优先考虑它们。较少使用的工具提供频率较低。",
-  "help.agent.adaptive_tools.max_tools": "一次提供给 LLM 的工具最大数量。减少令牌消耗。",
+  "help.agent.adaptive_tools.max_tools": "自适应/优先工具的最大数量。必需工具和始终包含的工具可能会额外加入。",
   "help.agent.adaptive_tools.weight_success_rate": "在自适应选择中优先选择成功率更高的工具。",
   "help.agent.additional_prompt": "始终附加在系统提示符末尾的任意文本。非常适合用户特定的规则、上下文信息或应适用于每个请求的固定指令。",
   "help.agent.allow_filesystem_write": "禁用时，仅允许读取操作（列表、读取）。写入操作（写入、删除、移动、mkdir...）被阻止。",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "AuraGo 可用性消息使用的 topic。默认：aurago/status。",
   "help.mqtt.availability_payloads": "在线和离线可用性消息使用的 payload。",
   "help.mqtt.availability_qos": "可用性消息使用的 QoS 级别。",
-  "help.mqtt.availability_retain": "启用后，broker 会为新订阅者保留最新的可用性状态。"
+  "help.mqtt.availability_retain": "启用后，broker 会为新订阅者保留最新的可用性状态。",
+  "help.agent.adaptive_tools.max_total_tools": "保留硬性必需工具后的最终原生工具 schema 上限。",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "为不同提供商应用稳定性配置，调整工具限制和响应头超时。",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "最近多少轮中用过的工具会作为软性始终包含工具保持可见。"
 }

@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "X दिनों के बाद पुराने टूल संक्रमण डेटा को हटाता है।",
   "help.agent.adaptive_tools.decay_half_life_days": "उपयोग स्कोरिंग के लिए अर्धजीवन दिनों में। पुराने उपयोग डेटा का प्रभाव कम होता है। उच्च मान = धीमा भूलना।",
   "help.agent.adaptive_tools.enabled": "उपयोग इतिहास से सीखता है कि कौन से टूल सबसे अधिक उपयोग होते हैं और उन्हें प्राथमिकता देता है। कम उपयोग किए गए टूल कम बार पेश किए जाते हैं।",
-  "help.agent.adaptive_tools.max_tools": "LLM को एक बार में दिए जाने वाले टूल की अधिकतम संख्या। टोकन खपत कम करता है।",
+  "help.agent.adaptive_tools.max_tools": "Adaptive/preferred tools ki adhiktam sankhya. Required aur always-include tools iske upar jud sakte hain.",
   "help.agent.adaptive_tools.weight_success_rate": "अनुकूली चयन में उच्च सफलता दर वाले टूल को प्राथमिकता देता है।",
   "help.agent.additional_prompt": "मनमाना पाठ जो हमेशा सिस्टम प्रॉम्प्ट के अंत में जोड़ा जाता है। उपयोगकर्ता-विशिष्ट नियमों, संदर्भ जानकारी या निश्चित निर्देशों के लिए आदर्श जो हर अनुरोध पर लागू होने चाहिए।",
   "help.agent.allow_filesystem_write": "अक्षम होने पर, केवल पढ़ने के संचालन (सूची, पढ़ें) की अनुमति है। लिखने के कार्य (लिखना, हटाना, स्थानांतरित करना, mkdir...) अवरुद्ध हैं।",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "AuraGo उपलब्धता संदेशों का topic। डिफ़ॉल्ट: aurago/status।",
   "help.mqtt.availability_payloads": "online और offline उपलब्धता संदेशों के payload।",
   "help.mqtt.availability_qos": "उपलब्धता संदेशों के लिए QoS स्तर।",
-  "help.mqtt.availability_retain": "सक्षम होने पर broker नए subscribers के लिए नवीनतम उपलब्धता स्थिति रखता है।"
+  "help.mqtt.availability_retain": "सक्षम होने पर broker नए subscribers के लिए नवीनतम उपलब्धता स्थिति रखता है।",
+  "help.agent.adaptive_tools.max_total_tools": "Hard-required tools rakhne ke baad final native tool schemas ki adhiktam sankhya.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Tool limits aur response-header timeouts ke liye provider-specific stability profiles lagata hai.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Kitne recent turns me use hue tools ko soft always-include ke roop me visible rakha jaye."
 }

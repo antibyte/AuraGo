@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Fjerner forældet værktøjsovergangsdata efter X dage.",
   "help.agent.adaptive_tools.decay_half_life_days": "Half-life for usage scoring in days. Older usage data loses influence. Higher values = slower forgetting.",
   "help.agent.adaptive_tools.enabled": "Lærer fra forbrugshistorik, hvilke værktøjer der bruges mest, og prioriterer dem. Mindre brugte værktøjer tilbydes sjældnere.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maksimalt antal adaptive/foretrukne vaerktoejer. Paakraevede og altid inkluderede vaerktoejer kan laegges oveni.",
   "help.agent.adaptive_tools.weight_success_rate": "Foretrækker værktøjer med højere succesrater i adaptiv udvælgelse.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic til AuraGo-tilgængelighedsbeskeder. Standard: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads til online og offline tilgængelighedsstatus.",
   "help.mqtt.availability_qos": "QoS-niveau for tilgængelighedsbeskeder.",
-  "help.mqtt.availability_retain": "Når aktiveret beholder broker den seneste tilgængelighedsstatus til nye abonnenter."
+  "help.mqtt.availability_retain": "Når aktiveret beholder broker den seneste tilgængelighedsstatus til nye abonnenter.",
+  "help.agent.adaptive_tools.max_total_tools": "Maksimalt antal endelige native vaerktoejsskemaer efter paakraevede vaerktoejer er bevaret.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Anvender udbyderspecifikke stabilitetsprofiler for vaerktoejsgrænser og svartop-timeouts.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Antal seneste runder hvor brugte vaerktoejer holdes synlige som blødt altid inkluderede."
 }

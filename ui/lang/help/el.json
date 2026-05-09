@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Αφαιρεί παλιά δεδομένα μετάβασης εργαλείων μετά από X ημέρες.",
   "help.agent.adaptive_tools.decay_half_life_days": "Ημιζωή για βαθμολόγηση χρήσης σε ημέρες. Τα παλαιότερα δεδομένα χρήσης χάνουν επιρροή. Υψηλότερες τιμές = πιο αργή λήθη.",
   "help.agent.adaptive_tools.enabled": "Μαθαίνει από το ιστορικό χρήσης ποια εργαλεία χρησιμοποιούνται περισσότερο και τα δίνει προτεραιότητα. Τα λιγότερο χρησιμοποιούμενα εργαλεία προσφέρονται λιγότερο συχνά.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Μεγιστος αριθμος προσαρμοστικων/προτιμωμενων εργαλειων. Τα απαιτουμενα και παντα ορατα εργαλεια μπορουν να προστεθουν επιπλεον.",
   "help.agent.adaptive_tools.weight_success_rate": "Προτιμά εργαλεία με υψηλότερα ποσοστά επιτυχίας στην προσαρμοστική επιλογή.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic για μηνύματα διαθεσιμότητας AuraGo. Προεπιλογή: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads για online και offline μηνύματα διαθεσιμότητας.",
   "help.mqtt.availability_qos": "Επίπεδο QoS για μηνύματα διαθεσιμότητας.",
-  "help.mqtt.availability_retain": "Όταν είναι ενεργό, ο broker κρατά την τελευταία κατάσταση διαθεσιμότητας για νέους subscribers."
+  "help.mqtt.availability_retain": "Όταν είναι ενεργό, ο broker κρατά την τελευταία κατάσταση διαθεσιμότητας για νέους subscribers.",
+  "help.agent.adaptive_tools.max_total_tools": "Μεγιστος τελικος αριθμος native schemas εργαλειων αφου διατηρηθουν τα απαιτουμενα εργαλεια.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Εφαρμοζει προφιλ σταθεροτητας ανα παροχο για ορια εργαλειων και timeouts κεφαλιδων αποκρισης.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Ποσοι προσφατοι γυροι κρατουν τα χρησιμοποιημενα εργαλεια ορατα ως soft always-include."
 }

@@ -313,6 +313,116 @@ func TestBuildToolingPolicyKeepsConfiguredGuideBudgetByDefault(t *testing.T) {
 	}
 }
 
+func TestBuildToolingPolicyKeepsDefaultTelemetryProfileForRegularChat(t *testing.T) {
+	resetAgentTelemetryForTest()
+
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "openrouter"
+	cfg.LLM.Model = "openai/gpt-4o-mini"
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 16
+	cfg.Agent.MaxToolGuides = 5
+
+	policy := buildToolingPolicy(cfg, "what is the current docker status?")
+	if policy.TelemetryProfile != "default" {
+		t.Fatalf("TelemetryProfile = %q, want default", policy.TelemetryProfile)
+	}
+	if policy.EffectiveMaxToolGuides != 5 {
+		t.Fatalf("EffectiveMaxToolGuides = %d, want 5", policy.EffectiveMaxToolGuides)
+	}
+}
+
+func TestBuildToolingPolicyCapsMiniMaxToolBudgets(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "minimax"
+	cfg.LLM.Model = "minimax-m2.7"
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 32
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 52
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
+
+	policy := buildToolingPolicy(cfg, "open the desktop")
+
+	if policy.ProviderToolProfile != "minimax_stability" {
+		t.Fatalf("ProviderToolProfile = %q, want minimax_stability", policy.ProviderToolProfile)
+	}
+	if policy.EffectiveMaxAdaptiveTools != 12 {
+		t.Fatalf("EffectiveMaxAdaptiveTools = %d, want 12", policy.EffectiveMaxAdaptiveTools)
+	}
+	if policy.EffectiveMaxTotalTools != 24 {
+		t.Fatalf("EffectiveMaxTotalTools = %d, want 24", policy.EffectiveMaxTotalTools)
+	}
+	if policy.EffectiveHeaderTimeoutSec != 90 {
+		t.Fatalf("EffectiveHeaderTimeoutSec = %d, want 90", policy.EffectiveHeaderTimeoutSec)
+	}
+}
+
+func TestBuildToolingPolicyHonorsProviderProfileOptOut(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "minimax"
+	cfg.LLM.Model = "minimax-m2.7"
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 32
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 52
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = false
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if policy.ProviderToolProfile != "default" {
+		t.Fatalf("ProviderToolProfile = %q, want default", policy.ProviderToolProfile)
+	}
+	if policy.EffectiveMaxAdaptiveTools != 32 {
+		t.Fatalf("EffectiveMaxAdaptiveTools = %d, want 32", policy.EffectiveMaxAdaptiveTools)
+	}
+	if policy.EffectiveMaxTotalTools != 52 {
+		t.Fatalf("EffectiveMaxTotalTools = %d, want 52", policy.EffectiveMaxTotalTools)
+	}
+}
+
+func TestBuildToolingPolicyCapsGLMToolBudgets(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "openrouter"
+	cfg.LLM.Model = "zhipuai/glm-4.5"
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 32
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 52
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if policy.ProviderToolProfile != "glm_stability" {
+		t.Fatalf("ProviderToolProfile = %q, want glm_stability", policy.ProviderToolProfile)
+	}
+	if policy.EffectiveMaxAdaptiveTools != 12 {
+		t.Fatalf("EffectiveMaxAdaptiveTools = %d, want 12", policy.EffectiveMaxAdaptiveTools)
+	}
+	if policy.EffectiveMaxTotalTools != 24 {
+		t.Fatalf("EffectiveMaxTotalTools = %d, want 24", policy.EffectiveMaxTotalTools)
+	}
+}
+
+func TestBuildToolingPolicyKeepsProviderNeutralBudgets(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "openrouter"
+	cfg.LLM.Model = "openai/gpt-4o-mini"
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 16
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 32
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if policy.ProviderToolProfile != "default" {
+		t.Fatalf("ProviderToolProfile = %q, want default", policy.ProviderToolProfile)
+	}
+	if policy.EffectiveMaxAdaptiveTools != 16 {
+		t.Fatalf("EffectiveMaxAdaptiveTools = %d, want 16", policy.EffectiveMaxAdaptiveTools)
+	}
+	if policy.EffectiveMaxTotalTools != 32 {
+		t.Fatalf("EffectiveMaxTotalTools = %d, want 32", policy.EffectiveMaxTotalTools)
+	}
+}
+
 func TestBuildToolingPolicyReducesGuideBudgetForWeakScope(t *testing.T) {
 	resetAgentTelemetryForTest()
 

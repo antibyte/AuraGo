@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,6 +40,11 @@ type sessionRequestLock struct {
 }
 
 func lockSessionRequest(sessionID string) func() {
+	return lockSessionRequestWithLogger(sessionID, nil)
+}
+
+func lockSessionRequestWithLogger(sessionID string, logger *slog.Logger) func() {
+	start := time.Now()
 	muSessionRequestLocks.Lock()
 	lock := sessionRequestLocks[sessionID]
 	if lock == nil {
@@ -46,8 +52,16 @@ func lockSessionRequest(sessionID string) func() {
 		sessionRequestLocks[sessionID] = lock
 	}
 	lock.refs++
+	queued := lock.refs > 1
+	queuedRefs := lock.refs
 	muSessionRequestLocks.Unlock()
+	if queued && logger != nil {
+		logger.Info("[SessionLock] Request queued behind active session", "session_id", sessionID, "queued_refs", queuedRefs)
+	}
 	lock.mu.Lock()
+	if logger != nil {
+		logger.Debug("[SessionLock] Request acquired session lock", "session_id", sessionID, "wait_ms", time.Since(start).Milliseconds(), "queued", queued)
+	}
 	return func() {
 		lock.mu.Unlock()
 
@@ -217,7 +231,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		if chatSessionID := r.Header.Get("X-Session-ID"); chatSessionID != "" {
 			sessionID = chatSessionID
 		}
-		unlockSession := lockSessionRequest(sessionID)
+		unlockSession := lockSessionRequestWithLogger(sessionID, s.Logger)
 		defer unlockSession()
 
 		if missionID != "" && s.ShortTermMem != nil {

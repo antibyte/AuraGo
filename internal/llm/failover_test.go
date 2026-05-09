@@ -99,6 +99,35 @@ func TestLLMHTTPClientHasGlobalAndHeaderTimeouts(t *testing.T) {
 	}
 }
 
+func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = true
+	client := buildLLMHTTPClient(cfg, "minimax", "", "https://api.minimax.io/v1")
+	if client == nil {
+		t.Fatal("buildLLMHTTPClient returned nil")
+	}
+	transport, ok := unwrapLLMTransport(client.Transport).(*http.Transport)
+	if !ok {
+		t.Fatalf("base transport = %T, want *http.Transport", unwrapLLMTransport(client.Transport))
+	}
+	if transport.ResponseHeaderTimeout != 90*time.Second {
+		t.Fatalf("ResponseHeaderTimeout = %s, want 90s", transport.ResponseHeaderTimeout)
+	}
+	if client.Timeout < transport.ResponseHeaderTimeout {
+		t.Fatalf("client timeout %s is smaller than response header timeout %s", client.Timeout, transport.ResponseHeaderTimeout)
+	}
+
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = false
+	client = buildLLMHTTPClient(cfg, "minimax", "", "https://api.minimax.io/v1")
+	transport, ok = unwrapLLMTransport(client.Transport).(*http.Transport)
+	if !ok {
+		t.Fatalf("base transport = %T, want *http.Transport", unwrapLLMTransport(client.Transport))
+	}
+	if transport.ResponseHeaderTimeout != 30*time.Second {
+		t.Fatalf("opt-out ResponseHeaderTimeout = %s, want 30s", transport.ResponseHeaderTimeout)
+	}
+}
+
 func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 	for {
 		switch t := rt.(type) {

@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "Standardkamera",
   "config.frigate_readonly": "Skrivebeskyttet",
   "config.frigate_event_relay": "Videresend hendelser via MQTT",
-  "config.frigate_test_connection": "Test tilkobling"
+  "config.frigate_test_connection": "Test tilkobling",
+  "config.section.optimizations.group.tool_context": "Verktoykontekst",
+  "config.section.optimizations.group.tool_visibility": "Verktoysynlighet"
 }

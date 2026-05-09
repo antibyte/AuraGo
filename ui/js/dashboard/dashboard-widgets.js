@@ -1649,6 +1649,9 @@
             const scores = data.adaptive_scores || [];
             const totalTracked = scores.length;
             const maxTools = data.max_tools || 0;
+            const maxTotalTools = data.max_total_tools || 0;
+            const lastReport = data.last_tool_filter_report || {};
+            const lastToolCount = lastReport.final_tool_count || 0;
             const activeCount = maxTools > 0 ? Math.min(totalTracked, maxTools) : totalTracked;
             const totalCalls = data.total_calls || 0;
 
@@ -1658,7 +1661,9 @@
             if (kpis) {
                 const kpiItems = [
                     { val: `${activeCount}/${totalTracked}`, lbl: t('dashboard.adaptive_tools_active') },
-                    { val: maxTools || '∞', lbl: t('dashboard.adaptive_tools_max') },
+                    { val: maxTools || '∞', lbl: t('dashboard.adaptive_tools_adaptive_cap') },
+                    { val: maxTotalTools || '∞', lbl: t('dashboard.adaptive_tools_total_cap') },
+                    { val: lastToolCount || '-', lbl: t('dashboard.adaptive_tools_last_count') },
                     { val: totalCalls.toLocaleString(), lbl: t('dashboard.adaptive_tools_total_calls') },
                 ];
                 kpis.innerHTML = kpiItems.map(k =>

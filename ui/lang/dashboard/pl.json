@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "Zaplanowane zadania",
   "dashboard.activity_title": "Aktywność",
   "dashboard.activity_webhooks": "Webhooki",
-  "dashboard.adaptive_tools_active": "Aktywne narzędzia",
-  "dashboard.adaptive_tools_max": "Maks. narzędzi",
+  "dashboard.adaptive_tools_active": "Aktywne narzedzia",
+  "dashboard.adaptive_tools_max": "Limit adaptacyjny",
   "dashboard.adaptive_tools_title": "Adaptacyjne filtrowanie narzędzi",
-  "dashboard.adaptive_tools_total_calls": "Wszystkie wywołania",
+  "dashboard.adaptive_tools_total_calls": "Laczne wywolania",
   "dashboard.agent_banner_context": "Kontekst:",
   "dashboard.agent_banner_days_ago": "{{n}} dni temu",
   "dashboard.agent_banner_hours_ago": "{{n}} godz. temu",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Spotkania",
   "dashboard.quickstatus_todos": "Zadania",
   "dashboard.quickstatus_plans": "Plany",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Limit adaptacyjny",
+  "dashboard.adaptive_tools_total_cap": "Limit calkowity",
+  "dashboard.adaptive_tools_last_count": "Ostatnia liczba"
 }

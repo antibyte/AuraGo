@@ -187,6 +187,21 @@ func TestToolRecoveryStateInjectsRecoveryHintBeforeBreaker(t *testing.T) {
 	}
 }
 
+func TestRecoveryHintStopsAfterRepeatedIdenticalHints(t *testing.T) {
+	state := newToolRecoveryState()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.shouldSendRecoveryHintLocked("inspect the last error", 2) {
+		t.Fatal("first hint should be sent")
+	}
+	if !state.shouldSendRecoveryHintLocked("inspect the last error", 2) {
+		t.Fatal("second hint should be sent")
+	}
+	if state.shouldSendRecoveryHintLocked("inspect the last error", 2) {
+		t.Fatal("third identical hint should be suppressed")
+	}
+}
+
 func TestToolRecoveryStateHintsHomepagePathRequiredWithExample(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

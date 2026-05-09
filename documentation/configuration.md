@@ -57,7 +57,10 @@ Core agent behaviour settings.
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `50000` | Character threshold at which the agent compresses older messages in the prompt. Roughly 50% of the model's context window in tokens. |
 | `adaptive_tools.enabled` | `false` | Enable adaptive tool filtering to reduce token usage. |
-| `adaptive_tools.max_tools` | `60` | Maximum tool schemas to send to the LLM. |
+| `adaptive_tools.max_tools` | `16` | Maximum adaptive/preferred tool schemas. Required and always-include tools may be added on top. |
+| `adaptive_tools.max_total_tools` | `32` | Maximum final native tool schemas after hard-required tools are kept. |
+| `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
+| `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
 | `recovery.max_provider_422_recoveries` | `3` | Automatic retries after provider 422 errors. |
 | `background_tasks.enabled` | `true` | Enable persistent background task execution. |
 

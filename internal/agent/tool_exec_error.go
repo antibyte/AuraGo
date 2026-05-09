@@ -36,6 +36,22 @@ func formatToolExecError(err ToolExecError) string {
 	return "Tool Output: " + string(encoded)
 }
 
+func formatToolPermissionDenied(action, layer, required, message string) string {
+	if message == "" {
+		message = fmt.Sprintf("%s is disabled by runtime permissions", action)
+	}
+	return formatToolExecError(ToolExecError{
+		Code:      "permission_denied",
+		Message:   message,
+		Retryable: false,
+		Details: map[string]interface{}{
+			"tool":             action,
+			"permission_layer": layer,
+			"required":         required,
+		},
+	})
+}
+
 func newUnexpectedBuiltinActionToolExecError(action string) ToolExecError {
 	return ToolExecError{
 		Code:      "builtin_handler_missing",

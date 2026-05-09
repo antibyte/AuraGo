@@ -352,11 +352,20 @@ func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatC
 			effectivelyEmpty = true
 		}
 	}
-	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || len(resp.Choices[0].Message.ToolCalls) > 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
+	if effectivelyEmpty && len(resp.Choices) > 0 && len(resp.Choices[0].Message.ToolCalls) > 0 {
+		RecordToolPolicyEventForScope(scope, "empty_response_with_tool_calls")
+		if logger != nil {
+			logger.Info("[Sync] Empty LLM content contains native tool calls",
+				"tool_call_count", len(resp.Choices[0].Message.ToolCalls))
+		}
+		return false
+	}
+	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
 		return false
 	}
 
 	*emptyRetried = true
+	RecordToolPolicyEventForScope(scope, "empty_response_without_tool_calls")
 	RecordToolRecoveryEventForScope(scope, "empty_response_recovered")
 	emptyReason := "empty_response"
 	if strings.TrimSpace(content) != "" && strippedContent == "" {

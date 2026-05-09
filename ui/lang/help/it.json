@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Rimuove i dati di transizione degli strumenti non aggiornati dopo X giorni.",
   "help.agent.adaptive_tools.decay_half_life_days": "Emivita per il punteggio di utilizzo in giorni. I dati di utilizzo più vecchi perdono influenza. Valori più alti = dimenticanza più lenta.",
   "help.agent.adaptive_tools.enabled": "Impara dalla cronologia d'uso quali strumenti sono più utilizzati e li priorizza. Gli strumenti meno usati vengono offerti meno frequentemente.",
-  "help.agent.adaptive_tools.max_tools": "Numero massimo di strumenti offerti all'LLM contemporaneamente. Riduce il consumo di token.",
+  "help.agent.adaptive_tools.max_tools": "Numero massimo di strumenti adattivi/preferiti. Gli strumenti richiesti e sempre inclusi possono aggiungersi oltre questo limite.",
   "help.agent.adaptive_tools.weight_success_rate": "Preferisce strumenti con tassi di successo più elevati nella selezione adattiva.",
   "help.agent.additional_prompt": "Testo arbitrario che viene sempre aggiunto alla fine del system prompt. Ideale per regole specifiche dell'utente, informazioni di contesto o istruzioni fisse che dovrebbero applicarsi a ogni richiesta.",
   "help.agent.allow_filesystem_write": "Quando disabilitato, sono consentite solo operazioni di lettura (list, read). Le operazioni di scrittura (write, delete, move, mkdir…) sono bloccate.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic usato per i messaggi di disponibilità AuraGo. Predefinito: aurago/status.",
   "help.mqtt.availability_payloads": "Payload usati per i messaggi di disponibilità online e offline.",
   "help.mqtt.availability_qos": "Livello QoS usato per i messaggi di disponibilità.",
-  "help.mqtt.availability_retain": "Quando attivo, il broker conserva l’ultimo stato di disponibilità per i nuovi subscriber."
+  "help.mqtt.availability_retain": "Quando attivo, il broker conserva l’ultimo stato di disponibilità per i nuovi subscriber.",
+  "help.agent.adaptive_tools.max_total_tools": "Numero massimo finale di schemi strumenti nativi dopo aver mantenuto gli strumenti obbligatori.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Applica profili di stabilita per provider per limiti strumenti e timeout degli header di risposta.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Quanti turni recenti mantengono visibili gli strumenti usati come always-include morbidi."
 }

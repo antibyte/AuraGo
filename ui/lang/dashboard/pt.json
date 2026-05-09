@@ -23,7 +23,7 @@
   "dashboard.activity_title": "Atividade Recente",
   "dashboard.activity_webhooks": "Webhooks",
   "dashboard.adaptive_tools_active": "Ferramentas ativas",
-  "dashboard.adaptive_tools_max": "Máx. ferramentas",
+  "dashboard.adaptive_tools_max": "Limite adaptativo",
   "dashboard.adaptive_tools_title": "Filtragem adaptativa de ferramentas",
   "dashboard.adaptive_tools_total_calls": "Chamadas totais",
   "dashboard.agent_banner_context": "Contexto:",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Compromissos",
   "dashboard.quickstatus_todos": "Tarefas",
   "dashboard.quickstatus_plans": "Planos",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Limite adaptativo",
+  "dashboard.adaptive_tools_total_cap": "Limite total",
+  "dashboard.adaptive_tools_last_count": "Ultima contagem"
 }

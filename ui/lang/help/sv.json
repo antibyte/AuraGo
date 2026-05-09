@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Tar bort inaktuellt verktygsövergångsdata efter X dagar.",
   "help.agent.adaptive_tools.decay_half_life_days": "Half-life for usage scoring in days. Older usage data loses influence. Higher values = slower forgetting.",
   "help.agent.adaptive_tools.enabled": "Lär sig från användningshistorik vilka verktyg som används mest och prioriterar dem. Mindre använda verktyg erbjuds mer sällan.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maximalt antal adaptiva/foredragna verktyg. Obligatoriska och alltid inkluderade verktyg kan laggas till utover detta.",
   "help.agent.adaptive_tools.weight_success_rate": "Föredrar verktyg med högre framgångsgrad i adaptivt urval.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic för AuraGo-tillgänglighetsmeddelanden. Standard: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads för online och offline tillgänglighetsmeddelanden.",
   "help.mqtt.availability_qos": "QoS-nivå för tillgänglighetsmeddelanden.",
-  "help.mqtt.availability_retain": "När aktiv behåller broker senaste tillgänglighetsstatus för nya subscribers."
+  "help.mqtt.availability_retain": "När aktiv behåller broker senaste tillgänglighetsstatus för nya subscribers.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximalt slutligt antal inbyggda verktygsscheman efter att kravda verktyg behallits.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Tillampar leverantorsspecifika stabilitetsprofiler for verktygsgranser och svarshuvud-timeouter.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Hur manga senaste turer som haller anvanda verktyg synliga som mjuka always-include verktyg."
 }

@@ -961,7 +961,7 @@ func TestWakeOnLan(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	var gotNodeIDs []interface{}
+	gotNodeIDsCh := make(chan []interface{}, 1)
 	go func() {
 		for {
 			_, msg, err := sConn.ReadMessage()
@@ -974,7 +974,8 @@ func TestWakeOnLan(t *testing.T) {
 			}
 			action, _ := data["action"].(string)
 			if action == "wakeonlan" {
-				gotNodeIDs, _ = data["nodeids"].([]interface{})
+				gotNodeIDs, _ := data["nodeids"].([]interface{})
+				gotNodeIDsCh <- gotNodeIDs
 			}
 		}
 	}()
@@ -986,8 +987,13 @@ func TestWakeOnLan(t *testing.T) {
 	if msg != "Wake-on-LAN packet sent" {
 		t.Errorf("msg = %q, want 'Wake-on-LAN packet sent'", msg)
 	}
-	if len(gotNodeIDs) != 2 {
-		t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
+	select {
+	case gotNodeIDs := <-gotNodeIDsCh:
+		if len(gotNodeIDs) != 2 {
+			t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for wakeonlan request")
 	}
 }
 
@@ -1004,7 +1010,7 @@ func TestPowerAction(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	var gotActionType float64
+	gotActionTypeCh := make(chan float64, 1)
 	go func() {
 		for {
 			_, msg, err := sConn.ReadMessage()
@@ -1017,7 +1023,8 @@ func TestPowerAction(t *testing.T) {
 			}
 			action, _ := data["action"].(string)
 			if action == "poweraction" {
-				gotActionType, _ = data["actiontype"].(float64)
+				gotActionType, _ := data["actiontype"].(float64)
+				gotActionTypeCh <- gotActionType
 			}
 		}
 	}()
@@ -1029,8 +1036,13 @@ func TestPowerAction(t *testing.T) {
 	if msg != "Power action sent" {
 		t.Errorf("msg = %q, want 'Power action sent'", msg)
 	}
-	if gotActionType != 4 {
-		t.Errorf("actiontype = %v, want 4", gotActionType)
+	select {
+	case gotActionType := <-gotActionTypeCh:
+		if gotActionType != 4 {
+			t.Errorf("actiontype = %v, want 4", gotActionType)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for poweraction request")
 	}
 }
 
@@ -1172,7 +1184,7 @@ func TestReadPump_DeliversByReqID(t *testing.T) {
 }
 
 func TestReadPump_SkipsNonJSON(t *testing.T) {
-	c, sConn, cleanup := clientWithWS(t)
+	_, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
 	// Send plain text and binary-like messages that should be skipped
@@ -1184,7 +1196,7 @@ func TestReadPump_SkipsNonJSON(t *testing.T) {
 }
 
 func TestReadPump_SkipsInvalidJSON(t *testing.T) {
-	c, sConn, cleanup := clientWithWS(t)
+	_, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
 	sConn.WriteMessage(websocket.TextMessage, []byte(`{invalid`))

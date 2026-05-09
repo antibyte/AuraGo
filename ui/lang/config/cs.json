@@ -134,5 +134,7 @@
   "config.frigate_default_camera": "Výchozí kamera",
   "config.frigate_readonly": "Jen pro čtení",
   "config.frigate_event_relay": "Předávat události přes MQTT",
-  "config.frigate_test_connection": "Test připojení"
+  "config.frigate_test_connection": "Test připojení",
+  "config.section.optimizations.group.tool_context": "Kontext nastroju",
+  "config.section.optimizations.group.tool_visibility": "Viditelnost nastroju"
 }

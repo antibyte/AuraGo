@@ -23,6 +23,7 @@ type toolRecoveryState struct {
 	LastToolCallSig       string
 	DuplicateToolCount    int
 	ToolCallFrequency     map[string]int
+	RecoveryHintFrequency map[string]int
 }
 
 const maxTrackedToolCallSignatures = 512
@@ -33,9 +34,10 @@ func newToolRecoveryState() toolRecoveryState {
 
 func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 	return toolRecoveryState{
-		mu:                &sync.RWMutex{},
-		Policy:            policy,
-		ToolCallFrequency: make(map[string]int),
+		mu:                    &sync.RWMutex{},
+		Policy:                policy,
+		ToolCallFrequency:     make(map[string]int),
+		RecoveryHintFrequency: make(map[string]int),
 	}
 }
 
@@ -182,6 +184,27 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 	}
 }
 
+func recoveryHintKey(hint string) string {
+	h := fnv.New64a()
+	writeToolSignatureField(h, "hint", strings.TrimSpace(hint))
+	return strconv.FormatUint(h.Sum64(), 16)
+}
+
+func (s *toolRecoveryState) shouldSendRecoveryHintLocked(hint string, maxHits int) bool {
+	if s == nil || strings.TrimSpace(hint) == "" {
+		return true
+	}
+	if maxHits <= 0 {
+		maxHits = 2
+	}
+	key := recoveryHintKey(hint)
+	if s.RecoveryHintFrequency == nil {
+		s.RecoveryHintFrequency = make(map[string]int)
+	}
+	s.RecoveryHintFrequency[key]++
+	return s.RecoveryHintFrequency[key] <= maxHits
+}
+
 func isGenericToolSignature(tc ToolCall, toolSig string) bool {
 	pattern := toolArgString(tc.Params, "pattern")
 	glob := toolArgString(tc.Params, "glob")
@@ -311,10 +334,11 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 		s.TotalErrorCount++
 		if resultContent == s.LastToolError {
 			s.ConsecutiveErrorCount++
-			if s.ConsecutiveErrorCount == 2 && req != nil {
+			hint := recoveryHintForToolFailure(tc, resultContent)
+			if s.ConsecutiveErrorCount == 2 && req != nil && s.shouldSendRecoveryHintLocked(hint, 2) {
 				req.Messages = append(req.Messages, openai.ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "RECOVERY HINT: " + recoveryHintForToolFailure(tc, resultContent),
+					Content: "RECOVERY HINT: " + hint,
 				})
 			}
 			if s.ConsecutiveErrorCount >= s.Policy.identicalToolErrorHits() {

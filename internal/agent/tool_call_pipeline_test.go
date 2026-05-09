@@ -387,6 +387,43 @@ func TestRecoverFromEmptyResponseWithPolicyHonorsMinMessages(t *testing.T) {
 	}
 }
 
+func TestRecoverFromEmptyResponseDoesNotRetryEmptyNativeToolCallResponse(t *testing.T) {
+	resetAgentTelemetryForTest()
+	req := openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+			{Role: openai.ChatMessageRoleUser, Content: "u1"},
+			{Role: openai.ChatMessageRoleAssistant, Content: "a1"},
+			{Role: openai.ChatMessageRoleUser, Content: "u2"},
+			{Role: openai.ChatMessageRoleAssistant, Content: "a2"},
+			{Role: openai.ChatMessageRoleUser, Content: "u3"},
+		},
+	}
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{ToolCalls: []openai.ToolCall{{
+				ID:       "call-1",
+				Type:     openai.ToolTypeFunction,
+				Function: openai.FunctionCall{Name: "docker", Arguments: `{"operation":"ps"}`},
+			}}},
+		}},
+	}
+	emptyRetried := false
+
+	recovered := recoverFromEmptyResponse(resp, "", &req, &emptyRetried, nil, nil, AgentTelemetryScope{})
+
+	if recovered {
+		t.Fatal("did not expect empty-content tool-call response to trigger retry")
+	}
+	if emptyRetried {
+		t.Fatal("did not expect emptyRetried flag to be set")
+	}
+	snapshot := GetAgentTelemetrySnapshot()
+	if snapshot.PolicyEvents["empty_response_with_tool_calls"] == 0 {
+		t.Fatalf("expected empty_response_with_tool_calls telemetry, got %+v", snapshot.PolicyEvents)
+	}
+}
+
 func TestTrimMessagesForEmptyResponsePreservesLastUserIntentAndLatestToolResult(t *testing.T) {
 	msgs := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: "sys"},

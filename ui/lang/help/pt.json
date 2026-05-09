@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Remove dados de transição de ferramentas obsoletos após X dias.",
   "help.agent.adaptive_tools.decay_half_life_days": "Meia-vida para pontuação de uso em dias. Dados de uso mais antigos perdem influência. Valores mais altos = esquecimento mais lento.",
   "help.agent.adaptive_tools.enabled": "Aprende com o histórico de uso quais ferramentas são mais usadas e as prioriza. Ferramentas menos usadas são oferecidas com menos frequência.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maximo de ferramentas adaptativas/preferidas. Ferramentas obrigatorias e sempre incluidas podem ser adicionadas alem disso.",
   "help.agent.adaptive_tools.weight_success_rate": "Prefere ferramentas com maiores taxas de sucesso na seleção adaptativa.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "Quando desabilitado, apenas operações de leitura são permitidas.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic usado para mensagens de disponibilidade do AuraGo. Padrão: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads usados para mensagens de disponibilidade online e offline.",
   "help.mqtt.availability_qos": "Nível QoS usado para mensagens de disponibilidade.",
-  "help.mqtt.availability_retain": "Quando ativado, o broker retém o último estado de disponibilidade para novos assinantes."
+  "help.mqtt.availability_retain": "Quando ativado, o broker retém o último estado de disponibilidade para novos assinantes.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximo final de esquemas de ferramentas nativas depois de manter as ferramentas obrigatorias.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Aplica perfis de estabilidade por provedor para limites de ferramentas e timeouts de cabecalho.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Quantos turnos recentes mantem ferramentas usadas visiveis como always-include suave."
 }

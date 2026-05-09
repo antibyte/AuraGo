@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Verwijdert verouderde tool-overgangsgegevens na X dagen.",
   "help.agent.adaptive_tools.decay_half_life_days": "Halfwaardetijd voor gebruiksscore in dagen. Oudere gebruiksgegevens verliezen invloed. Hogere waarden = langzamer vergeten.",
   "help.agent.adaptive_tools.enabled": "Leert van gebruiksgeschiedenis welke tools het meest worden gebruikt en stelt deze voorrang. Minder gebruikte tools worden minder vaak aangeboden.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maximum aantal adaptieve/voorkeurstools. Vereiste en altijd zichtbare tools kunnen daarbovenop komen.",
   "help.agent.adaptive_tools.weight_success_rate": "Voorkeur voor tools met hogere slagingspercentages bij adaptieve selectie.",
   "help.agent.additional_prompt": "Extra tekst toegevoegd aan systeemprompt.",
   "help.agent.allow_filesystem_write": "Wanneer uitgeschakeld, alleen leesbewerkingen toegestaan.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic voor AuraGo-beschikbaarheidsberichten. Standaard: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads voor online en offline beschikbaarheidsberichten.",
   "help.mqtt.availability_qos": "QoS-niveau voor beschikbaarheidsberichten.",
-  "help.mqtt.availability_retain": "Wanneer ingeschakeld bewaart de broker de laatste beschikbaarheidsstatus voor nieuwe abonnees."
+  "help.mqtt.availability_retain": "Wanneer ingeschakeld bewaart de broker de laatste beschikbaarheidsstatus voor nieuwe abonnees.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximum aantal uiteindelijke native toolschema's nadat verplichte tools behouden zijn.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Past providerspecifieke stabiliteitsprofielen toe voor tool-limieten en response-header timeouts.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Aantal recente beurten waarin gebruikte tools zichtbaar blijven als zachte always-include tools."
 }

@@ -214,15 +214,23 @@ func handleDashboardToolStats(cfg *config.Config) http.HandlerFunc {
 
 		type response struct {
 			prompts.ToolUsageAggregated
-			AdaptiveEnabled bool                         `json:"adaptive_enabled"`
-			AdaptiveScores  []prompts.ToolDecayScore     `json:"adaptive_scores,omitempty"`
-			MaxTools        int                          `json:"max_tools,omitempty"`
-			AgentTelemetry  agent.AgentTelemetrySnapshot `json:"agent_telemetry"`
+			AdaptiveEnabled     bool                         `json:"adaptive_enabled"`
+			AdaptiveScores      []prompts.ToolDecayScore     `json:"adaptive_scores,omitempty"`
+			MaxTools            int                          `json:"max_tools,omitempty"`
+			MaxTotalTools       int                          `json:"max_total_tools,omitempty"`
+			ProviderToolProfile string                       `json:"provider_tool_profile,omitempty"`
+			LastFilterReport    agent.AgentToolFilterReport  `json:"last_tool_filter_report,omitempty"`
+			AgentTelemetry      agent.AgentTelemetrySnapshot `json:"agent_telemetry"`
 		}
+		policy := agent.BuildToolingPolicy(cfg, "")
+		telemetry := agent.GetAgentTelemetrySnapshot()
 		resp := response{
 			ToolUsageAggregated: stats,
 			AdaptiveEnabled:     cfg.Agent.AdaptiveTools.Enabled,
-			AgentTelemetry:      agent.GetAgentTelemetrySnapshot(),
+			MaxTotalTools:       cfg.Agent.AdaptiveTools.MaxTotalTools,
+			ProviderToolProfile: policy.ProviderToolProfile,
+			LastFilterReport:    telemetry.LastToolFilterReport,
+			AgentTelemetry:      telemetry,
 		}
 		if cfg.Agent.AdaptiveTools.Enabled {
 			resp.AdaptiveScores = prompts.GetAdaptiveToolScores(cfg.Agent.AdaptiveTools.DecayHalfLifeDays, cfg.Agent.AdaptiveTools.WeightSuccessRate)

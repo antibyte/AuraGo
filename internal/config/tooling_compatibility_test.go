@@ -6,6 +6,20 @@ import (
 	"testing"
 )
 
+func loadConfigFromTestYAML(t *testing.T, yamlData string) *Config {
+	t.Helper()
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(yamlData), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	return cfg
+}
+
 func TestLoadPreservesCriticalToolingCompatibilityFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
@@ -121,6 +135,72 @@ homepage:
 	}
 	if !cfg.Homepage.AllowTemporaryTokenBudgetOverflow {
 		t.Fatal("expected homepage.allow_temporary_token_budget_overflow=true to be preserved")
+	}
+}
+
+func TestAdaptiveToolsMaxToolsDefaultsToSixteenWhenEnabled(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+`)
+
+	if cfg.Agent.AdaptiveTools.MaxTools != 16 {
+		t.Fatalf("adaptive_tools.max_tools = %d, want 16", cfg.Agent.AdaptiveTools.MaxTools)
+	}
+}
+
+func TestAdaptiveToolsNewFieldsDefaultWhenEnabled(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+`)
+
+	if cfg.Agent.AdaptiveTools.MaxTotalTools != 32 {
+		t.Fatalf("adaptive_tools.max_total_tools = %d, want 32", cfg.Agent.AdaptiveTools.MaxTotalTools)
+	}
+	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		t.Fatal("expected provider_profiles_enabled to default to true")
+	}
+	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns != 8 {
+		t.Fatalf("session_tool_retention_turns = %d, want 8", cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)
+	}
+}
+
+func TestAdaptiveToolsNewFieldsPreserveExplicitValues(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+    max_total_tools: 24
+    provider_profiles_enabled: false
+    session_tool_retention_turns: 3
+`)
+
+	if cfg.Agent.AdaptiveTools.MaxTotalTools != 24 {
+		t.Fatalf("adaptive_tools.max_total_tools = %d, want 24", cfg.Agent.AdaptiveTools.MaxTotalTools)
+	}
+	if cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		t.Fatal("expected explicit provider_profiles_enabled=false to be preserved")
+	}
+	if cfg.Agent.AdaptiveTools.SessionToolRetentionTurns != 3 {
+		t.Fatalf("session_tool_retention_turns = %d, want 3", cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)
+	}
+}
+
+func TestAdaptiveToolsProviderProfilesDefaultWhenAdaptiveDisabled(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: false
+`)
+
+	if !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		t.Fatal("expected provider_profiles_enabled to default to true even when adaptive filtering is disabled")
+	}
+	if cfg.Agent.AdaptiveTools.MaxTotalTools != 0 {
+		t.Fatalf("max_total_tools = %d, want 0 while adaptive filtering is disabled", cfg.Agent.AdaptiveTools.MaxTotalTools)
 	}
 }
 

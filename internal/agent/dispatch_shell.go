@@ -89,7 +89,7 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 
 	case "execute_shell":
 		if !cfg.Agent.AllowShell {
-			return "Tool Output: [PERMISSION DENIED] execute_shell is disabled in Danger Zone settings (agent.allow_shell: false)."
+			return formatToolPermissionDenied("execute_shell", "runtime_permissions", "agent.allow_shell", "execute_shell is disabled in Danger Zone settings")
 		}
 		req := decodeShellExecutionArgs(tc)
 		// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)

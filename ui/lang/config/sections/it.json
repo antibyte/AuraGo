@@ -461,5 +461,7 @@
   "help.manifest.postgres_image": "Postgres Docker image used by the managed sidecar.",
   "help.manifest.postgres_password": "Stable Postgres password stored only in the vault.",
   "help.manifest.postgres_volume": "Named Docker volume for persistent Manifest data.",
-  "help.manifest.url": "Internal URL AuraGo uses for the managed Manifest service."
+  "help.manifest.url": "Internal URL AuraGo uses for the managed Manifest service.",
+  "config.section.optimizations.group.tool_context": "🔧 Contesto strumenti",
+  "config.section.optimizations.group.tool_visibility": "🔧 Visibilita strumenti"
 }

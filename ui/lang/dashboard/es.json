@@ -23,7 +23,7 @@
   "dashboard.activity_title": "Actividad",
   "dashboard.activity_webhooks": "Ganchos web",
   "dashboard.adaptive_tools_active": "Herramientas activas",
-  "dashboard.adaptive_tools_max": "Máx herramientas",
+  "dashboard.adaptive_tools_max": "Limite adaptativo",
   "dashboard.adaptive_tools_title": "Filtrado adaptativo de herramientas",
   "dashboard.adaptive_tools_total_calls": "Llamadas totales",
   "dashboard.agent_banner_context": "Contexto:",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Citas",
   "dashboard.quickstatus_todos": "Tareas",
   "dashboard.quickstatus_plans": "Planes",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Limite adaptativo",
+  "dashboard.adaptive_tools_total_cap": "Limite total",
+  "dashboard.adaptive_tools_last_count": "Ultimo conteo"
 }

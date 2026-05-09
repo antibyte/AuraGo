@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Fjerner utdatert verktøyovergangsdata etter X dager.",
   "help.agent.adaptive_tools.decay_half_life_days": "Half-life for usage scoring in days. Older usage data loses influence. Higher values = slower forgetting.",
   "help.agent.adaptive_tools.enabled": "Lærer fra bruksloggen hvilke verktøy som brukes mest og prioriterer dem. Mindre brukte verktøy tilbys sjeldnere.",
-  "help.agent.adaptive_tools.max_tools": "Maximum number of tools offered to the LLM at once. Reduces token consumption.",
+  "help.agent.adaptive_tools.max_tools": "Maks antall adaptive/foretrukne verktøy. Påkrevde og alltid inkluderte verktøy kan komme i tillegg.",
   "help.agent.adaptive_tools.weight_success_rate": "Foretrekker verktøy med høyere suksessrater i adaptiv utvelgelse.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",
   "help.agent.allow_filesystem_write": "When disabled, only read operations (list, read) are allowed. Write operations (write, delete, move, mkdir…) are blocked.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic for AuraGo-tilgjengelighetsmeldinger. Standard: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads for online og offline tilgjengelighetsmeldinger.",
   "help.mqtt.availability_qos": "QoS-nivå for tilgjengelighetsmeldinger.",
-  "help.mqtt.availability_retain": "Når aktivert beholder broker siste tilgjengelighetsstatus for nye abonnenter."
+  "help.mqtt.availability_retain": "Når aktivert beholder broker siste tilgjengelighetsstatus for nye abonnenter.",
+  "help.agent.adaptive_tools.max_total_tools": "Maks endelig antall native verktøyskjemaer etter at påkrevde verktøy er beholdt.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Bruker leverandørspesifikke stabilitetsprofiler for verktøygrenser og svartopp-timeouter.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Hvor mange nylige runder som holder brukte verktøy synlige som myke always-include verktøy."
 }

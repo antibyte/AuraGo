@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "スケジュール済みタスク",
   "dashboard.activity_title": "アクティビティ",
   "dashboard.activity_webhooks": "Webhook",
-  "dashboard.adaptive_tools_active": "アクティブツール",
-  "dashboard.adaptive_tools_max": "最大ツール数",
+  "dashboard.adaptive_tools_active": "有効なツール",
+  "dashboard.adaptive_tools_max": "適応上限",
   "dashboard.adaptive_tools_title": "適応ツールフィルタリング",
-  "dashboard.adaptive_tools_total_calls": "総呼び出し数",
+  "dashboard.adaptive_tools_total_calls": "総呼び出し",
   "dashboard.agent_banner_context": "コンテキスト:",
   "dashboard.agent_banner_days_ago": "{{n}}日前",
   "dashboard.agent_banner_hours_ago": "{{n}}時間前",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "予定",
   "dashboard.quickstatus_todos": "To-Do",
   "dashboard.quickstatus_plans": "プラン",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "適応上限",
+  "dashboard.adaptive_tools_total_cap": "合計上限",
+  "dashboard.adaptive_tools_last_count": "直近ツール数"
 }

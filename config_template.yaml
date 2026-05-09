@@ -51,7 +51,10 @@ agent:
     # ── Adaptive tool filtering (reduces token usage for tool schemas) ──
     adaptive_tools:
         enabled: false                                              # enable adaptive filtering
-        max_tools: 16                                              # max tool schemas sent to LLM (0 = unlimited, default: 16; research shows accuracy degrades beyond ~20 tools)
+        max_tools: 16                                               # max adaptive/preferred tool schemas; hard-required and soft always-include tools are added on top (0 = unlimited, default: 16)
+        max_total_tools: 32                                         # max final native schemas after hard-required tools are kept (0 = unlimited, default: 32)
+        provider_profiles_enabled: true                             # apply provider-specific tool caps and response-header timeout defaults
+        session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft always-include tools
         decay_half_life_days: 7                                     # usage score halves after this many days
         always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request]
     recovery:

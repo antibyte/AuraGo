@@ -4,7 +4,7 @@
   "help.agent.adaptive_tools.clean_transitions_after_days": "Löscht nicht mehr relevante Tool-Übergangsdaten nach X Tagen.",
   "help.agent.adaptive_tools.decay_half_life_days": "Halbwertszeit für die Nutzungsbewertung in Tagen. Ältere Nutzungsdaten verlieren an Einfluss. Höhere Werte = langsameres Vergessen.",
   "help.agent.adaptive_tools.enabled": "Lernt aus dem Nutzungsverlauf, welche Tools am häufigsten verwendet werden, und priorisiert diese. Weniger genutzte Tools werden seltener angeboten.",
-  "help.agent.adaptive_tools.max_tools": "Maximale Anzahl der Tools, die dem LLM gleichzeitig angeboten werden. Reduziert den Token-Verbrauch.",
+  "help.agent.adaptive_tools.max_tools": "Maximale Anzahl adaptiver/bevorzugter Tools. Erforderliche und Always-Include-Tools koennen zusaetzlich sichtbar bleiben.",
   "help.agent.adaptive_tools.weight_success_rate": "Bevorzugt Tools mit höherer Erfolgsquote bei der adaptiven Auswahl.",
   "help.agent.additional_prompt": "Beliebiger Text, der immer am Ende des System-Prompts angehängt wird. Ideal für nutzerspezifische Regeln, Kontextinfos oder feste Anweisungen, die bei jeder Anfrage gelten sollen.",
   "help.agent.allow_filesystem_write": "Wenn deaktiviert, werden nur Lesezugriffe (list, read) erlaubt. Schreiboperationen (write, delete, move, mkdir…) werden blockiert.",
@@ -371,5 +371,8 @@
   "help.mqtt.availability_topic": "Topic für AuraGo-Verfügbarkeitsmeldungen. Standard: aurago/status.",
   "help.mqtt.availability_payloads": "Payloads für Online- und Offline-Verfügbarkeitsmeldungen.",
   "help.mqtt.availability_qos": "QoS-Stufe für Verfügbarkeitsmeldungen.",
-  "help.mqtt.availability_retain": "Wenn aktiv, behält der Broker den letzten Verfügbarkeitsstatus für neue Abonnenten."
+  "help.mqtt.availability_retain": "Wenn aktiv, behält der Broker den letzten Verfügbarkeitsstatus für neue Abonnenten.",
+  "help.agent.adaptive_tools.max_total_tools": "Maximale finale Anzahl nativer Tool-Schemas, nachdem hart erforderliche Tools behalten wurden.",
+  "help.agent.adaptive_tools.provider_profiles_enabled": "Aktiviert provider-spezifische Stabilitaetsprofile fuer Tool-Limits und Antwort-Header-Timeouts.",
+  "help.agent.adaptive_tools.session_tool_retention_turns": "Anzahl letzter Turns, deren genutzte Tools als weiche Always-Include-Tools sichtbar bleiben."
 }

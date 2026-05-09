@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "निर्धारित कार्य",
   "dashboard.activity_title": "गतिविधि",
   "dashboard.activity_webhooks": "वेबहुक",
-  "dashboard.adaptive_tools_active": "सक्रिय उपकरण",
-  "dashboard.adaptive_tools_max": "अधिकतम उपकरण",
+  "dashboard.adaptive_tools_active": "Active Tools",
+  "dashboard.adaptive_tools_max": "Adaptive Cap",
   "dashboard.adaptive_tools_title": "अनुकूली उपकरण फ़िल्टरिंग",
-  "dashboard.adaptive_tools_total_calls": "कुल कॉल",
+  "dashboard.adaptive_tools_total_calls": "Total Calls",
   "dashboard.agent_banner_context": "संदर्भ:",
   "dashboard.agent_banner_days_ago": "{{n}}दिन पहले",
   "dashboard.agent_banner_hours_ago": "{{n}}घंटे पहले",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "अपॉइंटमेंट",
   "dashboard.quickstatus_todos": "कार्य",
   "dashboard.quickstatus_plans": "योजनाएँ",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Adaptive Cap",
+  "dashboard.adaptive_tools_total_cap": "Total Cap",
+  "dashboard.adaptive_tools_last_count": "Last Tool Count"
 }

@@ -22,10 +22,10 @@
   "dashboard.activity_scheduled_tasks": "Προγραμματισμένες Εργασίες",
   "dashboard.activity_title": "Δραστηριότητα",
   "dashboard.activity_webhooks": "Webhooks",
-  "dashboard.adaptive_tools_active": "Ενεργά Εργαλεία",
-  "dashboard.adaptive_tools_max": "Μέγιστα Εργαλεία",
+  "dashboard.adaptive_tools_active": "Ενεργα εργαλεια",
+  "dashboard.adaptive_tools_max": "Προσαρμοστικο οριο",
   "dashboard.adaptive_tools_title": "Προσαρμοστικό Φιλτράρισμα Εργαλείων",
-  "dashboard.adaptive_tools_total_calls": "Συνολικές Κλήσεις",
+  "dashboard.adaptive_tools_total_calls": "Συνολικες κλησεις",
   "dashboard.agent_banner_context": "Πλαίσιο:",
   "dashboard.agent_banner_days_ago": "{{n}}μ πριν",
   "dashboard.agent_banner_hours_ago": "{{n}}ω πριν",
@@ -593,5 +593,8 @@
   "dashboard.quickstatus_appointments": "Ραντεβού",
   "dashboard.quickstatus_todos": "Εργασίες",
   "dashboard.quickstatus_plans": "Πλάνα",
-  "dashboard.integration_frigate": "Frigate"
+  "dashboard.integration_frigate": "Frigate",
+  "dashboard.adaptive_tools_adaptive_cap": "Προσαρμοστικο οριο",
+  "dashboard.adaptive_tools_total_cap": "Συνολικο οριο",
+  "dashboard.adaptive_tools_last_count": "Τελευταιος αριθμος"
 }
