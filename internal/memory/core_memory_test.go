@@ -337,3 +337,30 @@ func TestCoreMemoryUpdatedAt_DeleteOnlyFactReturnsZero(t *testing.T) {
 		t.Errorf("expected zero time after deleting only fact, got %v", afterDelete)
 	}
 }
+
+func TestPruneTransientCoreMemoryFactsRemovesOnlyPolicyViolations(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	if _, err := stm.AddCoreMemoryFact("Username is Andi"); err != nil {
+		t.Fatalf("AddCoreMemoryFact durable: %v", err)
+	}
+	if _, err := stm.AddCoreMemoryFact(`2026-05-08: Created "Chaos Symphony XIII", uploaded to Koofr /aurago/music. Media Registry ID: 2320.`); err != nil {
+		t.Fatalf("AddCoreMemoryFact transient: %v", err)
+	}
+
+	deleted, err := stm.PruneTransientCoreMemoryFacts(nil)
+	if err != nil {
+		t.Fatalf("PruneTransientCoreMemoryFacts: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+
+	facts, err := stm.GetCoreMemoryFacts()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryFacts: %v", err)
+	}
+	if len(facts) != 1 || facts[0].Fact != "Username is Andi" {
+		t.Fatalf("remaining facts = %+v, want only durable fact", facts)
+	}
+}

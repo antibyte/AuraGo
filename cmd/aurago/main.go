@@ -397,6 +397,11 @@ func main() {
 
 	// Migrate core_memory.md â†’ SQLite (no-op if already done); returns true on first start
 	isFirstStart := shortTermMem.MigrateCoreMemoryFromMarkdown(cfg.Directories.DataDir, appLog)
+	if deleted, err := shortTermMem.PruneTransientCoreMemoryFacts(appLog); err != nil {
+		appLog.Warn("Core memory transient cleanup failed", "error", err)
+	} else if deleted > 0 {
+		appLog.Info("Core memory transient cleanup completed", "facts_deleted", deleted)
+	}
 
 	inventoryDB, err := inventory.InitDB(cfg.SQLite.InventoryPath)
 	if err != nil {

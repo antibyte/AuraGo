@@ -191,6 +191,34 @@ func (s *SQLiteMemory) DeleteAllCoreMemoryFacts() (int64, error) {
 	return affected, nil
 }
 
+// PruneTransientCoreMemoryFacts removes entries that violate the current core
+// memory policy. It is meant for startup cleanup after older builds polluted
+// core memory with operational history, generated media metadata, or tool state.
+func (s *SQLiteMemory) PruneTransientCoreMemoryFacts(logger *slog.Logger) (int64, error) {
+	facts, err := s.GetCoreMemoryFacts()
+	if err != nil {
+		return 0, err
+	}
+	var deleted int64
+	var firstErr error
+	for _, fact := range facts {
+		if err := ValidateCoreMemoryFact(fact.Fact); err == nil {
+			continue
+		}
+		if err := s.DeleteCoreMemoryFact(fact.ID); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			if logger != nil {
+				logger.Warn("Core memory prune: failed to delete transient fact", "id", fact.ID, "error", err)
+			}
+			continue
+		}
+		deleted++
+	}
+	return deleted, firstErr
+}
+
 // FindCoreMemoryIDByFact returns the ID of the first entry whose fact text
 // matches exactly (used for backwards-compatible text-based deletion).
 func (s *SQLiteMemory) FindCoreMemoryIDByFact(fact string) (int64, error) {
