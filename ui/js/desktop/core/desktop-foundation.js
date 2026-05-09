@@ -955,6 +955,9 @@
             card.addEventListener('contextmenu', event => showWidgetContextMenu(event, widget));
             wireLongPress(card, event => showWidgetContextMenu(event, widget));
             scheduleWidgetAutoSize(card, widget);
+            wireDraggableWidget(card, widget);
+        });
+    }
 
     function activateDesktopItem(btn) {
         if (btn.dataset.kind === 'file') {

@@ -1,8 +1,4 @@
-﻿            wireDraggableWidget(card, widget);
-        });
-    }
-
-    function renderBuiltinWidget(card, widget) {
+﻿    function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
         if (widget.id === 'builtin-analog-clock') {
