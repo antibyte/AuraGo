@@ -243,7 +243,6 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	}
 
 	if providerType == "minimax" || providerType == "glm" {
-		transport = disableHTTP2Transport(transport)
 		transport = &miniMaxTransport{base: transport}
 		hasCustomTransport = true
 	}
@@ -271,17 +270,6 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	}
 
 	return &http.Client{Transport: transport, Timeout: 3 * time.Minute}
-}
-
-func disableHTTP2Transport(rt http.RoundTripper) http.RoundTripper {
-	transport, ok := rt.(*http.Transport)
-	if !ok {
-		return rt
-	}
-	clone := transport.Clone()
-	clone.ForceAttemptHTTP2 = false
-	clone.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
-	return clone
 }
 
 func defaultLLMHTTPTransport() *http.Transport {

@@ -213,19 +213,22 @@ func TestFilterToolSchemas_FrequentToolKept(t *testing.T) {
 	}
 }
 
-func TestFilterToolSchemas_SkillPrefixAlwaysKept(t *testing.T) {
+func TestFilterToolSchemas_DynamicShortcutPrefixesAreAdaptive(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("skill__backup"),
 		makeTool("tool__my_custom"),
 		makeTool("obscure_tool"),
 	}
-	result := filterToolSchemas(schemas, []string{}, []string{}, 0, nil)
+	result := filterToolSchemas(schemas, []string{"obscure_tool"}, []string{}, 1, nil)
 	names := toolNames(result)
-	if !containsName(names, "skill__backup") {
-		t.Error("skill__-prefixed tool should always be kept")
+	if containsName(names, "skill__backup") {
+		t.Error("skill__-prefixed tool should not bypass adaptive filtering")
 	}
-	if !containsName(names, "tool__my_custom") {
-		t.Error("tool__-prefixed tool should always be kept")
+	if containsName(names, "tool__my_custom") {
+		t.Error("tool__-prefixed tool should not bypass adaptive filtering")
+	}
+	if !containsName(names, "obscure_tool") {
+		t.Error("preferred tool should be kept")
 	}
 }
 

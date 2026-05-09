@@ -810,9 +810,9 @@ func extractErrorMessage(resultContent string) string {
 
 // filterToolSchemas removes tools that are neither in the preferred-tools list
 // nor in the always-include list, keeping at most maxTools schemas.
-// alwaysInclude tools and skill__/tool__ prefixed tools are never dropped.
-// maxTools is a hard cap applied to preferred tools; alwaysInclude tools do not
-// count against the cap. maxTools=0 disables the cap entirely.
+// alwaysInclude tools are never dropped. maxTools is a hard cap applied to
+// preferred tools; alwaysInclude tools do not count against the cap.
+// maxTools=0 disables the cap entirely.
 // This reduces token overhead for rarely-used tools without breaking any dispatch.
 func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []string, maxTools int, logger *slog.Logger) []openai.Tool {
 	keepAlways := make(map[string]bool, len(alwaysInclude))
@@ -840,8 +840,7 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 		name := s.Function.Name
 		schemaByName[name] = s
 		schemaOrder = append(schemaOrder, name)
-		// alwaysInclude and skill__/tool__ prefixed tools are never filtered
-		if keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+		if keepAlways[name] {
 			keptAlways = append(keptAlways, s)
 		}
 	}
@@ -853,20 +852,22 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 		if !ok || consumed[name] {
 			continue
 		}
-		if keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+		if keepAlways[name] {
 			continue
 		}
 		keptFrequent = append(keptFrequent, schema)
 		consumed[name] = true
 	}
 	for _, name := range schemaOrder {
-		if consumed[name] || keepAlways[name] || strings.HasPrefix(name, "skill__") || strings.HasPrefix(name, "tool__") {
+		if consumed[name] || keepAlways[name] {
 			continue
 		}
 		dropped = append(dropped, schemaByName[name])
 	}
 
-	// Enforce maxTools cap on frequent tools (alwaysInclude and skills are entirely exempt from the count)
+	// Enforce maxTools cap on frequent tools. Dynamic skill__/tool__ shortcuts are
+	// intentionally not exempt; they remain available via discover_tools,
+	// execute_skill, run_tool, or invoke_tool.
 	if maxTools > 0 {
 		if len(keptFrequent) > maxTools {
 			// Push excess frequent tools back to dropped (preserving order)
