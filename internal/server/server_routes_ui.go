@@ -47,13 +47,14 @@ if(!params.get('widget_id')||!window.parent||window.parent===window)return;
 var frame=0;
 function measure(){
 var doc=document.documentElement,body=document.body,width=0,height=0,sx=window.scrollX||0,sy=window.scrollY||0;
+var viewportWidth=window.innerWidth||doc.clientWidth||(body&&body.clientWidth)||0;
+var viewportHeight=window.innerHeight||doc.clientHeight||(body&&body.clientHeight)||0;
 function include(node){
 if(!node)return;
 var rect=typeof node.getBoundingClientRect==='function'?node.getBoundingClientRect():null;
 var left=rect?rect.left+sx:0,top=rect?rect.top+sy:0;
 width=Math.max(width,node.scrollWidth||0,node.offsetWidth||0,node.clientWidth||0,rect?rect.right+sx:0,left+(node.scrollWidth||0));
 if(node===doc||node===body)return;
-var viewportHeight=window.innerHeight||doc.clientHeight||(body&&body.clientHeight)||0;
 var nodeHeight=Math.max(node.clientHeight||0,node.offsetHeight||0,rect?rect.height:0);
 var fillsViewport=viewportHeight>0&&nodeHeight>=viewportHeight-2&&(node.scrollHeight||0)<=nodeHeight+2&&node.children&&node.children.length;
 if(fillsViewport)return;
@@ -62,8 +63,10 @@ height=Math.max(height,node.scrollHeight||0,node.offsetHeight||0,node.clientHeig
 include(doc);
 include(body);
 if(body)body.querySelectorAll('*').forEach(include);
-height=Math.max(height,doc.scrollHeight||0,doc.offsetHeight||0,doc.clientHeight||0,body?body.scrollHeight||0:0,body?body.offsetHeight||0:0,body?body.clientHeight||0:0);
-return{width:Math.ceil(width),height:Math.ceil(Math.max(height,1))};
+var documentScrollHeight=Math.max(doc.scrollHeight||0,body?body.scrollHeight||0:0,body?body.offsetHeight||0:0);
+var contentOverflowsViewport=viewportHeight>0&&documentScrollHeight>viewportHeight+2;
+if(contentOverflowsViewport)height=Math.max(height,documentScrollHeight);
+return{width:Math.ceil(width),height:Math.ceil(Math.max(height,1)),viewportWidth:Math.ceil(viewportWidth),viewportHeight:Math.ceil(viewportHeight)};
 }
 function send(){
 if(frame)cancelAnimationFrame(frame);

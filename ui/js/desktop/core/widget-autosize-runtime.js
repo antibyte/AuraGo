@@ -53,11 +53,12 @@
             frameWrap.style.setProperty('--vd-widget-frame-height', frameHeight + 'px');
         }
         const measuredContentHeight = widgetMeasuredContentHeight(card, data);
+        const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0);
         const desiredHeight = Math.max(
             WIDGET_MIN_HEIGHT,
             Math.ceil(Number(data.cardHeight || data.card_height || 0)),
             measuredContentHeight,
-            Math.ceil(card.scrollHeight || 0)
+            renderedScrollHeight
         );
         card.style.setProperty('--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT) + 'px');
     }
@@ -93,7 +94,8 @@
         if (!card || card.dataset.widgetAutoSize !== 'true') return;
         const data = payload && typeof payload === 'object' ? payload : {};
         const reportedWidth = Number(data.width || data.w || 0);
-        if (reportedWidth > 16) {
+        const reportedViewportWidth = Number(data.viewportWidth || data.viewport_width || 0);
+        if (reportedWidth > 16 && (!reportedViewportWidth || reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD)) {
             const nextWidth = Math.max(220, Math.min(Math.ceil(reportedWidth + WIDGET_FRAME_CHROME_BUFFER), widgetMaxWidth(card)));
             card.style.width = nextWidth + 'px';
         }

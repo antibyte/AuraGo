@@ -23,6 +23,7 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 		"WIDGET_AUTO_SIZE_PADDING",
 		"WIDGET_FRAME_SCROLLBAR_BUFFER",
 		"WIDGET_FRAME_CHROME_BUFFER",
+		"WIDGET_WIDTH_GROW_THRESHOLD",
 		"function widgetMeasuredContentHeight(",
 		"function widgetElementBottom(",
 		"function widgetMaxWidth(",
@@ -43,7 +44,7 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 	for _, want := range []string{
 		"reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER",
 		"widgetMeasuredContentHeight(card, data)",
-		"card.scrollHeight || 0",
+		"reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0)",
 	} {
 		if !strings.Contains(autosizeBody, want) {
 			t.Fatalf("desktop widget autosize should measure rendered content and leave iframe scrollbar headroom; missing %q", want)
@@ -52,6 +53,8 @@ func TestDesktopWidgetsAutoSizeByDefault(t *testing.T) {
 
 	resizeBody := jsFunctionBodyInWindowMenuTest(t, source, "function resizeWidgetToContent(widgetId, payload)")
 	for _, want := range []string{
+		"reportedViewportWidth",
+		"reportedWidth > reportedViewportWidth + WIDGET_WIDTH_GROW_THRESHOLD",
 		"reportedWidth + WIDGET_FRAME_CHROME_BUFFER",
 		"widgetMaxWidth(card)",
 		"card.style.width",
@@ -69,6 +72,8 @@ func TestDesktopWidgetSDKCanReportContentSize(t *testing.T) {
 		"function measureWidgetContentSize(",
 		"function startWidgetAutoResize(",
 		"body.querySelectorAll('*').forEach(include)",
+		"viewportWidth",
+		"contentOverflowsViewport",
 		"new ResizeObserver",
 	} {
 		if !strings.Contains(sdk, marker) {

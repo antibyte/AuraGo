@@ -1,12 +1,12 @@
 /* desktop.css — aggregator; see desktop-*.css for component styles */
-@import url('desktop-base.css?v=20260509k');
-@import url('desktop-taskbar.css?v=20260509k');
-@import url('desktop-start-menu.css?v=20260509k');
-@import url('desktop-windows.css?v=20260509k');
-@import url('desktop-icons.css?v=20260509k');
-@import url('desktop-widgets.css?v=20260509k');
-@import url('desktop-modals.css?v=20260509k');
-@import url('desktop-apps.css?v=20260509k');
+@import url('desktop-base.css?v=20260509l');
+@import url('desktop-taskbar.css?v=20260509l');
+@import url('desktop-start-menu.css?v=20260509l');
+@import url('desktop-windows.css?v=20260509l');
+@import url('desktop-icons.css?v=20260509l');
+@import url('desktop-widgets.css?v=20260509l');
+@import url('desktop-modals.css?v=20260509l');
+@import url('desktop-apps.css?v=20260509l');
 
 .desktop-body[data-theme="fruity"] .vd-window > .vd-window-titlebar > .vd-window-actions,
 .desktop-body[data-theme="fruity"] .vd-widget-manager > .vd-wm-header > .vd-window-actions {

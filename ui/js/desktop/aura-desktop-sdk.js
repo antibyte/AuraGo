@@ -107,6 +107,8 @@
         const body = document.body;
         let contentWidth = 0;
         let contentHeight = 0;
+        const viewportWidth = window.innerWidth || doc.clientWidth || (body && body.clientWidth) || 0;
+        const viewportHeight = window.innerHeight || doc.clientHeight || (body && body.clientHeight) || 0;
         const include = node => {
             if (!node) return;
             const rect = typeof node.getBoundingClientRect === 'function' ? node.getBoundingClientRect() : null;
@@ -114,7 +116,6 @@
             const top = rect ? rect.top + (window.scrollY || 0) : 0;
             contentWidth = Math.max(contentWidth, node.scrollWidth || 0, node.offsetWidth || 0, node.clientWidth || 0, rect ? rect.right + (window.scrollX || 0) : 0, left + (node.scrollWidth || 0));
             if (node === doc || node === body) return;
-            const viewportHeight = window.innerHeight || doc.clientHeight || (body && body.clientHeight) || 0;
             const nodeHeight = Math.max(node.clientHeight || 0, node.offsetHeight || 0, rect ? rect.height : 0);
             const fillsViewport = viewportHeight > 0 && nodeHeight >= viewportHeight - 2 && (node.scrollHeight || 0) <= nodeHeight + 2 && node.children && node.children.length;
             if (fillsViewport) return;
@@ -123,9 +124,14 @@
         include(doc);
         include(body);
         if (body) body.querySelectorAll('*').forEach(include);
+        const documentScrollHeight = Math.max(doc.scrollHeight || 0, body ? body.scrollHeight || 0 : 0, body ? body.offsetHeight || 0 : 0);
+        const contentOverflowsViewport = viewportHeight > 0 && documentScrollHeight > viewportHeight + 2;
+        if (contentOverflowsViewport) contentHeight = Math.max(contentHeight, documentScrollHeight);
         return {
             width: Math.ceil(contentWidth),
-            height: Math.ceil(Math.max(contentHeight, 1))
+            height: Math.ceil(Math.max(contentHeight, 1)),
+            viewportWidth: Math.ceil(viewportWidth),
+            viewportHeight: Math.ceil(viewportHeight)
         };
     }
 
@@ -134,7 +140,9 @@
         const data = options && typeof options === 'object' ? options : measured;
         return {
             width: Math.ceil(Number(data.width || data.w || measured.width || 0)),
-            height: Math.ceil(Number(data.height || data.h || measured.height || 0))
+            height: Math.ceil(Number(data.height || data.h || measured.height || 0)),
+            viewportWidth: Math.ceil(Number(data.viewportWidth || data.viewport_width || measured.viewportWidth || 0)),
+            viewportHeight: Math.ceil(Number(data.viewportHeight || data.viewport_height || measured.viewportHeight || 0))
         };
     }
 
