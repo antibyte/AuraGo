@@ -115,6 +115,7 @@ log_analysis_*.md
 /docs
 docs
 docs/*.*
+docs/superpowers/
 .superpowers/
 .playwright-mcp/
 .worktrees/
