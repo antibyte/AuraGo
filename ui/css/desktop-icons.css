@@ -54,6 +54,16 @@
     box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
 }
 
+.vd-workspace.vd-desktop-file-drop-target::after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 1px dashed rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: calc(var(--vd-z-desktop) + 1);
+}
+
 .vd-long-press-active {
     transform: scale(0.97);
     filter: brightness(1.08);

@@ -91,6 +91,28 @@ func TestFileManagerContextMenuPreservesThemeIconKeys(t *testing.T) {
 	}
 }
 
+func TestFileManagerItemsCanDropOntoDesktop(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []string{
+		"const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files'",
+		"function fileManagerDragPayload(path)",
+		"e.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify(fileManagerDragPayload(path)))",
+		"function desktopFileDragPayload(event)",
+		"function wireDesktopFileDrops()",
+		"function moveDraggedFilesToDesktop(paths, clientX, clientY)",
+		"await api('/api/desktop/file',",
+		"body: JSON.stringify({ old_path: src, new_path: newPath })",
+		"saveIconPosition('desktop-entry-' + newPath",
+		"workspace.addEventListener('drop', handleDesktopFileDrop)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop file drag-to-desktop integration missing marker %q", marker)
+		}
+	}
+}
+
 func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 	t.Parallel()
 

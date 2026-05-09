@@ -7,6 +7,7 @@
     const PREVIEW_IMAGE_MIMES = new Set(['image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp']);
     const FILE_RENDER_BATCH_SIZE = 250;
     const FILE_INCREMENTAL_THRESHOLD = 600;
+    const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';
 
     const instances = new Map();
     let fm = createInstance();

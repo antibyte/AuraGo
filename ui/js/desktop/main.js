@@ -12,6 +12,7 @@
         '/js/desktop/core/lifecycle-cleanup.js?v=' + assetV,
         '/js/desktop/core/widget-autosize-runtime.js?v=' + assetV,
         '/js/desktop/core/shortcut-runtime.js?v=' + assetV,
+        '/js/desktop/core/desktop-file-drops.js?v=' + assetV,
         '/js/desktop/core/menus-and-routing.js?v=' + assetV,
         '/js/desktop/apps/settings-calculator.js?v=' + assetV,
         '/js/desktop/apps/planning-gallery-music.js?v=' + assetV,

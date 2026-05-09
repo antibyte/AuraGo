@@ -310,6 +310,7 @@
         $('vd-workspace').addEventListener('click', event => {
             if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
         });
+        wireDesktopFileDrops();
         document.addEventListener('keydown', handleDesktopKeydown);
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);

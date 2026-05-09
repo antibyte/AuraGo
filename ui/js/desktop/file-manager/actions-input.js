@@ -704,6 +704,11 @@
     // Drag and drop
     let dragSrcPath = null;
 
+    function fileManagerDragPayload(path) {
+        const paths = fm.selectedPaths.has(path) ? Array.from(fm.selectedPaths) : [path];
+        return { source: 'file-manager', paths };
+    }
+
     function handleDragStart(e) {
         const path = e.currentTarget.dataset.path;
         dragSrcPath = path;
@@ -713,6 +718,7 @@
         }
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', path);
+        e.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify(fileManagerDragPayload(path)));
     }
 
     function handleDragOver(e) {
