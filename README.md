@@ -95,6 +95,10 @@ go build -o aurago ./cmd/aurago
 |:---------:|:----:|:----------:|:-------------:|
 | ![Dashboard](documentation/screenshots/dashboard.png) | ![Chat](documentation/screenshots/chat.png) | ![Containers](documentation/screenshots/containers.png) | ![Config](documentation/screenshots/config.png) |
 
+| Desktop |
+|:-------:|
+| ![Desktop](documentation/screenshots/desktop.png) |
+
 ### Theme Variants
 
 AuraGo has some built-in themes to choose from:
