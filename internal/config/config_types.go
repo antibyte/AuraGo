@@ -1451,16 +1451,6 @@ type Config struct {
 		RequireAuth       bool     `yaml:"require_auth"`        // require Bearer token or session cookie
 		VSCodeDebugBridge bool     `yaml:"vscode_debug_bridge"` // enable the VS Code live-debug bridge preset
 	} `yaml:"mcp_server"`
-	N8n struct {
-		Enabled        bool     `yaml:"enabled"`
-		ReadOnly       bool     `yaml:"readonly"`         // true = only read operations, block write
-		WebhookBaseURL string   `yaml:"webhook_base_url"` // Full n8n webhook URL (e.g. https://n8n.example.com/webhook/abc-123)
-		AllowedEvents  []string `yaml:"allowed_events"`   // events that trigger n8n webhooks
-		RequireToken   bool     `yaml:"require_token"`    // require Bearer token auth (default: true)
-		AllowedTools   []string `yaml:"allowed_tools"`    // tools n8n can execute; empty = none (explicit whitelist required)
-		RateLimitRPS   int      `yaml:"rate_limit_rps"`   // requests per second limit (0 = unlimited)
-		Scopes         []string `yaml:"scopes"`           // allowed operation scopes; empty = none (n8n:read, n8n:chat, n8n:tools, n8n:memory, n8n:missions, n8n:admin)
-	} `yaml:"n8n"`
 	SQLConnections struct {
 		Enabled              bool `yaml:"enabled"`
 		ReadOnly             bool `yaml:"readonly"`         // global read-only: block all mutating queries regardless of connection permissions

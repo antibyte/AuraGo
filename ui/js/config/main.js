@@ -150,7 +150,6 @@ const SECTIONS = [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
             { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
-            { key: 'n8n', icon: '🔀', label: t('config.section.n8n.label'), desc: t('config.section.n8n.desc') },
             { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') },
             { key: 'yepapi', icon: '🌐', label: t('config.section.yepapi.label'), desc: t('config.section.yepapi.desc') }
         ]
@@ -1811,7 +1810,6 @@ const SECTION_MODULES = {
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
     a2a: { m: 'a2a', fn: 'renderA2ASection' },
-    n8n: { m: 'n8n', fn: 'renderN8nSection' },
     tts: { m: 'tts', fn: 'renderTTSSection' },
     co_agents: { m: 'co_agents', fn: 'renderCoAgentsSection' },
     sql_connections: { m: 'sql_connections', fn: 'renderSQLConnectionsSection' },

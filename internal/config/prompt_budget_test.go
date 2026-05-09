@@ -83,7 +83,6 @@ func TestCalculateAdaptiveSystemPromptTokenBudget_CapsExtraBudget(t *testing.T) 
 	cfg.InvasionControl.Enabled = true
 	cfg.SQLConnections.Enabled = true
 	cfg.Webhooks.Enabled = true
-	cfg.N8n.Enabled = true
 	cfg.MCP.Enabled = true
 	cfg.Agent.AllowMCP = true
 	cfg.Homepage.Enabled = true

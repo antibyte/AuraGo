@@ -576,7 +576,6 @@ media_registry:
 | `mcp_server` | AuraGo selbst als MCP-Server bereitstellen |
 | `a2a` | Agent-to-Agent-Kommunikation und Remote Agents |
 | `python_tool_bridge` | Ausgewählte native Tools für Python-Skills freigeben |
-| `n8n` | Workflow-Automation mit Scopes, Tool-Freigabe und Webhooks |
 
 ### Sicherheit und Public Exposure
 

@@ -160,7 +160,6 @@ AuraGo includes **100+ built-in tools** across these categories:
 - **Rocket.Chat** — Self-hosted chat integration
 - **Email** — IMAP monitoring + SMTP sending (multiple accounts)
 - **Telnyx** — SMS/voice calls, voicemail, IVR system
-- **n8n** — Bidirectional workflow automation (official community node)
 - **Notifications** — Push notifications via ntfy and Pushover
 </details>
 

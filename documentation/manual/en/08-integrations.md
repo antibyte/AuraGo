@@ -375,47 +375,6 @@ adguard:
 
 ---
 
-## n8n Integration
-
-Connect with n8n workflow automation. AuraGo can expose scoped API access to n8n workflows, execute selected tools, create isolated chat sessions, search/store memory, and create or manage missions from workflows.
-
-### Web UI Setup
-1. Open **Config → Integrations → n8n**.
-2. Enable the integration.
-3. Enter your **Webhook Base URL** for outbound calls from AuraGo to n8n.
-4. Configure allowed scopes and tools. Use the narrowest scopes that your workflow needs.
-5. Enable HMAC/token checks and rate limits for public endpoints.
-6. Save and restart.
-
-AuraGo also provides an official n8n community node: `@antibyte/n8n-nodes-aurago`.
-
-### Scopes and capabilities
-
-| Scope | Allows |
-|-------|--------|
-| `n8n:chat` | Start or continue isolated AuraGo chat sessions from n8n |
-| `n8n:tools` | Execute explicitly allowed AuraGo tools from workflows |
-| `n8n:memory` | Search or store memory entries through workflow logic |
-| `n8n:missions` | Create, update, trigger, or inspect Mission Control tasks |
-| `n8n:admin` | Administrative operations; keep disabled unless required |
-
-Use `readonly: true` for workflows that should only read state. `scopes` and `allowed_tools` are explicit allowlists; leave either empty to disable that capability.
-
-### YAML Reference
-```yaml
-n8n:
-    enabled: true
-    readonly: false
-    webhook_base_url: "https://n8n.yourdomain.com"
-    allowed_events: ["message", "tool_result"]
-    require_token: true
-    allowed_tools: ["query_memory", "manage_missions"]
-    rate_limit_rps: 10
-    scopes: ["n8n:chat", "n8n:tools", "n8n:memory"]
-```
-
----
-
 ## Telnyx Integration
 
 Send/receive SMS and make voice calls.

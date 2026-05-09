@@ -104,7 +104,7 @@ func handleSecurityHints(s *Server) http.HandlerFunc {
 }
 
 // handleSecurityHarden applies auto-fixable hardening patches selected by the user.
-// Expects JSON body: {"ids": ["auth_disabled", "n8n_no_token", ...]}.
+// Expects JSON body: {"ids": ["auth_disabled", ...]}.
 func handleSecurityHarden(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

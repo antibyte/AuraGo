@@ -115,7 +115,6 @@ func countAdaptivePromptBudgetIntegrations(cfg *Config) int {
 		cfg.InvasionControl.Enabled,
 		cfg.SQLConnections.Enabled,
 		cfg.Webhooks.Enabled,
-		cfg.N8n.Enabled,
 		cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		cfg.Homepage.Enabled,
 		cfg.CoAgents.Enabled,

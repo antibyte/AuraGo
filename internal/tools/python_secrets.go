@@ -82,6 +82,7 @@ var blockedSecretExact = map[string]struct{}{
 	"uptime_kuma_api_key":         {},
 	"grafana_api_key":             {},
 	"yepapi_api_key":              {},
+	"n8n_api_token":               {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

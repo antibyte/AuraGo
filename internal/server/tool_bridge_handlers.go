@@ -155,7 +155,7 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			Params: req.Parameters,
 		}
 
-		// Execute tool via dispatch (same pattern as n8n tool execution)
+		// Execute tool via the shared dispatch path.
 		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 		result := agent.DispatchToolCall(
 			ctx, &tc, &agent.DispatchContext{

@@ -272,7 +272,7 @@ The German security chapter contains a more detailed public-exposure checklist; 
 | TOTP | Enable 2FA for all internet-facing deployments |
 | Security Proxy | Use the managed Caddy proxy for rate limiting, TLS termination, IP filtering, and geo-blocking |
 | Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
-| Webhooks and n8n | Require tokens/HMAC, narrow scopes, and rate limits |
+| Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
 | Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |
 | Backups | Encrypt `.ago` backups and store passphrases outside the repository |
 

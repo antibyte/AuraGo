@@ -246,19 +246,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 4. n8n_no_token — n8n endpoint without Bearer token
-	if cfg.N8n.Enabled && !cfg.N8n.RequireToken {
-		hints = append(hints, SecurityHint{
-			ID: "n8n_no_token", Severity: SevCritical,
-			Title: "n8n API: token authentication disabled",
-			Description: "The n8n integration endpoint is enabled without Bearer-token authentication. " +
-				"Any caller can trigger agent tasks, read memories, and create missions.",
-			AutoFixable: true,
-			FixPatch:    map[string]interface{}{"n8n": map[string]interface{}{"require_token": true}},
-		})
-	}
-
-	// 5. a2a_no_auth — A2A dedicated server port open without any auth
+	// 4. a2a_no_auth — A2A dedicated server port open without any auth
 	if cfg.A2A.Server.Port > 0 && !cfg.A2A.Auth.APIKeyEnabled && !cfg.A2A.Auth.BearerEnabled {
 		hints = append(hints, SecurityHint{
 			ID: "a2a_no_auth", Severity: SevWarning,
@@ -272,7 +260,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 6. insecure_ssh_key — SSH host key verification disabled
+	// 5. insecure_ssh_key — SSH host key verification disabled
 	if cfg.RemoteControl.SSHInsecureHostKey {
 		hints = append(hints, SecurityHint{
 			ID: "insecure_ssh_key", Severity: SevWarning,

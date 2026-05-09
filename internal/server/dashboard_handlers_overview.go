@@ -554,7 +554,6 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"tts":               cfg.TTS.Provider != "" || cfg.TTS.Piper.Enabled,
 			"piper_tts":         cfg.TTS.Piper.Enabled,
 			// extended integrations
-			"n8n":              cfg.N8n.Enabled,
 			"fritzbox":         cfg.FritzBox.Enabled,
 			"meshcentral":      cfg.MeshCentral.Enabled,
 			"a2a":              cfg.A2A.Server.Enabled,

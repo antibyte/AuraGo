@@ -175,7 +175,6 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 | **Video Generation** | KI-Generierung kurzer Videos aus Text- oder Bildvorgaben |
 | **Media Registry** | Datenbank für generierte oder importierte Medien mit Suche, Tags und Metadaten |
 | **Mission Preparation** | LLM-gestützte Voranalyse von Missionen vor der Ausführung |
-| **n8n Scope** | Berechtigung, die festlegt, welche AuraGo-Funktionen ein n8n-Workflow nutzen darf |
 
 ---
 

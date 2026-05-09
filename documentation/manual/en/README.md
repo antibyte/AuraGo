@@ -170,7 +170,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
 | 2026-04 | **Chapter 23: Internals** – Architecture, modules, and internal workings documented |
 | 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
-| 2026-04 | Video generation, send_video, LDAP, n8n scopes, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
+| 2026-04 | Video generation, send_video, LDAP, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
 | 2026-04 | Added YepAPI, Inventory/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression to Integrations chapter |
 | 2026-03 | **Added Chat Command /sudopwd** |
 

@@ -387,39 +387,6 @@ adguard:
   url: "http://adguard.local:3000"
 ```
 
-## n8n Integration
-
-Verbindung mit der n8n Workflow-Automatisierungsplattform. AuraGo kann n8n gezielt API-Zugriff geben, ausgewählte Tools ausführen, isolierte Chat-Sessions starten, Memory durchsuchen oder speichern und Missionen aus Workflows heraus erstellen oder verwalten.
-
-**Web-UI:** Config → Integrationen → n8n → Webhook Base-URL, erlaubte Tools/Scopes, Token/HMAC-Schutz und Rate-Limits konfigurieren.
-
-> 💡 AuraGo bietet einen offiziellen n8n Community Node: `@antibyte/n8n-nodes-aurago`
-
-### Scopes und Fähigkeiten
-
-| Scope | Erlaubt |
-|-------|---------|
-| `n8n:chat` | Isolierte AuraGo-Chat-Sessions aus n8n starten oder fortsetzen |
-| `n8n:tools` | Explizit erlaubte AuraGo-Tools aus Workflows ausführen |
-| `n8n:memory` | Memory aus Workflows durchsuchen oder Einträge speichern |
-| `n8n:missions` | Mission-Control-Aufgaben erstellen, aktualisieren, auslösen oder prüfen |
-| `n8n:admin` | Administrative Operationen; nur aktivieren, wenn wirklich nötig |
-
-Nutze `readonly: true` für Workflows, die nur lesen dürfen. `scopes` und `allowed_tools` sind explizite Allowlists; leer deaktiviert die jeweilige Fähigkeit.
-
-### YAML-Referenz
-```yaml
-n8n:
-  enabled: true
-  readonly: false
-  webhook_base_url: "https://n8n.deinedomain.com/webhook"
-  allowed_events: ["message", "tool_result"]
-  require_token: true
-  allowed_tools: ["query_memory", "manage_missions"]
-  rate_limit_rps: 10
-  scopes: ["n8n:chat", "n8n:tools", "n8n:memory"]
-```
-
 ## Notifications
 
 Push-Benachrichtigungen über ntfy oder Pushover.

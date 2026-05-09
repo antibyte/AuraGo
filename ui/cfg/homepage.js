@@ -68,7 +68,6 @@ function hpCountAdaptivePromptIntegrations() {
         configData.invasion_control && configData.invasion_control.enabled,
         configData.sql_connections && configData.sql_connections.enabled,
         configData.webhooks && configData.webhooks.enabled,
-        configData.n8n && configData.n8n.enabled,
         (configData.mcp && configData.mcp.enabled) && (configData.agent && configData.agent.allow_mcp),
         configData.homepage && configData.homepage.enabled,
         configData.co_agents && configData.co_agents.enabled,

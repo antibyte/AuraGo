@@ -372,19 +372,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// MCP Server endpoint (handles its own auth via Bearer token / session)
 	mux.HandleFunc("/mcp", handleMCPEndpoint(s))
 
-	// n8n Integration endpoints
-	mux.HandleFunc("/api/n8n/status", handleN8nStatus(s))
-	mux.HandleFunc("/api/n8n/chat", handleN8nChat(s))
-	mux.HandleFunc("/api/n8n/tools", handleN8nToolsList(s))
-	mux.HandleFunc("/api/n8n/tools/", handleN8nToolExecute(s))
-	mux.HandleFunc("/api/n8n/memory/search", handleN8nMemorySearch(s))
-	mux.HandleFunc("/api/n8n/memory/store", handleN8nMemoryStore(s))
-	mux.HandleFunc("/api/n8n/missions", handleN8nMissionCreate(s))
-	mux.HandleFunc("/api/n8n/missions/", handleN8nMissionManage(s))
-	mux.HandleFunc("/api/n8n/sessions", handleN8nSessions(s))
-	mux.HandleFunc("/api/n8n/sessions/", handleN8nSessionManage(s))
-	mux.HandleFunc("/api/n8n/webhooks/history", handleN8nWebhookHistory(s))
-
 	// Internal Tool Bridge (loopback-only, for Python skills calling native tools)
 	mux.HandleFunc("/api/internal/tool-bridge/", handleToolBridgeExecute(s))
 

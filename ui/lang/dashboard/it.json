@@ -206,7 +206,6 @@
   "dashboard.integration_memory_analysis": "Analisi della memoria",
   "dashboard.integration_meshcentral": "MeshCentral",
   "dashboard.integration_mqtt": "MQTT",
-  "dashboard.integration_n8n": "n8n",
   "dashboard.integration_netlify": "Netlify",
   "dashboard.integration_ollama": "Ollama",
   "dashboard.integration_onedrive": "OneDrive",

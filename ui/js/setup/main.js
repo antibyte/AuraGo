@@ -1340,7 +1340,6 @@ function buildTrustLevelPatch(level) {
         cloudflare_tunnel:{ readonly: n <= 2 },
         github:           { readonly: n <= 2 },
         webhooks:         { readonly: n <= 2 },
-        n8n:              { readonly: n <= 2 },
         google_workspace: { readonly: n <= 2 },
         netlify:          { readonly: n <= 2 },
         invasion_control: { readonly: n <= 2 },

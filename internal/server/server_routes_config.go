@@ -39,9 +39,6 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Python Tool Bridge config API (Skill Manager UI helper)
 	mux.HandleFunc("/api/python-tool-bridge/tools", handlePythonToolBridgeTools(s))
 
-	// n8n Integration config API
-	mux.HandleFunc("/api/n8n/token", handleN8nToken(s))
-
 	// OAuth2 Authorization Code flow endpoints
 	mux.HandleFunc("/api/oauth/start", handleOAuthStart(s))
 	mux.HandleFunc("/api/oauth/callback", handleOAuthCallback(s))

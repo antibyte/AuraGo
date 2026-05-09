@@ -347,7 +347,6 @@ tail -50 log/supervisor.log > problem-report.log
 | Web Push / PWA | HTTPS oder localhost, Service Worker, `GET /api/push/status`, Browser-Berechtigungen |
 | File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, verwaiste Nodes prüfen |
 | Video Generation | Provider-Key im Vault, Tageslimit, Modellname, `POST /api/video-generation/test` |
-| n8n | Token/HMAC, Scopes, `allowed_tools`, Rate-Limit, Webhook Base URL |
 | A2A | Agent Card, Auth-Modus, Remote-Agent-URL, aktivierte Bindings |
 
 Bei schwer reproduzierbaren Fehlern zuerst Debug Mode aktivieren, dann die spezifischen Status-Endpunkte prüfen. Viele moderne Features laufen über verwaltete Sidecars oder Hintergrunddienste; deshalb reicht ein reiner Chat-Fehler oft nicht zur Diagnose.

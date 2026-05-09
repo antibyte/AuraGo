@@ -95,7 +95,6 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/i18n", Methods: []string{"GET"}, Auth: "public", Category: "i18n"},
 		{Pattern: "/api/openrouter/models", Methods: []string{"GET"}, Auth: "public", Category: "setup"},
 		{Pattern: "/api/internal/", Methods: []string{"POST", "DELETE"}, Auth: "internal-loopback-token", Category: "internal"},
-		{Pattern: "/api/n8n/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "bearer-token", Category: "automation"},
 		{Pattern: "/api/remote/ws", Methods: []string{"GET"}, Auth: "remote-key-handshake", Category: "remote"},
 		{Pattern: "/api/remote/download/", Methods: []string{"GET"}, Auth: "enrollment-token", Category: "remote"},
 		{Pattern: "/api/invasion/ws", Methods: []string{"GET"}, Auth: "hmac-handshake", Category: "invasion"},
