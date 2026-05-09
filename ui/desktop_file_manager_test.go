@@ -145,6 +145,33 @@ func TestDesktopAndFileManagerShareCutCopyPaste(t *testing.T) {
 	}
 }
 
+func TestDesktopClipboardPastePreservesFileManagerRootPath(t *testing.T) {
+	t.Parallel()
+
+	mainSource := readDesktopAssetText(t, "js/desktop/main.js")
+	fileManagerSource := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{
+			name:   "desktop paste defaults only when destination is omitted",
+			source: mainSource,
+			want:   "normalizeDesktopPath(destBase == null ? 'Desktop' : destBase)",
+		},
+		{
+			name:   "file manager paste passes empty root path through",
+			source: fileManagerSource,
+			want:   "await ops.paste(destBase == null ? fm.currentPath : destBase)",
+		},
+	} {
+		if !strings.Contains(marker.source, marker.want) {
+			t.Fatalf("%s missing marker %q", marker.name, marker.want)
+		}
+	}
+}
+
 func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 	t.Parallel()
 

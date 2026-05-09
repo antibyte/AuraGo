@@ -124,7 +124,7 @@
     async function pasteDesktopFileClipboard(destBase, options) {
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
-        const targetBase = normalizeDesktopPath(destBase || 'Desktop');
+        const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
         const body = await api('/api/desktop/files?path=' + encodeURIComponent(targetBase));
         const entries = Array.isArray(body.files) ? body.files : [];
         const existingNames = new Set(entries.map(entry => String(entry.name || desktopDropBaseName(entry.path)).toLowerCase()));

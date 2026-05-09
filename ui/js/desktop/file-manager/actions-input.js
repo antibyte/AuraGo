@@ -446,7 +446,7 @@
         if (isReadonly()) return;
         const ops = sharedFileOps();
         if (ops && typeof ops.paste === 'function') {
-            await ops.paste(destBase || fm.currentPath);
+            await ops.paste(destBase == null ? fm.currentPath : destBase);
             fm.clipboard = null;
             refresh();
             return;
