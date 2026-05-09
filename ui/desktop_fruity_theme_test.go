@@ -45,7 +45,7 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		"@media (prefers-color-scheme: dark)",
 		".desktop-body[data-theme=\"fruity\"] .vd-window",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-titlebar",
-		".desktop-body[data-theme=\"fruity\"] .vd-window-actions",
+		".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-actions",
 		".desktop-body[data-theme=\"fruity\"] .vd-widget-manager .vd-wm-header",
 		".desktop-body[data-theme=\"fruity\"] .vd-widget-manager .vd-window-actions",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"close\"]",
@@ -122,7 +122,7 @@ func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
 	}{
 		{
 			name:     "window controls",
-			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-actions:is(.vd-window .vd-window-actions)",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window .vd-window-actions",
 			wants:    []string{"position: absolute;", "left: 14px;", "transform: translateY(-50%);"},
 		},
 		{

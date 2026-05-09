@@ -1,9 +1,9 @@
 /* desktop.css — aggregator; see desktop-*.css for component styles */
-@import url('desktop-base.css');
-@import url('desktop-taskbar.css');
-@import url('desktop-start-menu.css');
-@import url('desktop-windows.css');
-@import url('desktop-icons.css');
-@import url('desktop-widgets.css');
-@import url('desktop-modals.css');
-@import url('desktop-apps.css');
+@import url('desktop-base.css?v=20260509b');
+@import url('desktop-taskbar.css?v=20260509b');
+@import url('desktop-start-menu.css?v=20260509b');
+@import url('desktop-windows.css?v=20260509b');
+@import url('desktop-icons.css?v=20260509b');
+@import url('desktop-widgets.css?v=20260509b');
+@import url('desktop-modals.css?v=20260509b');
+@import url('desktop-apps.css?v=20260509b');
