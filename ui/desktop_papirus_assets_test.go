@@ -174,7 +174,7 @@ func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
 		"'agent-chat': 'agent-chat'",
 		"'quick-connect': 'server'",
 		"terminal: 'terminal'",
-		"viewer: 'documents'",
+		"viewer: 'eye'",
 		"looper: 'looper'",
 		"appIconKeys['code-studio'] = 'code-studio'",
 		"music: 'audio-player'",

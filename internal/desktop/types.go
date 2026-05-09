@@ -311,7 +311,10 @@ var desktopPreferredIconNames = []string{
 }
 
 var desktopIconAliases = map[string]string{
+	"agent":            "agent-chat",
 	"agent_chat":       "agent-chat",
+	"arrow-left":       "chevron-left",
+	"arrow-right":      "chevron-right",
 	"automation":       "workflow",
 	"backup":           "backup",
 	"backups":          "backup",
@@ -424,6 +427,7 @@ var desktopIconAliases = map[string]string{
 	"radio":            "radio",
 	"run":              "run",
 	"screen":           "monitor",
+	"share":            "globe",
 	"sparkles":         "apps",
 	"stats":            "analytics",
 	"support":          "help",

@@ -118,10 +118,10 @@
         todo: 'notes',
         'agent-chat': 'agent-chat',
         terminal: 'terminal', 'quick-connect': 'server',
-        browser: 'browser', viewer: 'documents',
+        browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
         looper: 'looper',
-        'system-info': 'analytics'
+        'system-info': 'monitor'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -172,8 +172,8 @@
         epub: 'book',
         mobi: 'book',
         azw3: 'book',
-        heic: 'camera',
-        heif: 'camera',
+        heic: 'image',
+        heif: 'image',
         eml: 'mail',
         msg: 'mail',
         vcf: 'forms',
@@ -370,10 +370,12 @@
         if (file.media_kind === 'image') return 'image';
         if (file.media_kind === 'audio') return 'audio';
         if (file.media_kind === 'video') return 'video';
-        if (file.media_kind === 'document') return 'documents';
         const ext = String(file.name || '').split('.').pop().toLowerCase();
         if (!ext || ext === String(file.name || '').toLowerCase()) return 'file';
-        return extensionIconKeys[ext] || 'file';
+        const extIcon = extensionIconKeys[ext];
+        if (extIcon) return extIcon;
+        if (file.media_kind === 'document') return 'documents';
+        return 'file';
     }
 
     function launchpadCategoryIconKey(category) {

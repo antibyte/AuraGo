@@ -121,7 +121,7 @@
             status.hidden = !state.error;
             status.textContent = state.error || '';
             if (!state.stations.length) {
-                grid.innerHTML = `<div class="radio-empty">${iconMarkup('audio', 'R', 'radio-empty-icon', 34)}<strong>${esc(t('desktop.radio_no_results', 'No stations found'))}</strong></div>`;
+                grid.innerHTML = `<div class="radio-empty">${iconMarkup('radio', 'R', 'radio-empty-icon', 34)}<strong>${esc(t('desktop.radio_no_results', 'No stations found'))}</strong></div>`;
                 return;
             }
             grid.innerHTML = state.stations.map(stationCard).join('');
@@ -171,7 +171,7 @@
             return `<article class="radio-card ${active ? 'active' : ''}" role="button" tabindex="0" data-play-station="${esc(id)}" aria-label="${esc(t('desktop.radio_play', 'Play'))} ${esc(station.name || '')}">
                 <div class="radio-art">
                     ${favicon ? `<img data-favicon src="${esc(favicon)}" alt="">` : ''}
-                    <span data-favicon-fallback ${favicon ? 'hidden' : ''}>${iconMarkup('audio', 'R', 'radio-card-icon', 26)}</span>
+                    <span data-favicon-fallback ${favicon ? 'hidden' : ''}>${iconMarkup('radio', 'R', 'radio-card-icon', 26)}</span>
                     <span class="radio-play-overlay">${iconMarkup('audio', 'P', 'radio-play-icon', 22)}</span>
                 </div>
                 <div class="radio-card-body">

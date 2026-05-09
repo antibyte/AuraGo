@@ -118,7 +118,10 @@
     "zoom-reset": "img/papirus/icons/zoom-reset.svg"
   },
   "aliases": {
+    "agent": "agent-chat",
     "agent_chat": "agent-chat",
+    "arrow-left": "chevron-left",
+    "arrow-right": "chevron-right",
     "automation": "workflow",
     "backup": "backup",
     "backups": "backup",
@@ -231,6 +234,7 @@
     "radio": "radio",
     "run": "run",
     "screen": "monitor",
+    "share": "globe",
     "sparkles": "apps",
     "stats": "analytics",
     "support": "help",

@@ -675,7 +675,7 @@
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
                 <div class="vd-qc-placeholder">
-                    <span class="vd-qc-placeholder-icon">${iconMarkup('terminal', 'T', 'vd-qc-placeholder-papirus-icon', 42)}</span>
+                    <span class="vd-qc-placeholder-icon">${iconMarkup('server', 'S', 'vd-qc-placeholder-papirus-icon', 42)}</span>
                     <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
                 </div>
             </div>
