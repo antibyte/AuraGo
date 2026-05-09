@@ -29,27 +29,34 @@ import (
 var (
 	followUpDepths        = make(map[string]int)
 	muFollowUp            sync.Mutex
-	sessionRequestLocks   = make(map[string]*sync.Mutex)
+	sessionRequestLocks   = make(map[string]*sessionRequestLock)
 	muSessionRequestLocks sync.Mutex
 )
+
+type sessionRequestLock struct {
+	mu   sync.Mutex
+	refs int
+}
 
 func lockSessionRequest(sessionID string) func() {
 	muSessionRequestLocks.Lock()
 	lock := sessionRequestLocks[sessionID]
 	if lock == nil {
-		lock = &sync.Mutex{}
+		lock = &sessionRequestLock{}
 		sessionRequestLocks[sessionID] = lock
 	}
+	lock.refs++
 	muSessionRequestLocks.Unlock()
-	lock.Lock()
+	lock.mu.Lock()
 	return func() {
-		lock.Unlock()
-		// Remove per-mission entries after use so the map does not grow unboundedly.
-		if sessionID != "default" {
-			muSessionRequestLocks.Lock()
+		lock.mu.Unlock()
+
+		muSessionRequestLocks.Lock()
+		lock.refs--
+		if lock.refs <= 0 && sessionID != "default" && sessionRequestLocks[sessionID] == lock {
 			delete(sessionRequestLocks, sessionID)
-			muSessionRequestLocks.Unlock()
 		}
+		muSessionRequestLocks.Unlock()
 	}
 }
 

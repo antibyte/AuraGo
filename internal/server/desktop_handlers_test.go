@@ -62,9 +62,10 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"runDesktopAgentChat(r.Context(), s, body.Message, body.Context)",
-		"agent.LoopbackContext(ctx, runCfg, prompt, combinedBroker)",
+		"agent.LoopbackContext(llmCtx, runCfg, prompt, combinedBroker)",
 		"agent.LoopbackContext(ctx, runCfg, prompt, broker)",
 		"context.WithTimeout(ctx, 10*time.Minute)",
+		"lockSessionRequest(\"virtual-desktop\")",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop chat cancellation missing marker %q", marker)

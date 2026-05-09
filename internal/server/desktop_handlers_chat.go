@@ -38,6 +38,8 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "Message is required", http.StatusBadRequest)
 			return
 		}
+		unlockSession := lockSessionRequest("virtual-desktop")
+		defer unlockSession()
 		answer := runDesktopAgentChat(r.Context(), s, body.Message, body.Context)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
@@ -81,6 +83,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			sseWriteData(w, "error", "server not configured")
 			return
 		}
+
+		unlockSession := lockSessionRequest("virtual-desktop")
+		defer unlockSession()
 
 		s.CfgMu.RLock()
 		cfg := *s.Cfg
