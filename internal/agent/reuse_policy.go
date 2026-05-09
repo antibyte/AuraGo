@@ -83,6 +83,7 @@ var (
 		"a": {}, "an": {}, "and": {}, "are": {}, "bitte": {}, "das": {}, "dem": {}, "den": {}, "der": {}, "die": {},
 		"ein": {}, "eine": {}, "einer": {}, "eines": {}, "einem": {}, "es": {}, "for": {}, "from": {}, "have": {},
 		"ich": {}, "ist": {}, "mit": {}, "oder": {}, "please": {}, "the": {}, "this": {}, "und": {}, "was": {}, "wie": {},
+		"app": {}, "ask": {}, "aurago": {}, "can": {}, "create": {}, "erstellen": {}, "erstelle": {}, "file": {},
 	}
 	reuseNonTrivialCues = []string{
 		"analyse", "analyze", "automation", "automate", "backup", "broken", "bug", "build", "cheatsheet",
@@ -1137,12 +1138,14 @@ func scoreReuseCandidate(query string, parts ...string) (float64, []string) {
 	matched := make(map[string]struct{}, len(keywords))
 	score := 0.0
 	lowerQuery := strings.ToLower(strings.TrimSpace(query))
+	exactPhraseMatch := false
 	for _, part := range parts {
 		lower := strings.ToLower(part)
 		if lower == "" {
 			continue
 		}
 		if len(lowerQuery) >= 10 && strings.Contains(lower, lowerQuery) {
+			exactPhraseMatch = true
 			score += 0.35
 		}
 		for _, keyword := range keywords {
@@ -1160,6 +1163,9 @@ func scoreReuseCandidate(query string, parts ...string) (float64, []string) {
 		matches = append(matches, keyword)
 	}
 	sort.Strings(matches)
+	if len(matches) < 2 && !exactPhraseMatch {
+		return 0, matches
+	}
 	return score, matches
 }
 

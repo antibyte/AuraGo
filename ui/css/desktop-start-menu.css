@@ -97,6 +97,20 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
+.vd-app-health {
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--warning);
+    color: #111827;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
 .desktop-body:not([data-animations="false"]) .vd-context-menu-opening,
 .desktop-body:not([data-animations="false"]) .vd-start-menu-opening {
     animation: vd-menu-open-standard 90ms ease-out both;

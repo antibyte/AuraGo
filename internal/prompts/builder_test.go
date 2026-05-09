@@ -220,6 +220,9 @@ func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	if !strings.Contains(prompt, "Maintenance failed") {
 		t.Fatalf("prompt = %q, want operational issue content", prompt)
 	}
+	if !strings.Contains(prompt, "Use these issues as diagnostic context; mention them only if relevant to the current request or urgent.") {
+		t.Fatalf("prompt = %q, want relevance-gated operational issue instruction", prompt)
+	}
 }
 
 func TestMaintenancePromptIncludesWorkdirCleanupProtocol(t *testing.T) {
@@ -301,6 +304,17 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 	if strings.Contains(prompt, "When calling a tool, your ENTIRE response = a raw JSON object") {
 		t.Fatalf("native prompt must not include raw JSON-only response rule")
+	}
+	forbidden := []string{
+		"A Go supervisor parses your output",
+		"your ENTIRE response = a raw JSON object",
+		"Response format.",
+		"Raw JSON tool mode",
+	}
+	for _, needle := range forbidden {
+		if strings.Contains(prompt, needle) {
+			t.Fatalf("native prompt must not include raw JSON protocol fragment %q", needle)
+		}
 	}
 }
 

@@ -124,6 +124,9 @@ type AppManifest struct {
 	Internal     bool              `json:"internal,omitempty"`
 	DockVisible  bool              `json:"dock_visible"`
 	StartVisible bool              `json:"start_visible"`
+	Health       string            `json:"health,omitempty"`
+	HealthReason string            `json:"health_reason,omitempty"`
+	EntryPath    string            `json:"entry_path,omitempty"`
 	CreatedAt    time.Time         `json:"created_at,omitempty"`
 	UpdatedAt    time.Time         `json:"updated_at,omitempty"`
 }

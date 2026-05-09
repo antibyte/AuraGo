@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -562,8 +563,10 @@ func TestExecuteVirtualDesktopWriteFileRootAppHTMLRegistersRunnableGeneratedApp(
 	var bootstrap struct {
 		Data struct {
 			InstalledApps []struct {
-				ID    string `json:"id"`
-				Entry string `json:"entry"`
+				ID           string `json:"id"`
+				Entry        string `json:"entry"`
+				Health       string `json:"health"`
+				HealthReason string `json:"health_reason"`
 			} `json:"installed_apps"`
 		} `json:"data"`
 	}
@@ -574,6 +577,9 @@ func TestExecuteVirtualDesktopWriteFileRootAppHTMLRegistersRunnableGeneratedApp(
 		if app.ID == "space-invaders" {
 			if app.Entry != "index.html" {
 				t.Fatalf("entry = %q, want index.html", app.Entry)
+			}
+			if app.Health != "" || app.HealthReason != "" {
+				t.Fatalf("newly registered app should be healthy, got health=%q reason=%q", app.Health, app.HealthReason)
 			}
 			read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
 				"operation": "read_file",
@@ -586,6 +592,56 @@ func TestExecuteVirtualDesktopWriteFileRootAppHTMLRegistersRunnableGeneratedApp(
 		}
 	}
 	t.Fatalf("space-invaders app not installed: %+v", bootstrap.Data.InstalledApps)
+}
+
+func TestExecuteVirtualDesktopOpenAppRejectsBrokenGeneratedApp(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders.html",
+		"content":   "<main>Space Invaders</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+	entryPath := filepath.Join(cfg.VirtualDesktop.WorkspaceDir, "Apps", "space-invaders", "index.html")
+	if err := os.Remove(entryPath); err != nil {
+		t.Fatalf("remove generated app entry: %v", err)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_app",
+		"app_id":    "space-invaders",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code      string `json:"code"`
+			AppID     string `json:"app_id"`
+			EntryPath string `json:"entry_path"`
+		} `json:"data"`
+		Event interface{} `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open_app output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "error" {
+		t.Fatalf("status = %q, want error; output=%s", payload.Status, exec.Output)
+	}
+	if payload.Data.Code != "desktop_app_entry_missing" {
+		t.Fatalf("code = %q, want desktop_app_entry_missing; output=%s", payload.Data.Code, exec.Output)
+	}
+	if payload.Data.AppID != "space-invaders" {
+		t.Fatalf("app_id = %q, want space-invaders", payload.Data.AppID)
+	}
+	if payload.Data.EntryPath != "Apps/space-invaders/index.html" {
+		t.Fatalf("entry_path = %q, want Apps/space-invaders/index.html", payload.Data.EntryPath)
+	}
+	if payload.Event != nil || exec.Event != nil {
+		t.Fatalf("broken app must not emit open event: payload=%+v exec=%+v", payload.Event, exec.Event)
+	}
 }
 
 func TestExecuteVirtualDesktopDeleteRootAppHTMLRemovesGeneratedApp(t *testing.T) {

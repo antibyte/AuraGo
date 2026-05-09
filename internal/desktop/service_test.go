@@ -832,6 +832,96 @@ func TestServiceInstallAppPersistsManifestAndFiles(t *testing.T) {
 	}
 }
 
+func TestServiceBootstrapMarksGeneratedAppWithMissingEntryBroken(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{"index.html": "<main>Quick Notes</main>"}, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	entryPath, err := svc.ResolvePath("Apps/quick-notes/index.html")
+	if err != nil {
+		t.Fatalf("ResolvePath: %v", err)
+	}
+	if err := os.Remove(entryPath); err != nil {
+		t.Fatalf("remove entry file: %v", err)
+	}
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID != "quick-notes" {
+			continue
+		}
+		if app.Health != "broken" {
+			t.Fatalf("health = %q, want broken; app=%+v", app.Health, app)
+		}
+		if app.HealthReason != "missing_entry_file" {
+			t.Fatalf("health_reason = %q, want missing_entry_file; app=%+v", app.HealthReason, app)
+		}
+		if app.EntryPath != "Apps/quick-notes/index.html" {
+			t.Fatalf("entry_path = %q, want Apps/quick-notes/index.html", app.EntryPath)
+		}
+		return
+	}
+	t.Fatalf("quick-notes app missing from bootstrap: %+v", bootstrap.InstalledApps)
+}
+
+func TestServiceBootstrapMarksGeneratedAppWithEmptyEntryBroken(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{"index.html": "<main>Quick Notes</main>"}, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	entryPath, err := svc.ResolvePath("Apps/quick-notes/index.html")
+	if err != nil {
+		t.Fatalf("ResolvePath: %v", err)
+	}
+	if err := os.WriteFile(entryPath, []byte(" \n\t"), 0o644); err != nil {
+		t.Fatalf("empty entry file: %v", err)
+	}
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for _, app := range bootstrap.InstalledApps {
+		if app.ID != "quick-notes" {
+			continue
+		}
+		if app.Health != "broken" {
+			t.Fatalf("health = %q, want broken; app=%+v", app.Health, app)
+		}
+		if app.HealthReason != "empty_entry_file" {
+			t.Fatalf("health_reason = %q, want empty_entry_file; app=%+v", app.HealthReason, app)
+		}
+		if app.EntryPath != "Apps/quick-notes/index.html" {
+			t.Fatalf("entry_path = %q, want Apps/quick-notes/index.html", app.EntryPath)
+		}
+		return
+	}
+	t.Fatalf("quick-notes app missing from bootstrap: %+v", bootstrap.InstalledApps)
+}
+
 func TestServiceDeleteAppRemovesGeneratedAppShortcutAndFiles(t *testing.T) {
 	t.Parallel()
 

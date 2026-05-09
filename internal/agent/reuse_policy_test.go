@@ -123,6 +123,33 @@ func TestBuildReuseLookupSkipsErrorRecoveryCheatsheetsForNormalRequests(t *testi
 	}
 }
 
+func TestBuildReuseLookupPrefersSpecificDesktopAppCheatsheetOverGenericQuickstart(t *testing.T) {
+	logger := newReuseTestLogger()
+	csDB := setupReuseCheatsheetDB(t).DB
+	if _, err := tools.CheatsheetCreate(csDB, "AuraGo Quickstart Guide", "Ask AuraGo what it can do. It can create an app file when you ask for one.", "system"); err != nil {
+		t.Fatalf("CheatsheetCreate quickstart: %v", err)
+	}
+	if _, err := tools.CheatsheetCreate(csDB, "Virtual Desktop Generated App Repair", "For virtual desktop generated apps, inspect Apps/<id>/index.html and reinstall with virtual_desktop install_app when the entry file is missing.", "agent"); err != nil {
+		t.Fatalf("CheatsheetCreate desktop app repair: %v", err)
+	}
+
+	lookup := buildReuseLookup("ask aurago can create app file space invaders virtual desktop generated app install_app", nil, csDB, logger)
+	if lookup.Complexity != TaskComplexityNonTrivial || !lookup.Performed {
+		t.Fatalf("expected non-trivial lookup, got complexity=%q performed=%v", lookup.Complexity, lookup.Performed)
+	}
+	if lookup.BestMatch == nil {
+		t.Fatalf("expected best match, got %+v", lookup)
+	}
+	if lookup.BestMatch.Name != "Virtual Desktop Generated App Repair" {
+		t.Fatalf("best match = %q (score %.2f), want Virtual Desktop Generated App Repair; hits=%+v", lookup.BestMatch.Name, lookup.BestMatch.Score, lookup.CheatsheetHits)
+	}
+	for _, hit := range lookup.CheatsheetHits {
+		if hit.Name == "AuraGo Quickstart Guide" && hit.Score >= 0.50 {
+			t.Fatalf("generic quickstart score = %.2f, want below 0.50; hit=%+v", hit.Score, hit)
+		}
+	}
+}
+
 func TestReusableSkillCandidateSkipsProviderInvalidExamples(t *testing.T) {
 	if isReusableSkillCandidate(tools.SkillRegistryEntry{Name: "Example: Hello World", Description: "Hello World example"}) {
 		t.Fatal("expected provider-invalid example skill to be skipped")

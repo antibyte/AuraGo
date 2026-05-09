@@ -324,12 +324,20 @@
             : 'Widgets/' + widget.entry;
     }
 
+    function appIsBroken(app) {
+        return !!(app && (app.health === 'broken' || app.health_reason));
+    }
+
+    function brokenAppLabel(app) {
+        return appIsBroken(app) ? `<span class="vd-app-health" title="${esc(t('desktop.app_missing_entry'))}">!</span>` : '';
+    }
+
     function renderStartApps() {
         const query = state.startQuery.trim().toLowerCase();
         const apps = startMenuApps().filter(app => !query || appName(app).toLowerCase().includes(query));
         $('vd-start-apps').innerHTML = apps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
-            <span>${esc(appName(app))}</span>
+            <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
         </button>`).join('');
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -379,10 +387,12 @@
         const dockItems = dockApps().map((app, index) => {
             const running = runningWindows.some(win => win.appId === app.id);
             const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
-            const stateClasses = [running ? 'running' : '', active ? 'active' : ''].filter(Boolean).join(' ');
-            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(appName(app))}" style="--dock-index:${index}">
+            const broken = appIsBroken(app);
+            const stateClasses = [running ? 'running' : '', active ? 'active' : '', broken ? 'broken' : ''].filter(Boolean).join(' ');
+            const title = broken ? `${appName(app)} - ${t('desktop.app_missing_entry')}` : appName(app);
+            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(title)}" style="--dock-index:${index}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
-                <span class="vd-dock-label">${esc(appName(app))}</span>
+                <span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>
             </button>`;
         }).join('');
         host.innerHTML = `<button type="button" class="vd-dock-orb" data-fruity-dock-orb title="${esc(t('desktop.start_menu'))}">
@@ -685,6 +695,10 @@
         }
         const title = windowTitle(appId);
         const app = appById(appId);
+        if (appIsBroken(app)) {
+            showDesktopNotification({ title: t('desktop.app_broken'), message: t('desktop.app_missing_entry') + ' ' + t('desktop.app_recreate_hint') });
+            return;
+        }
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';

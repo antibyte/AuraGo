@@ -271,8 +271,22 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
-		if !virtualDesktopAppExists(ctx, svc, appID) {
+		app, ok := virtualDesktopFindApp(ctx, svc, appID)
+		if !ok {
 			return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q is not installed", appID), nil, nil)
+		}
+		if app.Health == "broken" || app.HealthReason != "" {
+			entryPath := app.EntryPath
+			if entryPath == "" {
+				entryPath = path.Join("Apps", app.ID, app.Entry)
+			}
+			return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q is registered but its entry file is unavailable", appID), map[string]string{
+				"code":          "desktop_app_entry_missing",
+				"app_id":        app.ID,
+				"entry_path":    entryPath,
+				"health":        app.Health,
+				"health_reason": app.HealthReason,
+			}, nil)
 		}
 		payload := map[string]interface{}{"app_id": appID}
 		if filePath != "" {
@@ -456,20 +470,20 @@ func virtualDesktopStandaloneWidgetOpenEvent(ctx context.Context, svc *desktop.S
 	return widget, event, true, nil
 }
 
-func virtualDesktopAppExists(ctx context.Context, svc *desktop.Service, appID string) bool {
+func virtualDesktopFindApp(ctx context.Context, svc *desktop.Service, appID string) (desktop.AppManifest, bool) {
 	if svc == nil || strings.TrimSpace(appID) == "" {
-		return false
+		return desktop.AppManifest{}, false
 	}
 	bootstrap, err := svc.Bootstrap(ctx)
 	if err != nil {
-		return false
+		return desktop.AppManifest{}, false
 	}
 	for _, app := range append(append([]desktop.AppManifest{}, bootstrap.BuiltinApps...), bootstrap.InstalledApps...) {
 		if app.ID == appID {
-			return true
+			return app, true
 		}
 	}
-	return false
+	return desktop.AppManifest{}, false
 }
 
 func virtualDesktopDocument(args map[string]interface{}) (office.Document, error) {

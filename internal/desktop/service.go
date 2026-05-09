@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	slashpath "path"
 	"path/filepath"
 	"regexp"
-	slashpath "path"
 	"strings"
 	"sync"
 	"time"
@@ -515,6 +515,9 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	apps, err := s.listApps(ctx)
 	if err != nil {
 		return BootstrapPayload{}, err
+	}
+	for i := range apps {
+		apps[i] = s.validateGeneratedAppEntry(ctx, apps[i])
 	}
 	appVisibility, err := s.listAppVisibility(ctx)
 	if err != nil {

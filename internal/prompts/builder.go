@@ -499,9 +499,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			"your response must START with the tool call directly. Do NOT announce " +
 			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
 			"If you want to explain something, do it AFTER the tool result comes back. " +
-			"The only exception is for multi-step tasks where the \"Acknowledge before long actions\" " +
-			"rule in your behavioral rules applies — then a brief 1-sentence acknowledgment " +
-			"may precede the first tool call of the chain.\n\n")
+			"For explicitly multi-step user-requested work, one brief natural acknowledgment may precede " +
+			"the first tool call when the behavioral rules require it. In text-JSON tool mode, never place " +
+			"prose before the JSON tool call.\n\n")
 	} else if flags.IsTextModeModel {
 		// Text-mode models (MiniMax, GLM, etc.) emit tool calls as text content.
 		// They need explicit JSON format instructions since they cannot use the
@@ -585,7 +585,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	if flags.OperationalIssueReminder != "" {
 		finalPrompt.WriteString("### OPERATIONAL ISSUE REMINDER ###\n")
-		finalPrompt.WriteString("At the start of this user contact, briefly tell the user about these unresolved background problems, then continue with their request unless the issue is urgent. Do not repeat the reminder if you already mentioned it in this conversation.\n")
+		finalPrompt.WriteString("Use these issues as diagnostic context; mention them only if relevant to the current request or urgent. Do not repeat the reminder if you already mentioned it in this conversation.\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.OperationalIssueReminder))
 		finalPrompt.WriteString("\n\n")
 	}

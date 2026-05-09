@@ -265,6 +265,34 @@ func (s *Service) listApps(ctx context.Context) ([]AppManifest, error) {
 	return apps, rows.Err()
 }
 
+func (s *Service) validateGeneratedAppEntry(ctx context.Context, app AppManifest) AppManifest {
+	app.EntryPath = filepath.ToSlash(filepath.Join("Apps", app.ID, app.Entry))
+	entryPath, err := s.ResolvePath(app.EntryPath)
+	if err != nil {
+		app.Health = "broken"
+		app.HealthReason = "invalid_entry_path"
+		return app
+	}
+	data, err := os.ReadFile(entryPath)
+	if err != nil {
+		app.Health = "broken"
+		if os.IsNotExist(err) {
+			app.HealthReason = "missing_entry_file"
+		} else {
+			app.HealthReason = "unreadable_entry_file"
+		}
+		return app
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		app.Health = "broken"
+		app.HealthReason = "empty_entry_file"
+		return app
+	}
+	app.Health = ""
+	app.HealthReason = ""
+	return app
+}
+
 func (s *Service) findApp(ctx context.Context, id string) (AppManifest, bool, error) {
 	for _, app := range BuiltinApps() {
 		if app.ID == id {
