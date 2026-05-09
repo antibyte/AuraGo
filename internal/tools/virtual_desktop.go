@@ -202,6 +202,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
+		normalizeVirtualDesktopStandaloneWidget(ctx, svc, &widget)
 		if err := svc.UpsertWidget(ctx, widget, desktop.SourceAgent); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -336,6 +337,38 @@ func virtualDesktopWidget(args map[string]interface{}) (desktop.Widget, error) {
 		widget.Runtime = virtualDesktopString(args, "runtime")
 	}
 	return widget, nil
+}
+
+func normalizeVirtualDesktopStandaloneWidget(ctx context.Context, svc *desktop.Service, widget *desktop.Widget) {
+	if svc == nil || widget == nil {
+		return
+	}
+	entry := strings.TrimSpace(widget.Entry)
+	if entry == "" {
+		candidate := strings.TrimSpace(widget.ID)
+		if candidate != "" {
+			entry = candidate + ".html"
+		}
+	}
+	if entry == "" {
+		return
+	}
+	cleanEntry := path.Base(cleanVirtualDesktopSlashPath(entry))
+	candidatePath := path.Join("Widgets", cleanEntry)
+	if _, _, err := svc.ReadFile(ctx, candidatePath); err != nil {
+		return
+	}
+	widget.AppID = ""
+	widget.Entry = cleanEntry
+	if widget.Type == "" {
+		widget.Type = desktop.WidgetTypeCustom
+	}
+	if widget.Runtime == "" {
+		widget.Runtime = desktop.AuraDesktopRuntime
+	}
+	if widget.Title == "" {
+		widget.Title = virtualDesktopTitleFromID(strings.TrimSuffix(cleanEntry, path.Ext(cleanEntry)))
+	}
 }
 
 func virtualDesktopDocument(args map[string]interface{}) (office.Document, error) {

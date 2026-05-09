@@ -103,6 +103,73 @@ func TestExecuteVirtualDesktopWriteFileRejectsEmptyStandaloneWidgetHTML(t *testi
 	}
 }
 
+func TestExecuteVirtualDesktopUpsertWidgetNormalizesExistingStandaloneWidgetFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/space-invaders.html",
+		"content":   "<main>Space Invaders</main>",
+	})
+	var writePayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &writePayload); err != nil {
+		t.Fatalf("unmarshal write output: %v\n%s", err, write.Output)
+	}
+	if writePayload.Status != "ok" {
+		t.Fatalf("write_file status = %q, output = %s", writePayload.Status, write.Output)
+	}
+
+	upsert := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "upsert_widget",
+		"widget": map[string]interface{}{
+			"id":     "space-invaders",
+			"app_id": "space-invaders",
+			"title":  "Space Invaders",
+			"entry":  "space-invaders.html",
+		},
+	})
+	var upsertPayload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(upsert.Output), &upsertPayload); err != nil {
+		t.Fatalf("unmarshal upsert output: %v\n%s", err, upsert.Output)
+	}
+	if upsertPayload.Status != "ok" {
+		t.Fatalf("upsert_widget status = %q message = %q output = %s", upsertPayload.Status, upsertPayload.Message, upsert.Output)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var bootstrap struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widgets []struct {
+				ID    string `json:"id"`
+				AppID string `json:"app_id"`
+				Entry string `json:"entry"`
+			} `json:"widgets"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(status.Output), &bootstrap); err != nil {
+		t.Fatalf("unmarshal status: %v\n%s", err, status.Output)
+	}
+	for _, widget := range bootstrap.Data.Widgets {
+		if widget.ID == "space-invaders" {
+			if widget.AppID != "" {
+				t.Fatalf("app_id = %q, want standalone widget", widget.AppID)
+			}
+			if widget.Entry != "space-invaders.html" {
+				t.Fatalf("entry = %q, want space-invaders.html", widget.Entry)
+			}
+			return
+		}
+	}
+	t.Fatalf("space-invaders widget not registered: %+v", bootstrap.Data.Widgets)
+}
+
 func TestExecuteVirtualDesktopStatusExposesIconCatalog(t *testing.T) {
 	t.Parallel()
 
