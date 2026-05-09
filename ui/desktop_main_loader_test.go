@@ -18,14 +18,14 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 		if strings.Contains(html, `src="`+part) {
 			t.Fatalf("desktop.html must not load bundle fragment %s directly", part)
 		}
-		if !strings.Contains(main, `'`+part+`?v=' + v`) {
+		if !strings.Contains(main, `'`+part+`?v=' + assetV`) {
 			t.Fatalf("desktop main loader must load bundle fragment %s with cache busting", part)
 		}
 	}
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260509f"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
@@ -56,13 +56,13 @@ func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 	t.Parallel()
 
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	planningIndex := strings.Index(main, "'/js/desktop/apps/planning-gallery-music.js?v=' + v")
-	quickConnectIndex := strings.Index(main, "'/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + v")
-	sdkIndex := strings.Index(main, "'/js/desktop/core/sdk-events-bootstrap.js?v=' + v")
+	planningIndex := strings.Index(main, "'/js/desktop/apps/planning-gallery-music.js?v=' + assetV")
+	quickConnectIndex := strings.Index(main, "'/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + assetV")
+	sdkIndex := strings.Index(main, "'/js/desktop/core/sdk-events-bootstrap.js?v=' + assetV")
 	for name, index := range map[string]int{
-		"planning-gallery-music":       planningIndex,
-		"quickconnect-launchpad-chat":  quickConnectIndex,
-		"sdk-events-bootstrap":         sdkIndex,
+		"planning-gallery-music":      planningIndex,
+		"quickconnect-launchpad-chat": quickConnectIndex,
+		"sdk-events-bootstrap":        sdkIndex,
 	} {
 		if index < 0 {
 			t.Fatalf("desktop main loader missing %s module", name)

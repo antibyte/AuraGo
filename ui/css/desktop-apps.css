@@ -3024,15 +3024,15 @@
 }
 
 .vd-gallery-card-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
     padding: 8px;
     min-width: 0;
 }
 
-.vd-gallery-card-meta > span {
+.vd-gallery-card-meta > [data-gallery-name] {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -3044,6 +3044,7 @@
 .vd-gallery-actions {
     display: inline-flex;
     gap: 4px;
+    justify-self: end;
     flex-shrink: 0;
 }
 

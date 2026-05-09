@@ -42,6 +42,52 @@ func TestDesktopMediaGalleryAssets(t *testing.T) {
 	}
 }
 
+func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T) {
+	t.Parallel()
+
+	text := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		`data-gallery-name`,
+		`iconMarkup('eye', 'O', 'vd-gallery-action-icon', 14)`,
+		`iconMarkup('download', 'D', 'vd-gallery-action-icon', 14)`,
+		`iconMarkup('edit', 'E', 'vd-gallery-action-icon', 14)`,
+		`iconMarkup('trash', 'X', 'vd-gallery-action-icon', 14)`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("desktop gallery card missing semantic action/name marker %q", want)
+		}
+	}
+	if strings.Contains(text, `iconMarkup('folder-open', 'O', 'vd-gallery-action-icon', 14)`) {
+		t.Fatalf("desktop gallery preview action must use an eye icon, not a folder icon")
+	}
+
+	css := readAllDesktopCSS(t)
+	for _, want := range []string{
+		".vd-gallery-card-meta {\n    display: grid;",
+		"grid-template-columns: minmax(0, 1fr);",
+		".vd-gallery-card-meta > [data-gallery-name]",
+		".vd-gallery-actions {\n    display: inline-flex;",
+		"justify-self: end;",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop gallery CSS missing readable filename marker %q", want)
+		}
+	}
+}
+
+func TestDesktopMediaGalleryActionIconsExistInBothThemes(t *testing.T) {
+	t.Parallel()
+
+	for _, theme := range []string{"papirus", "whitesur"} {
+		manifest := rawDesktopAssetText(t, "img/"+theme+"/manifest.json")
+		for _, key := range []string{"eye", "download", "edit", "trash"} {
+			if !strings.Contains(manifest, `"`+key+`"`) {
+				t.Fatalf("%s theme manifest missing gallery action icon key %q", theme, key)
+			}
+		}
+	}
+}
+
 func TestDesktopTranslationsIncludeMediaGalleryKeys(t *testing.T) {
 	t.Parallel()
 
