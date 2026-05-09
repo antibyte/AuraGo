@@ -123,6 +123,15 @@ func TestBuildReuseLookupSkipsErrorRecoveryCheatsheetsForNormalRequests(t *testi
 	}
 }
 
+func TestReusableSkillCandidateSkipsProviderInvalidExamples(t *testing.T) {
+	if isReusableSkillCandidate(tools.SkillRegistryEntry{Name: "Example: Hello World", Description: "Hello World example"}) {
+		t.Fatal("expected provider-invalid example skill to be skipped")
+	}
+	if !isReusableSkillCandidate(tools.SkillRegistryEntry{Name: "log_triage", Description: "Analyze deployment logs"}) {
+		t.Fatal("expected real provider-safe skill to remain reusable")
+	}
+}
+
 func TestEvaluateReusabilityUsesAgentOwnershipForUpdates(t *testing.T) {
 	agentCheatsheet := &tools.CheatSheet{ID: "cs-agent", Name: "Nginx Recovery", CreatedBy: "agent", Content: "old"}
 	agentSkill := &tools.SkillRegistryEntry{ID: "sk-agent", Name: "log_analyzer_helper", CreatedBy: "agent", Category: "ops"}

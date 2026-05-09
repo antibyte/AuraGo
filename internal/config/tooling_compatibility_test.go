@@ -150,6 +150,32 @@ agent:
 	}
 }
 
+func TestCoreMemoryDefaultsUseHardSmallCap(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+`)
+	if cfg.Agent.CoreMemoryMaxEntries != 80 {
+		t.Fatalf("core_memory_max_entries = %d, want 80", cfg.Agent.CoreMemoryMaxEntries)
+	}
+	if cfg.Agent.CoreMemoryCapMode != "hard" {
+		t.Fatalf("core_memory_cap_mode = %q, want hard", cfg.Agent.CoreMemoryCapMode)
+	}
+	if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, "virtual_desktop") {
+		t.Fatalf("adaptive always_include missing virtual_desktop: %#v", cfg.Agent.AdaptiveTools.AlwaysInclude)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestAdaptiveToolsNewFieldsDefaultWhenEnabled(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `
 agent:

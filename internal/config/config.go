@@ -784,10 +784,10 @@ func Load(path string) (*Config, error) {
 		cfg.Personality.CorePersonality = "neutral"
 	}
 	if cfg.Agent.CoreMemoryMaxEntries <= 0 {
-		cfg.Agent.CoreMemoryMaxEntries = 200
+		cfg.Agent.CoreMemoryMaxEntries = 80
 	}
 	if cfg.Agent.CoreMemoryCapMode == "" {
-		cfg.Agent.CoreMemoryCapMode = "soft"
+		cfg.Agent.CoreMemoryCapMode = "hard"
 	}
 	if cfg.Personality.UserProfilingThreshold <= 0 {
 		cfg.Personality.UserProfilingThreshold = 3
@@ -908,7 +908,7 @@ func Load(path string) (*Config, error) {
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
 			"filesystem", "file_editor", "execute_shell", "manage_memory", "query_memory",
-			"execute_python", "docker", "api_request", "manage_missions",
+			"execute_python", "docker", "api_request", "manage_missions", "virtual_desktop",
 		}
 	}
 	if cfg.Agent.MaxToolGuides <= 0 {

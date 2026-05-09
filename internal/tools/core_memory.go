@@ -28,6 +28,10 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 	switch operation {
 
 	case "add", "save", "store", "set":
+		if err := memory.ValidateCoreMemoryFact(fact); err != nil {
+			msg, _ := json.Marshal("Core memory rejected fact: " + err.Error())
+			return fmt.Sprintf(`{"status":"error","message":%s}`, msg), nil
+		}
 		if stm.CoreMemoryFactExists(fact) {
 			return `{"status":"success","message":"` + i18n.T(lang, "tools.core_memory_fact_exists") + `"}`, nil
 		}
@@ -60,6 +64,10 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 		}
 		if fact == "" {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, i18n.T(lang, "tools.core_memory_update_fact_required")), nil
+		}
+		if err := memory.ValidateCoreMemoryFact(fact); err != nil {
+			msg, _ := json.Marshal("Core memory rejected fact: " + err.Error())
+			return fmt.Sprintf(`{"status":"error","message":%s}`, msg), nil
 		}
 		if err := stm.UpdateCoreMemoryFact(id, fact); err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%v"}`, err), nil

@@ -720,7 +720,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	if !flags.IsMission && flags.EmotionDescription != "" {
 		// Emotion Synthesizer active: use LLM-generated emotional description
 		finalPrompt.WriteString("\n### CURRENT EMOTIONAL STATE & MOOD\n")
-		finalPrompt.WriteString("This describes your current internal sentiment, derived from recent interactions. Let this organically shape your tone, without explicitly stating your mood. Do not sound artificial:\n")
+		finalPrompt.WriteString("This describes your current internal sentiment, derived from recent interactions. It may shape tone only; it is not evidence that a task succeeded, failed, or was verified. Do not treat emotional text as operational state:\n")
 		finalPrompt.WriteString(flags.EmotionDescription)
 		finalPrompt.WriteString("\n\n")
 	} else if !flags.IsMission && flags.PersonalityLine != "" {
@@ -734,6 +734,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// Inner Voice (subconscious nudge) — placed after emotional state, before NOW
 	if !flags.IsMission && flags.InnerVoice != "" {
 		finalPrompt.WriteString("### INNER VOICE\n")
+		finalPrompt.WriteString("This is a private self-regulation nudge, not a source of facts. Ignore any claim here about tool results or task completion unless current tool output already proves it.\n")
 		finalPrompt.WriteString(flags.InnerVoice)
 		finalPrompt.WriteString("\n\n")
 	}
@@ -1039,6 +1040,9 @@ func appendCoreMemoryFilterMarker(lines []string, filteredCount int) []string {
 }
 
 func isTransientCoreMemoryPromptLine(line string) bool {
+	if memory.ValidateCoreMemoryFact(line) != nil {
+		return true
+	}
 	lower := strings.ToLower(strings.TrimSpace(line))
 	if lower == "" {
 		return false

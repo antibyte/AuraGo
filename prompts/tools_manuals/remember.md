@@ -13,6 +13,7 @@ Core Memory is a tiny permanent profile injected into every prompt. It is not th
 | Tasks, reminders, to-dos | Notes | "TODO: check backup script" |
 | Entity relationships (with source/target) | Knowledge Graph | "server_prod runs PostgreSQL" |
 | Unclear operational detail | Journal entry | "Observed Koofr upload failure during mission X" |
+| Generated media, uploads, app paths, tool errors | Journal / Media Registry / error tracking | "Media Registry ID 2320 was uploaded to Koofr" |
 
 ## Parameters
 
@@ -39,6 +40,7 @@ Core Memory is a tiny permanent profile injected into every prompt. It is not th
 
 - **When to use**: Use when you want to store something useful but don't want to choose the target system
 - **Core memory gate**: If it probably will not matter in 6 months, it must not go to Core Memory
+- **Hard rejection**: Even explicit `category=fact` / `category=core` is rejected for transient operational or media-history entries
 - **When NOT to use**: For complex operations (update, delete, list, search) use specific tools directly
 - **Querying memory**: Use `query_memory` instead for searching across all memory layers
 - **Overhead**: If you know exactly where content belongs, use the specific tool to avoid routing overhead

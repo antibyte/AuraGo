@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -189,6 +190,13 @@ func rememberAsFact(content string, stm *memory.SQLiteMemory, cfg *config.Config
 	result, err := tools.ManageCoreMemory("add", content, 0, stm, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+	}
+	var details struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal([]byte(result), &details) == nil && details.Status == "error" {
+		return fmt.Sprintf(`Tool Output: {"status":"error","stored_as":"core_memory","message":"Core memory rejected fact","details":%s}`, result)
 	}
 	return fmt.Sprintf(`Tool Output: {"status":"success","stored_as":"core_memory","message":"Fact stored in core memory","details":%s}`, result)
 }

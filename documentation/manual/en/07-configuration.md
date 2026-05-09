@@ -214,8 +214,8 @@ agent:
 
     # Memory settings
     memory_compression_char_limit: 60000
-    core_memory_max_entries: 200
-    core_memory_cap_mode: soft
+    core_memory_max_entries: 80
+    core_memory_cap_mode: hard
 
     # Tool execution
     max_tool_calls: 15
@@ -240,7 +240,7 @@ agent:
         provider_profiles_enabled: true
         session_tool_retention_turns: 8
         decay_half_life_days: 7
-        always_include: [filesystem, execute_shell, manage_memory, query_memory, execute_python, docker, api_request]
+        always_include: [filesystem, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, virtual_desktop]
 
     # Recovery settings
     recovery:
@@ -267,8 +267,8 @@ agent:
 |---------|---------|-------------|
 | `context_window` | `0` | Maximum tokens in conversation context (0 = auto-detect) |
 | `memory_compression_char_limit` | `60000` | Compress memory entries larger than this |
-| `core_memory_max_entries` | `200` | Maximum permanent memory entries |
-| `core_memory_cap_mode` | `soft` | `soft` = compress old entries, `hard` = delete old entries |
+| `core_memory_max_entries` | `80` | Maximum permanent memory entries |
+| `core_memory_cap_mode` | `hard` | `hard` = reject overflow, `soft` = warn |
 
 ### Tool Execution
 

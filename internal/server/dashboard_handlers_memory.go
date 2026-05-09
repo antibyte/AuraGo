@@ -233,6 +233,10 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				jsonError(w, `{"error":"fact is required"}`, http.StatusBadRequest)
 				return
 			}
+			if err := memory.ValidateCoreMemoryFact(req.Fact); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			id, err := s.ShortTermMem.AddCoreMemoryFact(req.Fact)
 			if err != nil {
 				jsonError(w, `{"error":"Failed to add core memory fact"}`, http.StatusInternalServerError)
@@ -250,6 +254,10 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == 0 || req.Fact == "" {
 				jsonError(w, `{"error":"id and fact are required"}`, http.StatusBadRequest)
+				return
+			}
+			if err := memory.ValidateCoreMemoryFact(req.Fact); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.UpdateCoreMemoryFact(req.ID, req.Fact); err != nil {

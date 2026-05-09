@@ -30,6 +30,9 @@ Is it a preference, constraint, or environment fact?
 
 - Current tasks or to-do items → `manage_notes` (category: `todo`)
 - Project progress or status → `manage_journal` (entry_type: `task_completed`)
+- Generated media history, Koofr uploads, file paths, durations, or Media Registry IDs → Media Registry / Journal
+- Tool availability, tool failures, transient errors, app IDs, widget IDs, or "not found" diagnostics → error tracking / Journal
+- `recent_operational_details`, project artifacts, test-file output, or app-generation state → Journal / Episodic Memory
 - "Check X later" / reminders → `manage_notes` with `due_date` + `cron_scheduler`
 - URLs or references for later → `manage_notes` (category: `bookmark`)
 - Learnings from this session → `manage_journal` (entry_type: `learning`)
@@ -56,6 +59,7 @@ Is it a preference, constraint, or environment fact?
 ## Notes
 
 - **Token cost**: Every fact in core memory is included in every LLM request. Keep facts concise.
+- **Write gate**: The backend rejects transient operational entries even if the agent explicitly asks for Core Memory.
 - **Permanence**: Facts here persist until explicitly removed. Only add information that is truly permanent.
 - **Removal**: Use `remove` with the **exact** fact text to delete it.
 - **ID deletion**: Use `delete` only with one numeric ID from a recent `list` result. Never bulk-delete guessed entries, and stop after any warning or error.

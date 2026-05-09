@@ -256,6 +256,9 @@ func searchReusableSkills(query string, limit int) []reuseArtifactHit {
 	}
 	hits := make([]reuseArtifactHit, 0, len(skills))
 	for i := range skills {
+		if !isReusableSkillCandidate(skills[i]) {
+			continue
+		}
 		score, matched := scoreReuseCandidate(query, skills[i].Name, skills[i].Description, skills[i].Category, strings.Join(skills[i].Tags, " "))
 		if score < 0.24 {
 			continue
@@ -280,6 +283,19 @@ func searchReusableSkills(query string, limit int) []reuseArtifactHit {
 		return hits[:limit]
 	}
 	return hits
+}
+
+func isReusableSkillCandidate(skill tools.SkillRegistryEntry) bool {
+	name := strings.TrimSpace(skill.Name)
+	if name == "" || !isProviderSafeNativeToolName("skill__"+name) {
+		return false
+	}
+	lowerName := strings.ToLower(name)
+	lowerDesc := strings.ToLower(skill.Description)
+	if lowerName == "example: hello world" || strings.Contains(lowerDesc, "hello world") {
+		return false
+	}
+	return true
 }
 
 func searchReusableJournal(shortTermMem *memory.SQLiteMemory, query string, limit int) []reuseArtifactHit {

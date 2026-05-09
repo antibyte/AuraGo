@@ -1099,6 +1099,10 @@ func promoteStableLongTermMemoriesToCore(logger *slog.Logger, stm *memory.SQLite
 		if fact == "" || stm.CoreMemoryFactExists(fact) {
 			continue
 		}
+		if err := memory.ValidateCoreMemoryFact(fact); err != nil {
+			logger.Debug("[Hierarchy] Skipping transient memory promotion to core", "doc_id", meta.DocID, "error", err)
+			continue
+		}
 		if _, err := stm.AddCoreMemoryFact(fact); err != nil {
 			logger.Warn("[Hierarchy] Failed to promote memory to core", "doc_id", meta.DocID, "error", err)
 			continue

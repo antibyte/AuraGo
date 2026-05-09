@@ -50,8 +50,8 @@ agent:
   context_window: 0               # 0 = auto-detect from provider API
   show_tool_results: false
   debug_mode: false
-  core_memory_cap_mode: "soft"
-  core_memory_max_entries: 200
+  core_memory_cap_mode: "hard"
+  core_memory_max_entries: 80
   tool_output_limit: 50000
   workflow_feedback: true
   # Danger Zone (all disabled by default)

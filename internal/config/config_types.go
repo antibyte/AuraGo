@@ -426,8 +426,8 @@ type Config struct {
 		ShowToolResults                 bool   `yaml:"show_tool_results"`
 		WorkflowFeedback                bool   `yaml:"workflow_feedback"`
 		DebugMode                       bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = unlimited; default 200
-		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "soft" (default) | "hard"
+		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = default 80
+		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "hard" (default) | "soft"
 		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
 		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)

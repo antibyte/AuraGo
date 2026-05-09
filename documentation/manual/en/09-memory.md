@@ -394,8 +394,8 @@ embeddings:
 # Agent memory settings
 agent:
   memory_compression_char_limit: 60000   # Trigger compression at this character limit
-  core_memory_max_entries: 200           # Maximum entries in core memory (0 = unlimited)
-  core_memory_cap_mode: "soft"           # "soft" (default) or "hard"
+  core_memory_max_entries: 80            # Maximum entries in core memory
+  core_memory_cap_mode: "hard"           # "hard" (default) rejects overflow
 
 # SQLite database paths
 sqlite:
@@ -425,8 +425,8 @@ indexing:
 | `embeddings.provider` | `"disabled"` | Embedding provider: `"disabled"` (no LTM), `"internal"` (use main LLM), or a provider ID |
 | `embeddings.internal_model` | `"qwen/qwen3-embedding-8b"` | Model for internal embedding generation |
 | `agent.memory_compression_char_limit` | `50000` | Characters before STM compression triggers |
-| `agent.core_memory_max_entries` | `200` | Maximum core memory entries (0 = unlimited) |
-| `agent.core_memory_cap_mode` | `"soft"` | How to handle overflow: `"soft"` (warn) or `"hard"` (reject) |
+| `agent.core_memory_max_entries` | `80` | Maximum core memory entries |
+| `agent.core_memory_cap_mode` | `"hard"` | How to handle overflow: `"hard"` rejects, `"soft"` warns |
 | `sqlite.short_term_path` | `"./data/short_term.db"` | Path to STM SQLite database |
 | `indexing.enabled` | `true` | Enable automatic knowledge base indexing |
 

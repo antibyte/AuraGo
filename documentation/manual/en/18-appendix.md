@@ -80,8 +80,8 @@ agent:
   context_window: 0           # 0 = auto-detect from provider API
   show_tool_results: false    # Show raw tool output
   debug_mode: false           # Enable debug instructions
-  core_memory_cap_mode: "soft"  # soft/hard cap mode
-  core_memory_max_entries: 200  # Max core memory entries
+  core_memory_cap_mode: "hard"  # hard/soft cap mode
+  core_memory_max_entries: 80   # Max core memory entries
   tool_output_limit: 50000    # Max chars of a single tool result
   workflow_feedback: true     # Enable workflow feedback
   # Danger Zone (all disabled by default)

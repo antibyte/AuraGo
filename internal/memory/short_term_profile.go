@@ -655,12 +655,21 @@ func (s *SQLiteMemory) MigrateCoreMemoryFromMarkdown(dataDir string, logger *slo
 	}
 
 	if len(facts) > 0 && count == 0 {
+		imported := 0
+		skipped := 0
 		for _, f := range facts {
+			if err := ValidateCoreMemoryFact(f); err != nil {
+				skipped++
+				logger.Warn("Core memory migration: skipped transient fact", "error", err)
+				continue
+			}
 			if _, err := s.AddCoreMemoryFact(f); err != nil {
 				logger.Error("Core memory migration: failed to insert fact", "fact", f, "error", err)
+				continue
 			}
+			imported++
 		}
-		logger.Info("Core memory migrated from markdown", "facts_imported", len(facts))
+		logger.Info("Core memory migrated from markdown", "facts_imported", imported, "facts_skipped", skipped)
 	}
 
 	// Rename the .md file so migration only runs once.

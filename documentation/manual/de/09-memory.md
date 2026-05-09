@@ -62,8 +62,8 @@ Agent: ✅ In Core Memory gespeichert
 ```yaml
 # config.yaml
 agent:
-  core_memory_max_entries: 200      # Maximale Anzahl Einträge (0 = unbegrenzt)
-  core_memory_cap_mode: "soft"      # "soft" oder "hard"
+  core_memory_max_entries: 80       # Maximale Anzahl Einträge
+  core_memory_cap_mode: "hard"      # "hard" lehnt Überlauf ab
 ```
 
 | Modus | Beschreibung |

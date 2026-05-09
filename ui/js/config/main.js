@@ -1249,10 +1249,10 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '</div>';
     } else if (fieldType === 'int' || fieldType === 'float') {
         const step = fieldType === 'float' ? '0.01' : '1';
-        // Special handling for agent.core_memory_max_entries: show default 200 if missing/0
+        // Special handling for agent.core_memory_max_entries: show default 80 if missing/0
         let showValue = value;
         if (fullPath.endsWith('agent.core_memory_max_entries')) {
-            showValue = (value === undefined || value === null || value === 0 || value === '') ? 200 : value;
+            showValue = (value === undefined || value === null || value === 0 || value === '') ? 80 : value;
         }
         html += '<input class="field-input" type="number" step="' + step + '" data-path="' + fullPath + '" value="' + (showValue ?? '') + '">';
     } else if (fieldType === 'array') {
