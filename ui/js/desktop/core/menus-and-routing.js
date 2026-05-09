@@ -107,6 +107,15 @@
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => activateDesktopItem(btn) }
         ];
+        if (isTrashIcon(btn)) {
+            items.push(
+                { label: t('desktop.context_empty_trash'), icon: 'trash', fallback: 'X', action: () => emptyTrash() },
+                { separator: true },
+                { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(btn.querySelector('.vd-icon-label').textContent, path || btn.dataset.id) }
+            );
+            showContextMenu(event.clientX, event.clientY, items);
+            return;
+        }
         if (isDesktopEntry || kind === 'file') {
             items.push(
                 { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(path) },
@@ -181,6 +190,46 @@
         const parts = String(path || '').split('/').filter(Boolean);
         parts.pop();
         return parts.join('/');
+    }
+
+    function workspaceJoinPath(base, name) {
+        const left = String(base || '').replace(/\\/g, '/').replace(/\/+$/, '');
+        const right = String(name || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        return left ? (right ? left + '/' + right : left) : right;
+    }
+
+    function pathBaseName(path) {
+        const parts = normalizeDesktopPath(path).split('/').filter(Boolean);
+        return parts.pop() || '';
+    }
+
+    function trashNameCandidate(name, index) {
+        if (index <= 1) return name;
+        const dot = name.lastIndexOf('.');
+        if (dot > 0) return name.slice(0, dot) + ' (' + index + ')' + name.slice(dot);
+        return name + ' (' + index + ')';
+    }
+
+    async function listTrashEntries() {
+        const body = await api('/api/desktop/files?path=' + encodeURIComponent('Trash'));
+        return Array.isArray(body.files) ? body.files : [];
+    }
+
+    async function uniqueTrashDestination(path) {
+        const name = pathBaseName(path) || 'item';
+        const entries = await listTrashEntries();
+        const existing = new Set(entries.map(entry => String(entry.name || pathBaseName(entry.path)).toLowerCase()));
+        for (let index = 1; index < 1000; index += 1) {
+            const candidate = trashNameCandidate(name, index);
+            if (!existing.has(candidate.toLowerCase())) return workspaceJoinPath('Trash', candidate);
+        }
+        return workspaceJoinPath('Trash', name + ' ' + Date.now());
+    }
+
+    async function refreshDesktopAfterFileChange() {
+        await loadBootstrap();
+        const active = state.windows.get(state.activeWindowId);
+        if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
 
     async function promptDialog(title, value) {
@@ -291,6 +340,52 @@
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function movePathToTrash(path) {
+        const cleanPath = normalizeDesktopPath(path);
+        if (!cleanPath || isTrashPath(cleanPath) || isInsideTrashPath(cleanPath)) return;
+        try {
+            const trashDestination = await uniqueTrashDestination(cleanPath);
+            await api('/api/desktop/file', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })
+            });
+            removeIconPosition('desktop-entry-' + cleanPath);
+            await refreshDesktopAfterFileChange();
+        } catch (err) {
+            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        }
+    }
+
+    async function handleTrashDrop(btn) {
+        if (!btn || isTrashIcon(btn)) return;
+        if (btn.dataset.desktopEntry === 'true') {
+            await movePathToTrash(btn.dataset.path || '');
+            return;
+        }
+        await removeDesktopShortcut(btn.dataset.id || '');
+    }
+
+    async function emptyTrash() {
+        try {
+            const entries = await listTrashEntries();
+            if (entries.length === 0) {
+                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.trash_empty') });
+                return;
+            }
+            if (settingBool('files.confirm_delete')) {
+                const confirmed = await confirmDialog(t('desktop.confirm_empty_trash'), t('desktop.confirm_empty_trash_msg', { count: entries.length }));
+                if (!confirmed) return;
+            }
+            for (const entry of entries) {
+                if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+            }
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }

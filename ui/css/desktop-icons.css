@@ -48,6 +48,12 @@
     border-color: rgba(39, 199, 166, 0.5);
 }
 
+.vd-icon.vd-trash-drop-target {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2);
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.62);
+    box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
+}
+
 .vd-long-press-active {
     transform: scale(0.97);
     filter: brightness(1.08);

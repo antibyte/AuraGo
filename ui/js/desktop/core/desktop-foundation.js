@@ -863,19 +863,57 @@
         document.querySelectorAll('.vd-icon').forEach(icon => icon.classList.toggle('selected', icon === btn));
     }
 
+    function normalizeDesktopPath(path) {
+        return String(path || '').replace(/\\/g, '/').split('/').filter(Boolean).join('/');
+    }
+
+    function isTrashPath(path) {
+        return normalizeDesktopPath(path).toLowerCase() === 'trash';
+    }
+
+    function isInsideTrashPath(path) {
+        return normalizeDesktopPath(path).toLowerCase().startsWith('trash/');
+    }
+
+    function isTrashIcon(btn) {
+        if (!btn || !btn.dataset) return false;
+        return btn.dataset.id === 'dir-Trash' || (btn.dataset.kind === 'directory' && isTrashPath(btn.dataset.path));
+    }
+
+    function clearTrashDropTarget() {
+        document.querySelectorAll('.vd-trash-drop-target').forEach(icon => icon.classList.remove('vd-trash-drop-target'));
+    }
+
+    function desktopTrashDropTargetAt(clientX, clientY, draggedIcon) {
+        const icons = [...document.querySelectorAll('.vd-icon')];
+        return icons.find(icon => {
+            if (icon === draggedIcon || !isTrashIcon(icon)) return false;
+            const rect = icon.getBoundingClientRect();
+            return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+        }) || null;
+    }
+
     function wireDraggableIcon(btn) {
         let drag = null;
         function finishDrag(event) {
             if (!drag) return;
             if (event && event.pointerId != null && event.pointerId !== drag.pointerId) return;
+            const dropTarget = drag.dropTarget;
             if (drag.holdTimer) window.clearTimeout(drag.holdTimer);
             if (event && btn.hasPointerCapture && btn.hasPointerCapture(drag.pointerId)) {
                 btn.releasePointerCapture(drag.pointerId);
             }
             btn.classList.remove('vd-dragging');
+            clearTrashDropTarget();
             document.body.classList.remove('vd-touch-drag-active');
             if (drag.moved) {
-                saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
+                if (dropTarget && !isTrashIcon(btn)) {
+                    btn.style.left = drag.left + 'px';
+                    btn.style.top = drag.top + 'px';
+                    handleTrashDrop(btn);
+                } else {
+                    saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
+                }
                 if (event) event.preventDefault();
             }
             drag = null;
@@ -895,7 +933,8 @@
                 moved: false,
                 ready: !touchDrag,
                 touchDrag,
-                holdTimer: 0
+                holdTimer: 0,
+                dropTarget: null
             };
             if (touchDrag) {
                 drag.holdTimer = window.setTimeout(() => {
@@ -920,6 +959,9 @@
             const pos = clampToWorkspace(drag.left + dx, drag.top + dy, btn.offsetWidth, btn.offsetHeight);
             btn.style.left = pos.x + 'px';
             btn.style.top = pos.y + 'px';
+            drag.dropTarget = desktopTrashDropTargetAt(event.clientX, event.clientY, btn);
+            clearTrashDropTarget();
+            if (drag.dropTarget) drag.dropTarget.classList.add('vd-trash-drop-target');
         });
         btn.addEventListener('pointerup', finishDrag);
         btn.addEventListener('pointercancel', finishDrag);

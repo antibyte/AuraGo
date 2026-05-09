@@ -55,6 +55,44 @@ func TestDesktopContextMenuAndClipboardAssets(t *testing.T) {
 	}
 }
 
+func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function isTrashIcon(",
+		"function desktopTrashDropTargetAt(",
+		"function handleTrashDrop(",
+		"function movePathToTrash(",
+		"function emptyTrash(",
+		"vd-trash-drop-target",
+		"desktop.context_empty_trash",
+		"new_path: trashDestination",
+		"body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })",
+		"removeIconPosition('desktop-entry-' + cleanPath)",
+		"await removeDesktopShortcut(btn.dataset.id || '')",
+		"await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' })",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop trash can integration missing marker %q", want)
+		}
+	}
+
+	css := readAllDesktopCSS(t)
+	if !strings.Contains(css, ".vd-icon.vd-trash-drop-target") {
+		t.Fatal("desktop trash drop target state is missing CSS styling")
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := rawDesktopAssetText(t, filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json")))
+		for _, key := range []string{"desktop.context_empty_trash", "desktop.confirm_empty_trash", "desktop.confirm_empty_trash_msg", "desktop.trash_empty"} {
+			if !strings.Contains(text, `"`+key+`"`) {
+				t.Fatalf("%s desktop translations missing %q", lang, key)
+			}
+		}
+	}
+}
+
 func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 	t.Parallel()
 
