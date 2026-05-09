@@ -132,6 +132,16 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if isVirtualDesktopStandaloneWidgetHTML(path) && strings.TrimSpace(content) == "" {
 			return virtualDesktopJSON("error", "desktop widget HTML file must not be empty", nil, nil)
 		}
+		if app, entryPath, ok := virtualDesktopRootHTMLAppFromFile(path); ok && strings.TrimSpace(content) != "" {
+			if err := svc.WriteFile(ctx, path, content, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			if err := svc.InstallApp(ctx, app, map[string]string{app.Entry: content}, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": "write_file", "path": path, "app_id": app.ID, "entry_path": entryPath})
+			return virtualDesktopJSON("ok", "desktop app file written and registered", map[string]interface{}{"path": cleanVirtualDesktopSlashPath(path), "app_id": app.ID, "entry_path": entryPath}, event)
+		}
 		if err := svc.WriteFile(ctx, path, content, desktop.SourceAgent); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -144,6 +154,32 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
 		return virtualDesktopJSON("ok", "desktop file written", map[string]interface{}{"path": path}, event)
+	case "delete", "delete_file", "delete_path", "delete_app":
+		appID := virtualDesktopString(args, "app_id", "id")
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(appID) == "" && strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "app_id or path is required", nil, nil)
+		}
+		deletedAppID := ""
+		if strings.TrimSpace(appID) != "" {
+			if err := svc.DeleteApp(ctx, appID, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			deletedAppID = strings.ToLower(strings.TrimSpace(appID))
+		} else if app, _, ok := virtualDesktopRootHTMLAppFromFile(path); ok {
+			if err := svc.DeleteApp(ctx, app.ID, desktop.SourceAgent); err != nil && !strings.Contains(err.Error(), "desktop app not found") {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+			deletedAppID = app.ID
+		}
+		cleanPath := cleanVirtualDesktopSlashPath(path)
+		if strings.TrimSpace(path) != "" {
+			if err := svc.DeletePath(ctx, cleanPath, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": "delete", "path": cleanPath, "app_id": deletedAppID})
+		return virtualDesktopJSON("ok", "desktop item deleted", map[string]interface{}{"path": cleanPath, "app_id": deletedAppID}, event)
 	case "read_document", "write_document", "patch_document":
 		if err := officeToolAllowed(cfg, "document", op); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
@@ -554,6 +590,31 @@ func virtualDesktopStandaloneWidgetFromFile(rawPath string) (desktop.Widget, boo
 		H:       2,
 		Config:  map[string]interface{}{},
 	}, true
+}
+
+func virtualDesktopRootHTMLAppFromFile(rawPath string) (desktop.AppManifest, string, bool) {
+	clean := cleanVirtualDesktopSlashPath(rawPath)
+	if path.Dir(clean) != "Apps" || !strings.EqualFold(path.Ext(clean), ".html") {
+		return desktop.AppManifest{}, "", false
+	}
+	id := strings.TrimSuffix(path.Base(clean), path.Ext(clean))
+	id = strings.ToLower(strings.TrimSpace(id))
+	id = virtualDesktopWidgetIDSanitizer.ReplaceAllString(id, "-")
+	id = strings.Trim(id, "_-")
+	if len(id) < 2 {
+		return desktop.AppManifest{}, "", false
+	}
+	title := virtualDesktopTitleFromID(id)
+	entry := "index.html"
+	return desktop.AppManifest{
+		ID:          id,
+		Name:        title,
+		Version:     "1.0.0",
+		Icon:        desktop.InferDesktopIconName(id, title, entry),
+		Entry:       entry,
+		Runtime:     desktop.AuraDesktopRuntime,
+		Description: "Generated desktop app.",
+	}, path.Join("Apps", id, entry), true
 }
 
 func cleanVirtualDesktopSlashPath(rawPath string) string {

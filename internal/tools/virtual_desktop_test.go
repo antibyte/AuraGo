@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -525,4 +526,104 @@ func TestExecuteVirtualDesktopInstallAppNormalizesIconAlias(t *testing.T) {
 		}
 	}
 	t.Fatalf("todo-board not installed: %+v", bootstrap.Data.InstalledApps)
+}
+
+func TestExecuteVirtualDesktopWriteFileRootAppHTMLRegistersRunnableGeneratedApp(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	html := "<!doctype html><html><body><canvas id=\"game\"></canvas><script>window.spaceInvaders = true;</script></body></html>"
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders.html",
+		"content":   html,
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			AppID     string `json:"app_id"`
+			EntryPath string `json:"entry_path"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal write_file output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output = %s", payload.Status, exec.Output)
+	}
+	if payload.Data.AppID != "space-invaders" {
+		t.Fatalf("app_id = %q, want space-invaders; output=%s", payload.Data.AppID, exec.Output)
+	}
+	if payload.Data.EntryPath != "Apps/space-invaders/index.html" {
+		t.Fatalf("entry_path = %q, want Apps/space-invaders/index.html", payload.Data.EntryPath)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var bootstrap struct {
+		Data struct {
+			InstalledApps []struct {
+				ID    string `json:"id"`
+				Entry string `json:"entry"`
+			} `json:"installed_apps"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(status.Output), &bootstrap); err != nil {
+		t.Fatalf("unmarshal status: %v\n%s", err, status.Output)
+	}
+	for _, app := range bootstrap.Data.InstalledApps {
+		if app.ID == "space-invaders" {
+			if app.Entry != "index.html" {
+				t.Fatalf("entry = %q, want index.html", app.Entry)
+			}
+			read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+				"operation": "read_file",
+				"path":      "Apps/space-invaders/index.html",
+			})
+			if !strings.Contains(read.Output, "window.spaceInvaders") {
+				t.Fatalf("registered app entry did not contain generated HTML: %s", read.Output)
+			}
+			return
+		}
+	}
+	t.Fatalf("space-invaders app not installed: %+v", bootstrap.Data.InstalledApps)
+}
+
+func TestExecuteVirtualDesktopDeleteRootAppHTMLRemovesGeneratedApp(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders.html",
+		"content":   "<main>Space Invaders</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "delete",
+		"path":      "Apps/space-invaders.html",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			AppID string `json:"app_id"`
+			Path  string `json:"path"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal delete output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("delete status = %q, output = %s", payload.Status, exec.Output)
+	}
+	if payload.Data.AppID != "space-invaders" || payload.Data.Path != "Apps/space-invaders.html" {
+		t.Fatalf("delete payload = %+v", payload.Data)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	if strings.Contains(status.Output, `"id":"space-invaders"`) {
+		t.Fatalf("deleted generated app still registered: %s", status.Output)
+	}
 }

@@ -1114,9 +1114,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
-					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
 				},
-				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'."),
+				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'."),
 				"file_path": prop("string", "Alias for path."),
 				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html this must be complete, non-empty HTML."),
 				"title":     prop("string", "Notification title or widget title."),

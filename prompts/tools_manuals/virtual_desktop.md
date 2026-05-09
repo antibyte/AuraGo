@@ -12,7 +12,9 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `status` / `bootstrap`: return desktop settings, built-in apps, installed apps, widgets, workspace folders, and `icon_catalog` for generated app icon selection.
 - `list_files`: list a workspace directory. Use `path`, for example `Documents`.
 - `read_file`: read one text file. Use `path`.
-- `write_file`: write one text file. Use `path` and `content`.
+- `write_file`: write one text file. Use `path` and `content`. For simple generated HTML apps, prefer `install_app`; if you write non-empty HTML to `Apps/<app_id>.html`, AuraGo also registers/updates a runnable generated app at `Apps/<app_id>/index.html`.
+- `delete` / `delete_file` / `delete_path`: delete a workspace file or directory. Use `path`. If `path` is `Apps/<app_id>.html`, AuraGo also removes the generated app registration for `<app_id>`.
+- `delete_app`: delete a generated desktop app. Use `app_id`. Built-in apps cannot be deleted.
 - `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, `delta`, and `office_version`.
 - `write_document`: create/update `.docx`, `.html`, `.md`, or `.txt`. Use `path`, plus either `content`/`title` or a `document` object.
 - `patch_document`: agent-friendly document edits. Use `path`, optional seed `content`, `prepend_text`, `append_text`, `title`, and `replacements:[{find,replace}]`.
