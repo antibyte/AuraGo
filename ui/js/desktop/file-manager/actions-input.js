@@ -301,7 +301,7 @@
             addSelection(path);
             renderFileContent();
         }
-        const hasClipboard = fm.clipboard && fm.clipboard.paths.length > 0;
+        const hasClipboard = hasSharedFileClipboard();
         const items = [
             { label: t('desktop.fm.open', 'Open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
         ];
@@ -312,7 +312,7 @@
             { separator: true },
             { label: t('desktop.fm.cut', 'Cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
             { label: t('desktop.fm.copy', 'Copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
-            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard() },
+            { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
             { separator: true },
             { label: t('desktop.fm.rename', 'Rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
             { label: t('desktop.fm.delete', 'Delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
@@ -329,7 +329,7 @@
 
     function handleEmptyContextMenu(e) {
         e.preventDefault();
-        const hasClipboard = fm.clipboard && fm.clipboard.paths.length > 0;
+        const hasClipboard = hasSharedFileClipboard();
         const items = [
             { label: t('desktop.fm.new_file', 'New File'), action: 'new-file', icon: 'file-plus', handler: () => createNewFile() },
             { label: t('desktop.fm.new_folder', 'New Folder'), action: 'new-folder', icon: 'folder-plus', handler: () => createNewFolder() },
@@ -406,36 +406,67 @@
     }
 
     // Clipboard operations
+    function sharedFileOps() {
+        return window.AuraDesktopFileOps || null;
+    }
+
+    function sharedFileClipboard() {
+        const ops = sharedFileOps();
+        if (ops && typeof ops.getClipboard === 'function') return ops.getClipboard();
+        return fm.clipboard && fm.clipboard.paths && fm.clipboard.paths.length ? fm.clipboard : null;
+    }
+
+    function hasSharedFileClipboard() {
+        const ops = sharedFileOps();
+        if (ops && typeof ops.hasClipboard === 'function') return ops.hasClipboard();
+        return !!sharedFileClipboard();
+    }
+
+    function setSharedFileClipboard(mode, paths) {
+        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        fm.clipboard = cleanPaths.length ? { mode, paths: cleanPaths } : null;
+        const ops = sharedFileOps();
+        if (ops && typeof ops.setClipboard === 'function') ops.setClipboard(mode, cleanPaths);
+    }
+
     function cutSelection() {
         if (isReadonly()) return;
         if (!fm.selectedPaths.size) return;
-        fm.clipboard = { mode: 'cut', paths: Array.from(fm.selectedPaths) };
+        setSharedFileClipboard('cut', Array.from(fm.selectedPaths));
         renderAll();
     }
 
     function copySelection() {
         if (!fm.selectedPaths.size) return;
-        fm.clipboard = { mode: 'copy', paths: Array.from(fm.selectedPaths) };
+        setSharedFileClipboard('copy', Array.from(fm.selectedPaths));
         renderAll();
     }
 
-    async function pasteClipboard() {
+    async function pasteClipboard(destBase) {
         if (isReadonly()) return;
-        if (!fm.clipboard || !fm.clipboard.paths.length) return;
-        const destBase = fm.currentPath;
-        for (const srcPath of fm.clipboard.paths) {
+        const ops = sharedFileOps();
+        if (ops && typeof ops.paste === 'function') {
+            await ops.paste(destBase || fm.currentPath);
+            fm.clipboard = null;
+            refresh();
+            return;
+        }
+        const clipboard = sharedFileClipboard();
+        if (!clipboard || !clipboard.paths.length) return;
+        const targetBase = destBase || fm.currentPath;
+        for (const srcPath of clipboard.paths) {
             const name = baseName(srcPath);
-            let destPath = joinPath(destBase, name);
+            let destPath = joinPath(targetBase, name);
             const exists = fm.files.some(f => f.name === name);
-            if (exists && fm.clipboard.mode === 'copy') {
+            if (exists && clipboard.mode === 'copy') {
                 const newName = name + ' (' + t('desktop.fm.copy_of', 'copy') + ')';
-                destPath = joinPath(destBase, newName);
-            } else if (exists && fm.clipboard.mode === 'cut') {
+                destPath = joinPath(targetBase, newName);
+            } else if (exists && clipboard.mode === 'cut') {
                 const overwrite = await confirmDialog(t('desktop.fm.paste_exists', 'An item named "{{name}}" already exists. Overwrite?', { name: name }));
                 if (!overwrite) continue;
             }
             try {
-                if (fm.clipboard.mode === 'copy') {
+                if (clipboard.mode === 'copy') {
                     await api('/api/desktop/copy', {
                         method: 'POST',
                         body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
@@ -450,7 +481,7 @@
                 showNotification({ type: 'error', message: (err.message || String(err)) });
             }
         }
-        if (fm.clipboard.mode === 'cut') fm.clipboard = null;
+        if (clipboard.mode === 'cut') fm.clipboard = null;
         refresh();
     }
 
@@ -709,6 +740,43 @@
         return { source: 'file-manager', paths };
     }
 
+    function fileManagerDragPayloadFromEvent(event) {
+        const dataTransfer = event && event.dataTransfer;
+        if (!dataTransfer || !Array.from(dataTransfer.types || []).includes(DESKTOP_FILE_DRAG_TYPE)) return null;
+        try {
+            const payload = JSON.parse(dataTransfer.getData(DESKTOP_FILE_DRAG_TYPE) || '{}');
+            const paths = Array.isArray(payload.paths) ? payload.paths.filter(Boolean) : [];
+            return paths.length ? { paths } : null;
+        } catch (_) {
+            const path = dataTransfer.getData('text/plain');
+            return path ? { paths: [path] } : null;
+        }
+    }
+
+    async function moveDroppedDesktopFilesToFolder(paths, destPath) {
+        if (isReadonly()) return;
+        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        if (!cleanPaths.length) return;
+        for (const src of cleanPaths) {
+            if (!src || src === destPath) continue;
+            const name = baseName(src);
+            const newPath = joinPath(destPath, name);
+            if (newPath === src) continue;
+            try {
+                await api('/api/desktop/file', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ old_path: src, new_path: newPath })
+                });
+            } catch (err) {
+                showNotification({ type: 'error', message: (err.message || String(err)) });
+            }
+        }
+        if (fm.callbacks && typeof fm.callbacks.refreshDesktop === 'function') await fm.callbacks.refreshDesktop();
+        clearSelection();
+        dragSrcPath = null;
+        refresh();
+    }
+
     function handleDragStart(e) {
         const path = e.currentTarget.dataset.path;
         dragSrcPath = path;
@@ -723,6 +791,10 @@
 
     function handleDragOver(e) {
         e.preventDefault();
+        if (fileManagerDragPayloadFromEvent(e)) {
+            e.dataTransfer.dropEffect = 'move';
+            return;
+        }
         if (e.dataTransfer.types.includes('Files')) {
             showDropOverlay();
         }
@@ -750,6 +822,8 @@
         e.preventDefault();
         e.stopPropagation();
         hideDropOverlay();
+        const payload = fileManagerDragPayloadFromEvent(e);
+        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
     }
 
     function handleExternalDrop(e) {
@@ -766,7 +840,8 @@
     function handleDragEnter(e) {
         const target = e.currentTarget;
         const type = target.dataset.type;
-        if (type === 'directory' && target.dataset.path !== dragSrcPath) {
+        const payload = fileManagerDragPayloadFromEvent(e);
+        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             target.classList.add('drag-over');
         }
     }
@@ -779,7 +854,8 @@
         e.preventDefault();
         const target = e.currentTarget;
         const type = target.dataset.type;
-        if (type === 'directory' && target.dataset.path !== dragSrcPath) {
+        const payload = fileManagerDragPayloadFromEvent(e);
+        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             e.dataTransfer.dropEffect = 'move';
         } else {
             e.dataTransfer.dropEffect = 'none';
@@ -795,6 +871,12 @@
         const destPath = target.dataset.path;
         const destType = target.dataset.type;
         if (destType !== 'directory') return;
+        const payload = fileManagerDragPayloadFromEvent(e);
+        if (payload) {
+            await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
+            dragSrcPath = null;
+            return;
+        }
         if (!dragSrcPath || dragSrcPath === destPath) return;
         const srcFile = fm.files.find(f => f.path === dragSrcPath);
         if (!srcFile) return;

@@ -85,16 +85,18 @@
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
-        showContextMenu(event.clientX, event.clientY, [
+        const items = [
             { label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
+            { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
             { separator: true },
             { label: t('desktop.widget_manager'), icon: 'widgets', fallback: 'W', action: () => showWidgetManager() },
             { label: t('desktop.app_manager'), icon: 'apps', fallback: 'A', action: () => showAppManager() },
             { separator: true },
             { label: t('desktop.context_refresh'), icon: 'refresh', fallback: 'R', action: () => loadBootstrap() },
             { label: t('desktop.context_sort_icons'), icon: 'sort', fallback: 'S', action: autoArrangeIcons }
-        ]);
+        ];
+        showContextMenu(event.clientX, event.clientY, items);
     }
 
     function showIconContextMenu(event, btn) {
@@ -118,6 +120,11 @@
         }
         if (isDesktopEntry || kind === 'file') {
             items.push(
+                { separator: true },
+                { label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', action: () => setDesktopFileClipboard('cut', [path]) },
+                { label: t('desktop.fm.copy'), icon: 'copy', fallback: 'C', action: () => setDesktopFileClipboard('copy', [path]) },
+                { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', disabled: kind !== 'directory' || !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard(path) },
+                { separator: true },
                 { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(path) },
                 { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(path) }
             );

@@ -816,6 +816,7 @@
             btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
             wireLongPress(btn, event => showIconContextMenu(event, btn));
             wireDraggableIcon(btn);
+            if (typeof wireDesktopFileIconDrag === 'function') wireDesktopFileIconDrag(btn);
         });
     }
 

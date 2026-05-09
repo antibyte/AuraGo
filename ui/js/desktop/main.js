@@ -5,7 +5,7 @@
         throw new Error('Aura desktop module loader is not available for main');
     }
     var v = window.BUILD_VERSION || 'dev';
-    var assetV = v + '-desktop-20260509n';
+    var assetV = v + '-desktop-20260509o';
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=' + assetV,
         '/js/desktop/core/window-shell-runtime.js?v=' + assetV,

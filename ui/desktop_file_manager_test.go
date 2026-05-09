@@ -95,13 +95,22 @@ func TestFileManagerItemsCanDropOntoDesktop(t *testing.T) {
 	t.Parallel()
 
 	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + readDesktopAssetText(t, "js/desktop/file-manager.js")
+	fileManagerSource := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	if !strings.Contains(fileManagerSource, "const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files';") {
+		t.Fatal("file manager bundle must define its own desktop file drag payload type")
+	}
 	for _, marker := range []string{
 		"const DESKTOP_FILE_DRAG_TYPE = 'application/x-aurago-desktop-files'",
 		"function fileManagerDragPayload(path)",
 		"e.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify(fileManagerDragPayload(path)))",
+		"function wireDesktopFileIconDrag(btn)",
+		"btn.addEventListener('dragstart', event =>",
 		"function desktopFileDragPayload(event)",
 		"function wireDesktopFileDrops()",
 		"function moveDraggedFilesToDesktop(paths, clientX, clientY)",
+		"function fileManagerDragPayloadFromEvent(event)",
+		"function moveDroppedDesktopFilesToFolder(paths, destPath)",
+		"dragType: DESKTOP_FILE_DRAG_TYPE",
 		"await api('/api/desktop/file',",
 		"body: JSON.stringify({ old_path: src, new_path: newPath })",
 		"saveIconPosition('desktop-entry-' + newPath",
@@ -109,6 +118,29 @@ func TestFileManagerItemsCanDropOntoDesktop(t *testing.T) {
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop file drag-to-desktop integration missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopAndFileManagerShareCutCopyPaste(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []string{
+		"window.AuraDesktopFileClipboard",
+		"function setDesktopFileClipboard(mode, paths)",
+		"function hasDesktopFileClipboard()",
+		"async function pasteDesktopFileClipboard(destBase, options)",
+		"setDesktopFileClipboard('cut', [path])",
+		"setDesktopFileClipboard('copy', [path])",
+		"{ label: t('desktop.fm.cut', 'Cut'), action: 'cut'",
+		"{ label: t('desktop.fm.copy', 'Copy'), action: 'copy'",
+		"{ label: t('desktop.fm.paste', 'Paste'), action: 'paste'",
+		"pasteDesktopFileClipboard(destBase",
+		"desktop.fm.paste",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop shared cut/copy/paste integration missing marker %q", marker)
 		}
 	}
 }
