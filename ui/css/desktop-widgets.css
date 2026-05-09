@@ -1,0 +1,390 @@
+/* desktop-widgets.css — widgets, widget manager, quickchat */
+
+
+
+.vd-widgets {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.vd-widget {
+    position: absolute;
+    min-height: 56px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--vd-border);
+    background: rgba(12, 17, 24, 0.58);
+    backdrop-filter: blur(20px);
+    pointer-events: auto;
+    overflow: hidden;
+    transition: height 200ms ease;
+}
+
+.vd-widget[data-widget-auto-size="true"] {
+    height: var(--vd-widget-auto-height, auto) !important;
+}
+
+.vd-widget.vd-widget-auto {
+    height: var(--vd-widget-auto-height, auto) !important;
+}
+
+.vd-widget[data-widget-auto-size="true"] .vd-widget-frame-wrap,
+.vd-widget.vd-widget-auto .vd-widget-frame-wrap {
+    height: var(--vd-widget-frame-height, auto);
+    min-height: 80px;
+}
+
+.vd-widget.vd-widget-auto .vd-widget-body {
+    min-height: 24px;
+}
+
+.vd-widget.vd-widget-quickchat {
+    height: auto !important;
+    min-height: 48px;
+    transition: min-height 200ms ease;
+}
+
+.vd-widget.vd-widget-quickchat .vd-quickchat {
+    height: auto;
+    min-height: 28px;
+}
+
+.vd-widget.vd-widget-quickchat .vd-quickchat-response {
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.vd-widget.vd-widget-quickchat .vd-quickchat-collapsed {
+    min-height: 28px;
+}
+
+.vd-widget-head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.vd-dragging {
+    opacity: 0.82;
+    transform: scale(1.015);
+    z-index: var(--vd-z-modal) !important;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.vd-widget-text {
+    min-width: 0;
+}
+
+.vd-widget-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.vd-widget-kind {
+    color: var(--vd-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+}
+
+.vd-widget-body {
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.vd-widget-frame-wrap {
+    min-height: 80px;
+    margin-top: 6px;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.14);
+}
+
+.vd-widget-frame {
+    width: 100%;
+    height: var(--vd-widget-frame-height, 100%);
+    min-height: var(--vd-widget-frame-height, 80px);
+    display: block;
+    border: 0;
+    background: transparent;
+}
+
+.vd-widget-builtin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-widget[data-widget-auto-size="true"] .vd-widget-builtin {
+    height: auto;
+    min-height: 36px;
+}
+
+.vd-analog-clock-svg {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.vd-quickchat {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 6px;
+}
+
+.vd-quickchat.vd-quickchat-collapsed {
+    height: auto;
+    min-height: 0;
+}
+
+.vd-quickchat-collapsed .vd-quickchat-response {
+    display: none;
+}
+
+.vd-quickchat-response {
+    flex: 1;
+    color: var(--vd-muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.vd-quickchat-response.vd-quickchat-active {
+    opacity: 1;
+    color: var(--vd-text);
+}
+
+.vd-quickchat-form {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.vd-quickchat-input {
+    flex: 1;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.24);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.72rem;
+    min-width: 0;
+}
+
+.vd-quickchat-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: rgba(39, 199, 166, 0.15);
+    color: var(--vd-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.vd-quickchat-send-icon {
+    display: block;
+}
+
+.vd-widget-manager-backdrop {
+    z-index: var(--vd-z-modal);
+}
+
+.vd-widget-manager {
+    width: min(580px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+    overflow: hidden;
+}
+
+.vd-app-manager {
+    width: min(760px, calc(100vw - 32px));
+}
+
+.vd-wm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--vd-border);
+    position: relative;
+}
+
+.vd-wm-title {
+    font-weight: 900;
+    font-size: 0.92rem;
+}
+
+.vd-wm-cards {
+    padding: 12px 18px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vd-wm-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+    gap: 10px;
+}
+
+.vd-wm-card-builtin {
+    border-color: rgba(39, 199, 166, 0.2);
+}
+
+.vd-wm-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vd-wm-card-info {
+    min-width: 0;
+}
+
+.vd-wm-card-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-wm-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vd-wm-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vd-wm-badge-on {
+    background: rgba(39, 199, 166, 0.18);
+    color: var(--vd-accent);
+}
+
+.vd-wm-badge-off {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--vd-muted);
+}
+
+.vd-wm-badge-builtin {
+    background: rgba(242, 184, 75, 0.18);
+    color: var(--vd-amber);
+}
+
+.vd-wm-badge-user {
+    background: rgba(125, 167, 255, 0.18);
+    color: #9db9ff;
+}
+
+.vd-wm-badge-dock,
+.vd-wm-badge-start {
+    text-transform: none;
+}
+
+.vd-wm-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.vd-app-manager .vd-wm-card-actions {
+    max-width: 390px;
+}
+
+.vd-wm-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.vd-wm-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+}
+
+.vd-wm-btn-add {
+    border-color: rgba(39, 199, 166, 0.3);
+    color: var(--vd-accent);
+}
+
+.vd-wm-btn-add:hover {
+    background: rgba(39, 199, 166, 0.12);
+}
+
+.vd-wm-btn-delete {
+    border-color: rgba(255, 128, 102, 0.3);
+    color: var(--vd-coral);
+}
+
+.vd-wm-btn-delete:hover {
+    background: rgba(255, 128, 102, 0.12);
+}
+
+@media (max-width: 720px) {
+.vd-app-manager .vd-wm-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+.vd-app-manager .vd-wm-card-actions {
+        justify-content: flex-start;
+        max-width: none;
+    }
+}
+@media (max-width: 820px) {
+.vd-widgets {
+        display: none;
+    }
+}

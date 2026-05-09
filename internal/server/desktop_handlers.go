@@ -70,6 +70,9 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 	s.DesktopMu.Lock()
 	defer s.DesktopMu.Unlock()
 	if s.DesktopService != nil && s.DesktopService.Config() != desktopCfg {
+		if s.DesktopHub != nil {
+			s.DesktopHub.Close()
+		}
 		_ = s.DesktopService.Close()
 		s.DesktopService = nil
 		s.DesktopHub = nil
@@ -862,6 +865,10 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		}
 
 		flusher, canFlush := w.(http.Flusher)
+		if !canFlush {
+			jsonError(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -1124,6 +1131,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 					return
 				}
 				if msgType, _ := msg["type"].(string); msgType == "ping" {
+					_ = conn.WriteJSON(map[string]interface{}{"type": "pong"})
 					continue
 				}
 			}

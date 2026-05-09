@@ -25,6 +25,10 @@ const SchemaVersion = 4
 
 var desktopIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
+// desktopMutationMu serializes file mutations across all Service instances
+// sharing the same workspace directory.  Kept at package level so that
+// multiple Service objects (e.g. server singleton + tool singleton) cannot
+// corrupt the workspace with concurrent writes.
 var desktopMutationMu sync.Mutex
 
 const (

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/tools"
@@ -18,6 +19,25 @@ import (
 
 const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
+
+// uiBuildVersion is set once at server start and used as a cache-busting
+// query parameter for all embedded static assets.  Formatted as a compact
+// timestamp (e.g. "20260509a").
+var uiBuildVersion string
+
+func init() {
+	now := time.Now()
+	uiBuildVersion = now.Format("20060102") + "a"
+}
+
+// uiTemplateData returns the common template data map shared by all HTML pages.
+func uiTemplateData(lang string) map[string]interface{} {
+	return map[string]interface{}{
+		"Lang":         lang,
+		"I18N":         getI18NJSON(lang),
+		"BuildVersion": uiBuildVersion,
+	}
+}
 const desktopWidgetAutoResizeScript = `<script data-aurago-widget-auto-resize>(function(){if(window.__auragoWidgetAutoResize)return;window.__auragoWidgetAutoResize=true;var params=new URLSearchParams(location.search);if(!params.get('widget_id')||!window.parent||window.parent===window)return;var frame=0;function measure(){var doc=document.documentElement,body=document.body,width=0,height=0,sx=window.scrollX||0,sy=window.scrollY||0;function include(node){if(!node)return;var rect=typeof node.getBoundingClientRect==='function'?node.getBoundingClientRect():null;var left=rect?rect.left+sx:0,top=rect?rect.top+sy:0;width=Math.max(width,node.scrollWidth||0,node.offsetWidth||0,node.clientWidth||0,rect?rect.right+sx:0,left+(node.scrollWidth||0));if(node===doc||node===body)return;var viewportHeight=window.innerHeight||doc.clientHeight||(body&&body.clientHeight)||0;var nodeHeight=Math.max(node.clientHeight||0,node.offsetHeight||0,rect?rect.height:0);var fillsViewport=viewportHeight>0&&nodeHeight>=viewportHeight-2&&(node.scrollHeight||0)<=nodeHeight+2&&node.children&&node.children.length;if(fillsViewport)return;height=Math.max(height,node.scrollHeight||0,node.offsetHeight||0,node.clientHeight||0,rect?rect.bottom+sy:0,top+(node.scrollHeight||0));}include(doc);include(body);if(body)body.querySelectorAll('*').forEach(include);return{width:Math.ceil(width),height:Math.ceil(Math.max(height,1))};}function send(){if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(function(){frame=0;window.parent.postMessage({type:'aurago.desktop.request',action:'desktop:widget:resize',payload:measure()},'*');});}function start(){send();if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.documentElement)ro.observe(document.documentElement);if(document.body)ro.observe(document.body);}if(window.MutationObserver&&document.body)new MutationObserver(send).observe(document.body,{childList:true,subtree:true,attributes:true,characterData:true});window.addEventListener('load',send,{once:true});window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(send).catch(function(){});[100,500,1500].forEach(function(ms){setTimeout(send,ms);});}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();})();</script>`
 
 func shouldInjectDesktopWidgetAutoResize(r *http.Request) bool {
@@ -155,10 +175,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := dashTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute dashboard template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -176,10 +193,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := desktopTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute desktop template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -197,10 +211,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := plansTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute plans template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -225,10 +236,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := missionV2Tmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute mission V2 template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -247,10 +255,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := cheatsheetTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute cheatsheet template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -269,10 +274,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := mediaTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute media template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -296,10 +298,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := knowledgeTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute knowledge template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -318,10 +317,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := containersTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute containers template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -340,10 +336,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := truenasTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute TrueNAS template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -362,10 +355,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := map[string]interface{}{
-				"Lang": lang,
-				"I18N": getI18NJSON(lang),
-			}
+			data := uiTemplateData(lang)
 			if err := skillsTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute Skills template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -385,10 +375,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := map[string]interface{}{
-			"Lang": lang,
-			"I18N": getI18NJSON(lang),
-		}
+		data := uiTemplateData(lang)
 		if err := invasionTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute invasion control template", "error", err)
 			http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -407,10 +394,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := map[string]interface{}{
-			"Lang": lang,
-			"I18N": getI18NJSON(lang),
-		}
+		data := uiTemplateData(lang)
 		if err := setupTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute setup template", "error", err)
 			http.Error(w, "Template render error", http.StatusInternalServerError)

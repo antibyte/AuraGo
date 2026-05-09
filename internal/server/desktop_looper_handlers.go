@@ -281,7 +281,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			return
 		}
 
-		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxIter))
+		loopCtx, loopCancel := context.WithTimeout(r.Context(), looperRunTimeout(req.MaxIter))
 		if err := runner.TryStart(req.MaxIter, loopCancel); err != nil {
 			loopCancel()
 			jsonError(w, err.Error(), http.StatusConflict)
@@ -289,7 +289,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		}
 		go func() {
 			defer loopCancel()
-			_ = runner.executeStarted(loopCtx, desktop.LooperRunConfig{
+			if err := runner.executeStarted(loopCtx, desktop.LooperRunConfig{
 				Prepare:     req.Prepare,
 				Plan:        req.Plan,
 				Action:      req.Action,
@@ -300,7 +300,9 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 				Model:       model,
 				MaxIter:     req.MaxIter,
 				ContextMode: desktop.NormalizeContextMode(req.ContextMode),
-			}, cfg, client, toolSchemas, dispatchCtx)
+			}, cfg, client, toolSchemas, dispatchCtx); err != nil {
+				s.Logger.Error("looper execution failed", "error", err)
+			}
 		}()
 
 		w.Header().Set("Content-Type", "application/json")

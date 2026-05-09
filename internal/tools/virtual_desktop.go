@@ -7,6 +7,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -20,6 +21,64 @@ type VirtualDesktopExecution struct {
 }
 
 var virtualDesktopWidgetIDSanitizer = regexp.MustCompile(`[^a-z0-9_-]+`)
+
+var (
+	toolDesktopMu  sync.Mutex
+	toolDesktopSvc *desktop.Service
+	toolDesktopCfg desktop.Config
+)
+
+// SetToolDesktopService registers a shared desktop.Service instance for reuse
+// by ExecuteVirtualDesktop.  Pass nil to clear the cached instance.
+func SetToolDesktopService(svc *desktop.Service) {
+	toolDesktopMu.Lock()
+	defer toolDesktopMu.Unlock()
+	if toolDesktopSvc != nil && toolDesktopSvc != svc {
+		_ = toolDesktopSvc.Close()
+	}
+	toolDesktopSvc = svc
+	if svc != nil {
+		toolDesktopCfg = svc.Config()
+	} else {
+		toolDesktopCfg = desktop.Config{}
+	}
+}
+
+// CloseToolDesktopService tears down the cached singleton.  Call this during
+// application shutdown.
+func CloseToolDesktopService() {
+	toolDesktopMu.Lock()
+	defer toolDesktopMu.Unlock()
+	if toolDesktopSvc != nil {
+		_ = toolDesktopSvc.Close()
+		toolDesktopSvc = nil
+	}
+}
+
+// getToolDesktopService returns a cached service when the config matches, or
+// creates a fresh one.  The fresh path is used by tests that construct their
+// own config; the cached path is the hot path in production.
+func getToolDesktopService(ctx context.Context, cfg *config.Config) (*desktop.Service, func(), error) {
+	desktopCfg := desktop.ConfigFromAuraConfig(cfg)
+
+	toolDesktopMu.Lock()
+	if toolDesktopSvc != nil && toolDesktopCfg == desktopCfg {
+		svc := toolDesktopSvc
+		toolDesktopMu.Unlock()
+		return svc, func() {}, nil
+	}
+	toolDesktopMu.Unlock()
+
+	svc, err := desktop.NewService(desktopCfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := svc.Init(ctx); err != nil {
+		_ = svc.Close()
+		return nil, nil, err
+	}
+	return svc, func() { _ = svc.Close() }, nil
+}
 
 // ExecuteVirtualDesktop performs one agent-requested operation against the
 // first-party virtual desktop workspace.
@@ -37,14 +96,11 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 	if op == "" {
 		op = "status"
 	}
-	svc, err := desktop.NewService(desktop.ConfigFromAuraConfig(cfg))
+	svc, cleanup, err := getToolDesktopService(ctx, cfg)
 	if err != nil {
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
-	defer svc.Close()
-	if err := svc.Init(ctx); err != nil {
-		return virtualDesktopJSON("error", err.Error(), nil, nil)
-	}
+	defer cleanup()
 
 	switch op {
 	case "status", "bootstrap":

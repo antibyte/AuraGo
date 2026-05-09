@@ -11,18 +11,19 @@
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
-    <link rel="stylesheet" href="/shared-components.css?v=20260430a">
+    <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-animations.css">
-    <link rel="stylesheet" href="/css/desktop.css?v=41">
-    <link rel="stylesheet" href="/css/radio.css?v=2">
-    <link rel="stylesheet" href="/css/camera.css?v=1">
-    <link rel="stylesheet" href="/css/code-studio.css?v=5">
-    <link rel="stylesheet" href="/css/quill.snow.css?v=1">
+    <link rel="stylesheet" href="/css/desktop.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/radio.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/camera.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/code-studio.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/quill.snow.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/xterm.css">
     <link rel="stylesheet" href="/css/hljs-github-dark.min.css">
-    <script src="/shared.js?v=15"></script>
+    <script src="/shared.js?v={{.BuildVersion}}"></script>
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
+        const BUILD_VERSION = "{{.BuildVersion}}";
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
         const I18N = {{.I18N}};
     </script>
@@ -67,26 +68,29 @@
         </aside>
     </main>
 
-    <script src="/js/vendor/xterm.min.js"></script>
-    <script src="/js/vendor/xterm-addon-fit.min.js"></script>
-    <script src="/js/vendor/highlight.min.js"></script>
-    <script src="/js/vendor/markdown-it.min.js"></script>
-    <script src="/js/vendor/pdf.min.js"></script>
-    <script src="/js/chat/modules/mermaid-loader.js"></script>
-    <script src="/js/vendor/quill.js?v=1"></script>
-    <script src="/chart.min.js" defer></script>
-    <script src="/js/desktop/core/module-loader.js?v=1"></script>
-    <script src="/js/desktop/apps/code-studio.js?v=2"></script>
-    <script src="/js/desktop/apps/writer.js?v=1"></script>
-    <script src="/js/desktop/apps/sheets.js?v=1"></script>
-    <script src="/js/desktop/apps/system-info.js?v=1"></script>
-    <script src="/js/desktop/file-manager.js?v=7"></script>
-    <script src="/js/desktop/chat-renderer.js?v=1"></script>
-    <script src="/js/desktop/main.js?v=42"></script>
-    <script src="/js/desktop/apps/radio.js?v=1"></script>
-    <script src="/js/desktop/apps/camera.js?v=1"></script>
-    <script src="/js/desktop/apps/looper.js?v=4"></script>
-    <script src="/js/desktop/apps/viewer.js?v=4"></script>
+    <script defer src="/js/vendor/xterm.min.js"></script>
+    <script defer src="/js/vendor/xterm-addon-fit.min.js"></script>
+    <script defer src="/js/vendor/highlight.min.js"></script>
+    <script defer src="/js/vendor/markdown-it.min.js"></script>
+    <script defer src="/js/vendor/pdf.min.js"></script>
+    <script defer src="/js/chat/modules/mermaid-loader.js"></script>
+    <script defer src="/js/vendor/quill.js"></script>
+    <script defer src="/chart.min.js"></script>
+    <script defer src="/js/desktop/core/module-loader.js"></script>
+    <script defer src="/js/desktop/apps/code-studio.js"></script>
+    <script defer src="/js/desktop/apps/writer.js"></script>
+    <script defer src="/js/desktop/apps/sheets.js"></script>
+    <script defer src="/js/desktop/apps/system-info.js"></script>
+    <script defer src="/js/desktop/file-manager.js"></script>
+    <script defer src="/js/desktop/chat-renderer.js"></script>
+    <script defer src="/js/desktop/apps/planning-gallery-music.js"></script>
+    <script defer src="/js/desktop/apps/quickconnect-launchpad-chat.js"></script>
+    <script defer src="/js/desktop/apps/settings-calculator.js"></script>
+    <script defer src="/js/desktop/main.js"></script>
+    <script defer src="/js/desktop/apps/radio.js"></script>
+    <script defer src="/js/desktop/apps/camera.js"></script>
+    <script defer src="/js/desktop/apps/looper.js"></script>
+    <script defer src="/js/desktop/apps/viewer.js"></script>
 </body>
 
 </html>

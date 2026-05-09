@@ -30,11 +30,16 @@ type RemoteConnection struct {
 	mu            sync.Mutex
 }
 
-// Send writes a signed message to the remote.
+// Send writes a signed message to the remote.  JSON serialization happens
+// outside the lock so that slow writes do not block NextSeq or state access.
 func (rc *RemoteConnection) Send(msg *RemoteMessage) error {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshal remote message: %w", err)
+	}
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
-	return rc.Conn.WriteJSON(msg)
+	return rc.Conn.WriteMessage(websocket.TextMessage, data)
 }
 
 // NextSeq returns and increments the sequence counter.
@@ -150,6 +155,19 @@ func (h *RemoteHub) ConnectedDevices() []string {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+// FindByConn atomically finds the device ID whose connection matches the
+// given websocket.Conn pointer. Returns ("", nil) if not found.
+func (h *RemoteHub) FindByConn(wsConn *websocket.Conn) (string, *RemoteConnection) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for id, conn := range h.connections {
+		if conn.Conn == wsConn {
+			return id, conn
+		}
+	}
+	return "", nil
 }
 
 // ConnectionCount returns the number of connected remotes.
@@ -427,6 +445,8 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			if err != nil || !ok {
 				return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "authentication failed", nil, nil)
 			}
+		} else {
+			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
 		if enrollment.Used {
 			// Recovery path: the client lost its stored config.json but still has the

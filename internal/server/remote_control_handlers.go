@@ -73,15 +73,8 @@ func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 		_ = json.Unmarshal(msg.Payload, &auth)
 		deviceID := auth.DeviceID
 		if deviceID == "" {
-			// For new enrollments, the device ID was sent in the auth response
-			// The connection should now be registered under the new device ID
-			// We need to find it
-			for _, id := range s.RemoteHub.ConnectedDevices() {
-				conn := s.RemoteHub.GetConnection(id)
-				if conn != nil && conn.Conn == wsConn {
-					deviceID = id
-					break
-				}
+			if id, _ := s.RemoteHub.FindByConn(wsConn); id != "" {
+				deviceID = id
 			}
 		}
 

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -10,6 +11,7 @@ type Hub struct {
 	mu      sync.Mutex
 	max     int
 	clients map[chan Event]struct{}
+	closed  bool
 }
 
 // NewHub creates an event hub with a client cap.
@@ -27,10 +29,13 @@ func NewHub(maxClients int) *Hub {
 func (h *Hub) Subscribe() (<-chan Event, func(), error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.closed {
+		return nil, nil, fmt.Errorf("desktop hub is closed")
+	}
 	if len(h.clients) >= h.max {
 		return nil, nil, fmt.Errorf("desktop websocket client limit reached")
 	}
-	ch := make(chan Event, 16)
+	ch := make(chan Event, 64)
 	h.clients[ch] = struct{}{}
 	cancel := func() {
 		h.mu.Lock()
@@ -43,16 +48,33 @@ func (h *Hub) Subscribe() (<-chan Event, func(), error) {
 	return ch, cancel, nil
 }
 
-// Broadcast sends an event to all clients without blocking callers.
-func (h *Hub) Broadcast(event Event) {
+// Close shuts down the hub and closes all client channels so subscribers
+// unblock immediately instead of leaking goroutines.
+func (h *Hub) Close() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.closed = true
+	for ch := range h.clients {
+		close(ch)
+		delete(h.clients, ch)
+	}
+}
+
+// Broadcast sends an event to all clients without blocking callers.
+// Returns the number of clients that missed the event due to a full channel.
+func (h *Hub) Broadcast(event Event) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var dropped int
 	for ch := range h.clients {
 		select {
 		case ch <- event:
 		default:
+			dropped++
+			slog.Warn("desktop event dropped, client channel full", "event_type", event.Type)
 		}
 	}
+	return dropped
 }
 
 // ClientCount returns the number of active clients.

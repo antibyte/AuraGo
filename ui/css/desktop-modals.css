@@ -1,0 +1,222 @@
+/* desktop-modals.css — context menus, modals, dialogs, overlays, lightbox */
+
+
+
+.vd-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vd-tool-icon,
+.vd-context-papirus-icon,
+.vd-settings-nav-icon,
+.vd-settings-pane-papirus-icon,
+.vd-launchpad-action-icon,
+.vd-calendar-action-icon,
+.vd-modal-action-icon,
+.vd-launchpad-empty-papirus-icon {
+    flex-shrink: 0;
+}
+
+.vd-webamp-launcher-actions .vd-button {
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.vd-chat-send,
+.vd-tool-button,
+.vd-button {
+    min-height: 38px;
+    padding: 0 14px;
+}
+
+.vd-context-menu {
+    position: fixed;
+    min-width: 214px;
+    padding: 7px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: rgba(13, 18, 26, 0.96);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px);
+    z-index: var(--vd-z-context-menu);
+}
+
+.vd-context-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-context-item:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.vd-context-submenu {
+    position: relative;
+}
+
+.vd-context-submenu-popover {
+    position: absolute;
+    display: none;
+    left: calc(100% + 6px);
+    top: -7px;
+    min-width: 214px;
+    padding: 7px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: rgba(13, 18, 26, 0.96);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(24px);
+}
+
+.vd-context-submenu:hover > .vd-context-submenu-popover,
+.vd-context-submenu:focus-within > .vd-context-submenu-popover {
+    display: block;
+}
+
+.vd-context-arrow {
+    opacity: 0.65;
+}
+
+.vd-context-item:disabled {
+    color: rgba(167, 176, 192, 0.48);
+    cursor: not-allowed;
+}
+
+.vd-context-icon {
+    color: var(--vd-accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+}
+
+.vd-context-separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--vd-border);
+}
+
+.vd-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(4, 7, 12, 0.58);
+    backdrop-filter: blur(8px);
+    z-index: var(--vd-z-modal);
+}
+
+.vd-modal {
+    width: min(420px, calc(100vw - 32px));
+    padding: 18px;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+}
+
+.vd-modal-title {
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.vd-modal-copy {
+    color: var(--vd-muted);
+    line-height: 1.45;
+    margin-bottom: 12px;
+}
+
+.vd-modal-input {
+    width: 100%;
+    height: 40px;
+    margin: 8px 0 14px;
+    padding: 0 11px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.24);
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.vd-button-primary {
+    border-color: rgba(39, 199, 166, 0.5);
+    background: rgba(39, 199, 166, 0.2);
+}
+
+.vd-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--vd-z-context-menu);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-lightbox-overlay[hidden] {
+    display: none;
+}
+
+.vd-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+}
+
+.vd-lightbox-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.vd-lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.vd-lightbox-close {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.vd-lightbox-close:hover {
+    background: rgba(255,255,255,0.3);
+}
