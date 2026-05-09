@@ -23,6 +23,8 @@
     let widgetAutoResizeStarted = false;
     let widgetAutoResizeFrame = 0;
     let widgetAutoResizeObserver = null;
+    let lastWidgetResizePayload = null;
+    let lastWidgetResizePostAt = 0;
 
     function parentRequest(action, payload) {
         const id = 'sdk-' + Date.now() + '-' + (++requestSeq);
@@ -146,12 +148,32 @@
         };
     }
 
+    function shouldSendWidgetResize(next) {
+        if (!next) return false;
+        const now = Date.now();
+        if (lastWidgetResizePayload && now - lastWidgetResizePostAt < 250) return false;
+        if (!lastWidgetResizePayload) {
+            lastWidgetResizePayload = next;
+            lastWidgetResizePostAt = now;
+            return true;
+        }
+        const changed = Math.abs(next.width - lastWidgetResizePayload.width) > 2 ||
+            Math.abs(next.height - lastWidgetResizePayload.height) > 2;
+        if (changed) {
+            lastWidgetResizePayload = next;
+            lastWidgetResizePostAt = now;
+        }
+        return changed;
+    }
+
     function queueWidgetAutoResize() {
         if (!widgetAutoResizeStarted) return;
         if (widgetAutoResizeFrame) window.cancelAnimationFrame(widgetAutoResizeFrame);
         widgetAutoResizeFrame = window.requestAnimationFrame(() => {
             widgetAutoResizeFrame = 0;
-            widgets.resize(measureWidgetContentSize()).catch(() => {});
+            const payload = normalizeWidgetResizePayload(measureWidgetContentSize());
+            if (!shouldSendWidgetResize(payload)) return;
+            widgets.resize(payload).catch(() => {});
         });
     }
 

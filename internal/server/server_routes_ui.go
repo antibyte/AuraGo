@@ -44,7 +44,7 @@ if(window.__auragoWidgetAutoResize)return;
 window.__auragoWidgetAutoResize=true;
 var params=new URLSearchParams(location.search);
 if(!params.get('widget_id')||!window.parent||window.parent===window)return;
-var frame=0;
+var frame=0,lastResizePayload=null,lastResizePostAt=0;
 function measure(){
 var doc=document.documentElement,body=document.body,width=0,height=0,sx=window.scrollX||0,sy=window.scrollY||0;
 var viewportWidth=window.innerWidth||doc.clientWidth||(body&&body.clientWidth)||0;
@@ -68,11 +68,22 @@ var contentOverflowsViewport=viewportHeight>0&&documentScrollHeight>viewportHeig
 if(contentOverflowsViewport)height=Math.max(height,documentScrollHeight);
 return{width:Math.ceil(width),height:Math.ceil(Math.max(height,1)),viewportWidth:Math.ceil(viewportWidth),viewportHeight:Math.ceil(viewportHeight)};
 }
+function shouldPostResize(next){
+if(!next)return false;
+var now=Date.now();
+if(lastResizePayload&&now-lastResizePostAt<250)return false;
+if(!lastResizePayload){lastResizePayload=next;lastResizePostAt=now;return true;}
+var changed=Math.abs(next.width-lastResizePayload.width)>2||Math.abs(next.height-lastResizePayload.height)>2;
+if(changed){lastResizePayload=next;lastResizePostAt=now;}
+return changed;
+}
 function send(){
 if(frame)cancelAnimationFrame(frame);
 frame=requestAnimationFrame(function(){
 frame=0;
-window.parent.postMessage({type:'aurago.desktop.request',action:'desktop:widget:resize',payload:measure()},'*');
+var payload=measure();
+if(!shouldPostResize(payload))return;
+window.parent.postMessage({type:'aurago.desktop.request',action:'desktop:widget:resize',payload:payload},'*');
 });
 }
 function start(){

@@ -102,6 +102,9 @@ func TestDesktopWidgetSDKCanReportContentSize(t *testing.T) {
 		"body.querySelectorAll('*').forEach(include)",
 		"viewportWidth",
 		"contentOverflowsViewport",
+		"lastWidgetResizePayload",
+		"lastWidgetResizePostAt",
+		"shouldSendWidgetResize",
 		"new ResizeObserver",
 	} {
 		if !strings.Contains(sdk, marker) {

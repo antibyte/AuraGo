@@ -37,6 +37,10 @@ func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
 		"viewportWidth",
 		"viewportHeight",
 		"contentOverflowsViewport",
+		"lastResizePayload",
+		"lastResizePostAt",
+		"shouldPostResize",
+		"Math.abs(next.width-lastResizePayload.width)>2",
 		"</script></body>",
 	} {
 		if !strings.Contains(body, want) {
