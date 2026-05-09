@@ -31,6 +31,9 @@ func TestDesktopContextMenuAndClipboardAssets(t *testing.T) {
 	if strings.Contains(mainText, "allow-same-origin") {
 		t.Fatal("generated desktop iframes must not enable allow-same-origin")
 	}
+	if strings.Contains(mainText, "setAttribute('csp'") || strings.Contains(mainText, `setAttribute("csp"`) {
+		t.Fatal("generated desktop iframes must rely on /files/desktop/ response CSP, not iframe csp attributes")
+	}
 
 	sdkText := readDesktopAssetText(t, "js/desktop/aura-desktop-sdk.js")
 	for _, want := range []string{
