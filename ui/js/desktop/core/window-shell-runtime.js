@@ -567,6 +567,12 @@
     }
 
     function openApp(appId, context) {
+        if (appId === 'music-player') {
+            launchStandaloneWebamp(context).catch(err => {
+                showDesktopNotification({ title: t('desktop.notification'), message: (err && err.message) || String(err) });
+            });
+            return;
+        }
         const existing = findExistingAppWindow(appId, context || {});
         if (existing) {
             focusWindow(existing.id);

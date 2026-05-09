@@ -473,7 +473,7 @@
     function disposeWebampMusic(windowId, options) {
         const current = state.webampMusic;
         if (!current) return;
-        if (windowId && current.windowId && current.windowId !== windowId) return;
+        if (windowId && current.windowId !== windowId) return;
         if (current.unsubscribeClose) {
             try { current.unsubscribeClose(); } catch (_) {}
         }
@@ -494,6 +494,68 @@
 
     function webampTrackTitle(name) {
         return String(name || '').replace(/\.[^.]+$/, '') || String(name || '');
+    }
+
+    async function scanWebampTracks(folder) {
+        const params = new URLSearchParams({ path: folder, recursive: 'true', limit: String(WEBAMP_TRACK_SCAN_LIMIT) });
+        const body = await api('/api/desktop/files?' + params.toString());
+        const files = body.files || [];
+        const tracks = [];
+        for (const file of files) {
+            if (file.type === 'file' && WEBAMP_AUDIO_PATTERN.test(file.name)) {
+                tracks.push({
+                    url: file.web_path || await desktopEmbedURL(file.path),
+                    metaData: { title: webampTrackTitle(file.name) }
+                });
+            }
+        }
+        return tracks;
+    }
+
+    async function ensureWebampMusic(tracks, ownerWindowId, callbacks) {
+        const hooks = callbacks || {};
+        if (!tracks.length) {
+            disposeWebampMusic(ownerWindowId);
+            if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.winamp_no_tracks'));
+            if (hooks.notifyEmpty !== false) showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.winamp_no_tracks') });
+            return false;
+        }
+
+        const Webamp = await loadWebampConstructor();
+        if (typeof Webamp.browserIsSupported === 'function' && !Webamp.browserIsSupported()) {
+            throw new Error('Webamp is not supported in this browser.');
+        }
+
+        const current = state.webampMusic;
+        if (current && current.instance && (!ownerWindowId || current.windowId === ownerWindowId)) {
+            if (typeof current.instance.reopen === 'function') current.instance.reopen();
+            if (typeof current.instance.setTracksToPlay === 'function') {
+                current.instance.setTracksToPlay(tracks);
+                if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+                return true;
+            }
+            disposeWebampMusic(ownerWindowId || current.windowId);
+        } else if (current && current.instance) {
+            disposeWebampMusic(current.windowId);
+        }
+
+        const webamp = new Webamp({ initialTracks: tracks });
+        state.webampMusic = { instance: webamp, windowId: ownerWindowId || '', unsubscribeClose: null };
+        if (typeof webamp.onClose === 'function') {
+            state.webampMusic.unsubscribeClose = webamp.onClose(() => {
+                disposeWebampMusic(ownerWindowId || '', { fromWebampClose: true });
+                if (ownerWindowId) closeWindow(ownerWindowId);
+            });
+        }
+        await webamp.renderWhenReady(webampHostNode());
+        if (typeof hooks.setStatus === 'function') hooks.setStatus(t('desktop.done'));
+        return true;
+    }
+
+    async function launchStandaloneWebamp(context) {
+        const folder = normalizeDesktopPath((context && context.path) || 'Music') || 'Music';
+        const tracks = await scanWebampTracks(folder);
+        await ensureWebampMusic(tracks, '', { notifyEmpty: true });
     }
 
     async function renderMusicPlayer(id) {
@@ -541,65 +603,12 @@
             showDesktopNotification({ title: t('desktop.notification'), message });
         };
 
-        const scanMusicFolder = async folder => {
-            const params = new URLSearchParams({ path: folder, recursive: 'true', limit: String(WEBAMP_TRACK_SCAN_LIMIT) });
-            const body = await api('/api/desktop/files?' + params.toString());
-            const files = body.files || [];
-            const tracks = [];
-            for (const file of files) {
-                if (file.type === 'file' && WEBAMP_AUDIO_PATTERN.test(file.name)) {
-                    tracks.push({
-                        url: file.web_path || await desktopEmbedURL(file.path),
-                        metaData: { title: webampTrackTitle(file.name) }
-                    });
-                }
-            }
-            return tracks;
-        };
-
-        const ensureWebamp = async tracks => {
-            if (!tracks.length) {
-                disposeWebampMusic(id);
-                setStatus(t('desktop.winamp_no_tracks'));
-                return;
-            }
-
-            const Webamp = await loadWebampConstructor();
-            if (typeof Webamp.browserIsSupported === 'function' && !Webamp.browserIsSupported()) {
-                throw new Error('Webamp is not supported in this browser.');
-            }
-
-            const current = state.webampMusic;
-            if (current && current.instance && current.windowId === id) {
-                if (typeof current.instance.reopen === 'function') current.instance.reopen();
-                if (typeof current.instance.setTracksToPlay === 'function') {
-                    current.instance.setTracksToPlay(tracks);
-                    setStatus(t('desktop.done'));
-                    return;
-                }
-                disposeWebampMusic(id);
-            } else if (current && current.instance) {
-                disposeWebampMusic(current.windowId);
-            }
-
-            const webamp = new Webamp({ initialTracks: tracks });
-            state.webampMusic = { instance: webamp, windowId: id, unsubscribeClose: null };
-            if (typeof webamp.onClose === 'function') {
-                state.webampMusic.unsubscribeClose = webamp.onClose(() => {
-                    disposeWebampMusic(id, { fromWebampClose: true });
-                    closeWindow(id);
-                });
-            }
-            await webamp.renderWhenReady(webampHostNode());
-            setStatus(t('desktop.done'));
-        };
-
         const loadMusicLibrary = async folder => {
             currentFolder = folder || 'Music';
             setStatus(t('desktop.loading'));
-            currentTracks = await scanMusicFolder(currentFolder);
+            currentTracks = await scanWebampTracks(currentFolder);
             renderLauncherState();
-            await ensureWebamp(currentTracks);
+            await ensureWebampMusic(currentTracks, id, { setStatus, notifyEmpty: false });
         };
 
         const showMusicPlayerContextMenu = event => {

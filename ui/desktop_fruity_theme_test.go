@@ -24,7 +24,7 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		"function scheduleFruityDockOcclusionCheck()",
 		"function updateFruityDockOcclusion()",
 		"function windowOverlapsFruityDock(",
-		"allApps().map(app =>",
+		"userFacingApps().map(app =>",
 		"class=\"vd-dock-orb\"",
 		"data-fruity-dock-orb",
 		"fruity-dock-collapsed",

@@ -321,7 +321,11 @@ func applyAppVisibility(apps []AppManifest, builtin bool, visibility map[string]
 		app.Deletable = !builtin
 		v, ok := visibility[strings.ToLower(app.ID)]
 		if !ok {
-			v = defaultAppVisibility()
+			v = appVisibility{DockVisible: app.DockVisible, StartVisible: app.StartVisible}
+		}
+		if app.Internal {
+			v.DockVisible = false
+			v.StartVisible = false
 		}
 		app.DockVisible = v.DockVisible
 		app.StartVisible = v.StartVisible

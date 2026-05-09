@@ -1252,6 +1252,42 @@ func TestServiceUpsertWidgetNormalizesIconAliasesAndRejectsEmoji(t *testing.T) {
 	}
 }
 
+func TestBuiltinViewerIsInternalOnly(t *testing.T) {
+	t.Parallel()
+
+	var viewer AppManifest
+	for _, app := range BuiltinApps() {
+		if app.ID == "viewer" {
+			viewer = app
+			break
+		}
+	}
+	if viewer.ID == "" {
+		t.Fatal("viewer builtin app missing")
+	}
+	if !viewer.Internal {
+		t.Fatalf("viewer must be marked internal-only: %+v", viewer)
+	}
+	if viewer.DockVisible || viewer.StartVisible {
+		t.Fatalf("viewer must stay internal-only, got dock_visible=%v start_visible=%v", viewer.DockVisible, viewer.StartVisible)
+	}
+
+	bootstrap, err := testService(t).Bootstrap(context.Background())
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	bootViewer := testFindApp(t, bootstrap.BuiltinApps, "viewer")
+	if bootViewer.ID == "" {
+		t.Fatal("viewer missing from bootstrap builtin apps")
+	}
+	if !bootViewer.Internal {
+		t.Fatalf("bootstrap viewer must stay marked internal-only: %+v", bootViewer)
+	}
+	if bootViewer.DockVisible || bootViewer.StartVisible {
+		t.Fatalf("bootstrap viewer must stay hidden, got dock_visible=%v start_visible=%v", bootViewer.DockVisible, bootViewer.StartVisible)
+	}
+}
+
 func TestServiceUpsertWidgetInfersMissingIconFromWidgetIdentity(t *testing.T) {
 	t.Parallel()
 

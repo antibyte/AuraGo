@@ -91,3 +91,37 @@ func TestDesktopMusicPlayerUsesLocalWebamp(t *testing.T) {
 		t.Fatalf("music-player builtin app missing or changed: %+v", desktop.BuiltinApps())
 	}
 }
+
+func TestDesktopMusicPlayerOpensWebampOnly(t *testing.T) {
+	t.Parallel()
+
+	text := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"if (appId === 'music-player') {",
+		"launchStandaloneWebamp(context).catch",
+		"function launchStandaloneWebamp(context)",
+		"if (ownerWindowId) closeWindow(ownerWindowId)",
+		"if (windowId && current.windowId !== windowId) return;",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("desktop shell missing Webamp-only launcher marker %q", want)
+		}
+	}
+}
+
+func TestDesktopFiltersInternalAppsFromUserLaunchers(t *testing.T) {
+	t.Parallel()
+
+	text := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		"function userFacingApps()",
+		"return allApps().filter(app => app.internal !== true)",
+		"return userFacingApps().filter(app => app.start_visible !== false)",
+		"return userFacingApps().filter(app => app.dock_visible !== false)",
+		"return userFacingApps().map(app => {",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("desktop shell missing internal-app launcher filter marker %q", want)
+		}
+	}
+}

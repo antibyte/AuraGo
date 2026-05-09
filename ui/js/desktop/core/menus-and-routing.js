@@ -572,7 +572,7 @@
         overlay.className = 'vd-modal-backdrop vd-app-manager-backdrop';
 
         function renderCards() {
-            return allApps().map(app => {
+            return userFacingApps().map(app => {
                 const inDock = app.dock_visible !== false;
                 const inStart = app.start_visible !== false;
                 const isBuiltin = app.builtin === true || isBuiltinApp(app.id);

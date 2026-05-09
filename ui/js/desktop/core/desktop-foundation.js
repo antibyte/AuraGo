@@ -397,12 +397,16 @@
         return state.appsCache;
     }
 
+    function userFacingApps() {
+        return allApps().filter(app => app.internal !== true);
+    }
+
     function startMenuApps() {
-        return allApps().filter(app => app.start_visible !== false);
+        return userFacingApps().filter(app => app.start_visible !== false);
     }
 
     function dockApps() {
-        return allApps().filter(app => app.dock_visible !== false);
+        return userFacingApps().filter(app => app.dock_visible !== false);
     }
 
     function appById(appId) {
