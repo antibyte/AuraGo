@@ -40,8 +40,39 @@ func (c *infiniteRetryClient) CreateChatCompletion(ctx context.Context, req open
 	return openai.ChatCompletionResponse{}, errors.New("connection timeout")
 }
 
+type perAttemptTimeoutClient struct {
+	callCount int
+}
+
+func (c *perAttemptTimeoutClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	c.callCount++
+	if c.callCount == 1 {
+		<-ctx.Done()
+		return openai.ChatCompletionResponse{}, ctx.Err()
+	}
+	return openai.ChatCompletionResponse{}, nil
+}
+
+func (c *perAttemptTimeoutClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	c.callCount++
+	if c.callCount == 1 {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return nil, nil
+}
+
 func shortIntervals() []time.Duration {
 	return []time.Duration{1 * time.Millisecond, 1 * time.Millisecond}
+}
+
+func withPerAttemptTimeout(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	original := perAttemptTimeout()
+	SetPerAttemptTimeout(timeout)
+	t.Cleanup(func() {
+		SetPerAttemptTimeout(original)
+	})
 }
 
 func TestExecuteWithRetry_Success(t *testing.T) {
@@ -112,6 +143,21 @@ func TestExecuteWithRetry_TransientRetries(t *testing.T) {
 	}
 	if client.callCount != 3 {
 		t.Errorf("callCount = %d, want 3", client.callCount)
+	}
+}
+
+func TestExecuteWithRetry_RetriesPerAttemptDeadlineWhenParentContextActive(t *testing.T) {
+	withPerAttemptTimeout(t, 1*time.Millisecond)
+	client := &perAttemptTimeoutClient{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := ExecuteWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	if err != nil {
+		t.Fatalf("ExecuteWithRetry returned error after retryable per-attempt deadline: %v", err)
+	}
+	if client.callCount != 2 {
+		t.Fatalf("callCount = %d, want 2", client.callCount)
 	}
 }
 
@@ -209,6 +255,21 @@ func TestExecuteStreamWithRetry_TransientRetries(t *testing.T) {
 	}
 	if client.callCount != 2 {
 		t.Errorf("callCount = %d, want 2", client.callCount)
+	}
+}
+
+func TestExecuteStreamWithRetry_RetriesPerAttemptDeadlineWhenParentContextActive(t *testing.T) {
+	withPerAttemptTimeout(t, 1*time.Millisecond)
+	client := &perAttemptTimeoutClient{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := ExecuteStreamWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	if err != nil {
+		t.Fatalf("ExecuteStreamWithRetry returned error after retryable per-attempt deadline: %v", err)
+	}
+	if client.callCount != 2 {
+		t.Fatalf("callCount = %d, want 2", client.callCount)
 	}
 }
 

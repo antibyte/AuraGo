@@ -103,19 +103,22 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		resp, err := client.CreateChatCompletion(attemptCtx, req)
+		attemptCtxErr := attemptCtx.Err()
+		parentCtxErr := ctx.Err()
 		attemptCancel()
 		if err == nil {
 			return resp, nil
 		}
 
-		if IsContextError(err) {
+		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
+		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
 				logger.Debug("[LLM Retry] Context error, aborting without retry", "error", err)
 			}
 			return openai.ChatCompletionResponse{}, err
 		}
 
-		if IsNonRetryable(err) {
+		if !perAttemptContextError && IsNonRetryable(err) {
 			if logger != nil {
 				logger.Error("[LLM Retry] Non-retryable error, aborting", "error", err, "category", ClassifyError(err))
 			}
@@ -168,19 +171,22 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		stream, err := client.CreateChatCompletionStream(attemptCtx, req)
+		attemptCtxErr := attemptCtx.Err()
+		parentCtxErr := ctx.Err()
 		attemptCancel()
 		if err == nil {
 			return stream, nil
 		}
 
-		if IsContextError(err) {
+		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
+		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
 				logger.Debug("[LLM Stream Retry] Context error, aborting without retry", "error", err)
 			}
 			return nil, err
 		}
 
-		if IsNonRetryable(err) {
+		if !perAttemptContextError && IsNonRetryable(err) {
 			if logger != nil {
 				logger.Error("[LLM Stream Retry] Non-retryable error, aborting", "error", err, "category", ClassifyError(err))
 			}
