@@ -46,6 +46,8 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		".desktop-body[data-theme=\"fruity\"] .vd-window",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-titlebar",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-actions",
+		".desktop-body[data-theme=\"fruity\"] .vd-widget-manager .vd-wm-header",
+		".desktop-body[data-theme=\"fruity\"] .vd-widget-manager .vd-window-actions",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"close\"]",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"minimize\"]",
 		".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"maximize\"]",
@@ -107,4 +109,80 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestDesktopFruityWindowControlsStayOnLeft(t *testing.T) {
+	t.Parallel()
+
+	cssText := readAllDesktopCSS(t)
+	for _, check := range []struct {
+		name     string
+		selector string
+		wants    []string
+	}{
+		{
+			name:     "window controls",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-actions:is(.vd-window .vd-window-actions)",
+			wants:    []string{"position: absolute;", "left: 14px;", "transform: translateY(-50%);"},
+		},
+		{
+			name:     "menu window controls",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window.has-window-menu .vd-window-actions",
+			wants:    []string{"top: 24px;"},
+		},
+		{
+			name:     "manager dialog controls",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-widget-manager .vd-window-actions",
+			wants:    []string{"position: absolute;", "left: 18px;", "transform: translateY(-50%);"},
+		},
+		{
+			name:     "close dot order",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"close\"]",
+			wants:    []string{"order: 1;", "background: var(--fruity-window-close);"},
+		},
+		{
+			name:     "minimize dot order",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"minimize\"]",
+			wants:    []string{"order: 2;", "background: var(--fruity-window-minimize);"},
+		},
+		{
+			name:     "maximize dot order",
+			selector: ".desktop-body[data-theme=\"fruity\"] .vd-window-button[data-action=\"maximize\"]",
+			wants:    []string{"order: 3;", "background: var(--fruity-window-maximize);"},
+		},
+	} {
+		body := cssRuleBodyInFruityThemeTest(t, cssText, check.selector)
+		for _, want := range check.wants {
+			if !strings.Contains(body, want) {
+				t.Fatalf("fruity %s rule %q missing %q in body %q", check.name, check.selector, want, body)
+			}
+		}
+	}
+}
+
+func cssRuleBodyInFruityThemeTest(t *testing.T, source, selector string) string {
+	t.Helper()
+	start := strings.Index(source, selector)
+	if start < 0 {
+		t.Fatalf("missing CSS selector %q", selector)
+	}
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("missing CSS block for selector %q", selector)
+	}
+	pos := start + open
+	depth := 0
+	for i := pos; i < len(source); i++ {
+		switch source[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[pos : i+1]
+			}
+		}
+	}
+	t.Fatalf("missing closing brace for CSS selector %q", selector)
+	return ""
 }

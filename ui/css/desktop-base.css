@@ -291,6 +291,30 @@
     top: 24px;
 }
 
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-header {
+    justify-content: center;
+    min-height: 48px;
+    padding: 14px 92px;
+    background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(238, 244, 252, 0.58));
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-title {
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-actions {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    z-index: 4;
+    transform: translateY(-50%);
+    gap: 8px;
+}
+
 .desktop-body[data-theme="fruity"] .vd-window-button,
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button {
     width: 13px;
@@ -844,13 +868,15 @@
     }
 
     .desktop-body[data-theme="fruity"] .vd-topbar,
-    .desktop-body[data-theme="fruity"] .vd-window-titlebar {
+    .desktop-body[data-theme="fruity"] .vd-window-titlebar,
+    .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-header {
         background: rgba(20, 26, 37, 0.74);
         border-color: rgba(255, 255, 255, 0.12);
         box-shadow: 0 14px 42px rgba(0, 0, 0, 0.3);
     }
 
-    .desktop-body[data-theme="fruity"] .vd-window-titlebar {
+    .desktop-body[data-theme="fruity"] .vd-window-titlebar,
+    .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-wm-header {
         background: linear-gradient(180deg, var(--fruity-window-chrome), rgba(23, 30, 43, 0.62));
     }
 
