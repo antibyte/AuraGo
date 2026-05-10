@@ -79,6 +79,40 @@ func TestBuildSchemaUsesJSONNamesForManifestVaultOnlyFields(t *testing.T) {
 	}
 }
 
+func TestBuildSchemaDoesNotExposeRawYAMLDashFields(t *testing.T) {
+	schema := buildSchema(reflect.TypeOf(config.Config{}), "")
+
+	var walk func([]SchemaField)
+	walk = func(fields []SchemaField) {
+		for _, field := range fields {
+			if field.YAMLKey == "-" || strings.Contains(field.Key, ".-") || field.Key == "-" {
+				t.Fatalf("schema exposed raw yaml:\"-\" field: %#v", field)
+			}
+			walk(field.Children)
+		}
+	}
+	walk(schema)
+}
+
+func TestManifestVaultTagsAreConcrete(t *testing.T) {
+	manifestType := reflect.TypeOf(config.ManifestConfig{})
+	want := map[string]string{
+		"PostgresPassword": "manifest_postgres_password",
+		"BetterAuthSecret": "manifest_better_auth_secret",
+		"APIKey":           "manifest_api_key",
+	}
+
+	for fieldName, wantVaultTag := range want {
+		field, ok := manifestType.FieldByName(fieldName)
+		if !ok {
+			t.Fatalf("ManifestConfig.%s not found", fieldName)
+		}
+		if got := field.Tag.Get("vault"); got != wantVaultTag {
+			t.Fatalf("ManifestConfig.%s vault tag = %q, want %q", fieldName, got, wantVaultTag)
+		}
+	}
+}
+
 func TestNormalizeOllamaModelsBaseURLRejectsUnexpectedPrivateHost(t *testing.T) {
 	t.Parallel()
 
