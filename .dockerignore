@@ -1,6 +1,9 @@
 # Build artifacts
 bin/
-deploy/
+deploy/*
+!deploy/
+!deploy/docker/
+!deploy/docker/**
 *.bat
 *.sh
 !docker-entrypoint.sh

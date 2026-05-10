@@ -204,6 +204,27 @@ func TestCodeStudioDockerfileHandlesExistingUID1000User(t *testing.T) {
 	}
 }
 
+func TestDockerImageIncludesCodeStudioDockerfile(t *testing.T) {
+	rootDockerfile, err := os.ReadFile(filepath.Join("..", "..", "Dockerfile"))
+	if err != nil {
+		t.Fatalf("read root Dockerfile: %v", err)
+	}
+	if !strings.Contains(string(rootDockerfile), "COPY deploy/docker") {
+		t.Fatal("root Dockerfile must copy deploy/docker into the runtime image")
+	}
+
+	dockerignore, err := os.ReadFile(filepath.Join("..", "..", ".dockerignore"))
+	if err != nil {
+		t.Fatalf("read .dockerignore: %v", err)
+	}
+	ignoreText := string(dockerignore)
+	for _, want := range []string{"!deploy/", "!deploy/docker/", "!deploy/docker/**"} {
+		if !strings.Contains(ignoreText, want) {
+			t.Fatalf(".dockerignore must keep %s in the Docker build context", want)
+		}
+	}
+}
+
 func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	s := testCodeStudioServer(t)
 	handler := codeStudioHandlers{server: s, docker: fakeCodeStudioDockerAPI{}}

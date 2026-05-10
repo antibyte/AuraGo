@@ -66,6 +66,7 @@ COPY --from=builder /lifeboat /app/lifeboat
 COPY --from=builder /config-merger /app/config-merger
 COPY --from=builder /aurago-remote /app/aurago-remote
 COPY --from=builder /deploy /app/deploy
+COPY deploy/docker /app/deploy/docker
 
 # Static resources that the agent needs at runtime.
 # config.yaml is intentionally NOT baked in – users must supply it via volume.
