@@ -2,6 +2,73 @@
 
 let _manifestSection = null;
 
+const manifestFallbackText = {
+    'config.section.manifest.label': 'Manifest gateway',
+    'config.section.manifest.desc': 'OpenAI-compatible routing through Manifest.build',
+    'config.manifest.admin_setup_required': 'Create the first admin user in Manifest, then add its API key here.',
+    'config.manifest.advanced_label': 'Advanced sidecar settings',
+    'config.manifest.api_key_label': 'Manifest API key',
+    'config.manifest.auto_start_label': 'Start Manifest automatically',
+    'config.manifest.better_auth_secret_label': 'Better Auth secret',
+    'config.manifest.container_name_label': 'Manifest container',
+    'config.manifest.disabled_desc': 'Enable Manifest to let AuraGo start a local Manifest sidecar or use an external Manifest endpoint.',
+    'config.manifest.disabled_notice': 'Manifest is disabled',
+    'config.manifest.enabled_label': 'Enable Manifest gateway',
+    'config.manifest.external_base_url_label': 'External base URL',
+    'config.manifest.health_path_label': 'Health path',
+    'config.manifest.host_label': 'Bind host',
+    'config.manifest.host_port_label': 'Host port',
+    'config.manifest.image_label': 'Manifest image',
+    'config.manifest.mode_external': 'External Manifest',
+    'config.manifest.mode_label': 'Mode',
+    'config.manifest.mode_managed': 'Managed sidecar',
+    'config.manifest.network_name_label': 'Docker network',
+    'config.manifest.port_label': 'Container port',
+    'config.manifest.postgres_container_name_label': 'Postgres container',
+    'config.manifest.postgres_image_label': 'Postgres image',
+    'config.manifest.postgres_password_label': 'Postgres password',
+    'config.manifest.postgres_volume_label': 'Postgres volume',
+    'config.manifest.secrets_desc': 'Secrets are stored in the encrypted AuraGo Vault. Leave generated values empty unless you need to rotate them.',
+    'config.manifest.secrets_title': 'Secrets',
+    'config.manifest.sidecar_note': 'Managed mode creates and supervises the Manifest and Postgres containers automatically.',
+    'config.manifest.start_button': 'Start sidecars',
+    'config.manifest.starting': 'Starting Manifest...',
+    'config.manifest.status_error': 'Manifest status unavailable:',
+    'config.manifest.status_prefix': 'Status:',
+    'config.manifest.stop_button': 'Stop sidecars',
+    'config.manifest.stopping': 'Stopping Manifest...',
+    'config.manifest.test_button': 'Test connection',
+    'config.manifest.testing': 'Testing Manifest...',
+    'config.manifest.url_label': 'Local provider URL',
+    'help.manifest.api_key': 'Manifest API key for AuraGo requests to the Manifest OpenAI-compatible gateway. Copy it from the Manifest admin dashboard after creating the first admin user. It usually starts with mnfst_.',
+    'help.manifest.auto_start': 'Starts the managed Manifest and Postgres containers automatically when AuraGo starts.',
+    'help.manifest.better_auth_secret': 'Long random Better Auth secret used by Manifest to protect cookies and user sessions. It is not a user password and must stay stable across restarts.',
+    'help.manifest.container_name': 'Docker container name for the managed Manifest service.',
+    'help.manifest.enabled': 'Turns the Manifest provider gateway integration on or off.',
+    'help.manifest.external_base_url': 'Base URL of an existing Manifest OpenAI-compatible endpoint, for example https://app.manifest.build/v1.',
+    'help.manifest.health_path': 'Optional health-check path. Leave empty to use the default Manifest status checks.',
+    'help.manifest.host': 'Interface AuraGo uses when exposing the managed Manifest sidecar locally.',
+    'help.manifest.host_port': 'Host port mapped to the Manifest container.',
+    'help.manifest.image': 'Docker image used for the managed Manifest container.',
+    'help.manifest.mode': 'Choose whether AuraGo manages local containers or connects to an existing Manifest service.',
+    'help.manifest.network_name': 'Docker network shared by Manifest and its managed Postgres database.',
+    'help.manifest.port': 'Port exposed inside the Manifest container.',
+    'help.manifest.postgres_container_name': 'Docker container name for the managed Postgres database.',
+    'help.manifest.postgres_image': 'Docker image used for the managed Postgres database.',
+    'help.manifest.postgres_password': 'Password for the managed Postgres database used by Manifest. It is not a Manifest login or AuraGo account password and is stored in the Vault.',
+    'help.manifest.postgres_volume': 'Docker volume that stores Manifest Postgres data.',
+    'help.manifest.url': 'Local OpenAI-compatible base URL AuraGo uses for the managed Manifest gateway.'
+};
+
+function manifestText(key, fallback) {
+    let value = '';
+    if (typeof t === 'function') value = t(key);
+    if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
+    if (Object.prototype.hasOwnProperty.call(manifestFallbackText, key)) return manifestFallbackText[key];
+    if (typeof fallback === 'string' && fallback.trim() !== '' && fallback !== key) return fallback;
+    return '';
+}
+
 function manifestEnsureData() {
     if (!configData.manifest) configData.manifest = {};
     const data = configData.manifest;
@@ -30,27 +97,27 @@ async function renderManifestSection(section) {
     const managed = data.mode !== 'external';
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
+    html += '<div class="section-header">' + section.icon + ' ' + manifestText('config.section.manifest.label', section.label) + '</div>';
+    html += '<div class="section-desc">' + manifestText('config.section.manifest.desc', section.desc) + '</div>';
 
     html += manifestToggleRow('config.manifest.enabled_label', 'help.manifest.enabled', enabled, 'manifest.enabled', "manifestToggleEnabled(this.classList.contains('on'))");
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>▦</span><div>';
-        html += '<strong>' + t('config.manifest.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.manifest.disabled_desc') + '</small>';
+        html += '<strong>' + manifestText('config.manifest.disabled_notice') + '</strong><br>';
+        html += '<small>' + manifestText('config.manifest.disabled_desc') + '</small>';
         html += '</div></div></div>';
         document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + t('config.manifest.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.sidecar_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += manifestField('config.manifest.mode_label', 'help.manifest.mode',
         '<select class="field-input" data-path="manifest.mode" onchange="setNestedValue(configData,\\'manifest.mode\\',this.value);setDirty(true);renderManifestSection(null)">' +
-        '<option value="managed"' + (managed ? ' selected' : '') + '>' + t('config.manifest.mode_managed') + '</option>' +
-        '<option value="external"' + (!managed ? ' selected' : '') + '>' + t('config.manifest.mode_external') + '</option>' +
+        '<option value="managed"' + (managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_managed') + '</option>' +
+        '<option value="external"' + (!managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_external') + '</option>' +
         '</select>');
     html += manifestToggleRow('config.manifest.auto_start_label', 'help.manifest.auto_start', data.auto_start !== false, 'manifest.auto_start');
     html += '</div>';
@@ -69,7 +136,7 @@ async function renderManifestSection(section) {
             '<input class="field-input" type="number" min="1" max="65535" value="' + (data.host_port || 2099) + '" data-path="manifest.host_port">');
         html += '</div>';
         html += '<details class="cfg-advanced-panel manifest-advanced-panel">';
-        html += '<summary class="cfg-advanced-summary">' + t('config.manifest.advanced_label') + '</summary>';
+        html += '<summary class="cfg-advanced-summary">' + manifestText('config.manifest.advanced_label') + '</summary>';
         html += '<div class="cfg-advanced-body">';
         html += manifestField('config.manifest.image_label', 'help.manifest.image',
             '<input class="field-input" type="text" value="' + escapeAttr(data.image || 'manifestdotbuild/manifest:5') + '" data-path="manifest.image">');
@@ -92,8 +159,8 @@ async function renderManifestSection(section) {
     }
 
     html += '<div class="field-group">';
-    html += '<div class="field-group-title">' + t('config.manifest.secrets_title') + '</div>';
-    html += '<div class="field-group-desc">' + t('config.manifest.secrets_desc') + '</div>';
+    html += '<div class="field-group-title">' + manifestText('config.manifest.secrets_title') + '</div>';
+    html += '<div class="field-group-desc">' + manifestText('config.manifest.secrets_desc') + '</div>';
     html += manifestSecretField('config.manifest.api_key_label', 'help.manifest.api_key', 'manifest-api-key-input', 'manifest.api_key', 'mnfst_••••••••');
     if (managed) {
         html += manifestSecretField('config.manifest.postgres_password_label', 'help.manifest.postgres_password', 'manifest-postgres-password-input', 'manifest.postgres_password', t('config.providers.key_placeholder_existing'));
@@ -102,9 +169,9 @@ async function renderManifestSection(section) {
     html += '</div>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">' + t('config.manifest.test_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestStartSidecars()" id="manifest-start-btn">' + t('config.manifest.start_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestStopSidecars()" id="manifest-stop-btn">' + t('config.manifest.stop_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">' + manifestText('config.manifest.test_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="manifestStartSidecars()" id="manifest-start-btn">' + manifestText('config.manifest.start_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="manifestStopSidecars()" id="manifest-stop-btn">' + manifestText('config.manifest.stop_button') + '</button>';
     html += '<span id="manifest-result" class="dc-test-result"></span>';
     html += '</div>';
     html += '<div id="manifest-status-panel" class="cfg-note-banner cfg-note-banner-info"></div>';
@@ -116,9 +183,9 @@ async function renderManifestSection(section) {
 }
 
 function manifestToggleRow(labelKey, helpKey, enabled, path, onclick) {
-    const helpText = t(helpKey);
+    const helpText = manifestText(helpKey);
     let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
+    html += '<div class="field-label">' + manifestText(labelKey) + '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
     html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="' + (onclick || 'toggleBool(this)') + '"></div>';
     html += '</div>';
@@ -126,9 +193,9 @@ function manifestToggleRow(labelKey, helpKey, enabled, path, onclick) {
 }
 
 function manifestField(labelKey, helpKey, inputHtml) {
-    const helpText = t(helpKey);
+    const helpText = manifestText(helpKey);
     let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
+    html += '<div class="field-label">' + manifestText(labelKey) + '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
     html += inputHtml;
     html += '</div>';
@@ -160,30 +227,30 @@ async function manifestRefreshStatus() {
         const body = await resp.json();
         panel.innerHTML = manifestStatusHTML(body);
     } catch (e) {
-        panel.textContent = t('config.manifest.status_error') + ' ' + e.message;
+        panel.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
     }
 }
 
 function manifestStatusHTML(body) {
     const parts = [];
-    parts.push('<strong>' + escapeHtml(t('config.manifest.status_prefix')) + '</strong> ' + escapeHtml(body.status || 'unknown'));
+    parts.push('<strong>' + escapeHtml(manifestText('config.manifest.status_prefix')) + '</strong> ' + escapeHtml(body.status || 'unknown'));
     if (body.url) parts.push('<a href="' + escapeAttr(body.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(body.url) + '</a>');
     if (body.provider_base_url) parts.push('<code>' + escapeHtml(body.provider_base_url) + '</code>');
-    if (body.admin_setup_required) parts.push('<span>' + escapeHtml(t('config.manifest.admin_setup_required')) + '</span>');
+    if (body.admin_setup_required) parts.push('<span>' + escapeHtml(manifestText('config.manifest.admin_setup_required')) + '</span>');
     if (body.message) parts.push('<span>' + escapeHtml(body.message) + '</span>');
     return parts.join('<br>');
 }
 
 async function manifestTestConnection() {
-    await manifestAction('/api/manifest/test', 'manifest-test-btn', t('config.manifest.testing'));
+    await manifestAction('/api/manifest/test', 'manifest-test-btn', manifestText('config.manifest.testing'));
 }
 
 async function manifestStartSidecars() {
-    await manifestAction('/api/manifest/start', 'manifest-start-btn', t('config.manifest.starting'));
+    await manifestAction('/api/manifest/start', 'manifest-start-btn', manifestText('config.manifest.starting'));
 }
 
 async function manifestStopSidecars() {
-    await manifestAction('/api/manifest/stop', 'manifest-stop-btn', t('config.manifest.stopping'));
+    await manifestAction('/api/manifest/stop', 'manifest-stop-btn', manifestText('config.manifest.stopping'));
 }
 
 async function manifestAction(url, buttonId, loadingText) {
@@ -210,7 +277,7 @@ async function manifestAction(url, buttonId, loadingText) {
     } catch (e) {
         if (result) {
             result.className = 'dc-test-result is-danger';
-            result.textContent = t('config.manifest.status_error') + ' ' + e.message;
+            result.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
         }
     } finally {
         if (btn) btn.disabled = false;

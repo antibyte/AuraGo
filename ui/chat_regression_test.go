@@ -1277,6 +1277,159 @@ func TestConfigFrontendTailscaleSpaceAgentKeysExist(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "config", "main.js")
+	modulePath := filepath.Join("cfg", "manifest.js")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"CONFIG_ASSET_VERSION = '15'",
+		"{ key: 'manifest'",
+		"manifest: { m: 'manifest', fn: 'renderManifestSection' }",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s missing Manifest config marker %q", mainPath, marker)
+		}
+	}
+
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"function manifestText",
+		"help.manifest.api_key",
+		"help.manifest.postgres_password",
+		"help.manifest.better_auth_secret",
+		"manifest.api_key",
+		"manifest.postgres_password",
+		"manifest.better_auth_secret",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing Manifest module marker %q", modulePath, marker)
+		}
+	}
+	if strings.Contains(moduleJS, "alert(") {
+		t.Fatal("Manifest config module must not introduce alert()")
+	}
+
+	keys := []string{
+		"config.section.manifest.label",
+		"config.section.manifest.desc",
+		"config.manifest.admin_setup_required",
+		"config.manifest.advanced_label",
+		"config.manifest.api_key_label",
+		"config.manifest.auto_start_label",
+		"config.manifest.better_auth_secret_label",
+		"config.manifest.container_name_label",
+		"config.manifest.disabled_desc",
+		"config.manifest.disabled_notice",
+		"config.manifest.enabled_label",
+		"config.manifest.external_base_url_label",
+		"config.manifest.health_path_label",
+		"config.manifest.host_label",
+		"config.manifest.host_port_label",
+		"config.manifest.image_label",
+		"config.manifest.mode_external",
+		"config.manifest.mode_label",
+		"config.manifest.mode_managed",
+		"config.manifest.network_name_label",
+		"config.manifest.port_label",
+		"config.manifest.postgres_container_name_label",
+		"config.manifest.postgres_image_label",
+		"config.manifest.postgres_password_label",
+		"config.manifest.postgres_volume_label",
+		"config.manifest.secrets_desc",
+		"config.manifest.secrets_title",
+		"config.manifest.sidecar_note",
+		"config.manifest.start_button",
+		"config.manifest.starting",
+		"config.manifest.status_error",
+		"config.manifest.status_prefix",
+		"config.manifest.stop_button",
+		"config.manifest.stopping",
+		"config.manifest.test_button",
+		"config.manifest.testing",
+		"config.manifest.url_label",
+		"help.manifest.api_key",
+		"help.manifest.auto_start",
+		"help.manifest.better_auth_secret",
+		"help.manifest.container_name",
+		"help.manifest.enabled",
+		"help.manifest.external_base_url",
+		"help.manifest.health_path",
+		"help.manifest.host",
+		"help.manifest.host_port",
+		"help.manifest.image",
+		"help.manifest.mode",
+		"help.manifest.network_name",
+		"help.manifest.port",
+		"help.manifest.postgres_container_name",
+		"help.manifest.postgres_image",
+		"help.manifest.postgres_password",
+		"help.manifest.postgres_volume",
+		"help.manifest.url",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "sections", "*.json"))
+	if err != nil {
+		t.Fatalf("glob config section lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all config section language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			value, ok := lang[key]
+			if !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+			text, ok := value.(string)
+			if !ok || strings.TrimSpace(text) == "" || text == key {
+				t.Fatalf("%s has unusable i18n value for %s: %#v", path, key, value)
+			}
+		}
+	}
+
+	enPath := filepath.Join("lang", "config", "sections", "en.json")
+	rawEN, err := os.ReadFile(enPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", enPath, err)
+	}
+	var en map[string]interface{}
+	if err := json.Unmarshal(rawEN, &en); err != nil {
+		t.Fatalf("parse %s: %v", enPath, err)
+	}
+	requiredHelpMarkers := map[string][]string{
+		"help.manifest.api_key":            {"mnfst_", "Manifest API key", "OpenAI-compatible gateway"},
+		"help.manifest.postgres_password":  {"managed Postgres", "not a Manifest login", "stored in the Vault"},
+		"help.manifest.better_auth_secret": {"Better Auth", "cookies", "sessions"},
+	}
+	for key, markers := range requiredHelpMarkers {
+		text, _ := en[key].(string)
+		for _, marker := range markers {
+			if !strings.Contains(text, marker) {
+				t.Fatalf("%s must explain %s with marker %q; got %q", enPath, key, marker, text)
+			}
+		}
+	}
+}
+
 func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	t.Parallel()
 
