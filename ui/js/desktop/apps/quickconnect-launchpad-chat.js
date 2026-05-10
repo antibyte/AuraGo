@@ -865,7 +865,21 @@
         iframe.dataset.windowId = windowId || '';
         iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals');
         iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
+        iframe.tabIndex = 0;
+        iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
+        iframe.addEventListener('load', () => focusDesktopFrame(iframe));
         return iframe;
+    }
+
+    function focusDesktopFrame(iframe) {
+        if (!iframe || typeof iframe.focus !== 'function') return;
+        const windowId = iframe.dataset.windowId || '';
+        if (windowId && state.activeWindowId && state.activeWindowId !== windowId) return;
+        try {
+            iframe.focus({ preventScroll: true });
+        } catch (_) {
+            try { iframe.focus(); } catch (__) {}
+        }
     }
 
     function desktopFileURL(path) {

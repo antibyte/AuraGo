@@ -34,6 +34,16 @@ func TestDesktopContextMenuAndClipboardAssets(t *testing.T) {
 	if strings.Contains(mainText, "setAttribute('csp'") || strings.Contains(mainText, `setAttribute("csp"`) {
 		t.Fatal("generated desktop iframes must rely on /files/desktop/ response CSP, not iframe csp attributes")
 	}
+	for _, want := range []string{
+		"iframe.tabIndex = 0",
+		"iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe))",
+		"iframe.addEventListener('load', () => focusDesktopFrame(iframe))",
+		"function focusDesktopFrame(iframe)",
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("generated desktop iframes must actively support keyboard focus, missing %q", want)
+		}
+	}
 
 	sdkText := readDesktopAssetText(t, "js/desktop/aura-desktop-sdk.js")
 	for _, want := range []string{
