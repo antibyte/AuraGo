@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 
@@ -235,6 +236,13 @@ func TestDockerEggCreateBodyUsesEggPortHealthcheck(t *testing.T) {
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.
 func mockDockerAPI(t *testing.T, handlers map[string]http.HandlerFunc) *httptest.Server {
 	t.Helper()
+	patterns := make([]string, 0, len(handlers))
+	for pattern := range handlers {
+		patterns = append(patterns, pattern)
+	}
+	sort.Slice(patterns, func(i, j int) bool {
+		return len(patterns[i]) > len(patterns[j])
+	})
 	return testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Strip API version prefix
 		path := r.URL.Path
@@ -244,9 +252,9 @@ func mockDockerAPI(t *testing.T, handlers map[string]http.HandlerFunc) *httptest
 		}
 
 		// Match handler
-		for pattern, handler := range handlers {
+		for _, pattern := range patterns {
 			if strings.HasPrefix(path, pattern) {
-				handler(w, r)
+				handlers[pattern](w, r)
 				return
 			}
 		}

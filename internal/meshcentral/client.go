@@ -480,8 +480,24 @@ func (c *Client) Send(cmd map[string]interface{}) (int, error) {
 	c.reqID++
 	reqid := c.reqID
 	cmd["reqid"] = reqid
+	action, _ := cmd["action"].(string)
 
-	return reqid, ws.WriteJSON(cmd)
+	c.reqsMu.Lock()
+	if c.pendingReqs[reqid] == nil {
+		c.pendingReqs[reqid] = &pendingRequest{
+			action: action,
+			ch:     make(chan response, 1),
+		}
+	}
+	c.reqsMu.Unlock()
+
+	if err := ws.WriteJSON(cmd); err != nil {
+		c.reqsMu.Lock()
+		delete(c.pendingReqs, reqid)
+		c.reqsMu.Unlock()
+		return 0, err
+	}
+	return reqid, nil
 }
 
 // WaitForReq waits for a response with the given reqid.
