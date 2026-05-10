@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -44,6 +45,10 @@ func handleManifestStart(s *Server) http.HandlerFunc {
 		cfg := currentManifestConfig(s)
 		if !cfg.Manifest.Enabled {
 			writeManifestJSON(w, map[string]interface{}{"enabled": false, "status": "disabled", "message": "Manifest integration is disabled"})
+			return
+		}
+		if err := s.ensureManifestSecrets(&cfg); err != nil {
+			writeManifestJSON(w, map[string]interface{}{"enabled": true, "mode": cfg.Manifest.Mode, "status": "setup_required", "admin_setup_required": true, "message": err.Error()})
 			return
 		}
 		if _, err := tools.ResolveManifestSidecarConfig(&cfg, cfg.Runtime.IsDocker); err != nil {
@@ -90,6 +95,46 @@ func currentManifestConfig(s *Server) config.Config {
 	s.CfgMu.RLock()
 	defer s.CfgMu.RUnlock()
 	return *s.Cfg
+}
+
+func (s *Server) ensureManifestSecrets(cfg *config.Config) error {
+	if cfg == nil {
+		return fmt.Errorf("config is required")
+	}
+	if !cfg.Manifest.Enabled || strings.EqualFold(strings.TrimSpace(cfg.Manifest.Mode), "external") {
+		return nil
+	}
+	if strings.TrimSpace(cfg.Manifest.PostgresPassword) == "" {
+		secret, err := randomSpaceAgentSecret(24)
+		if err != nil {
+			return err
+		}
+		cfg.Manifest.PostgresPassword = secret
+		if s != nil && s.Vault != nil {
+			if err := s.Vault.WriteSecret("manifest_postgres_password", secret); err != nil {
+				return err
+			}
+		}
+	}
+	if strings.TrimSpace(cfg.Manifest.BetterAuthSecret) == "" {
+		secret, err := randomSpaceAgentSecret(32)
+		if err != nil {
+			return err
+		}
+		cfg.Manifest.BetterAuthSecret = secret
+		if s != nil && s.Vault != nil {
+			if err := s.Vault.WriteSecret("manifest_better_auth_secret", secret); err != nil {
+				return err
+			}
+		}
+	}
+	if s != nil && s.Cfg != nil {
+		s.CfgMu.Lock()
+		s.Cfg.Manifest.PostgresPassword = cfg.Manifest.PostgresPassword
+		s.Cfg.Manifest.BetterAuthSecret = cfg.Manifest.BetterAuthSecret
+		s.CfgMu.Unlock()
+	}
+	return nil
 }
 
 func manifestStatus(ctx context.Context, s *Server, cfg *config.Config) map[string]interface{} {

@@ -648,13 +648,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
 			if manifestChanged && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
-				go func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-					defer cancel()
-					if err := tools.EnsureManifestSidecarsRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
-						s.Logger.Warn("[Config UI] Failed to start Manifest sidecars", "error", err)
-					}
-				}()
+				if err := s.ensureManifestSecrets(newCfg); err != nil {
+					s.Logger.Warn("[Config UI] Failed to ensure Manifest secrets", "error", err)
+				} else {
+					go func() {
+						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+						defer cancel()
+						if err := tools.EnsureManifestSidecarsRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
+							s.Logger.Warn("[Config UI] Failed to start Manifest sidecars", "error", err)
+						}
+					}()
+				}
 			}
 			if manifestChanged && (!newCfg.Manifest.Enabled || strings.EqualFold(newCfg.Manifest.Mode, "external")) && oldCfg.Manifest.Enabled && strings.EqualFold(oldCfg.Manifest.Mode, "managed") {
 				go func() {

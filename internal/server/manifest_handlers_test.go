@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 func TestManifestStatusDisabled(t *testing.T) {
@@ -59,6 +62,44 @@ func TestManifestStartRequiresPost(t *testing.T) {
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status code = %d, want 405", rec.Code)
+	}
+}
+
+func TestEnsureManifestSecretsCreatesManagedSidecarSecrets(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	vault, err := security.NewVault(masterKey, filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Mode = "managed"
+	s := &Server{Cfg: cfg, Vault: vault}
+
+	if err := s.ensureManifestSecrets(cfg); err != nil {
+		t.Fatalf("ensureManifestSecrets() error = %v", err)
+	}
+
+	if strings.TrimSpace(cfg.Manifest.PostgresPassword) == "" {
+		t.Fatal("PostgresPassword was not generated")
+	}
+	if strings.TrimSpace(cfg.Manifest.BetterAuthSecret) == "" {
+		t.Fatal("BetterAuthSecret was not generated")
+	}
+	for key, want := range map[string]string{
+		"manifest_postgres_password":  cfg.Manifest.PostgresPassword,
+		"manifest_better_auth_secret": cfg.Manifest.BetterAuthSecret,
+	} {
+		got, err := vault.ReadSecret(key)
+		if err != nil {
+			t.Fatalf("vault.ReadSecret(%q) error = %v", key, err)
+		}
+		if got != want {
+			t.Fatalf("vault secret %q = %q, want generated value", key, got)
+		}
+	}
+	if _, err := tools.ResolveManifestSidecarConfig(cfg, false); err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() after ensureManifestSecrets error = %v", err)
 	}
 }
 
