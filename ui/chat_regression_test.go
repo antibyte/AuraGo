@@ -108,6 +108,105 @@ func TestChatFrontend_VideoPlayerFlowRemainsPresent(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_MessageTimestampsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	messagesContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-messages.js"))
+	if err != nil {
+		t.Fatalf("read chat messages JS: %v", err)
+	}
+	streamingContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-streaming.js"))
+	if err != nil {
+		t.Fatalf("read chat streaming JS: %v", err)
+	}
+	chatCSSContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read chat CSS: %v", err)
+	}
+
+	messagesJS := string(messagesContent)
+	for _, marker := range []string{
+		"function formatChatTimestamp",
+		"function appendMessageTimestamp",
+		"data-chat-timestamp",
+		"className = 'message-timestamp",
+		"appendMessageTimestamp(newMessage",
+		"appendMessageTimestamp(row",
+	} {
+		if !strings.Contains(messagesJS, marker) {
+			t.Fatalf("chat messages JS missing timestamp marker %q", marker)
+		}
+	}
+
+	streamingJS := string(streamingContent)
+	if !strings.Contains(streamingJS, "appendMessageTimestamp(_streamingRow") {
+		t.Fatal("chat streaming JS must timestamp live assistant rows")
+	}
+
+	chatCSS := string(chatCSSContent)
+	for _, marker := range []string{
+		".message-timestamp",
+		".msg-row.user .message-timestamp",
+		".msg-row.bot .message-timestamp",
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("chat CSS missing timestamp marker %q", marker)
+		}
+	}
+}
+
+func TestVirtualDesktopChat_MessageTimestampsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	rendererContent, err := os.ReadFile(filepath.Join("js", "desktop", "chat-renderer.js"))
+	if err != nil {
+		t.Fatalf("read desktop chat renderer JS: %v", err)
+	}
+	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	if err != nil {
+		t.Fatalf("read desktop chat app JS: %v", err)
+	}
+	desktopCSSContent, err := os.ReadFile(filepath.Join("css", "desktop-apps.css"))
+	if err != nil {
+		t.Fatalf("read desktop apps CSS: %v", err)
+	}
+
+	rendererJS := string(rendererContent)
+	for _, marker := range []string{
+		"formatChatTimestamp",
+		"appendTimestamp",
+		"data-chat-timestamp",
+		"vd-chat-entry-time",
+		"this.appendTimestamp(chatLog, role",
+	} {
+		if !strings.Contains(rendererJS, marker) {
+			t.Fatalf("desktop chat renderer missing timestamp marker %q", marker)
+		}
+	}
+
+	appJS := string(appContent)
+	for _, marker := range []string{
+		"renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'))",
+		"renderer.appendTimestamp(chatLog, 'agent'",
+		"appendChatTimestamp(host",
+	} {
+		if !strings.Contains(appJS, marker) {
+			t.Fatalf("desktop chat app missing timestamp marker %q", marker)
+		}
+	}
+
+	desktopCSS := string(desktopCSSContent)
+	for _, marker := range []string{
+		".vd-chat-entry-time",
+		".vd-chat-entry-time.user",
+		".vd-chat-entry-time.agent",
+	} {
+		if !strings.Contains(desktopCSS, marker) {
+			t.Fatalf("desktop CSS missing timestamp marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 

@@ -59,7 +59,38 @@ function personaAvatarMarkup(role) {
     return `<img class="persona-avatar-img" data-persona-icon="${key}" src="${personaIconUrl(key)}" alt="" width="32" height="32" decoding="async">`;
 }
 
-function appendMessage(role, text) {
+function normalizeChatTimestamp(timestamp) {
+    const date = timestamp ? new Date(timestamp) : new Date();
+    return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatChatTimestamp(timestamp) {
+    const date = normalizeChatTimestamp(timestamp);
+    try {
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'short',
+            timeStyle: 'short'
+        }).format(date);
+    } catch (_) {
+        return date.toLocaleString();
+    }
+}
+
+function appendMessageTimestamp(row, role, timestamp) {
+    if (!row) return null;
+    const stack = row.querySelector('.message-stack') || row;
+    const existing = stack.querySelector(':scope > .message-timestamp');
+    if (existing) return existing;
+    const date = normalizeChatTimestamp(timestamp);
+    const el = document.createElement('div');
+    el.className = 'message-timestamp ' + (role === 'user' ? 'user' : 'bot');
+    el.setAttribute('data-chat-timestamp', date.toISOString());
+    el.textContent = formatChatTimestamp(date);
+    stack.appendChild(el);
+    return el;
+}
+
+function appendMessage(role, text, timestamp) {
     if (!text || typeof text !== 'string') text = '';
 
     const greet = chatContent.querySelector('[data-greeting]');
@@ -194,11 +225,14 @@ function appendMessage(role, text) {
     const msgHTML = `
                 <div class="msg-row ${side}">
                     <div class="avatar ${isUser ? 'human' : 'bot'}">${avatarIcon}</div>
-                    <div class="${bubbleClass}">${finalHTML}</div>
+                    <div class="message-stack">
+                        <div class="${bubbleClass}">${finalHTML}</div>
+                    </div>
                 </div>
             `;
     chatContent.insertAdjacentHTML('beforeend', msgHTML);
     const newMessage = chatContent.lastElementChild;
+    appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
     if (renderedBubble) {
         decorateEmojiGlyphs(renderedBubble);
@@ -546,8 +580,9 @@ function appendVideoMessage(videoData) {
     const row = document.createElement('div');
     row.className = 'msg-row bot';
     const botIcon = personaAvatarMarkup('bot');
-    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
     row.querySelector('.bubble').appendChild(createChatVideoElement(videoData));
+    appendMessageTimestamp(row, 'bot');
     chatContent.appendChild(row);
     chatBox.scrollTop = chatBox.scrollHeight;
     return true;
@@ -562,8 +597,9 @@ function appendYouTubeMessage(youtubeData) {
     const row = document.createElement('div');
     row.className = 'msg-row bot';
     const botIcon = personaAvatarMarkup('bot');
-    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
     row.querySelector('.bubble').appendChild(element);
+    appendMessageTimestamp(row, 'bot');
     chatContent.appendChild(row);
     chatBox.scrollTop = chatBox.scrollHeight;
     return true;

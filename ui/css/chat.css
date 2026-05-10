@@ -1032,6 +1032,45 @@
             flex-direction: row-reverse;
         }
 
+        .message-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-width: 0;
+            max-width: var(--chat-bubble-max-width);
+        }
+
+        .message-stack > .bubble {
+            max-width: 100%;
+        }
+
+        .msg-row.user .message-stack {
+            align-items: flex-end;
+        }
+
+        .msg-row.bot .message-stack {
+            align-items: flex-start;
+        }
+
+        .message-timestamp {
+            margin-top: 0.22rem;
+            padding: 0 0.1rem;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            line-height: 1.25;
+            opacity: 0.72;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .msg-row.user .message-timestamp {
+            text-align: right;
+        }
+
+        .msg-row.bot .message-timestamp {
+            text-align: left;
+        }
+
         @keyframes msgIn {
             from {
                 opacity: 0;

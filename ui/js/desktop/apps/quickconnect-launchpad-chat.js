@@ -533,9 +533,7 @@
     function renderChat(id, context) {
         const host = contentEl(id);
         host.innerHTML = `<div class="vd-chat">
-            <div class="vd-chat-log">
-                <div class="vd-chat-bubble agent">${esc(t('desktop.chat_welcome'))}</div>
-            </div>
+            <div class="vd-chat-log"></div>
             <div class="vd-chat-context" data-chat-context hidden></div>
             <form class="vd-chat-form">
                 <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
@@ -543,6 +541,13 @@
             </form>
         </div>`;
         const input = host.querySelector('.vd-chat-input');
+        const chatLog = host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer) {
+            renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
+        } else {
+            appendChat(host, 'agent', t('desktop.chat_welcome'));
+        }
         input.placeholder = t('desktop.chat_placeholder');
         applyChatLaunchContext(id, context || {});
         host.querySelector('form').addEventListener('submit', async (event) => {
@@ -759,6 +764,7 @@
                             streamingBubble = document.createElement('div');
                             streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
                             chatLog.appendChild(streamingBubble);
+                            if (renderer) renderer.appendTimestamp(chatLog, 'agent');
                         }
                         streamingContent += content;
                         if (streamingBubble.classList.contains('vd-streaming')) {
@@ -830,8 +836,17 @@
         const bubble = document.createElement('div');
         bubble.className = 'vd-chat-bubble ' + role;
         bubble.textContent = text;
-        host.querySelector('.vd-chat-log').appendChild(bubble);
+        const chatLog = host.querySelector('.vd-chat-log');
+        chatLog.appendChild(bubble);
+        appendChatTimestamp(host, role);
         bubble.scrollIntoView({ block: 'end' });
+    }
+
+    function appendChatTimestamp(host, role) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) return renderer.appendTimestamp(chatLog, role);
+        return null;
     }
 
     function renderGeneratedApp(id, appId) {

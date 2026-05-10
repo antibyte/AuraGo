@@ -17,7 +17,7 @@ async function renderHistoryMessagesBatched(history) {
                  msg.content.startsWith('Tool Output:'))) {
                 conversation.push(msg);
             } else {
-                appendMessage(msg.role, msg.content);
+                appendMessage(msg.role, msg.content, msg.timestamp || msg.created_at);
                 conversation.push(msg);
             }
         }
@@ -46,7 +46,7 @@ async function tryRecoverFromHistory() {
             m => m.role === 'assistant' && m.content === lastAssistant.content
         );
         if (alreadyShown) return;
-        appendMessage('assistant', lastAssistant.content);
+        appendMessage('assistant', lastAssistant.content, lastAssistant.timestamp || lastAssistant.created_at);
         conversation.push({ role: 'assistant', content: lastAssistant.content });
         if (conversation.length > 200) { conversation = conversation.slice(-200); }
         _httpResponseRendered = true;

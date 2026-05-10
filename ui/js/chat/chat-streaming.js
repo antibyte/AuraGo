@@ -142,8 +142,9 @@ function connectSSE() {
             _streamingRow = document.createElement('div');
             _streamingRow.className = 'msg-row bot';
             const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
             chatContent.appendChild(_streamingRow);
+            if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(_streamingRow, 'bot');
         }
         _streamingContent += payload.content;
         const bubble = _streamingRow.querySelector('.bubble');
@@ -176,8 +177,9 @@ function connectSSE() {
             _streamingRow = document.createElement('div');
             _streamingRow.className = 'msg-row bot';
             const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+            _streamingRow.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
             chatContent.appendChild(_streamingRow);
+            if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(_streamingRow, 'bot');
         }
         const bubble = _streamingRow.querySelector('.bubble');
         if (!bubble) return;
@@ -327,9 +329,10 @@ function handleSSEMessage(e) {
                     const imgHTML = `
                                 \u003cdiv class="msg-row bot"\u003e
                                     \u003cdiv class="avatar bot"\u003e${botIcon}\u003c/div\u003e
-                                    \u003cdiv class="bubble bot"\u003e\u003cimg class="chat-zoomable-image" src="${safePath}" alt="${cap}" title="${cap}" loading="lazy"\u003e\u003c/div\u003e
+                                    \u003cdiv class="message-stack"\u003e\u003cdiv class="bubble bot"\u003e\u003cimg class="chat-zoomable-image" src="${safePath}" alt="${cap}" title="${cap}" loading="lazy"\u003e\u003c/div\u003e\u003c/div\u003e
                                 \u003c/div\u003e`;
                     chatContent.insertAdjacentHTML('beforeend', imgHTML);
+                    if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(chatContent.lastElementChild, 'bot');
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
             } catch (e) { }
@@ -355,8 +358,9 @@ function handleSSEMessage(e) {
                         const row = document.createElement('div');
                         row.className = 'msg-row bot';
                         const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-                        row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+                        row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
                         row.querySelector('.bubble').appendChild(wrapper);
+                        if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
                         chatContent.appendChild(row);
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }
@@ -412,8 +416,9 @@ function handleSSEMessage(e) {
                     const row = document.createElement('div');
                     row.className = 'msg-row bot';
                     const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-                    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+                    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
                     row.querySelector('.bubble').insertAdjacentHTML('beforeend', cardHTML);
+                    if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
                     chatContent.appendChild(row);
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }

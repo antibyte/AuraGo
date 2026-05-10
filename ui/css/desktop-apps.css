@@ -2643,6 +2643,26 @@
     border: 1px solid var(--vd-border);
 }
 
+.vd-chat-entry-time {
+    margin-top: -6px;
+    color: var(--vd-muted, rgba(232, 236, 241, 0.58));
+    font-size: 0.68rem;
+    line-height: 1.25;
+    opacity: 0.74;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.vd-chat-entry-time.user {
+    align-self: flex-end;
+    text-align: right;
+}
+
+.vd-chat-entry-time.agent {
+    align-self: flex-start;
+    text-align: left;
+}
+
 .vd-chat-context {
     display: flex;
     align-items: center;

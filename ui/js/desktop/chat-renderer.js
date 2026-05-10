@@ -32,6 +32,38 @@
             return translated && translated !== key ? translated : fallback;
         },
 
+        normalizeChatTimestamp(timestamp) {
+            const date = timestamp ? new Date(timestamp) : new Date();
+            return Number.isNaN(date.getTime()) ? new Date() : date;
+        },
+
+        formatChatTimestamp(timestamp) {
+            const date = this.normalizeChatTimestamp(timestamp);
+            try {
+                return new Intl.DateTimeFormat(undefined, {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                }).format(date);
+            } catch (_) {
+                return date.toLocaleString();
+            }
+        },
+
+        appendTimestamp(chatLog, role, timestamp) {
+            if (!chatLog) return null;
+            const previous = chatLog.lastElementChild;
+            if (previous && previous.classList && previous.classList.contains('vd-chat-entry-time')) {
+                return previous;
+            }
+            const date = this.normalizeChatTimestamp(timestamp);
+            const el = document.createElement('div');
+            el.className = 'vd-chat-entry-time ' + (role === 'user' ? 'user' : 'agent');
+            el.setAttribute('data-chat-timestamp', date.toISOString());
+            el.textContent = this.formatChatTimestamp(date);
+            chatLog.appendChild(el);
+            return el;
+        },
+
         getMarkdown() {
             if (this._md) return this._md;
             if (typeof window.markdownit === 'undefined') return null;
@@ -203,7 +235,8 @@
                 }
             }
             chatLog.appendChild(bubble);
-            bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            const stamp = this.appendTimestamp(chatLog, role);
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
             return bubble;
         },
 
@@ -261,7 +294,8 @@
             img.addEventListener('click', () => this.openLightbox(imgData.path, cap));
             bubble.appendChild(img);
             chatLog.appendChild(bubble);
-            bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            const stamp = this.appendTimestamp(chatLog, 'agent');
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
 
         appendVideoMessage(chatLog, videoData) {
@@ -276,7 +310,8 @@
             if (videoData.title) video.title = videoData.title;
             bubble.appendChild(video);
             chatLog.appendChild(bubble);
-            bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            const stamp = this.appendTimestamp(chatLog, 'agent');
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
 
         appendAudioMessage(chatLog, audioData) {
@@ -298,7 +333,8 @@
             wrapper.appendChild(audio);
             bubble.appendChild(wrapper);
             chatLog.appendChild(bubble);
-            bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            const stamp = this.appendTimestamp(chatLog, 'agent');
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
 
         appendDocumentMessage(chatLog, docData) {
@@ -319,7 +355,8 @@
             const bubble = this.createBubble('agent', '');
             bubble.appendChild(card);
             chatLog.appendChild(bubble);
-            bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            const stamp = this.appendTimestamp(chatLog, 'agent');
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
 
         createThinkingStatus() {
