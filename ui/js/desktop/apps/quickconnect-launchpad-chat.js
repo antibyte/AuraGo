@@ -530,12 +530,13 @@
         ]);
     }
 
-    function renderChat(id) {
+    function renderChat(id, context) {
         const host = contentEl(id);
         host.innerHTML = `<div class="vd-chat">
             <div class="vd-chat-log">
                 <div class="vd-chat-bubble agent">${esc(t('desktop.chat_welcome'))}</div>
             </div>
+            <div class="vd-chat-context" data-chat-context hidden></div>
             <form class="vd-chat-form">
                 <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
                 <button class="vd-chat-send" type="submit">${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span>${esc(t('desktop.send'))}</span></button>
@@ -543,6 +544,7 @@
         </div>`;
         const input = host.querySelector('.vd-chat-input');
         input.placeholder = t('desktop.chat_placeholder');
+        applyChatLaunchContext(id, context || {});
         host.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
             if (state.chatBusy) return;
@@ -558,7 +560,7 @@
                 appendChat(host, 'user', message);
             }
             try {
-                await sendDesktopChatStream(host, message);
+                await sendDesktopChatStream(host, message, chatContextPayload(host));
                 await loadBootstrap();
             } catch (err) {
                 const bubbles = host.querySelectorAll('.vd-chat-bubble.agent');
@@ -571,7 +573,76 @@
         });
     }
 
-    async function sendDesktopChatStream(host, message) {
+    function normalizeChatLaunchFiles(context) {
+        const files = [];
+        const raw = context && (context.chat_files || context.files || context.file);
+        const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+        list.forEach(item => {
+            const entry = typeof item === 'string' ? { path: item } : item;
+            const file = chatFileContextFromEntry(entry || {});
+            if (file && !files.some(existing => existing.path === file.path)) files.push(file);
+        });
+        return files;
+    }
+
+    function chatAttachedFiles(host) {
+        try {
+            const files = JSON.parse((host && host.dataset.chatFiles) || '[]');
+            return Array.isArray(files) ? files.filter(file => file && file.path) : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function renderChatContextBar(host) {
+        const bar = host && host.querySelector('[data-chat-context]');
+        if (!bar) return;
+        const files = chatAttachedFiles(host);
+        if (!files.length) {
+            bar.hidden = true;
+            bar.innerHTML = '';
+            return;
+        }
+        const names = files.map(file => file.name || file.path).join(', ');
+        bar.hidden = false;
+        bar.innerHTML = `<span>${esc(desktopText('desktop.chat_file_context', 'File context'))}: ${esc(names)}</span>
+            <button type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 12)}</button>`;
+        const clear = bar.querySelector('[data-chat-context-clear]');
+        if (clear) clear.addEventListener('click', () => {
+            host.dataset.chatFiles = '[]';
+            renderChatContextBar(host);
+        });
+    }
+
+    function applyChatLaunchContext(id, context) {
+        const host = contentEl(id);
+        if (!host) return;
+        const existing = chatAttachedFiles(host);
+        const incoming = normalizeChatLaunchFiles(context || {});
+        const merged = existing.slice();
+        incoming.forEach(file => {
+            if (!merged.some(existingFile => existingFile.path === file.path)) merged.push(file);
+        });
+        host.dataset.chatFiles = JSON.stringify(merged);
+        renderChatContextBar(host);
+        const input = host.querySelector('.vd-chat-input');
+        if (input && context && context.chat_prefill && !input.value.trim()) {
+            input.value = context.chat_prefill;
+        }
+        if (input) input.focus();
+    }
+
+    function chatContextPayload(host) {
+        const files = chatAttachedFiles(host);
+        if (!files.length) return {};
+        return {
+            source: 'desktop-file',
+            current_file: files[0].path,
+            open_files: files.map(file => file.path)
+        };
+    }
+
+    async function sendDesktopChatStream(host, message, context) {
         const chatLog = host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
         if (renderer) renderer.resetDedupSets();
@@ -638,7 +709,7 @@
             fetch('/api/desktop/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message }),
+                body: JSON.stringify({ message, context }),
                 signal: ctrl.signal
             }).then(response => {
                 if (!response.ok) {

@@ -308,6 +308,13 @@
         if (type === 'file' && isViewerFile(file.name || '')) {
             items.push({ label: t('desktop.fm.view', 'View'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
         }
+        if (type === 'file') {
+            items.push(
+                { separator: true },
+                { label: t('desktop.fm.add_to_chat', 'Add to chat'), action: 'add-to-chat', icon: 'chat', handler: () => { if (fm.callbacks && typeof fm.callbacks.addFileToChat === 'function') fm.callbacks.addFileToChat(file); } },
+                { label: t('desktop.fm.ask_agent', 'Ask Agent'), action: 'ask-agent', icon: 'agent', handler: () => { if (fm.callbacks && typeof fm.callbacks.askAgentAboutFile === 'function') fm.callbacks.askAgentAboutFile(file); } }
+            );
+        }
         items.push(
             { separator: true },
             { label: t('desktop.fm.cut', 'Cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },

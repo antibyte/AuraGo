@@ -2611,7 +2611,7 @@
 
 .vd-chat {
     display: grid;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: 1fr auto auto;
     min-height: 0;
 }
 
@@ -2641,6 +2641,39 @@
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid var(--vd-border);
+}
+
+.vd-chat-context {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 10px 8px;
+    padding: 7px 9px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.84rem;
+    min-width: 0;
+}
+
+.vd-chat-context span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-chat-context button {
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .vd-chat-form {

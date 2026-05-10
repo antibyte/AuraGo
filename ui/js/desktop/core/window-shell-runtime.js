@@ -685,12 +685,10 @@
         if (existing) {
             focusWindow(existing.id);
             if (appId === 'files' && context && context.path != null) {
-                if (window.FileManager && typeof window.FileManager.navigateTo === 'function') {
-                    window.FileManager.navigateTo(existing.id, context.path);
-                } else {
-                    renderFiles(existing.id, context.path);
-                }
+                if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
+                else renderFiles(existing.id, context.path);
             }
+            if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             return;
         }
         const title = windowTitle(appId);

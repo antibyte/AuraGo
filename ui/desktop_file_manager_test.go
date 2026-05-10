@@ -206,3 +206,38 @@ func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopFilesCanBeAddedOrAskedInAgentChat(t *testing.T) {
+	t.Parallel()
+
+	mainSource := readDesktopAssetText(t, "js/desktop/main.js")
+	fileManagerSource := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	combined := mainSource + "\n" + fileManagerSource
+	for _, marker := range []string{
+		"function chatFileContextFromEntry(entry)",
+		"function addFileContextToChat(file)",
+		"function askAgentAboutFile(file)",
+		"function chatContextPayload(host)",
+		"sendDesktopChatStream(host, message, chatContextPayload(host))",
+		"body: JSON.stringify({ message, context })",
+		"{ label: t('desktop.fm.add_to_chat', 'Add to chat'), action: 'add-to-chat'",
+		"{ label: t('desktop.fm.ask_agent', 'Ask Agent'), action: 'ask-agent'",
+		"{ label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat'",
+		"{ label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent'",
+		"openApp('agent-chat', { chat_files: [chatFileContextFromEntry(entry)] })",
+		"desktop.chat_ask_file_prompt",
+	} {
+		if !strings.Contains(combined, marker) {
+			t.Fatalf("desktop file agent chat integration missing marker %q", marker)
+		}
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := rawDesktopAssetText(t, "lang/desktop/"+lang+".json")
+		for _, key := range []string{"desktop.fm.add_to_chat", "desktop.fm.ask_agent", "desktop.chat_file_context", "desktop.chat_ask_file_prompt"} {
+			if !strings.Contains(text, `"`+key+`"`) {
+				t.Fatalf("%s desktop translations missing %q", lang, key)
+			}
+		}
+	}
+}

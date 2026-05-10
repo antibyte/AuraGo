@@ -431,6 +431,17 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 			b.WriteString(desktopExternalData("desktop_current_content", chatContext.CurrentContent, 48000))
 		}
 	}
+	if chatContext.Source != "code-studio" && (strings.TrimSpace(chatContext.CurrentFile) != "" || len(chatContext.OpenFiles) > 0) {
+		b.WriteString("\n\nThe user has attached desktop workspace file context. Use the virtual_desktop tool with operation \"read_file\" or the relevant desktop document/workbook tools when you need file contents; do not assume contents from the filename alone.")
+		if strings.TrimSpace(chatContext.CurrentFile) != "" {
+			b.WriteString("\nCurrent desktop file:\n")
+			b.WriteString(desktopExternalData("desktop_current_file", chatContext.CurrentFile, 2048))
+		}
+		if len(chatContext.OpenFiles) > 0 {
+			b.WriteString("\nAttached desktop files:\n")
+			b.WriteString(desktopExternalData("desktop_open_files", strings.Join(chatContext.OpenFiles, "\n"), 8192))
+		}
+	}
 	b.WriteString("\n\nUser request:\n")
 	b.WriteString(desktopExternalData("desktop_user_request", message, 12000))
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {

@@ -119,6 +119,10 @@
             return;
         }
         if (isDesktopEntry || kind === 'file') {
+            if (kind === 'file') {
+                const entry = { name: btn.querySelector('.vd-icon-label') ? btn.querySelector('.vd-icon-label').textContent : path, path, web_path: btn.dataset.webPath || '', media_kind: btn.dataset.mediaKind || '', mime_type: btn.dataset.mimeType || '' };
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => addFileContextToChat(entry) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => askAgentAboutFile(entry) });
+            }
             items.push(
                 { separator: true },
                 { label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', action: () => setDesktopFileClipboard('cut', [path]) },
@@ -973,7 +977,7 @@
         if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
             return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
         }
-        if (appId === 'agent-chat') return renderChat(id);
+        if (appId === 'agent-chat') return renderChat(id, context || {});
         if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
             return window.ViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc,
@@ -1058,6 +1062,8 @@
                 },
                 openMedia: (entry) => openMediaPreview(entry),
                 openApp: (appId, ctx) => openApp(appId, ctx),
+                addFileToChat: (entry) => addFileContextToChat(entry),
+                askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;

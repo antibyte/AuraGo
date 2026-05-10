@@ -19,6 +19,20 @@
                         { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
                         { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
                     ];
+                    if (row.dataset.type === 'file') {
+                        const entry = {
+                            name: row.querySelector('.vd-file-name') ? row.querySelector('.vd-file-name').textContent : row.dataset.path,
+                            path: row.dataset.path,
+                            web_path: row.dataset.webPath || '',
+                            media_kind: row.dataset.mediaKind || '',
+                            mime_type: row.dataset.mimeType || ''
+                        };
+                        actions.push(
+                            { separator: true },
+                            { label: t('desktop.fm.add_to_chat'), icon: 'chat', fallback: 'A', action: () => addFileContextToChat(entry) },
+                            { label: t('desktop.fm.ask_agent'), icon: 'agent', fallback: 'Q', action: () => askAgentAboutFile(entry) }
+                        );
+                    }
                     if (row.dataset.webPath) {
                         actions.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(row.dataset.webPath, row.querySelector('.vd-file-name').textContent) });
                     } else if (row.dataset.type === 'file') {
@@ -103,6 +117,35 @@
         if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
         if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
         openEditorFile(entry.path);
+    }
+
+    function chatFileContextFromEntry(entry) {
+        const path = normalizeDesktopPath((entry && entry.path) || '');
+        if (!path) return null;
+        return {
+            path,
+            name: (entry && (entry.name || entry.filename)) || path.split('/').pop() || path,
+            web_path: (entry && entry.web_path) || '',
+            media_kind: (entry && entry.media_kind) || '',
+            mime_type: (entry && entry.mime_type) || ''
+        };
+    }
+
+    function addFileContextToChat(file) {
+        const entry = chatFileContextFromEntry(file);
+        if (!entry) return;
+        openApp('agent-chat', { chat_files: [chatFileContextFromEntry(entry)] });
+    }
+
+    function askAgentAboutFile(file) {
+        const entry = chatFileContextFromEntry(file);
+        if (!entry) return;
+        const prompt = desktopText('desktop.chat_ask_file_prompt', 'What should I know about {{name}}?')
+            .replaceAll('{{name}}', entry.name || entry.path);
+        openApp('agent-chat', {
+            chat_files: [entry],
+            chat_prefill: prompt
+        });
     }
 
     function downloadDesktopPath(path, filename) {

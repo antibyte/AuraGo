@@ -48,6 +48,27 @@ func TestBuildDesktopAgentPromptPrefersSelectedCodeOverWholeFile(t *testing.T) {
 	}
 }
 
+func TestBuildDesktopAgentPromptIncludesDesktopFileContext(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("What should I know about this file?", desktopChatContext{
+		Source:      "desktop-file",
+		CurrentFile: "Documents/report.md",
+		OpenFiles:   []string{"Documents/report.md", "Desktop/notes.txt"},
+	})
+
+	for _, want := range []string{
+		"The user has attached desktop workspace file context.",
+		"Use the virtual_desktop tool",
+		"Current desktop file:\n<external_data type=\"desktop_current_file\">\nDocuments/report.md",
+		"Attached desktop files:\n<external_data type=\"desktop_open_files\">\nDocuments/report.md\nDesktop/notes.txt",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("desktop file prompt missing marker %q in:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	t.Parallel()
 
