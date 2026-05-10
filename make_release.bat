@@ -82,8 +82,12 @@ echo   Release: !VERSION!
 echo.
 
 REM -- Prepare output dirs
-if exist deploy rmdir /s /q deploy
-mkdir deploy
+if not exist deploy mkdir deploy
+powershell -nologo -noprofile -command "Get-ChildItem -LiteralPath 'deploy' -Force | Where-Object { $_.Name -ne 'docker' } | Remove-Item -Recurse -Force"
+if errorlevel 1 (
+    echo [ERROR] Failed to clean generated deploy artifacts.
+    exit /b 1
+)
 if not exist bin mkdir bin
 
 REM -- [1/5] Pack resources.dat

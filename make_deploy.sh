@@ -37,9 +37,9 @@ else
   echo "[0/5] Node.js not found; skipping CodeMirror bundle build."
 fi
 
-# ── Clean ─────────────────────────────────────────────────────────────────
-rm -rf "$DEPLOY_DIR"
+# ── Clean generated release artifacts while preserving versioned deploy sources ──
 mkdir -p "$DEPLOY_DIR"
+find "$DEPLOY_DIR" -mindepth 1 -maxdepth 1 ! -name docker -exec rm -rf {} +
 
 # ── Step 1: Build resources.dat (tar.gz of runtime resources) ─────────────
 echo "[1/5] Packing resources.dat ..."

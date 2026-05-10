@@ -225,6 +225,34 @@ func TestDockerImageIncludesCodeStudioDockerfile(t *testing.T) {
 	}
 }
 
+func TestReleaseScriptsPreserveCodeStudioDockerfile(t *testing.T) {
+	root := filepath.Join("..", "..")
+
+	makeDeploy, err := os.ReadFile(filepath.Join(root, "make_deploy.sh"))
+	if err != nil {
+		t.Fatalf("read make_deploy.sh: %v", err)
+	}
+	makeDeployText := string(makeDeploy)
+	if strings.Contains(makeDeployText, `rm -rf "$DEPLOY_DIR"`) {
+		t.Fatal("make_deploy.sh must not delete the whole deploy directory because deploy/docker is versioned source")
+	}
+	if !strings.Contains(makeDeployText, `! -name docker`) {
+		t.Fatal("make_deploy.sh must preserve deploy/docker while cleaning generated deploy artifacts")
+	}
+
+	makeRelease, err := os.ReadFile(filepath.Join(root, "make_release.bat"))
+	if err != nil {
+		t.Fatalf("read make_release.bat: %v", err)
+	}
+	makeReleaseText := string(makeRelease)
+	if strings.Contains(makeReleaseText, "rmdir /s /q deploy") {
+		t.Fatal("make_release.bat must not delete the whole deploy directory because deploy/docker is versioned source")
+	}
+	if !strings.Contains(makeReleaseText, "$_.Name -ne 'docker'") {
+		t.Fatal("make_release.bat must preserve deploy/docker while cleaning generated deploy artifacts")
+	}
+}
+
 func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	s := testCodeStudioServer(t)
 	handler := codeStudioHandlers{server: s, docker: fakeCodeStudioDockerAPI{}}
