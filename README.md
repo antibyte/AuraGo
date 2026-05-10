@@ -41,7 +41,7 @@ It runs 24/7 in Docker, a container, VM or on PC and works for you on demand or 
 | **🎨 Built-in Chat Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, Lollipop and more|
 | **🔧 TONS of tools and integrations** | No need to rely on shady skills from the internet for most tasks |
 | **🎙️ Voice control and text to speech** | Requires HTTPS to work |
-
+| **Experimental Virtual Desktop** | Work in progress |
 ---
 
 ## Quick Start
