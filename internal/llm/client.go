@@ -234,7 +234,20 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 }
 
 func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
-	transport := http.RoundTripper(defaultLLMHTTPTransport(responseHeaderTimeoutForProvider(cfg, providerType)))
+	headerTimeout := responseHeaderTimeoutForProvider(cfg, providerType)
+	transport := http.RoundTripper(defaultLLMHTTPTransport(headerTimeout))
+
+	// Log the configured transport timeout so operators can verify that
+	// large-prompt scenarios (Virtual Desktop) get a sufficiently long
+	// ResponseHeaderTimeout instead of the 30s default.
+	if headerTimeout >= 60*time.Second {
+		slog.Debug("[LLM HTTP] Using extended ResponseHeaderTimeout for provider",
+			"provider", providerType,
+			"response_header_timeout", headerTimeout,
+			"per_attempt_timeout", perAttemptTimeout(),
+			"base_url", baseURL,
+		)
+	}
 
 	if token := strings.TrimSpace(aiGatewayToken); token != "" {
 		transport = &aiGatewayAuthTransport{base: transport, token: token}
@@ -282,17 +295,29 @@ func defaultLLMHTTPTransport(responseHeaderTimeout time.Duration) *http.Transpor
 }
 
 func responseHeaderTimeoutForProvider(cfg *config.Config, providerType string) time.Duration {
-	if cfg != nil && !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
-		return 30 * time.Second
+	// Use the per-attempt timeout as the ceiling so the transport layer never
+	// aborts before the retry context does.  This prevents "http2: timeout
+	// awaiting response headers" on providers that need >30s just to start
+	// streaming a response for large prompt payloads.
+	ceiling := perAttemptTimeout()
+	if ceiling <= 0 {
+		ceiling = 120 * time.Second
 	}
+
+	var base time.Duration
 	switch strings.ToLower(strings.TrimSpace(providerType)) {
 	case "minimax":
-		return 90 * time.Second
+		base = 90 * time.Second
 	case "glm":
-		return 60 * time.Second
+		base = 60 * time.Second
 	default:
-		return 30 * time.Second
+		base = 30 * time.Second
 	}
+
+	if base > ceiling {
+		return base
+	}
+	return ceiling
 }
 
 func shouldUseOpenAIPromptCacheKey(providerType, baseURL string) bool {

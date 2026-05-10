@@ -113,14 +113,26 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
 		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
-				logger.Debug("[LLM Retry] Context error, aborting without retry", "error", err)
+				logger.Debug("[LLM Retry] Context error, aborting without retry",
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return openai.ChatCompletionResponse{}, err
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
 			if logger != nil {
-				logger.Error("[LLM Retry] Non-retryable error, aborting", "error", err, "category", ClassifyError(err))
+				logger.Error("[LLM Retry] Non-retryable error, aborting",
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return openai.ChatCompletionResponse{}, err
 		}
@@ -128,7 +140,14 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		attempt++
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
-				logger.Error("[LLM Retry] Max retry attempts reached, aborting", "attempts", attempt, "error", err)
+				logger.Error("[LLM Retry] Max retry attempts reached, aborting",
+					"attempts", attempt,
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return openai.ChatCompletionResponse{}, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
 		}
@@ -147,7 +166,23 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		if logger != nil {
-			logger.Warn("[LLM Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)
+			// Distinguish transport-level timeouts (e.g. http2 response header
+			// timeout) from context-level timeouts so operators can tell whether
+			// the fix needs to be in the transport or the retry timeout.
+			isTransportTimeout := strings.Contains(safeErrMsg, "timeout awaiting response headers")
+			logger.Warn("[LLM Retry]",
+				"error", safeErrMsg,
+				"category", ClassifyError(err),
+				"wait", waitTime,
+				"attempt", attempt,
+				"per_attempt_timeout", timeout,
+				"attempt_ctx_err", attemptCtxErr,
+				"parent_ctx_err", parentCtxErr,
+				"is_transport_timeout", isTransportTimeout,
+				"model", req.Model,
+				"messages", len(req.Messages),
+				"tools", len(req.Tools),
+			)
 		}
 
 		if broker != nil {
@@ -181,14 +216,26 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
 		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
-				logger.Debug("[LLM Stream Retry] Context error, aborting without retry", "error", err)
+				logger.Debug("[LLM Stream Retry] Context error, aborting without retry",
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return nil, err
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
 			if logger != nil {
-				logger.Error("[LLM Stream Retry] Non-retryable error, aborting", "error", err, "category", ClassifyError(err))
+				logger.Error("[LLM Stream Retry] Non-retryable error, aborting",
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return nil, err
 		}
@@ -196,7 +243,14 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		attempt++
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
-				logger.Error("[LLM Stream Retry] Max retry attempts reached, aborting", "attempts", attempt, "error", err)
+				logger.Error("[LLM Stream Retry] Max retry attempts reached, aborting",
+					"attempts", attempt,
+					"error", err,
+					"category", ClassifyError(err),
+					"model", req.Model,
+					"messages", len(req.Messages),
+					"tools", len(req.Tools),
+				)
 			}
 			return nil, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
 		}
@@ -215,7 +269,20 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		if logger != nil {
-			logger.Warn("[LLM Stream Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)
+			isTransportTimeout := strings.Contains(safeErrMsg, "timeout awaiting response headers")
+			logger.Warn("[LLM Stream Retry]",
+				"error", safeErrMsg,
+				"category", ClassifyError(err),
+				"wait", waitTime,
+				"attempt", attempt,
+				"per_attempt_timeout", timeout,
+				"attempt_ctx_err", attemptCtxErr,
+				"parent_ctx_err", parentCtxErr,
+				"is_transport_timeout", isTransportTimeout,
+				"model", req.Model,
+				"messages", len(req.Messages),
+				"tools", len(req.Tools),
+			)
 		}
 
 		if broker != nil {

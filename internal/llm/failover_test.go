@@ -110,8 +110,14 @@ func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
 	if !ok {
 		t.Fatalf("base transport = %T, want *http.Transport", unwrapLLMTransport(client.Transport))
 	}
-	if transport.ResponseHeaderTimeout != 90*time.Second {
-		t.Fatalf("ResponseHeaderTimeout = %s, want 90s", transport.ResponseHeaderTimeout)
+	// ResponseHeaderTimeout is now capped at perAttemptTimeout() so the
+	// transport never times out before the retry context does.
+	minExpected := perAttemptTimeout()
+	if minExpected <= 0 {
+		minExpected = 120 * time.Second
+	}
+	if transport.ResponseHeaderTimeout < minExpected {
+		t.Fatalf("ResponseHeaderTimeout = %s, want at least %s", transport.ResponseHeaderTimeout, minExpected)
 	}
 	if client.Timeout < transport.ResponseHeaderTimeout {
 		t.Fatalf("client timeout %s is smaller than response header timeout %s", client.Timeout, transport.ResponseHeaderTimeout)
@@ -123,8 +129,8 @@ func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
 	if !ok {
 		t.Fatalf("base transport = %T, want *http.Transport", unwrapLLMTransport(client.Transport))
 	}
-	if transport.ResponseHeaderTimeout != 30*time.Second {
-		t.Fatalf("opt-out ResponseHeaderTimeout = %s, want 30s", transport.ResponseHeaderTimeout)
+	if transport.ResponseHeaderTimeout < minExpected {
+		t.Fatalf("opt-out ResponseHeaderTimeout = %s, want at least %s", transport.ResponseHeaderTimeout, minExpected)
 	}
 }
 

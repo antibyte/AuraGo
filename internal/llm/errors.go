@@ -235,7 +235,8 @@ func isTransientByString(lowerErr string) bool {
 		strings.Contains(lowerErr, "529") ||
 		strings.Contains(lowerErr, "overloaded") ||
 		strings.Contains(lowerErr, "server error") ||
-		strings.Contains(lowerErr, "eof")
+		strings.Contains(lowerErr, "eof") ||
+		strings.Contains(lowerErr, "http2: timeout awaiting response headers")
 }
 
 type RateLimitError struct {
