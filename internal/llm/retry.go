@@ -68,7 +68,7 @@ func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger)
 var perAttemptTimeoutNanos atomic.Int64
 
 func init() {
-	perAttemptTimeoutNanos.Store(int64(60 * time.Second))
+	perAttemptTimeoutNanos.Store(int64(120 * time.Second))
 }
 
 func perAttemptTimeout() time.Duration {

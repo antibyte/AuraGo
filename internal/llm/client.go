@@ -235,21 +235,17 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 
 func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
 	transport := http.RoundTripper(defaultLLMHTTPTransport(responseHeaderTimeoutForProvider(cfg, providerType)))
-	hasCustomTransport := false
 
 	if token := strings.TrimSpace(aiGatewayToken); token != "" {
 		transport = &aiGatewayAuthTransport{base: transport, token: token}
-		hasCustomTransport = true
 	}
 
 	if providerType == "minimax" || providerType == "glm" {
 		transport = &miniMaxTransport{base: transport}
-		hasCustomTransport = true
 	}
 
 	if shouldUseOpenAIPromptCacheKey(providerType, baseURL) {
 		transport = &openAIPromptCacheTransport{base: transport}
-		hasCustomTransport = true
 	}
 
 	if providerType == "anthropic" {
@@ -262,13 +258,13 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 			}
 		}
 		transport = at
-		hasCustomTransport = true
 	}
 
-	if !hasCustomTransport {
-		return nil
-	}
-
+	// Always return a custom HTTP client so every provider gets proper
+	// ResponseHeaderTimeout and transport settings.  Using nil here caused
+	// generic providers (crof.ai, openrouter, etc.) to fall back to the
+	// bare http.Client with no timeout, leading to invisible hangs until
+	// the context deadline killed the request.
 	return &http.Client{Transport: transport, Timeout: 3 * time.Minute}
 }
 
