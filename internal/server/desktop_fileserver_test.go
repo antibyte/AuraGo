@@ -17,7 +17,7 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><title>Space</title></head><body><main>Game</main></body></html>"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><title>Space</title><script src=\"game.js\"></script></head><body><main>Game</main></body></html>"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -39,13 +39,20 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	for _, want := range []string{
 		desktopAppKeyBridgeMarker,
 		"aurago.desktop.key-event",
+		"function installStorageShim(name)",
+		"localStorage",
 		"new KeyboardEvent",
 		"window.dispatchEvent(new KeyboardEvent(eventType,init))",
 		"document.dispatchEvent(new KeyboardEvent(eventType,init))",
-		"</script></body>",
+		"querySelectorAll('canvas,[tabindex]')",
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("body did not contain app key bridge marker %q: %q", want, rec.Body.String())
 		}
+	}
+	if bridgeIndex := strings.Index(rec.Body.String(), desktopAppKeyBridgeMarker); bridgeIndex < 0 {
+		t.Fatalf("body did not contain app key bridge marker: %q", rec.Body.String())
+	} else if gameIndex := strings.Index(rec.Body.String(), `src="game.js"`); gameIndex < 0 || bridgeIndex > gameIndex {
+		t.Fatalf("app key bridge must be injected before game scripts: bridge=%d game=%d body=%q", bridgeIndex, gameIndex, rec.Body.String())
 	}
 }

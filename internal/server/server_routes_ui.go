@@ -106,6 +106,14 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 const desktopAppKeyBridgeScript = `<script data-aurago-app-key-bridge>(function(){
 if(window.__auragoAppKeyBridge)return;
 window.__auragoAppKeyBridge=true;
+function installStorageShim(name){
+try{var nativeStore=window[name],probe='__aurago_storage_probe__';nativeStore.setItem(probe,'1');nativeStore.removeItem(probe);return;}catch(_){}
+var data=Object.create(null);
+var shim={get length(){return Object.keys(data).length;},key:function(index){var keys=Object.keys(data);return keys[index]||null;},getItem:function(key){key=String(key);return Object.prototype.hasOwnProperty.call(data,key)?data[key]:null;},setItem:function(key,value){data[String(key)]=String(value);},removeItem:function(key){delete data[String(key)];},clear:function(){data=Object.create(null);}};
+try{Object.defineProperty(window,name,{value:shim,configurable:true});}catch(_){try{window[name]=shim;}catch(__){}}
+}
+installStorageShim('localStorage');
+installStorageShim('sessionStorage');
 window.addEventListener('message',function(event){
 var msg=event&&event.data;
 if(!msg||msg.type!=='aurago.desktop.key-event')return;
@@ -117,6 +125,7 @@ try{var keyEvent=new KeyboardEvent(eventType,init);target.dispatchEvent(keyEvent
 }
 var active=document.activeElement;
 if(active&&active!==document.body&&active!==document.documentElement)dispatch(active);
+try{document.querySelectorAll('canvas,[tabindex]').forEach(dispatch);}catch(_){}
 document.dispatchEvent(new KeyboardEvent(eventType,init));
 window.dispatchEvent(new KeyboardEvent(eventType,init));
 });
@@ -156,16 +165,36 @@ func injectDesktopAppKeyBridgeHTML(content []byte) []byte {
 		return content
 	}
 	lower := bytes.ToLower(content)
-	if idx := bytes.LastIndex(lower, []byte("</body>")); idx >= 0 {
+	if idx := bytes.Index(lower, []byte("<head")); idx >= 0 {
+		if end := bytes.IndexByte(content[idx:], '>'); end >= 0 {
+			insertAt := idx + end + 1
+			out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+			out = append(out, content[:insertAt]...)
+			out = append(out, desktopAppKeyBridgeScript...)
+			out = append(out, content[insertAt:]...)
+			return out
+		}
+	}
+	if idx := bytes.Index(lower, []byte("<script")); idx >= 0 {
 		out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
 		out = append(out, content[:idx]...)
 		out = append(out, desktopAppKeyBridgeScript...)
 		out = append(out, content[idx:]...)
 		return out
 	}
+	if idx := bytes.Index(lower, []byte("<body")); idx >= 0 {
+		if end := bytes.IndexByte(content[idx:], '>'); end >= 0 {
+			insertAt := idx + end + 1
+			out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+			out = append(out, content[:insertAt]...)
+			out = append(out, desktopAppKeyBridgeScript...)
+			out = append(out, content[insertAt:]...)
+			return out
+		}
+	}
 	out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
-	out = append(out, content...)
 	out = append(out, desktopAppKeyBridgeScript...)
+	out = append(out, content...)
 	return out
 }
 

@@ -4071,7 +4071,7 @@
 
 
 .vd-chat-bubble.agent {
-    overflow: hidden;
+    overflow: visible;
 }
 
 .vd-chat-bubble.agent p {
