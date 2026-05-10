@@ -383,6 +383,25 @@ func TestServiceBootstrapIncludesGeneratedAppIconCatalog(t *testing.T) {
 	if bootstrap.IconCatalog.Aliases["stats"] != "analytics" {
 		t.Fatalf("stats alias = %q, want analytics", bootstrap.IconCatalog.Aliases["stats"])
 	}
+	for category, icons := range map[string][]string{
+		"games":        {"run", "video", "apps"},
+		"office":       {"writer", "spreadsheet", "calendar"},
+		"tools":        {"tools", "settings", "terminal"},
+		"productivity": {"notes", "check-square", "workflow"},
+	} {
+		got := bootstrap.IconCatalog.Categories[category]
+		for _, want := range icons {
+			if !stringSliceContains(got, want) {
+				t.Fatalf("icon catalog category %q missing %q: %+v", category, want, got)
+			}
+		}
+	}
+	if bootstrap.IconCatalog.Aliases["game"] != "run" {
+		t.Fatalf("game alias = %q, want run", bootstrap.IconCatalog.Aliases["game"])
+	}
+	if bootstrap.IconCatalog.Aliases["space-invaders"] != "run" {
+		t.Fatalf("space-invaders alias = %q, want run", bootstrap.IconCatalog.Aliases["space-invaders"])
+	}
 }
 
 func TestServiceRejectsWorkspaceEscape(t *testing.T) {

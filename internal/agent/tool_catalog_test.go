@@ -343,7 +343,7 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	}
 	manifest, _ := props["manifest"].(map[string]interface{})
 	manifestDescription, _ := manifest["description"].(string)
-	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
+	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon_catalog.categories", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
 		if !strings.Contains(manifestDescription, want) {
 			t.Fatalf("manifest description missing %q: %s", want, manifestDescription)
 		}
@@ -377,6 +377,10 @@ func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
 		"`analytics`",
 		"`backup`",
 		"`camera`",
+		"`games`",
+		"`office`",
+		"`productivity`",
+		"`tools`",
 		"`workflow`",
 		"https://api.open-meteo.com",
 		"connect-src",

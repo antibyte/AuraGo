@@ -88,11 +88,12 @@ type BootstrapPayload struct {
 // IconCatalogInfo tells agents and generated apps which semantic icons are safe
 // to use for Papirus-first desktop surfaces.
 type IconCatalogInfo struct {
-	Theme              string            `json:"theme"`
-	DefaultTheme       string            `json:"default_theme"`
-	Preferred          []string          `json:"preferred"`
-	Aliases            map[string]string `json:"aliases"`
-	LegacySpritePrefix string            `json:"legacy_sprite_prefix"`
+	Theme              string              `json:"theme"`
+	DefaultTheme       string              `json:"default_theme"`
+	Preferred          []string            `json:"preferred"`
+	Categories         map[string][]string `json:"categories"`
+	Aliases            map[string]string   `json:"aliases"`
+	LegacySpritePrefix string              `json:"legacy_sprite_prefix"`
 }
 
 // FileEntry describes one file or directory in the desktop workspace.
@@ -317,6 +318,7 @@ var desktopPreferredIconNames = []string{
 var desktopIconAliases = map[string]string{
 	"agent":            "agent-chat",
 	"agent_chat":       "agent-chat",
+	"arcade":           "run",
 	"arrow-left":       "chevron-left",
 	"arrow-right":      "chevron-right",
 	"automation":       "workflow",
@@ -406,6 +408,8 @@ var desktopIconAliases = map[string]string{
 	"forecast":         "weather",
 	"form":             "forms",
 	"forms":            "forms",
+	"game":             "run",
+	"games":            "run",
 	"help":             "help",
 	"internet":         "globe",
 	"launchpad":        "launchpad",
@@ -433,6 +437,8 @@ var desktopIconAliases = map[string]string{
 	"screen":           "monitor",
 	"share":            "globe",
 	"sparkles":         "apps",
+	"space":            "run",
+	"space-invaders":   "run",
 	"stats":            "analytics",
 	"support":          "help",
 	"tasks":            "notes",
@@ -448,6 +454,17 @@ var desktopIconAliases = map[string]string{
 	"word":             "writer",
 	"word-processor":   "writer",
 	"writer":           "writer",
+}
+
+var desktopIconCategories = map[string][]string{
+	"games":        {"run", "video", "apps", "terminal", "monitor", "heart"},
+	"office":       {"writer", "spreadsheet", "calendar", "documents", "printer", "mail"},
+	"productivity": {"notes", "check-square", "workflow", "calendar", "clipboard", "search"},
+	"tools":        {"tools", "settings", "terminal", "code", "database", "network"},
+	"media":        {"gallery", "image", "video", "audio", "audio-player", "camera"},
+	"internet":     {"browser", "globe", "cloud", "mail", "network", "download"},
+	"system":       {"monitor", "server", "settings", "backup", "key", "package"},
+	"documents":    {"documents", "text", "markdown", "pdf", "html", "archive"},
 }
 
 var desktopIconTokenPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
@@ -467,10 +484,15 @@ func DesktopIconCatalog(settings map[string]string) IconCatalogInfo {
 	for key, value := range desktopIconAliases {
 		aliases[key] = value
 	}
+	categories := make(map[string][]string, len(desktopIconCategories))
+	for key, value := range desktopIconCategories {
+		categories[key] = append([]string(nil), value...)
+	}
 	return IconCatalogInfo{
 		Theme:              theme,
 		DefaultTheme:       defaultTheme,
 		Preferred:          append([]string(nil), desktopPreferredIconNames...),
+		Categories:         categories,
 		Aliases:            aliases,
 		LegacySpritePrefix: "sprite:",
 	}
