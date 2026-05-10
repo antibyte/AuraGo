@@ -165,6 +165,38 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 	return true
 }
 
+func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string) bool {
+	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
+	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
+		return false
+	}
+	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
+	rootAbs, rootErr := filepath.Abs(desktopDir)
+	fullAbs, fullErr := filepath.Abs(fullPath)
+	if rootErr != nil || fullErr != nil {
+		http.NotFound(w, r)
+		return true
+	}
+	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
+	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
+		http.NotFound(w, r)
+		return true
+	}
+	info, err := os.Stat(fullAbs)
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return true
+	}
+	file, err := os.Open(fullAbs)
+	if err != nil {
+		http.NotFound(w, r)
+		return true
+	}
+	defer file.Close()
+	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), file)
+	return true
+}
+
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {
 	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
@@ -613,6 +645,9 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir) {
+			return
+		}
+		if serveDesktopExactIndexFile(w, r, desktopDir) {
 			return
 		}
 		desktopFileHandler.ServeHTTP(w, r)
