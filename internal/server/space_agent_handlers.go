@@ -304,7 +304,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := s.currentSpaceAgentConfig()
-		webhosts := make([]webhostIntegration, 0, 1)
+		webhosts := make([]webhostIntegration, 0, 4)
 		if cfg.SpaceAgent.Enabled {
 			status := "starting"
 			if payload := spaceAgentStatusPayload(s, &cfg); payload != nil {
@@ -320,6 +320,55 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 					Status:      status,
 					URL:         spaceAgentBrowserURL(s, &cfg, r),
 					Icon:        "space_agent",
+				})
+			}
+		}
+		if cfg.VirtualDesktop.Enabled {
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "virtual_desktop",
+				Name:        "Virtual Desktop",
+				Description: "Browser-based virtual desktop",
+				Status:      "running",
+				URL:         "/desktop",
+				Icon:        "expand",
+			})
+		}
+		if cfg.Homepage.Enabled {
+			homepageURL := ""
+			if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
+				homepageURL = tunnelURL
+			} else if cfg.Homepage.WebServerPort > 0 {
+				homepageURL = fmt.Sprintf("http://localhost:%d", cfg.Homepage.WebServerPort)
+			}
+			if homepageURL != "" {
+				webhosts = append(webhosts, webhostIntegration{
+					ID:          "homepage",
+					Name:        "Homepage",
+					Description: "Homepage web preview",
+					Status:      "running",
+					URL:         homepageURL,
+					Icon:        "web",
+				})
+			}
+		}
+		if cfg.Manifest.Enabled {
+			manifestPayload := manifestStatus(r.Context(), s, &cfg)
+			manifestURL := ""
+			if u, ok := manifestPayload["url"].(string); ok {
+				manifestURL = u
+			}
+			if manifestURL != "" {
+				status := "starting"
+				if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
+					status = raw
+				}
+				webhosts = append(webhosts, webhostIntegration{
+					ID:          "manifest",
+					Name:        "Manifest",
+					Description: "Manifest.build gateway",
+					Status:      status,
+					URL:         manifestURL,
+					Icon:        "link",
 				})
 			}
 		}
