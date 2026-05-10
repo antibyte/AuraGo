@@ -290,6 +290,12 @@ func defaultLLMHTTPTransport(responseHeaderTimeout time.Duration) *http.Transpor
 	if responseHeaderTimeout <= 0 {
 		responseHeaderTimeout = 30 * time.Second
 	}
+	// Floor at 60s so Virtual Desktop and other large-prompt scenarios never
+	// hit the old 30s default that caused http2 response-header timeouts.
+	const floor = 60 * time.Second
+	if responseHeaderTimeout < floor {
+		responseHeaderTimeout = floor
+	}
 	transport.ResponseHeaderTimeout = responseHeaderTimeout
 	return transport
 }

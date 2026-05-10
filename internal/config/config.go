@@ -747,7 +747,7 @@ func Load(path string) (*Config, error) {
 		cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
 	}
 	if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds <= 0 {
-		cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds = 60
+		cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds = 120
 	}
 	if cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds <= 0 {
 		cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 30

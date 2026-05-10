@@ -45,7 +45,13 @@ type failoverProbeSnapshot struct {
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
 	if cfg != nil {
 		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-			SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+			// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
+			// never get a dangerously short per-attempt timeout from old configs.
+			timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
+			if timeout < 120*time.Second {
+				timeout = 120 * time.Second
+			}
+			SetPerAttemptTimeout(timeout)
 		}
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
 	}
@@ -90,7 +96,13 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if cfg != nil {
 		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-			SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+			// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
+			// never get a dangerously short per-attempt timeout from old configs.
+			timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
+			if timeout < 120*time.Second {
+				timeout = 120 * time.Second
+			}
+			SetPerAttemptTimeout(timeout)
 		}
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, fm.logger)
 	}
