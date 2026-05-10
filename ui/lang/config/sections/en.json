@@ -463,5 +463,8 @@
   "help.manifest.postgres_volume": "Named Docker volume for persistent Manifest data.",
   "help.manifest.url": "Internal URL AuraGo uses for the managed Manifest service.",
   "config.section.optimizations.group.tool_context": "🔧 Tool Context",
-  "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility"
+  "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility",
+  "help": {
+    "manifest": {}
+  }
 }

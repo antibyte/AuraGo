@@ -444,6 +444,36 @@ func TestHandleIntegrationWebhostsUsesTailscaleHomepageURL(t *testing.T) {
 	}
 }
 
+func TestManifestURLWithRequestHostReplacesLocalhost(t *testing.T) {
+	got := manifestURLWithRequestHost("http://127.0.0.1:2099", nil)
+	if got != "http://127.0.0.1:2099" {
+		t.Fatalf("without request, should keep fallback: got %q", got)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "192.168.1.50:8443"
+	got = manifestURLWithRequestHost("http://127.0.0.1:2099", req)
+	if got != "http://192.168.1.50:2099" {
+		t.Fatalf("should replace 127.0.0.1 with request host: got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.Host = "aurago.taild1480.ts.net:443"
+	got = manifestURLWithRequestHost("http://127.0.0.1:2099", req2)
+	if got != "http://aurago.taild1480.ts.net:2099" {
+		t.Fatalf("should replace with tailscale host: got %q", got)
+	}
+}
+
+func TestManifestURLWithRequestHostKeepsExternalHost(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "192.168.1.50:8443"
+	got := manifestURLWithRequestHost("http://manifest.example.com:2099", req)
+	if got != "http://manifest.example.com:2099" {
+		t.Fatalf("should not replace non-loopback host: got %q", got)
+	}
+}
+
 func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true

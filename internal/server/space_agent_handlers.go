@@ -352,7 +352,8 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 			if u, ok := manifestPayload["url"].(string); ok {
 				manifestURL = u
 			}
-			if manifestURL != "" {
+			browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
+			if browserURL != "" {
 				status := "starting"
 				if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
 					status = raw
@@ -362,7 +363,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 					Name:        "Manifest",
 					Description: "Manifest.build gateway",
 					Status:      status,
-					URL:         manifestURL,
+					URL:         browserURL,
 					Icon:        "link",
 				})
 			}
@@ -581,6 +582,68 @@ func homepageBrowserURL(s *Server, cfg *config.Config, r *http.Request) string {
 		return fmt.Sprintf("http://localhost:%d", cfg.Homepage.WebServerPort)
 	}
 	return ""
+}
+
+func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallbackURL string) string {
+	if cfg == nil {
+		return fallbackURL
+	}
+	if s != nil && s.TsNetManager != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeManifest {
+		status := s.TsNetManager.GetStatus()
+		if status.ManifestServing {
+			if host := tsnetStatusHost(status.DNS, status.CertDNS); host != "" {
+				return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+			}
+		}
+		if requestLooksTailscale(r) {
+			if host := requestForwardedHost(r); host != "" {
+				return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+			}
+		}
+	}
+	if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
+		return tunnelURL
+	}
+	return manifestURLWithRequestHost(fallbackURL, r)
+}
+
+func manifestURLWithRequestHost(rawURL string, r *http.Request) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil {
+		return rawURL
+	}
+	host := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
+	if host != "localhost" && host != "127.0.0.1" && host != "::1" && host != "0.0.0.0" && host != "::" {
+		return rawURL
+	}
+	reqHost := effectiveRequestHost(r)
+	if reqHost == "" {
+		return rawURL
+	}
+	port := parsed.Port()
+	if port != "" {
+		parsed.Host = net.JoinHostPort(reqHost, port)
+	} else {
+		parsed.Host = reqHost
+	}
+	return parsed.String()
+}
+
+func effectiveRequestHost(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	if idx := strings.IndexByte(host, ','); idx >= 0 {
+		host = strings.TrimSpace(host[:idx])
+	}
+	if h, _, err := net.SplitHostPort(host); err == nil && h != "" {
+		host = h
+	}
+	return strings.TrimSuffix(strings.Trim(strings.ToLower(host), "[]"), ".")
 }
 
 func tsnetStatusHost(dns string, certDNS []string) string {
