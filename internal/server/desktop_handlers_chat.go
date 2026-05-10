@@ -456,6 +456,10 @@ func desktopExternalData(kind, value string, maxBytes int) string {
 	if maxBytes > 0 && len(value) > maxBytes {
 		value = value[:maxBytes] + "\n[truncated]"
 	}
+	// Escape nested external_data tags to prevent injection that could break
+	// the security wrapper boundary.
+	value = strings.ReplaceAll(value, "<external_data>", "&lt;external_data&gt;")
+	value = strings.ReplaceAll(value, "</external_data>", "&lt;/external_data&gt;")
 	return fmt.Sprintf("<external_data type=%q\u003e\n%s\n</external_data>", kind, value)
 }
 

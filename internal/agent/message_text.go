@@ -8,8 +8,17 @@ import (
 )
 
 func messageText(msg openai.ChatCompletionMessage) string {
-	if strings.TrimSpace(msg.Content) != "" {
-		return msg.Content
+	content := strings.TrimSpace(msg.Content)
+	reasoning := strings.TrimSpace(msg.ReasoningContent)
+
+	if content != "" {
+		if reasoning != "" {
+			return content + "\n" + reasoning
+		}
+		return content
+	}
+	if reasoning != "" {
+		return reasoning
 	}
 	if len(msg.MultiContent) == 0 {
 		return ""

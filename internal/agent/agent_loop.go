@@ -1103,7 +1103,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Debug("[LLM Full History]", "messages_count", len(req.Messages))
 		}
 
-		// Prompt log: append full request JSON to prompts.log when enabled
+		broker.Send("thinking", "")
+
+		// Pre-send validation: ensure tool-call integrity before sending to the
+		// provider. This catches orphaned tool results that slipped through
+		// GetForLLM() or were introduced by context compression / trimming.
+		if sanitized, dropped := SanitizeToolMessages(req.Messages); dropped > 0 {
+			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
+				"dropped", dropped, "before", len(req.Messages), "after", len(sanitized))
+			req.Messages = sanitized
+		}
+
+		// Prompt log: append full request JSON to prompts.log when enabled.
+		// Logged AFTER sanitization so the record reflects what is actually sent.
 		if cfg.Logging.EnablePromptLog {
 			type promptLogEntry struct {
 				Time       string                         `json:"time"`
@@ -1120,17 +1132,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if err := loggerPkg.AppendPromptLogEntry(cfg.Logging.LogDir, entry); err != nil {
 				s.currentLogger.Warn("[PromptLog] Failed to write entry", "error", err)
 			}
-		}
-
-		broker.Send("thinking", "")
-
-		// Pre-send validation: ensure tool-call integrity before sending to the
-		// provider. This catches orphaned tool results that slipped through
-		// GetForLLM() or were introduced by context compression / trimming.
-		if sanitized, dropped := SanitizeToolMessages(req.Messages); dropped > 0 {
-			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
-				"dropped", dropped, "before", len(req.Messages), "after", len(sanitized))
-			req.Messages = sanitized
 		}
 
 		// ── Temperature: base from config + personality modulation ──
