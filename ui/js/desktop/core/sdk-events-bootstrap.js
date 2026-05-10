@@ -320,6 +320,7 @@
         });
         wireDesktopFileDrops();
         document.addEventListener('keydown', handleDesktopKeydown);
+        document.addEventListener('keyup', handleDesktopKeyup);
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
@@ -329,6 +330,7 @@
     function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
+        if (relayGeneratedFrameKeyboardEvent(event)) return;
         if ((event.ctrlKey || event.metaKey) && event.key === '/') {
             event.preventDefault();
             toggleShortcutsHelp();
@@ -387,6 +389,35 @@
             return;
         }
         }
+    }
+
+    function handleDesktopKeyup(event) {
+        relayGeneratedFrameKeyboardEvent(event);
+    }
+
+    function relayGeneratedFrameKeyboardEvent(event) {
+        if (!event || event.defaultPrevented || isEditableTarget(event.target)) return false;
+        if (event.ctrlKey || event.metaKey || event.altKey) return false;
+        const frame = state.activeWindowId
+            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
+            : null;
+        if (!frame || !frame.contentWindow) return false;
+        frame.contentWindow.postMessage({
+            type: 'aurago.desktop.key-event',
+            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+            key: event.key,
+            code: event.code,
+            location: event.location || 0,
+            repeat: !!event.repeat,
+            ctrlKey: !!event.ctrlKey,
+            shiftKey: !!event.shiftKey,
+            altKey: !!event.altKey,
+            metaKey: !!event.metaKey
+        }, '*');
+        if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
+            event.preventDefault();
+        }
+        return true;
     }
 
     function toggleShortcutsHelp() {

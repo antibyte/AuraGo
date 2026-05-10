@@ -17,7 +17,7 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><title>Space</title>"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte("<!doctype html><html><head><title>Space</title></head><body><main>Game</main></body></html>"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -35,5 +35,17 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "<title>Space</title>") {
 		t.Fatalf("body did not contain app index HTML: %q", rec.Body.String())
+	}
+	for _, want := range []string{
+		desktopAppKeyBridgeMarker,
+		"aurago.desktop.key-event",
+		"new KeyboardEvent",
+		"window.dispatchEvent(new KeyboardEvent(eventType,init))",
+		"document.dispatchEvent(new KeyboardEvent(eventType,init))",
+		"</script></body>",
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("body did not contain app key bridge marker %q: %q", want, rec.Body.String())
+		}
 	}
 }

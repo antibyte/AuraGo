@@ -25,7 +25,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260510b"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260510c"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }

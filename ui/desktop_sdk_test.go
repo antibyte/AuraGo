@@ -52,6 +52,12 @@ func TestDesktopShellPostsToSandboxedOpaqueFrames(t *testing.T) {
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"}, '*');",
+		"document.addEventListener('keyup', handleDesktopKeyup)",
+		"function relayGeneratedFrameKeyboardEvent(event)",
+		"type: 'aurago.desktop.key-event'",
+		"key: event.key",
+		"code: event.code",
+		"if (relayGeneratedFrameKeyboardEvent(event)) return;",
 		"postSDKMenuAction(windowId, actionId)",
 		"postSDKContextMenuAction(client, actionId)",
 	} {

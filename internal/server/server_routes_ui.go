@@ -19,6 +19,7 @@ import (
 
 const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
+const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
 // uiBuildVersion is set once at server start and used as a cache-busting
 // query parameter for all embedded static assets.  Formatted as a compact
@@ -102,6 +103,25 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(send).catch(fu
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();</script>`
 
+const desktopAppKeyBridgeScript = `<script data-aurago-app-key-bridge>(function(){
+if(window.__auragoAppKeyBridge)return;
+window.__auragoAppKeyBridge=true;
+window.addEventListener('message',function(event){
+var msg=event&&event.data;
+if(!msg||msg.type!=='aurago.desktop.key-event')return;
+var eventType=msg.eventType==='keyup'?'keyup':'keydown';
+var init={key:String(msg.key||''),code:String(msg.code||''),location:Number(msg.location)||0,ctrlKey:!!msg.ctrlKey,shiftKey:!!msg.shiftKey,altKey:!!msg.altKey,metaKey:!!msg.metaKey,repeat:!!msg.repeat,bubbles:true,cancelable:true};
+function dispatch(target){
+if(!target||typeof target.dispatchEvent!=='function')return;
+try{var keyEvent=new KeyboardEvent(eventType,init);target.dispatchEvent(keyEvent);}catch(_){}
+}
+var active=document.activeElement;
+if(active&&active!==document.body&&active!==document.documentElement)dispatch(active);
+document.dispatchEvent(new KeyboardEvent(eventType,init));
+window.dispatchEvent(new KeyboardEvent(eventType,init));
+});
+})();</script>`
+
 func shouldInjectDesktopWidgetAutoResize(r *http.Request) bool {
 	if r == nil || (r.Method != http.MethodGet && r.Method != http.MethodHead) {
 		return false
@@ -128,6 +148,24 @@ func injectDesktopWidgetAutoResizeHTML(content []byte) []byte {
 	out := make([]byte, 0, len(content)+len(desktopWidgetAutoResizeScript))
 	out = append(out, content...)
 	out = append(out, desktopWidgetAutoResizeScript...)
+	return out
+}
+
+func injectDesktopAppKeyBridgeHTML(content []byte) []byte {
+	if len(content) == 0 || bytes.Contains(content, []byte(desktopAppKeyBridgeMarker)) {
+		return content
+	}
+	lower := bytes.ToLower(content)
+	if idx := bytes.LastIndex(lower, []byte("</body>")); idx >= 0 {
+		out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+		out = append(out, content[:idx]...)
+		out = append(out, desktopAppKeyBridgeScript...)
+		out = append(out, content[idx:]...)
+		return out
+	}
+	out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+	out = append(out, content...)
+	out = append(out, desktopAppKeyBridgeScript...)
 	return out
 }
 
@@ -187,13 +225,13 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
-	file, err := os.Open(fullAbs)
+	content, err := os.ReadFile(fullAbs)
 	if err != nil {
 		http.NotFound(w, r)
 		return true
 	}
-	defer file.Close()
-	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), file)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
 }
 
