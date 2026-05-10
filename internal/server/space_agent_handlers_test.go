@@ -385,6 +385,65 @@ func TestHandleIntegrationWebhostsDerivesHTTPURLWhenHTTPSWrapperDisabled(t *test
 	}
 }
 
+func TestHandleIntegrationWebhostsIncludesHomepageLocalURL(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Homepage.Enabled = true
+	s.Cfg.Homepage.WebServerPort = 8080
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			ID  string `json:"id"`
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Homepage entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].ID != "homepage" || resp.Webhosts[0].URL != "http://localhost:8080" {
+		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
+	}
+}
+
+func TestHandleIntegrationWebhostsUsesTailscaleHomepageURL(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WebServerPort = 8080
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeHomepage = true
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			ID  string `json:"id"`
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Homepage entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].ID != "homepage" || resp.Webhosts[0].URL != "https://aurago.taild1480.ts.net:8443" {
+		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
+	}
+}
+
 func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true

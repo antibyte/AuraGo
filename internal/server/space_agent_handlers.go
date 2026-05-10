@@ -334,12 +334,7 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 			})
 		}
 		if cfg.Homepage.Enabled {
-			homepageURL := ""
-			if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
-				homepageURL = tunnelURL
-			} else if cfg.Homepage.WebServerPort > 0 {
-				homepageURL = fmt.Sprintf("http://localhost:%d", cfg.Homepage.WebServerPort)
-			}
+			homepageURL := homepageBrowserURL(s, &cfg, r)
 			if homepageURL != "" {
 				webhosts = append(webhosts, webhostIntegration{
 					ID:          "homepage",
@@ -560,6 +555,40 @@ func spaceAgentBrowserURL(s *Server, cfg *config.Config, r *http.Request) string
 		}
 	}
 	return spaceAgentPublicURL(cfg, r)
+}
+
+func homepageBrowserURL(s *Server, cfg *config.Config, r *http.Request) string {
+	if cfg == nil {
+		return ""
+	}
+	if s != nil && s.TsNetManager != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeHomepage {
+		status := s.TsNetManager.GetStatus()
+		if status.HomepageServing {
+			if host := tsnetStatusHost(status.DNS, status.CertDNS); host != "" {
+				return fmt.Sprintf("https://%s:8443", host)
+			}
+		}
+		if requestLooksTailscale(r) {
+			if host := requestForwardedHost(r); host != "" {
+				return fmt.Sprintf("https://%s:8443", host)
+			}
+		}
+	}
+	if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
+		return tunnelURL
+	}
+	if cfg.Homepage.WebServerPort > 0 {
+		return fmt.Sprintf("http://localhost:%d", cfg.Homepage.WebServerPort)
+	}
+	return ""
+}
+
+func tsnetStatusHost(dns string, certDNS []string) string {
+	host := strings.TrimSuffix(strings.TrimSpace(dns), ".")
+	if host == "" && len(certDNS) > 0 {
+		host = strings.TrimSuffix(strings.TrimSpace(certDNS[0]), ".")
+	}
+	return host
 }
 
 func requestLooksTailscale(r *http.Request) bool {
