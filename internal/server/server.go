@@ -1332,7 +1332,10 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			strings.HasSuffix(path, ".woff2") ||
 			strings.HasSuffix(path, ".ttf") ||
 			strings.HasSuffix(path, ".map")
-		if isStaticAsset {
+		if path == "/js/desktop/aura-desktop-sdk.js" {
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+			w.Header().Set("Pragma", "no-cache")
+		} else if isStaticAsset {
 			w.Header().Set("Cache-Control", "public, max-age=3600")
 		} else if !strings.HasPrefix(path, "/auth/") &&
 			!strings.HasPrefix(path, "/api/auth/") &&

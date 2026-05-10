@@ -26,6 +26,21 @@
     let lastWidgetResizePayload = null;
     let lastWidgetResizePostAt = 0;
 
+    function expectedParentMessageOrigin() {
+        try {
+            if (document.referrer) return new URL(document.referrer).origin;
+        } catch (_) {}
+        try {
+            return new URL(window.location.href).origin;
+        } catch (_) {}
+        return window.location.origin || '';
+    }
+
+    function isTrustedParentMessage(event) {
+        if (!event || event.source !== window.parent) return false;
+        return event.origin === expectedParentMessageOrigin();
+    }
+
     function parentRequest(action, payload) {
         const id = 'sdk-' + Date.now() + '-' + (++requestSeq);
         return new Promise((resolve, reject) => {
@@ -44,7 +59,7 @@
     }
 
     window.addEventListener('message', (event) => {
-        if (event.origin !== window.location.origin || event.source !== window.parent) {
+        if (!isTrustedParentMessage(event)) {
             return;
         }
         const msg = event.data;

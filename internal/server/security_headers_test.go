@@ -69,6 +69,20 @@ func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersDoNotCacheVersionlessDesktopSDK(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), false, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/js/desktop/aura-desktop-sdk.js", nil)
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Cache-Control"); !strings.Contains(got, "no-store") {
+		t.Fatalf("Cache-Control = %q, want no-store for versionless desktop SDK", got)
+	}
+}
+
 func TestDesktopWorkspaceCSPAllowsWeatherWidgets(t *testing.T) {
 	if !strings.Contains(desktopWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com") {
 		t.Fatalf("desktop workspace CSP does not allow Open-Meteo weather widgets: %s", desktopWorkspaceCSP)

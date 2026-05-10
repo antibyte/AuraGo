@@ -942,7 +942,7 @@
         frame.contentWindow.postMessage({
             type: 'aurago.desktop.menu-action',
             actionId: String(actionId)
-        }, window.location.origin);
+        }, '*');
     }
 
     function postSDKContextMenuAction(client, actionId) {
@@ -953,7 +953,7 @@
         frame.contentWindow.postMessage({
             type: 'aurago.desktop.context-menu-action',
             actionId: String(actionId)
-        }, window.location.origin);
+        }, '*');
     }
 
     function sdkMenuItems(client, items) {
