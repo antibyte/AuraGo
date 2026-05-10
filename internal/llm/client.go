@@ -278,7 +278,13 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	// generic providers (crof.ai, openrouter, etc.) to fall back to the
 	// bare http.Client with no timeout, leading to invisible hangs until
 	// the context deadline killed the request.
-	return &http.Client{Transport: transport, Timeout: 3 * time.Minute}
+	client := &http.Client{Transport: transport, Timeout: 3 * time.Minute}
+
+	// Wrap the transport with instrumentation so we can pinpoint stalls
+	// (body write, TLS handshake, first byte) when Virtual Desktop hangs.
+	client.Transport = newLoggingTransport(client.Transport, slog.Default())
+
+	return client
 }
 
 func defaultLLMHTTPTransport(responseHeaderTimeout time.Duration) *http.Transport {

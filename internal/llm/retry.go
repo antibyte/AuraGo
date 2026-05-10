@@ -102,11 +102,31 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 	for {
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+
+		if logger != nil {
+			logger.Info("[LLM Retry] CreateChatCompletion starting",
+				"attempt", attempt+1,
+				"model", req.Model,
+				"messages", len(req.Messages),
+				"tools", len(req.Tools),
+				"timeout", timeout,
+			)
+		}
+		callStart := time.Now()
 		resp, err := client.CreateChatCompletion(attemptCtx, req)
+		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := ctx.Err()
 		attemptCancel()
+
 		if err == nil {
+			if logger != nil {
+				logger.Info("[LLM Retry] CreateChatCompletion succeeded",
+					"attempt", attempt+1,
+					"elapsed_ms", callElapsed.Milliseconds(),
+					"model", req.Model,
+				)
+			}
 			return resp, nil
 		}
 
@@ -179,6 +199,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 				"attempt_ctx_err", attemptCtxErr,
 				"parent_ctx_err", parentCtxErr,
 				"is_transport_timeout", isTransportTimeout,
+				"call_elapsed_ms", callElapsed.Milliseconds(),
 				"model", req.Model,
 				"messages", len(req.Messages),
 				"tools", len(req.Tools),
@@ -205,11 +226,31 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 	for {
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+
+		if logger != nil {
+			logger.Info("[LLM Stream Retry] CreateChatCompletionStream starting",
+				"attempt", attempt+1,
+				"model", req.Model,
+				"messages", len(req.Messages),
+				"tools", len(req.Tools),
+				"timeout", timeout,
+			)
+		}
+		callStart := time.Now()
 		stream, err := client.CreateChatCompletionStream(attemptCtx, req)
+		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := ctx.Err()
 		attemptCancel()
+
 		if err == nil {
+			if logger != nil {
+				logger.Info("[LLM Stream Retry] CreateChatCompletionStream succeeded",
+					"attempt", attempt+1,
+					"elapsed_ms", callElapsed.Milliseconds(),
+					"model", req.Model,
+				)
+			}
 			return stream, nil
 		}
 
@@ -279,6 +320,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 				"attempt_ctx_err", attemptCtxErr,
 				"parent_ctx_err", parentCtxErr,
 				"is_transport_timeout", isTransportTimeout,
+				"call_elapsed_ms", callElapsed.Milliseconds(),
 				"model", req.Model,
 				"messages", len(req.Messages),
 				"tools", len(req.Tools),

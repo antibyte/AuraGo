@@ -145,6 +145,8 @@ func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 			rt = t.base
 		case *anthropicTransport:
 			rt = t.base
+		case *loggingTransport:
+			rt = t.base
 		default:
 			return rt
 		}
