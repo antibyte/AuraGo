@@ -1,9 +1,12 @@
 package i18n
 
 import (
+	"encoding/json"
+	"log/slog"
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 // TestPlaceholderConsistency verifies that translation keys use consistent
@@ -162,6 +165,39 @@ func TestInterpolateFunction(t *testing.T) {
 				t.Errorf("interpolate(%q, %v) = %q, want %q", tt.input, tt.params, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestLoadKeepsFlatTranslationsWhenFileContainsNestedPlaceholders(t *testing.T) {
+	uiFS := fstest.MapFS{
+		"lang/meta.json": {Data: []byte(`{}`)},
+		"lang/config/sections/en.json": {Data: []byte(`{
+			"config.group.agent_ai": "Agent & AI",
+			"config.section.manifest.label": "Manifest",
+			"help.manifest.enabled": "Enable Manifest.",
+			"help": {"manifest": {}},
+			"config": {"manifest": {}}
+		}`)},
+	}
+
+	store := &Store{
+		langData: map[string]map[string]string{},
+		langJSON: map[string]string{},
+	}
+	store.load(uiFS, slog.Default())
+
+	var translations map[string]string
+	if err := json.Unmarshal([]byte(store.GetJSON("en")), &translations); err != nil {
+		t.Fatalf("unmarshal loaded translations: %v", err)
+	}
+	for _, key := range []string{
+		"config.group.agent_ai",
+		"config.section.manifest.label",
+		"help.manifest.enabled",
+	} {
+		if translations[key] == "" {
+			t.Fatalf("expected flat translation %q to survive nested placeholders; got %#v", key, translations)
+		}
 	}
 }
 

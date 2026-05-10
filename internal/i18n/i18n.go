@@ -100,11 +100,12 @@ func (s *Store) load(uiFS fs.FS, logger *slog.Logger) {
 					continue
 				}
 
-				var translations map[string]string
-				if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &translations); err != nil {
+				var rawTranslations map[string]any
+				if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &rawTranslations); err != nil {
 					logger.Warn("Failed to parse lang file", "file", itemPath, "error", err)
 					continue
 				}
+				translations := flattenTranslationValues(rawTranslations)
 
 				if langData[lang] == nil {
 					langData[lang] = make(map[string]string)
@@ -165,6 +166,31 @@ func (s *Store) load(uiFS fs.FS, logger *slog.Logger) {
 	s.mu.Unlock()
 
 	logger.Info("i18n loaded", "languages", len(newLangJSON))
+}
+
+func flattenTranslationValues(raw map[string]any) map[string]string {
+	translations := make(map[string]string)
+	var walk func(prefix string, value any)
+	walk = func(prefix string, value any) {
+		switch v := value.(type) {
+		case string:
+			if prefix != "" {
+				translations[prefix] = v
+			}
+		case map[string]any:
+			for key, child := range v {
+				next := key
+				if prefix != "" {
+					next = prefix + "." + key
+				}
+				walk(next, child)
+			}
+		}
+	}
+	for key, value := range raw {
+		walk(key, value)
+	}
+	return translations
 }
 
 // GetJSON returns the JSON string for the given language, falling back to "en".
