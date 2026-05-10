@@ -28,8 +28,8 @@ func TestDesktopContextMenuAndClipboardAssets(t *testing.T) {
 			t.Fatalf("desktop shell missing context menu/clipboard marker %q", want)
 		}
 	}
-	if strings.Contains(mainText, "allow-same-origin") {
-		t.Fatal("generated desktop iframes must not enable allow-same-origin")
+	if !strings.Contains(mainText, "allow-same-origin") {
+		t.Fatal("generated desktop app iframes must enable allow-same-origin so keyboard/game runtimes work")
 	}
 	if strings.Contains(mainText, "setAttribute('csp'") || strings.Contains(mainText, `setAttribute("csp"`) {
 		t.Fatal("generated desktop iframes must rely on /files/desktop/ response CSP, not iframe csp attributes")

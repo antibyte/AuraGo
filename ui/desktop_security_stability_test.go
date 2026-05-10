@@ -15,7 +15,8 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 		t.Fatal("generated desktop iframes must not allow popups")
 	}
 	for _, want := range []string{
-		`iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals')`,
+		`iframe.setAttribute('sandbox', sandboxFlags)`,
+		`appId && !widgetId ? 'allow-scripts allow-forms allow-modals allow-same-origin' : 'allow-scripts allow-forms allow-modals'`,
 		`const cleanup = state.windowCleanups.get(win.id)`,
 		`function registerWindowCleanup(windowId, cleanup)`,
 		`function renderAppError`,
@@ -45,6 +46,9 @@ func TestDesktopWorkspaceCSPDisallowsPopupsAndTightensBaseAndObjects(t *testing.
 		t.Fatal("desktop workspace CSP must not allow popups")
 	}
 	for _, want := range []string{
+		"const desktopAppWorkspaceCSP",
+		"sandbox allow-scripts allow-forms allow-modals allow-same-origin",
+		"const desktopWidgetWorkspaceCSP",
 		"sandbox allow-scripts allow-forms allow-modals",
 		"object-src 'none'",
 		"base-uri 'none'",

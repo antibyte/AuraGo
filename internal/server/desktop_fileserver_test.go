@@ -27,6 +27,9 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	if !serveDesktopExactIndexFile(rec, req, desktopDir) {
 		t.Fatal("expected exact desktop index file to be served before FileServer redirect")
 	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != desktopAppWorkspaceCSP {
+		t.Fatalf("Content-Security-Policy = %q, want app CSP %q", got, desktopAppWorkspaceCSP)
+	}
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}

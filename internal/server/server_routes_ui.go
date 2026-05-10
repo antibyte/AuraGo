@@ -17,7 +17,8 @@ import (
 	"aurago/ui"
 )
 
-const desktopWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
+const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
+const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-same-origin; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
@@ -244,6 +245,15 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 	return true
 }
 
+func desktopWorkspaceCSPForPath(requestPath string) string {
+	rel := strings.TrimPrefix(requestPath, "/files/desktop/")
+	rel = strings.TrimPrefix(filepath.ToSlash(rel), "/")
+	if strings.HasPrefix(rel, "Apps/") {
+		return desktopAppWorkspaceCSP
+	}
+	return desktopWidgetWorkspaceCSP
+}
+
 func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string) bool {
 	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
 	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
@@ -272,6 +282,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		return true
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSP)
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
 }
@@ -722,7 +733,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
+		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(r.URL.Path))
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir) {
 			return
 		}

@@ -863,7 +863,8 @@
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
-        iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals');
+        const sandboxFlags = appId && !widgetId ? 'allow-scripts allow-forms allow-modals allow-same-origin' : 'allow-scripts allow-forms allow-modals';
+        iframe.setAttribute('sandbox', sandboxFlags);
         iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));

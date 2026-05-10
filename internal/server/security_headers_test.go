@@ -53,7 +53,7 @@ func TestSecurityHeadersSetStrictTransportSecurityForHTTPS(t *testing.T) {
 
 func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSP)
+		w.Header().Set("Content-Security-Policy", desktopWidgetWorkspaceCSP)
 		w.WriteHeader(http.StatusNoContent)
 	}), true, false)
 
@@ -64,8 +64,17 @@ func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	if got := rec.Header().Get("X-Frame-Options"); got != "" {
 		t.Fatalf("X-Frame-Options = %q, want empty for desktop iframe files", got)
 	}
-	if got := rec.Header().Get("Content-Security-Policy"); got != desktopWorkspaceCSP {
-		t.Fatalf("Content-Security-Policy = %q, want desktop CSP", got)
+	if got := rec.Header().Get("Content-Security-Policy"); got != desktopWidgetWorkspaceCSP {
+		t.Fatalf("Content-Security-Policy = %q, want desktop widget CSP", got)
+	}
+}
+
+func TestDesktopWorkspaceCSPAllowsGeneratedAppSameOrigin(t *testing.T) {
+	if !strings.Contains(desktopAppWorkspaceCSP, "allow-same-origin") {
+		t.Fatalf("generated app CSP must allow same-origin for game/browser runtimes: %s", desktopAppWorkspaceCSP)
+	}
+	if strings.Contains(desktopWidgetWorkspaceCSP, "allow-same-origin") {
+		t.Fatalf("widget CSP must keep stronger origin isolation: %s", desktopWidgetWorkspaceCSP)
 	}
 }
 
@@ -84,12 +93,12 @@ func TestSecurityHeadersDoNotCacheVersionlessDesktopSDK(t *testing.T) {
 }
 
 func TestDesktopWorkspaceCSPAllowsWeatherWidgets(t *testing.T) {
-	if !strings.Contains(desktopWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com") {
-		t.Fatalf("desktop workspace CSP does not allow Open-Meteo weather widgets: %s", desktopWorkspaceCSP)
+	if !strings.Contains(desktopWidgetWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com") {
+		t.Fatalf("desktop workspace CSP does not allow Open-Meteo weather widgets: %s", desktopWidgetWorkspaceCSP)
 	}
-	for _, field := range strings.Fields(strings.ReplaceAll(desktopWorkspaceCSP, ";", " ")) {
+	for _, field := range strings.Fields(strings.ReplaceAll(desktopWidgetWorkspaceCSP, ";", " ")) {
 		if field == "https:" {
-			t.Fatalf("desktop workspace CSP must not allow arbitrary HTTPS fetches: %s", desktopWorkspaceCSP)
+			t.Fatalf("desktop workspace CSP must not allow arbitrary HTTPS fetches: %s", desktopWidgetWorkspaceCSP)
 		}
 	}
 }
