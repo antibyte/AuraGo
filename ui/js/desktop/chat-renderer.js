@@ -335,6 +335,56 @@
             if (textEl) textEl.textContent = text;
         },
 
+        formatAgentActionStatus(data) {
+            if (!data) return '';
+            const event = data.event || data.type || '';
+            const detail = String(data.detail || data.message || '').trim();
+            if (event === 'thinking') {
+                return detail || this.translate('chat.sse_thinking', this.translate('desktop.chat_thinking', 'Reasoning...'));
+            }
+            if (event === 'tool_start') {
+                if (detail === 'co_agent' || detail === 'co_agents') return '';
+                if (detail === 'list_skills') {
+                    return this.translate('chat.sse_list_skills', 'Checking available skills...');
+                }
+                if (detail === 'execute_skill') {
+                    return this.translate('chat.sse_execute_skill', 'Running skill: ') + detail;
+                }
+                return this.translate('chat.sse_tool_start', this.translate('desktop.chat_using_tool', 'Using tool') + ': ') + detail;
+            }
+            if (event === 'tool_end') {
+                if (detail === 'co_agent' || detail === 'co_agents') return '';
+                return this.translate('chat.sse_tool_end', 'Tool completed: ') + detail;
+            }
+            if (event === 'co_agent_spawn') {
+                return this.translate('chat.sse_co_agent_spawn', 'Co-Agent started: ') + detail;
+            }
+            if (event === 'workflow_plan') {
+                return this.translate('chat.sse_workflow_plan', 'Planning next steps');
+            }
+            if (event === 'coding') {
+                return this.translate('chat.sse_coding', 'Writing and testing a script...');
+            }
+            if (event === 'error_recovery') {
+                return this.translate('chat.sse_error_recovery', 'Script had an error. Fixing code...');
+            }
+            return '';
+        },
+
+        extractToolCallNarration(text) {
+            let narration = String(text || '')
+                .replace(/```json[\s\S]*?```/g, '')
+                .replace(/`[^`]*`/g, '')
+                .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"tool"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"tool_call"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"tool_name"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"parameters"\s*:[\s\S]*/g, '')
+                .trim();
+            narration = this.stripLeakedToolMarkup(narration);
+            return narration && narration.split(/\s+/).filter(Boolean).length >= 6 ? narration : '';
+        },
+
         createOpenInAppButton(appId, path) {
             const appNames = {
                 writer: this.translate('desktop.app_writer', 'Writer'),

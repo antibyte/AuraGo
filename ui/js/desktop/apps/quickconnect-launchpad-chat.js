@@ -769,12 +769,18 @@
                         if (statusEl && state2 === 'start' && renderer) {
                             renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
                         }
-                    } else if (event === 'thinking') {
-                        if (statusEl && renderer) renderer.updateStatus(statusEl, data.detail || t('desktop.thinking'));
-                    } else if (event === 'tool_start') {
-                        if (statusEl && renderer) renderer.updateStatus(statusEl, desktopText('desktop.chat_using_tool', 'Using tool') + ': ' + (data.detail || ''));
-                    } else if (event === 'tool_end') {
-                        if (statusEl && renderer) renderer.updateStatus(statusEl, '');
+                    } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||
+                        event === 'co_agent_spawn' || event === 'workflow_plan' || event === 'coding' ||
+                        event === 'error_recovery') {
+                        if (statusEl && renderer) {
+                            const status = renderer.formatAgentActionStatus(data);
+                            if (status) renderer.updateStatus(statusEl, status);
+                        }
+                    } else if (event === 'tool_call') {
+                        if (renderer) {
+                            const text = renderer.extractToolCallNarration(data.detail || data.message || '');
+                            if (text) renderer.appendRichBubble(chatLog, 'agent', text);
+                        }
                     } else if (event === 'image') {
                         try {
                             const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
