@@ -1297,6 +1297,8 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 		"CONFIG_ASSET_VERSION = '15'",
 		"{ key: 'manifest'",
 		"manifest: { m: 'manifest', fn: 'renderManifestSection' }",
+		"function fieldLabelText",
+		"const labelKey = 'config.' + fullPath + '_label';",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("%s missing Manifest config marker %q", mainPath, marker)

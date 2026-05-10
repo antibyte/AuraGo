@@ -1184,7 +1184,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     const fieldType = fieldSchema?.type || guessType(value);
 
     let html = '<div class="field-group">';
-    html += '<div class="field-label">' + formatKey(key);
+    html += '<div class="field-label">' + fieldLabelText(fullPath, key);
     if (isSensitive) html += ' <span class="cfg-sensitive-icon">🔒</span>';
     html += '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
@@ -1297,6 +1297,15 @@ function guessType(val) {
     if (typeof val === 'number') return Number.isInteger(val) ? 'int' : 'float';
     if (Array.isArray(val)) return 'array';
     return 'string';
+}
+
+function fieldLabelText(fullPath, key) {
+    const labelKey = 'config.' + fullPath + '_label';
+    const translated = t(labelKey);
+    if (typeof translated === 'string' && translated.trim() !== '' && translated !== labelKey && translated !== '-') {
+        return translated;
+    }
+    return formatKey(key);
 }
 
 function formatKey(key) {

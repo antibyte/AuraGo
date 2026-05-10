@@ -195,25 +195,29 @@ func buildSchema(t reflect.Type, prefix string) []SchemaField {
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		yamlTag := f.Tag.Get("yaml")
-		vaultTag := f.Tag.Get("vault")
-		// Skip fields excluded from YAML unless they have a vault tag
+		jsonTag := schemaTagName(f.Tag.Get("json"))
+		// Skip fields explicitly excluded from JSON (hidden from UI)
+		if jsonTag == "-" {
+			continue
+		}
+		yamlTag := schemaTagName(f.Tag.Get("yaml"))
+		vaultTag := schemaTagName(f.Tag.Get("vault"))
+		// Skip fields excluded from YAML unless they have a UI-facing JSON name
+		// or a concrete vault tag. Some vault-only config fields intentionally
+		// use yaml:"-" plus json:"name" so the UI can edit them and the backend
+		// stores them in the Vault instead of config.yaml.
 		if yamlTag == "-" {
-			if vaultTag == "" {
+			switch {
+			case jsonTag != "":
+				yamlTag = jsonTag
+			case vaultTag != "" && vaultTag != "-":
+				yamlTag = vaultTag
+			default:
 				continue
 			}
-			yamlTag = vaultTag // use vault key name as display key
-		}
-		// Skip fields explicitly excluded from JSON (hidden from UI)
-		if f.Tag.Get("json") == "-" {
-			continue
 		}
 		if yamlTag == "" {
 			yamlTag = strings.ToLower(f.Name)
-		}
-		// Strip tag options
-		if idx := strings.Index(yamlTag, ","); idx >= 0 {
-			yamlTag = yamlTag[:idx]
 		}
 
 		fullKey := yamlTag
@@ -253,6 +257,13 @@ func buildSchema(t reflect.Type, prefix string) []SchemaField {
 	}
 
 	return fields
+}
+
+func schemaTagName(tag string) string {
+	if idx := strings.Index(tag, ","); idx >= 0 {
+		tag = tag[:idx]
+	}
+	return tag
 }
 
 // handleRestart triggers an application restart by exiting with code 42

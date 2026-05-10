@@ -38,6 +38,47 @@ func TestBuildSchemaIncludesRocketChatAuthTokenAsSensitive(t *testing.T) {
 	t.Fatal("rocketchat.auth_token field not found in schema")
 }
 
+func TestBuildSchemaUsesJSONNamesForManifestVaultOnlyFields(t *testing.T) {
+	schema := buildSchema(reflect.TypeOf(config.Config{}), "")
+
+	var manifest *SchemaField
+	for i := range schema {
+		if schema[i].YAMLKey == "manifest" {
+			manifest = &schema[i]
+			break
+		}
+	}
+	if manifest == nil {
+		t.Fatal("manifest section not found in schema")
+	}
+
+	want := map[string]string{
+		"api_key":            "manifest.api_key",
+		"postgres_password":  "manifest.postgres_password",
+		"better_auth_secret": "manifest.better_auth_secret",
+	}
+	seen := map[string]bool{}
+	for _, field := range manifest.Children {
+		if field.YAMLKey == "-" || field.Key == "manifest.-" {
+			t.Fatalf("manifest schema exposed raw yaml:\"-\" field: %#v", field)
+		}
+		if wantKey, ok := want[field.YAMLKey]; ok {
+			seen[field.YAMLKey] = true
+			if field.Key != wantKey {
+				t.Fatalf("manifest.%s schema key = %q, want %q", field.YAMLKey, field.Key, wantKey)
+			}
+			if !field.Sensitive {
+				t.Fatalf("manifest.%s must be marked sensitive", field.YAMLKey)
+			}
+		}
+	}
+	for key := range want {
+		if !seen[key] {
+			t.Fatalf("manifest schema missing vault-only field %s", key)
+		}
+	}
+}
+
 func TestNormalizeOllamaModelsBaseURLRejectsUnexpectedPrivateHost(t *testing.T) {
 	t.Parallel()
 
