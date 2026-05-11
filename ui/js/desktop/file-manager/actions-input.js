@@ -688,7 +688,7 @@
         for (const file of Array.from(files)) {
             completedFiles++;
             if (limit > 0 && file.size > limit) {
-                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', '{{name}} exceeds the maximum upload size.', { name: file.name }) });
+                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) });
                 continue;
             }
             fileEl.textContent = `${esc(file.name)} (${completedFiles}/${totalFiles})`;

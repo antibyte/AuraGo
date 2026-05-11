@@ -771,10 +771,10 @@
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar', 'Toggle sidebar'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back', 'Back'))}"${backDisabled}>
+                <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}"${backDisabled}>
                     ${iconMarkup('chevron-left', '\u2039', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward', 'Forward'))}"${fwdDisabled}>
+                <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}"${fwdDisabled}>
                     ${iconMarkup('chevron-right', '\u203A', '', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up', 'Up'))}">
@@ -791,7 +791,7 @@
                 <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list', 'List View'))}">
                     ${iconMarkup('list', '\u2630', '', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search', 'Search'))} (Ctrl+F)">
+                <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)">
                     ${iconMarkup('search', '\u2315', '', 16)}
                 </button>
             </div>

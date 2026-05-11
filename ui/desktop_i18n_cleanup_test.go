@@ -2,8 +2,10 @@ package ui
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -24,6 +26,13 @@ func TestDesktopAuditedI18nKeysAndPlaceholders(t *testing.T) {
 		"desktop.launchpad_icon_url_placeholder",
 		"desktop.looper_title",
 		"desktop.looper_iteration",
+		"desktop.search",
+		"desktop.back",
+		"desktop.forward",
+		"desktop.settings_agent_provider",
+		"desktop.settings_agent_provider_desc",
+		"desktop.settings_agent_provider_default",
+		"desktop.fm.upload_too_large",
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
@@ -101,6 +110,105 @@ func TestDesktopAuditedI18nUsageHasNoEnglishInlineFallbacks(t *testing.T) {
 			t.Fatalf("Launchpad still has hardcoded placeholder %q", forbidden)
 		}
 	}
+
+	fileManager := readDesktopAssetText(t, "js/desktop/file-manager/core-render.js")
+	for _, forbidden := range []string{
+		"t('desktop.back', 'Back')",
+		"t('desktop.forward', 'Forward')",
+		"t('desktop.search', 'Search')",
+	} {
+		if strings.Contains(fileManager, forbidden) {
+			t.Fatalf("File Manager still uses audited inline fallback %q", forbidden)
+		}
+	}
+
+	fileInput := readDesktopAssetText(t, "js/desktop/file-manager/actions-input.js")
+	if strings.Contains(fileInput, "t('desktop.fm.upload_too_large', '{{name}} exceeds the maximum upload size.'") {
+		t.Fatal("File Manager upload size error still uses an audited inline English fallback")
+	}
+}
+
+func TestDesktopUsedI18nKeysExistInAllLanguages(t *testing.T) {
+	t.Parallel()
+
+	keyPattern := regexp.MustCompile(`(?s)(?:\b(?:dt|desktopT|t)\s*\(\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"]|data-i18n(?:-[a-z-]+)?\s*=\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"]|(?:labelKey|titleKey|messageKey|placeholderKey)\s*:\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"])`)
+	used := map[string]bool{}
+	for _, asset := range desktopI18nAssets(t) {
+		content := readDesktopAssetText(t, asset)
+		for _, match := range keyPattern.FindAllStringSubmatch(content, -1) {
+			key := ""
+			for i := 1; i < len(match); i++ {
+				if match[i] != "" {
+					key = match[i]
+					break
+				}
+			}
+			if key == "" || strings.HasSuffix(key, "_") {
+				continue
+			}
+			used[key] = true
+		}
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readMergedLangMap(t, lang)
+		for key := range used {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing desktop-used translation key %s", lang, key)
+			}
+		}
+	}
+}
+
+func desktopI18nAssets(t *testing.T) []string {
+	t.Helper()
+	assets := []string{
+		"desktop.html",
+		"cfg/virtual_desktop.js",
+	}
+	if err := fs.WalkDir(Content, "js/desktop", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".js") {
+			return nil
+		}
+		assets = append(assets, path)
+		return nil
+	}); err != nil {
+		t.Fatalf("walk desktop assets: %v", err)
+	}
+	return assets
+}
+
+func readMergedLangMap(t *testing.T, lang string) map[string]string {
+	t.Helper()
+	values := map[string]string{}
+	if err := fs.WalkDir(Content, "lang", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Base(path) != lang+".json" {
+			return nil
+		}
+		data, err := Content.ReadFile(filepath.ToSlash(path))
+		if err != nil {
+			return err
+		}
+		var raw map[string]any
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return err
+		}
+		for key, value := range raw {
+			if text, ok := value.(string); ok {
+				values[key] = text
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("read merged %s translations: %v", lang, err)
+	}
+	return values
 }
 
 func TestDesktopSettingsDescriptionsAreLocalized(t *testing.T) {
