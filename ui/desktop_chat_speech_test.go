@@ -45,4 +45,10 @@ func TestDesktopChatProvidesSpeechToTextInput(t *testing.T) {
 			t.Fatalf("desktop chat CSS missing voice marker %q", marker)
 		}
 	}
+
+	iconCSS := readDesktopAssetText(t, "css/desktop-icons.css")
+	if !strings.Contains(iconCSS, ".vd-chat-voice-icon") ||
+		!strings.Contains(iconCSS, "background-image: url('/img/desktop-icons-sprite.png')") {
+		t.Fatal("desktop chat voice icon must be rendered through the desktop sprite CSS")
+	}
 }

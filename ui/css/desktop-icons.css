@@ -72,7 +72,8 @@
 .vd-sprite-icon,
 .vd-sprite-start,
 .vd-sprite-start-item,
-.vd-sprite-file {
+.vd-sprite-file,
+.vd-chat-voice-icon {
     display: block;
     flex: 0 0 auto;
     background-image: url('/img/desktop-icons-sprite.png');
