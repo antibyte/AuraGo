@@ -115,19 +115,27 @@ async function renderManifestSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.sidecar_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += manifestField('config.manifest.mode_label', 'help.manifest.mode',
-        '<select class="field-input" data-path="manifest.mode" onchange="setNestedValue(configData,\\'manifest.mode\\',this.value);setDirty(true);renderManifestSection(null)">' +
+        '<select class="field-select" data-path="manifest.mode" onchange="setNestedValue(configData,\\'manifest.mode\\',this.value);setDirty(true);renderManifestSection(null)">' +
         '<option value="managed"' + (managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_managed') + '</option>' +
         '<option value="external"' + (!managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_external') + '</option>' +
         '</select>');
-    html += manifestToggleRow('config.manifest.auto_start_label', 'help.manifest.auto_start', data.auto_start !== false, 'manifest.auto_start');
+    if (managed) {
+        html += manifestToggleRow('config.manifest.auto_start_label', 'help.manifest.auto_start', data.auto_start !== false, 'manifest.auto_start');
+    }
     html += '</div>';
 
     if (managed) {
+        const manifestPort = data.port || 2099;
         html += '<div class="field-grid two-cols">';
-        html += manifestField('config.manifest.url_label', 'help.manifest.url',
-            '<input class="field-input" type="url" value="' + escapeAttr(data.url || 'http://127.0.0.1:2099') + '" data-path="manifest.url">');
-        html += manifestField('config.manifest.host_label', 'help.manifest.host',
-            '<input class="field-input" type="text" value="' + escapeAttr(data.host || '127.0.0.1') + '" data-path="manifest.host">');
+        html += manifestSelectField('config.manifest.url_label', 'help.manifest.url', 'manifest.url', data.url || 'http://127.0.0.1:2099', [
+            { value: 'http://manifest:' + manifestPort },
+            { value: 'http://127.0.0.1:' + manifestPort }
+        ]);
+        html += manifestSelectField('config.manifest.host_label', 'help.manifest.host', 'manifest.host', data.host || '127.0.0.1', [
+            { value: '127.0.0.1' },
+            { value: '0.0.0.0' },
+            { value: 'localhost' }
+        ]);
         html += '</div>';
         html += '<div class="field-grid two-cols">';
         html += manifestField('config.manifest.port_label', 'help.manifest.port',
@@ -138,24 +146,32 @@ async function renderManifestSection(section) {
         html += '<details class="cfg-advanced-panel manifest-advanced-panel">';
         html += '<summary class="cfg-advanced-summary">' + manifestText('config.manifest.advanced_label') + '</summary>';
         html += '<div class="cfg-advanced-body">';
-        html += manifestField('config.manifest.image_label', 'help.manifest.image',
-            '<input class="field-input" type="text" value="' + escapeAttr(data.image || 'manifestdotbuild/manifest:5') + '" data-path="manifest.image">');
+        html += manifestSelectField('config.manifest.image_label', 'help.manifest.image', 'manifest.image', data.image || 'manifestdotbuild/manifest:5', [
+            { value: 'manifestdotbuild/manifest:5' }
+        ]);
         html += manifestField('config.manifest.container_name_label', 'help.manifest.container_name',
             '<input class="field-input" type="text" value="' + escapeAttr(data.container_name || 'aurago_manifest') + '" data-path="manifest.container_name">');
         html += manifestField('config.manifest.network_name_label', 'help.manifest.network_name',
             '<input class="field-input" type="text" value="' + escapeAttr(data.network_name || 'aurago_manifest') + '" data-path="manifest.network_name">');
         html += manifestField('config.manifest.postgres_container_name_label', 'help.manifest.postgres_container_name',
             '<input class="field-input" type="text" value="' + escapeAttr(data.postgres_container_name || 'aurago_manifest_postgres') + '" data-path="manifest.postgres_container_name">');
-        html += manifestField('config.manifest.postgres_image_label', 'help.manifest.postgres_image',
-            '<input class="field-input" type="text" value="' + escapeAttr(data.postgres_image || 'postgres:15-alpine') + '" data-path="manifest.postgres_image">');
+        html += manifestSelectField('config.manifest.postgres_image_label', 'help.manifest.postgres_image', 'manifest.postgres_image', data.postgres_image || 'postgres:15-alpine', [
+            { value: 'postgres:15-alpine' },
+            { value: 'postgres:16-alpine' },
+            { value: 'postgres:17-alpine' }
+        ]);
         html += manifestField('config.manifest.postgres_volume_label', 'help.manifest.postgres_volume',
             '<input class="field-input" type="text" value="' + escapeAttr(data.postgres_volume || 'aurago_manifest_pgdata') + '" data-path="manifest.postgres_volume">');
-        html += manifestField('config.manifest.health_path_label', 'help.manifest.health_path',
-            '<input class="field-input" type="text" value="' + escapeAttr(data.health_path || '') + '" data-path="manifest.health_path" placeholder="/health">');
+        html += manifestSelectField('config.manifest.health_path_label', 'help.manifest.health_path', 'manifest.health_path', data.health_path || '', [
+            { value: '', label: 'auto' },
+            { value: '/health' },
+            { value: '/api/health' }
+        ]);
         html += '</div></details>';
     } else {
-        html += manifestField('config.manifest.external_base_url_label', 'help.manifest.external_base_url',
-            '<input class="field-input" type="url" value="' + escapeAttr(data.external_base_url || 'https://app.manifest.build/v1') + '" data-path="manifest.external_base_url">');
+        html += manifestSelectField('config.manifest.external_base_url_label', 'help.manifest.external_base_url', 'manifest.external_base_url', data.external_base_url || 'https://app.manifest.build/v1', [
+            { value: 'https://app.manifest.build/v1' }
+        ]);
     }
 
     html += '<div class="field-group">';
@@ -204,6 +220,24 @@ function manifestField(labelKey, helpKey, inputHtml) {
     return html;
 }
 
+function manifestSelectField(labelKey, helpKey, path, value, options) {
+    const normalizedValue = String(value ?? '');
+    const optionValues = options.map(opt => String(opt.value ?? ''));
+    const isCustom = normalizedValue !== '' && !optionValues.includes(normalizedValue);
+    const customLabel = manifestText('config.field.custom_value_placeholder', 'Other / Custom');
+    let html = '<select class="field-select" data-path="' + escapeAttr(path) + '" onchange="manifestSelectChanged(this)">';
+    options.forEach(opt => {
+        const optValue = String(opt.value ?? '');
+        const selected = !isCustom && normalizedValue === optValue ? ' selected' : '';
+        const label = opt.label !== undefined ? opt.label : optValue;
+        html += '<option value="' + escapeAttr(optValue) + '"' + selected + '>' + escapeHtml(label) + '</option>';
+    });
+    html += '<option value="Other / Custom"' + (isCustom ? ' selected' : '') + '>' + escapeHtml(customLabel) + '</option>';
+    html += '</select>';
+    html += '<input class="field-input cfg-custom-input' + (isCustom ? '' : ' is-hidden') + '" type="text" data-custom-for="' + escapeAttr(path) + '" value="' + escapeAttr(isCustom ? normalizedValue : '') + '" placeholder="' + escapeAttr(customLabel) + '" oninput="manifestCustomChanged(this)">';
+    return manifestField(labelKey, helpKey, html);
+}
+
 function manifestSecretField(labelKey, helpKey, id, path, placeholder) {
     return manifestField(labelKey, helpKey,
         '<div class="password-wrap"><input class="field-input" type="password" id="' + id + '" value="' + escapeAttr(cfgSecretValue(path.split('.').reduce((o,k)=>o&&o[k], configData))) + '" placeholder="' + escapeAttr(placeholder) + '" data-path="' + path + '" autocomplete="off"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
@@ -218,7 +252,25 @@ function manifestToggleEnabled(isOn) {
 
 function manifestPayload() {
     manifestEnsureData();
+    if (typeof buildConfigPatchFromForm === 'function') {
+        const patch = buildConfigPatchFromForm();
+        return { manifest: Object.assign({}, configData.manifest, patch.manifest || {}) };
+    }
     return { manifest: configData.manifest };
+}
+
+function manifestSelectChanged(selectEl) {
+    cfgToggleCustomInput(selectEl);
+    if (selectEl.value !== 'Other / Custom') {
+        setNestedValue(configData, selectEl.dataset.path, selectEl.value);
+    }
+    markDirty();
+}
+
+function manifestCustomChanged(inputEl) {
+    const path = inputEl.dataset.customFor;
+    if (path) setNestedValue(configData, path, inputEl.value.trim());
+    markDirty();
 }
 
 async function manifestRefreshStatus() {
