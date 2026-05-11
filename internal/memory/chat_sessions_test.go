@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func newTestSTM(t *testing.T) *SQLiteMemory {
@@ -364,8 +365,17 @@ func TestGetSessionMessages(t *testing.T) {
 	if msgs[0].Role != "user" || msgs[0].Content != "hello" {
 		t.Fatalf("unexpected first message: %+v", msgs[0])
 	}
+	if msgs[0].Timestamp == "" {
+		t.Fatal("expected first message timestamp to be returned")
+	}
+	if _, err := time.Parse(time.RFC3339, msgs[0].Timestamp); err != nil {
+		t.Fatalf("first message timestamp is not RFC3339: %q: %v", msgs[0].Timestamp, err)
+	}
 	if msgs[1].Role != "assistant" || msgs[1].Content != "hi there" {
 		t.Fatalf("unexpected second message: %+v", msgs[1])
+	}
+	if msgs[1].Timestamp == "" {
+		t.Fatal("expected second message timestamp to be returned")
 	}
 }
 

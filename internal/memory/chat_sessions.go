@@ -265,7 +265,7 @@ func (s *SQLiteMemory) RotateChatSessionsWithLimit(limit int) error {
 // ordered chronologically.
 func (s *SQLiteMemory) GetSessionMessages(sessionID string) ([]HistoryMessage, error) {
 	rows, err := s.db.Query(
-		`SELECT id, role, content, is_pinned, is_internal FROM messages
+		`SELECT id, role, content, is_pinned, is_internal, timestamp FROM messages
 		 WHERE session_id = ? AND is_internal = 0
 		 ORDER BY timestamp ASC, id ASC`, sessionID,
 	)
@@ -278,11 +278,12 @@ func (s *SQLiteMemory) GetSessionMessages(sessionID string) ([]HistoryMessage, e
 	for rows.Next() {
 		var msg HistoryMessage
 		var pinned, internal bool
-		if err := rows.Scan(&msg.ID, &msg.Role, &msg.Content, &pinned, &internal); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.Role, &msg.Content, &pinned, &internal, &msg.Timestamp); err != nil {
 			return nil, fmt.Errorf("failed to scan session message: %w", err)
 		}
 		msg.Pinned = pinned
 		msg.IsInternal = internal
+		msg.Timestamp = sqliteDatetimeToRFC3339(msg.Timestamp)
 		if ShouldHideAutonomousMessage(sessionID, msg.Role, msg.Content) {
 			continue
 		}

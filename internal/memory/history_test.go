@@ -95,6 +95,12 @@ func TestHistoryManager_PersistAndLoad(t *testing.T) {
 	if all[0].ID != 1 {
 		t.Errorf("expected ID 1, got %d", all[0].ID)
 	}
+	if all[0].Timestamp == "" {
+		t.Fatal("expected persisted message timestamp to be set")
+	}
+	if _, err := time.Parse(time.RFC3339, all[0].Timestamp); err != nil {
+		t.Fatalf("timestamp is not RFC3339: %q: %v", all[0].Timestamp, err)
+	}
 }
 
 func TestHistoryManager_PersistAndLoad_MultiContent(t *testing.T) {

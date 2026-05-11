@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -21,9 +22,10 @@ const (
 
 type HistoryMessage struct {
 	openai.ChatCompletionMessage
-	Pinned     bool  `json:"pinned"`
-	IsInternal bool  `json:"is_internal"`
-	ID         int64 `json:"id"`
+	Pinned     bool   `json:"pinned"`
+	IsInternal bool   `json:"is_internal"`
+	ID         int64  `json:"id"`
+	Timestamp  string `json:"timestamp,omitempty"`
 }
 
 // historyMessageDisk is the on-disk/JSON representation of HistoryMessage.
@@ -41,6 +43,7 @@ type historyMessageDisk struct {
 	Pinned       bool                     `json:"pinned"`
 	IsInternal   bool                     `json:"is_internal"`
 	ID           int64                    `json:"id"`
+	Timestamp    string                   `json:"timestamp,omitempty"`
 }
 
 // MarshalJSON serialises all fields including Pinned, IsInternal, and ID.
@@ -62,6 +65,7 @@ func (h HistoryMessage) MarshalJSON() ([]byte, error) {
 		Pinned:       h.Pinned,
 		IsInternal:   h.IsInternal,
 		ID:           h.ID,
+		Timestamp:    h.Timestamp,
 	})
 }
 
@@ -83,6 +87,7 @@ func (h *HistoryMessage) UnmarshalJSON(data []byte) error {
 	h.Pinned = d.Pinned
 	h.IsInternal = d.IsInternal
 	h.ID = d.ID
+	h.Timestamp = d.Timestamp
 	return nil
 }
 
@@ -250,6 +255,7 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 		ID:         id,
 		Pinned:     pinned,
 		IsInternal: isInternal,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
 	})
 	// For ephemeral (co-agent) history, enforce a message-count ceiling to
 	// prevent unbounded memory growth in long-running co-agent loops.
@@ -269,6 +275,7 @@ func (hm *HistoryManager) AddMessage(msg openai.ChatCompletionMessage, id int64,
 		ID:                    id,
 		Pinned:                pinned,
 		IsInternal:            isInternal,
+		Timestamp:             time.Now().UTC().Format(time.RFC3339),
 	})
 	// For ephemeral (co-agent) history, enforce a message-count ceiling to
 	// prevent unbounded memory growth in long-running co-agent loops.
