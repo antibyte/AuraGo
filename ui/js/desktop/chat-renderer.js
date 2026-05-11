@@ -8,6 +8,9 @@
         seenSSEDocuments: new Set(),
         _md: null,
         _lightbox: null,
+        _audioQueue: [],
+        _audioPlaying: false,
+        _currentAudio: null,
 
         escapeHtml(str) {
             return String(str)
@@ -314,27 +317,38 @@
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
         },
 
+        _playNextAudio() {
+            if (!this._audioQueue.length) {
+                this._audioPlaying = false;
+                this._currentAudio = null;
+                return;
+            }
+            this._audioPlaying = true;
+            const src = this._audioQueue.shift();
+            const audio = new Audio(src);
+            this._currentAudio = audio;
+            let advanced = false;
+            const next = () => {
+                if (advanced) return;
+                advanced = true;
+                if (this._currentAudio === audio) this._currentAudio = null;
+                this._playNextAudio();
+            };
+            audio.addEventListener('ended', next, { once: true });
+            audio.addEventListener('error', next, { once: true });
+            audio.play().catch(next);
+        },
+
+        enqueueAudioAutoPlay(src) {
+            if (!src) return;
+            this._audioQueue.push(src);
+            if (!this._audioPlaying) this._playNextAudio();
+        },
+
         appendAudioMessage(chatLog, audioData) {
             if (!audioData || !audioData.path || this.seenSSEAudios.has(audioData.path)) return;
             this.seenSSEAudios.add(audioData.path);
-            const bubble = this.createBubble('agent', '');
-            const wrapper = document.createElement('div');
-            wrapper.className = 'vd-chat-audio-wrapper';
-            if (audioData.title) {
-                const titleEl = document.createElement('div');
-                titleEl.className = 'vd-chat-audio-title';
-                titleEl.textContent = audioData.title;
-                wrapper.appendChild(titleEl);
-            }
-            const audio = document.createElement('audio');
-            audio.controls = true;
-            audio.src = audioData.path;
-            audio.style.width = '100%';
-            wrapper.appendChild(audio);
-            bubble.appendChild(wrapper);
-            chatLog.appendChild(bubble);
-            const stamp = this.appendTimestamp(chatLog, 'agent');
-            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
+            this.enqueueAudioAutoPlay(audioData.path);
         },
 
         appendDocumentMessage(chatLog, docData) {
