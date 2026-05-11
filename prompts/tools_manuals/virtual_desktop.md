@@ -4,7 +4,7 @@ Use `virtual_desktop` to control AuraGo's first-party browser desktop. It can in
 
 The desktop workspace is jailed to `virtual_desktop.workspace_dir`. Never place credentials or vault values in generated app files. If an app needs sensitive data, build a small backend or agent-mediated flow that retrieves only the minimum safe result.
 
-Generated app and widget iframes run under a restrictive Content Security Policy. Their `connect-src` allows same-origin requests plus `https://api.open-meteo.com` for public weather widgets; do not generate widgets that fetch arbitrary third-party APIs directly from the iframe. For other external data, use an agent-mediated or backend-mediated flow and write only the safe result into the desktop workspace.
+Generated app and widget iframes run under Content Security Policies. Generated apps may use common static library CDNs (`cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, `unpkg.com`, `esm.sh`, `cdn.skypack.dev`) plus Google Fonts; this supports browser-game libraries such as Phaser and other frontend-only runtimes. Widgets stay stricter: their `connect-src` allows same-origin requests plus `https://api.open-meteo.com` for public weather widgets; do not generate widgets that fetch arbitrary third-party APIs directly from the iframe. For other external data, use an agent-mediated or backend-mediated flow and write only the safe result into the desktop workspace.
 Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`, and do not try to reload the desktop shell from widget code; use SDK bridge actions or in-widget state updates instead.
 
 ## Operations

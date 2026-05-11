@@ -78,6 +78,27 @@ func TestDesktopWorkspaceCSPAllowsGeneratedAppSameOrigin(t *testing.T) {
 	}
 }
 
+func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
+	for _, marker := range []string{
+		"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+		"https://cdn.jsdelivr.net",
+		"https://cdnjs.cloudflare.com",
+		"https://unpkg.com",
+		"https://esm.sh",
+		"https://cdn.skypack.dev",
+		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+		"font-src 'self' data: https://fonts.gstatic.com",
+		"img-src 'self' data: blob: https:",
+	} {
+		if !strings.Contains(desktopAppWorkspaceCSP, marker) {
+			t.Fatalf("generated app CSP missing %q: %s", marker, desktopAppWorkspaceCSP)
+		}
+	}
+	if strings.Contains(desktopWidgetWorkspaceCSP, "https://cdn.jsdelivr.net") {
+		t.Fatalf("widget CSP should remain narrower than generated app CSP: %s", desktopWidgetWorkspaceCSP)
+	}
+}
+
 func TestSecurityHeadersDoNotCacheVersionlessDesktopSDK(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
