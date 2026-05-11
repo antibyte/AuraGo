@@ -537,10 +537,12 @@
             <div class="vd-chat-context" data-chat-context hidden></div>
             <form class="vd-chat-form">
                 <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
+                <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
                 <button class="vd-chat-send" type="submit">${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span>${esc(t('desktop.send'))}</span></button>
             </form>
         </div>`;
         const input = host.querySelector('.vd-chat-input');
+        const voiceBtn = host.querySelector('.vd-chat-voice');
         const chatLog = host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
         if (renderer) {
@@ -549,6 +551,7 @@
             appendChat(host, 'agent', t('desktop.chat_welcome'));
         }
         input.placeholder = t('desktop.chat_placeholder');
+        initDesktopChatVoice(host, input, voiceBtn);
         applyChatLaunchContext(id, context || {});
         host.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -574,6 +577,94 @@
                 }
             } finally {
                 state.chatBusy = false;
+            }
+        });
+    }
+
+    function initDesktopChatVoice(host, input, voiceBtn) {
+        if (!input || !voiceBtn) return;
+        const isSecure = window.location.protocol === 'https:' ||
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1';
+        const useBrowserSTT = !!(window.SpeechToText && window.SpeechToText.isSupported);
+        const useRecorderFallback = !!(window.VoiceRecorder && navigator.mediaDevices && window.MediaRecorder);
+        const unavailable = !isSecure || (!useBrowserSTT && !useRecorderFallback);
+        const unavailableText = desktopText('desktop.chat_voice_unavailable', 'Speech input requires HTTPS and browser microphone support.');
+
+        voiceBtn.title = desktopText('desktop.chat_voice_input', 'Voice input');
+        voiceBtn.setAttribute('aria-label', desktopText('desktop.chat_voice_input', 'Voice input'));
+        if (unavailable) {
+            voiceBtn.disabled = true;
+            voiceBtn.classList.add('is-disabled');
+            voiceBtn.title = unavailableText;
+            return;
+        }
+
+        const populateInput = (text) => {
+            const value = String(text || '').trim();
+            if (!value) return;
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+        };
+        const showVoiceError = (message) => {
+            voiceBtn.classList.remove('is-active');
+            if (typeof showDesktopNotification === 'function') {
+                showDesktopNotification({ message: message || unavailableText });
+            }
+        };
+
+        if (useBrowserSTT) {
+            const sttOptions = {
+                onInterimResult: () => {},
+                onFinalResult: () => {},
+                onEnd: (text) => {
+                    voiceBtn.classList.remove('is-active');
+                    populateInput(text);
+                },
+                onError: showVoiceError
+            };
+            if (!window.SpeechToText._overlay) {
+                window.SpeechToText.init(sttOptions);
+            } else {
+                window.SpeechToText.onInterimResult = sttOptions.onInterimResult;
+                window.SpeechToText.onFinalResult = sttOptions.onFinalResult;
+                window.SpeechToText.onEnd = sttOptions.onEnd;
+                window.SpeechToText.onError = sttOptions.onError;
+            }
+        } else if (useRecorderFallback) {
+            const recorderOptions = {
+                onTranscription: (text) => {
+                    voiceBtn.classList.remove('is-active');
+                    populateInput(text);
+                },
+                onError: showVoiceError
+            };
+            if (!window.VoiceRecorder.overlay) {
+                window.VoiceRecorder.init(recorderOptions);
+            } else {
+                window.VoiceRecorder.onTranscription = recorderOptions.onTranscription;
+                window.VoiceRecorder.onError = recorderOptions.onError;
+            }
+        }
+
+        voiceBtn.addEventListener('click', () => {
+            if (useBrowserSTT) {
+                if (window.SpeechToText.isActive) {
+                    window.SpeechToText.stop();
+                    voiceBtn.classList.remove('is-active');
+                } else {
+                    window.SpeechToText.start();
+                    voiceBtn.classList.add('is-active');
+                }
+            } else if (useRecorderFallback) {
+                if (window.VoiceRecorder.isRecording) {
+                    window.VoiceRecorder.send();
+                    voiceBtn.classList.remove('is-active');
+                } else {
+                    window.VoiceRecorder.start();
+                    voiceBtn.classList.add('is-active');
+                }
             }
         });
     }

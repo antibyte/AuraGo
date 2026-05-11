@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Vraag me om apps, widgets of bestanden voor dit bureaublad te maken.",
     "desktop.chat_placeholder": "Vraag de agent...",
     "desktop.send": "Verzenden",
+    "desktop.chat_voice_input": "Spraakinvoer",
+    "desktop.chat_voice_unavailable": "Spraakinvoer vereist HTTPS en microfoonondersteuning in de browser.",
     "desktop.thinking": "Bezig...",
     "desktop.done": "Klaar",
     "desktop.app_missing": "App niet gevonden",

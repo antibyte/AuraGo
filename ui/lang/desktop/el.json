@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Ζητήστε μου να δημιουργήσω εφαρμογές, widget ή αρχεία για αυτήν την επιφάνεια εργασίας.",
     "desktop.chat_placeholder": "Ρωτήστε τον agent...",
     "desktop.send": "Αποστολή",
+    "desktop.chat_voice_input": "Φωνητική είσοδος",
+    "desktop.chat_voice_unavailable": "Η φωνητική είσοδος απαιτεί HTTPS και υποστήριξη μικροφώνου από το πρόγραμμα περιήγησης.",
     "desktop.thinking": "Εργασία...",
     "desktop.done": "Ολοκληρώθηκε",
     "desktop.app_missing": "Η εφαρμογή δεν βρέθηκε",

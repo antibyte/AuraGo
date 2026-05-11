@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Be mig skapa appar, widgetar eller filer för detta skrivbord.",
     "desktop.chat_placeholder": "Fråga agenten...",
     "desktop.send": "Skicka",
+    "desktop.chat_voice_input": "Rostinmatning",
+    "desktop.chat_voice_unavailable": "Rostinmatning kraver HTTPS och mikrofonstod i webblasaren.",
     "desktop.thinking": "Arbetar...",
     "desktop.done": "Klart",
     "desktop.app_missing": "Appen hittades inte",

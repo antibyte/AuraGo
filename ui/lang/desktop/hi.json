@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "मुझसे इस डेस्कटॉप के लिए ऐप, विजेट या फ़ाइलें बनाने को कहें।",
     "desktop.chat_placeholder": "एजेंट से पूछें...",
     "desktop.send": "भेजें",
+    "desktop.chat_voice_input": "वॉइस इनपुट",
+    "desktop.chat_voice_unavailable": "वॉइस इनपुट के लिए HTTPS और ब्राउज़र माइक्रोफ़ोन समर्थन आवश्यक है।",
     "desktop.thinking": "काम कर रहा है...",
     "desktop.done": "पूरा",
     "desktop.app_missing": "ऐप नहीं मिला",

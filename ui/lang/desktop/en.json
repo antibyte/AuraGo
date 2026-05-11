@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Ask me to create apps, widgets, or files for this desktop.",
     "desktop.chat_placeholder": "Ask the agent...",
     "desktop.send": "Send",
+    "desktop.chat_voice_input": "Voice input",
+    "desktop.chat_voice_unavailable": "Speech input requires HTTPS and browser microphone support.",
     "desktop.thinking": "Working...",
     "desktop.done": "Done",
     "desktop.app_missing": "App not found",

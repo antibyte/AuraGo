@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Be meg lage apper, widgeter eller filer for dette skrivebordet.",
     "desktop.chat_placeholder": "Spør agenten...",
     "desktop.send": "Send",
+    "desktop.chat_voice_input": "Taleinndata",
+    "desktop.chat_voice_unavailable": "Taleinndata krever HTTPS og mikrofonstoette i nettleseren.",
     "desktop.thinking": "Arbeider...",
     "desktop.done": "Ferdig",
     "desktop.app_missing": "App ikke funnet",

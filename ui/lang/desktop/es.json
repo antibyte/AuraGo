@@ -59,6 +59,8 @@
     "desktop.chat_welcome": "Pídeme apps, widgets o archivos para este escritorio.",
     "desktop.chat_placeholder": "Pregunta al agente...",
     "desktop.send": "Enviar",
+    "desktop.chat_voice_input": "Entrada de voz",
+    "desktop.chat_voice_unavailable": "La entrada de voz requiere HTTPS y compatibilidad de microfono en el navegador.",
     "desktop.thinking": "Trabajando...",
     "desktop.done": "Hecho",
     "desktop.app_missing": "App no encontrada",
