@@ -40,6 +40,7 @@ func TestManifestConfigModuleControls(t *testing.T) {
 		"manifest.api_key",
 		"manifest.postgres_password",
 		"manifest.better_auth_secret",
+		"if (managed) {",
 		"/api/manifest/test",
 		"/api/manifest/start",
 		"/api/manifest/stop",

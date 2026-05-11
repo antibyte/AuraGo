@@ -65,6 +65,28 @@ func TestManifestStartRequiresPost(t *testing.T) {
 	}
 }
 
+func TestManifestStartExternalModeDoesNotReportSidecarStart(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	s.Cfg.Manifest.Enabled = true
+	s.Cfg.Manifest.Mode = "external"
+	s.Cfg.Manifest.ExternalBaseURL = "https://manifest.example.test/v1"
+
+	req := httptest.NewRequest(http.MethodPost, "/api/manifest/start", nil)
+	rec := httptest.NewRecorder()
+
+	handleManifestStart(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "starting") || strings.Contains(rec.Body.String(), "sidecars are starting") {
+		t.Fatalf("body = %s, want external mode no-op status", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "external mode") {
+		t.Fatalf("body = %s, want external mode message", rec.Body.String())
+	}
+}
+
 func TestEnsureManifestSecretsCreatesManagedSidecarSecrets(t *testing.T) {
 	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	vault, err := security.NewVault(masterKey, filepath.Join(t.TempDir(), "vault.bin"))
@@ -117,5 +139,20 @@ func TestManifestTestAcceptsPatchAndReportsSetupRequired(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "setup_required") {
 		t.Fatalf("body = %s, want setup_required", rec.Body.String())
+	}
+}
+
+func TestManifestTestRejectsInvalidJSONWithoutStatusBody(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	req := httptest.NewRequest(http.MethodPost, "/api/manifest/test", strings.NewReader(`{"manifest":`))
+	rec := httptest.NewRecorder()
+
+	handleManifestTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "setup_required") || strings.Contains(rec.Body.String(), "disabled") {
+		t.Fatalf("body = %s, want only invalid payload error", rec.Body.String())
 	}
 }

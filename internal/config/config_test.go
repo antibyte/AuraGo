@@ -1053,6 +1053,7 @@ func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
 	cfg := &Config{}
 	cfg.Manifest.Mode = "managed"
 	cfg.Manifest.URL = "http://manifest:2099"
+	cfg.Manifest.APIKey = "mnfst_from_manifest_section"
 	cfg.Providers = []ProviderEntry{{
 		ID:    "manifest",
 		Type:  "manifest",
@@ -1071,6 +1072,9 @@ func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
 	if cfg.LLM.ProviderType != "manifest" {
 		t.Fatalf("ProviderType = %q, want manifest", cfg.LLM.ProviderType)
 	}
+	if cfg.LLM.APIKey != "mnfst_from_manifest_section" {
+		t.Fatalf("LLM APIKey = %q, want Manifest section API key", cfg.LLM.APIKey)
+	}
 }
 
 func TestManifestProviderExternalDefaultBaseURL(t *testing.T) {
@@ -1088,6 +1092,26 @@ func TestManifestProviderExternalDefaultBaseURL(t *testing.T) {
 
 	if cfg.LLM.BaseURL != "https://manifest.example.test/v1" {
 		t.Fatalf("LLM base_url = %q, want external Manifest /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
+func TestManifestProviderSpecificAPIKeyOverridesManifestSectionKey(t *testing.T) {
+	cfg := &Config{}
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = "http://manifest:2099"
+	cfg.Manifest.APIKey = "mnfst_shared"
+	cfg.Providers = []ProviderEntry{{
+		ID:     "manifest",
+		Type:   "manifest",
+		Model:  "manifest/auto",
+		APIKey: "mnfst_provider_specific",
+	}}
+	cfg.LLM.Provider = "manifest"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.APIKey != "mnfst_provider_specific" {
+		t.Fatalf("LLM APIKey = %q, want provider-specific Manifest key", cfg.LLM.APIKey)
 	}
 }
 

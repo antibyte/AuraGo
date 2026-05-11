@@ -54,6 +54,9 @@ llm:
 ```
 
 The API key belongs in the vault, not in YAML.
+Manifest providers without their own provider API key automatically use the
+vault-backed `manifest.api_key` value, so a single Manifest key can be managed
+from the Manifest config section.
 
 ## External Mode
 

@@ -31,7 +31,9 @@ func handleManifestTest(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := currentManifestConfig(s)
-		applyManifestPatch(w, r, &cfg)
+		if !applyManifestPatch(w, r, &cfg) {
+			return
+		}
 		writeManifestJSON(w, manifestStatus(r.Context(), s, &cfg))
 	}
 }
@@ -45,6 +47,12 @@ func handleManifestStart(s *Server) http.HandlerFunc {
 		cfg := currentManifestConfig(s)
 		if !cfg.Manifest.Enabled {
 			writeManifestJSON(w, map[string]interface{}{"enabled": false, "status": "disabled", "message": "Manifest integration is disabled"})
+			return
+		}
+		if strings.EqualFold(strings.TrimSpace(cfg.Manifest.Mode), "external") {
+			status := manifestStatus(r.Context(), s, &cfg)
+			status["message"] = "Manifest is configured in external mode; no sidecars to start"
+			writeManifestJSON(w, status)
 			return
 		}
 		if err := s.ensureManifestSecrets(&cfg); err != nil {
@@ -75,6 +83,12 @@ func handleManifestStop(s *Server) http.HandlerFunc {
 		cfg := currentManifestConfig(s)
 		if !cfg.Manifest.Enabled {
 			writeManifestJSON(w, map[string]interface{}{"enabled": false, "status": "disabled", "message": "Manifest integration is disabled"})
+			return
+		}
+		if strings.EqualFold(strings.TrimSpace(cfg.Manifest.Mode), "external") {
+			status := manifestStatus(r.Context(), s, &cfg)
+			status["message"] = "Manifest is configured in external mode; no sidecars to stop"
+			writeManifestJSON(w, status)
 			return
 		}
 		go func() {
@@ -159,21 +173,25 @@ func manifestStatus(ctx context.Context, s *Server, cfg *config.Config) map[stri
 	return out
 }
 
-func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {
 	if r.Body == nil {
-		return
+		return true
 	}
 	defer r.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil || len(strings.TrimSpace(string(data))) == 0 {
-		return
+		if err != nil {
+			jsonError(w, "Invalid request payload", http.StatusBadRequest)
+			return false
+		}
+		return true
 	}
 	var req struct {
 		Manifest config.ManifestConfig `json:"manifest"`
 	}
 	if err := json.Unmarshal(data, &req); err != nil {
 		jsonError(w, "Invalid request payload", http.StatusBadRequest)
-		return
+		return false
 	}
 	patch := req.Manifest
 	if patch.Enabled {
@@ -233,6 +251,7 @@ func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Conf
 	if strings.TrimSpace(patch.HealthPath) != "" {
 		cfg.Manifest.HealthPath = patch.HealthPath
 	}
+	return true
 }
 
 func writeManifestJSON(w http.ResponseWriter, payload interface{}) {

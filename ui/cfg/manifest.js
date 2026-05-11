@@ -170,8 +170,10 @@ async function renderManifestSection(section) {
 
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">' + manifestText('config.manifest.test_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestStartSidecars()" id="manifest-start-btn">' + manifestText('config.manifest.start_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="manifestStopSidecars()" id="manifest-stop-btn">' + manifestText('config.manifest.stop_button') + '</button>';
+    if (managed) {
+        html += '<button class="btn-save dc-test-btn" onclick="manifestStartSidecars()" id="manifest-start-btn">' + manifestText('config.manifest.start_button') + '</button>';
+        html += '<button class="btn-save dc-test-btn" onclick="manifestStopSidecars()" id="manifest-stop-btn">' + manifestText('config.manifest.stop_button') + '</button>';
+    }
     html += '<span id="manifest-result" class="dc-test-result"></span>';
     html += '</div>';
     html += '<div id="manifest-status-panel" class="cfg-note-banner cfg-note-banner-info"></div>';

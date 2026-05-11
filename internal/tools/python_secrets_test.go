@@ -77,6 +77,9 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"credential_certificate_tls",
 		"vapid_private_key",
 		"homepage_api",
+		"manifest_api_key",
+		"manifest_postgres_password",
+		"manifest_better_auth_secret",
 		"nest_refresh_token",
 	}
 	for _, k := range prefixed {

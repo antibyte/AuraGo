@@ -213,6 +213,9 @@ func (c *Config) ResolveProviders() {
 		if lower == "manifest" && strings.TrimSpace(p.BaseURL) == "" {
 			p.BaseURL = c.ManifestProviderBaseURL()
 		}
+		if lower == "manifest" && strings.TrimSpace(p.APIKey) == "" {
+			p.APIKey = strings.TrimSpace(c.Manifest.APIKey)
+		}
 		p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
 	}
 
