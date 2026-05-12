@@ -1031,6 +1031,16 @@ mcp:
     #     X-Custom-Header: "{{custom-secret}}"
     #   allowed_tools: []
     #   allow_destructive: false
+    # host-local stdio bridge example for Docker deployments:
+    # 1. Run this on the Docker host, not inside the AuraGo container:
+    #    npx -y supergateway --stdio "uvx mcp-server-fetch" --port 9100 --outputTransport streamableHttp --streamableHttpPath /mcp
+    # 2. Connect AuraGo to the bridge via host.docker.internal. In Docker, localhost points to the container itself.
+    # - name: host-fetch
+    #   enabled: true
+    #   transport: streamable_http
+    #   url: http://host.docker.internal:9100/mcp
+    #   allowed_tools: []
+    #   allow_destructive: false
     preferred_capabilities:
         web_search:
             server: ""
