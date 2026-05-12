@@ -793,13 +793,21 @@
                 streamTextFrame = 0;
                 if (!streamingBubble || !streamingBubble.classList.contains('vd-streaming')) return;
                 streamingBubble.textContent = streamingContent;
-                streamingBubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                keepAgentStatusAtEnd();
             }
 
             function queueStreamingBubbleFlush() {
                 if (streamTextFrame) return;
                 const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
                 streamTextFrame = schedule(flushStreamingBubble);
+            }
+
+            function keepAgentStatusAtEnd() {
+                if (!statusEl || statusEl.parentNode !== chatLog) return;
+                if (chatLog.lastElementChild !== statusEl) {
+                    chatLog.appendChild(statusEl);
+                }
+                statusEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
             }
 
             fetch('/api/desktop/chat/stream', {
@@ -856,6 +864,7 @@
                             streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
                             chatLog.appendChild(streamingBubble);
                             if (renderer) renderer.appendTimestamp(chatLog, 'agent');
+                            keepAgentStatusAtEnd();
                         }
                         streamingContent += content;
                         if (streamingBubble.classList.contains('vd-streaming')) {
@@ -865,28 +874,41 @@
                         const state2 = data.state || '';
                         if (statusEl && state2 === 'start' && renderer) {
                             renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
+                            keepAgentStatusAtEnd();
                         }
                     } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||
                         event === 'co_agent_spawn' || event === 'workflow_plan' || event === 'coding' ||
                         event === 'error_recovery') {
                         if (statusEl && renderer) {
                             const status = renderer.formatAgentActionStatus(data);
-                            if (status) renderer.updateStatus(statusEl, status);
+                            if (status) {
+                                renderer.updateStatus(statusEl, status);
+                                keepAgentStatusAtEnd();
+                            }
                         }
                     } else if (event === 'tool_call') {
                         if (renderer) {
                             const text = renderer.extractToolCallNarration(data.detail || data.message || '');
-                            if (text) renderer.appendRichBubble(chatLog, 'agent', text);
+                            if (text) {
+                                renderer.appendRichBubble(chatLog, 'agent', text);
+                                keepAgentStatusAtEnd();
+                            }
                         }
                     } else if (event === 'image') {
                         try {
                             const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                            if (renderer) renderer.appendImageMessage(chatLog, imgData);
+                            if (renderer) {
+                                renderer.appendImageMessage(chatLog, imgData);
+                                keepAgentStatusAtEnd();
+                            }
                         } catch (_) {}
                     } else if (event === 'video') {
                         try {
                             const videoData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                            if (renderer) renderer.appendVideoMessage(chatLog, videoData);
+                            if (renderer) {
+                                renderer.appendVideoMessage(chatLog, videoData);
+                                keepAgentStatusAtEnd();
+                            }
                         } catch (_) {}
                     } else if (event === 'audio') {
                         try {
@@ -896,7 +918,10 @@
                     } else if (event === 'document') {
                         try {
                             const docData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
-                            if (renderer) renderer.appendDocumentMessage(chatLog, docData);
+                            if (renderer) {
+                                renderer.appendDocumentMessage(chatLog, docData);
+                                keepAgentStatusAtEnd();
+                            }
                         } catch (_) {}
                     } else if (event === 'final_response') {
                         if (data.detail || data.message) {
@@ -904,6 +929,7 @@
                             if (!streamingBubble && text.trim()) {
                                 if (renderer) {
                                     renderer.appendRichBubble(chatLog, 'agent', text);
+                                    keepAgentStatusAtEnd();
                                 } else {
                                     appendChat(host, 'agent', text);
                                 }

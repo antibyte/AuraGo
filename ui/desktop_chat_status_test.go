@@ -33,6 +33,9 @@ func TestDesktopChatShowsDetailedAgentActionStatus(t *testing.T) {
 		"event === 'workflow_plan'",
 		"event === 'coding'",
 		"event === 'error_recovery'",
+		"function keepAgentStatusAtEnd()",
+		"chatLog.lastElementChild !== statusEl",
+		"chatLog.appendChild(statusEl)",
 	} {
 		if !strings.Contains(chat, marker) {
 			t.Fatalf("desktop chat stream missing detailed action handling marker %q", marker)
