@@ -405,6 +405,21 @@ func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
 	}
 }
 
+func TestWindowsReleaseUploadsAssetsIndividually(t *testing.T) {
+	t.Parallel()
+
+	script := readRepoFile(t, "make_release.bat")
+	if strings.Contains(script, "set ASSETS=") || strings.Contains(script, "gh release create \"!VERSION!\" !ASSETS!") {
+		t.Fatal("make_release.bat must not pass a long expanded ASSETS variable to gh release create")
+	}
+	if !strings.Contains(script, "gh release upload \"!VERSION!\" \"%%~F\" --clobber") {
+		t.Fatal("make_release.bat should upload release assets one at a time with stable quoting")
+	}
+	if !strings.Contains(script, "Creating GitHub Release !VERSION!") || !strings.Contains(script, "Uploading release assets") {
+		t.Fatal("make_release.bat should separate release creation from asset upload")
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 

@@ -243,7 +243,15 @@ REM -- [4/5] Create GitHub Release
 echo [4/5] Creating GitHub Release !VERSION! ...
 echo.
 
-set ASSETS=
+gh release create "!VERSION!" --title "AuraGo !VERSION!" --notes "## AuraGo !VERSION!"
+if errorlevel 1 (
+    echo [ERROR] gh release create failed.
+    echo         Check: gh auth status  ^(must be logged in^)
+    echo         Tag !VERSION! may already exist: gh release delete !VERSION!
+    exit /b 1
+)
+
+echo     Uploading release assets...
 for %%F in (
     "deploy\resources.dat"
     "deploy\SHA256SUMS"
@@ -266,15 +274,13 @@ for %%F in (
     "deploy\install.sh"
     "deploy\update.sh"
 ) do (
-    if exist %%F set ASSETS=!ASSETS! %%F
-)
-
-gh release create "!VERSION!" !ASSETS! --title "AuraGo !VERSION!" --notes "## AuraGo !VERSION!"
-if errorlevel 1 (
-    echo [ERROR] gh release create failed.
-    echo         Check: gh auth status  ^(must be logged in^)
-    echo         Tag !VERSION! may already exist: gh release delete !VERSION!
-    exit /b 1
+    if exist "%%~F" (
+        gh release upload "!VERSION!" "%%~F" --clobber
+        if errorlevel 1 (
+            echo [ERROR] Failed to upload release asset: %%~F
+            exit /b 1
+        )
+    )
 )
 
 REM -- [5/5] Cleanup old releases
