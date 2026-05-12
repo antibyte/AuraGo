@@ -2,6 +2,8 @@ package tools
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -107,6 +109,53 @@ func TestResolveManifestSidecarConfigBuildsURLs(t *testing.T) {
 	}
 	if sidecar.BrowserBaseURL != "http://127.0.0.1:2099" {
 		t.Fatalf("docker BrowserBaseURL = %q, want host-published browser URL", sidecar.BrowserBaseURL)
+	}
+}
+
+func TestResolveManifestSidecarConfigNormalizesExternalEndpoint(t *testing.T) {
+	cfg := manifestTestConfig()
+	cfg.Manifest.Mode = "external"
+	cfg.Manifest.ExternalBaseURL = "https://manifest.example.test/v1/chat/completions"
+
+	sidecar, err := ResolveManifestSidecarConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig(external) error = %v", err)
+	}
+	if sidecar.ProviderBaseURL != "https://manifest.example.test/v1" {
+		t.Fatalf("ProviderBaseURL = %q, want normalized OpenAI-compatible endpoint", sidecar.ProviderBaseURL)
+	}
+}
+
+func TestStopManifestSidecarsDoesNotRequireManagedSecrets(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
+	defer ClearRuntimePermissionsForTest()
+
+	var calls []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.String())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer api.Close()
+
+	cfg := manifestTestConfig()
+	cfg.Manifest.PostgresPassword = ""
+	cfg.Manifest.BetterAuthSecret = ""
+
+	host := "tcp://" + strings.TrimPrefix(api.URL, "http://")
+	if err := StopManifestSidecars(t.Context(), host, cfg, nil); err != nil {
+		t.Fatalf("StopManifestSidecars() error = %v", err)
+	}
+
+	got := strings.Join(calls, "\n")
+	for _, want := range []string{
+		"POST /v1.45/containers/aurago_manifest/stop?t=5",
+		"DELETE /v1.45/containers/aurago_manifest?force=true",
+		"POST /v1.45/containers/aurago_manifest_postgres/stop?t=5",
+		"DELETE /v1.45/containers/aurago_manifest_postgres?force=true",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Docker calls missing %q:\n%s", want, got)
+		}
 	}
 }
 

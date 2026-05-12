@@ -778,7 +778,11 @@ func manifestProxyTarget(cfg *config.Config) string {
 	if cfg.Runtime.IsDocker {
 		return "http://manifest:" + strconv.Itoa(port)
 	}
-	return "http://127.0.0.1:" + strconv.Itoa(port)
+	hostPort := cfg.Manifest.HostPort
+	if hostPort <= 0 {
+		hostPort = port
+	}
+	return "http://127.0.0.1:" + strconv.Itoa(hostPort)
 }
 
 func (m *Manager) effectiveManifestHostname() string {

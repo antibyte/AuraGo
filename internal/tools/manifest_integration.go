@@ -110,7 +110,7 @@ func ResolveManifestSidecarConfig(cfg *config.Config, runningInDocker bool) (Man
 		mode = "managed"
 	}
 	if mode != "managed" {
-		return ManifestSidecarConfig{Mode: mode, ProviderBaseURL: strings.TrimRight(strings.TrimSpace(cfg.Manifest.ExternalBaseURL), "/")}, nil
+		return ManifestSidecarConfig{Mode: mode, ProviderBaseURL: cfg.ManifestProviderBaseURL()}, nil
 	}
 	postgresPassword := strings.TrimSpace(cfg.Manifest.PostgresPassword)
 	if postgresPassword == "" {
@@ -178,6 +178,10 @@ func defaultManifestBaseURL(runningInDocker bool, port int) string {
 		return fmt.Sprintf("http://manifest:%d", port)
 	}
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
+}
+
+func manifestRunsInDocker(cfg *config.Config) bool {
+	return (cfg != nil && cfg.Runtime.IsDocker) || browserAutomationRunsInDocker()
 }
 
 func defaultString(value, fallback string) string {
@@ -286,7 +290,7 @@ func EnsureManifestSidecarsRunning(ctx context.Context, dockerHost string, cfg *
 	if cfg == nil || !cfg.Manifest.Enabled || strings.ToLower(strings.TrimSpace(cfg.Manifest.Mode)) == "external" {
 		return nil
 	}
-	sidecar, err := ResolveManifestSidecarConfig(cfg, browserAutomationRunsInDocker())
+	sidecar, err := ResolveManifestSidecarConfig(cfg, manifestRunsInDocker(cfg))
 	if err != nil {
 		return err
 	}
@@ -415,12 +419,34 @@ func StopManifestSidecars(ctx context.Context, dockerHost string, cfg *config.Co
 	Warn(string, ...any)
 	Error(string, ...any)
 }) error {
-	sidecar, err := ResolveManifestSidecarConfig(cfg, browserAutomationRunsInDocker())
-	if err != nil {
-		return err
+	if cfg == nil {
+		return fmt.Errorf("config is required")
+	}
+	if !cfg.Manifest.Enabled {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(cfg.Manifest.Mode))
+	if mode == "" {
+		mode = "managed"
+	}
+	if mode != "managed" {
+		return nil
+	}
+	manifestContainer := strings.TrimSpace(cfg.Manifest.ContainerName)
+	if manifestContainer == "" {
+		manifestContainer = manifestDefaultContainerName
+	}
+	postgresContainer := strings.TrimSpace(cfg.Manifest.PostgresContainerName)
+	if postgresContainer == "" {
+		postgresContainer = manifestDefaultPostgresContainerName
+	}
+	for _, name := range []string{manifestContainer, postgresContainer} {
+		if err := validateDockerName(name); err != nil {
+			return err
+		}
 	}
 	dockerCfg := DockerConfig{Host: dockerHost}
-	for _, name := range []string{sidecar.ContainerName, sidecar.PostgresContainerName} {
+	for _, name := range []string{manifestContainer, postgresContainer} {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -429,7 +455,9 @@ func StopManifestSidecars(ctx context.Context, dockerHost string, cfg *config.Co
 		_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(name)+"/stop?t=5", "")
 		_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+url.PathEscape(name)+"?force=true", "")
 	}
-	logger.Info("[Manifest] Sidecars stopped", "container", sidecar.ContainerName, "postgres", sidecar.PostgresContainerName)
+	if logger != nil {
+		logger.Info("[Manifest] Sidecars stopped", "container", manifestContainer, "postgres", postgresContainer)
+	}
 	return nil
 }
 
@@ -441,7 +469,7 @@ func ManifestSidecarStatus(ctx context.Context, dockerHost string, cfg *config.C
 	if !cfg.Manifest.Enabled {
 		return ManifestStatus{Enabled: false, Mode: cfg.Manifest.Mode, Status: "disabled"}, nil
 	}
-	sidecar, err := ResolveManifestSidecarConfig(cfg, browserAutomationRunsInDocker())
+	sidecar, err := ResolveManifestSidecarConfig(cfg, manifestRunsInDocker(cfg))
 	if err != nil {
 		return ManifestStatus{Enabled: true, Mode: cfg.Manifest.Mode, Status: "setup_required", Message: err.Error(), AdminSetupRequired: true}, nil
 	}
@@ -457,8 +485,8 @@ func ManifestSidecarStatus(ctx context.Context, dockerHost string, cfg *config.C
 	}
 	if sidecar.Mode != "managed" {
 		status.Status = manifestStatusUnknown
-		status.URL = strings.TrimRight(strings.TrimSpace(cfg.Manifest.ExternalBaseURL), "/")
-		status.ProviderBaseURL = status.URL
+		status.URL = sidecar.ProviderBaseURL
+		status.ProviderBaseURL = sidecar.ProviderBaseURL
 		return status, nil
 	}
 	data, code, err := dockerRequest(DockerConfig{Host: dockerHost}, http.MethodGet, "/containers/"+url.PathEscape(sidecar.ContainerName)+"/json", "")

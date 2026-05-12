@@ -647,6 +647,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			oldManifestRuntime := oldCfg.Manifest
+			newManifestRuntime := newCfg.Manifest
+			oldManifestRuntime.APIKey = ""
+			newManifestRuntime.APIKey = ""
+			manifestRuntimeChanged := oldManifestRuntime != newManifestRuntime || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
 			if manifestChanged && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
 				if err := s.ensureManifestSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Manifest secrets", "error", err)
@@ -654,6 +659,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					go func() {
 						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 						defer cancel()
+						if manifestRuntimeChanged && oldCfg.Manifest.Enabled && strings.EqualFold(oldCfg.Manifest.Mode, "managed") {
+							if err := tools.StopManifestSidecars(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+								s.Logger.Warn("[Config UI] Failed to recreate old Manifest sidecars", "error", err)
+							}
+						}
 						if err := tools.EnsureManifestSidecarsRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
 							s.Logger.Warn("[Config UI] Failed to start Manifest sidecars", "error", err)
 						}
@@ -664,7 +674,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go func() {
 					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 					defer cancel()
-					if err := tools.StopManifestSidecars(ctx, newCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+					if err := tools.StopManifestSidecars(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
 						s.Logger.Warn("[Config UI] Failed to stop Manifest sidecars", "error", err)
 					}
 				}()
