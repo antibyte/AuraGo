@@ -355,7 +355,7 @@ func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	}
 }
 
-func TestDockerComposeProxyAllowsCodeStudioImageBuilds(t *testing.T) {
+func TestDockerComposeProxyDoesNotRequireCodeStudioImageBuilds(t *testing.T) {
 	t.Parallel()
 
 	compose := readRepoFile(t, "docker-compose.yml")
@@ -367,8 +367,26 @@ func TestDockerComposeProxyAllowsCodeStudioImageBuilds(t *testing.T) {
 	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
 		proxyBlock = proxyBlock[:volumesStart]
 	}
-	if !strings.Contains(proxyBlock, "- BUILD=1") {
-		t.Fatal("docker-proxy must allow Docker build API calls for the managed Code Studio image")
+	if strings.Contains(proxyBlock, "- BUILD=1") {
+		t.Fatal("docker-proxy must not require Docker build API calls for the managed Code Studio image")
+	}
+	if !strings.Contains(proxyBlock, "- IMAGES=1") || !strings.Contains(proxyBlock, "- POST=1") {
+		t.Fatal("docker-proxy must still allow pulling published Code Studio images")
+	}
+}
+
+func TestDockerPublishWorkflowPublishesCodeStudioImage(t *testing.T) {
+	t.Parallel()
+
+	workflow := readRepoFile(t, ".github/workflows/docker-publish.yml")
+	for _, want := range []string{
+		"CODE_STUDIO_IMAGE_NAME",
+		"deploy/docker/Dockerfile.code-studio",
+		"aurago-code-studio",
+	} {
+		if !strings.Contains(workflow, want) {
+			t.Fatalf("docker-publish workflow must publish Code Studio image; missing %q", want)
+		}
 	}
 }
 

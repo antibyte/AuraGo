@@ -228,6 +228,9 @@ func TestCodeContainerStatusUsesDefaultsWithoutStartingContainer(t *testing.T) {
 	if status.Image != defaultCodeContainerImage {
 		t.Fatalf("image = %q, want default image", status.Image)
 	}
+	if status.Image != "ghcr.io/antibyte/aurago-code-studio:latest" {
+		t.Fatalf("default code studio image = %q, want published image", status.Image)
+	}
 	if status.WorkspaceHostPath != filepath.Join(workspace, codeWorkspaceDirName) {
 		t.Fatalf("workspace host path = %q", status.WorkspaceHostPath)
 	}

@@ -650,7 +650,7 @@ virtual_desktop:
     max_ws_clients: 8
     code_studio:
         enabled: true
-        image: aurago/code-studio:latest
+        image: ghcr.io/antibyte/aurago-code-studio:latest
         auto_start: false                                  # false = lazy start when the app opens
         auto_stop_minutes: 30                              # stop container after inactivity
         max_memory_mb: 4096                                # Docker memory limit

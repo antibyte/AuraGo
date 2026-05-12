@@ -148,7 +148,7 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 | Risk if compromised | Limited to allowed operations | Complete host takeover |
 | Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
 
-The default proxy also enables Docker build requests (`BUILD=1`) so AuraGo can build the managed Code Studio development image through the Docker Engine API. AuraGo does not require the `docker` CLI inside its own container for this.
+The default proxy keeps Docker build requests disabled (`BUILD=0`). Code Studio uses the published `ghcr.io/antibyte/aurago-code-studio` image, so AuraGo only needs image pull/create access through `IMAGES=1` and `POST=1`; it does not require the `docker` CLI or the Docker build API inside its own container.
 
 ### Switching to Direct Socket Access (NOT recommended)
 
@@ -460,7 +460,7 @@ docker compose up -d
 - [ ] Master key backed up securely (password manager, encrypted storage)
 - [ ] Docker socket proxy enabled (not direct socket mount)
 - [ ] EXEC=0 in docker-proxy if DockerExec tool not needed
-- [ ] BUILD=1 kept enabled if you use the managed Code Studio app
+- [ ] IMAGES=1 and POST=1 kept enabled if you use the managed Code Studio app
 - [ ] Resource limits configured appropriately for your hardware
 - [ ] SSH keys for Ansible are dedicated keys, not your personal keys
 - [ ] Regular security updates applied to host system

@@ -21,6 +21,9 @@ type codeStudioDockerAdapter struct {
 	logger *slog.Logger
 }
 
+const legacyLocalCodeStudioImage = "aurago/code-studio:latest"
+const publishedCodeStudioImage = "ghcr.io/antibyte/aurago-code-studio:latest"
+
 func newCodeStudioDockerAdapter(cfg desktop.Config, logger *slog.Logger) codeStudioDockerAdapter {
 	return codeStudioDockerAdapter{
 		cfg: tools.DockerConfig{
@@ -80,11 +83,14 @@ func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) 
 	if exists {
 		return nil
 	}
-	if image == "aurago/code-studio:latest" {
+	if strings.EqualFold(image, legacyLocalCodeStudioImage) {
 		if err := a.buildDefaultImage(ctx, image); err != nil {
 			return fmt.Errorf("build default code studio image: %w", err)
 		}
 		return nil
+	}
+	if strings.EqualFold(image, publishedCodeStudioImage) && a.logger != nil {
+		a.logger.Info("Pulling published Code Studio image; Docker build API is not required", "image", image)
 	}
 	return tools.PullImageWait(ctx, a.cfg, image, a.logger)
 }

@@ -717,6 +717,47 @@ func TestLoadSendYouTubeVideoDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadCodeStudioDefaultsToPublishedImage(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.VirtualDesktop.CodeStudio.Image != "ghcr.io/antibyte/aurago-code-studio:latest" {
+		t.Fatalf("code studio image = %q, want published image", cfg.VirtualDesktop.CodeStudio.Image)
+	}
+}
+
+func TestLoadMigratesLegacyCodeStudioDefaultImage(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+virtual_desktop:
+  code_studio:
+    image: aurago/code-studio:latest
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.VirtualDesktop.CodeStudio.Image != "ghcr.io/antibyte/aurago-code-studio:latest" {
+		t.Fatalf("legacy code studio image = %q, want published image", cfg.VirtualDesktop.CodeStudio.Image)
+	}
+}
+
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

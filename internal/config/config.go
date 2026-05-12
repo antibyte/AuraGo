@@ -290,7 +290,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.AllowGeneratedApps = true
 	cfg.VirtualDesktop.CodeStudio.Enabled = true
-	cfg.VirtualDesktop.CodeStudio.Image = "aurago/code-studio:latest"
+	cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
 	cfg.VirtualDesktop.CodeStudio.AutoStart = false
 	cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30
 	cfg.VirtualDesktop.CodeStudio.MaxMemoryMB = 4096
@@ -577,7 +577,10 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualDesktop.MaxWSClients = 8
 	}
 	if strings.TrimSpace(cfg.VirtualDesktop.CodeStudio.Image) == "" {
-		cfg.VirtualDesktop.CodeStudio.Image = "aurago/code-studio:latest"
+		cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.VirtualDesktop.CodeStudio.Image), "aurago/code-studio:latest") {
+		cfg.VirtualDesktop.CodeStudio.Image = "ghcr.io/antibyte/aurago-code-studio:latest"
 	}
 	if cfg.VirtualDesktop.CodeStudio.AutoStopMinutes <= 0 {
 		cfg.VirtualDesktop.CodeStudio.AutoStopMinutes = 30

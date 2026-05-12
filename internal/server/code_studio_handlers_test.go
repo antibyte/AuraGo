@@ -273,14 +273,17 @@ func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	}
 }
 
-func TestCodeStudioDefaultImageBuildUsesDockerAPI(t *testing.T) {
+func TestCodeStudioDefaultImageDoesNotRequireDockerAPIBuild(t *testing.T) {
 	source, err := os.ReadFile("code_studio_docker_adapter.go")
 	if err != nil {
 		t.Fatalf("read code studio docker adapter: %v", err)
 	}
 	text := string(source)
-	if !strings.Contains(text, "tools.BuildImageWait") {
-		t.Fatal("Code Studio default image build should use the Docker Engine API helper")
+	if !strings.Contains(text, "ghcr.io/antibyte/aurago-code-studio:latest") {
+		t.Fatal("Code Studio default image should be pulled from the published registry image")
+	}
+	if strings.Contains(text, `image == "aurago/code-studio:latest"`) {
+		t.Fatal("Code Studio default image must not be the locally built legacy image")
 	}
 	for _, forbidden := range []string{"exec.Command", "exec.CommandContext", `"docker", "build"`} {
 		if strings.Contains(text, forbidden) {

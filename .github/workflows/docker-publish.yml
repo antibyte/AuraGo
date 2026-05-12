@@ -9,6 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  CODE_STUDIO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-code-studio
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -36,7 +37,9 @@ jobs:
       # Docker registry requires all-lowercase image names.
       # github.repository may contain uppercase letters (e.g. antibyte/AuraGo).
       - name: Lowercase image name
-        run: echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+        run: |
+          echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "CODE_STUDIO_IMAGE_LC=${CODE_STUDIO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       # Needed for multi-platform (arm64) emulation
       - name: Set up QEMU
@@ -78,3 +81,25 @@ jobs:
           # Cache layers in the registry to speed up subsequent builds
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache,mode=max
+
+      - name: Extract Code Studio metadata (tags, labels)
+        id: code-studio-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push Code Studio image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.code-studio
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.code-studio-meta.outputs.tags }}
+          labels: ${{ steps.code-studio-meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache
+          cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache,mode=max

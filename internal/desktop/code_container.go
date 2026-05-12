@@ -13,7 +13,7 @@ import (
 
 const (
 	codeContainerName             = "aurago-code-studio"
-	defaultCodeContainerImage     = "aurago/code-studio:latest"
+	defaultCodeContainerImage     = "ghcr.io/antibyte/aurago-code-studio:latest"
 	codeWorkspaceInContainer      = "/workspace"
 	codeWorkspaceDirName          = "code-studio-workspace"
 	defaultCodeContainerMemoryMB  = 4096
