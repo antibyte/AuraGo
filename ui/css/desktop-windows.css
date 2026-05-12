@@ -534,11 +534,14 @@
 @keyframes vd-menu-close-fruity {
     from { opacity: 1; transform: translateY(0) scale(1); }
     to { opacity: 0; transform: translateY(8px) scale(0.96); }
-}@media (max-width: 820px) {
-.vd-window {
+}
+
+@media (max-width: 820px) {
+.vd-window,
+.vd-window.maximized {
         left: 0 !important;
         top: 0 !important;
-        width: 100vw !important;
+        width: var(--vd-mobile-workspace-width) !important;
         height: calc(var(--vd-visual-height, 100dvh) - 58px - env(safe-area-inset-bottom)) !important;
         min-width: 0 !important;
         min-height: 0 !important;

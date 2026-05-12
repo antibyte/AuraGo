@@ -60,3 +60,22 @@ func TestVirtualDesktopHasMobileLayoutMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	for _, want := range []string{
+		"--vd-mobile-workspace-width",
+		"overflow-x: auto;",
+		"-webkit-overflow-scrolling: touch;",
+		"touch-action: pan-x pan-y;",
+		"min-width: var(--vd-mobile-workspace-width);",
+		".vd-window.maximized",
+		"width: var(--vd-mobile-workspace-width) !important;",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop mobile stylesheet missing horizontal scroll marker %q", want)
+		}
+	}
+}
