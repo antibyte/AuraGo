@@ -1,6 +1,9 @@
 package tools
 
 import (
+	"archive/tar"
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	pathpkg "path"
 	"regexp"
 	"strings"
 	"sync"
@@ -610,6 +614,110 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		logger.Info("Docker image pulled successfully", "image", image)
 	}
 	return nil
+}
+
+// BuildImageWait builds a Docker image through the Docker Engine API using a
+// minimal tar build context containing the supplied Dockerfile. This works from
+// containerized AuraGo installs where DOCKER_HOST points at a socket proxy and
+// the docker CLI is intentionally not installed.
+func BuildImageWait(ctx context.Context, cfg DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(image) == "" {
+		return fmt.Errorf("image is required")
+	}
+	if err := validateDockerName(image); err != nil {
+		return err
+	}
+	dockerfileName = pathpkg.Clean(strings.TrimSpace(dockerfileName))
+	if dockerfileName == "." || strings.HasPrefix(dockerfileName, "..") || strings.Contains(dockerfileName, "\\") {
+		return fmt.Errorf("invalid Dockerfile name %q", dockerfileName)
+	}
+	if len(dockerfile) == 0 {
+		return fmt.Errorf("Dockerfile content is required")
+	}
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	if err := tw.WriteHeader(&tar.Header{Name: dockerfileName, Mode: 0o644, Size: int64(len(dockerfile))}); err != nil {
+		return fmt.Errorf("write Dockerfile tar header: %w", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		return fmt.Errorf("write Dockerfile tar body: %w", err)
+	}
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("finalize Docker build context: %w", err)
+	}
+
+	if logger != nil {
+		logger.Info("Building Docker image via Engine API", "image", image, "dockerfile", dockerfileName)
+	}
+	argsJSON, err := json.Marshal(buildArgs)
+	if err != nil {
+		return fmt.Errorf("marshal Docker build args: %w", err)
+	}
+	query := url.Values{}
+	query.Set("t", image)
+	query.Set("dockerfile", dockerfileName)
+	if len(buildArgs) > 0 {
+		query.Set("buildargs", string(argsJSON))
+	}
+	reqURL := "http://localhost/" + dockerAPIVersion + "/build?" + query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(tarBuf.Bytes()))
+	if err != nil {
+		return fmt.Errorf("create Docker build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-tar")
+	resp, err := getPullDockerClient(cfg).Do(req)
+	if err != nil {
+		return fmt.Errorf("build image %s: %w", image, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+		if err != nil {
+			return fmt.Errorf("build image %s (reading error response): %w", image, err)
+		}
+		msg := dockerBodyMessage(resp.StatusCode, data)
+		if msg == "" {
+			msg = strings.TrimSpace(string(data))
+		}
+		return fmt.Errorf("build image %s: HTTP %d: %s", image, resp.StatusCode, msg)
+	}
+	if err := drainDockerBuildStream(resp.Body); err != nil {
+		return fmt.Errorf("build image %s: %w", image, err)
+	}
+	if logger != nil {
+		logger.Info("Docker image built successfully", "image", image)
+	}
+	return nil
+}
+
+func drainDockerBuildStream(r io.Reader) error {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var event struct {
+			Error       string `json:"error"`
+			ErrorDetail struct {
+				Message string `json:"message"`
+			} `json:"errorDetail"`
+		}
+		if json.Unmarshal([]byte(line), &event) != nil {
+			continue
+		}
+		if msg := strings.TrimSpace(event.ErrorDetail.Message); msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+		if msg := strings.TrimSpace(event.Error); msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+	}
+	return scanner.Err()
 }
 
 // DockerPullImage pulls an image from a registry.

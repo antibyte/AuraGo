@@ -299,6 +299,7 @@ services:
   # SECURITY NOTES:
   #   - EXEC=1 is required for the DockerExec tool to run commands in containers
   #   - POST=1 allows starting/stopping containers (needed for Invasion Control)
+  #   - BUILD=1 allows Code Studio to build its managed development image via the Docker API
   #   - Together these grant significant control — only use if you need these features
   #   - If you don't need container exec, set EXEC=0 for improved security
   #
@@ -322,7 +323,7 @@ services:
       - NETWORKS=1
       - VOLUMES=1
       - POST=1          # allow start/stop/restart/create (needed for Invasion Control)
-      - BUILD=0
+      - BUILD=1          # needed for managed Code Studio image builds
       - COMMIT=0
       - EXEC=1          # needed for DockerExec tool — set to 0 if not used
       - SWARM=0

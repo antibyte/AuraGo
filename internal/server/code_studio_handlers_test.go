@@ -273,6 +273,22 @@ func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	}
 }
 
+func TestCodeStudioDefaultImageBuildUsesDockerAPI(t *testing.T) {
+	source, err := os.ReadFile("code_studio_docker_adapter.go")
+	if err != nil {
+		t.Fatalf("read code studio docker adapter: %v", err)
+	}
+	text := string(source)
+	if !strings.Contains(text, "tools.BuildImageWait") {
+		t.Fatal("Code Studio default image build should use the Docker Engine API helper")
+	}
+	for _, forbidden := range []string{"exec.Command", "exec.CommandContext", `"docker", "build"`} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("Code Studio default image build must not require local docker CLI: found %s", forbidden)
+		}
+	}
+}
+
 func writeAttachFrame(t *testing.T, buf *bytes.Buffer, stream byte, payload []byte) {
 	t.Helper()
 	header := make([]byte, 8)

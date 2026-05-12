@@ -7,14 +7,12 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"aurago/internal/desktop"
-	"aurago/internal/sandbox"
 	"aurago/internal/tools"
 )
 
@@ -113,20 +111,14 @@ func (a codeStudioDockerAdapter) buildDefaultImage(ctx context.Context, image st
 	if a.logger != nil {
 		a.logger.Info("Building Code Studio image from local Dockerfile", "image", image, "dockerfile", dockerfile)
 	}
+	content, err := os.ReadFile(dockerfile)
+	if err != nil {
+		return fmt.Errorf("read code studio Dockerfile %s: %w", dockerfile, err)
+	}
 	buildCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(buildCtx, "docker", "build",
-		"--build-arg", "TARGETARCH="+codeStudioDockerTargetArch(),
-		"-f", dockerfile,
-		"-t", image,
-		".",
-	)
-	dockerCfgDir := filepath.Join("data", ".docker")
-	_ = os.MkdirAll(dockerCfgDir, 0o700)
-	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("docker build failed: %w\n%s", err, strings.TrimSpace(string(out)))
+	if err := tools.BuildImageWait(buildCtx, a.cfg, image, "Dockerfile", content, map[string]string{"TARGETARCH": codeStudioDockerTargetArch()}, a.logger); err != nil {
+		return fmt.Errorf("docker API build failed: %w", err)
 	}
 	if a.logger != nil {
 		a.logger.Info("Code Studio image built successfully", "image", image)

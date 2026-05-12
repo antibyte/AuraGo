@@ -355,6 +355,23 @@ func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	}
 }
 
+func TestDockerComposeProxyAllowsCodeStudioImageBuilds(t *testing.T) {
+	t.Parallel()
+
+	compose := readRepoFile(t, "docker-compose.yml")
+	proxyStart := strings.Index(compose, "\n  docker-proxy:")
+	if proxyStart < 0 {
+		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+	}
+	proxyBlock := compose[proxyStart:]
+	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
+		proxyBlock = proxyBlock[:volumesStart]
+	}
+	if !strings.Contains(proxyBlock, "- BUILD=1") {
+		t.Fatal("docker-proxy must allow Docker build API calls for the managed Code Studio image")
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 
