@@ -541,12 +541,17 @@
 .vd-window.maximized {
         left: 0 !important;
         top: 0 !important;
-        width: var(--vd-mobile-workspace-width) !important;
+        width: 100vw !important;
         height: calc(var(--vd-visual-height, 100dvh) - 58px - env(safe-area-inset-bottom)) !important;
         min-width: 0 !important;
         min-height: 0 !important;
         border-radius: 0 !important;
         grid-template-rows: 52px 1fr;
+    }
+.vd-window.vd-mobile-wide-window,
+.vd-window.vd-mobile-wide-window.maximized {
+        min-width: var(--vd-mobile-workspace-width);
+        width: var(--vd-mobile-workspace-width) !important;
     }
 .vd-window.has-window-menu {
         grid-template-rows: 84px 1fr;

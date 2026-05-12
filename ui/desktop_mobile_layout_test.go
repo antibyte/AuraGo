@@ -72,10 +72,25 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 		"touch-action: pan-x pan-y;",
 		"min-width: var(--vd-mobile-workspace-width);",
 		".vd-window.maximized",
+		"width: 100vw !important;",
+		".vd-mobile-wide-window",
 		"width: var(--vd-mobile-workspace-width) !important;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop mobile stylesheet missing horizontal scroll marker %q", want)
 		}
+	}
+
+	js := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, want := range []string{
+		"function shouldUseMobileWideWindow(appId)",
+		"win.classList.toggle('vd-mobile-wide-window'",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("desktop mobile window runtime missing opt-in marker %q", want)
+		}
+	}
+	if strings.Contains(js, "'agent-chat',") {
+		t.Fatal("desktop agent chat should not opt into the wide mobile window layout")
 	}
 }

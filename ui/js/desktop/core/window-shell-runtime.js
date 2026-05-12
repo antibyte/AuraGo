@@ -507,12 +507,10 @@
         return defaultWindowSize();
     }
 
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true }[appId]; }
+
     function appWindowMinSize(appId) {
-        const mins = {
-            'system-info': { width: 560, height: 460 },
-            calculator: { width: 280, height: 420 },
-            gallery: { width: 640, height: 480 }
-        };
+        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -700,6 +698,7 @@
         const id = 'w-' + appId + '-' + Date.now();
         const win = document.createElement('section');
         win.className = 'vd-window';
+        win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId));
         win.dataset.windowId = id;
         const requestedSize = appWindowSize(appId);
         const size = clampWindowSize(requestedSize);

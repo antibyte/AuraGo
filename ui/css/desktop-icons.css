@@ -168,10 +168,6 @@
         -webkit-overflow-scrolling: touch;
         touch-action: pan-x pan-y;
     }
-.vd-icons,
-.vd-window-layer {
-        min-width: var(--vd-mobile-workspace-width);
-    }
 .vd-icons {
         inset: 0;
     }
