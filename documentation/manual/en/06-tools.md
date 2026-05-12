@@ -166,6 +166,7 @@ agent:
       - "filesystem"
       - "execute_shell"
       - "query_memory"
+      - "ddg_search"
 ```
 
 | Aspect | Without Adaptive | With Adaptive |

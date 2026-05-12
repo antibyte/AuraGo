@@ -167,6 +167,7 @@ agent:
       - "manage_memory"
       - "query_memory"
       - "execute_python"
+      - "ddg_search"
       - "docker"
       - "api_request"
 ```

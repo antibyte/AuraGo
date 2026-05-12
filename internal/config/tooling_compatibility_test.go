@@ -167,6 +167,18 @@ agent:
 	}
 }
 
+func TestAdaptiveToolsDefaultAlwaysIncludeKeepsDDGSearch(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+agent:
+  adaptive_tools:
+    enabled: true
+`)
+
+	if !containsString(cfg.Agent.AdaptiveTools.AlwaysInclude, "ddg_search") {
+		t.Fatalf("adaptive always_include missing ddg_search: %#v", cfg.Agent.AdaptiveTools.AlwaysInclude)
+	}
+}
+
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
