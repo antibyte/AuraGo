@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "このデスクトップ用のアプリ、ウィジェット、ファイルの作成を依頼できます。",
     "desktop.chat_placeholder": "エージェントに質問...",
     "desktop.send": "送信",
+    "desktop.chat_stop": "停止",
     "desktop.chat_voice_input": "音声入力",
     "desktop.chat_voice_unavailable": "音声入力には HTTPS とブラウザーのマイク対応が必要です。",
     "desktop.thinking": "作業中...",

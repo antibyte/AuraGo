@@ -538,7 +538,7 @@
             <form class="vd-chat-form">
                 <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
                 <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
-                <button class="vd-chat-send" type="submit">${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span>${esc(t('desktop.send'))}</span></button>
+                <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(t('desktop.send'))}</span></button>
             </form>
         </div>`;
         const input = host.querySelector('.vd-chat-input');
@@ -552,40 +552,65 @@
         }
         input.placeholder = t('desktop.chat_placeholder');
         initDesktopChatVoice(host, input, voiceBtn);
+        setDesktopChatBusy(host, false);
         applyChatLaunchContext(id, context || {});
         host.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (state.chatBusy) return;
+            if (state.chatBusy) {
+                if (event.submitter && event.submitter.classList && event.submitter.classList.contains('vd-chat-send')) requestDesktopChatAbort(host);
+                return;
+            }
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
             state.chatBusy = true;
+            setDesktopChatBusy(host, true);
             const chatLog = host.querySelector('.vd-chat-log');
             const renderer = window.DesktopChatRenderer;
-            if (renderer) {
-                renderer.appendRichBubble(chatLog, 'user', message);
-            } else {
-                appendChat(host, 'user', message);
-            }
+            if (renderer) renderer.appendRichBubble(chatLog, 'user', message);
+            else appendChat(host, 'user', message);
             try {
                 await sendDesktopChatStream(host, message, chatContextPayload(host));
                 await loadBootstrap();
             } catch (err) {
-                const bubbles = host.querySelectorAll('.vd-chat-bubble.agent');
-                if (bubbles.length > 0) {
-                    bubbles[bubbles.length - 1].textContent = err.message;
-                }
+                if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
             } finally {
                 state.chatBusy = false;
+                host._desktopChatAbort = null;
+                setDesktopChatBusy(host, false);
             }
         });
     }
 
+    function setDesktopChatBusy(host, busy) {
+        if (!host) return;
+        const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]');
+        const stop = desktopText('desktop.chat_stop', 'Stop'), send = desktopText('desktop.send', 'Send');
+        if (input) input.disabled = !!busy;
+        if (voiceBtn) {
+            const disabled = !!busy || voiceBtn.dataset.voiceAvailable === 'false';
+            voiceBtn.disabled = disabled; voiceBtn.classList.toggle('is-disabled', disabled);
+        }
+        if (sendBtn) { sendBtn.classList.toggle('is-stop', !!busy); sendBtn.title = busy ? stop : send; }
+        if (label) label.textContent = busy ? stop : send;
+    }
+
+    function requestDesktopChatAbort(host) { if (host && typeof host._desktopChatAbort === 'function') host._desktopChatAbort(); }
+
+    function isDesktopChatAbortError(err) {
+        const name = err && err.name ? String(err.name) : '', message = err && err.message ? String(err.message) : '';
+        return name === 'AbortError' || /aborted|abort/i.test(message);
+    }
+
+    function appendDesktopChatError(host, err) {
+        const message = err && err.message ? err.message : String(err || 'Request failed'), chatLog = host && host.querySelector('.vd-chat-log'), renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', message);
+        else if (host) appendChat(host, 'agent', message);
+    }
+
     function initDesktopChatVoice(host, input, voiceBtn) {
         if (!input || !voiceBtn) return;
-        const isSecure = window.location.protocol === 'https:' ||
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1';
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const useBrowserSTT = !!(window.SpeechToText && window.SpeechToText.isSupported);
         const useRecorderFallback = !!(window.VoiceRecorder && navigator.mediaDevices && window.MediaRecorder);
         const unavailable = !isSecure || (!useBrowserSTT && !useRecorderFallback);
@@ -593,6 +618,7 @@
 
         voiceBtn.title = desktopText('desktop.chat_voice_input', 'Voice input');
         voiceBtn.setAttribute('aria-label', desktopText('desktop.chat_voice_input', 'Voice input'));
+        voiceBtn.dataset.voiceAvailable = unavailable ? 'false' : 'true';
         if (unavailable) {
             voiceBtn.disabled = true;
             voiceBtn.classList.add('is-disabled');
@@ -603,67 +629,35 @@
         const populateInput = (text) => {
             const value = String(text || '').trim();
             if (!value) return;
-            input.value = value;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.focus();
+            input.value = value; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
         };
         const showVoiceError = (message) => {
             voiceBtn.classList.remove('is-active');
-            if (typeof showDesktopNotification === 'function') {
-                showDesktopNotification({ message: message || unavailableText });
-            }
+            if (typeof showDesktopNotification === 'function') showDesktopNotification({ message: message || unavailableText });
         };
 
         if (useBrowserSTT) {
-            const sttOptions = {
-                onInterimResult: () => {},
-                onFinalResult: () => {},
-                onEnd: (text) => {
-                    voiceBtn.classList.remove('is-active');
-                    populateInput(text);
-                },
-                onError: showVoiceError
-            };
-            if (!window.SpeechToText._overlay) {
-                window.SpeechToText.init(sttOptions);
-            } else {
-                window.SpeechToText.onInterimResult = sttOptions.onInterimResult;
-                window.SpeechToText.onFinalResult = sttOptions.onFinalResult;
-                window.SpeechToText.onEnd = sttOptions.onEnd;
-                window.SpeechToText.onError = sttOptions.onError;
-            }
+            const sttOptions = { onInterimResult: () => {}, onFinalResult: () => {}, onEnd: (text) => { voiceBtn.classList.remove('is-active'); populateInput(text); }, onError: showVoiceError };
+            if (!window.SpeechToText._overlay) window.SpeechToText.init(sttOptions);
+            else Object.assign(window.SpeechToText, sttOptions);
         } else if (useRecorderFallback) {
-            const recorderOptions = {
-                onTranscription: (text) => {
-                    voiceBtn.classList.remove('is-active');
-                    populateInput(text);
-                },
-                onError: showVoiceError
-            };
-            if (!window.VoiceRecorder.overlay) {
-                window.VoiceRecorder.init(recorderOptions);
-            } else {
-                window.VoiceRecorder.onTranscription = recorderOptions.onTranscription;
-                window.VoiceRecorder.onError = recorderOptions.onError;
-            }
+            const recorderOptions = { onTranscription: (text) => { voiceBtn.classList.remove('is-active'); populateInput(text); }, onError: showVoiceError };
+            if (!window.VoiceRecorder.overlay) window.VoiceRecorder.init(recorderOptions);
+            else Object.assign(window.VoiceRecorder, recorderOptions);
         }
 
         voiceBtn.addEventListener('click', () => {
             if (useBrowserSTT) {
                 if (window.SpeechToText.isActive) {
-                    window.SpeechToText.stop();
-                    voiceBtn.classList.remove('is-active');
+                    window.SpeechToText.stop(); voiceBtn.classList.remove('is-active');
                 } else {
-                    window.SpeechToText.start();
-                    voiceBtn.classList.add('is-active');
+                    window.SpeechToText.start(); voiceBtn.classList.add('is-active');
                 }
             } else if (useRecorderFallback) {
                 if (window.VoiceRecorder.isRecording) {
-                    window.VoiceRecorder.send();
-                    voiceBtn.classList.remove('is-active');
+                    window.VoiceRecorder.send(); voiceBtn.classList.remove('is-active');
                 } else {
-                    window.VoiceRecorder.start();
-                    voiceBtn.classList.add('is-active');
+                    window.VoiceRecorder.start(); voiceBtn.classList.add('is-active');
                 }
             }
         });
@@ -751,15 +745,22 @@
 
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
+            const abortChatStream = () => ctrl.abort();
+            host._desktopChatAbort = abortChatStream;
             const timeout = setTimeout(() => {
                 ctrl.abort();
                 doReject(new Error('Request timed out'));
             }, 10 * 60 * 1000);
 
+            function clearAbortHandle() {
+                if (host._desktopChatAbort === abortChatStream) host._desktopChatAbort = null;
+            }
+
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
                 clearTimeout(timeout);
+                clearAbortHandle();
                 flushStreamingBubble();
                 if (statusEl && statusEl.parentNode) statusEl.remove();
                 if (streamingBubble) {
@@ -780,6 +781,7 @@
                 if (finalized) return;
                 finalized = true;
                 clearTimeout(timeout);
+                clearAbortHandle();
                 if (streamTextFrame) {
                     const cancel = window.cancelAnimationFrame || window.clearTimeout;
                     cancel(streamTextFrame);

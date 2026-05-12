@@ -16,6 +16,15 @@
     gap: 6px;
 }
 
+.vd-chat-send.is-stop {
+    background: rgba(248, 113, 113, 0.18);
+    border-color: rgba(248, 113, 113, 0.45);
+}
+
+.vd-chat-send.is-stop:hover {
+    background: rgba(248, 113, 113, 0.26);
+}
+
 .vd-chat-voice {
     width: 40px;
     min-width: 40px;

@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "Požádejte mě o aplikace, widgety nebo soubory pro tuto plochu.",
     "desktop.chat_placeholder": "Zeptat se agenta...",
     "desktop.send": "Odeslat",
+    "desktop.chat_stop": "Zastavit",
     "desktop.chat_voice_input": "Hlasovy vstup",
     "desktop.chat_voice_unavailable": "Hlasovy vstup vyzaduje HTTPS a podporu mikrofonu v prohlizeci.",
     "desktop.thinking": "Pracuji...",

@@ -42,3 +42,36 @@ func TestDesktopChatShowsDetailedAgentActionStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopChatCanStopActiveStreamWithoutOverwritingHistory(t *testing.T) {
+	t.Parallel()
+
+	chat := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"setDesktopChatBusy(host, true)",
+		"setDesktopChatBusy(host, false)",
+		"requestDesktopChatAbort(host)",
+		"host._desktopChatAbort = abortChatStream",
+		"if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);",
+		"appendDesktopChatError(host, err)",
+		"data-chat-send-label",
+		"desktop.chat_stop",
+	} {
+		if !strings.Contains(chat, marker) {
+			t.Fatalf("desktop chat stream missing stop/error handling marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{
+		"bubbles[bubbles.length - 1].textContent = err.message",
+		"const bubbles = host.querySelectorAll('.vd-chat-bubble.agent')",
+	} {
+		if strings.Contains(chat, forbidden) {
+			t.Fatalf("desktop chat must not overwrite the last agent bubble on stream errors: %q", forbidden)
+		}
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-apps.css")
+	if !strings.Contains(css, ".vd-chat-send.is-stop") {
+		t.Fatal("desktop chat CSS missing stop-state send button styling")
+	}
+}

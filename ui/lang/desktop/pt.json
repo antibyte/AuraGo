@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "Peça para eu criar apps, widgets ou arquivos para este desktop.",
     "desktop.chat_placeholder": "Pergunte ao agente...",
     "desktop.send": "Enviar",
+    "desktop.chat_stop": "Parar",
     "desktop.chat_voice_input": "Entrada de voz",
     "desktop.chat_voice_unavailable": "A entrada de voz requer HTTPS e suporte a microfone no navegador.",
     "desktop.thinking": "Trabalhando...",

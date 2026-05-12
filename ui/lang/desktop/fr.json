@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "Demandez-moi de créer des apps, widgets ou fichiers pour ce bureau.",
     "desktop.chat_placeholder": "Demander à l'agent...",
     "desktop.send": "Envoyer",
+    "desktop.chat_stop": "Arrêter",
     "desktop.chat_voice_input": "Saisie vocale",
     "desktop.chat_voice_unavailable": "La saisie vocale necessite HTTPS et la prise en charge du microphone par le navigateur.",
     "desktop.thinking": "Travail en cours...",

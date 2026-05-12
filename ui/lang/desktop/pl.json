@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "Poproś mnie o utworzenie aplikacji, widżetów lub plików dla tego pulpitu.",
     "desktop.chat_placeholder": "Zapytaj agenta...",
     "desktop.send": "Wyślij",
+    "desktop.chat_stop": "Zatrzymaj",
     "desktop.chat_voice_input": "Wprowadzanie glosowe",
     "desktop.chat_voice_unavailable": "Wprowadzanie glosowe wymaga HTTPS i obslugi mikrofonu w przegladarce.",
     "desktop.thinking": "Pracuję...",

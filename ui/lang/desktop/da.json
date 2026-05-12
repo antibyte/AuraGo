@@ -59,6 +59,7 @@
     "desktop.chat_welcome": "Bed mig om at oprette apps, widgets eller filer til dette skrivebord.",
     "desktop.chat_placeholder": "Spørg agenten...",
     "desktop.send": "Send",
+    "desktop.chat_stop": "Stop",
     "desktop.chat_voice_input": "Stemmeinput",
     "desktop.chat_voice_unavailable": "Stemmeinput kraever HTTPS og mikrofonunderstoettelse i browseren.",
     "desktop.thinking": "Arbejder...",
