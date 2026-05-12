@@ -390,6 +390,21 @@ func TestDockerPublishWorkflowPublishesCodeStudioImage(t *testing.T) {
 	}
 }
 
+func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
+	t.Parallel()
+
+	script := readRepoFile(t, "make_release.bat")
+	if strings.Contains(script, "Get-FileHash") {
+		t.Fatal("make_release.bat must not require Get-FileHash because older PowerShell hosts may not provide it")
+	}
+	if !strings.Contains(script, "System.Security.Cryptography.SHA256") {
+		t.Fatal("make_release.bat should generate SHA256SUMS through .NET SHA256 APIs")
+	}
+	if !strings.Contains(script, "$ErrorActionPreference = 'Stop'") {
+		t.Fatal("make_release.bat checksum generation must fail hard on hashing errors")
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 

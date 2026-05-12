@@ -168,6 +168,8 @@ echo     -> deploy\install.sh
 echo     -> deploy\update.sh
 echo   Generating SHA256SUMS...
 powershell -nologo -noprofile -command ^
+  "$ErrorActionPreference = 'Stop';" ^
+  "function Get-Sha256Hex([string]$file) { $sha = [System.Security.Cryptography.SHA256]::Create(); $stream = [IO.File]::OpenRead($file); try { $bytes = $sha.ComputeHash($stream); return -join ($bytes | ForEach-Object { $_.ToString('x2') }); } finally { $stream.Dispose(); $sha.Dispose(); } };" ^
   "$files = @(" ^
   "  'deploy\\resources.dat'," ^
   "  'deploy\\install.sh'," ^
@@ -189,7 +191,7 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_amd64.exe'," ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
-  "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower(); '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
+  "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
   "$out | Set-Content 'deploy\\SHA256SUMS'"
 if errorlevel 1 (
     echo [ERROR] Failed to generate SHA256SUMS.
