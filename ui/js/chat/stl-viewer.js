@@ -179,7 +179,7 @@
         light.position.set(4, 5, 6);
         scene.add(light);
         const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100000);
-        const material = new THREE.MeshStandardMaterial({ color: 0xa8c2e6, roughness: 0.5, metalness: 0.06 });
+        const material = new THREE.MeshStandardMaterial({ color: 0xa8c2e6, roughness: 0.5, metalness: 0.06, side: THREE.DoubleSide });
         const instance = { preview, renderer, scene, camera, material, mesh: null, raf: 0, active: false, dragging: false, lastX: 0, lastY: 0 };
         previews.set(preview, instance);
         wirePreviewDrag(instance);
@@ -296,7 +296,7 @@
         key.position.set(5, 7, 8);
         scene.add(key);
         const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100000);
-        const material = new THREE.MeshStandardMaterial({ color: 0xb3c8ea, roughness: 0.42, metalness: 0.08 });
+        const material = new THREE.MeshStandardMaterial({ color: 0xb3c8ea, roughness: 0.42, metalness: 0.08, side: THREE.DoubleSide });
         let autoRotate = true;
         let raf = 0;
         let controls = null;

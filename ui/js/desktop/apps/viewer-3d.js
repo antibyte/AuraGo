@@ -72,7 +72,7 @@
             scene.add(fill);
 
             const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100000);
-            const material = new THREE.MeshStandardMaterial({ color: 0x9fb7d7, roughness: 0.46, metalness: 0.08 });
+            const material = new THREE.MeshStandardMaterial({ color: 0x9fb7d7, roughness: 0.46, metalness: 0.08, side: THREE.DoubleSide });
             Object.assign(record, { camera, material });
             const geometry = await loadGeometry(fileUrl);
             if (record.disposed) {
