@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	stdhtml "html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -13,11 +14,17 @@ import (
 
 // Pre-compiled regexps for DDG result parsing.
 var (
-	reTitleLink = regexp.MustCompile(`(?is)<a class="result-url" href="([^"]+)">(.*?)</a>`)
-	reSnippet   = regexp.MustCompile(`(?is)<td class="result-snippet">(.*?)</td>`)
-	reHTMLTag   = regexp.MustCompile(`(?is)<[^>]+>`)
-	reMultiWS   = regexp.MustCompile(`\s+`)
+	reResultAnchor = regexp.MustCompile(`(?is)<a\b([^>]*)>(.*?)</a>`)
+	reTableCell    = regexp.MustCompile(`(?is)<td\b([^>]*)>(.*?)</td>`)
+	reHTMLAttr     = regexp.MustCompile(`(?is)\b([a-zA-Z0-9_-]+)\s*=\s*"([^"]*)"|\b([a-zA-Z0-9_-]+)\s*=\s*'([^']*)'`)
+	reHTMLTag      = regexp.MustCompile(`(?is)<[^>]+>`)
+	reMultiWS      = regexp.MustCompile(`\s+`)
 )
+
+type ddgTitleLink struct {
+	title string
+	link  string
+}
 
 // ExecuteDDGSearch performs a DuckDuckGo HTML search
 func ExecuteDDGSearch(query string, maxResults int) string {
@@ -52,35 +59,30 @@ func ExecuteDDGSearch(query string, maxResults int) string {
 	}
 	htmlStr := string(bodyBytes)
 
-	// Basic regex extraction for DuckDuckGo Lite results
-	// <tr><td><a class="result-url" href="...">Title</a></td></tr>
-	// <tr><td class="result-snippet">Snippet</td></tr>
+	titleLinks := parseDDGTitleLinks(htmlStr)
+	snippets := parseDDGSnippets(htmlStr)
 
-	titleLinkRe := reTitleLink
-	snippetRe := reSnippet
-
-	titleMatches := titleLinkRe.FindAllStringSubmatch(htmlStr, -1)
-	snippetMatches := snippetRe.FindAllStringSubmatch(htmlStr, -1)
-
-	var results []map[string]interface{}
-	limit := len(titleMatches)
+	results := make([]map[string]interface{}, 0)
+	limit := len(titleLinks)
 	if limit > maxResults {
 		limit = maxResults
 	}
-	if limit > len(snippetMatches) {
-		limit = len(snippetMatches)
-	}
 
 	for i := 0; i < limit; i++ {
-		link := titleMatches[i][1]
-		title := stripHTML(titleMatches[i][2])
-		snippet := stripHTML(snippetMatches[i][1])
+		snippet := ""
+		if i < len(snippets) {
+			snippet = snippets[i]
+		}
 
 		results = append(results, map[string]interface{}{
-			"title":   security.IsolateExternalData(title),
-			"link":    link,
+			"title":   security.IsolateExternalData(titleLinks[i].title),
+			"link":    titleLinks[i].link,
 			"snippet": security.IsolateExternalData(snippet),
 		})
+	}
+
+	if len(results) == 0 {
+		return formatError("No parseable DDG results found. DuckDuckGo may have returned a bot-check, consent page, no-results page, or changed markup.")
 	}
 
 	resultMap := map[string]interface{}{
@@ -91,8 +93,69 @@ func ExecuteDDGSearch(query string, maxResults int) string {
 	return string(b)
 }
 
+func parseDDGTitleLinks(htmlStr string) []ddgTitleLink {
+	matches := reResultAnchor.FindAllStringSubmatch(htmlStr, -1)
+	results := make([]ddgTitleLink, 0, len(matches))
+	for _, match := range matches {
+		attrs := htmlAttrs(match[1])
+		if !hasHTMLClass(attrs["class"], "result-link") && !hasHTMLClass(attrs["class"], "result-url") {
+			continue
+		}
+		link := strings.TrimSpace(attrs["href"])
+		title := stripHTML(match[2])
+		if link == "" || title == "" {
+			continue
+		}
+		results = append(results, ddgTitleLink{
+			title: title,
+			link:  link,
+		})
+	}
+	return results
+}
+
+func parseDDGSnippets(htmlStr string) []string {
+	matches := reTableCell.FindAllStringSubmatch(htmlStr, -1)
+	snippets := make([]string, 0, len(matches))
+	for _, match := range matches {
+		attrs := htmlAttrs(match[1])
+		if !hasHTMLClass(attrs["class"], "result-snippet") {
+			continue
+		}
+		snippet := stripHTML(match[2])
+		if snippet != "" {
+			snippets = append(snippets, snippet)
+		}
+	}
+	return snippets
+}
+
+func htmlAttrs(raw string) map[string]string {
+	attrs := make(map[string]string)
+	for _, match := range reHTMLAttr.FindAllStringSubmatch(raw, -1) {
+		name := match[1]
+		value := match[2]
+		if name == "" {
+			name = match[3]
+			value = match[4]
+		}
+		attrs[strings.ToLower(name)] = stdhtml.UnescapeString(value)
+	}
+	return attrs
+}
+
+func hasHTMLClass(classAttr, wanted string) bool {
+	for _, className := range strings.Fields(classAttr) {
+		if strings.EqualFold(className, wanted) {
+			return true
+		}
+	}
+	return false
+}
+
 func stripHTML(htmlStr string) string {
 	text := reHTMLTag.ReplaceAllString(htmlStr, " ")
+	text = stdhtml.UnescapeString(text)
 	text = reMultiWS.ReplaceAllString(text, " ")
 	return strings.TrimSpace(text)
 }
