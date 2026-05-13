@@ -1057,7 +1057,7 @@
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
-                    if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
+                    if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
                     openEditorFile(entry.path);
                 },
                 openMedia: (entry) => openMediaPreview(entry),

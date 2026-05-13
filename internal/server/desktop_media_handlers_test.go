@@ -247,6 +247,32 @@ func TestDesktopUploadAndDownloadPreserveBinaryOfficeBytes(t *testing.T) {
 	}
 }
 
+func TestDesktopDownloadCanServeMediaInline(t *testing.T) {
+	t.Parallel()
+
+	srv, _ := testDesktopMediaServer(t)
+	audioDir := filepath.Join(srv.Cfg.VirtualDesktop.WorkspaceDir, "Documents")
+	if err := os.MkdirAll(audioDir, 0o755); err != nil {
+		t.Fatalf("mkdir documents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(audioDir, "song.mp3"), []byte("mp3"), 0o644); err != nil {
+		t.Fatalf("write audio: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/download?path=Documents/song.mp3&inline=1", nil)
+	rr := httptest.NewRecorder()
+	handleDesktopDownload(srv)(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("download status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); !strings.HasPrefix(got, "audio/mpeg") {
+		t.Fatalf("content type = %q, want audio/mpeg", got)
+	}
+	if got := rr.Header().Get("Content-Disposition"); !strings.Contains(got, "inline") || !strings.Contains(got, "song.mp3") {
+		t.Fatalf("content disposition = %q", got)
+	}
+}
+
 func testDesktopMediaServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	tmp := t.TempDir()

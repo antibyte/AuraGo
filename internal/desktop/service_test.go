@@ -545,6 +545,8 @@ func TestServiceListFilesExposesMediaMountMetadata(t *testing.T) {
 		{"Photos", "", "sunset.png", "image", "/files/generated_images/sunset.png", "image/png", filepath.Join(cfg.DataDir, "generated_images")},
 		{"Videos", "", "clip.mp4", "video", "/files/generated_videos/clip.mp4", "video/mp4", filepath.Join(cfg.DataDir, "generated_videos")},
 		{"AuraGo Documents", "", "report.pdf", "document", "/files/documents/report.pdf", "application/pdf", cfg.DocumentDir},
+		{"AuraGo Documents", "Media", "song.mp3", "audio", "/files/documents/Media/song.mp3", "audio/mpeg", cfg.DocumentDir},
+		{"AuraGo Documents", "Media", "clip.mp4", "video", "/files/documents/Media/clip.mp4", "video/mp4", cfg.DocumentDir},
 	}
 	for _, fixture := range fixtures {
 		dir := filepath.Join(fixture.baseOnDisk, filepath.FromSlash(fixture.subdir))

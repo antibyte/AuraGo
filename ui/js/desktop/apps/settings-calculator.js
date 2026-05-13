@@ -109,6 +109,15 @@
         return ['stl'].includes(ext);
     }
 
+    function entryLooksPlayableMedia(entry) {
+        const kind = String((entry && entry.media_kind) || '').toLowerCase();
+        const mimeType = String((entry && entry.mime_type) || '').toLowerCase();
+        const ext = fileExtension((entry && (entry.name || entry.path)) || '');
+        return kind === 'audio' || kind === 'video' ||
+            mimeType.startsWith('audio/') || mimeType.startsWith('video/') ||
+            ['mp3', 'mp4', 'm4a', 'webm', 'ogg', 'opus', 'wav', 'flac', 'mkv', 'mov'].includes(ext);
+    }
+
     function openDesktopFileEntry(row) {
         const entry = {
             name: row.querySelector('.vd-file-name, .vd-icon-label') ? row.querySelector('.vd-file-name, .vd-icon-label').textContent : row.dataset.path,
@@ -121,7 +130,7 @@
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
         if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
-        if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
+        if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
         openEditorFile(entry.path);
     }
 
@@ -174,8 +183,51 @@
         link.remove();
     }
 
+    function mediaPreviewURL(file) {
+        if (!file) return '';
+        if (file.web_path) {
+            const raw = String(file.web_path);
+            if (raw.startsWith('/files/documents/')) {
+                const url = new URL(raw, window.location.origin);
+                url.searchParams.set('inline', '1');
+                return url.pathname + url.search;
+            }
+            return raw;
+        }
+        if (file.path) {
+            const url = new URL('/api/desktop/download', window.location.origin);
+            url.searchParams.set('path', file.path);
+            url.searchParams.set('inline', '1');
+            return url.pathname + url.search;
+        }
+        return '';
+    }
+
+    function mediaDownloadURL(file) {
+        if (!file) return '';
+        if (file.web_path) return String(file.web_path);
+        if (!file.path) return '';
+        const url = new URL('/api/desktop/download', window.location.origin);
+        url.searchParams.set('path', file.path);
+        return url.pathname + url.search;
+    }
+
+    function mediaPreviewKind(file) {
+        const kind = String((file && file.media_kind) || '').toLowerCase();
+        if (kind === 'audio' || kind === 'video' || kind === 'image') return kind;
+        const mimeType = String((file && file.mime_type) || '').toLowerCase();
+        if (mimeType.startsWith('audio/')) return 'audio';
+        if (mimeType.startsWith('video/')) return 'video';
+        if (mimeType.startsWith('image/')) return 'image';
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        if (['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'].includes(ext)) return 'audio';
+        if (['mp4', 'webm', 'mkv', 'mov'].includes(ext)) return 'video';
+        return kind;
+    }
+
     function openMediaPreview(file) {
-        if (!file || !file.web_path) {
+        const previewURL = mediaPreviewURL(file);
+        if (!file || !previewURL) {
             if (isWriterFile(file)) return openApp('writer', { path: file.path });
             if (isSheetsFile(file)) return openApp('sheets', { path: file.path });
             if (is3DFile(file)) return openApp('viewer-3d', { path: file.path });
@@ -183,25 +235,25 @@
             if (file && file.path) openEditorFile(file.path);
             return;
         }
-        const kind = file.media_kind || '';
+        const kind = mediaPreviewKind(file);
         if (kind === 'document' && !String(file.mime_type || '').startsWith('text/')) {
-            window.open(file.web_path, '_blank', 'noopener');
+            window.open(previewURL, '_blank', 'noopener');
             return;
         }
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop vd-media-preview-backdrop';
         const body = kind === 'video'
-            ? `<video controls autoplay src="${esc(file.web_path)}"></video>`
+            ? `<video controls autoplay src="${esc(mediaPreviewURL(file))}"></video>`
             : kind === 'audio'
-                ? `<audio controls autoplay src="${esc(file.web_path)}"></audio>`
+                ? `<audio controls autoplay src="${esc(mediaPreviewURL(file))}"></audio>`
                 : kind === 'image'
-                    ? `<img src="${esc(file.web_path)}" alt="${esc(file.name || '')}">`
-                    : `<iframe src="${esc(file.web_path)}" title="${esc(file.name || '')}"></iframe>`;
+                    ? `<img src="${esc(previewURL)}" alt="${esc(file.name || '')}">`
+                    : `<iframe src="${esc(previewURL)}" title="${esc(file.name || '')}"></iframe>`;
         overlay.innerHTML = `<div class="vd-media-preview" role="dialog" aria-modal="true">
             <div class="vd-media-preview-bar">
                 <strong>${esc(file.name || file.path || t('desktop.media_open'))}</strong>
                 <div>
-                    <a class="vd-button" href="${esc(file.web_path)}" download="${esc(file.name || '')}">${esc(t('desktop.media_download'))}</a>
+                    <a class="vd-button" href="${esc(mediaDownloadURL(file))}" download="${esc(file.name || '')}">${esc(t('desktop.media_download'))}</a>
                     <button class="vd-button vd-button-primary" type="button" data-close>${esc(t('desktop.close'))}</button>
                 </div>
             </div>

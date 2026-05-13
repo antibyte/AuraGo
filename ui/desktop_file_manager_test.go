@@ -207,6 +207,25 @@ func TestFileManagerMobileInteractionMarkers(t *testing.T) {
 	}
 }
 
+func TestFileManagerDocumentMountMediaOpensInline(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js") + "\n" + readDesktopAssetText(t, "js/desktop/file-manager.js")
+	for _, marker := range []string{
+		"function mediaPreviewURL(file)",
+		"function mediaDownloadURL(file)",
+		"url.searchParams.set('inline', '1')",
+		"? `<video controls autoplay src=\"${esc(mediaPreviewURL(file))}\"></video>`",
+		"? `<audio controls autoplay src=\"${esc(mediaPreviewURL(file))}\"></audio>`",
+		"<a class=\"vd-button\" href=\"${esc(mediaDownloadURL(file))}\" download",
+		"if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("file manager document-mount media playback missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopFilesCanBeAddedOrAskedInAgentChat(t *testing.T) {
 	t.Parallel()
 

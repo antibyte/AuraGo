@@ -168,13 +168,19 @@ func mediaFileEntry(mount mediaMount, absPath string, info os.FileInfo) FileEntr
 		itemType = "directory"
 	}
 	rel := mediaRelativePath(mount, absPath)
+	mediaKind := mount.Kind
+	if itemType == "file" {
+		if kind := desktopMediaKindForName(info.Name()); kind != "" {
+			mediaKind = kind
+		}
+	}
 	entry := FileEntry{
 		Name:      info.Name(),
 		Path:      mediaDesktopPath(mount, rel),
 		Type:      itemType,
 		Size:      info.Size(),
 		ModTime:   info.ModTime(),
-		MediaKind: mount.Kind,
+		MediaKind: mediaKind,
 		Mount:     mount.Name,
 	}
 	if itemType == "file" {
