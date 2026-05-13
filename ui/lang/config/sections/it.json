@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Password per il database Postgres gestito che memorizza i dati di Manifest. Generata automaticamente al primo avvio se vuota. Non e un login Manifest ne una password account AuraGo, viene salvata nel vault, e la modifica richiede il riavvio dei sidecar.",
   "help.manifest.postgres_volume": "Volume Docker denominato per dati persistenti di Manifest.",
   "help.manifest.url": "URL interno che AuraGo utilizza per il servizio Manifest gestito.",
+  "config.section.three_d_printers.label": "Stampanti 3D",
+  "config.section.three_d_printers.desc": "Controllo, stato e videocamera delle stampanti 3D",
   "config.section.optimizations.group.tool_context": "🔧 Contesto strumenti",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilita strumenti"
 }

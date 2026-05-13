@@ -98,6 +98,19 @@ type frigateArgs struct {
 	Zones       string
 }
 
+type threeDPrinterArgs struct {
+	Operation   string
+	PrinterID   string
+	Filename    string
+	Directory   string
+	Prompt      string
+	LightOn     *bool
+	StartLayer  int
+	Calibration bool
+	TimeLapse   bool
+	ShowInChat  bool
+}
+
 type ollamaArgs struct {
 	Operation   string
 	Model       string
@@ -599,6 +612,24 @@ func decodeFrigateArgs(tc ToolCall) frigateArgs {
 		Cameras:     firstNonEmptyToolString(toolArgString(tc.Params, "cameras")),
 		Labels:      firstNonEmptyToolString(toolArgString(tc.Params, "labels")),
 		Zones:       firstNonEmptyToolString(toolArgString(tc.Params, "zones")),
+	}
+}
+
+func decodeThreeDPrinterArgs(tc ToolCall) threeDPrinterArgs {
+	calibration, _ := toolArgBool(tc.Params, "calibration")
+	timeLapse, _ := toolArgBool(tc.Params, "time_lapse", "timelapse")
+	showInChat, _ := toolArgBool(tc.Params, "show_in_chat")
+	return threeDPrinterArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		PrinterID:   firstNonEmptyToolString(tc.ID, tc.Name, toolArgString(tc.Params, "printer_id", "id", "name")),
+		Filename:    firstNonEmptyToolString(tc.FilePath, toolArgString(tc.Params, "filename", "file", "path")),
+		Directory:   firstNonEmptyToolString(toolArgString(tc.Params, "directory", "dir")),
+		Prompt:      firstNonEmptyToolString(tc.Prompt, toolArgString(tc.Params, "prompt")),
+		LightOn:     toolArgBoolPtr(tc.Params, "light_on", "enabled"),
+		StartLayer:  toolArgInt(tc.Params, 0, "start_layer"),
+		Calibration: calibration,
+		TimeLapse:   timeLapse,
+		ShowInChat:  showInChat,
 	}
 }
 

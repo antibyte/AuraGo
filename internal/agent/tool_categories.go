@@ -141,6 +141,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},
 		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, clone, etc.)"},
 		{"frigate", "Query Frigate NVR cameras, detection events, reviews, media, and health"},
+		{"three_d_printer", "Inspect and control configured 3D printers, camera snapshots, and live streams"},
 		{"tailscale", "Manage Tailscale VPN network (devices, routes, ACL)"},
 		{"ansible", "Run Ansible playbooks and manage infrastructure"},
 		{"github", "GitHub repos, issues, PRs, actions, and code search"},

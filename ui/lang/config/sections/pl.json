@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Haslo do zarzadzanej bazy danych Postgres przechowujacej dane Manifest. Generowane automatycznie przy pierwszym starcie, jesli puste. To nie jest login Manifest ani haslo konta AuraGo, jest przechowywane w sejfie, a zmiana wymaga restartu sidecarow.",
   "help.manifest.postgres_volume": "Nazwany wolumen Docker dla trwalych danych Manifest.",
   "help.manifest.url": "Wewnetrzny URL, ktory AuraGo uzywa dla zarzadzanej uslugi Manifest.",
+  "config.section.three_d_printers.label": "Drukarki 3D",
+  "config.section.three_d_printers.desc": "Sterowanie, stan i kamera drukarek 3D",
   "config.section.optimizations.group.tool_context": "🔧 Kontekst narzedzi",
   "config.section.optimizations.group.tool_visibility": "🔧 Widocznosc narzedzi"
 }

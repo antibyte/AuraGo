@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Mot de passe pour la base Postgres geree qui stocke les donnees Manifest. Genere automatiquement au premier demarrage si vide. Ce n'est ni un identifiant Manifest ni un mot de passe de compte AuraGo, il est stocke dans le coffre, et le modifier necessite le redemarrage des sidecars.",
   "help.manifest.postgres_volume": "Volume Docker nomme pour les donnees persistantes Manifest.",
   "help.manifest.url": "URL interne qu'AuraGo utilise pour le service Manifest gere.",
+  "config.section.three_d_printers.label": "Imprimantes 3D",
+  "config.section.three_d_printers.desc": "Contrôle, état et caméra des imprimantes 3D",
   "config.section.optimizations.group.tool_context": "🔧 Contexte des outils",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilite des outils"
 }

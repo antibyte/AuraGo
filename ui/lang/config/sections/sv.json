@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Loesenord foer den hanterade Postgres-databasen som lagrar Manifest-data. Genereras automatiskt vid foersta starten om tom. Det ar inte en Manifest-inloggning eller ett AuraGo-kontoloesenord, lagras i valvet och aandring kraver omstart av sidecars.",
   "help.manifest.postgres_volume": "Namngiven Docker-volym foer bestandiga Manifest-data.",
   "help.manifest.url": "Intern URL som AuraGo anvander foer den hanterade Manifest-tjaensten.",
+  "config.section.three_d_printers.label": "3D-skrivare",
+  "config.section.three_d_printers.desc": "Styrning, status och kamera för 3D-skrivare",
   "config.section.optimizations.group.tool_context": "🔧 Verktygskontext",
   "config.section.optimizations.group.tool_visibility": "🔧 Verktygssynlighet"
 }

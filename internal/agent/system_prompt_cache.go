@@ -147,6 +147,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.FrigateEnabled {
 		tools = append(tools, "frigate")
 	}
+	if flags.ThreeDPrinterEnabled {
+		tools = append(tools, "three_d_printer")
+	}
 	if flags.OllamaEnabled {
 		tools = append(tools, "ollama")
 	}

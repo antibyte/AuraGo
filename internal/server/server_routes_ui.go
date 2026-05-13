@@ -703,6 +703,16 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		frigateMediaHandler.ServeHTTP(w, r)
 	})
 
+	// Serve stored 3D printer snapshots from data/3d_printer_media.
+	threeDPrinterMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "3d_printer_media")
+	os.MkdirAll(threeDPrinterMediaDir, 0755)
+	threeDPrinterMediaHandler := http.StripPrefix("/files/3d_printer_media/", http.FileServer(neuteredFileSystem{http.Dir(threeDPrinterMediaDir)}))
+	mux.HandleFunc("/files/3d_printer_media/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		threeDPrinterMediaHandler.ServeHTTP(w, r)
+	})
+
 	// Serve yt-dlp downloads from the configured video_download directory
 	downloadsDir, err := tools.ResolveVideoDownloadDir(s.Cfg)
 	if err != nil {

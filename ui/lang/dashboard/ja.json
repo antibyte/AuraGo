@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "To-Do",
   "dashboard.quickstatus_plans": "プラン",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "3Dプリンター",
   "dashboard.adaptive_tools_adaptive_cap": "適応上限",
   "dashboard.adaptive_tools_total_cap": "合計上限",
   "dashboard.adaptive_tools_last_count": "直近ツール数"

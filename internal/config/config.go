@@ -412,6 +412,11 @@ func Load(path string) (*Config, error) {
 	cfg.Frigate.StoreMedia = true
 	cfg.Frigate.MQTTTopicPrefix = "frigate"
 
+	// 3D printer defaults: disabled by default, read-only when enabled.
+	cfg.ThreeDPrinters.Enabled = false
+	cfg.ThreeDPrinters.ReadOnly = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = false
+
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false
 	cfg.LDAP.ReadOnly = true
@@ -1516,6 +1521,11 @@ func (c *Config) Save(path string) error {
 		{[]string{"frigate", "review_relay"}, c.Frigate.ReviewRelay},
 		{[]string{"frigate", "store_media"}, c.Frigate.StoreMedia},
 		{[]string{"frigate", "mqtt_topic_prefix"}, c.Frigate.MQTTTopicPrefix},
+		{[]string{"three_d_printers", "enabled"}, c.ThreeDPrinters.Enabled},
+		{[]string{"three_d_printers", "readonly"}, c.ThreeDPrinters.ReadOnly},
+		{[]string{"three_d_printers", "default_printer"}, c.ThreeDPrinters.DefaultPrinter},
+		{[]string{"three_d_printers", "elegoo_centauri_carbon", "enabled"}, c.ThreeDPrinters.ElegooCentauriCarbon.Enabled},
+		{[]string{"three_d_printers", "elegoo_centauri_carbon", "printers"}, c.ThreeDPrinters.ElegooCentauriCarbon.Printers},
 		{[]string{"tailscale", "enabled"}, c.Tailscale.Enabled},
 		{[]string{"tailscale", "readonly"}, c.Tailscale.ReadOnly},
 		{[]string{"tailscale", "tailnet"}, c.Tailscale.Tailnet},

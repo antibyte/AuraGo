@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "Taken",
   "dashboard.quickstatus_plans": "Plannen",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "3D-printers",
   "dashboard.adaptive_tools_adaptive_cap": "Adaptieve limiet",
   "dashboard.adaptive_tools_total_cap": "Totale limiet",
   "dashboard.adaptive_tools_last_count": "Laatste aantal"

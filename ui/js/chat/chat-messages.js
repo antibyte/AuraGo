@@ -591,6 +591,85 @@ function appendVideoMessage(videoData) {
     return true;
 }
 
+function createChatLiveStreamElement(streamData) {
+    const path = streamData && streamData.path ? String(streamData.path) : '';
+    const title = String((streamData && streamData.title) || 'Live stream').trim();
+    if (!path || !isSafeHref(path, true)) {
+        const message = String((streamData && (streamData.message || streamData.error)) || '').trim();
+        const streamUrl = String((streamData && streamData.stream_url) || '').trim();
+        if (!message && !streamUrl) return null;
+        const fallback = document.createElement('div');
+        fallback.className = 'chat-video-wrapper chat-live-stream-wrapper';
+        if (title) {
+            const titleEl = document.createElement('div');
+            titleEl.className = 'chat-video-title';
+            titleEl.textContent = title;
+            fallback.appendChild(titleEl);
+        }
+        const msg = document.createElement('div');
+        msg.className = 'chat-video-actions';
+        msg.textContent = message || 'This printer stream cannot be proxied by AuraGo.';
+        fallback.appendChild(msg);
+        if (streamUrl && isSafeHref(streamUrl, true)) {
+            const actions = document.createElement('div');
+            actions.className = 'chat-video-actions';
+            const link = document.createElement('a');
+            link.href = streamUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'Open stream';
+            actions.appendChild(link);
+            fallback.appendChild(actions);
+        }
+        return fallback;
+    }
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-video-wrapper chat-live-stream-wrapper';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'chat-video-title';
+        titleEl.textContent = title;
+        wrapper.appendChild(titleEl);
+    }
+
+    const img = document.createElement('img');
+    img.className = 'chat-video-player chat-live-stream';
+    img.src = path;
+    img.alt = title || 'Live stream';
+    img.loading = 'lazy';
+    wrapper.appendChild(img);
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-video-actions';
+    const link = document.createElement('a');
+    link.href = path;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Open stream';
+    actions.appendChild(link);
+    wrapper.appendChild(actions);
+
+    return wrapper;
+}
+
+function appendLiveStreamMessage(streamData) {
+    const element = createChatLiveStreamElement(streamData);
+    if (!element) return false;
+    const greet = chatContent.querySelector('[data-greeting]');
+    if (greet) greet.remove();
+
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    const botIcon = personaAvatarMarkup('bot');
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
+    row.querySelector('.bubble').appendChild(element);
+    appendMessageTimestamp(row, 'bot');
+    chatContent.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return true;
+}
+
 function appendYouTubeMessage(youtubeData) {
     const element = createChatYouTubeElement(youtubeData);
     if (!element) return false;

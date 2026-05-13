@@ -828,6 +828,19 @@ frigate:
     review_relay: false
     store_media: true
     mqtt_topic_prefix: "frigate"
+three_d_printers:
+    enabled: false
+    readonly: true
+    default_printer: ""
+    elegoo_centauri_carbon:
+        enabled: false
+        # printers:
+        #   - id: "lab-printer"
+        #     name: "Elegoo Centauri Carbon"
+        #     url: "ws://192.168.6.50/websocket"
+        #     mainboard_id: ""
+        #     timeout_seconds: 10
+        printers: []
 ollama:
     enabled: false
     readonly: false

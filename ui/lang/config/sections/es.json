@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Contrasena para la base de datos Postgres gestionada que almacena los datos de Manifest. Se genera automaticamente en el primer inicio si esta vacio. No es un inicio de sesion de Manifest ni una contrasena de cuenta AuraGo, se almacena en la boveda y cambiarla requiere reiniciar los sidecars.",
   "help.manifest.postgres_volume": "Volumen Docker nombrado para datos persistentes de Manifest.",
   "help.manifest.url": "URL interna que AuraGo usa para el servicio Manifest gestionado.",
+  "config.section.three_d_printers.label": "Impresoras 3D",
+  "config.section.three_d_printers.desc": "Control, estado y cámara de impresoras 3D",
   "config.section.optimizations.group.tool_context": "🔧 Contexto de herramientas",
   "config.section.optimizations.group.tool_visibility": "🔧 Visibilidad de herramientas"
 }

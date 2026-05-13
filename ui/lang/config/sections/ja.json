@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Manifestデータを保存する管理対象Postgresデータベースのパスワードです。空の場合、初回起動時に自動生成されます。ManifestログインやAuraGoアカウントのパスワードではなく、Vaultに保存され、変更にはサイドカーの再起動が必要です。",
   "help.manifest.postgres_volume": "永続的なManifestデータ用の名前付きDockerボリューム。",
   "help.manifest.url": "AuraGoが管理対象Manifestサービスに使用する内部URL。",
+  "config.section.three_d_printers.label": "3Dプリンター",
+  "config.section.three_d_printers.desc": "3Dプリンターの制御、状態、カメラアクセス",
   "config.section.optimizations.group.tool_context": "🔧 ツールコンテキスト",
   "config.section.optimizations.group.tool_visibility": "🔧 ツール表示"
 }

@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "Oppgaver",
   "dashboard.quickstatus_plans": "Planer",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "3D-skrivere",
   "dashboard.adaptive_tools_adaptive_cap": "Adaptiv grense",
   "dashboard.adaptive_tools_total_cap": "Totalgrense",
   "dashboard.adaptive_tools_last_count": "Siste antall"

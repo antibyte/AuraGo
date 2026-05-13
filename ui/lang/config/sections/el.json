@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Kwdikos gia thn diaxeirizomenh bash Postgres pou apo8hkeuei dedomena Manifest. Paragetai automata sthn prwth ekkinhsh an einai keno. Den einai syndesh Manifest oute kwdikos logariasmou AuraGo, apo8hkeuetai sto vault kai h allagh apaitei epanekkinhsh twn sidecar.",
   "help.manifest.postgres_volume": "Onomasto volume Docker gia lipta dedomena Manifest.",
   "help.manifest.url": "Eswterikh URL pou to AuraGo xrhsimopoiei gia thn diaxeirizomenh uphresia Manifest.",
+  "config.section.three_d_printers.label": "3D εκτυπωτές",
+  "config.section.three_d_printers.desc": "Έλεγχος, κατάσταση και κάμερα 3D εκτυπωτών",
   "config.section.optimizations.group.tool_context": "🔧 Πλαισιο εργαλειων",
   "config.section.optimizations.group.tool_visibility": "🔧 Ορατοτητα εργαλειων"
 }

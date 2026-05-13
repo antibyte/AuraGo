@@ -448,6 +448,7 @@ let _httpResponseRendered = false;
 let _fetchConnectionLost = false;
 let seenSSEAudios = new Set();
 let seenSSEVideos = new Set();
+let seenSSELiveStreams = new Set();
 let seenSSEYouTubeVideos = new Set();
 let seenSSEDocuments = new Set();
 let seenSSESTLs = new Set();

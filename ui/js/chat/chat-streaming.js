@@ -376,6 +376,15 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { }
             return;
+        } else if (data.event === 'live_stream') {
+            try {
+                const streamData = JSON.parse(data.detail);
+                if (streamData && streamData.path && !seenSSELiveStreams.has(streamData.path)) {
+                    seenSSELiveStreams.add(streamData.path);
+                    if (typeof appendLiveStreamMessage === 'function') appendLiveStreamMessage(streamData);
+                }
+            } catch (e) { }
+            return;
         } else if (data.event === 'youtube_video') {
             try {
                 const youtubeData = JSON.parse(data.detail);

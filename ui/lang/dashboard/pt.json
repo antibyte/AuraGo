@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "Tarefas",
   "dashboard.quickstatus_plans": "Planos",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "Impressoras 3D",
   "dashboard.adaptive_tools_adaptive_cap": "Limite adaptativo",
   "dashboard.adaptive_tools_total_cap": "Limite total",
   "dashboard.adaptive_tools_last_count": "Ultima contagem"

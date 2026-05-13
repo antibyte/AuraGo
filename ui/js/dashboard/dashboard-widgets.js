@@ -2652,7 +2652,7 @@
             const icons = {
                 telegram: '📱', discord: '💬', email: '📧', home_assistant: '🏠',
                 docker: '🐳', co_agents: '🤖', webhooks: '🔗', webdav: '☁️',
-                koofr: '☁️', chromecast: '📺', proxmox: '🖥️', frigate: '📹', ollama: '🧠',
+                koofr: '☁️', chromecast: '📺', proxmox: '🖥️', frigate: '📹', three_d_printers: '🖨️', ollama: '🧠',
                 rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
                 github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
                 auth: '🔑', fallback_llm: '🔄', helper_llm: '🪶', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
@@ -2673,7 +2673,7 @@
                 docker: t('dashboard.integration_docker'), co_agents: t('dashboard.integration_co_agents'),
                 webhooks: t('dashboard.integration_webhooks'), webdav: t('dashboard.integration_webdav'),
                 koofr: t('dashboard.integration_koofr'), chromecast: t('dashboard.integration_chromecast'),
-                proxmox: t('dashboard.integration_proxmox'), frigate: t('dashboard.integration_frigate'), ollama: t('dashboard.integration_ollama'),
+                proxmox: t('dashboard.integration_proxmox'), frigate: t('dashboard.integration_frigate'), three_d_printers: t('dashboard.integration_three_d_printers'), ollama: t('dashboard.integration_ollama'),
                 rocketchat: t('dashboard.integration_rocketchat'), tailscale: t('dashboard.integration_tailscale'),
                 ansible: t('dashboard.integration_ansible'), invasion: t('dashboard.integration_invasion'),
                 github: t('dashboard.integration_github'), mqtt: t('dashboard.integration_mqtt'),

@@ -142,6 +142,18 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/grafana/status", handleGrafanaStatus(s))
 	mux.HandleFunc("/api/grafana/test", handleGrafanaTest(s))
 	mux.HandleFunc("/api/frigate/test", handleFrigateTest(s))
+	mux.HandleFunc("/api/3d-printers/test", handleThreeDPrinterTest(s))
+	mux.HandleFunc("/api/3d-printers/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/camera/snapshot") {
+			handleThreeDPrinterCameraSnapshot(s)(w, r)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/camera/stream") {
+			handleThreeDPrinterCameraStream(s)(w, r)
+			return
+		}
+		jsonError(w, "Not found", http.StatusNotFound)
+	})
 
 	// MQTT integration endpoints
 	mux.HandleFunc("/api/mqtt/status", handleMQTTStatus(s))

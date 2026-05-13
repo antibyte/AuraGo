@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Managed Postgres database ka password jo Manifest data store karta hai. Khaali hone par pehli baar start mein svayan generate hota hai. Yeh Manifest login ya AuraGo account password nahi hai, vault mein stored hota hai, aur badalne ke liye sidecars restart karna aavashyak hai.",
   "help.manifest.postgres_volume": "Persistent Manifest data ke liye named Docker volume.",
   "help.manifest.url": "Internal URL jo AuraGo managed Manifest service ke liye use karta hai.",
+  "config.section.three_d_printers.label": "3D प्रिंटर",
+  "config.section.three_d_printers.desc": "3D प्रिंटर नियंत्रण, स्थिति और कैमरा एक्सेस",
   "config.section.optimizations.group.tool_context": "🔧 Tool Context",
   "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility"
 }

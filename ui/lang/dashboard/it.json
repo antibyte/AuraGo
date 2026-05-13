@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "Attività",
   "dashboard.quickstatus_plans": "Piani",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "Stampanti 3D",
   "dashboard.adaptive_tools_adaptive_cap": "Limite adattivo",
   "dashboard.adaptive_tools_total_cap": "Limite totale",
   "dashboard.adaptive_tools_last_count": "Ultimo conteggio"

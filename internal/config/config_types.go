@@ -319,6 +319,29 @@ type HeartbeatConfig struct {
 	NightTimeWindow   HeartbeatTimeWindow `yaml:"night_time_window"`
 }
 
+// ElegooCentauriCarbonPrinterConfig describes one local Elegoo Centauri Carbon printer.
+type ElegooCentauriCarbonPrinterConfig struct {
+	ID             string `yaml:"id" json:"id"`
+	Name           string `yaml:"name" json:"name"`
+	URL            string `yaml:"url" json:"url"`                             // e.g. ws://192.168.6.50/websocket
+	MainboardID    string `yaml:"mainboard_id,omitempty" json:"mainboard_id"` // optional SDCP mainboard id
+	TimeoutSeconds int    `yaml:"timeout_seconds" json:"timeout_seconds"`     // default: 10
+}
+
+// ElegooCentauriCarbonConfig groups all Centauri Carbon printers.
+type ElegooCentauriCarbonConfig struct {
+	Enabled  bool                                `yaml:"enabled" json:"enabled"`
+	Printers []ElegooCentauriCarbonPrinterConfig `yaml:"printers" json:"printers"`
+}
+
+// ThreeDPrintersConfig is the top-level 3D printer integration area.
+type ThreeDPrintersConfig struct {
+	Enabled              bool                       `yaml:"enabled" json:"enabled"`
+	ReadOnly             bool                       `yaml:"readonly" json:"readonly"`
+	DefaultPrinter       string                     `yaml:"default_printer" json:"default_printer"`
+	ElegooCentauriCarbon ElegooCentauriCarbonConfig `yaml:"elegoo_centauri_carbon" json:"elegoo_centauri_carbon"`
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -1063,7 +1086,8 @@ type Config struct {
 		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
-	Ollama struct {
+	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
+	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`
 		ReadOnly        bool   `yaml:"readonly"` // true = only list/show/running, block pull/delete/copy
 		URL             string `yaml:"url"`      // e.g. "http://localhost:11434"

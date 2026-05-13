@@ -583,6 +583,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"homepage":         cfg.Homepage.Enabled,
 			"virustotal":       cfg.VirusTotal.Enabled,
 			"brave_search":     cfg.BraveSearch.Enabled,
+			"three_d_printers": cfg.ThreeDPrinters.Enabled,
 			"firewall":         cfg.Firewall.Enabled,
 			"remote_control":   cfg.RemoteControl.Enabled,
 			"web_scraper":      cfg.Tools.WebScraper.Enabled,

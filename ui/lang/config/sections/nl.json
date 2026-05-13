@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Wachtwoord voor de beheerde Postgres-database die Manifest-gegevens opslaat. Wordt automatisch gegenereerd bij de eerste start indien leeg. Het is geen Manifest-login of AuraGo-accountwachtwoord, wordt in de kluis opgeslagen, en wijzigen vereist herstart van de sidecars.",
   "help.manifest.postgres_volume": "Benoemd Docker-volume voor persistente Manifest-gegevens.",
   "help.manifest.url": "Interne URL die AuraGo gebruikt voor de beheerde Manifest-service.",
+  "config.section.three_d_printers.label": "3D-printers",
+  "config.section.three_d_printers.desc": "Besturing, status en camera van 3D-printers",
   "config.section.optimizations.group.tool_context": "🔧 Toolcontext",
   "config.section.optimizations.group.tool_visibility": "🔧 Toolzichtbaarheid"
 }

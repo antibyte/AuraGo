@@ -462,6 +462,8 @@
   "help.manifest.postgres_password": "Adgangskode til den styrede Postgres-database der gemmer Manifest-data. Genereres automatisk ved foerste start hvis tom. Det er ikke et Manifest-login eller en AuraGo-kontoadgangskode, gemmes i boksen, og aendring kraever genstart af sidecars.",
   "help.manifest.postgres_volume": "Navngivet Docker-volume til persistente Manifest-data.",
   "help.manifest.url": "Intern URL som AuraGo bruger til den styrede Manifest-tjeneste.",
+  "config.section.three_d_printers.label": "3D-printere",
+  "config.section.three_d_printers.desc": "Styring, status og kameraadgang for 3D-printere",
   "config.section.optimizations.group.tool_context": "🔧 Vaerktoejskontekst",
   "config.section.optimizations.group.tool_visibility": "🔧 Vaerktoejs synlighed"
 }

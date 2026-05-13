@@ -469,6 +469,30 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.ThreeDPrinterEnabled {
+		tools = append(tools, tool("three_d_printer",
+			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon status, files, camera snapshots/analysis/live stream, and guarded print controls.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum": []string{"list_printers", "test_connection", "status", "attributes", "files", "history",
+						"camera_url", "camera_snapshot", "analyze_camera", "show_live_stream",
+						"start_print", "pause_print", "resume_print", "cancel_print", "set_camera_light"},
+				},
+				"printer_id":   prop("string", "Configured printer id or name. Omit to use the default printer."),
+				"filename":     prop("string", "G-code filename/path for start_print. Required; never guess this value."),
+				"directory":    prop("string", "Printer directory for files operation, default /local."),
+				"prompt":       prop("string", "Vision prompt for analyze_camera."),
+				"light_on":     prop("boolean", "Second camera light state for set_camera_light."),
+				"start_layer":  prop("integer", "Start layer for start_print, default 0."),
+				"calibration":  prop("boolean", "Enable printer calibration for start_print."),
+				"time_lapse":   prop("boolean", "Enable timelapse for start_print."),
+				"show_in_chat": prop("boolean", "Request inline chat live stream rendering when operation is show_live_stream."),
+			}, "operation"),
+		))
+	}
+
 	if ff.OllamaEnabled {
 		tools = append(tools, tool("ollama",
 			"Manage local Ollama LLM instance: list models, pull/delete models, show model details, load/unload models from GPU memory.",

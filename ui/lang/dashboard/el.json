@@ -594,6 +594,7 @@
   "dashboard.quickstatus_todos": "Εργασίες",
   "dashboard.quickstatus_plans": "Πλάνα",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_three_d_printers": "Εκτυπωτές 3D",
   "dashboard.adaptive_tools_adaptive_cap": "Προσαρμοστικο οριο",
   "dashboard.adaptive_tools_total_cap": "Συνολικο οριο",
   "dashboard.adaptive_tools_last_count": "Τελευταιος αριθμος"

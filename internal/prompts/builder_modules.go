@@ -324,6 +324,10 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 			if flags.FrigateEnabled {
 				return true
 			}
+		case "three_d_printer_enabled":
+			if flags.ThreeDPrinterEnabled {
+				return true
+			}
 		case "ollama_enabled":
 			if flags.OllamaEnabled {
 				return true
