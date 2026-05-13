@@ -181,6 +181,15 @@
         if (!Number.isFinite(result) || !Number.isInteger(result)) throw new Error('Invalid expression');
         return result;
     }
+
+    async function plannerJSON(url, method, payload) {
+        return api(url, {
+            method: method || 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        });
+    }
+
     async function renderTodo(id) {
         const host = contentEl(id);
         if (!host) return;

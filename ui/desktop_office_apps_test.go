@@ -88,6 +88,58 @@ func TestOfficeAppsSendOptimisticVersion(t *testing.T) {
 	}
 }
 
+func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		file    string
+		markers []string
+	}{
+		{
+			name: "writer",
+			file: "writer.js",
+			markers: []string{
+				"function newDocument()",
+				"function saveAs()",
+				"id: 'new-document'",
+				"labelKey: 'desktop.writer_new'",
+				"id: 'save-as'",
+				"labelKey: 'desktop.writer_save_as'",
+				"ctx.promptDialog",
+			},
+		},
+		{
+			name: "sheets",
+			file: "sheets.js",
+			markers: []string{
+				"function newWorkbook()",
+				"function saveAs()",
+				"id: 'new-workbook'",
+				"labelKey: 'desktop.sheets_new'",
+				"id: 'save-as'",
+				"labelKey: 'desktop.sheets_save_as'",
+				"ctx.promptDialog",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sourceBytes, err := os.ReadFile(filepath.Join("js", "desktop", "apps", tt.file))
+			if err != nil {
+				t.Fatalf("read %s: %v", tt.file, err)
+			}
+			source := string(sourceBytes)
+			for _, marker := range tt.markers {
+				if !strings.Contains(source, marker) {
+					t.Fatalf("%s missing menu marker %q", tt.file, marker)
+				}
+			}
+		})
+	}
+}
+
 func TestSheetsFormulaStateUsesSingleSetter(t *testing.T) {
 	t.Parallel()
 

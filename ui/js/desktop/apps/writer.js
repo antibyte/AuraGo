@@ -136,6 +136,35 @@
             await refreshDesktop();
         }
 
+        function newDocument() {
+            officeVersion = null;
+            setPath(nextUntitledPath('.docx'));
+            if (titleInput) titleInput.value = '';
+            setDocumentText('');
+            if (editor && editor.history && typeof editor.history.clear === 'function') editor.history.clear();
+            setStatus('');
+        }
+
+        async function saveAs() {
+            if (readonly) return;
+            const prompt = ctx.promptDialog || (async () => null);
+            const nextPath = await prompt(t('desktop.writer_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
+            if (nextPath == null) return;
+            const trimmed = String(nextPath).trim();
+            if (!trimmed) return;
+            const previousPath = currentPath;
+            const previousVersion = officeVersion;
+            setPath(trimmed);
+            officeVersion = null;
+            try {
+                await save();
+            } catch (err) {
+                officeVersion = previousVersion;
+                setPath(previousPath);
+                throw err;
+            }
+        }
+
         function editCommand(command) {
             if (editor && editor.root) editor.focus();
             else if (fallback) fallback.focus();
@@ -158,7 +187,13 @@
                     id: 'file',
                     labelKey: 'desktop.menu_file',
                     items: [
+                        { id: 'new-document', labelKey: 'desktop.writer_new', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: newDocument },
                         { id: 'save', labelKey: 'desktop.writer_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => {
+                            setStatus(err.message || String(err), 'save-error');
+                            setTimeout(() => clearSaveError(statusNode), 6000);
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) },
+                        { id: 'save-as', labelKey: 'desktop.writer_save_as', icon: 'save', disabled: readonly, action: () => saveAs().catch(err => {
                             setStatus(err.message || String(err), 'save-error');
                             setTimeout(() => clearSaveError(statusNode), 6000);
                             notify({ type: 'error', message: err.message || String(err) });
@@ -246,6 +281,11 @@
 
     function textToHTML(text) {
         return '<p>' + String(text || '').split('\n').map(escapeHTML).join('</p><p>') + '</p>';
+    }
+
+    function nextUntitledPath(ext) {
+        const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
+        return 'Documents/untitled-' + stamp + ext;
     }
 
     function escapeHTML(value) {

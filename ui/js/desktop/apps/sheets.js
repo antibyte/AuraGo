@@ -568,6 +568,36 @@
             await refreshDesktop();
         }
 
+        function newWorkbook() {
+            officeVersion = null;
+            activeSheet = 0;
+            selection = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
+            workbook = emptyWorkbook(nextUntitledPath('.xlsx'));
+            setPath(workbook.path);
+            setStatus('');
+            renderWorkbook();
+        }
+
+        async function saveAs() {
+            if (readonly) return;
+            const prompt = ctx.promptDialog || (async () => null);
+            const nextPath = await prompt(t('desktop.sheets_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
+            if (nextPath == null) return;
+            const trimmed = String(nextPath).trim();
+            if (!trimmed) return;
+            const previousPath = currentPath;
+            const previousVersion = officeVersion;
+            setPath(trimmed);
+            officeVersion = null;
+            try {
+                await save();
+            } catch (err) {
+                officeVersion = previousVersion;
+                setPath(previousPath);
+                throw err;
+            }
+        }
+
         function exportURL(format) {
             const path = pathInput.value.trim() || DEFAULT_PATH;
             return '/api/desktop/office/export?path=' + encodeURIComponent(path) + '&format=' + encodeURIComponent(format);
@@ -585,7 +615,9 @@
                     id: 'file',
                     labelKey: 'desktop.menu_file',
                     items: [
+                        { id: 'new-workbook', labelKey: 'desktop.sheets_new', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: newWorkbook },
                         { id: 'save', labelKey: 'desktop.sheets_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => setStatus(err.message || String(err))) },
+                        { id: 'save-as', labelKey: 'desktop.sheets_save_as', icon: 'save', disabled: readonly, action: () => saveAs().catch(err => setStatus(err.message || String(err))) },
                         { type: 'separator' },
                         { id: 'download-xlsx', labelKey: 'desktop.sheets_download_xlsx', icon: 'download', action: () => openExport('xlsx').catch(err => setStatus(err.message || String(err))) },
                         { id: 'export-csv', labelKey: 'desktop.sheets_export_csv', icon: 'spreadsheet', action: () => openExport('csv').catch(err => setStatus(err.message || String(err))) }
@@ -682,6 +714,11 @@
 
     function emptyWorkbook(path) {
         return { path, sheets: [{ name: 'Sheet1', rows: [] }] };
+    }
+
+    function nextUntitledPath(ext) {
+        const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
+        return 'Documents/untitled-' + stamp + ext;
     }
 
     function normalizeWorkbook(raw, path) {

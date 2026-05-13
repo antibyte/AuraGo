@@ -36,3 +36,18 @@ func TestDesktopTodoChecklistItemsAreEditableAndStable(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTodoAddUsesDefinedPlannerJSONHelper(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"async function plannerJSON(",
+		"plannerJSON('/api/todos', 'POST'",
+		"await load(result.id);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo add flow missing marker %q", marker)
+		}
+	}
+}

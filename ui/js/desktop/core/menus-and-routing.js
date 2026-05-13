@@ -947,7 +947,7 @@
                 updateWindowContext: updateWindowContext,
                 setWindowMenus,
                 clearWindowMenus,
-                wireContextMenuBoundary
+                wireContextMenuBoundary, promptDialog
             }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
@@ -962,7 +962,7 @@
                 updateWindowContext: updateWindowContext,
                 setWindowMenus,
                 clearWindowMenus,
-                wireContextMenuBoundary
+                wireContextMenuBoundary, promptDialog
             }));
         }
         if (appId === 'settings') return renderSettings(id);
