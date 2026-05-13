@@ -634,7 +634,7 @@ manifest:
     external_base_url: "https://app.manifest.build/v1"    # external/hosted OpenAI-compatible Manifest endpoint
     container_name: aurago_manifest
     image: manifestdotbuild/manifest:5                    # pin major version; avoid latest for unattended upgrades
-    host: "127.0.0.1"                                     # dashboard/API bind address for host port publishing
+    host: "127.0.0.1"                                     # requested dashboard/API bind address; managed sidecars widen loopback to 0.0.0.0 so the UI link works from another LAN browser
     port: 2099
     host_port: 2099
     network_name: aurago_manifest

@@ -17,6 +17,8 @@ Managed mode uses:
 
 Only the Manifest dashboard/API port is published. PostgreSQL is kept on the private Docker network and is not published to the host.
 
+For managed sidecars, AuraGo publishes the Manifest host port on all host interfaces when the configured bind host is loopback. This keeps the dashboard reachable from the same browser that opened the AuraGo UI on a home-lab server. Existing managed containers with loopback-only publishing or an outdated Docker network are recreated automatically; the PostgreSQL data volume is retained.
+
 Required runtime secrets are stored only in the AuraGo vault:
 
 - Manifest API key, usually starting with `mnfst_`

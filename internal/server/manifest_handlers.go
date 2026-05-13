@@ -20,7 +20,7 @@ func handleManifestStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := currentManifestConfig(s)
-		writeManifestJSON(w, manifestStatus(r.Context(), s, &cfg))
+		writeManifestJSON(w, manifestStatusForRequest(r.Context(), s, &cfg, r))
 	}
 }
 
@@ -34,7 +34,7 @@ func handleManifestTest(s *Server) http.HandlerFunc {
 		if !applyManifestPatch(w, r, &cfg) {
 			return
 		}
-		writeManifestJSON(w, manifestStatus(r.Context(), s, &cfg))
+		writeManifestJSON(w, manifestStatusForRequest(r.Context(), s, &cfg, r))
 	}
 }
 
@@ -50,7 +50,7 @@ func handleManifestStart(s *Server) http.HandlerFunc {
 			return
 		}
 		if strings.EqualFold(strings.TrimSpace(cfg.Manifest.Mode), "external") {
-			status := manifestStatus(r.Context(), s, &cfg)
+			status := manifestStatusForRequest(r.Context(), s, &cfg, r)
 			status["message"] = "Manifest is configured in external mode; no sidecars to start"
 			writeManifestJSON(w, status)
 			return
@@ -86,7 +86,7 @@ func handleManifestStop(s *Server) http.HandlerFunc {
 			return
 		}
 		if strings.EqualFold(strings.TrimSpace(cfg.Manifest.Mode), "external") {
-			status := manifestStatus(r.Context(), s, &cfg)
+			status := manifestStatusForRequest(r.Context(), s, &cfg, r)
 			status["message"] = "Manifest is configured in external mode; no sidecars to stop"
 			writeManifestJSON(w, status)
 			return
@@ -171,6 +171,20 @@ func manifestStatus(ctx context.Context, s *Server, cfg *config.Config) map[stri
 		out["message"] = status.Message
 	}
 	return out
+}
+
+func manifestStatusForRequest(ctx context.Context, s *Server, cfg *config.Config, r *http.Request) map[string]interface{} {
+	out := manifestStatus(ctx, s, cfg)
+	manifestRewriteBrowserURL(r, out)
+	return out
+}
+
+func manifestRewriteBrowserURL(r *http.Request, payload map[string]interface{}) {
+	rawURL, ok := payload["url"].(string)
+	if !ok || strings.TrimSpace(rawURL) == "" {
+		return
+	}
+	payload["url"] = manifestURLWithRequestHost(rawURL, r)
 }
 
 func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {

@@ -205,8 +205,100 @@ func TestBuildManifestPayloadPublishesOnlyManifestPort(t *testing.T) {
 	hostConfig := payload["HostConfig"].(map[string]interface{})
 	portBindings := hostConfig["PortBindings"].(map[string]interface{})
 	bound := portBindings["2099/tcp"].([]interface{})[0].(map[string]interface{})
-	if bound["HostIp"] != "127.0.0.1" || bound["HostPort"] != "2099" {
-		t.Fatalf("Manifest port binding = %#v, want 127.0.0.1:2099", bound)
+	if bound["HostIp"] != "0.0.0.0" || bound["HostPort"] != "2099" {
+		t.Fatalf("Manifest port binding = %#v, want LAN-reachable 0.0.0.0:2099", bound)
+	}
+}
+
+func TestManifestContainerNeedsRecreateForLoopbackOnlyBinding(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"PORT=2099",
+				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"MANIFEST_TELEMETRY_DISABLED=1"
+			]
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "127.0.0.1", "HostPort": "2099"}]
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	if !manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
+		t.Fatal("expected loopback-only existing Manifest container to require recreation")
+	}
+}
+
+func TestManifestContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"PORT=2099",
+				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"MANIFEST_TELEMETRY_DISABLED=1"
+			]
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+			}
+		},
+		"NetworkSettings": {
+			"Networks": {
+				"aurago_manifest": {}
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	if manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
+		t.Fatal("did not expect LAN-reachable existing Manifest container to require recreation")
+	}
+}
+
+func TestManifestContainerNeedsRecreateForWrongDockerNetwork(t *testing.T) {
+	inspect := []byte(`{
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+			}
+		},
+		"NetworkSettings": {
+			"Networks": {
+				"old_manifest_network": {}
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	if !manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
+		t.Fatal("expected Manifest container on wrong Docker network to require recreation")
+	}
+}
+
+func TestManifestPostgresContainerNeedsRecreateForWrongDockerNetwork(t *testing.T) {
+	inspect := []byte(`{
+		"NetworkSettings": {
+			"Networks": {
+				"old_manifest_network": {}
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	if !manifestPostgresContainerNeedsRecreate(inspect, sidecar.NetworkName) {
+		t.Fatal("expected Manifest Postgres container on wrong Docker network to require recreation")
 	}
 }
 

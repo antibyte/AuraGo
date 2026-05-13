@@ -239,6 +239,7 @@ func buildManifestCreatePayload(sidecar ManifestSidecarConfig, networkName strin
 		networkName = sidecar.NetworkName
 	}
 	containerPort := fmt.Sprintf("%d/tcp", sidecar.Port)
+	publishHost := manifestPublishHost(sidecar.Host)
 	env := []string{
 		"PORT=" + strconv.Itoa(sidecar.Port),
 		"DATABASE_URL=" + manifestDatabaseURL(sidecar),
@@ -256,12 +257,20 @@ func buildManifestCreatePayload(sidecar ManifestSidecarConfig, networkName strin
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"NetworkMode":   networkName,
 			"PortBindings": map[string]interface{}{
-				containerPort: []map[string]string{{"HostIp": sidecar.Host, "HostPort": strconv.Itoa(sidecar.HostPort)}},
+				containerPort: []map[string]string{{"HostIp": publishHost, "HostPort": strconv.Itoa(sidecar.HostPort)}},
 			},
 		},
 		"NetworkingConfig": manifestNetworkingConfig(networkName, "manifest"),
 	}
 	return json.Marshal(payload)
+}
+
+func manifestPublishHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" || strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1" {
+		return "0.0.0.0"
+	}
+	return host
 }
 
 func manifestNetworkingConfig(networkName, alias string) map[string]interface{} {
@@ -300,14 +309,18 @@ func EnsureManifestSidecarsRunning(ctx context.Context, dockerHost string, cfg *
 		logger.Warn("[Manifest] Failed to ensure Docker network", "error", err)
 		return err
 	}
-	if err := ensureManifestContainer(ctx, dockerCfg, sidecar.PostgresContainerName, sidecar.PostgresImage, func() ([]byte, error) {
+	if err := ensureManifestContainerWithRecreate(ctx, dockerCfg, sidecar.PostgresContainerName, sidecar.PostgresImage, func() ([]byte, error) {
 		return buildManifestPostgresCreatePayload(sidecar, networkName)
+	}, func(data []byte) bool {
+		return manifestPostgresContainerNeedsRecreate(data, networkName)
 	}); err != nil {
 		logger.Error("[Manifest] Failed to ensure Postgres sidecar", "error", err)
 		return err
 	}
-	if err := ensureManifestContainer(ctx, dockerCfg, sidecar.ContainerName, sidecar.Image, func() ([]byte, error) {
+	if err := ensureManifestContainerWithRecreate(ctx, dockerCfg, sidecar.ContainerName, sidecar.Image, func() ([]byte, error) {
 		return buildManifestCreatePayload(sidecar, networkName)
+	}, func(data []byte) bool {
+		return manifestContainerNeedsRecreate(data, sidecar, networkName)
 	}); err != nil {
 		logger.Error("[Manifest] Failed to ensure Manifest sidecar", "error", err)
 		return err
@@ -351,6 +364,10 @@ func ensureManifestDockerNetwork(dockerCfg DockerConfig, sidecar ManifestSidecar
 }
 
 func ensureManifestContainer(ctx context.Context, dockerCfg DockerConfig, containerName, image string, payload func() ([]byte, error)) error {
+	return ensureManifestContainerWithRecreate(ctx, dockerCfg, containerName, image, payload, nil)
+}
+
+func ensureManifestContainerWithRecreate(ctx context.Context, dockerCfg DockerConfig, containerName, image string, payload func() ([]byte, error), needsRecreate func([]byte) bool) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -361,19 +378,23 @@ func ensureManifestContainer(ctx context.Context, dockerCfg DockerConfig, contai
 		return err
 	}
 	if code == http.StatusOK {
-		if manifestDockerContainerRunning(data) {
+		if needsRecreate != nil && needsRecreate(data) {
+			_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(containerName)+"/stop?t=5", "")
+			_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+url.PathEscape(containerName)+"?force=true", "")
+		} else {
+			if manifestDockerContainerRunning(data) {
+				return nil
+			}
+			_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(containerName)+"/start", "")
+			if startErr != nil {
+				return startErr
+			}
+			if startCode != http.StatusNoContent && startCode != http.StatusNotModified {
+				return fmt.Errorf("start container %q returned HTTP %d", containerName, startCode)
+			}
 			return nil
 		}
-		_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(containerName)+"/start", "")
-		if startErr != nil {
-			return startErr
-		}
-		if startCode != http.StatusNoContent && startCode != http.StatusNotModified {
-			return fmt.Errorf("start container %q returned HTTP %d", containerName, startCode)
-		}
-		return nil
-	}
-	if code != http.StatusNotFound {
+	} else if code != http.StatusNotFound {
 		return fmt.Errorf("inspect container %q returned HTTP %d", containerName, code)
 	}
 	if _, imgCode, imgErr := dockerRequest(dockerCfg, http.MethodGet, "/images/"+url.PathEscape(image)+"/json", ""); imgErr != nil || imgCode != http.StatusOK {
@@ -398,6 +419,75 @@ func ensureManifestContainer(ctx context.Context, dockerCfg DockerConfig, contai
 		return fmt.Errorf("start container %q returned HTTP %d", containerName, startCode)
 	}
 	return nil
+}
+
+func manifestContainerNeedsRecreate(data []byte, sidecar ManifestSidecarConfig, networkName string) bool {
+	var info struct {
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+		NetworkSettings struct {
+			Networks map[string]interface{} `json:"Networks"`
+		} `json:"NetworkSettings"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false
+	}
+	if !manifestContainerAttachedToNetwork(info.NetworkSettings.Networks, networkName) {
+		return true
+	}
+	port := sidecar.Port
+	if port <= 0 {
+		port = manifestDefaultPort
+	}
+	hostPort := sidecar.HostPort
+	if hostPort <= 0 {
+		hostPort = port
+	}
+	containerPort := fmt.Sprintf("%d/tcp", port)
+	bindings := info.HostConfig.PortBindings[containerPort]
+	if len(bindings) == 0 {
+		return true
+	}
+	wantHost := manifestPublishHost(sidecar.Host)
+	wantPort := strconv.Itoa(hostPort)
+	for _, binding := range bindings {
+		hostIP := strings.TrimSpace(binding.HostIP)
+		if hostIP == "" {
+			hostIP = "0.0.0.0"
+		}
+		if hostIP == wantHost && strings.TrimSpace(binding.HostPort) == wantPort {
+			return false
+		}
+	}
+	return true
+}
+
+func manifestPostgresContainerNeedsRecreate(data []byte, networkName string) bool {
+	var info struct {
+		NetworkSettings struct {
+			Networks map[string]interface{} `json:"Networks"`
+		} `json:"NetworkSettings"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false
+	}
+	return !manifestContainerAttachedToNetwork(info.NetworkSettings.Networks, networkName)
+}
+
+func manifestContainerAttachedToNetwork(networks map[string]interface{}, networkName string) bool {
+	networkName = strings.TrimSpace(networkName)
+	if networkName == "" {
+		return true
+	}
+	if len(networks) == 0 {
+		return false
+	}
+	_, ok := networks[networkName]
+	return ok
 }
 
 func manifestDockerContainerRunning(data []byte) bool {

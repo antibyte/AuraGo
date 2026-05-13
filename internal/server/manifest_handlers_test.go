@@ -156,3 +156,14 @@ func TestManifestTestRejectsInvalidJSONWithoutStatusBody(t *testing.T) {
 		t.Fatalf("body = %s, want only invalid payload error", rec.Body.String())
 	}
 }
+
+func TestManifestStatusHTMLURLUsesRequestHostForLoopbackBrowserURL(t *testing.T) {
+	payload := map[string]interface{}{"url": "http://127.0.0.1:2099"}
+	req := httptest.NewRequest(http.MethodGet, "http://dockge.local:8088/api/manifest/status", nil)
+
+	manifestRewriteBrowserURL(req, payload)
+
+	if payload["url"] != "http://dockge.local:2099" {
+		t.Fatalf("url = %v, want request host with Manifest port", payload["url"])
+	}
+}
