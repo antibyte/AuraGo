@@ -14,6 +14,9 @@ func TestLookupKnownContextWindow_PrefixMatchingOnly(t *testing.T) {
 		{name: "slash model match", model: "meta-llama/llama-3.1-70b-instruct", wantSize: 131_072, wantOK: true},
 		{name: "kimi k2.6 direct match", model: "kimi-k2.6", wantSize: 262_144, wantOK: true},
 		{name: "kimi k2.6 provider style match", model: "ollama/kimi-k2.6", wantSize: 262_144, wantOK: true},
+		{name: "stepfun flash direct match", model: "step-3.5-flash", wantSize: 262_144, wantOK: true},
+		{name: "stepfun flash dated match", model: "step-3.5-flash-2603", wantSize: 262_144, wantOK: true},
+		{name: "stepfun provider style match", model: "stepfun/step-3.5-flash-2603", wantSize: 262_144, wantOK: true},
 		{name: "no contains fallback", model: "my-custom-qwen-adapter", wantSize: 0, wantOK: false},
 	}
 

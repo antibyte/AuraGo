@@ -42,6 +42,9 @@ var knownContextWindows = []struct {
 	{"abab6.5g", 8_192},
 	{"abab5.5s", 8_192},
 
+	// ── Stepfun (api.stepfun.ai) ─────────────────────────────────────────────
+	{"step-3.5-flash", 262_144},
+
 	// ── Kimi / Moonshot AI (api.moonshot.cn) ─────────────────────────────────
 	// kimi-k2 variants with 256K window before base kimi-k2 (128K)
 	{"kimi-k2.6", 262_144},        // kimi-k2.6 multimodal: 256K

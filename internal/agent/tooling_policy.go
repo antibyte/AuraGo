@@ -98,6 +98,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	// Using lowerProvider alone would incorrectly flag any model using the Anthropic SDK.
 	isAnthropic := strings.Contains(lowerModel, "claude")
 	isNemotron := strings.Contains(lowerModel, "nemotron")
+	isStepFun := strings.HasPrefix(lowerModel, "step-") || strings.Contains(lowerModel, "/step-")
 
 	// Models from providers known to NOT support OpenAI-style strict mode on
 	// individual tool definitions (Function.Strict=true). Ollama supports
@@ -134,7 +135,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsOllama:                     isOllama,
 		IsDeepSeek:                   isDeepSeek,
 		IsAnthropic:                  isAnthropic,
-		AutoEnableNativeFunctions:    isDeepSeek || isAnthropic || isNemotron,
+		AutoEnableNativeFunctions:    isDeepSeek || isAnthropic || isNemotron || isStepFun,
 		SupportsStructuredOutputs:    !isNoStrictStructuredOutputs,
 		SupportsParallelToolCalls:    !isOllama,
 		DisableNativeFunctionCalling: isGLMFamily,

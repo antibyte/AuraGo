@@ -31,6 +31,30 @@ func TestBuildToolingPolicyAutoEnablesNativeFunctionsForDeepSeek(t *testing.T) {
 	}
 }
 
+func TestBuildToolingPolicyRecognizesStepFunCapabilities(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "step-3.5-flash-2603"
+	cfg.LLM.StructuredOutputs = true
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if !policy.UseNativeFunctions {
+		t.Fatal("expected native function calling to be enabled for Stepfun flash models")
+	}
+	if !policy.AutoEnabledNativeFunctions {
+		t.Fatal("expected Stepfun native function calling to be marked as auto-enabled")
+	}
+	if !policy.StructuredOutputsEnabled {
+		t.Fatal("expected structured outputs to remain enabled for Stepfun flash models")
+	}
+	if !policy.ParallelToolCallsEnabled {
+		t.Fatal("expected parallel tool calls to remain enabled for Stepfun flash models")
+	}
+	if policy.Capabilities.DisableNativeFunctionCalling {
+		t.Fatal("did not expect Stepfun flash models to be forced into text tool-call mode")
+	}
+}
+
 func TestBuildToolingPolicyHonorsExplicitNativeFunctions(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.Model = "gpt-4o-mini"
