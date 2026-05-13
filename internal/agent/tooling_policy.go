@@ -311,6 +311,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 	sandboxEnabled := cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK)
 	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
+	packageManagerEnabled := cfg.Agent.AllowPackageManager && cfg.PackageManager.Enabled && (!cfg.Runtime.IsDocker || cfg.Agent.SudoEnabled)
 
 	return ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
@@ -355,6 +356,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VideoGenerationEnabled:       cfg.VideoGeneration.Enabled,
 		TTSEnabled:                   isTTSConfigured(cfg),
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
+		PackageManagerEnabled:        packageManagerEnabled,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,

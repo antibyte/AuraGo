@@ -451,6 +451,15 @@ func Load(path string) (*Config, error) {
 	cfg.RemoteControl.MaxFileSizeMB = 50
 	cfg.RemoteControl.AuditLog = true
 
+	// Package manager defaults: disabled by default and mutable only when the
+	// danger-zone gate and package-manager section are both explicitly enabled.
+	cfg.PackageManager.Enabled = false
+	cfg.PackageManager.ReadOnly = false
+	cfg.PackageManager.AutoDetect = true
+	cfg.PackageManager.AllowInstall = true
+	cfg.PackageManager.AllowRemove = true
+	cfg.PackageManager.AllowUpgrade = true
+
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "Staat de agent toe om shell commandos op externe servers via SSH uit te voeren.",
   "config.danger.self_update.title": "Zelfupdate (manage_updates)",
   "config.danger.self_update.desc": "Allows the agent to update itself and restart the process.",
+  "config.danger.package_manager.title": "Pakethantering (package_manager)",
+  "config.danger.package_manager.desc": "Tillåter agenten att installera, ta bort, uppdatera, söka och inspektera systempaket. Linux-ändringar använder sudo_password från valvet.",
   "config.danger.mcp.title": "MCP Server Verbindingen (mcp_call)",
   "config.danger.mcp.desc": "Staat de agent toe om verbinding te maken met externe MCP servers en hun tools te gebruiken. <strong style=\"color:#f87171;\">⚠ Voeg alleen vertrouwde servers toe!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemomfattande Sudo-skrivåtkomst",

@@ -265,6 +265,16 @@ type CodeStudioConfig struct {
 	MaxCPUCores     int    `yaml:"max_cpu_cores" json:"max_cpu_cores"`
 }
 
+type PackageManagerConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	ReadOnly     bool   `yaml:"readonly"`
+	AutoDetect   bool   `yaml:"auto_detect"`
+	Override     string `yaml:"override"`
+	AllowInstall bool   `yaml:"allow_install"`
+	AllowRemove  bool   `yaml:"allow_remove"`
+	AllowUpgrade bool   `yaml:"allow_upgrade"`
+}
+
 // MQTTTLS holds TLS configuration for MQTT connections.
 type MQTTTLS struct {
 	Enabled            bool   `yaml:"enabled"`              // enable TLS encryption
@@ -438,6 +448,7 @@ type Config struct {
 		AllowNetworkRequests bool   `yaml:"allow_network_requests"` // allow api_request
 		AllowRemoteShell     bool   `yaml:"allow_remote_shell"`     // allow execute_remote_shell
 		AllowSelfUpdate      bool   `yaml:"allow_self_update"`      // allow manage_updates
+		AllowPackageManager  bool   `yaml:"allow_package_manager"`  // allow package_manager tool
 		AllowMCP             bool   `yaml:"allow_mcp"`              // allow MCP (Model Context Protocol) server connections
 		AllowWebScraper      *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
 		AdditionalPrompt     string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
@@ -806,7 +817,8 @@ type Config struct {
 		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
 		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
 	} `yaml:"docker"`
-	CoAgents struct {
+	PackageManager PackageManagerConfig `yaml:"package_manager"`
+	CoAgents       struct {
 		Enabled             bool `yaml:"enabled"`
 		MaxConcurrent       int  `yaml:"max_concurrent"`
 		BudgetQuotaPercent  int  `yaml:"budget_quota_percent"`     // share of daily budget reserved for co-agents (0 = disabled)

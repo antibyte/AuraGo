@@ -121,6 +121,7 @@ type ToolFeatureFlags struct {
 	VideoGenerationEnabled  bool
 	TTSEnabled              bool
 	RemoteControlEnabled    bool
+	PackageManagerEnabled   bool
 	// Danger Zone toggles
 	AllowShell               bool
 	AllowPython              bool

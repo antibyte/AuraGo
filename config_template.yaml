@@ -45,6 +45,7 @@ agent:
     allow_network_requests: false
     allow_remote_shell: false
     allow_self_update: false
+    allow_package_manager: false  # enable structured OS package management (also requires package_manager.enabled)
     # ── Standard API access ── disabled by default for fresh installs (must be explicitly enabled)
     allow_mcp: false
     allow_web_scraper: false
@@ -212,6 +213,15 @@ discord:
 docker:
     enabled: false
     host: ""
+    readonly: false
+package_manager:
+    enabled: false        # master toggle for the package_manager tool
+    readonly: false       # allow only detect/search/list_installed/info when true
+    auto_detect: true     # detect apt/dnf/yum/pacman/zypper/apk/brew/winget/choco/scoop from PATH
+    override: ""          # force a manager, e.g. apt, brew, winget; empty uses auto-detect
+    allow_install: true   # allow install operations when not readonly
+    allow_remove: true    # allow remove/uninstall operations when not readonly
+    allow_upgrade: true   # allow update and upgrade operations when not readonly
 email:
     enabled: false
     from_address: ""

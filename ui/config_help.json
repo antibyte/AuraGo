@@ -152,6 +152,11 @@
       "title": "Allow Self Update",
       "description": "⚠️ Danger Zone: Allows the agent to trigger automatic self-updates."
     },
+    "allow_package_manager": {
+      "title": "Allow Package Manager",
+      "description": "⚠️ Danger Zone: Allows the agent to use the structured package_manager tool. Also requires package_manager.enabled.",
+      "warning": "Install and remove operations can change the host system. Prefer read-only mode unless mutations are needed."
+    },
     "allow_mcp": {
       "title": "Allow MCP Servers",
       "description": "⚠️ Danger Zone: Allows connections to external Model Context Protocol servers.",
@@ -350,6 +355,36 @@
     "host": {
       "title": "Docker Host",
       "description": "Docker daemon address. Leave empty for local socket, or use tcp://host:port for remote."
+    }
+  },
+  "package_manager": {
+    "enabled": {
+      "title": "Enable Package Manager",
+      "description": "Activates the structured package_manager tool for local OS packages."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "Allows detect, search, list_installed and info, but blocks install, remove, update and upgrade."
+    },
+    "auto_detect": {
+      "title": "Auto-Detect Manager",
+      "description": "Detects apt, dnf, yum, pacman, zypper, apk, brew, winget, choco or scoop from PATH."
+    },
+    "override": {
+      "title": "Package Manager Override",
+      "description": "Force a specific manager such as apt, brew or winget. Leave empty to auto-detect."
+    },
+    "allow_install": {
+      "title": "Allow Installs",
+      "description": "Permit package installation when read-only mode is disabled."
+    },
+    "allow_remove": {
+      "title": "Allow Removals",
+      "description": "Permit package removal or uninstall operations when read-only mode is disabled."
+    },
+    "allow_upgrade": {
+      "title": "Allow Updates and Upgrades",
+      "description": "Permit package metadata refresh and package upgrade operations when read-only mode is disabled."
     }
   },
   "remote_control": {

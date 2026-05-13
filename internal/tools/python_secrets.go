@@ -84,6 +84,7 @@ var blockedSecretExact = map[string]struct{}{
 	"grafana_api_key":             {},
 	"yepapi_api_key":              {},
 	"n8n_api_token":               {},
+	"sudo_password":               {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

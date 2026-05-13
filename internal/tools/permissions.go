@@ -7,18 +7,23 @@ import (
 
 // RuntimePermissions are the direct execution gates enforced inside high-risk tools.
 type RuntimePermissions struct {
-	AllowShell           bool
-	AllowPython          bool
-	AllowFilesystemWrite bool
-	AllowNetworkRequests bool
-	DockerEnabled        bool
-	DockerReadOnly       bool
-	SchedulerEnabled     bool
-	SchedulerReadOnly    bool
-	MissionsEnabled      bool
-	MissionsReadOnly     bool
-	MQTTEnabled          bool
-	MQTTReadOnly         bool
+	AllowShell                 bool
+	AllowPython                bool
+	AllowFilesystemWrite       bool
+	AllowNetworkRequests       bool
+	DockerEnabled              bool
+	DockerReadOnly             bool
+	SchedulerEnabled           bool
+	SchedulerReadOnly          bool
+	MissionsEnabled            bool
+	MissionsReadOnly           bool
+	MQTTEnabled                bool
+	MQTTReadOnly               bool
+	PackageManagerEnabled      bool
+	PackageManagerReadOnly     bool
+	PackageManagerAllowInstall bool
+	PackageManagerAllowRemove  bool
+	PackageManagerAllowUpgrade bool
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
@@ -132,6 +137,39 @@ func requireMQTTPublishPermission() error {
 	perms, _ := currentRuntimePermissions()
 	if perms.MQTTReadOnly {
 		return fmt.Errorf("mqtt publish is disabled by runtime permissions")
+	}
+	return nil
+}
+
+func requirePackageManagerPermission() error {
+	perms, configured := currentRuntimePermissions()
+	if !configured {
+		return requireRuntimePermission("package manager", false)
+	}
+	return requireRuntimePermission("package manager", perms.PackageManagerEnabled)
+}
+
+func requirePackageManagerMutationPermission(operation string) error {
+	if err := requirePackageManagerPermission(); err != nil {
+		return err
+	}
+	perms, _ := currentRuntimePermissions()
+	if perms.PackageManagerReadOnly {
+		return fmt.Errorf("package manager mutation is disabled by runtime permissions")
+	}
+	switch operation {
+	case "install":
+		if !perms.PackageManagerAllowInstall {
+			return fmt.Errorf("package install is disabled by runtime permissions")
+		}
+	case "remove":
+		if !perms.PackageManagerAllowRemove {
+			return fmt.Errorf("package removal is disabled by runtime permissions")
+		}
+	case "update", "upgrade":
+		if !perms.PackageManagerAllowUpgrade {
+			return fmt.Errorf("package update/upgrade is disabled by runtime permissions")
+		}
 	}
 	return nil
 }

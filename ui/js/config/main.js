@@ -764,7 +764,7 @@ async function renderSection(key) {
     // Keys managed by other sections — skip in generic renderer
     const AGENT_SKIP_KEYS = new Set([
         'allow_shell', 'allow_python', 'allow_filesystem_write',
-        'allow_network_requests', 'allow_remote_shell', 'allow_self_update',
+        'allow_network_requests', 'allow_remote_shell', 'allow_self_update', 'allow_package_manager',
         'allow_mcp',               // → Danger Zone
         'allow_web_scraper',        // → deprecated, migrated to tools.web_scraper.enabled
         'sudo_enabled',            // → Danger Zone

@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "允许代理通过 SSH 在远程服务器上执行 shell 命令。",
   "config.danger.self_update.title": "自我更新 (manage_updates)",
   "config.danger.self_update.desc": "允许代理更新自身并重启进程。",
+  "config.danger.package_manager.title": "软件包管理 (package_manager)",
+  "config.danger.package_manager.desc": "允许代理安装、删除、更新、搜索和检查系统软件包。Linux 变更会使用保险库中的 sudo_password。",
   "config.danger.mcp.title": "MCP 服务器连接 (mcp_call)",
   "config.danger.mcp.desc": "允许代理连接到外部 MCP 服务器并使用其工具。<strong style=\"color:#f87171;\">⚠ 仅添加受信任的服务器！</strong>",
   "config.danger.sudo_unrestricted.title": "系统级Sudo写入权限",

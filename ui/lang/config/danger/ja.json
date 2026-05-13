@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "エージェントが SSH 経由でリモート サーバー上でシェル コマンドを実行できるようにします。",
   "config.danger.self_update.title": "自己更新 (manage_updates)",
   "config.danger.self_update.desc": "エージェントが自身を更新し、プロセスを再起動できるようにします。",
+  "config.danger.package_manager.title": "パッケージ管理 (package_manager)",
+  "config.danger.package_manager.desc": "エージェントがシステムパッケージのインストール、削除、更新、検索、確認を行えるようにします。Linux の変更では Vault の sudo_password を使用します。",
   "config.danger.mcp.title": "MCP サーバー接続 (mcp_call)",
   "config.danger.mcp.desc": "エージェントが外部 MCP サーバーに接続し、そのツールを使用できるようにします。 <strong style=\"color:#f87171;\">⚠ 信頼できるサーバーのみを追加してください。</strong>",
   "config.danger.sudo_unrestricted.title": "システム全体のSudo書き込みアクセス",

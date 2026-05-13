@@ -69,6 +69,14 @@
                     badge: 'manage_updates'
                 },
                 {
+                    path: 'agent.allow_package_manager',
+                    val: agentCfg.allow_package_manager === true,
+                    icon: '📦',
+                    title: t('config.danger.package_manager.title'),
+                    desc: t('config.danger.package_manager.desc'),
+                    badge: 'package_manager'
+                },
+                {
                     path: 'agent.allow_mcp',
                     val: agentCfg.allow_mcp === true,
                     icon: '🔌',

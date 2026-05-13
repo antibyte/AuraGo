@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "Umožňuje agentovi spouštět shell příkazy na vzdálených serverech přes SSH.",
   "config.danger.self_update.title": "Samoaktualizace (manage_updates)",
   "config.danger.self_update.desc": "Umožňuje agentovi aktualizovat sebe a restartovat proces.",
+  "config.danger.package_manager.title": "Správa balíčků (package_manager)",
+  "config.danger.package_manager.desc": "Umožňuje agentovi instalovat, odebírat, aktualizovat, vyhledávat a kontrolovat systémové balíčky. Změny v Linuxu používají sudo_password z trezoru.",
   "config.danger.mcp.title": "MCP Server připojení (mcp_call)",
   "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>",
   "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",

@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "Erlaubt dem Agenten, Shell-Befehle auf entfernten Servern via SSH auszuführen.",
   "config.danger.self_update.title": "Selbst-Update (manage_updates)",
   "config.danger.self_update.desc": "Erlaubt dem Agenten, sich selbst zu aktualisieren und neu zu starten.",
+  "config.danger.package_manager.title": "Paketverwaltung (package_manager)",
+  "config.danger.package_manager.desc": "Erlaubt dem Agenten, Systempakete zu installieren, zu entfernen, zu aktualisieren, zu suchen und zu prüfen. Linux-Änderungen nutzen sudo_password aus dem Vault.",
   "config.danger.mcp.title": "MCP Server-Verbindungen (mcp_call)",
   "config.danger.mcp.desc": "Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style=\"color:#f87171;\">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemweiter Sudo-Schreibzugriff",

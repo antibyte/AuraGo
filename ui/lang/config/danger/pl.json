@@ -15,6 +15,8 @@
   "config.danger.remote_shell.desc": "Pozwala agentowi wykonywać polecenia shell na zdalnych serwerach przez SSH.",
   "config.danger.self_update.title": "Samoaktualizacja (manage_updates)",
   "config.danger.self_update.desc": "Pozwala agentowi aktualizować się i restartować proces.",
+  "config.danger.package_manager.title": "Zarządzanie pakietami (package_manager)",
+  "config.danger.package_manager.desc": "Pozwala agentowi instalować, usuwać, aktualizować, wyszukiwać i sprawdzać pakiety systemowe. Zmiany w Linuksie używają sudo_password ze skarbca.",
   "config.danger.mcp.title": "Połączenia Serwerów MCP (mcp_call)",
   "config.danger.mcp.desc": "Pozwala agentowi łączyć się z zewnętrznymi serwerami MCP i używać ich narzędzi. <strong style=\"color:#f87171;\">⚠ Tylko zaufane serwery!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemowy Dostęp do Zapisu przez Sudo",

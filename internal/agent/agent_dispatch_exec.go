@@ -208,6 +208,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "install_package":
 			return dispatchShell(tc, dc)
 
+		case "package_manager":
+			return dispatchPackageManager(tc, dc)
+
 		case "save_tool":
 			return dispatchPython(tc, dc)
 

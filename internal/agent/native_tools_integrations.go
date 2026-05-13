@@ -114,6 +114,21 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.PackageManagerEnabled {
+		tools = append(tools, tool("package_manager",
+			"Manage system packages across Linux, macOS, and Windows. Auto-detects apt, dnf, yum, pacman, zypper, apk, brew, winget, choco, or scoop. Prefer detect/search/info/list_installed before install, remove, update, or upgrade.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Package management operation to perform",
+					"enum":        []string{"detect", "install", "remove", "update", "upgrade", "search", "list_installed", "info"},
+				},
+				"package": prop("string", "Package name. Required for install, remove, search, and info. Optional for upgrade (empty upgrades all)."),
+				"manager": prop("string", "Optional package manager override: apt, dnf, yum, pacman, zypper, apk, brew, winget, choco, or scoop. Leave empty for configured override or auto-detection."),
+			}, "operation"),
+		))
+	}
+
 	if ff.CoAgentEnabled {
 		tools = append(tools, tool("co_agent",
 			"Spawn and manage parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done. Use 'spawn_specialist' to dispatch tasks to specialized experts (researcher, coder, designer, security, writer). When slots are full, co-agents may be queued automatically and started by priority.",

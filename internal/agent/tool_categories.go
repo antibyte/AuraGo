@@ -48,6 +48,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"process_analyzer", "Find top CPU/memory consumers, search and inspect OS processes"},
 		{"process_management", "List, kill, or inspect AuraGo background processes"},
 		{"manage_updates", "Check for and install AuraGo updates"},
+		{"package_manager", "Detect, search, install, remove, update and inspect OS packages"},
 		{"execute_sudo", "Run a shell command with sudo privileges"},
 		{"execute_sandbox", "Run code in an isolated sandbox environment"},
 		{"execute_shell", "Execute shell commands on the host system"},
