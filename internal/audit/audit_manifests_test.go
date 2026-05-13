@@ -328,6 +328,57 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	}
 }
 
+func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
+	t.Parallel()
+
+	var combined strings.Builder
+	entries, err := os.ReadDir(repoPath(".github", "workflows"))
+	if err != nil {
+		t.Fatalf("read workflows: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yml" && ext != ".yaml" {
+			continue
+		}
+		combined.WriteString(readRepoFile(t, filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))))
+		combined.WriteByte('\n')
+	}
+	workflowText := combined.String()
+	if strings.Contains(workflowText, "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") {
+		t.Fatal("workflows should use Node 24 action majors directly instead of forcing Node 24 runtime")
+	}
+	for _, forbidden := range []string{
+		"actions/checkout@v4",
+		"actions/setup-node@v4",
+		"docker/setup-qemu-action@v3",
+		"docker/setup-buildx-action@v3",
+		"docker/login-action@v3",
+		"docker/metadata-action@v5",
+		"docker/build-push-action@v6",
+	} {
+		if strings.Contains(workflowText, forbidden) {
+			t.Fatalf("workflow still uses deprecated Node 20 action %q", forbidden)
+		}
+	}
+	for _, required := range []string{
+		"actions/checkout@v6",
+		"actions/setup-node@v6",
+		"docker/setup-qemu-action@v4",
+		"docker/setup-buildx-action@v4",
+		"docker/login-action@v4",
+		"docker/metadata-action@v6",
+		"docker/build-push-action@v7",
+	} {
+		if !strings.Contains(workflowText, required) {
+			t.Fatalf("workflow missing Node 24 action %q", required)
+		}
+	}
+}
+
 func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	t.Parallel()
 

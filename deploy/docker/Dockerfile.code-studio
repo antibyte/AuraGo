@@ -19,8 +19,7 @@ RUN apt-get update \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable \
-    && npm install -g pnpm yarn typescript tsx
+RUN npm install -g --force pnpm yarn typescript tsx
 
 RUN if getent passwd 1000 >/dev/null; then \
         existing_user="$(getent passwd 1000 | cut -d: -f1)"; \

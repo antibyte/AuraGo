@@ -181,6 +181,9 @@ func TestCodeStudioDockerfileDoesNotSelfUpdateNPM(t *testing.T) {
 	if strings.Contains(dockerfile, "npm@latest") {
 		t.Fatal("Dockerfile must not self-update npm during image build")
 	}
+	if strings.Contains(dockerfile, "corepack enable") && strings.Contains(dockerfile, "npm install -g pnpm yarn") {
+		t.Fatal("Dockerfile must not enable Corepack and then globally install pnpm/yarn; the generated shims conflict during buildx")
+	}
 	for _, tool := range []string{"pnpm", "yarn", "typescript", "tsx"} {
 		if !strings.Contains(dockerfile, tool) {
 			t.Fatalf("Dockerfile should still install %s", tool)
