@@ -200,6 +200,9 @@ function appendMessage(role, text, timestamp) {
                 finalHTML = sanitizeRenderedHTML(finalHTML);
                 finalHTML = renderVideoLinksAsPlayers(finalHTML);
                 finalHTML = renderYouTubeLinksAsPlayers(finalHTML);
+                if (typeof renderSTLLinksAsPlayers === 'function') {
+                    finalHTML = renderSTLLinksAsPlayers(finalHTML);
+                }
 
                 // If the rendered content contains only thinking blocks with no visible
                 // text, add a subtle "done" indicator so the bubble is never blank.
@@ -738,6 +741,7 @@ function docFormatIcon(fmt) {
         case 'json': return markup('json');
         case 'xml': return markup('xml');
         case 'html': case 'htm': return markup('web');
+        case 'stl': return markup('theme-threedee') || markup('attach');
         default: return markup('attach');
     }
 }

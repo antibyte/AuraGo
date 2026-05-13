@@ -1059,6 +1059,25 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 			})
 			broker.Send("video", string(evtPayload))
 		}
+	case "send_stl":
+		var stlRes struct {
+			Status   string `json:"status"`
+			WebPath  string `json:"web_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+			Format   string `json:"format"`
+		}
+		if json.Unmarshal([]byte(raw), &stlRes) == nil && stlRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":      stlRes.WebPath,
+				"title":     stlRes.Title,
+				"mime_type": stlRes.MimeType,
+				"filename":  stlRes.Filename,
+				"format":    stlRes.Format,
+			})
+			broker.Send("stl", string(evtPayload))
+		}
 	case "send_youtube_video":
 		var videoRes struct {
 			Status       string `json:"status"`
@@ -1140,6 +1159,10 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 				"filename":    docRes.Filename,
 				"format":      docRes.Format,
 			})
+			if strings.EqualFold(docRes.Format, "stl") || strings.HasSuffix(strings.ToLower(docRes.Filename), ".stl") {
+				broker.Send("stl", string(evtPayload))
+				break
+			}
 			broker.Send("document", string(evtPayload))
 		}
 	}

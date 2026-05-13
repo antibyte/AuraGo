@@ -993,7 +993,7 @@
                 openApp
             }));
         }
-        if (appId === 'quick-connect') return renderQuickConnect(id);
+        if (appId === 'viewer-3d' && window.Viewer3DApp && typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
@@ -1055,7 +1055,7 @@
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
-                    if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
+                    if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
                     if (entry.web_path || entry.media_kind) return openMediaPreview(entry);
                     openEditorFile(entry.path);

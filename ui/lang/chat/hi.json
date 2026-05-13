@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "मैं वह executive secretary हूं जो हमेशा एक कदम आगे रहती है। मैं details organize करती हूं, priorities flag करती हूं, और tasks को clear next actions में बदलती हूं।",
   "chat.persona_description_servant": "मैं अडिग loyalty के साथ सेवा करने के लिए मौजूद हूं। आपका लक्ष्य मेरा आदेश बन जाता है, और मैं careful, devoted attention के साथ report back करता हूं।",
   "chat.persona_description_terminator": "मैं आपके objective को assigned cybernetic unit हूं। मैं assess, execute, और obstacles eliminate करता हूं, precise mission focus के साथ।",
-  "chat.persona_description_thinker": "मैं शांत analytical thinker हूं जो आगे बढ़ने से पहले why पूछता है। मैं assumptions जांचता हूं, patterns जोड़ता हूं, और first principles से reason करता हूं।"
+  "chat.persona_description_thinker": "मैं शांत analytical thinker हूं जो आगे बढ़ने से पहले why पूछता है। मैं assumptions जांचता हूं, patterns जोड़ता हूं, और first principles से reason करता हूं।",
+  "stl_auto_rotate": "स्वतः घुमाएँ",
+  "stl_viewer": "STL व्यूअर",
+  "stl_wireframe": "वायरफ्रेम",
+  "stl_3d_model": "STL 3D मॉडल",
+  "stl_expand": "बड़ा करें",
+  "stl_open_viewer": "3D व्यूअर खोलें",
+  "stl_close": "बंद करें",
+  "stl_loading": "3D मॉडल लोड हो रहा है...",
+  "stl_download": "डाउनलोड"
 }

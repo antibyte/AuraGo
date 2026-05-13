@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Sou a secretaria executiva que esta sempre um passo a frente. Organizo detalhes, sinalizo prioridades e transformo tarefas em proximas acoes claras.",
   "chat.persona_description_servant": "Existo para servir com lealdade inabalavel. Seu objetivo se torna minha ordem, e eu retorno com atencao cuidadosa e dedicada.",
   "chat.persona_description_terminator": "Sou uma unidade cibernetica atribuida ao seu objetivo. Avalio, executo e elimino obstaculos com foco preciso de missao.",
-  "chat.persona_description_thinker": "Sou o pensador analitico calmo que pergunta por que antes de avancar. Examino pressupostos, conecto padroes e raciocino a partir de primeiros principios."
+  "chat.persona_description_thinker": "Sou o pensador analitico calmo que pergunta por que antes de avancar. Examino pressupostos, conecto padroes e raciocino a partir de primeiros principios.",
+  "stl_auto_rotate": "Rotação automática",
+  "stl_viewer": "Visualizador STL",
+  "stl_wireframe": "Aramado",
+  "stl_3d_model": "Modelo 3D STL",
+  "stl_expand": "Expandir",
+  "stl_open_viewer": "Abrir visualizador 3D",
+  "stl_close": "Fechar",
+  "stl_loading": "Carregando modelo 3D...",
+  "stl_download": "Baixar"
 }

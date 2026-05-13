@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "私は常に一歩先を読むエグゼクティブ秘書です。詳細を整理し、優先事項を示し、タスクを明確な次の行動に変えます。",
   "chat.persona_description_servant": "私は揺るぎない忠誠で仕えるために存在します。あなたの目標は私の命令となり、注意深く献身的に報告します。",
   "chat.persona_description_terminator": "私はあなたの目的に割り当てられたサイバネティック・ユニットです。正確な任務集中で評価し、実行し、障害を排除します。",
-  "chat.persona_description_thinker": "私は急ぐ前になぜと問う、静かな分析的思索者です。前提を調べ、パターンを結び、第一原理から考えます。"
+  "chat.persona_description_thinker": "私は急ぐ前になぜと問う、静かな分析的思索者です。前提を調べ、パターンを結び、第一原理から考えます。",
+  "stl_auto_rotate": "自動回転",
+  "stl_viewer": "STLビューア",
+  "stl_wireframe": "ワイヤーフレーム",
+  "stl_3d_model": "STL 3Dモデル",
+  "stl_expand": "拡大",
+  "stl_open_viewer": "3Dビューアを開く",
+  "stl_close": "閉じる",
+  "stl_loading": "3Dモデルを読み込み中...",
+  "stl_download": "ダウンロード"
 }

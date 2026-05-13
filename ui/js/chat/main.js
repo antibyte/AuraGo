@@ -450,6 +450,7 @@ let seenSSEAudios = new Set();
 let seenSSEVideos = new Set();
 let seenSSEYouTubeVideos = new Set();
 let seenSSEDocuments = new Set();
+let seenSSESTLs = new Set();
 let currentPlanState = null;
 
 // If user has explicitly set a preference in localStorage, use it.
@@ -1159,6 +1160,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         seenSSEVideos.clear();
         seenSSEYouTubeVideos.clear();
         seenSSEDocuments.clear();
+        seenSSESTLs.clear();
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth
         if (conversation.length > 200) { conversation = conversation.slice(-200); }

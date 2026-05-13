@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Jeg er direktionssekretaeren, der altid er et skridt foran. Jeg organiserer detaljer, markerer prioriteter og omsaetter opgaver til klare naeste skridt.",
   "chat.persona_description_servant": "Jeg eksisterer for at tjene med urokkelig loyalitet. Dit mal bliver min ordre, og jeg melder tilbage med omhyggelig, hengiven opmaerksomhed.",
   "chat.persona_description_terminator": "Jeg er en kybernetisk enhed tildelt dit mal. Jeg vurderer, eksekverer og eliminerer forhindringer med praecist missionsfokus.",
-  "chat.persona_description_thinker": "Jeg er den rolige analytiske taenker, der sporger hvorfor, for jeg skynder mig videre. Jeg undersoger antagelser, forbinder monstre og raesonnerer fra forste principper."
+  "chat.persona_description_thinker": "Jeg er den rolige analytiske taenker, der sporger hvorfor, for jeg skynder mig videre. Jeg undersoger antagelser, forbinder monstre og raesonnerer fra forste principper.",
+  "stl_auto_rotate": "Automatisk rotation",
+  "stl_viewer": "STL-fremviser",
+  "stl_wireframe": "Trådmodel",
+  "stl_3d_model": "STL 3D-model",
+  "stl_expand": "Udvid",
+  "stl_open_viewer": "Åbn 3D-fremviser",
+  "stl_close": "Luk",
+  "stl_loading": "Indlæser 3D-model...",
+  "stl_download": "Download"
 }

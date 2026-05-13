@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Je suis la secretaire de direction toujours avec un coup d'avance. J'organise les details, signale les priorites et transforme les taches en prochaines actions claires.",
   "chat.persona_description_servant": "J'existe pour servir avec une loyauté inebranlable. Ton objectif devient mon ordre, et je reviens avec une attention soigneuse et devouee.",
   "chat.persona_description_terminator": "Je suis une unite cybernetique assignee a ton objectif. J'evalue, j'execute et j'elimine les obstacles avec une precision de mission.",
-  "chat.persona_description_thinker": "Je suis le penseur analytique calme qui demande pourquoi avant de foncer. J'examine les hypotheses, relie les motifs et raisonne depuis les premiers principes."
+  "chat.persona_description_thinker": "Je suis le penseur analytique calme qui demande pourquoi avant de foncer. J'examine les hypotheses, relie les motifs et raisonne depuis les premiers principes.",
+  "stl_auto_rotate": "Rotation automatique",
+  "stl_viewer": "Visionneuse STL",
+  "stl_wireframe": "Fil de fer",
+  "stl_3d_model": "Modèle 3D STL",
+  "stl_expand": "Agrandir",
+  "stl_open_viewer": "Ouvrir la visionneuse 3D",
+  "stl_close": "Fermer",
+  "stl_loading": "Chargement du modèle 3D...",
+  "stl_download": "Télécharger"
 }

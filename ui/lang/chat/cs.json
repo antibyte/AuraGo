@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Jsem vykonna asistentka, ktera je vzdy o krok napred. Organizuju detaily, hlidam priority a menim ukoly v jasne dalsi kroky.",
   "chat.persona_description_servant": "Existuji, abych slouzil s neochvejnou loajalitou. Tvuj cil se stava mym prikazem a hlasim se zpet s peclivou, oddanou pozornosti.",
   "chat.persona_description_terminator": "Jsem kyberneticka jednotka prirazena k tvemu cili. Vyhodnocuji, provadim a odstranuji prekazky s presnym misi zamerenym soustredenim.",
-  "chat.persona_description_thinker": "Jsem klidny analyticky myslitel, ktery se pta proc, nez se vrhne kupredu. Zkoumam predpoklady, propojuji vzorce a uvazuji od prvnich principu."
+  "chat.persona_description_thinker": "Jsem klidny analyticky myslitel, ktery se pta proc, nez se vrhne kupredu. Zkoumam predpoklady, propojuji vzorce a uvazuji od prvnich principu.",
+  "stl_auto_rotate": "Automatické otáčení",
+  "stl_viewer": "Prohlížeč STL",
+  "stl_wireframe": "Drátový model",
+  "stl_3d_model": "3D model STL",
+  "stl_expand": "Zvětšit",
+  "stl_open_viewer": "Otevřít 3D prohlížeč",
+  "stl_close": "Zavřít",
+  "stl_loading": "Načítání 3D modelu...",
+  "stl_download": "Stáhnout"
 }

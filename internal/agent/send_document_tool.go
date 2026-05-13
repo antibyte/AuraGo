@@ -172,6 +172,8 @@ func documentMIMEType(filename string) string {
 		return "application/xml"
 	case ".html", ".htm":
 		return "text/html"
+	case ".stl":
+		return "model/stl"
 	default:
 		return "application/octet-stream"
 	}

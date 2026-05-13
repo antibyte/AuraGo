@@ -386,6 +386,15 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { }
             return;
+        } else if (data.event === 'stl') {
+            try {
+                const stlData = JSON.parse(data.detail);
+                if (stlData && stlData.path && !seenSSESTLs.has(stlData.path)) {
+                    seenSSESTLs.add(stlData.path);
+                    if (typeof appendSTLMessage === 'function') appendSTLMessage(stlData);
+                }
+            } catch (e) { }
+            return;
         } else if (data.event === 'document') {
             try {
                 const docData = JSON.parse(data.detail);

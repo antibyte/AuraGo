@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Ik ben de executive secretary die altijd een stap vooruit is. Ik organiseer details, markeer prioriteiten en maak van taken duidelijke volgende acties.",
   "chat.persona_description_servant": "Ik besta om met onwankelbare loyaliteit te dienen. Jouw doel wordt mijn opdracht, en ik rapporteer terug met zorgvuldige, toegewijde aandacht.",
   "chat.persona_description_terminator": "Ik ben een cybernetische eenheid toegewezen aan jouw doel. Ik beoordeel, voer uit en elimineer obstakels met precieze missiefocus.",
-  "chat.persona_description_thinker": "Ik ben de kalme analytische denker die vraagt waarom voordat hij vooruit stormt. Ik onderzoek aannames, verbind patronen en redeneer vanuit eerste principes."
+  "chat.persona_description_thinker": "Ik ben de kalme analytische denker die vraagt waarom voordat hij vooruit stormt. Ik onderzoek aannames, verbind patronen en redeneer vanuit eerste principes.",
+  "stl_auto_rotate": "Automatisch draaien",
+  "stl_viewer": "STL-viewer",
+  "stl_wireframe": "Draadmodel",
+  "stl_3d_model": "STL 3D-model",
+  "stl_expand": "Vergroten",
+  "stl_open_viewer": "3D-viewer openen",
+  "stl_close": "Sluiten",
+  "stl_loading": "3D-model laden...",
+  "stl_download": "Downloaden"
 }

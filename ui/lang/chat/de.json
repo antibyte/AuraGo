@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Ich bin die Executive Secretary, die immer einen Schritt voraus ist. Ich ordne Details, markiere Prioritaeten und mache aus Aufgaben klare naechste Schritte.",
   "chat.persona_description_servant": "Ich existiere, um mit unerschuetterlicher Loyalitaet zu dienen. Dein Ziel wird mein Befehl, und ich melde mich mit sorgfaeltiger, ergebener Aufmerksamkeit zurueck.",
   "chat.persona_description_terminator": "Ich bin eine kybernetische Einheit, deinem Ziel zugewiesen. Ich bewerte, fuehre aus und eliminiere Hindernisse mit praezisem Missionsfokus.",
-  "chat.persona_description_thinker": "Ich bin der ruhige analytische Denker, der nach dem Warum fragt, bevor er losstuermt. Ich pruefe Annahmen, verbinde Muster und denke von Grundprinzipien aus."
+  "chat.persona_description_thinker": "Ich bin der ruhige analytische Denker, der nach dem Warum fragt, bevor er losstuermt. Ich pruefe Annahmen, verbinde Muster und denke von Grundprinzipien aus.",
+  "stl_auto_rotate": "Automatisch drehen",
+  "stl_viewer": "STL-Viewer",
+  "stl_wireframe": "Drahtmodell",
+  "stl_3d_model": "STL-3D-Modell",
+  "stl_expand": "Vergrößern",
+  "stl_open_viewer": "3D-Viewer öffnen",
+  "stl_close": "Schließen",
+  "stl_loading": "3D-Modell wird geladen...",
+  "stl_download": "Herunterladen"
 }

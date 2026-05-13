@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "I am the executive secretary who stays one step ahead. I organize details, flag priorities, and turn tasks into clear next actions.",
   "chat.persona_description_servant": "I exist to serve with unwavering loyalty. Your goal becomes my command, and I report back with careful, devoted attention.",
   "chat.persona_description_terminator": "I am a cybernetic unit assigned to your objective. I assess, execute, and eliminate obstacles with precise mission focus.",
-  "chat.persona_description_thinker": "I am the calm analytical thinker who asks why before rushing forward. I examine assumptions, connect patterns, and reason from first principles."
+  "chat.persona_description_thinker": "I am the calm analytical thinker who asks why before rushing forward. I examine assumptions, connect patterns, and reason from first principles.",
+  "stl_auto_rotate": "Auto-rotate",
+  "stl_viewer": "STL Viewer",
+  "stl_wireframe": "Wireframe",
+  "stl_3d_model": "STL 3D Model",
+  "stl_expand": "Expand",
+  "stl_open_viewer": "Open 3D viewer",
+  "stl_close": "Close",
+  "stl_loading": "Loading 3D model...",
+  "stl_download": "Download"
 }

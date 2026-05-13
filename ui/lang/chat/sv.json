@@ -202,5 +202,14 @@
   "chat.persona_description_secretary": "Jag ar den verkstallande sekreteraren som alltid ligger ett steg fore. Jag organiserar detaljer, flaggar prioriteringar och gor uppgifter till tydliga nasta steg.",
   "chat.persona_description_servant": "Jag existerar for att tjana med orubblig lojalitet. Ditt mal blir min order, och jag rapporterar tillbaka med varsam, hengiven uppmarksamhet.",
   "chat.persona_description_terminator": "Jag ar en cybernetisk enhet tilldelad ditt mal. Jag bedomer, utfor och eliminerar hinder med exakt missionsfokus.",
-  "chat.persona_description_thinker": "Jag ar den lugna analytiska tankaren som fragar varfor innan han rusar vidare. Jag granskar antaganden, kopplar monster och resonerar fran forsta principer."
+  "chat.persona_description_thinker": "Jag ar den lugna analytiska tankaren som fragar varfor innan han rusar vidare. Jag granskar antaganden, kopplar monster och resonerar fran forsta principer.",
+  "stl_auto_rotate": "Autorotera",
+  "stl_viewer": "STL-visare",
+  "stl_wireframe": "Trådmodell",
+  "stl_3d_model": "STL 3D-modell",
+  "stl_expand": "Expandera",
+  "stl_open_viewer": "Öppna 3D-visare",
+  "stl_close": "Stäng",
+  "stl_loading": "Läser in 3D-modell...",
+  "stl_download": "Ladda ner"
 }
