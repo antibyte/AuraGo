@@ -1380,6 +1380,10 @@ function getNestedValue(obj, path) {
     return path.split('.').reduce((cur, part) => (cur && cur[part] !== undefined) ? cur[part] : undefined, obj);
 }
 
+function isNumericPathPart(part) {
+    return typeof part === 'string' && /^(0|[1-9]\d*)$/.test(part);
+}
+
 function buildConfigPatchFromForm() {
     const patch = {};
     const forbidden = new Set(['__proto__', 'constructor', 'prototype']);
@@ -1415,13 +1419,26 @@ function buildConfigPatchFromForm() {
 
         let obj = patch;
         for (let i = 0; i < parts.length - 1; i++) {
-            if (forbidden.has(parts[i])) return; // Prototype pollution guard
-            if (!obj[parts[i]]) obj[parts[i]] = {};
-            obj = obj[parts[i]];
+            const part = parts[i];
+            const nextPart = parts[i + 1];
+            if (forbidden.has(part)) return; // Prototype pollution guard
+            if (Array.isArray(obj)) {
+                const idx = parseInt(part, 10);
+                if (!Number.isInteger(idx) || idx < 0) return;
+                if (!obj[idx]) obj[idx] = isNumericPathPart(nextPart) ? [] : {};
+                obj = obj[idx];
+                continue;
+            }
+            if (!obj[part]) obj[part] = isNumericPathPart(nextPart) ? [] : {};
+            obj = obj[part];
         }
         const lastKey = parts[parts.length - 1];
         if (forbidden.has(lastKey)) return;
-        obj[lastKey] = val;
+        if (Array.isArray(obj) && isNumericPathPart(lastKey)) {
+            obj[parseInt(lastKey, 10)] = val;
+        } else {
+            obj[lastKey] = val;
+        }
     });
     return patch;
 }

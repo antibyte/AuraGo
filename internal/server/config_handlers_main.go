@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1180,58 +1181,22 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 		}
 		switch sv := srcVal.(type) {
 		case map[string]interface{}:
+			if _, dstIsSlice := dst[key].([]interface{}); dstIsSlice || isConfigArrayPath(fullPath) {
+				if converted, ok := numericKeyedMapToSlice(sv); ok {
+					mergeConfigArrayValue(dst, key, fullPath, converted)
+					continue
+				}
+			}
 			// Recurse into nested maps
 			if dstMap, ok := dst[key].(map[string]interface{}); ok {
 				deepMerge(dstMap, sv, fullPath)
 			} else {
-				dst[key] = srcVal
+				newMap := make(map[string]interface{}, len(sv))
+				deepMerge(newMap, sv, fullPath)
+				dst[key] = newMap
 			}
 		case []interface{}:
-			// JSON arrays: only accept if all elements are valid (not JS stringified objects)
-			valid := true
-			for _, elem := range sv {
-				if s, ok := elem.(string); ok && strings.HasPrefix(s, "[object") {
-					valid = false
-					break
-				}
-			}
-			if valid {
-				// Special handling for providers: merge by ID to preserve existing providers
-				if fullPath == "providers" {
-					mergeProvidersByID(dst, sv)
-					continue
-				}
-				// Special handling for budget.models: ensure all items are proper objects
-				if fullPath == "budget.models" {
-					// Protect against clearing non-empty models array with empty incoming
-					if len(sv) == 0 {
-						if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
-							continue // keep existing non-empty array
-						}
-					}
-					cleanModels := make([]interface{}, 0, len(sv))
-					for _, elem := range sv {
-						if obj, ok := elem.(map[string]interface{}); ok {
-							// Ensure required fields exist
-							if _, hasName := obj["name"]; hasName {
-								cleanModels = append(cleanModels, obj)
-							}
-						}
-					}
-					// Always set the models array (even if empty) to avoid corruption
-					dst[key] = cleanModels
-				} else {
-					// Protect against empty arrays overwriting non-empty existing arrays.
-					// This prevents accidental clearing of configured lists when saving
-					// a section where the field happened to be empty in the DOM.
-					if len(sv) == 0 {
-						if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
-							continue // keep existing non-empty array
-						}
-					}
-					dst[key] = srcVal
-				}
-			}
+			mergeConfigArrayValue(dst, key, fullPath, sv)
 		case string:
 			// Always skip sensitive fields — extractSecretsToVault already handled them
 			// (moved to vault or stripped). Never allow credentials into config.yaml.
@@ -1265,6 +1230,94 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 				dst[key] = srcVal
 			}
 		}
+	}
+}
+
+func mergeConfigArrayValue(dst map[string]interface{}, key, fullPath string, sv []interface{}) {
+	// JSON arrays: only accept if all elements are valid (not JS stringified objects)
+	valid := true
+	for _, elem := range sv {
+		if s, ok := elem.(string); ok && strings.HasPrefix(s, "[object") {
+			valid = false
+			break
+		}
+	}
+	if !valid {
+		return
+	}
+	// Special handling for providers: merge by ID to preserve existing providers
+	if fullPath == "providers" {
+		mergeProvidersByID(dst, sv)
+		return
+	}
+	// Special handling for budget.models: ensure all items are proper objects
+	if fullPath == "budget.models" {
+		// Protect against clearing non-empty models array with empty incoming
+		if len(sv) == 0 {
+			if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
+				return // keep existing non-empty array
+			}
+		}
+		cleanModels := make([]interface{}, 0, len(sv))
+		for _, elem := range sv {
+			if obj, ok := elem.(map[string]interface{}); ok {
+				// Ensure required fields exist
+				if _, hasName := obj["name"]; hasName {
+					cleanModels = append(cleanModels, obj)
+				}
+			}
+		}
+		// Always set the models array (even if empty) to avoid corruption
+		dst[key] = cleanModels
+		return
+	}
+	// Protect against empty arrays overwriting non-empty existing arrays.
+	// This prevents accidental clearing of configured lists when saving
+	// a section where the field happened to be empty in the DOM.
+	if len(sv) == 0 {
+		if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
+			return // keep existing non-empty array
+		}
+	}
+	dst[key] = sv
+}
+
+func numericKeyedMapToSlice(m map[string]interface{}) ([]interface{}, bool) {
+	if len(m) == 0 {
+		return nil, false
+	}
+	values := make(map[int]interface{}, len(m))
+	maxIdx := -1
+	for key, val := range m {
+		idx, err := strconv.Atoi(key)
+		if err != nil || idx < 0 {
+			return nil, false
+		}
+		values[idx] = val
+		if idx > maxIdx {
+			maxIdx = idx
+		}
+	}
+	if maxIdx+1 != len(values) {
+		return nil, false
+	}
+	out := make([]interface{}, maxIdx+1)
+	for i := 0; i <= maxIdx; i++ {
+		val, ok := values[i]
+		if !ok {
+			return nil, false
+		}
+		out[i] = val
+	}
+	return out, true
+}
+
+func isConfigArrayPath(path string) bool {
+	switch path {
+	case "three_d_printers.elegoo_centauri_carbon.printers":
+		return true
+	default:
+		return false
 	}
 }
 

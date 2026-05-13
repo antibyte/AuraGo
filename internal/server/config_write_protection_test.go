@@ -244,6 +244,46 @@ func TestConfigDeepMergePreservesExistingArrays(t *testing.T) {
 	}
 }
 
+func TestConfigDeepMergeConvertsNumericKeyedPrinterMapToArray(t *testing.T) {
+	dst := map[string]interface{}{}
+	src := map[string]interface{}{
+		"three_d_printers": map[string]interface{}{
+			"enabled":         true,
+			"readonly":        true,
+			"default_printer": "lab-printer",
+			"elegoo_centauri_carbon": map[string]interface{}{
+				"enabled": true,
+				"printers": map[string]interface{}{
+					"0": map[string]interface{}{
+						"id":              "lab-printer",
+						"name":            "Elegoo Centauri Carbon",
+						"url":             "ws://192.168.6.50/websocket",
+						"mainboard_id":    "",
+						"timeout_seconds": 10,
+					},
+				},
+			},
+		},
+	}
+
+	deepMerge(dst, src, "")
+
+	out, err := yaml.Marshal(dst)
+	if err != nil {
+		t.Fatalf("marshal merged config: %v", err)
+	}
+	var cfg config.Config
+	if err := yaml.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("merged config should validate, got error: %v\n%s", err, string(out))
+	}
+	if got := len(cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers); got != 1 {
+		t.Fatalf("printers len = %d, want 1\n%s", got, string(out))
+	}
+	if got := cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers[0].ID; got != "lab-printer" {
+		t.Fatalf("printer id = %q, want lab-printer", got)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TestConfigDeepMergeNoStringOverwriteForSlices
 // A string value must never overwrite a slice field (e.g. empty textarea saves "").
