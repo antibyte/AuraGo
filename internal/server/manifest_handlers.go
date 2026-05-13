@@ -63,10 +63,11 @@ func handleManifestStart(s *Server) http.HandlerFunc {
 			writeManifestJSON(w, map[string]interface{}{"enabled": true, "mode": cfg.Manifest.Mode, "status": "setup_required", "admin_setup_required": true, "message": err.Error()})
 			return
 		}
+		browserBaseURL := manifestBrowserBaseURLForRequest(s, &cfg, r)
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
-			if err := tools.EnsureManifestSidecarsRunning(ctx, cfg.Docker.Host, &cfg, s.Logger); err != nil && s.Logger != nil {
+			if err := tools.EnsureManifestSidecarsRunningWithBrowserURL(ctx, cfg.Docker.Host, &cfg, browserBaseURL, s.Logger); err != nil && s.Logger != nil {
 				s.Logger.Warn("[Manifest] Manual start failed", "error", err)
 			}
 		}()
@@ -177,6 +178,17 @@ func manifestStatusForRequest(ctx context.Context, s *Server, cfg *config.Config
 	out := manifestStatus(ctx, s, cfg)
 	manifestRewriteBrowserURL(r, out)
 	return out
+}
+
+func manifestBrowserBaseURLForRequest(s *Server, cfg *config.Config, r *http.Request) string {
+	if cfg == nil {
+		return ""
+	}
+	sidecar, err := tools.ResolveManifestSidecarConfig(cfg, cfg.Runtime.IsDocker)
+	if err != nil {
+		return ""
+	}
+	return manifestBrowserURL(s, cfg, r, sidecar.BrowserBaseURL)
 }
 
 func manifestRewriteBrowserURL(r *http.Request, payload map[string]interface{}) {

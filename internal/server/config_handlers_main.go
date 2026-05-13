@@ -656,6 +656,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				if err := s.ensureManifestSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Manifest secrets", "error", err)
 				} else {
+					manifestBrowserBaseURL := manifestBrowserBaseURLForRequest(s, newCfg, r)
 					go func() {
 						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 						defer cancel()
@@ -664,7 +665,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 								s.Logger.Warn("[Config UI] Failed to recreate old Manifest sidecars", "error", err)
 							}
 						}
-						if err := tools.EnsureManifestSidecarsRunning(ctx, newCfg.Docker.Host, newCfg, s.Logger); err != nil {
+						if err := tools.EnsureManifestSidecarsRunningWithBrowserURL(ctx, newCfg.Docker.Host, newCfg, manifestBrowserBaseURL, s.Logger); err != nil {
 							s.Logger.Warn("[Config UI] Failed to start Manifest sidecars", "error", err)
 						}
 					}()

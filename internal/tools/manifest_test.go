@@ -210,12 +210,36 @@ func TestBuildManifestPayloadPublishesOnlyManifestPort(t *testing.T) {
 	}
 }
 
+func TestBuildManifestPayloadUsesRequestBrowserURLForBetterAuth(t *testing.T) {
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	sidecar.BrowserBaseURL = "http://192.168.6.43:2099"
+
+	raw, err := buildManifestCreatePayload(sidecar, "aurago_manifest")
+	if err != nil {
+		t.Fatalf("buildManifestCreatePayload() error = %v", err)
+	}
+	payload := decodeManifestPayload(t, raw)
+	env := strings.Join(interfaceSliceToStrings(payload["Env"]), "\n")
+	for _, want := range []string{
+		"BETTER_AUTH_URL=http://192.168.6.43:2099",
+		"BETTER_AUTH_TRUSTED_ORIGINS=http://192.168.6.43:2099,http://127.0.0.1:2099,http://localhost:2099",
+	} {
+		if !strings.Contains(env, want) {
+			t.Fatalf("Manifest env missing %q:\n%s", want, env)
+		}
+	}
+}
+
 func TestManifestContainerNeedsRecreateForLoopbackOnlyBinding(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": [
 				"PORT=2099",
 				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:2099,http://localhost:2099",
 				"MANIFEST_TELEMETRY_DISABLED=1"
 			]
 		},
@@ -234,12 +258,74 @@ func TestManifestContainerNeedsRecreateForLoopbackOnlyBinding(t *testing.T) {
 	}
 }
 
+func TestManifestContainerNeedsRecreateForStaleBetterAuthURL(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"PORT=2099",
+				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:2099,http://localhost:2099",
+				"MANIFEST_TELEMETRY_DISABLED=1"
+			]
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+			}
+		},
+		"NetworkSettings": {
+			"Networks": {
+				"aurago_manifest": {}
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	sidecar.BrowserBaseURL = "http://192.168.6.43:2099"
+	if !manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
+		t.Fatal("expected Manifest container with stale BETTER_AUTH_URL to require recreation")
+	}
+}
+
+func TestManifestContainerWithoutBrowserOverrideIgnoresBetterAuthMismatch(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"PORT=2099",
+				"BETTER_AUTH_URL=http://192.168.6.43:2099",
+				"BETTER_AUTH_TRUSTED_ORIGINS=http://192.168.6.43:2099,http://127.0.0.1:2099,http://localhost:2099",
+				"MANIFEST_TELEMETRY_DISABLED=1"
+			]
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+			}
+		},
+		"NetworkSettings": {
+			"Networks": {
+				"aurago_manifest": {}
+			}
+		}
+	}`)
+	sidecar, err := ResolveManifestSidecarConfig(manifestTestConfig(), false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+	if manifestContainerNeedsRecreateWithAuth(inspect, sidecar, sidecar.NetworkName, false) {
+		t.Fatal("did not expect startup check without browser override to replace LAN-auth Manifest container")
+	}
+}
+
 func TestManifestContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
 			"Env": [
 				"PORT=2099",
 				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:2099,http://localhost:2099",
 				"MANIFEST_TELEMETRY_DISABLED=1"
 			]
 		},

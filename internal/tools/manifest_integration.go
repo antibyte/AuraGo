@@ -244,7 +244,8 @@ func buildManifestCreatePayload(sidecar ManifestSidecarConfig, networkName strin
 		"PORT=" + strconv.Itoa(sidecar.Port),
 		"DATABASE_URL=" + manifestDatabaseURL(sidecar),
 		"BETTER_AUTH_SECRET=" + sidecar.BetterAuthSecret,
-		"BETTER_AUTH_URL=" + sidecar.BrowserBaseURL,
+		"BETTER_AUTH_URL=" + normalizeManifestBrowserBaseURL(sidecar.BrowserBaseURL),
+		"BETTER_AUTH_TRUSTED_ORIGINS=" + manifestTrustedOriginsEnv(sidecar),
 		"MANIFEST_TELEMETRY_DISABLED=1",
 	}
 	payload := map[string]interface{}{
@@ -273,6 +274,57 @@ func manifestPublishHost(host string) string {
 	return host
 }
 
+func manifestTrustedOriginsEnv(sidecar ManifestSidecarConfig) string {
+	return strings.Join(manifestTrustedOrigins(sidecar), ",")
+}
+
+func manifestTrustedOrigins(sidecar ManifestSidecarConfig) []string {
+	hostPort := sidecar.HostPort
+	if hostPort <= 0 {
+		hostPort = sidecar.Port
+	}
+	if hostPort <= 0 {
+		hostPort = manifestDefaultPort
+	}
+	origins := []string{
+		normalizeManifestBrowserBaseURL(sidecar.BrowserBaseURL),
+		fmt.Sprintf("http://127.0.0.1:%d", hostPort),
+		fmt.Sprintf("http://localhost:%d", hostPort),
+	}
+	out := make([]string, 0, len(origins))
+	seen := map[string]struct{}{}
+	for _, origin := range origins {
+		origin = strings.TrimRight(strings.TrimSpace(origin), "/")
+		if origin == "" {
+			continue
+		}
+		if _, exists := seen[origin]; exists {
+			continue
+		}
+		seen[origin] = struct{}{}
+		out = append(out, origin)
+	}
+	return out
+}
+
+func normalizeManifestBrowserBaseURL(raw string) string {
+	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed == nil || parsed.Scheme == "" || parsed.Host == "" {
+		return raw
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return raw
+	}
+	parsed.Path = ""
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return strings.TrimRight(parsed.String(), "/")
+}
+
 func manifestNetworkingConfig(networkName, alias string) map[string]interface{} {
 	if strings.TrimSpace(networkName) == "" {
 		return nil
@@ -296,12 +348,27 @@ func EnsureManifestSidecarsRunning(ctx context.Context, dockerHost string, cfg *
 	Warn(string, ...any)
 	Error(string, ...any)
 }) error {
+	return EnsureManifestSidecarsRunningWithBrowserURL(ctx, dockerHost, cfg, "", logger)
+}
+
+// EnsureManifestSidecarsRunningWithBrowserURL creates and starts managed Manifest sidecars
+// and configures Better Auth for the URL used by the browser.
+func EnsureManifestSidecarsRunningWithBrowserURL(ctx context.Context, dockerHost string, cfg *config.Config, browserBaseURL string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
 	if cfg == nil || !cfg.Manifest.Enabled || strings.ToLower(strings.TrimSpace(cfg.Manifest.Mode)) == "external" {
 		return nil
 	}
 	sidecar, err := ResolveManifestSidecarConfig(cfg, manifestRunsInDocker(cfg))
 	if err != nil {
 		return err
+	}
+	enforceManifestAuthEnv := false
+	if normalized := normalizeManifestBrowserBaseURL(browserBaseURL); normalized != "" {
+		sidecar.BrowserBaseURL = normalized
+		enforceManifestAuthEnv = true
 	}
 	dockerCfg := DockerConfig{Host: dockerHost}
 	networkName, err := ensureManifestDockerNetwork(dockerCfg, sidecar)
@@ -320,7 +387,7 @@ func EnsureManifestSidecarsRunning(ctx context.Context, dockerHost string, cfg *
 	if err := ensureManifestContainerWithRecreate(ctx, dockerCfg, sidecar.ContainerName, sidecar.Image, func() ([]byte, error) {
 		return buildManifestCreatePayload(sidecar, networkName)
 	}, func(data []byte) bool {
-		return manifestContainerNeedsRecreate(data, sidecar, networkName)
+		return manifestContainerNeedsRecreateWithAuth(data, sidecar, networkName, enforceManifestAuthEnv)
 	}); err != nil {
 		logger.Error("[Manifest] Failed to ensure Manifest sidecar", "error", err)
 		return err
@@ -422,7 +489,14 @@ func ensureManifestContainerWithRecreate(ctx context.Context, dockerCfg DockerCo
 }
 
 func manifestContainerNeedsRecreate(data []byte, sidecar ManifestSidecarConfig, networkName string) bool {
+	return manifestContainerNeedsRecreateWithAuth(data, sidecar, networkName, true)
+}
+
+func manifestContainerNeedsRecreateWithAuth(data []byte, sidecar ManifestSidecarConfig, networkName string, enforceAuthEnv bool) bool {
 	var info struct {
+		Config struct {
+			Env []string `json:"Env"`
+		} `json:"Config"`
 		HostConfig struct {
 			PortBindings map[string][]struct {
 				HostIP   string `json:"HostIp"`
@@ -435,6 +509,14 @@ func manifestContainerNeedsRecreate(data []byte, sidecar ManifestSidecarConfig, 
 	}
 	if err := json.Unmarshal(data, &info); err != nil {
 		return false
+	}
+	if enforceAuthEnv {
+		if got, want := manifestEnvValue(info.Config.Env, "BETTER_AUTH_URL"), normalizeManifestBrowserBaseURL(sidecar.BrowserBaseURL); got != want {
+			return true
+		}
+		if got, want := manifestEnvValue(info.Config.Env, "BETTER_AUTH_TRUSTED_ORIGINS"), manifestTrustedOriginsEnv(sidecar); got != want {
+			return true
+		}
 	}
 	if !manifestContainerAttachedToNetwork(info.NetworkSettings.Networks, networkName) {
 		return true
@@ -464,6 +546,16 @@ func manifestContainerNeedsRecreate(data []byte, sidecar ManifestSidecarConfig, 
 		}
 	}
 	return true
+}
+
+func manifestEnvValue(env []string, key string) string {
+	prefix := key + "="
+	for _, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(item, prefix))
+		}
+	}
+	return ""
 }
 
 func manifestPostgresContainerNeedsRecreate(data []byte, networkName string) bool {
