@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ type CodeContainerDocker interface {
 	EnsureImage(ctx context.Context, image string) error
 	CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error)
 	ContainerAction(ctx context.Context, container, action string) error
+	ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error)
 }
 
 // CodeDockerContainer is the subset of Docker container metadata Code Studio needs.
@@ -67,6 +69,12 @@ type CodeDockerInspect struct {
 	ID    string          `json:"id"`
 	Name  string          `json:"name"`
 	State CodeDockerState `json:"state"`
+}
+
+// CodeDockerExecResult is the subset of Docker exec output Code Studio needs.
+type CodeDockerExecResult struct {
+	ExitCode int
+	Output   string
 }
 
 // CodeDockerCreateRequest describes the container Code Studio wants to create.
@@ -142,6 +150,17 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 			s.state = StateError
 			return err
 		}
+		containerID, running, err := s.findContainerLocked(ctx)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		if running {
+			if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
+				s.state = StateError
+				return err
+			}
+		}
 		s.touchLocked()
 		return nil
 	}
@@ -171,6 +190,10 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 				s.state = StateError
 				return err
 			}
+		}
+		if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
+			s.state = StateError
+			return err
 		}
 		s.state = StateRunning
 		s.touchLocked()
@@ -211,6 +234,10 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 		s.state = StateError
 		return err
 	}
+	if err := seedCodeStudioContainerWorkspace(ctx, s.docker, createdID); err != nil {
+		s.state = StateError
+		return err
+	}
 	s.state = StateRunning
 	s.touchLocked()
 	return nil
@@ -239,17 +266,59 @@ func seedCodeStudioWorkspace(dir string) error {
 	if len(entries) > 0 {
 		return nil
 	}
-	files := map[string]string{
-		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\n```\n",
-		"hello.go":  "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Code Studio\")\n}\n",
-		"hello.py":  "print(\"Hello from Code Studio\")\n",
-	}
-	for name, content := range files {
+	for name, content := range defaultCodeStudioWorkspaceFiles() {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func seedCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerDocker, containerID string) error {
+	if strings.TrimSpace(containerID) == "" {
+		return fmt.Errorf("code studio container id is required")
+	}
+	script := buildCodeStudioContainerSeedScript()
+	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("seed code studio container workspace: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("seed code studio container workspace failed: %s", strings.TrimSpace(result.Output))
+	}
+	return nil
+}
+
+func buildCodeStudioContainerSeedScript() string {
+	var b strings.Builder
+	b.WriteString("set -eu\n")
+	b.WriteString("mkdir -p /workspace\n")
+	b.WriteString("if [ -z \"$(find /workspace -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)\" ]; then\n")
+	names := make([]string, 0, len(defaultCodeStudioWorkspaceFiles()))
+	for name := range defaultCodeStudioWorkspaceFiles() {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		b.WriteString("cat > /workspace/")
+		b.WriteString(name)
+		b.WriteString(" <<'AURAGO_CODE_STUDIO_SAMPLE'\n")
+		b.WriteString(defaultCodeStudioWorkspaceFiles()[name])
+		if !strings.HasSuffix(defaultCodeStudioWorkspaceFiles()[name], "\n") {
+			b.WriteString("\n")
+		}
+		b.WriteString("AURAGO_CODE_STUDIO_SAMPLE\n")
+	}
+	b.WriteString("fi\n")
+	return b.String()
+}
+
+func defaultCodeStudioWorkspaceFiles() map[string]string {
+	return map[string]string{
+		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\n```\n",
+		"hello.go":  "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Code Studio\")\n}\n",
+		"hello.py":  "print(\"Hello from Code Studio\")\n",
+	}
 }
 
 func (s *CodeContainerService) Stop(ctx context.Context) error {
@@ -483,4 +552,8 @@ func (missingCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 
 func (missingCodeContainerDocker) ContainerAction(ctx context.Context, container, action string) error {
 	return fmt.Errorf("code studio Docker backend is not configured")
+}
+
+func (missingCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+	return CodeDockerExecResult{}, fmt.Errorf("code studio Docker backend is not configured")
 }

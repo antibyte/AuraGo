@@ -185,6 +185,14 @@ func (a codeStudioDockerAdapter) ContainerAction(ctx context.Context, container,
 	return nil
 }
 
+func (a codeStudioDockerAdapter) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (desktop.CodeDockerExecResult, error) {
+	result, err := a.Exec(ctx, container, cmd, timeout)
+	if err != nil {
+		return desktop.CodeDockerExecResult{}, err
+	}
+	return desktop.CodeDockerExecResult{ExitCode: result.ExitCode, Output: result.Output}, nil
+}
+
 func dockerAdapterError(message string) error {
 	message = strings.TrimSpace(message)
 	if message == "" {

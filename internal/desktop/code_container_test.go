@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -14,6 +15,12 @@ type fakeCodeContainerDocker struct {
 	ensuredImages []string
 	creates       []CodeDockerCreateRequest
 	actions       []string
+	execs         []fakeCodeContainerExec
+}
+
+type fakeCodeContainerExec struct {
+	container string
+	cmd       []string
 }
 
 func TestCodeContainerEnsureStartedSeedsDefaultWorkspace(t *testing.T) {
@@ -94,6 +101,38 @@ func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container
 		f.inspectByName[container] = inspect
 	}
 	return nil
+}
+
+func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...)})
+	return CodeDockerExecResult{ExitCode: 0}, nil
+}
+
+func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeCodeContainerDocker{}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: t.TempDir(),
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if len(fake.execs) != 1 {
+		t.Fatalf("container seed exec count = %d, want 1", len(fake.execs))
+	}
+	if fake.execs[0].container != "created-1" {
+		t.Fatalf("container seed target = %q, want created-1", fake.execs[0].container)
+	}
+	joined := strings.Join(fake.execs[0].cmd, " ")
+	for _, want := range []string{"/workspace", "README.md", "hello.go", "hello.py", "Hello from Code Studio"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("container seed command %q missing %q", joined, want)
+		}
+	}
 }
 
 func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testing.T) {
