@@ -21,6 +21,11 @@ import (
 	"tailscale.com/tsnet"
 )
 
+const (
+	defaultManifestTsNetPort = 443
+	legacyManifestTsNetPort  = 8444
+)
+
 // Status represents the current state of the tsnet node.
 type Status struct {
 	Running           bool     `json:"running"`
@@ -820,6 +825,13 @@ func (m *Manager) effectiveManifestHostname() string {
 	return base + "-manifest"
 }
 
+func manifestTsNetPort(port int) int {
+	if port <= 0 || port == legacyManifestTsNetPort {
+		return defaultManifestTsNetPort
+	}
+	return port
+}
+
 func (m *Manager) startManifestListener(_ *tsnet.Server) error {
 	targetURL, err := url.Parse(manifestProxyTarget(m.cfg))
 	if err != nil {
@@ -851,10 +863,7 @@ func (m *Manager) startManifestListener(_ *tsnet.Server) error {
 	if err := manifestNode.Start(); err != nil {
 		return fmt.Errorf("start Manifest tsnet node: %w", err)
 	}
-	port := m.cfg.Tailscale.TsNet.ManifestPort
-	if port <= 0 {
-		port = 8444
-	}
+	port := manifestTsNetPort(m.cfg.Tailscale.TsNet.ManifestPort)
 	ln, err := listenTLSWithTimeout(manifestNode, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout)
 	if err != nil {
 		manifestNode.Close()

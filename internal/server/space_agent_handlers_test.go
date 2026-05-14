@@ -477,7 +477,7 @@ func TestHandleIntegrationWebhostsDerivesManifestURLForTailscaleDrawer(t *testin
 	if resp.Webhosts[0].ID != "manifest" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
-	if resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net:8444" {
+	if resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net" {
 		t.Fatalf("manifest url = %q, want derived Tailscale Manifest URL", resp.Webhosts[0].URL)
 	}
 }
@@ -494,7 +494,7 @@ func TestHandleIntegrationWebhostsUsesDedicatedTailscaleManifestURL(t *testing.T
 	cfg.Tailscale.TsNet.ExposeManifest = true
 	cfg.Tailscale.TsNet.Hostname = "aurago"
 	cfg.Tailscale.TsNet.ManifestHostname = "aurago-manifest"
-	cfg.Tailscale.TsNet.ManifestPort = 8444
+	cfg.Tailscale.TsNet.ManifestPort = 443
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
 
@@ -516,7 +516,7 @@ func TestHandleIntegrationWebhostsUsesDedicatedTailscaleManifestURL(t *testing.T
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Manifest entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net:8444" {
+	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }
@@ -554,7 +554,7 @@ func TestHandleIntegrationWebhostsDerivesTailscaleManifestURLWithoutManagerStatu
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Manifest entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net:8444" {
+	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }

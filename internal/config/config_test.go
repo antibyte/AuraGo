@@ -489,11 +489,35 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.Tailscale.TsNet.SpaceAgentHostname != "aurago-space-agent" {
 		t.Fatalf("tailscale.tsnet.space_agent_hostname = %q, want aurago-space-agent", cfg.Tailscale.TsNet.SpaceAgentHostname)
 	}
+	if cfg.Tailscale.TsNet.ManifestHostname != "aurago-manifest" {
+		t.Fatalf("tailscale.tsnet.manifest_hostname = %q, want aurago-manifest", cfg.Tailscale.TsNet.ManifestHostname)
+	}
+	if cfg.Tailscale.TsNet.ManifestPort != 443 {
+		t.Fatalf("tailscale.tsnet.manifest_port = %d, want 443", cfg.Tailscale.TsNet.ManifestPort)
+	}
 	if !filepath.IsAbs(cfg.SpaceAgent.CustomwarePath) || !strings.Contains(cfg.SpaceAgent.CustomwarePath, filepath.Join("data", "sidecars", "space-agent", "customware")) {
 		t.Fatalf("customware_path = %q, want absolute sidecar customware path", cfg.SpaceAgent.CustomwarePath)
 	}
 	if !filepath.IsAbs(cfg.SpaceAgent.DataPath) || !strings.Contains(cfg.SpaceAgent.DataPath, filepath.Join("data", "sidecars", "space-agent", "data")) {
 		t.Fatalf("data_path = %q, want absolute sidecar data path", cfg.SpaceAgent.DataPath)
+	}
+}
+
+func TestLoadMigratesLegacyManifestTsNetPortDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	body := []byte("server:\n  ui_language: en\ntailscale:\n  tsnet:\n    manifest_port: 8444\n")
+	if err := os.WriteFile(configPath, body, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Tailscale.TsNet.ManifestPort != 443 {
+		t.Fatalf("tailscale.tsnet.manifest_port = %d, want migrated HTTPS default 443", cfg.Tailscale.TsNet.ManifestPort)
 	}
 }
 

@@ -109,7 +109,7 @@ async function renderTailscaleSection(section) {
 
             <label class="ts-label-block">
                 <span class="ts-toggle-label">${t('config.tailscale.tsnet_manifest_port_label')}</span>
-                <input type="number" min="1" max="65535" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 8444)}">
+                <input type="number" min="1" max="65535" class="cfg-input cfg-input-full" data-path="tailscale.tsnet.manifest_port" value="${escapeAttr(tsnet.manifest_port || 443)}">
                 <small class="ts-hint">${t('config.tailscale.tsnet_manifest_port_hint')}</small>
             </label>
 

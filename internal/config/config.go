@@ -55,6 +55,11 @@ var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log",
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
 var configSaveMu sync.Mutex
 
+const (
+	defaultManifestTsNetPort = 443
+	legacyManifestTsNetPort  = 8444
+)
+
 func defaultSidecarURL(runningInDocker bool, service string, port int) string {
 	if runningInDocker {
 		return fmt.Sprintf("http://%s:%d", service, port)
@@ -1280,8 +1285,8 @@ func Load(path string) (*Config, error) {
 		}
 		cfg.Tailscale.TsNet.ManifestHostname = sanitizeTsnetHostname(base + "-manifest")
 	}
-	if cfg.Tailscale.TsNet.ManifestPort <= 0 {
-		cfg.Tailscale.TsNet.ManifestPort = 8444
+	if cfg.Tailscale.TsNet.ManifestPort <= 0 || cfg.Tailscale.TsNet.ManifestPort == legacyManifestTsNetPort {
+		cfg.Tailscale.TsNet.ManifestPort = defaultManifestTsNetPort
 	}
 
 	// Ansible defaults

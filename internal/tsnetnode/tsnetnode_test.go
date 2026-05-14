@@ -42,3 +42,23 @@ func TestManifestHostnameDefault(t *testing.T) {
 		t.Fatalf("effectiveManifestHostname() = %q, want custom-manifest", got)
 	}
 }
+
+func TestManifestTsNetPortUsesHTTPSDefault(t *testing.T) {
+	tests := []struct {
+		name string
+		port int
+		want int
+	}{
+		{name: "empty config", port: 0, want: 443},
+		{name: "legacy default", port: 8444, want: 443},
+		{name: "custom port", port: 2099, want: 2099},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := manifestTsNetPort(tt.port); got != tt.want {
+				t.Fatalf("manifestTsNetPort(%d) = %d, want %d", tt.port, got, tt.want)
+			}
+		})
+	}
+}

@@ -22,6 +22,8 @@ import (
 const (
 	spaceAgentBridgeMaxBodyBytes int64 = 64 * 1024
 	spaceAgentBridgeSessionID          = "space-agent-bridge"
+	defaultManifestTailscalePort       = 443
+	legacyManifestTailscalePort        = 8444
 )
 
 type spaceAgentBridgeMessage struct {
@@ -598,7 +600,7 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 					host = tsnetStatusHost(status.DNS, status.CertDNS)
 				}
 				if host != "" {
-					return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+					return formatManifestTailscaleURL(host, tsnetCfgManifestPort(s))
 				}
 			}
 		}
@@ -629,8 +631,24 @@ func deriveManifestTailscaleURL(cfg *config.Config, r *http.Request, port int) s
 	if host == "" {
 		return ""
 	}
-	if port <= 0 {
-		port = 8444
+	return formatManifestTailscaleURL(host, port)
+}
+
+func effectiveManifestTailscalePort(port int) int {
+	if port <= 0 || port == legacyManifestTailscalePort {
+		return defaultManifestTailscalePort
+	}
+	return port
+}
+
+func formatManifestTailscaleURL(host string, port int) string {
+	host = strings.TrimSuffix(strings.TrimSpace(host), ".")
+	if host == "" {
+		return ""
+	}
+	port = effectiveManifestTailscalePort(port)
+	if port == defaultManifestTailscalePort {
+		return "https://" + host
 	}
 	return fmt.Sprintf("https://%s:%d", host, port)
 }

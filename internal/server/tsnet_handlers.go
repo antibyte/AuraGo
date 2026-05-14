@@ -56,7 +56,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		}
 		if manifestHost != "" && status.ManifestServing {
 			port := tsnetCfgManifestPort(s)
-			manifestURL = fmt.Sprintf("https://%s:%d", manifestHost, port)
+			manifestURL = formatManifestTailscaleURL(manifestHost, port)
 		}
 		spaceAgentHost := strings.TrimSuffix(status.SpaceAgentDNS, ".")
 		if spaceAgentHost != "" && status.SpaceAgentServing {
@@ -100,15 +100,11 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 
 func tsnetCfgManifestPort(s *Server) int {
 	if s == nil || s.Cfg == nil {
-		return 8444
+		return defaultManifestTailscalePort
 	}
 	s.CfgMu.RLock()
 	defer s.CfgMu.RUnlock()
-	port := s.Cfg.Tailscale.TsNet.ManifestPort
-	if port <= 0 {
-		return 8444
-	}
-	return port
+	return effectiveManifestTailscalePort(s.Cfg.Tailscale.TsNet.ManifestPort)
 }
 
 // handleTsNetStart (re)starts the tsnet node.
