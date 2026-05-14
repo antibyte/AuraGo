@@ -1,6 +1,14 @@
 package agent
 
-import "testing"
+import (
+	"context"
+	"log/slog"
+	"strings"
+	"testing"
+
+	"aurago/internal/config"
+	"aurago/internal/memory"
+)
 
 func TestIsAnnouncementOnlyResponseBeforeAnyToolCall(t *testing.T) {
 	tc := ToolCall{}
@@ -317,4 +325,54 @@ func TestAnnouncementDetector_AllowsInformationalSuccessAnswerWithoutExecutionRe
 	if isAnnouncementOnlyResponse(content, tc, false, false, "war der test erfolgreich?") {
 		t.Fatal("did not expect informational success answer to trigger recovery")
 	}
+}
+
+func TestDesktopAnnouncementRecoveryRejectsDoneWithoutToolAfterPromise(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	s := &agentLoopState{
+		ctx:                context.Background(),
+		broker:             NoopBroker{},
+		currentLogger:      logger,
+		useNativeFunctions: true,
+		announcementCount:  1,
+		lastUserMsg:        "ERROR: Your last response was text-only - use the native function-calling mechanism NOW.",
+		recoverySession:    NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:        cfg,
+			SessionID:     "virtual-desktop",
+			MessageSource: "virtual_desktop_chat",
+			ShortTermMem:  stm,
+		},
+	}
+
+	content := "Erwischt - mein Fehler. Schick mir den Auftrag nochmal in einem Satz, dann mach ich's sofort wirklich. <done/>"
+	parsed := ParsedToolResponse{
+		Content:          content,
+		SanitizedContent: strings.ReplaceAll(content, " <done/>", ""),
+		IsFinished:       true,
+	}
+
+	_, _, shouldContinue, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+	if !shouldContinue {
+		t.Fatal("expected desktop recovery to reject <done/> when no desktop tool ran after an action promise")
+	}
+	if s.announcementCount != 2 {
+		t.Fatalf("announcementCount = %d, want 2", s.announcementCount)
+	}
+	if len(s.req.Messages) == 0 || !strings.Contains(s.req.Messages[len(s.req.Messages)-1].Content, "virtual_desktop") {
+		t.Fatalf("expected recovery feedback to require a desktop tool call, got %#v", s.req.Messages)
+	}
+}
+
+type testDiscardWriter struct{}
+
+func (testDiscardWriter) Write(p []byte) (int, error) {
+	return len(p), nil
 }

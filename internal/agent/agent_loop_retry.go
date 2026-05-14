@@ -266,6 +266,24 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		}
 	}
 
+	if shouldRecoverDesktopDoneWithoutToolAfterAnnouncement(s, parsedToolResp, tc) &&
+		s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+		s.announcementCount++
+		currentLogger.Warn("[Sync] Desktop completion without tool after action promise detected, requesting desktop tool call",
+			"attempt", s.announcementCount,
+			"content_preview", Truncate(parsedToolResp.SanitizedContent, 120))
+		feedbackMsg := applyEmotionRecoveryNudge(FormatDesktopAnnouncementCompletionFeedback(s.useNativeFunctions), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:        sessionID,
+			AssistantContent: content,
+			FeedbackMsg:      feedbackMsg,
+			BrokerEventType:  "error_recovery",
+			I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
+
 	announcementOnly := announcementContent != "" &&
 		!tc.IsTool &&
 		shouldRecoverAnnouncementOnlyResponse(parsedToolResp, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
@@ -346,4 +364,14 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 	}
 
 	return content, tc, false, false
+}
+
+func shouldRecoverDesktopDoneWithoutToolAfterAnnouncement(s *agentLoopState, parsedToolResp ParsedToolResponse, tc ToolCall) bool {
+	if s == nil || tc.IsTool || !parsedToolResp.IsFinished || s.announcementCount <= 0 {
+		return false
+	}
+	if s.runCfg.MessageSource != "virtual_desktop_chat" || s.lastResponseWasTool || len(s.recentTools) > 0 {
+		return false
+	}
+	return strings.TrimSpace(parsedToolResp.SanitizedContent) != ""
 }

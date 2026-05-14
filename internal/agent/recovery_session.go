@@ -235,6 +235,13 @@ func FormatAnnouncementFeedback(useNativeFunctions bool, recentTools []string) s
 	return feedbackMsg
 }
 
+func FormatDesktopAnnouncementCompletionFeedback(useNativeFunctions bool) string {
+	if useNativeFunctions {
+		return "ERROR: You marked the Virtual Desktop task as complete with <done/>, but no desktop tool call ran after your action promise. You MUST call the appropriate native tool now: use virtual_desktop for files/apps/open_in_app, office_document for Writer documents, or office_workbook for spreadsheets. Do not ask the user to repeat the task."
+	}
+	return "ERROR: You marked the Virtual Desktop task as complete with <done/>, but no desktop tool call ran after your action promise. Output the raw JSON tool call now using virtual_desktop, office_document, or office_workbook. Do not ask the user to repeat the task."
+}
+
 func FormatToolAvailabilityDiscoveryFeedback() string {
 	return "ERROR: You claimed a tool is unavailable without checking the live tool registry. Tool availability memories are stale. You MUST call discover_tools NOW with operation='search' or operation='get_tool_info' for the exact tool name or tool family. Do not answer in text until discover_tools has returned current status."
 }
