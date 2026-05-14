@@ -357,6 +357,41 @@
 [data-theme="papyrus"] .session-drawer { position: fixed; top: 0; left: 0; overflow: hidden; overflow-y: auto; }
 [data-theme="papyrus"] .integrations-drawer { position: fixed; top: 0; right: 0; overflow: hidden; overflow-y: auto; }
 
+/* Agent todo card */
+[data-theme="papyrus"] .todo-debug-panel {
+    background:
+        linear-gradient(180deg, rgba(255, 250, 239, 0.99), rgba(232, 216, 187, 0.99));
+    border-color: rgba(30, 63, 102, 0.24);
+    box-shadow:
+        0 18px 42px rgba(9, 16, 23, 0.28),
+        inset 0 1px 0 rgba(255, 251, 241, 0.86);
+    color: var(--papyrus-ink);
+}
+
+[data-theme="papyrus"] .todo-debug-header {
+    background:
+        linear-gradient(90deg, rgba(30, 63, 102, 0.12), rgba(47, 127, 115, 0.08)),
+        rgba(255, 250, 239, 0.88);
+    border-bottom-color: rgba(30, 63, 102, 0.22);
+    color: var(--papyrus-ink-blue);
+}
+
+[data-theme="papyrus"] .todo-debug-body {
+    background:
+        radial-gradient(circle at 12% 18%, rgba(83, 62, 39, 0.08) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 78% 70%, rgba(143, 112, 71, 0.07) 0 1px, transparent 1.7px);
+    background-size: 54px 54px, 68px 68px;
+}
+
+[data-theme="papyrus"] .todo-item {
+    color: var(--papyrus-ink);
+}
+
+[data-theme="papyrus"] .todo-item-meta,
+[data-theme="papyrus"] .todo-item.todo-done {
+    color: var(--papyrus-ink-soft);
+}
+
 /* Parchment fiber overlay */
 [data-theme="papyrus"] .chat-theme-dropdown::before,
 [data-theme="papyrus"] .mood-panel::before,
