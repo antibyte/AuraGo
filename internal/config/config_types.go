@@ -176,24 +176,24 @@ type BrowserAutomationViewport struct {
 	Height int `yaml:"height"`
 }
 
-// BrowserAutomationConfig holds the settings for the optional Playwright sidecar.
+// BrowserAutomationConfig holds the settings for the optional browser automation sidecar.
 type BrowserAutomationConfig struct {
-	Enabled            bool                      `yaml:"enabled"`              // enable browser automation integration
-	Mode               string                    `yaml:"mode"`                 // "sidecar" (default)
-	URL                string                    `yaml:"url"`                  // sidecar base URL
-	ContainerName      string                    `yaml:"container_name"`       // managed Docker container name
-	Image              string                    `yaml:"image"`                // sidecar Docker image
-	AutoStart          bool                      `yaml:"auto_start"`           // auto-start the sidecar container when enabled
-	AutoBuild          bool                      `yaml:"auto_build"`           // auto-build the sidecar image when missing locally
-	DockerfileDir      string                    `yaml:"dockerfile_dir"`       // build context containing Dockerfile.browser_automation
-	SessionTTLMinutes  int                       `yaml:"session_ttl_minutes"`  // session expiry in minutes
-	MaxSessions        int                       `yaml:"max_sessions"`         // max concurrent sessions
-	AllowFileUploads   bool                      `yaml:"allow_file_uploads"`   // allow upload_file operation
-	AllowFileDownloads bool                      `yaml:"allow_file_downloads"` // allow browser downloads
-	AllowedDownloadDir string                    `yaml:"allowed_download_dir"` // host/workspace dir for downloads
-	Viewport           BrowserAutomationViewport `yaml:"viewport"`             // default viewport for sessions
-	Headless           bool                      `yaml:"headless"`             // run browser headless
-	ReadOnly           bool                      `yaml:"readonly"`             // block mutating actions when true
+	Enabled              bool                      `yaml:"enabled"`                // enable browser automation integration
+	Mode                 string                    `yaml:"mode"`                   // "sidecar" (default)
+	URL                  string                    `yaml:"url"`                    // sidecar base URL
+	ContainerName        string                    `yaml:"container_name"`         // managed Docker container name
+	Image                string                    `yaml:"image"`                  // sidecar Docker image
+	AutoStart            bool                      `yaml:"auto_start"`             // auto-start the sidecar container when enabled
+	AutoBuild            bool                      `yaml:"auto_build"`             // auto-build the sidecar image when missing locally
+	DockerfileDir        string                    `yaml:"dockerfile_dir"`         // build context containing Dockerfile.browser_automation
+	SessionTTLMinutes    int                       `yaml:"session_ttl_minutes"`    // session expiry in minutes
+	MaxSessions          int                       `yaml:"max_sessions"`           // max concurrent sessions
+	AllowFileUploads     bool                      `yaml:"allow_file_uploads"`     // allow upload_file operation
+	AllowFileDownloads   bool                      `yaml:"allow_file_downloads"`   // allow browser downloads
+	AllowedDownloadDir   string                    `yaml:"allowed_download_dir"`   // host/workspace dir for downloads
+	Viewport             BrowserAutomationViewport `yaml:"viewport"`               // default viewport for sessions
+	Headless             bool                      `yaml:"headless"`               // run browser headless
+	ReadOnly             bool                      `yaml:"readonly"`               // block mutating actions when true
 	ScreenshotsDir       string                    `yaml:"screenshots_dir"`        // workspace-relative screenshot directory
 	CloakHumanize        bool                      `yaml:"cloak_humanize"`         // enable human-like mouse/keyboard/scroll behavior
 	CloakHumanPreset     string                    `yaml:"cloak_human_preset"`     // "default" or "careful"
@@ -1400,7 +1400,7 @@ type Config struct {
 			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)
 		} `yaml:"web_capture"`
 		BrowserAutomation struct {
-			Enabled bool `yaml:"enabled"` // enable browser_automation tool (Playwright sidecar driven browser sessions)
+			Enabled bool `yaml:"enabled"` // enable browser_automation tool (browser automation sidecar driven browser sessions)
 		} `yaml:"browser_automation"`
 		VirtualDesktop struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_desktop tool (browser desktop workspace control)
