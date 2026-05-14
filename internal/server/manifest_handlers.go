@@ -208,10 +208,16 @@ func manifestRewriteBrowserURLForRequest(s *Server, cfg *config.Config, r *http.
 		return
 	}
 	if cfg != nil {
-		payload["url"] = manifestBrowserURL(s, cfg, r, rawURL)
+		rewrite := manifestBrowserURL(s, cfg, r, rawURL)
+		if strings.TrimSpace(rewrite) == "" {
+			delete(payload, "url")
+			return
+		}
+		payload["url"] = rewrite
 		return
 	}
 	if requestLooksTailscale(r) {
+		delete(payload, "url")
 		return
 	}
 	payload["url"] = manifestURLWithRequestHost(rawURL, r)

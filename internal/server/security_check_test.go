@@ -75,6 +75,19 @@ func TestCheckSecurityDoesNotTreatLANHTTPSTailnetAsInternetFacing(t *testing.T) 
 	}
 }
 
+func TestIsNetworkFacingIncludesTailscaleManifestExposure(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Server.Host = "127.0.0.1"
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+
+	if !isNetworkFacing(cfg) {
+		t.Fatal("Tailscale Manifest exposure should count as network-facing")
+	}
+}
+
 func TestCheckSecurityTreatsTailscaleFunnelAsInternetFacing(t *testing.T) {
 	t.Parallel()
 

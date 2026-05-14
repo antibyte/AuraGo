@@ -833,17 +833,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Reconcile tsnet exposure live when the web exposure toggles change
 			// while the node is already connected to the Tailscale network.
-			tsExposeChanged := oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP ||
-				oldCfg.Tailscale.TsNet.ExposeHomepage != newCfg.Tailscale.TsNet.ExposeHomepage ||
-				oldCfg.Tailscale.TsNet.ExposeSpaceAgent != newCfg.Tailscale.TsNet.ExposeSpaceAgent ||
-				oldCfg.Tailscale.TsNet.SpaceAgentHostname != newCfg.Tailscale.TsNet.SpaceAgentHostname ||
-				oldCfg.Tailscale.TsNet.Funnel != newCfg.Tailscale.TsNet.Funnel ||
-				oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled ||
-				oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort ||
-				oldCfg.SpaceAgent.Enabled != newCfg.SpaceAgent.Enabled ||
-				oldCfg.SpaceAgent.HTTPSEnabled != newCfg.SpaceAgent.HTTPSEnabled ||
-				oldCfg.SpaceAgent.HTTPSPort != newCfg.SpaceAgent.HTTPSPort ||
-				oldCfg.SpaceAgent.Port != newCfg.SpaceAgent.Port
+			tsExposeChanged := tsnetExposureConfigChanged(oldCfg, *newCfg)
 			spaceAgentHTTPSChanged := oldCfg.SpaceAgent.Enabled != newCfg.SpaceAgent.Enabled ||
 				oldCfg.SpaceAgent.HTTPSEnabled != newCfg.SpaceAgent.HTTPSEnabled ||
 				oldCfg.SpaceAgent.HTTPSPort != newCfg.SpaceAgent.HTTPSPort ||
@@ -863,7 +853,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 								s.Logger.Info("[Config UI] tsnet exposure reconfigured")
 							}
 						}()
-					} else if !newCfg.Tailscale.TsNet.ServeHTTP && !newCfg.Tailscale.TsNet.ExposeHomepage && !newCfg.Tailscale.TsNet.ExposeSpaceAgent {
+					} else if !tsnetHasAnyExposure(*newCfg) {
 						go func() {
 							if err := s.TsNetManager.DowngradeToNetworkOnly(); err != nil {
 								s.Logger.Warn("[Config UI] tsnet downgrade to network-only failed", "error", err)
@@ -1026,6 +1016,34 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 		}
 	}
+}
+
+func tsnetExposureConfigChanged(oldCfg, newCfg config.Config) bool {
+	return oldCfg.Tailscale.TsNet.ServeHTTP != newCfg.Tailscale.TsNet.ServeHTTP ||
+		oldCfg.Tailscale.TsNet.ExposeHomepage != newCfg.Tailscale.TsNet.ExposeHomepage ||
+		oldCfg.Tailscale.TsNet.ExposeManifest != newCfg.Tailscale.TsNet.ExposeManifest ||
+		oldCfg.Tailscale.TsNet.ManifestHostname != newCfg.Tailscale.TsNet.ManifestHostname ||
+		oldCfg.Tailscale.TsNet.ManifestPort != newCfg.Tailscale.TsNet.ManifestPort ||
+		oldCfg.Tailscale.TsNet.ExposeSpaceAgent != newCfg.Tailscale.TsNet.ExposeSpaceAgent ||
+		oldCfg.Tailscale.TsNet.SpaceAgentHostname != newCfg.Tailscale.TsNet.SpaceAgentHostname ||
+		oldCfg.Tailscale.TsNet.Funnel != newCfg.Tailscale.TsNet.Funnel ||
+		oldCfg.Homepage.WebServerEnabled != newCfg.Homepage.WebServerEnabled ||
+		oldCfg.Homepage.WebServerPort != newCfg.Homepage.WebServerPort ||
+		oldCfg.Manifest.Enabled != newCfg.Manifest.Enabled ||
+		oldCfg.Manifest.Port != newCfg.Manifest.Port ||
+		oldCfg.Manifest.HostPort != newCfg.Manifest.HostPort ||
+		oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker ||
+		oldCfg.SpaceAgent.Enabled != newCfg.SpaceAgent.Enabled ||
+		oldCfg.SpaceAgent.HTTPSEnabled != newCfg.SpaceAgent.HTTPSEnabled ||
+		oldCfg.SpaceAgent.HTTPSPort != newCfg.SpaceAgent.HTTPSPort ||
+		oldCfg.SpaceAgent.Port != newCfg.SpaceAgent.Port
+}
+
+func tsnetHasAnyExposure(cfg config.Config) bool {
+	return cfg.Tailscale.TsNet.ServeHTTP ||
+		cfg.Tailscale.TsNet.ExposeHomepage ||
+		cfg.Tailscale.TsNet.ExposeManifest ||
+		cfg.Tailscale.TsNet.ExposeSpaceAgent
 }
 
 func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {

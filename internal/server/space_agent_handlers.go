@@ -609,7 +609,7 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 		return tunnelURL
 	}
 	if requestLooksTailscale(r) {
-		return fallbackURL
+		return ""
 	}
 	return manifestURLWithRequestHost(fallbackURL, r)
 }

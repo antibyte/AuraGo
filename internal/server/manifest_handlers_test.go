@@ -206,8 +206,8 @@ func TestManifestStatusURLDoesNotInventTailscaleSidecarPort(t *testing.T) {
 
 	manifestRewriteBrowserURL(req, payload)
 
-	if payload["url"] != "http://127.0.0.1:2099" {
-		t.Fatalf("url = %v, want local fallback for non-exposed Manifest on Tailscale", payload["url"])
+	if _, ok := payload["url"]; ok {
+		t.Fatalf("url = %v, want no remote link when Manifest is not exposed over Tailscale", payload["url"])
 	}
 }
 
@@ -247,7 +247,7 @@ func TestManifestBrowserBaseURLForRequestDoesNotInventTailscaleSidecarPort(t *te
 	req.Host = "aurago.taild1480.ts.net"
 
 	got := manifestBrowserBaseURLForRequest(&Server{Cfg: cfg}, cfg, req)
-	if got != "http://127.0.0.1:2099" {
-		t.Fatalf("manifestBrowserBaseURLForRequest() = %q, want local fallback when Manifest is not exposed over tsnet", got)
+	if got != "" {
+		t.Fatalf("manifestBrowserBaseURLForRequest() = %q, want no remote URL when Manifest is not exposed over tsnet", got)
 	}
 }
