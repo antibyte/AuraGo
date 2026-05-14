@@ -35,19 +35,37 @@ type ElegooCentauriCarbonConfig struct {
 	Printers []ElegooCentauriCarbonPrinter `json:"printers"`
 }
 
+type KlipperPrinter struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	URL            string `json:"url"`
+	APIKey         string `json:"-"`
+	TimeoutSeconds int    `json:"timeout_seconds"`
+	WebcamName     string `json:"webcam_name,omitempty"`
+}
+
+type KlipperConfig struct {
+	Enabled  bool             `json:"enabled"`
+	Printers []KlipperPrinter `json:"printers"`
+}
+
 type ThreeDPrinterConfig struct {
 	Enabled              bool                       `json:"enabled"`
 	ReadOnly             bool                       `json:"readonly"`
 	DefaultPrinter       string                     `json:"default_printer"`
 	DataDir              string                     `json:"-"`
 	ElegooCentauriCarbon ElegooCentauriCarbonConfig `json:"elegoo_centauri_carbon"`
+	Klipper              KlipperConfig              `json:"klipper"`
 }
 
 type ThreeDPrinterRequest struct {
 	Operation         string `json:"operation"`
+	Protocol          string `json:"protocol,omitempty"`
 	PrinterID         string `json:"printer_id"`
 	URL               string `json:"url,omitempty"`
+	APIKey            string `json:"api_key,omitempty"`
 	MainboardID       string `json:"mainboard_id,omitempty"`
+	WebcamName        string `json:"webcam_name,omitempty"`
 	TimeoutSeconds    int    `json:"timeout_seconds,omitempty"`
 	Filename          string `json:"filename"`
 	Directory         string `json:"directory"`
@@ -71,6 +89,15 @@ type ThreeDPrinterMediaResult struct {
 	Message     string `json:"message"`
 }
 
+type ResolvedThreeDPrinter struct {
+	Protocol string
+	ID       string
+	Name     string
+	URL      string
+	Elegoo   *ElegooCentauriCarbonPrinter
+	Klipper  *KlipperPrinter
+}
+
 func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req ThreeDPrinterRequest) string {
 	if !cfg.Enabled {
 		return threeDPrinterJSONError("3D printer integration is not enabled")
@@ -80,7 +107,18 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		operation = "status"
 	}
 	if operation == "list_printers" {
-		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printers": cfg.ElegooCentauriCarbon.Printers, "default_printer": cfg.DefaultPrinter})
+		return threeDPrinterJSON(map[string]interface{}{
+			"status":          "ok",
+			"default_printer": cfg.DefaultPrinter,
+			"elegoo_centauri_carbon": map[string]interface{}{
+				"enabled":  cfg.ElegooCentauriCarbon.Enabled,
+				"printers": cfg.ElegooCentauriCarbon.Printers,
+			},
+			"klipper": map[string]interface{}{
+				"enabled":  cfg.Klipper.Enabled,
+				"printers": cfg.Klipper.Printers,
+			},
+		})
 	}
 	if cfg.ReadOnly && threeDPrinterMutates(operation) {
 		return threeDPrinterJSONError("3D printer integration is in read-only mode")
@@ -92,27 +130,42 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 
 	switch operation {
 	case "test_connection", "status":
-		return ElegooCentauriCarbonStatus(ctx, printer)
+		if printer.Klipper != nil {
+			if operation == "test_connection" {
+				return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/server/info", nil, nil)
+			}
+			return klipperStatus(ctx, *printer.Klipper)
+		}
+		return ElegooCentauriCarbonStatus(ctx, *printer.Elegoo)
 	case "attributes":
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 1, map[string]interface{}{})
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/printer/objects/list", nil, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 1, map[string]interface{}{})
 	case "files":
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/server/files/list", url.Values{"root": []string{"gcodes"}}, nil)
+		}
 		dir := strings.TrimSpace(req.Directory)
 		if dir == "" {
 			dir = "/local"
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 258, map[string]interface{}{"Url": dir})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 258, map[string]interface{}{"Url": dir})
 	case "history":
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 320, map[string]interface{}{})
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/server/history/list", url.Values{"limit": []string{"20"}}, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 320, map[string]interface{}{})
 	case "camera_url":
-		streamURL, err := ElegooCentauriCarbonCameraURL(ctx, printer)
+		streamURL, _, err := ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			return threeDPrinterJSONError(err.Error())
 		}
-		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "url": streamURL})
+		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "protocol": printer.Protocol, "url": streamURL})
 	case "camera_snapshot":
 		return executeThreeDPrinterSnapshot(ctx, cfg, printer)
 	case "show_live_stream":
-		streamURL, err := ElegooCentauriCarbonCameraURL(ctx, printer)
+		streamURL, _, err := ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			return threeDPrinterJSONError(err.Error())
 		}
@@ -120,13 +173,16 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if err := ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {
 			return threeDPrinterJSON(map[string]interface{}{"status": "fallback", "message": err.Error(), "stream_url": streamURL})
 		}
-		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "stream_url": streamURL, "proxy_url": proxyURL, "mime_type": "multipart/x-mixed-replace"})
+		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "protocol": printer.Protocol, "stream_url": streamURL, "proxy_url": proxyURL, "mime_type": "multipart/x-mixed-replace"})
 	case "start_print":
 		filename := strings.TrimSpace(req.Filename)
 		if filename == "" {
 			return threeDPrinterJSONError("filename is required for start_print; the agent must not guess a file")
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 128, map[string]interface{}{
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/start", url.Values{"filename": []string{filename}}, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 128, map[string]interface{}{
 			"Filename":           filename,
 			"StartLayer":         req.StartLayer,
 			"Calibration_switch": boolAsInt(req.Calibration),
@@ -134,16 +190,28 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 			"Tlp_Switch":         boolAsInt(req.TimeLapse),
 		})
 	case "pause_print":
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 129, map[string]interface{}{})
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/pause", nil, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 129, map[string]interface{}{})
 	case "cancel_print":
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 130, map[string]interface{}{})
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/cancel", nil, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 130, map[string]interface{}{})
 	case "resume_print":
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 131, map[string]interface{}{})
+		if printer.Klipper != nil {
+			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/resume", nil, nil)
+		}
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 131, map[string]interface{}{})
 	case "set_camera_light":
+		if printer.Klipper != nil {
+			return threeDPrinterJSONError("set_camera_light is not supported for Klipper in standard-actions mode")
+		}
 		if req.LightOn == nil {
 			return threeDPrinterJSONError("light_on is required for set_camera_light")
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, printer, 403, map[string]interface{}{
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 403, map[string]interface{}{
 			"LightStatus": map[string]interface{}{
 				"SecondLight": *req.LightOn,
 				"RgbLight":    []int{0, 0, 0},
@@ -154,26 +222,38 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 	}
 }
 
-func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ElegooCentauriCarbonPrinter, error) {
-	if !cfg.ElegooCentauriCarbon.Enabled {
-		return ElegooCentauriCarbonPrinter{}, fmt.Errorf("Elegoo Centauri Carbon integration is not enabled")
-	}
+func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ResolvedThreeDPrinter, error) {
 	id := strings.TrimSpace(printerID)
 	if id == "" {
 		id = strings.TrimSpace(cfg.DefaultPrinter)
 	}
-	for _, printer := range cfg.ElegooCentauriCarbon.Printers {
-		if id == "" || strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
-			if strings.TrimSpace(printer.URL) == "" {
-				return ElegooCentauriCarbonPrinter{}, fmt.Errorf("printer %q has no url", printer.ID)
+
+	if cfg.ElegooCentauriCarbon.Enabled {
+		for _, printer := range cfg.ElegooCentauriCarbon.Printers {
+			if id == "" || strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
+				if strings.TrimSpace(printer.URL) == "" {
+					return ResolvedThreeDPrinter{}, fmt.Errorf("printer %q has no url", printer.ID)
+				}
+				p := printer
+				return ResolvedThreeDPrinter{Protocol: "elegoo_centauri_carbon", ID: printer.ID, Name: printer.Name, URL: printer.URL, Elegoo: &p}, nil
 			}
-			return printer, nil
+		}
+	}
+	if cfg.Klipper.Enabled {
+		for _, printer := range cfg.Klipper.Printers {
+			if id == "" || strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
+				if strings.TrimSpace(printer.URL) == "" {
+					return ResolvedThreeDPrinter{}, fmt.Errorf("printer %q has no url", printer.ID)
+				}
+				p := printer
+				return ResolvedThreeDPrinter{Protocol: "klipper", ID: printer.ID, Name: printer.Name, URL: printer.URL, Klipper: &p}, nil
+			}
 		}
 	}
 	if id == "" {
-		return ElegooCentauriCarbonPrinter{}, fmt.Errorf("no 3D printer is configured")
+		return ResolvedThreeDPrinter{}, fmt.Errorf("no 3D printer is configured")
 	}
-	return ElegooCentauriCarbonPrinter{}, fmt.Errorf("3D printer %q was not found", id)
+	return ResolvedThreeDPrinter{}, fmt.Errorf("3D printer %q was not found", id)
 }
 
 func ElegooCentauriCarbonStatus(ctx context.Context, printer ElegooCentauriCarbonPrinter) string {
@@ -294,6 +374,185 @@ func StoreThreeDPrinterMedia(dataDir, printerID string, data []byte, contentType
 	return result, nil
 }
 
+func klipperStatus(ctx context.Context, printer KlipperPrinter) string {
+	body := map[string]interface{}{
+		"objects": map[string]interface{}{
+			"webhooks":       nil,
+			"print_stats":    nil,
+			"toolhead":       []string{"position", "homed_axes"},
+			"extruder":       []string{"temperature", "target"},
+			"heater_bed":     []string{"temperature", "target"},
+			"display_status": nil,
+			"virtual_sdcard": nil,
+		},
+	}
+	return klipperCommandJSON(ctx, printer, http.MethodPost, "/printer/objects/query", nil, body)
+}
+
+func klipperCommandJSON(ctx context.Context, printer KlipperPrinter, method, path string, query url.Values, body interface{}) string {
+	resp, err := klipperCommand(ctx, printer, method, path, query, body)
+	if err != nil {
+		return threeDPrinterJSONError(err.Error())
+	}
+	return threeDPrinterJSON(resp)
+}
+
+func klipperCommand(ctx context.Context, printer KlipperPrinter, method, path string, query url.Values, body interface{}) (map[string]interface{}, error) {
+	timeout := time.Duration(printer.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	endpoint, err := klipperEndpoint(printer.URL, path, query)
+	if err != nil {
+		return nil, err
+	}
+	var reader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("encode Moonraker request: %w", err)
+		}
+		reader = bytes.NewReader(data)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return nil, fmt.Errorf("create Moonraker request: %w", err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if strings.TrimSpace(printer.APIKey) != "" {
+		req.Header.Set("X-Api-Key", strings.TrimSpace(printer.APIKey))
+	}
+	resp, err := (&http.Client{Timeout: timeout}).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call Moonraker %s %s: %w", method, path, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("Moonraker %s %s returned HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	var decoded map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, fmt.Errorf("decode Moonraker response: %w", err)
+	}
+	return decoded, nil
+}
+
+func klipperEndpoint(baseURL, path string, query url.Values) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("invalid Klipper Moonraker URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("Klipper Moonraker URL must use http or https")
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/" + strings.TrimLeft(path, "/")
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
+}
+
+func ResolveThreeDPrinterCameraURLs(ctx context.Context, printer ResolvedThreeDPrinter) (string, string, error) {
+	if printer.Elegoo != nil {
+		streamURL, err := ElegooCentauriCarbonCameraURL(ctx, *printer.Elegoo)
+		return streamURL, "", err
+	}
+	if printer.Klipper != nil {
+		return KlipperCameraURLs(ctx, *printer.Klipper)
+	}
+	return "", "", fmt.Errorf("unknown 3D printer protocol")
+}
+
+func KlipperCameraURLs(ctx context.Context, printer KlipperPrinter) (string, string, error) {
+	resp, err := klipperCommand(ctx, printer, http.MethodGet, "/server/webcams/list", nil, nil)
+	if err != nil {
+		return "", "", err
+	}
+	webcam, err := selectKlipperWebcam(resp, printer.WebcamName)
+	if err != nil {
+		return "", "", err
+	}
+	streamURL, _ := webcam["stream_url"].(string)
+	snapshotURL, _ := webcam["snapshot_url"].(string)
+	if strings.TrimSpace(streamURL) == "" {
+		return "", "", fmt.Errorf("Klipper webcam stream_url was not found")
+	}
+	streamURL, err = resolvePrinterHTTPURL(printer.URL, streamURL)
+	if err != nil {
+		return "", "", err
+	}
+	if strings.TrimSpace(snapshotURL) != "" {
+		snapshotURL, err = resolvePrinterHTTPURL(printer.URL, snapshotURL)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return streamURL, snapshotURL, nil
+}
+
+func selectKlipperWebcam(resp map[string]interface{}, wantedName string) (map[string]interface{}, error) {
+	var webcams []interface{}
+	if result, ok := resp["result"].(map[string]interface{}); ok {
+		if arr, ok := result["webcams"].([]interface{}); ok {
+			webcams = arr
+		}
+	} else if arr, ok := resp["result"].([]interface{}); ok {
+		webcams = arr
+	}
+	wantedName = strings.TrimSpace(wantedName)
+	var firstEnabled map[string]interface{}
+	for _, item := range webcams {
+		webcam, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		enabled, hasEnabled := webcam["enabled"].(bool)
+		if hasEnabled && !enabled {
+			continue
+		}
+		name, _ := webcam["name"].(string)
+		if wantedName != "" && strings.EqualFold(strings.TrimSpace(name), wantedName) {
+			return webcam, nil
+		}
+		if firstEnabled == nil {
+			firstEnabled = webcam
+		}
+	}
+	if wantedName != "" {
+		return nil, fmt.Errorf("Klipper webcam %q was not found", wantedName)
+	}
+	if firstEnabled == nil {
+		return nil, fmt.Errorf("no enabled Klipper webcam was found")
+	}
+	return firstEnabled, nil
+}
+
+func resolvePrinterHTTPURL(baseURL, rawURL string) (string, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid printer camera URL: %w", err)
+	}
+	if parsed.IsAbs() {
+		return parsed.String(), nil
+	}
+	base, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return "", fmt.Errorf("invalid configured printer URL")
+	}
+	if base.Scheme != "http" && base.Scheme != "https" {
+		base.Scheme = "http"
+	}
+	return base.ResolveReference(parsed).String(), nil
+}
+
 func elegooCentauriCarbonCommandJSON(ctx context.Context, printer ElegooCentauriCarbonPrinter, cmd int, data map[string]interface{}) string {
 	resp, err := elegooCentauriCarbonCommand(ctx, printer, cmd, data)
 	if err != nil {
@@ -376,15 +635,22 @@ func findHTTPURL(value interface{}) string {
 	return ""
 }
 
-func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, printer ElegooCentauriCarbonPrinter) string {
-	streamURL, err := ElegooCentauriCarbonCameraURL(ctx, printer)
+func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, printer ResolvedThreeDPrinter) string {
+	streamURL, snapshotURL, err := ResolveThreeDPrinterCameraURLs(ctx, printer)
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
 	if err := ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
-	data, contentType, err := FetchThreeDPrinterSnapshot(ctx, streamURL)
+	fetchURL := streamURL
+	if snapshotURL != "" {
+		if err := ValidateThreeDPrinterStreamURL(printer.URL, snapshotURL); err != nil {
+			return threeDPrinterJSONError(err.Error())
+		}
+		fetchURL = snapshotURL
+	}
+	data, contentType, err := FetchThreeDPrinterSnapshot(ctx, fetchURL)
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
@@ -409,13 +675,12 @@ func threeDPrinterJSON(value interface{}) string {
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
-	if bytes.Contains(data, []byte(`"status"`)) {
-		return string(data)
-	}
 	var obj map[string]interface{}
 	if json.Unmarshal(data, &obj) == nil {
-		obj["status"] = "ok"
-		data, _ = json.Marshal(obj)
+		if _, ok := obj["status"]; !ok {
+			obj["status"] = "ok"
+			data, _ = json.Marshal(obj)
+		}
 	}
 	return string(data)
 }

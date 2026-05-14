@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -92,6 +93,159 @@ func TestValidateThreeDPrinterStreamURLRequiresConfiguredHost(t *testing.T) {
 	if err := ValidateThreeDPrinterStreamURL("ws://192.168.1.50/websocket", "rtsp://192.168.1.50/live"); err == nil {
 		t.Fatal("expected unsupported stream scheme to fail")
 	}
+}
+
+func TestKlipperStatusSendsMoonrakerObjectsQuery(t *testing.T) {
+	var gotMethod, gotPath string
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Header.Get("X-Api-Key") != "moon-key" {
+			t.Fatalf("X-Api-Key = %q, want moon-key", r.Header.Get("X-Api-Key"))
+		}
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		objects, ok := body["objects"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("objects missing print_stats: %#v", body)
+		}
+		if _, ok := objects["print_stats"]; !ok {
+			t.Fatalf("objects missing print_stats: %#v", body)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"result": map[string]interface{}{"status": map[string]interface{}{"print_stats": map[string]interface{}{"state": "printing"}}},
+		})
+	})
+	defer server.Close()
+
+	cfg := klipperOnlyConfig(server.URL)
+	cfg.Klipper.Printers[0].APIKey = "moon-key"
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "status", PrinterID: "voron"})
+	if gotMethod != http.MethodPost || gotPath != "/printer/objects/query" {
+		t.Fatalf("request = %s %s, want POST /printer/objects/query", gotMethod, gotPath)
+	}
+	if !strings.Contains(out, `"state":"printing"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected top-level ok status, got: %s", out)
+	}
+	if strings.Contains(out, "moon-key") {
+		t.Fatalf("tool output leaked API key: %s", out)
+	}
+}
+
+func TestKlipperFilesUsesGcodesRoot(t *testing.T) {
+	var rawQuery string
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/server/files/list" {
+			t.Fatalf("path = %s, want /server/files/list", r.URL.Path)
+		}
+		rawQuery = r.URL.RawQuery
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"result": []map[string]interface{}{{"path": "cube.gcode"}}})
+	})
+	defer server.Close()
+
+	out := ExecuteThreeDPrinter(context.Background(), klipperOnlyConfig(server.URL), ThreeDPrinterRequest{Operation: "files", PrinterID: "voron"})
+	values, _ := url.ParseQuery(rawQuery)
+	if values.Get("root") != "gcodes" {
+		t.Fatalf("root query = %q, want gcodes", values.Get("root"))
+	}
+	if !strings.Contains(out, "cube.gcode") {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func TestKlipperStartPrintRequiresFilenameAndCallsMoonraker(t *testing.T) {
+	var gotPath, gotFilename string
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotFilename = r.URL.Query().Get("filename")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok"})
+	})
+	defer server.Close()
+
+	out := ExecuteThreeDPrinter(context.Background(), klipperOnlyConfig(server.URL), ThreeDPrinterRequest{
+		Operation: "start_print",
+		PrinterID: "voron",
+		Filename:  "calibration.gcode",
+	})
+	if gotPath != "/printer/print/start" || gotFilename != "calibration.gcode" {
+		t.Fatalf("request = %s filename=%q", gotPath, gotFilename)
+	}
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func TestThreeDPrinterExecuteBlocksKlipperMutationsInReadOnlyMode(t *testing.T) {
+	called := false
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	defer server.Close()
+
+	cfg := klipperOnlyConfig(server.URL)
+	cfg.ReadOnly = true
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "pause_print", PrinterID: "voron"})
+	if called {
+		t.Fatal("read-only mutation contacted Moonraker")
+	}
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(strings.ToLower(out), "read-only") {
+		t.Fatalf("expected read-only error, got: %s", out)
+	}
+}
+
+func TestKlipperCameraURLSelectsConfiguredWebcam(t *testing.T) {
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/server/webcams/list" {
+			t.Fatalf("path = %s, want /server/webcams/list", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"result": map[string]interface{}{
+				"webcams": []map[string]interface{}{
+					{"name": "bed", "enabled": true, "stream_url": "/webcam/bed"},
+					{"name": "toolhead", "enabled": true, "stream_url": "/webcam/toolhead", "snapshot_url": "/snapshot/toolhead.jpg"},
+				},
+			},
+		})
+	})
+	defer server.Close()
+
+	cfg := klipperOnlyConfig(server.URL)
+	cfg.Klipper.Printers[0].WebcamName = "toolhead"
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "camera_url", PrinterID: "voron"})
+	if !strings.Contains(out, server.URL+"/webcam/toolhead") {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func klipperOnlyConfig(baseURL string) ThreeDPrinterConfig {
+	return ThreeDPrinterConfig{
+		Enabled:        true,
+		ReadOnly:       false,
+		DefaultPrinter: "voron",
+		Klipper: KlipperConfig{
+			Enabled: true,
+			Printers: []KlipperPrinter{{
+				ID:             "voron",
+				Name:           "Voron 2.4",
+				URL:            baseURL,
+				TimeoutSeconds: 2,
+			}},
+		},
+	}
+}
+
+func mockKlipperHTTPServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		handler(w, r)
+	}))
 }
 
 func mockElegooWebSocket(t *testing.T, handler func(*testing.T, map[string]interface{}, *websocket.Conn)) (string, func()) {

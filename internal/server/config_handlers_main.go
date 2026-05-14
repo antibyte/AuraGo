@@ -1314,7 +1314,8 @@ func numericKeyedMapToSlice(m map[string]interface{}) ([]interface{}, bool) {
 
 func isConfigArrayPath(path string) bool {
 	switch path {
-	case "three_d_printers.elegoo_centauri_carbon.printers":
+	case "three_d_printers.elegoo_centauri_carbon.printers",
+		"three_d_printers.klipper.printers":
 		return true
 	default:
 		return false

@@ -33,15 +33,27 @@ func handleThreeDPrinterTest(s *Server) http.HandlerFunc {
 				id = "test-printer"
 			}
 			cfg.Enabled = true
-			cfg.ElegooCentauriCarbon.Enabled = true
 			cfg.DefaultPrinter = id
-			cfg.ElegooCentauriCarbon.Printers = []tools.ElegooCentauriCarbonPrinter{{
-				ID:             id,
-				Name:           id,
-				URL:            req.URL,
-				MainboardID:    req.MainboardID,
-				TimeoutSeconds: req.TimeoutSeconds,
-			}}
+			if strings.EqualFold(strings.TrimSpace(req.Protocol), "klipper") {
+				cfg.Klipper.Enabled = true
+				cfg.Klipper.Printers = []tools.KlipperPrinter{{
+					ID:             id,
+					Name:           id,
+					URL:            req.URL,
+					APIKey:         req.APIKey,
+					TimeoutSeconds: req.TimeoutSeconds,
+					WebcamName:     req.WebcamName,
+				}}
+			} else {
+				cfg.ElegooCentauriCarbon.Enabled = true
+				cfg.ElegooCentauriCarbon.Printers = []tools.ElegooCentauriCarbonPrinter{{
+					ID:             id,
+					Name:           id,
+					URL:            req.URL,
+					MainboardID:    req.MainboardID,
+					TimeoutSeconds: req.TimeoutSeconds,
+				}}
+			}
 			req.PrinterID = id
 		}
 		_, _ = w.Write([]byte(tools.ExecuteThreeDPrinter(ctx, cfg, req)))
@@ -63,7 +75,7 @@ func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 		defer cancel()
-		streamURL, err := tools.ElegooCentauriCarbonCameraURL(ctx, printer)
+		streamURL, snapshotURL, err := tools.ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
@@ -72,7 +84,15 @@ func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		data, contentType, err := tools.FetchThreeDPrinterSnapshot(ctx, streamURL)
+		fetchURL := streamURL
+		if snapshotURL != "" {
+			if err := tools.ValidateThreeDPrinterStreamURL(printer.URL, snapshotURL); err != nil {
+				jsonError(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+			fetchURL = snapshotURL
+		}
+		data, contentType, err := tools.FetchThreeDPrinterSnapshot(ctx, fetchURL)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
@@ -102,7 +122,7 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
-		streamURL, err := tools.ElegooCentauriCarbonCameraURL(ctx, printer)
+		streamURL, _, err := tools.ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
@@ -162,6 +182,17 @@ func buildThreeDPrinterRuntimeConfig(cfg *config.Config) tools.ThreeDPrinterConf
 			TimeoutSeconds: printer.TimeoutSeconds,
 		})
 	}
+	klipperPrinters := make([]tools.KlipperPrinter, 0, len(cfg.ThreeDPrinters.Klipper.Printers))
+	for _, printer := range cfg.ThreeDPrinters.Klipper.Printers {
+		klipperPrinters = append(klipperPrinters, tools.KlipperPrinter{
+			ID:             printer.ID,
+			Name:           printer.Name,
+			URL:            printer.URL,
+			APIKey:         printer.APIKey,
+			TimeoutSeconds: printer.TimeoutSeconds,
+			WebcamName:     printer.WebcamName,
+		})
+	}
 	return tools.ThreeDPrinterConfig{
 		Enabled:        cfg.ThreeDPrinters.Enabled,
 		ReadOnly:       cfg.ThreeDPrinters.ReadOnly,
@@ -170,6 +201,10 @@ func buildThreeDPrinterRuntimeConfig(cfg *config.Config) tools.ThreeDPrinterConf
 		ElegooCentauriCarbon: tools.ElegooCentauriCarbonConfig{
 			Enabled:  cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled,
 			Printers: printers,
+		},
+		Klipper: tools.KlipperConfig{
+			Enabled:  cfg.ThreeDPrinters.Klipper.Enabled,
+			Printers: klipperPrinters,
 		},
 	}
 }

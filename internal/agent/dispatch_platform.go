@@ -116,6 +116,17 @@ func buildRuntimeThreeDPrinterConfig(cfg *config.Config) tools.ThreeDPrinterConf
 			TimeoutSeconds: printer.TimeoutSeconds,
 		})
 	}
+	klipperPrinters := make([]tools.KlipperPrinter, 0, len(cfg.ThreeDPrinters.Klipper.Printers))
+	for _, printer := range cfg.ThreeDPrinters.Klipper.Printers {
+		klipperPrinters = append(klipperPrinters, tools.KlipperPrinter{
+			ID:             printer.ID,
+			Name:           printer.Name,
+			URL:            printer.URL,
+			APIKey:         printer.APIKey,
+			TimeoutSeconds: printer.TimeoutSeconds,
+			WebcamName:     printer.WebcamName,
+		})
+	}
 	return tools.ThreeDPrinterConfig{
 		Enabled:        cfg.ThreeDPrinters.Enabled,
 		ReadOnly:       cfg.ThreeDPrinters.ReadOnly,
@@ -124,6 +135,10 @@ func buildRuntimeThreeDPrinterConfig(cfg *config.Config) tools.ThreeDPrinterConf
 		ElegooCentauriCarbon: tools.ElegooCentauriCarbonConfig{
 			Enabled:  cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled,
 			Printers: printers,
+		},
+		Klipper: tools.KlipperConfig{
+			Enabled:  cfg.ThreeDPrinters.Klipper.Enabled,
+			Printers: klipperPrinters,
 		},
 	}
 }

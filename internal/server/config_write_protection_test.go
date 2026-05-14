@@ -284,6 +284,48 @@ func TestConfigDeepMergeConvertsNumericKeyedPrinterMapToArray(t *testing.T) {
 	}
 }
 
+func TestConfigDeepMergeConvertsNumericKeyedKlipperPrinterMapToArray(t *testing.T) {
+	dst := map[string]interface{}{}
+	src := map[string]interface{}{
+		"three_d_printers": map[string]interface{}{
+			"enabled":         true,
+			"readonly":        true,
+			"default_printer": "voron",
+			"klipper": map[string]interface{}{
+				"enabled": true,
+				"printers": map[string]interface{}{
+					"0": map[string]interface{}{
+						"id":              "voron",
+						"name":            "Voron 2.4",
+						"url":             "http://192.168.6.60:7125",
+						"api_key":         "",
+						"timeout_seconds": 10,
+						"webcam_name":     "toolhead",
+					},
+				},
+			},
+		},
+	}
+
+	deepMerge(dst, src, "")
+
+	out, err := yaml.Marshal(dst)
+	if err != nil {
+		t.Fatalf("marshal merged config: %v", err)
+	}
+	var cfg config.Config
+	if err := yaml.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("merged config should validate, got error: %v\n%s", err, string(out))
+	}
+	if got := len(cfg.ThreeDPrinters.Klipper.Printers); got != 1 {
+		t.Fatalf("klipper printers len = %d, want 1\n%s", got, string(out))
+	}
+	printer := cfg.ThreeDPrinters.Klipper.Printers[0]
+	if printer.ID != "voron" || printer.URL != "http://192.168.6.60:7125" || printer.WebcamName != "toolhead" {
+		t.Fatalf("unexpected klipper printer: %#v", printer)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TestConfigDeepMergeNoStringOverwriteForSlices
 // A string value must never overwrite a slice field (e.g. empty textarea saves "").

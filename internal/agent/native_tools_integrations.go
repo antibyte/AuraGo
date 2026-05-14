@@ -471,7 +471,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.ThreeDPrinterEnabled {
 		tools = append(tools, tool("three_d_printer",
-			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon status, files, camera snapshots/analysis/live stream, and guarded print controls.",
+			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon and Klipper/Moonraker status, files, camera snapshots/analysis/live stream, and guarded standard print controls.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

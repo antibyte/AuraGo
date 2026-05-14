@@ -9,7 +9,9 @@ function renderThreeDPrintersSection(section) {
     }
     const cfg = configData.three_d_printers || {};
     const elegoo = cfg.elegoo_centauri_carbon || {};
+    const klipper = cfg.klipper || {};
     const printers = Array.isArray(elegoo.printers) ? elegoo.printers : [];
+    const klipperPrinters = Array.isArray(klipper.printers) ? klipper.printers : [];
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -33,14 +35,38 @@ function renderThreeDPrintersSection(section) {
         html += threeDPrinterField(base + '.mainboard_id', printer.mainboard_id || '', t('config.three_d_printers.mainboard_id_label'), t('help.three_d_printers.mainboard_id'), '');
         html += threeDPrinterNumber(base + '.timeout_seconds', printer.timeout_seconds || 10, t('config.three_d_printers.timeout_label'), t('help.three_d_printers.timeout'), 1, 120);
         html += '<div class="field-group">';
-        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(' + idx + ')" id="three-d-printer-test-' + idx + '">' + t('config.three_d_printers.test_button') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
-        html += '<span id="three-d-printer-test-result-' + idx + '" class="adg-test-result"></span>';
+        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'elegoo\', ' + idx + ')" id="three-d-printer-test-elegoo-' + idx + '">' + t('config.three_d_printers.test_button') + '</button> ';
+        html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'elegoo\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
+        html += '<span id="three-d-printer-test-result-elegoo-' + idx + '" class="adg-test-result"></span>';
         html += '</div>';
         html += '</div>';
     });
     html += '</div>';
-    html += '<div class="field-group"><button type="button" class="btn-save" onclick="threeDPrinterAdd()">' + t('config.three_d_printers.add_button') + '</button></div>';
+    html += '<div class="field-group"><button type="button" class="btn-save" onclick="threeDPrinterAdd(\'elegoo\')">' + t('config.three_d_printers.add_button') + '</button></div>';
+
+    html += threeDPrinterToggle('three_d_printers.klipper.enabled', klipper.enabled === true, t('config.three_d_printers.klipper_enabled_label'), t('help.three_d_printers.klipper_enabled'), 'renderThreeDPrintersSection');
+    html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.three_d_printers.klipper_printers_title') + '</div>';
+    html += '<div class="field-help">' + t('help.three_d_printers.klipper_printers') + '</div>';
+    html += '<div class="three-d-printer-list">';
+    klipperPrinters.forEach((printer, idx) => {
+        const base = 'three_d_printers.klipper.printers.' + idx;
+        html += '<div class="cfg-card three-d-printer-card">';
+        html += '<div class="cfg-card-title">' + escapeHtml(printer.name || printer.id || (t('config.three_d_printers.klipper_printer_title') + ' ' + (idx + 1))) + '</div>';
+        html += threeDPrinterField(base + '.id', printer.id || '', t('config.three_d_printers.printer_id_label'), t('help.three_d_printers.printer_id'), 'voron');
+        html += threeDPrinterField(base + '.name', printer.name || '', t('config.three_d_printers.printer_name_label'), t('help.three_d_printers.printer_name'), 'Voron 2.4');
+        html += threeDPrinterField(base + '.url', printer.url || '', t('config.three_d_printers.klipper_url_label'), t('help.three_d_printers.klipper_url'), 'http://192.168.6.60:7125');
+        html += threeDPrinterSecret(base + '.api_key', printer.api_key || '', t('config.three_d_printers.klipper_api_key_label'), t('help.three_d_printers.klipper_api_key'), '');
+        html += threeDPrinterNumber(base + '.timeout_seconds', printer.timeout_seconds || 10, t('config.three_d_printers.timeout_label'), t('help.three_d_printers.timeout'), 1, 120);
+        html += threeDPrinterField(base + '.webcam_name', printer.webcam_name || '', t('config.three_d_printers.klipper_webcam_name_label'), t('help.three_d_printers.klipper_webcam_name'), 'toolhead');
+        html += '<div class="field-group">';
+        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'klipper\', ' + idx + ')" id="three-d-printer-test-klipper-' + idx + '">' + t('config.three_d_printers.test_button') + '</button> ';
+        html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'klipper\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
+        html += '<span id="three-d-printer-test-result-klipper-' + idx + '" class="adg-test-result"></span>';
+        html += '</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+    html += '<div class="field-group"><button type="button" class="btn-save" onclick="threeDPrinterAdd(\'klipper\')">' + t('config.three_d_printers.klipper_add_button') + '</button></div>';
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -51,6 +77,15 @@ function threeDPrinterField(path, value, label, help, placeholder) {
     html += '<div class="field-label">' + label + '</div>';
     if (help) html += '<div class="field-help">' + help + '</div>';
     html += '<input class="field-input" type="text" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '">';
+    html += '</div>';
+    return html;
+}
+
+function threeDPrinterSecret(path, value, label, help, placeholder) {
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + label + '</div>';
+    if (help) html += '<div class="field-help">' + help + '</div>';
+    html += '<input class="field-input" type="password" autocomplete="off" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '">';
     html += '</div>';
     return html;
 }
@@ -75,8 +110,15 @@ function threeDPrinterToggle(path, on, label, help, renderFn) {
     return html;
 }
 
-function threeDPrinterEnsurePrinters() {
+function threeDPrinterEnsurePrinters(protocol) {
     if (!configData.three_d_printers) configData.three_d_printers = {};
+    if (protocol === 'klipper') {
+        if (!configData.three_d_printers.klipper) configData.three_d_printers.klipper = {};
+        if (!Array.isArray(configData.three_d_printers.klipper.printers)) {
+            configData.three_d_printers.klipper.printers = [];
+        }
+        return configData.three_d_printers.klipper.printers;
+    }
     if (!configData.three_d_printers.elegoo_centauri_carbon) configData.three_d_printers.elegoo_centauri_carbon = {};
     if (!Array.isArray(configData.three_d_printers.elegoo_centauri_carbon.printers)) {
         configData.three_d_printers.elegoo_centauri_carbon.printers = [];
@@ -84,25 +126,29 @@ function threeDPrinterEnsurePrinters() {
     return configData.three_d_printers.elegoo_centauri_carbon.printers;
 }
 
-function threeDPrinterAdd() {
-    const printers = threeDPrinterEnsurePrinters();
-    printers.push({ id: 'printer-' + (printers.length + 1), name: 'Elegoo Centauri Carbon', url: 'ws://192.168.6.50/websocket', timeout_seconds: 10 });
+function threeDPrinterAdd(protocol) {
+    const printers = threeDPrinterEnsurePrinters(protocol);
+    if (protocol === 'klipper') {
+        printers.push({ id: 'klipper-' + (printers.length + 1), name: 'Klipper', url: 'http://192.168.6.60:7125', api_key: '', timeout_seconds: 10, webcam_name: '' });
+    } else {
+        printers.push({ id: 'printer-' + (printers.length + 1), name: 'Elegoo Centauri Carbon', url: 'ws://192.168.6.50/websocket', timeout_seconds: 10 });
+    }
     setDirty(true);
     renderThreeDPrintersSection(null);
 }
 
-function threeDPrinterRemove(index) {
-    const printers = threeDPrinterEnsurePrinters();
+function threeDPrinterRemove(protocol, index) {
+    const printers = threeDPrinterEnsurePrinters(protocol);
     printers.splice(index, 1);
     setDirty(true);
     renderThreeDPrintersSection(null);
 }
 
-async function threeDPrinterTest(index) {
-    const printers = threeDPrinterEnsurePrinters();
+async function threeDPrinterTest(protocol, index) {
+    const printers = threeDPrinterEnsurePrinters(protocol);
     const printer = printers[index] || {};
-    const result = document.getElementById('three-d-printer-test-result-' + index);
-    const btn = document.getElementById('three-d-printer-test-' + index);
+    const result = document.getElementById('three-d-printer-test-result-' + protocol + '-' + index);
+    const btn = document.getElementById('three-d-printer-test-' + protocol + '-' + index);
     if (!result || !btn) return;
     btn.disabled = true;
     result.textContent = t('config.three_d_printers.testing');
@@ -112,10 +158,13 @@ async function threeDPrinterTest(index) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 operation: 'test_connection',
+                protocol: protocol === 'klipper' ? 'klipper' : 'elegoo_centauri_carbon',
                 printer_id: printer.id || '',
                 url: printer.url || '',
+                api_key: printer.api_key || '',
                 mainboard_id: printer.mainboard_id || '',
-                timeout_seconds: printer.timeout_seconds || 10
+                timeout_seconds: printer.timeout_seconds || 10,
+                webcam_name: printer.webcam_name || ''
             })
         });
         const data = await res.json();

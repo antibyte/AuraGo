@@ -334,12 +334,29 @@ type ElegooCentauriCarbonConfig struct {
 	Printers []ElegooCentauriCarbonPrinterConfig `yaml:"printers" json:"printers"`
 }
 
+// KlipperPrinterConfig describes one Klipper printer exposed through Moonraker.
+type KlipperPrinterConfig struct {
+	ID             string `yaml:"id" json:"id"`
+	Name           string `yaml:"name" json:"name"`
+	URL            string `yaml:"url" json:"url"`                           // e.g. http://192.168.6.60:7125
+	APIKey         string `yaml:"api_key,omitempty" json:"api_key"`         // optional Moonraker API key
+	TimeoutSeconds int    `yaml:"timeout_seconds" json:"timeout_seconds"`   // default: 10
+	WebcamName     string `yaml:"webcam_name,omitempty" json:"webcam_name"` // optional Moonraker webcam name
+}
+
+// KlipperConfig groups all Klipper/Moonraker printers.
+type KlipperConfig struct {
+	Enabled  bool                   `yaml:"enabled" json:"enabled"`
+	Printers []KlipperPrinterConfig `yaml:"printers" json:"printers"`
+}
+
 // ThreeDPrintersConfig is the top-level 3D printer integration area.
 type ThreeDPrintersConfig struct {
 	Enabled              bool                       `yaml:"enabled" json:"enabled"`
 	ReadOnly             bool                       `yaml:"readonly" json:"readonly"`
 	DefaultPrinter       string                     `yaml:"default_printer" json:"default_printer"`
 	ElegooCentauriCarbon ElegooCentauriCarbonConfig `yaml:"elegoo_centauri_carbon" json:"elegoo_centauri_carbon"`
+	Klipper              KlipperConfig              `yaml:"klipper" json:"klipper"`
 }
 
 type Config struct {

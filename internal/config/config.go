@@ -416,6 +416,7 @@ func Load(path string) (*Config, error) {
 	cfg.ThreeDPrinters.Enabled = false
 	cfg.ThreeDPrinters.ReadOnly = true
 	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = false
+	cfg.ThreeDPrinters.Klipper.Enabled = false
 
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false
@@ -1526,6 +1527,8 @@ func (c *Config) Save(path string) error {
 		{[]string{"three_d_printers", "default_printer"}, c.ThreeDPrinters.DefaultPrinter},
 		{[]string{"three_d_printers", "elegoo_centauri_carbon", "enabled"}, c.ThreeDPrinters.ElegooCentauriCarbon.Enabled},
 		{[]string{"three_d_printers", "elegoo_centauri_carbon", "printers"}, c.ThreeDPrinters.ElegooCentauriCarbon.Printers},
+		{[]string{"three_d_printers", "klipper", "enabled"}, c.ThreeDPrinters.Klipper.Enabled},
+		{[]string{"three_d_printers", "klipper", "printers"}, c.ThreeDPrinters.Klipper.Printers},
 		{[]string{"tailscale", "enabled"}, c.Tailscale.Enabled},
 		{[]string{"tailscale", "readonly"}, c.Tailscale.ReadOnly},
 		{[]string{"tailscale", "tailnet"}, c.Tailscale.Tailnet},
