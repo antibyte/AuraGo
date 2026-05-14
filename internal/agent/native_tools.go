@@ -284,6 +284,11 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 			m["required"] = required
 		}
 	}
+	if m["type"] == "array" {
+		if _, ok := m["items"]; !ok {
+			m["items"] = map[string]interface{}{"type": "string"}
+		}
+	}
 	if props, ok := m["properties"].(map[string]interface{}); ok {
 		for _, raw := range props {
 			if child, ok := raw.(map[string]interface{}); ok {

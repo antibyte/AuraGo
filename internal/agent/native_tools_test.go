@@ -1179,6 +1179,28 @@ func TestNormalizeStrictSchemaRequiresEveryObjectProperty(t *testing.T) {
 	}
 }
 
+func TestNormalizeStrictSchemaAddsMissingArrayItems(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"values": map[string]interface{}{
+				"type": "array",
+				"items": map[string]interface{}{
+					"type": "array",
+				},
+			},
+		},
+	}
+
+	normalizeStrictSchemaRequiredRec(schema)
+
+	values := schema["properties"].(map[string]interface{})["values"].(map[string]interface{})
+	row := values["items"].(map[string]interface{})
+	if _, ok := row["items"].(map[string]interface{}); !ok {
+		t.Fatalf("nested array schema missing items after normalization: %#v", row)
+	}
+}
+
 func containsRequiredValue(items interface{}, target string) bool {
 	switch typed := items.(type) {
 	case []string:
