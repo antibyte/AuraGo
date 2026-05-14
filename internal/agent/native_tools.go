@@ -266,6 +266,7 @@ func normalizeStrictSchemaRequiredRec(m map[string]interface{}) {
 
 func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visited map[uintptr]struct{}) {
 	if len(m) == 0 {
+		m["type"] = "string"
 		return
 	}
 	ptr := reflect.ValueOf(m).Pointer()
@@ -273,6 +274,16 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 		return
 	}
 	visited[ptr] = struct{}{}
+
+	if _, hasType := m["type"]; !hasType && !hasSchemaCombinator(m) {
+		if props, ok := m["properties"].(map[string]interface{}); ok && len(props) > 0 {
+			m["type"] = "object"
+		} else if _, ok := m["items"]; ok {
+			m["type"] = "array"
+		} else {
+			m["type"] = "string"
+		}
+	}
 
 	if m["type"] == "object" {
 		if props, ok := m["properties"].(map[string]interface{}); ok && len(props) > 0 {
@@ -308,6 +319,15 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 			}
 		}
 	}
+}
+
+func hasSchemaCombinator(m map[string]interface{}) bool {
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if _, ok := m[key]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeProviderFragileObjectSchemas(m map[string]interface{}) {

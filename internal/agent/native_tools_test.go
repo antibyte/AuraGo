@@ -1201,6 +1201,27 @@ func TestNormalizeStrictSchemaAddsMissingArrayItems(t *testing.T) {
 	}
 }
 
+func TestNormalizeStrictSchemaAddsTypeToEmptyArrayItems(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"depends_on": map[string]interface{}{
+				"type":        "array",
+				"description": "Dependencies as IDs or indices",
+				"items":       map[string]interface{}{},
+			},
+		},
+	}
+
+	normalizeStrictSchemaRequiredRec(schema)
+
+	dependsOn := schema["properties"].(map[string]interface{})["depends_on"].(map[string]interface{})
+	items := dependsOn["items"].(map[string]interface{})
+	if items["type"] != "string" {
+		t.Fatalf("empty array items type = %v, want string", items["type"])
+	}
+}
+
 func TestBuildNativeToolSchemasAreStrictOpenAICompatibleAfterNormalization(t *testing.T) {
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
 	var violations []string
@@ -1224,6 +1245,9 @@ func TestBuildNativeToolSchemasAreStrictOpenAICompatibleAfterNormalization(t *te
 }
 
 func collectStrictOpenAISchemaViolations(path string, node map[string]interface{}, violations *[]string) {
+	if _, hasType := node["type"]; !hasType && !hasSchemaCombinator(node) {
+		*violations = append(*violations, path+" schema is missing type")
+	}
 	switch node["type"] {
 	case "object":
 		props, _ := node["properties"].(map[string]interface{})
