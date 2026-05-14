@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/discord"
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -419,6 +420,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		needsRestart := false
 		restartReasons := []string{}
 		embeddingsChanged := false
+		discordChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
 
@@ -445,8 +447,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				restartReasons = append(restartReasons, "Telegram")
 			}
 			if oldCfg.Discord != newCfg.Discord {
-				needsRestart = true
-				restartReasons = append(restartReasons, "Discord")
+				discordChanged = true
 			}
 			if oldCfg.SQLite != newCfg.SQLite {
 				needsRestart = true
@@ -984,6 +985,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
+			discord.StopBot(s.Logger)
+			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.Guardian)
+			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
+		}
 		if restartFileIndexerAfterUnlock && newCfg != nil {
 			s.restartFileIndexer(newCfg)
 			if fileIndexerEnabledAfterReload {

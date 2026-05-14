@@ -32,7 +32,25 @@ import (
 var (
 	session   *discordgo.Session
 	sessionMu sync.RWMutex
+	status    BotStatus
+	statusMu  sync.RWMutex
 )
+
+// BotStatus describes the runtime state of the Discord bot without exposing secrets.
+type BotStatus struct {
+	Enabled                  bool   `json:"enabled"`
+	Connected                bool   `json:"connected"`
+	Status                   string `json:"status"`
+	Message                  string `json:"message,omitempty"`
+	LastError                string `json:"last_error,omitempty"`
+	User                     string `json:"user,omitempty"`
+	TokenPresent             bool   `json:"token_present"`
+	ReadOnly                 bool   `json:"read_only"`
+	GuildConfigured          bool   `json:"guild_configured"`
+	DefaultChannelConfigured bool   `json:"default_channel_configured"`
+	AllowedUserConfigured    bool   `json:"allowed_user_configured"`
+	UpdatedAt                string `json:"updated_at,omitempty"`
+}
 
 func setSession(s *discordgo.Session) {
 	sessionMu.Lock()
@@ -40,18 +58,107 @@ func setSession(s *discordgo.Session) {
 	session = s
 }
 
+func setStatus(st BotStatus) {
+	if st.UpdatedAt == "" {
+		st.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	statusMu.Lock()
+	status = st
+	statusMu.Unlock()
+}
+
+func discordErrorMessage(errText string) string {
+	msg := strings.TrimSpace(errText)
+	if msg == "" {
+		return ""
+	}
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "4014") || strings.Contains(lower, "disallowed intent") {
+		return msg + " — enable the Message Content Intent for the bot in the Discord Developer Portal, or remove that privileged intent from the bot configuration."
+	}
+	if strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "improper token") {
+		return msg + " — check whether the Discord bot token in the AuraGo vault is valid and has not been reset."
+	}
+	return msg
+}
+
+func statusFromConfig(cfg *config.Config, st BotStatus) BotStatus {
+	if cfg != nil {
+		st.Enabled = cfg.Discord.Enabled
+		st.TokenPresent = strings.TrimSpace(cfg.Discord.BotToken) != ""
+		st.ReadOnly = cfg.Discord.ReadOnly
+		st.GuildConfigured = strings.TrimSpace(cfg.Discord.GuildID) != ""
+		st.DefaultChannelConfigured = strings.TrimSpace(cfg.Discord.DefaultChannelID) != ""
+		st.AllowedUserConfigured = strings.TrimSpace(cfg.Discord.AllowedUserID) != "" && strings.TrimSpace(cfg.Discord.AllowedUserID) != "0"
+	}
+	if !st.Enabled {
+		st.Connected = false
+		st.Status = "disabled"
+		st.Message = "Discord integration is disabled."
+		return st
+	}
+	if !st.TokenPresent {
+		st.Connected = false
+		st.Status = "missing_token"
+		st.Message = "Discord is enabled, but no bot token is available in the vault."
+		return st
+	}
+	if st.Status == "" {
+		st.Status = "disconnected"
+		st.Message = "Discord bot is not connected."
+	}
+	if st.LastError != "" {
+		st.Message = discordErrorMessage(st.LastError)
+	}
+	return st
+}
+
+// Status returns the current Discord bot status with config-derived diagnostics.
+func Status(cfg *config.Config) BotStatus {
+	statusMu.RLock()
+	st := status
+	statusMu.RUnlock()
+	return statusFromConfig(cfg, st)
+}
+
+func resetStatusForTest() {
+	statusMu.Lock()
+	status = BotStatus{}
+	statusMu.Unlock()
+	setSession(nil)
+}
+
+func setErrorForTest(errText string) {
+	setStatus(BotStatus{Status: "error", LastError: errText, Connected: false})
+}
+
 // StartBot initializes the Discord bot and begins listening for messages.
 func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
-	if !cfg.Discord.Enabled || cfg.Discord.BotToken == "" {
+	if cfg == nil || !cfg.Discord.Enabled {
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "disabled", Connected: false}))
+		return
+	}
+	if strings.TrimSpace(cfg.Discord.BotToken) == "" {
 		if cfg.Discord.Enabled {
 			logger.Warn("[Discord] Bot token is missing, skipping Discord start.")
 		}
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "missing_token", Connected: false}))
 		return
 	}
+
+	if existing := GetSession(); existing != nil {
+		if err := existing.Close(); err != nil && logger != nil {
+			logger.Warn("[Discord] Error closing previous session before reconnect", "error", err)
+		}
+		setSession(nil)
+	}
+
+	setStatus(statusFromConfig(cfg, BotStatus{Status: "connecting", Connected: false, Message: "Connecting to Discord gateway..."}))
 
 	dg, err := discordgo.New("Bot " + cfg.Discord.BotToken)
 	if err != nil {
 		logger.Error("[Discord] Failed to create session", "error", err)
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "error", Connected: false, LastError: err.Error()}))
 		return
 	}
 
@@ -64,11 +171,17 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 	if err := dg.Open(); err != nil {
 		logger.Error("[Discord] Failed to open websocket connection", "error", err)
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "error", Connected: false, LastError: err.Error()}))
 		return
 	}
 
 	setSession(dg)
-	logger.Info("[Discord] Bot connected", "user", dg.State.User.Username+"#"+dg.State.User.Discriminator)
+	user := ""
+	if dg.State != nil && dg.State.User != nil {
+		user = dg.State.User.Username + "#" + dg.State.User.Discriminator
+	}
+	logger.Info("[Discord] Bot connected", "user", user)
+	setStatus(statusFromConfig(cfg, BotStatus{Status: "connected", Connected: true, User: user, Message: "Discord bot is connected."}))
 
 	// Register bridge functions so agent can call Discord without import cycles
 	tools.RegisterDiscordBridge(
@@ -111,12 +224,14 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 func StopBot(logger *slog.Logger) {
 	s := GetSession()
 	if s == nil {
+		setStatus(BotStatus{Status: "disconnected", Connected: false, Message: "Discord bot is not connected."})
 		return
 	}
 	if err := s.Close(); err != nil {
 		logger.Warn("[Discord] Error closing session", "error", err)
 	}
 	setSession(nil)
+	setStatus(BotStatus{Status: "disconnected", Connected: false, Message: "Discord bot disconnected."})
 	logger.Info("[Discord] Bot disconnected")
 }
 

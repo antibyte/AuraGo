@@ -319,6 +319,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+	mux.HandleFunc("/api/health/discord", handleDiscordHealth(s))
 
 	// Readiness check — returns 503 until the server has finished initialization
 	// and is actively accepting connections. Used by Docker HEALTHCHECK and load balancers.

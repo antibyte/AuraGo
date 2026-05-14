@@ -342,6 +342,45 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
+func TestHandleUpdateConfigDiscordChangeDoesNotRequireFullRestart(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("discord:\n  enabled: false\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	s := &Server{
+		Cfg:    loaded,
+		Logger: slog.Default(),
+		Vault:  vault,
+	}
+
+	body := strings.NewReader(`{"discord":{"enabled":true,"allowed_user_id":"1234","default_channel_id":"5678"}}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+	rec := httptest.NewRecorder()
+
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if resp["needs_restart"] == true {
+		t.Fatalf("needs_restart = true, want Discord hot reload without full restart; body=%s", rec.Body.String())
+	}
+}
+
 func TestValidateManagedDockerBackendsRejectsLocalOllamaEmbeddingsWhenDockerDisabled(t *testing.T) {
 	var cfg config.Config
 	cfg.Embeddings.LocalOllama.Enabled = true
