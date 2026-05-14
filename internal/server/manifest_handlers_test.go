@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
@@ -122,6 +123,36 @@ func TestEnsureManifestSecretsCreatesManagedSidecarSecrets(t *testing.T) {
 	}
 	if _, err := tools.ResolveManifestSidecarConfig(cfg, false); err != nil {
 		t.Fatalf("ResolveManifestSidecarConfig() after ensureManifestSecrets error = %v", err)
+	}
+}
+
+func TestEnsureManifestSecretsDoesNotDeadlockWhenRuntimeConfigLocked(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Mode = "managed"
+	s := &Server{Cfg: cfg}
+
+	s.CfgMu.Lock()
+	done := make(chan error, 1)
+	go func() {
+		done <- s.ensureManifestSecrets(cfg)
+	}()
+
+	var err error
+	timedOut := false
+	select {
+	case err = <-done:
+	case <-time.After(200 * time.Millisecond):
+		timedOut = true
+	}
+	s.CfgMu.Unlock()
+
+	if timedOut {
+		<-done
+		t.Fatal("ensureManifestSecrets deadlocked while runtime config lock was already held")
+	}
+	if err != nil {
+		t.Fatalf("ensureManifestSecrets() error = %v", err)
 	}
 }
 

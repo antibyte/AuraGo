@@ -144,10 +144,17 @@ func (s *Server) ensureManifestSecrets(cfg *config.Config) error {
 		}
 	}
 	if s != nil && s.Cfg != nil {
-		s.CfgMu.Lock()
-		s.Cfg.Manifest.PostgresPassword = cfg.Manifest.PostgresPassword
-		s.Cfg.Manifest.BetterAuthSecret = cfg.Manifest.BetterAuthSecret
-		s.CfgMu.Unlock()
+		if s.Cfg == cfg {
+			// Config hot-reload already holds CfgMu while calling this with the
+			// live config pointer. Locking again would self-deadlock the UI.
+			s.Cfg.Manifest.PostgresPassword = cfg.Manifest.PostgresPassword
+			s.Cfg.Manifest.BetterAuthSecret = cfg.Manifest.BetterAuthSecret
+		} else {
+			s.CfgMu.Lock()
+			s.Cfg.Manifest.PostgresPassword = cfg.Manifest.PostgresPassword
+			s.Cfg.Manifest.BetterAuthSecret = cfg.Manifest.BetterAuthSecret
+			s.CfgMu.Unlock()
+		}
 	}
 	return nil
 }
