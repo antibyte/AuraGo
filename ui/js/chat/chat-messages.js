@@ -133,33 +133,14 @@ function appendMessage(role, text, timestamp) {
         finalHTML = replaceRedactedMarkers(finalHTML);
     } else {
         try {
-            if (typeof window.markdownit !== 'undefined') {
-                const md = window.markdownit({
-                    html: false,
-                    breaks: true,
-                    linkify: true,
-                    highlight: function (str, lang) {
-                        // Handle mermaid diagrams first
-                        if (lang === 'mermaid') {
-                            return `<div class="mermaid-raw">${escapeHtml(str)}</div>`;
-                        }
-                        
-                        // Use enhanced code blocks for other languages
-                        if (window.CodeBlocks) {
-                            return window.CodeBlocks.createCodeBlock(str, lang);
-                        }
-                        
-                        // Fallback to basic highlighting
-                        if (lang && window.hljs && hljs.getLanguage(lang)) {
-                            try {
-                                return '<pre class="hljs"><code>' +
-                                    hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-                                    '</code></pre>';
-                            } catch (__) { }
-                        }
-                        return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
-                    }
-                });
+            if (window.AuraMarkdown || typeof window.markdownit !== 'undefined') {
+                const md = window.AuraMarkdown
+                    ? window.AuraMarkdown.createMarkdownIt({
+                        enableCharts: true,
+                        codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+                    })
+                    : window.markdownit({ html: false, breaks: true, linkify: true });
+                if (!md) throw new Error('Markdown renderer unavailable');
 
                 // Strip <external_data> wrapper tags — keep their inner content.
                 // These are security wrappers the LLM occasionally mixes into its own output.
@@ -246,6 +227,9 @@ function appendMessage(role, text, timestamp) {
         if (newMessage) {
             window.MermaidLoader.processBlocks(newMessage);
         }
+    }
+    if (window.ChatChartRenderer && newMessage) {
+        window.ChatChartRenderer.processBlocks(newMessage);
     }
     
     // Use SmartScroller or fallback

@@ -22,6 +22,7 @@ let credentialMap = {}; // id -> name
 let detailVersions = [];
 let detailAudit = [];
 let searchDebounceHandle = null;
+let codeMirrorModulePromise = null;
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -287,15 +288,6 @@ function showDisabledState() {
         } catch (e) {
             showToast(t('common.error') || 'Error', 'error');
         }
-    }
-
-    function showDisabledState() {
-        document.getElementById('sk-grid').style.display = 'none';
-        document.getElementById('sk-empty').style.display = 'none';
-        document.getElementById('sk-disabled').style.display = '';
-        document.getElementById('sk-status-bar').style.display = 'none';
-        document.getElementById('sk-toolbar-actions').style.display = 'none';
-        document.getElementById('sk-security-filters').style.display = 'none';
     }
 
     // ── Stats ───────────────────────────────────────────────────────────────────
@@ -604,40 +596,43 @@ function showDisabledState() {
 
     // ── Code Editor Modal (CodeMirror 6) ────────────────────────────────────────
 
-    function createEditorState(code, readOnly) {
-        const cm = window.CM6;
+    async function loadCodeMirror() {
+        if (!codeMirrorModulePromise) {
+            codeMirrorModulePromise = import('/js/vendor/codemirror-bundle.esm.js');
+        }
+        return codeMirrorModulePromise;
+    }
+
+    function createEditorState(cm, code, readOnly) {
         if (!cm || !cm.EditorState || !cm.EditorView) {
             throw new Error('CodeMirror unavailable');
         }
         const extensions = [
-            cm.lineNumbers(),
-            cm.highlightActiveLineGutter(),
-            cm.highlightSpecialChars(),
-            cm.history(),
-            cm.foldGutter(),
-            cm.drawSelection(),
-            cm.dropCursor(),
-            cm.indentOnInput(),
-            cm.syntaxHighlighting(cm.defaultHighlightStyle, { fallback: true }),
-            cm.bracketMatching(),
-            cm.closeBrackets(),
-            cm.autocompletion(),
-            cm.rectangularSelection(),
-            cm.crosshairCursor(),
-            cm.highlightActiveLine(),
-            cm.highlightSelectionMatches(),
-            cm.keymap.of([
-                ...cm.closeBracketsKeymap,
-                ...cm.defaultKeymap,
-                ...cm.searchKeymap,
-                ...cm.historyKeymap,
-                ...cm.foldKeymap,
-                ...cm.completionKeymap,
-                cm.indentWithTab,
-            ]),
-            cm.python(),
+            cm.lineNumbers && cm.lineNumbers(),
+            cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
+            cm.highlightSpecialChars && cm.highlightSpecialChars(),
+            cm.history && cm.history(),
+            cm.drawSelection && cm.drawSelection(),
+            cm.dropCursor && cm.dropCursor(),
+            cm.syntaxHighlighting && cm.defaultHighlightStyle && cm.syntaxHighlighting(cm.defaultHighlightStyle, { fallback: true }),
+            cm.closeBrackets && cm.closeBrackets(),
+            cm.autocompletion && cm.autocompletion(),
+            cm.rectangularSelection && cm.rectangularSelection(),
+            cm.crosshairCursor && cm.crosshairCursor(),
+            cm.highlightActiveLine && cm.highlightActiveLine(),
+            cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
+            cm.EditorView.lineWrapping,
+            cm.python && cm.python(),
             cm.oneDark,
-        ];
+            cm.keymap && cm.keymap.of([
+                ...(cm.closeBracketsKeymap || []),
+                ...(cm.defaultKeymap || []),
+                ...(cm.searchKeymap || []),
+                ...(cm.historyKeymap || []),
+                ...(cm.completionKeymap || []),
+                cm.indentWithTab,
+            ].filter(Boolean)),
+        ].filter(Boolean);
         if (readOnly) {
             extensions.push(cm.EditorState.readOnly.of(true));
         }
@@ -672,10 +667,11 @@ function showDisabledState() {
     }
 
     // eslint-disable-next-line no-unused-vars
-    function openCodeEditor(id, code, readOnly, draftMeta = null) {
+    async function openCodeEditor(id, code, readOnly, draftMeta = null) {
         codeEditorSkillId = id;
         const container = document.getElementById('code-editor-container');
-        container.innerHTML = '';
+        const loadingLabel = t('common.loading');
+        container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${loadingLabel && loadingLabel !== 'common.loading' ? loadingLabel : 'Loading...'}</p>`;
 
         if (codeEditorView) {
             codeEditorView.destroy();
@@ -683,8 +679,10 @@ function showDisabledState() {
         }
 
         try {
-            const state = createEditorState(code || '', readOnly);
-            codeEditorView = new window.CM6.EditorView({
+            const cm = await loadCodeMirror();
+            container.innerHTML = '';
+            const state = createEditorState(cm, code || '', readOnly);
+            codeEditorView = new cm.EditorView({
                 state,
                 parent: container,
             });
@@ -712,7 +710,7 @@ function showDisabledState() {
             const data = await resp.json();
             if (data.status === 'ok' && data.code) {
                 container.innerHTML = '';
-                openCodeEditor(id, data.code, false, null);
+                await openCodeEditor(id, data.code, false, null);
             } else {
                 container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
             }
@@ -1460,7 +1458,7 @@ function showDisabledState() {
             }
             setGenerateStatus(t('skills.generate_success') || 'Draft generated', 'success');
             closeGenerateModal();
-            openCodeEditor('', data.draft.code || '', false, {
+            await openCodeEditor('', data.draft.code || '', false, {
                 name: data.draft.name || '',
                 description: data.draft.description || '',
                 category: data.draft.category || '',

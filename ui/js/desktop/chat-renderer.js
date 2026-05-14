@@ -70,26 +70,12 @@
 
         getMarkdown() {
             if (this._md) return this._md;
+            if (window.AuraMarkdown) {
+                this._md = window.AuraMarkdown.createMarkdownIt();
+                return this._md;
+            }
             if (typeof window.markdownit === 'undefined') return null;
-            const self = this;
-            this._md = window.markdownit({
-                html: false,
-                breaks: true,
-                linkify: true,
-                highlight: function (str, lang) {
-                    if (lang === 'mermaid') {
-                        return '<div class="mermaid-raw">' + self.escapeHtml(str) + '</div>';
-                    }
-                    if (lang && window.hljs && hljs.getLanguage(lang)) {
-                        try {
-                            return '<pre class="hljs"><code>' +
-                                hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-                                '</code></pre>';
-                        } catch (__) {}
-                    }
-                    return '<pre class="hljs"><code>' + self.escapeHtml(str) + '</code></pre>';
-                }
-            });
+            this._md = window.markdownit({ html: false, breaks: true, linkify: true });
             return this._md;
         },
 

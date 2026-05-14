@@ -94,7 +94,6 @@
 
             host.querySelector('.vd-quick-connect').appendChild(overlay);
 
-            // Certificate file upload
             const certFileInput = overlay.querySelector('input[name="certificate_file"]');
             const certTextarea = overlay.querySelector('textarea[name="certificate_text"]');
             certFileInput.addEventListener('change', async (e) => {
@@ -104,13 +103,11 @@
                 }
             });
 
-            // Password toggle
             overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
                 const pwInput = overlay.querySelector('input[name="password"]');
                 pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
             });
 
-            // Download password
             const dlPwBtn = overlay.querySelector('[data-action="download-pw"]');
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
@@ -121,7 +118,6 @@
                 });
             }
 
-            // Download certificate
             const dlCertBtn = overlay.querySelector('[data-action="download-cert"]');
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {

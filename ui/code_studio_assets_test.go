@@ -19,3 +19,64 @@ func TestCodeStudioEditorBundleIsEmbedded(t *testing.T) {
 		}
 	}
 }
+
+func TestJavaScriptLibraryAuditWiring(t *testing.T) {
+	t.Parallel()
+
+	skillsHTML := readEmbeddedText(t, "skills.html")
+	if strings.Contains(skillsHTML, "codemirror6.min.js") {
+		t.Fatal("skills page still loads legacy CodeMirror bundle")
+	}
+
+	skillsJS := readEmbeddedText(t, "js/skills/main.js")
+	if !strings.Contains(skillsJS, "import('/js/vendor/codemirror-bundle.esm.js')") {
+		t.Fatal("skills editor does not lazy-load the shared CodeMirror ESM bundle")
+	}
+
+	if _, err := Content.ReadFile("js/vendor/codemirror6.min.js"); err == nil {
+		t.Fatal("legacy CodeMirror bundle is still embedded")
+	}
+
+	indexHTML := readEmbeddedText(t, "index.html")
+	if strings.Contains(indexHTML, "mermaid-renderer.js") {
+		t.Fatal("chat page still loads the duplicate Mermaid renderer")
+	}
+	if strings.Contains(indexHTML, `src="/chart.min.js"`) {
+		t.Fatal("chat page should lazy-load Chart.js instead of loading it up front")
+	}
+	for _, want := range []string{
+		"/js/shared/render-markdown.js",
+		"/js/chat/modules/chart-renderer.js",
+		"/js/chat/modules/mermaid-loader.js",
+	} {
+		if !strings.Contains(indexHTML, want) {
+			t.Fatalf("chat page missing %q", want)
+		}
+	}
+
+	desktopHTML := readEmbeddedText(t, "desktop.html")
+	if !strings.Contains(desktopHTML, "/js/shared/render-markdown.js") {
+		t.Fatal("desktop page does not load the shared Markdown renderer")
+	}
+
+	chatJS := readEmbeddedText(t, "js/chat/chat-messages.js")
+	for _, want := range []string{"window.AuraMarkdown", "window.ChatChartRenderer.processBlocks"} {
+		if !strings.Contains(chatJS, want) {
+			t.Fatalf("chat renderer missing %q", want)
+		}
+	}
+
+	desktopChatJS := readEmbeddedText(t, "js/desktop/chat-renderer.js")
+	if !strings.Contains(desktopChatJS, "window.AuraMarkdown") {
+		t.Fatal("desktop chat renderer does not use the shared Markdown renderer")
+	}
+}
+
+func readEmbeddedText(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := Content.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read embedded %s: %v", path, err)
+	}
+	return string(raw)
+}
