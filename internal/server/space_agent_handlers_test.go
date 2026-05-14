@@ -444,7 +444,7 @@ func TestHandleIntegrationWebhostsUsesTailscaleHomepageURL(t *testing.T) {
 	}
 }
 
-func TestHandleIntegrationWebhostsDerivesManifestURLForTailscaleDrawer(t *testing.T) {
+func TestHandleIntegrationWebhostsDoesNotInventManifestURLWhenTailscaleExposureDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true
 	cfg.Manifest.Mode = "managed"
@@ -477,12 +477,12 @@ func TestHandleIntegrationWebhostsDerivesManifestURLForTailscaleDrawer(t *testin
 	if resp.Webhosts[0].ID != "manifest" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
-	if resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net" {
-		t.Fatalf("manifest url = %q, want derived Tailscale Manifest URL", resp.Webhosts[0].URL)
+	if resp.Webhosts[0].URL != "" {
+		t.Fatalf("manifest url = %q, want empty URL when Tailscale Manifest exposure is disabled", resp.Webhosts[0].URL)
 	}
 }
 
-func TestHandleIntegrationWebhostsUsesDedicatedTailscaleManifestURL(t *testing.T) {
+func TestHandleIntegrationWebhostsWaitsForDedicatedTailscaleManifestListener(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true
 	cfg.Manifest.Mode = "managed"
@@ -516,7 +516,7 @@ func TestHandleIntegrationWebhostsUsesDedicatedTailscaleManifestURL(t *testing.T
 	if len(resp.Webhosts) != 1 {
 		t.Fatalf("webhosts = %#v, want one Manifest entry", resp.Webhosts)
 	}
-	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net" {
+	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }
@@ -589,7 +589,7 @@ func TestManifestURLWithRequestHostKeepsExternalHost(t *testing.T) {
 	}
 }
 
-func TestManifestBrowserURLUsesDedicatedTailscaleManifestHost(t *testing.T) {
+func TestManifestBrowserURLDerivesDedicatedTailscaleManifestHostWithoutManager(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true
 	cfg.Manifest.Port = 2099
@@ -600,7 +600,6 @@ func TestManifestBrowserURLUsesDedicatedTailscaleManifestHost(t *testing.T) {
 	cfg.Tailscale.TsNet.ManifestHostname = "aurago-manifest"
 	cfg.Tailscale.TsNet.ManifestPort = 2099
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
-	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Host = "aurago.taild1480.ts.net"
@@ -608,6 +607,28 @@ func TestManifestBrowserURLUsesDedicatedTailscaleManifestHost(t *testing.T) {
 	got := manifestBrowserURL(s, cfg, req, "http://127.0.0.1:2099")
 	if got != "https://aurago-manifest.taild1480.ts.net:2099" {
 		t.Fatalf("manifestBrowserURL() = %q, want dedicated Tailscale Manifest host", got)
+	}
+}
+
+func TestManifestBrowserURLDoesNotInventTailscaleURLBeforeListenerServing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Port = 2099
+	cfg.Manifest.HostPort = 2099
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+	cfg.Tailscale.TsNet.Hostname = "aurago"
+	cfg.Tailscale.TsNet.ManifestHostname = "aurago-manifest"
+	cfg.Tailscale.TsNet.ManifestPort = 443
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "aurago.taild1480.ts.net"
+
+	got := manifestBrowserURL(s, cfg, req, "http://127.0.0.1:2099")
+	if got != "" {
+		t.Fatalf("manifestBrowserURL() = %q, want no Tailscale URL before Manifest listener is serving", got)
 	}
 }
 
