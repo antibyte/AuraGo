@@ -377,6 +377,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		if useNativeFunctions && toolingPolicy.StructuredOutputsEnabled {
 			for i := range ntSchemas {
 				if ntSchemas[i].Function != nil {
+					if params, ok := ntSchemas[i].Function.Parameters.(map[string]interface{}); ok {
+						normalizeStrictSchemaRequiredRec(params)
+					}
 					ntSchemas[i].Function.Strict = true
 				}
 			}

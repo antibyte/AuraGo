@@ -260,6 +260,51 @@ func injectAdditionalPropertiesRecWithVisited(m map[string]interface{}, visited 
 	}
 }
 
+func normalizeStrictSchemaRequiredRec(m map[string]interface{}) {
+	normalizeStrictSchemaRequiredRecWithVisited(m, make(map[uintptr]struct{}))
+}
+
+func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visited map[uintptr]struct{}) {
+	if len(m) == 0 {
+		return
+	}
+	ptr := reflect.ValueOf(m).Pointer()
+	if _, seen := visited[ptr]; seen {
+		return
+	}
+	visited[ptr] = struct{}{}
+
+	if m["type"] == "object" {
+		if props, ok := m["properties"].(map[string]interface{}); ok && len(props) > 0 {
+			required := make([]string, 0, len(props))
+			for name := range props {
+				required = append(required, name)
+			}
+			sort.Strings(required)
+			m["required"] = required
+		}
+	}
+	if props, ok := m["properties"].(map[string]interface{}); ok {
+		for _, raw := range props {
+			if child, ok := raw.(map[string]interface{}); ok {
+				normalizeStrictSchemaRequiredRecWithVisited(child, visited)
+			}
+		}
+	}
+	if items, ok := m["items"].(map[string]interface{}); ok {
+		normalizeStrictSchemaRequiredRecWithVisited(items, visited)
+	}
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if arr, ok := m[key].([]interface{}); ok {
+			for _, raw := range arr {
+				if child, ok := raw.(map[string]interface{}); ok {
+					normalizeStrictSchemaRequiredRecWithVisited(child, visited)
+				}
+			}
+		}
+	}
+}
+
 func normalizeProviderFragileObjectSchemas(m map[string]interface{}) {
 	normalizeProviderFragileObjectSchemasWithVisited(m, make(map[uintptr]struct{}), true, "")
 }

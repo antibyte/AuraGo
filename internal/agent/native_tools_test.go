@@ -1144,6 +1144,52 @@ func TestNormalizeProviderFragileObjectSchemasConvertsFreeObjectFields(t *testin
 	}
 }
 
+func TestNormalizeStrictSchemaRequiresEveryObjectProperty(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"operation": prop("string", "Operation"),
+			"category":  prop("string", "Optional category"),
+			"nested": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"name":  prop("string", "Name"),
+					"limit": prop("integer", "Limit"),
+				},
+				"required": []string{"name"},
+			},
+		},
+		"required": []string{"operation"},
+	}
+
+	normalizeStrictSchemaRequiredRec(schema)
+
+	required := schema["required"]
+	for _, want := range []string{"operation", "category", "nested"} {
+		if !containsRequiredValue(required, want) {
+			t.Fatalf("top-level required %#v missing %q", required, want)
+		}
+	}
+	nested := schema["properties"].(map[string]interface{})["nested"].(map[string]interface{})
+	nestedRequired := nested["required"]
+	for _, want := range []string{"name", "limit"} {
+		if !containsRequiredValue(nestedRequired, want) {
+			t.Fatalf("nested required %#v missing %q", nestedRequired, want)
+		}
+	}
+}
+
+func containsRequiredValue(items interface{}, target string) bool {
+	switch typed := items.(type) {
+	case []string:
+		return containsRequiredString(typed, target)
+	case []interface{}:
+		return containsRequiredInterfaceString(typed, target)
+	default:
+		return false
+	}
+}
+
 func TestInjectAdditionalPropertiesRecHandlesCycles(t *testing.T) {
 	schema := map[string]interface{}{
 		"type": "object",
