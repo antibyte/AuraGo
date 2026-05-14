@@ -353,6 +353,9 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 				manifestURL = u
 			}
 			browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
+			if browserURL == "" && cfg.Tailscale.TsNet.Enabled && requestLooksTailscale(r) {
+				browserURL = deriveManifestTailscaleURL(&cfg, r, cfg.Tailscale.TsNet.ManifestPort)
+			}
 			status := "starting"
 			if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
 				status = raw

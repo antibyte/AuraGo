@@ -444,7 +444,7 @@ func TestHandleIntegrationWebhostsUsesTailscaleHomepageURL(t *testing.T) {
 	}
 }
 
-func TestHandleIntegrationWebhostsIncludesManifestWithoutRemoteURL(t *testing.T) {
+func TestHandleIntegrationWebhostsDerivesManifestURLForTailscaleDrawer(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true
 	cfg.Manifest.Mode = "managed"
@@ -477,8 +477,8 @@ func TestHandleIntegrationWebhostsIncludesManifestWithoutRemoteURL(t *testing.T)
 	if resp.Webhosts[0].ID != "manifest" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
-	if resp.Webhosts[0].URL != "" {
-		t.Fatalf("manifest url = %q, want empty until Manifest is exposed over Tailscale", resp.Webhosts[0].URL)
+	if resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net:8444" {
+		t.Fatalf("manifest url = %q, want derived Tailscale Manifest URL", resp.Webhosts[0].URL)
 	}
 }
 
