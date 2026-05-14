@@ -120,6 +120,32 @@ memory entry 1
 	}
 }
 
+func TestRulesPromptCompletionSignalOnlyAfterCompletion(t *testing.T) {
+	raw, err := promptsembed.FS.ReadFile("rules.md")
+	if err != nil {
+		t.Fatalf("read rules prompt: %v", err)
+	}
+	rules := string(raw)
+
+	for _, forbidden := range []string{
+		"regardless of whether the message feels final or like an intermediate note",
+		"missing `<done/>` AND missing tool call",
+	} {
+		if strings.Contains(rules, forbidden) {
+			t.Fatalf("rules prompt still contains ambiguous completion-signal wording %q", forbidden)
+		}
+	}
+	for _, want := range []string{
+		"ONLY when the current user request is fully handled",
+		"Never use `<done/>` as an acknowledgement, promise, preamble, progress update, or mid-task marker",
+		"If work remains, call the required tool now instead of writing text",
+	} {
+		if !strings.Contains(rules, want) {
+			t.Fatalf("rules prompt missing strict completion wording %q", want)
+		}
+	}
+}
+
 func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
 	prompt := strings.Repeat("word ", 5000)
 

@@ -222,11 +222,11 @@ func FormatAnnouncementFeedback(useNativeFunctions bool, recentTools []string) s
 	if useNativeFunctions {
 		feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call nor the <done/> completion signal. " +
 			"If you want to call a tool, use the native function-calling mechanism NOW. " +
-			"If your task is genuinely complete, state the final result and append <done/> at the very end."
+			"Append <done/> only if the requested work is fully complete and no more tool calls are needed."
 	} else {
 		feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call (raw JSON starting with {) nor the <done/> completion signal. " +
 			"If you want to call a tool, output the raw JSON object NOW (starting with {). " +
-			"If your task is genuinely complete, state the final result and append <done/> at the very end."
+			"Append <done/> only if the requested work is fully complete and no more tool calls are needed."
 	}
 	if len(recentTools) > 0 {
 		lastTool := recentTools[len(recentTools)-1]

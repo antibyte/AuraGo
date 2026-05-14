@@ -457,7 +457,7 @@ func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
 			lastTool := recentTools[len(recentTools)-1]
 			msg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
 		}
-		msg += " If the task is genuinely complete and no more tool calls are needed, state the final result to the user and append <done/> at the very end."
+		msg += " Append <done/> only if the requested work is fully complete and no more tool calls are needed."
 		return msg
 	}
 

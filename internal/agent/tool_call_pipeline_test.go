@@ -863,9 +863,18 @@ func TestFormatAnnouncementFeedbackIncludesDone(t *testing.T) {
 	if !strings.Contains(msg, "<done/>") {
 		t.Fatal("FormatAnnouncementFeedback should tell model to append <done/>")
 	}
+	if !strings.Contains(msg, "only if the requested work is fully complete") {
+		t.Fatal("FormatAnnouncementFeedback should restrict <done/> to fully completed work")
+	}
+	if strings.Contains(msg, "If your task is genuinely complete") {
+		t.Fatal("FormatAnnouncementFeedback should avoid soft/ambiguous completion wording")
+	}
 	msg = FormatAnnouncementFeedback(false, nil)
 	if !strings.Contains(msg, "<done/>") {
 		t.Fatal("FormatAnnouncementFeedback (non-native) should also tell model to append <done/>")
+	}
+	if !strings.Contains(msg, "only if the requested work is fully complete") {
+		t.Fatal("FormatAnnouncementFeedback (non-native) should restrict <done/> to fully completed work")
 	}
 }
 
