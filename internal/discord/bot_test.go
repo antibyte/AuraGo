@@ -63,6 +63,51 @@ func TestShouldHandleDiscordMessageAllowsDefaultChannelWithoutMention(t *testing
 	}
 }
 
+func TestShouldHandleDiscordMessageAllowsDefaultChannelWhenGuildIDDiffers(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "user-1"
+	cfg.Discord.GuildID = "configured-guild"
+	cfg.Discord.DefaultChannelID = "channel-1"
+
+	msg := &discordgo.MessageCreate{Message: &discordgo.Message{
+		Author:    &discordgo.User{ID: "user-1", Username: "Andi"},
+		GuildID:   "actual-guild",
+		ChannelID: "channel-1",
+		Content:   "status bitte",
+	}}
+
+	decision := shouldHandleDiscordMessage("bot-1", msg, cfg)
+	if !decision.Accepted {
+		t.Fatalf("decision = %+v, want default channel message accepted despite guild mismatch", decision)
+	}
+	if decision.Reason != "default_channel" {
+		t.Fatalf("reason = %q, want default_channel", decision.Reason)
+	}
+}
+
+func TestShouldHandleDiscordMessageRejectsWrongGuildOutsideDefaultChannel(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "user-1"
+	cfg.Discord.GuildID = "configured-guild"
+	cfg.Discord.DefaultChannelID = "channel-1"
+
+	msg := &discordgo.MessageCreate{Message: &discordgo.Message{
+		Author:    &discordgo.User{ID: "user-1", Username: "Andi"},
+		GuildID:   "actual-guild",
+		ChannelID: "channel-2",
+		Content:   "<@bot-1> status bitte",
+		Mentions:  []*discordgo.User{{ID: "bot-1"}},
+	}}
+
+	decision := shouldHandleDiscordMessage("bot-1", msg, cfg)
+	if decision.Accepted {
+		t.Fatalf("decision = %+v, want wrong guild message rejected", decision)
+	}
+	if decision.Reason != "wrong_guild" {
+		t.Fatalf("reason = %q, want wrong_guild", decision.Reason)
+	}
+}
+
 func TestShouldHandleDiscordMessageIgnoresOtherChannelWithoutMention(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Discord.AllowedUserID = "user-1"

@@ -428,10 +428,6 @@ func shouldHandleDiscordMessage(botUserID string, m *discordgo.MessageCreate, cf
 		return messageDecision{Reason: "unauthorized_user"}
 	}
 
-	if cfg.Discord.GuildID != "" && m.GuildID != "" && m.GuildID != cfg.Discord.GuildID {
-		return messageDecision{Reason: "wrong_guild"}
-	}
-
 	isDM := m.GuildID == ""
 	isMentioned := false
 	for _, mention := range m.Mentions {
@@ -443,11 +439,14 @@ func shouldHandleDiscordMessage(botUserID string, m *discordgo.MessageCreate, cf
 	if isDM {
 		return messageDecision{Accepted: true, Reason: "dm", IsDM: true, IsMentioned: isMentioned}
 	}
+	if defaultChannelID := strings.TrimSpace(cfg.Discord.DefaultChannelID); defaultChannelID != "" && m.ChannelID == defaultChannelID {
+		return messageDecision{Accepted: true, Reason: "default_channel", IsMentioned: isMentioned}
+	}
+	if guildID := strings.TrimSpace(cfg.Discord.GuildID); guildID != "" && m.GuildID != "" && m.GuildID != guildID {
+		return messageDecision{Reason: "wrong_guild"}
+	}
 	if isMentioned {
 		return messageDecision{Accepted: true, Reason: "mention", IsMentioned: true}
-	}
-	if defaultChannelID := strings.TrimSpace(cfg.Discord.DefaultChannelID); defaultChannelID != "" && m.ChannelID == defaultChannelID {
-		return messageDecision{Accepted: true, Reason: "default_channel"}
 	}
 	return messageDecision{Reason: "not_mentioned"}
 }
@@ -466,6 +465,8 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			logger.Warn("[Discord] Discovery mode: blocked message from user", "user_id", m.Author.ID, "username", m.Author.Username)
 		case "unauthorized_user":
 			logger.Warn("[Discord] Blocked unauthorized Discord message", "user_id", m.Author.ID)
+		case "wrong_guild":
+			logger.Warn("[Discord] Ignoring message from unexpected guild", "configured_guild", strings.TrimSpace(cfg.Discord.GuildID), "message_guild", m.GuildID, "channel", m.ChannelID)
 		case "not_mentioned":
 			logger.Debug("[Discord] Ignoring channel message without bot mention outside default channel", "channel", m.ChannelID)
 		}
