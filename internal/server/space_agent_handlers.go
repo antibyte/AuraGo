@@ -353,20 +353,18 @@ func handleIntegrationWebhosts(s *Server) http.HandlerFunc {
 				manifestURL = u
 			}
 			browserURL := manifestBrowserURL(s, &cfg, r, manifestURL)
-			if browserURL != "" {
-				status := "starting"
-				if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
-					status = raw
-				}
-				webhosts = append(webhosts, webhostIntegration{
-					ID:          "manifest",
-					Name:        "Manifest",
-					Description: "Manifest.build gateway",
-					Status:      status,
-					URL:         browserURL,
-					Icon:        "link",
-				})
+			status := "starting"
+			if raw, ok := manifestPayload["status"].(string); ok && raw != "" {
+				status = raw
 			}
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "manifest",
+				Name:        "Manifest",
+				Description: "Manifest.build gateway",
+				Status:      status,
+				URL:         browserURL,
+				Icon:        "link",
+			})
 		}
 		writeSpaceAgentJSON(w, map[string]interface{}{"status": "ok", "webhosts": webhosts})
 	}
