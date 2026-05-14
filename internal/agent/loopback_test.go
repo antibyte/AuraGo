@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 
 	"aurago/internal/memory"
@@ -131,5 +132,35 @@ func TestBuildLoopbackSessionConversationMessagesIncludesVirtualDesktopContext(t
 	}
 	if countCurrent != 1 {
 		t.Fatalf("current desktop prompt count = %d, want 1: %#v", countCurrent, messages)
+	}
+}
+
+func TestBuildLoopbackSessionConversationMessagesLimitsLongDesktopContext(t *testing.T) {
+	sessionMessages := make([]memory.HistoryMessage, 0, 80)
+	for i := 0; i < 79; i++ {
+		sessionMessages = append(sessionMessages, memory.HistoryMessage{
+			ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: strings.Repeat("old desktop output ", 200)},
+		})
+	}
+	sessionMessages = append(sessionMessages, memory.HistoryMessage{
+		ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "retro arcade"},
+	})
+
+	messages := buildLoopbackSessionConversationMessages(
+		[]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: "system"}},
+		sessionMessages,
+		"retro arcade",
+	)
+
+	if len(messages) > 1+loopbackSessionMaxMessages {
+		t.Fatalf("message count = %d, want at most %d", len(messages), 1+loopbackSessionMaxMessages)
+	}
+	if got := messages[len(messages)-1].Content; got != "retro arcade" {
+		t.Fatalf("latest desktop prompt = %q, want current request", got)
+	}
+	for _, msg := range messages[1:] {
+		if msg.Content == strings.Repeat("old desktop output ", 200) && len(messages) == len(sessionMessages)+1 {
+			t.Fatal("expected old desktop transcript to be trimmed")
+		}
 	}
 }

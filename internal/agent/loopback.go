@@ -16,6 +16,11 @@ import (
 
 var loopbackLimiter = make(chan struct{}, 8)
 
+const (
+	loopbackSessionMaxMessages = 24
+	loopbackSessionMaxChars    = 80000
+)
+
 func shouldPersistLoopbackHistory(sessionID string) bool {
 	return sessionID == "default"
 }
@@ -52,6 +57,7 @@ func buildLoopbackSessionConversationMessages(base []openai.ChatCompletionMessag
 	finalMessages := append([]openai.ChatCompletionMessage(nil), base...)
 	currentMsg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage}
 	currentIncluded := false
+	visibleMessages := make([]openai.ChatCompletionMessage, 0, len(sessionMessages)+1)
 	for _, stored := range sessionMessages {
 		if stored.IsInternal {
 			continue
@@ -60,15 +66,44 @@ func buildLoopbackSessionConversationMessages(base []openai.ChatCompletionMessag
 		if msg.Role == "" || msg.Content == "" {
 			continue
 		}
-		finalMessages = append(finalMessages, msg)
+		visibleMessages = append(visibleMessages, msg)
 		if msg.Role == currentMsg.Role && msg.Content == currentMsg.Content {
 			currentIncluded = true
 		}
 	}
 	if !currentIncluded {
-		finalMessages = append(finalMessages, currentMsg)
+		visibleMessages = append(visibleMessages, currentMsg)
 	}
-	return finalMessages
+	return append(finalMessages, trimLoopbackSessionMessages(visibleMessages)...)
+}
+
+func trimLoopbackSessionMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	start := 0
+	if len(messages) > loopbackSessionMaxMessages {
+		start = len(messages) - loopbackSessionMaxMessages
+	}
+	messages = messages[start:]
+
+	if loopbackSessionMaxChars <= 0 {
+		return messages
+	}
+	kept := make([]openai.ChatCompletionMessage, 0, len(messages))
+	chars := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		msgChars := len(messageText(messages[i])) + 4
+		if len(kept) > 0 && chars+msgChars > loopbackSessionMaxChars {
+			break
+		}
+		kept = append(kept, messages[i])
+		chars += msgChars
+	}
+	for i, j := 0, len(kept)-1; i < j; i, j = i+1, j-1 {
+		kept[i], kept[j] = kept[j], kept[i]
+	}
+	return kept
 }
 
 // Loopback injects an external message into the agent loop synchronously.
