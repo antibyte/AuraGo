@@ -70,6 +70,23 @@ func TestBuildDesktopAgentPromptIncludesDesktopFileContext(t *testing.T) {
 	}
 }
 
+func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Edit Apps/space-invaders/game.js", desktopChatContext{})
+
+	for _, want := range []string{
+		"Never use file_editor",
+		"Apps/",
+		"Widgets/",
+		"virtual_desktop",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("desktop prompt missing routing guard %q in:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	t.Parallel()
 

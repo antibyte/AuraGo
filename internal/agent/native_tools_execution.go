@@ -33,7 +33,7 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 	if ff.AllowFilesystemWrite {
 		tools = append(tools,
 			tool("file_editor",
-				"Precisely edit text files: replace exact strings, insert lines relative to anchors, append/prepend content, or delete line ranges. Safer than write_file for targeted edits because it validates matches.",
+				"Precisely edit text files in agent_workspace/workdir or project-root-relative paths: replace exact strings, insert lines relative to anchors, append/prepend content, or delete line ranges. Never use for Virtual Desktop paths such as Apps/ or Widgets/; use virtual_desktop read_file/write_file/open_in_app instead.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",

@@ -421,6 +421,10 @@ func Start(opts StartOptions) error {
 		MessageSource:      "heartbeat",
 	}
 	s.HeartbeatScheduler = heartbeat.New(cfg, logger, func(prompt string) {
+		if sessionRequestActive("default") || sessionRequestActive("virtual-desktop") {
+			logger.Info("Heartbeat wake-up skipped because an interactive session is active")
+			return
+		}
 		agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
 	})
 	s.HeartbeatScheduler.Start()

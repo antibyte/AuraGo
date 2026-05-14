@@ -81,3 +81,21 @@ func TestLockSessionRequestKeepsSingleLockForQueuedNonDefaultSession(t *testing.
 		t.Fatal("third request did not enter after second request released lock")
 	}
 }
+
+func TestSessionRequestActiveReflectsHeldLock(t *testing.T) {
+	const sessionID = "test-session-lock-active"
+	resetSessionRequestLockForTest(sessionID)
+
+	if sessionRequestActive(sessionID) {
+		t.Fatal("session should not be active before lock is held")
+	}
+	unlock := lockSessionRequest(sessionID)
+	if !sessionRequestActive(sessionID) {
+		unlock()
+		t.Fatal("session should be active while lock is held")
+	}
+	unlock()
+	if sessionRequestActive(sessionID) {
+		t.Fatal("session should not be active after lock is released")
+	}
+}

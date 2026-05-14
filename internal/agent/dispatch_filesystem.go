@@ -136,6 +136,11 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		fpath := req.FilePath
 
 		op := strings.TrimSpace(strings.ToLower(req.Operation))
+		if isVirtualDesktopWorkspacePath(fpath) {
+			logger.Warn("LLM attempted file_editor access to virtual desktop workspace path — blocked",
+				"op", op, "path", fpath)
+			return virtualDesktopPathToolError("file_editor", fpath)
+		}
 
 		// Block access to system-sensitive files
 		wsDir := cfg.Directories.WorkspaceDir
@@ -240,4 +245,21 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 	default:
 		return ""
 	}
+}
+
+func isVirtualDesktopWorkspacePath(filePath string) bool {
+	clean := strings.TrimPrefix(strings.ReplaceAll(strings.TrimSpace(filePath), "\\", "/"), "./")
+	for strings.HasPrefix(clean, "/") {
+		clean = strings.TrimPrefix(clean, "/")
+	}
+	return strings.HasPrefix(clean, "Apps/") || strings.HasPrefix(clean, "Widgets/")
+}
+
+func virtualDesktopPathToolError(toolName, filePath string) string {
+	return `{"status":"error","message":"` + toolName + ` cannot access virtual desktop workspace path '` + escapeJSONMessage(filePath) + `'. Use the virtual_desktop tool instead with operation read_file, write_file, or open_in_app and the same path."}`
+}
+
+func escapeJSONMessage(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`, "\r", `\r`, "\t", `\t`)
+	return replacer.Replace(value)
 }

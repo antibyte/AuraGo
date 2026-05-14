@@ -43,6 +43,13 @@ func lockSessionRequest(sessionID string) func() {
 	return lockSessionRequestWithLogger(sessionID, nil)
 }
 
+func sessionRequestActive(sessionID string) bool {
+	muSessionRequestLocks.Lock()
+	defer muSessionRequestLocks.Unlock()
+	lock := sessionRequestLocks[sessionID]
+	return lock != nil && lock.refs > 0
+}
+
 func lockSessionRequestWithLogger(sessionID string, logger *slog.Logger) func() {
 	start := time.Now()
 	muSessionRequestLocks.Lock()

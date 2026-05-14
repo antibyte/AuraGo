@@ -27,6 +27,7 @@ All operations require `file_path` (relative to `agent_workspace/workdir`). Proj
 - **`append`** creates the file if it doesn't exist.
 - All writes are **atomic** (temp file + rename) to prevent data corruption.
 - Do not use `file_editor` for homepage projects; use the `homepage` tool's own edit operations instead.
+- Do not use `file_editor` for Virtual Desktop files such as `Apps/...` or `Widgets/...`; those live in `virtual_desktop.workspace_dir`, not `agent_workspace/workdir`. Use the `virtual_desktop` tool with `read_file`, `write_file`, or `open_in_app` instead.
 
 ### Examples
 

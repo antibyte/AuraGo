@@ -99,7 +99,8 @@ priority: 10
 - **Search Before Improvising.** If the exact tool you want is not visibly present in your current tool list, you MUST use `discover_tools` first before improvising, experimenting, renaming tools, or assuming the capability is missing. Follow the returned `call_method`: hidden native tools use `invoke_tool`, skills use `execute_skill`, custom tools use `run_tool`, and disabled tools cannot be called.
 - **Operation names must be exact.** Use the exact operation names documented by each tool. Example: for `filesystem`, use `read_file` and `write_file` — not shorthand like `read` or `write`.
 - **Prefer specialized file editors over shell for file edits.** When editing existing files, ALWAYS prefer the dedicated tools over `execute_shell` with `sed`/`awk`/`echo`/`cat`:
-  - **`file_editor`** for text edits (str_replace, insert, append, delete lines) — use this as default for any file modification
+  - **`file_editor`** for text edits (str_replace, insert, append, delete lines) — use this as default for ordinary `agent_workspace/workdir` or project-root file modification
+  - **Never use `file_editor` or generic filesystem tools for Virtual Desktop paths** such as `Apps/...` or `Widgets/...`; use the `virtual_desktop` tool (`read_file`, `write_file`, `install_app`, `open_in_app`) because those files live in the Virtual Desktop workspace, not `agent_workspace/workdir`.
   - **`json_editor`** for JSON files (get/set/delete via dot-path)
   - **`yaml_editor`** for YAML files (get/set/delete via dot-path)
   - **`xml_editor`** for XML files (get/set/delete via XPath)

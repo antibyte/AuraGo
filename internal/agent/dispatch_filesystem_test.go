@@ -72,3 +72,38 @@ func TestDispatchFilesystemRejectsOutsideHostWriteCanary(t *testing.T) {
 		}
 	}
 }
+
+func TestDispatchFilesystemRejectsVirtualDesktopPathsForFileEditor(t *testing.T) {
+	t.Parallel()
+
+	tempRoot := t.TempDir()
+	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowFilesystemWrite = true
+	cfg.Directories.WorkspaceDir = workspaceDir
+	dc := &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	output := dispatchFilesystem(context.Background(), ToolCall{
+		Action:    "file_editor",
+		Operation: "str_replace_all",
+		FilePath:  "Apps/space-invaders/game.js",
+		Params: map[string]interface{}{
+			"old": "before",
+			"new": "after",
+		},
+	}, dc)
+
+	if !strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("desktop file_editor path should be rejected, got: %s", output)
+	}
+	if !strings.Contains(output, "virtual_desktop") || !strings.Contains(output, "Apps/space-invaders/game.js") {
+		t.Fatalf("desktop file_editor rejection should point to virtual_desktop and preserve path, got: %s", output)
+	}
+}

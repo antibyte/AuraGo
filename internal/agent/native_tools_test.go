@@ -1361,6 +1361,25 @@ func TestBuildNativeToolSchemasInjectsTodoOnlyForBuiltinTools(t *testing.T) {
 	}
 }
 
+func TestFileEditorSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{AllowFilesystemWrite: true}, nil)
+	var description string
+	for _, toolSchema := range schemas {
+		if toolSchema.Function != nil && toolSchema.Function.Name == "file_editor" {
+			description = toolSchema.Function.Description
+			break
+		}
+	}
+	if description == "" {
+		t.Fatal("file_editor schema not found")
+	}
+	for _, want := range []string{"Apps/", "Widgets/", "virtual_desktop"} {
+		if !strings.Contains(description, want) {
+			t.Fatalf("file_editor description missing %q: %s", want, description)
+		}
+	}
+}
+
 // TestBuildToolFlagsFromConfigProducesConsistentResults verifies that
 // buildToolFlagsFromConfig returns consistent values for all config-only flags.
 func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {
