@@ -437,6 +437,10 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 		b.WriteString("\n\nThe user has attached desktop workspace file context. Use the virtual_desktop tool with operation \"read_file\" or the relevant desktop document/workbook tools when you need file contents; do not assume contents from the filename alone.")
 		if chatContext.OriginApp == "editor" {
 			b.WriteString("\nImportant: This task was launched from the Editor app. If the request asks you to change the attached file, write the result back to the same desktop file with virtual_desktop write_file, then call virtual_desktop open_in_app with app_id \"editor\" and the same path. Do not open Writer for this Editor-origin task unless the user explicitly asks for Writer or a word-processing document.")
+		} else if chatContext.OriginApp == "writer" {
+			b.WriteString("\nImportant: This task was launched from the Writer app. If the request asks you to change the attached file, write the result back to the same desktop document with office_document or virtual_desktop document operations, then call virtual_desktop open_in_app with app_id \"writer\" and the same path.")
+		} else if chatContext.OriginApp == "sheets" {
+			b.WriteString("\nImportant: This task was launched from the Sheets app. If the request asks you to change the attached file, write the result back to the same desktop workbook with office_workbook or virtual_desktop workbook operations, then call virtual_desktop open_in_app with app_id \"sheets\" and the same path.")
 		}
 		if strings.TrimSpace(chatContext.CurrentFile) != "" {
 			b.WriteString("\nCurrent desktop file:\n")

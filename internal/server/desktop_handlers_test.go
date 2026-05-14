@@ -92,6 +92,48 @@ func TestBuildDesktopAgentPromptKeepsEditorTasksInEditor(t *testing.T) {
 	}
 }
 
+func TestBuildDesktopAgentPromptKeepsWriterTasksInWriter(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Please polish this document.", desktopChatContext{
+		Source:      "desktop-file",
+		OriginApp:   "writer",
+		CurrentFile: "Documents/report.docx",
+		OpenFiles:   []string{"Documents/report.docx"},
+	})
+
+	for _, want := range []string{
+		"This task was launched from the Writer app",
+		"write the result back to the same desktop document",
+		"open_in_app with app_id \"writer\"",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("writer-origin prompt missing marker %q in:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestBuildDesktopAgentPromptKeepsSheetsTasksInSheets(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Please update this table.", desktopChatContext{
+		Source:      "desktop-file",
+		OriginApp:   "sheets",
+		CurrentFile: "Documents/budget.xlsx",
+		OpenFiles:   []string{"Documents/budget.xlsx"},
+	})
+
+	for _, want := range []string{
+		"This task was launched from the Sheets app",
+		"write the result back to the same desktop workbook",
+		"open_in_app with app_id \"sheets\"",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("sheets-origin prompt missing marker %q in:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testing.T) {
 	t.Parallel()
 
