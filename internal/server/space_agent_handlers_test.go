@@ -474,6 +474,28 @@ func TestManifestURLWithRequestHostKeepsExternalHost(t *testing.T) {
 	}
 }
 
+func TestManifestBrowserURLUsesDedicatedTailscaleManifestHost(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Port = 2099
+	cfg.Manifest.HostPort = 2099
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+	cfg.Tailscale.TsNet.Hostname = "aurago"
+	cfg.Tailscale.TsNet.ManifestHostname = "aurago-manifest"
+	cfg.Tailscale.TsNet.ManifestPort = 2099
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	s.TsNetManager = tsnetnode.NewManager(cfg, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "aurago.taild1480.ts.net"
+
+	got := manifestBrowserURL(s, cfg, req, "http://127.0.0.1:2099")
+	if got != "https://aurago-manifest.taild1480.ts.net:2099" {
+		t.Fatalf("manifestBrowserURL() = %q, want dedicated Tailscale Manifest host", got)
+	}
+}
+
 func TestHandleSpaceAgentLegacyRedirectUsesDirectWebhostURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true

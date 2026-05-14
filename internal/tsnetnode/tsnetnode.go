@@ -30,6 +30,7 @@ type Status struct {
 	SpaceAgentServing bool     `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
 	SpaceAgentDNS     string   `json:"space_agent_dns,omitempty"`     // MagicDNS name of the dedicated Space Agent node
 	ManifestServing   bool     `json:"manifest_serving,omitempty"`    // true when Manifest is exposed over HTTPS
+	ManifestDNS       string   `json:"manifest_dns,omitempty"`        // MagicDNS name of the dedicated Manifest node
 	HTTPFallback      bool     `json:"http_fallback,omitempty"`       // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
 	FunnelActive      bool     `json:"funnel_active,omitempty"`       // true when the AuraGo listener is exposed via Funnel
 	Hostname          string   `json:"hostname,omitempty"`
@@ -52,8 +53,10 @@ type Manager struct {
 	httpSrv        *http.Server
 	homepageLn     net.Listener
 	homepageSrv    *http.Server
+	manifestNode   *tsnet.Server
 	manifestLn     net.Listener
 	manifestSrv    *http.Server
+	manifestHost   string
 	spaceAgentNode *tsnet.Server
 	spaceAgentLn   net.Listener
 	spaceAgentSrv  *http.Server
@@ -254,8 +257,10 @@ func (m *Manager) Start(handler http.Handler) error {
 		m.httpSrv = nil
 		m.homepageLn = nil
 		m.homepageSrv = nil
+		m.manifestNode = nil
 		m.manifestLn = nil
 		m.manifestSrv = nil
+		m.manifestHost = ""
 		m.spaceAgentNode = nil
 		m.spaceAgentLn = nil
 		m.spaceAgentSrv = nil
@@ -320,6 +325,9 @@ func (m *Manager) Stop() error {
 	if m.manifestSrv != nil {
 		m.manifestSrv.Shutdown(ctx)
 	}
+	if m.manifestNode != nil {
+		m.manifestNode.Close()
+	}
 	if m.spaceAgentSrv != nil {
 		m.spaceAgentSrv.Shutdown(ctx)
 	}
@@ -337,8 +345,10 @@ func (m *Manager) Stop() error {
 	m.httpSrv = nil
 	m.homepageLn = nil
 	m.homepageSrv = nil
+	m.manifestNode = nil
 	m.manifestLn = nil
 	m.manifestSrv = nil
+	m.manifestHost = ""
 	m.spaceAgentNode = nil
 	m.spaceAgentLn = nil
 	m.spaceAgentSrv = nil
@@ -412,6 +422,17 @@ func (m *Manager) GetStatus() Status {
 			}
 		}
 	}
+	if m.manifestNode != nil {
+		lc, err := m.manifestNode.LocalClient()
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			status, err := lc.Status(ctx)
+			if err == nil && status.Self != nil && status.Self.DNSName != "" {
+				st.ManifestDNS = status.Self.DNSName
+			}
+		}
+	}
 
 	m.loginMu.Lock()
 	st.LoginURL = m.loginURL
@@ -436,6 +457,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	servingHTTP := m.servingHTTP
 	homepageUp := m.homepageUp
 	manifestUp := m.manifestUp
+	activeManifestHost := m.manifestHost
 	spaceAgentUp := m.spaceAgentUp
 	activeSpaceAgentHost := m.spaceAgentHost
 	funnelActive := m.funnelActive
@@ -446,6 +468,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	wantHomepage := m.cfg.Tailscale.TsNet.ExposeHomepage && m.cfg.Homepage.WebServerEnabled && m.cfg.Homepage.WebServerPort > 0
 	wantManifest := m.cfg.Tailscale.TsNet.ExposeManifest && m.cfg.Manifest.Enabled && m.cfg.Manifest.Port > 0
 	wantSpaceAgent := m.cfg.Tailscale.TsNet.ExposeSpaceAgent && m.cfg.SpaceAgent.Enabled && m.cfg.SpaceAgent.Port > 0
+	desiredManifestHost := m.effectiveManifestHostname()
 	desiredSpaceAgentHost := m.effectiveSpaceAgentHostname()
 
 	if servingHTTP && (!wantMain || funnelActive != wantFunnel) {
@@ -461,7 +484,7 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 		}
 		homepageUp = false
 	}
-	if manifestUp && !wantManifest {
+	if manifestUp && (!wantManifest || activeManifestHost != desiredManifestHost) {
 		if err := m.stopManifestListener(); err != nil {
 			return err
 		}
@@ -797,18 +820,45 @@ func (m *Manager) effectiveManifestHostname() string {
 	return base + "-manifest"
 }
 
-func (m *Manager) startManifestListener(srv *tsnet.Server) error {
+func (m *Manager) startManifestListener(_ *tsnet.Server) error {
 	targetURL, err := url.Parse(manifestProxyTarget(m.cfg))
 	if err != nil {
 		return fmt.Errorf("invalid Manifest proxy target: %w", err)
+	}
+	tsCfg := m.cfg.Tailscale.TsNet
+	stateDir := tsCfg.StateDir
+	if stateDir == "" {
+		stateDir = "data/tsnet"
+	}
+	manifestStateDir := filepath.Join(stateDir, "manifest")
+	if err := os.MkdirAll(manifestStateDir, 0o750); err != nil {
+		return fmt.Errorf("create Manifest tsnet state directory: %w", err)
+	}
+	hostname := m.effectiveManifestHostname()
+	authKey := tsCfg.AuthKey
+	if authKey == "" {
+		authKey = os.Getenv("TS_AUTHKEY")
+	}
+	manifestNode := &tsnet.Server{
+		Hostname: hostname,
+		Dir:      manifestStateDir,
+		Logf:     m.makeLoginAwareLogFunc(true),
+		UserLogf: m.makeLoginAwareLogFunc(false),
+	}
+	if authKey != "" {
+		manifestNode.AuthKey = authKey
+	}
+	if err := manifestNode.Start(); err != nil {
+		return fmt.Errorf("start Manifest tsnet node: %w", err)
 	}
 	port := m.cfg.Tailscale.TsNet.ManifestPort
 	if port <= 0 {
 		port = 8444
 	}
-	ln, err := listenTLSWithTimeout(srv, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout)
+	ln, err := listenTLSWithTimeout(manifestNode, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout)
 	if err != nil {
-		return fmt.Errorf("Manifest exposure requires Tailscale HTTPS on :%d: %w", port, err)
+		manifestNode.Close()
+		return fmt.Errorf("Manifest exposure requires Tailscale HTTPS on dedicated hostname %q:%d: %w", hostname, port, err)
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
@@ -832,13 +882,15 @@ func (m *Manager) startManifestListener(srv *tsnet.Server) error {
 	}
 
 	m.mu.Lock()
+	m.manifestNode = manifestNode
 	m.manifestLn = ln
 	m.manifestSrv = manifestSrv
+	m.manifestHost = hostname
 	m.manifestUp = true
 	m.mu.Unlock()
 
 	go func() {
-		m.logger.Info("tsnet Manifest listener started", "protocol", "HTTPS", "target", targetURL.String(), "port", port)
+		m.logger.Info("tsnet Manifest listener started", "protocol", "HTTPS", "hostname", hostname, "target", targetURL.String(), "port", port)
 		if err := manifestSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			m.logger.Error("tsnet Manifest listener error", "error", err)
 			m.mu.Lock()
@@ -853,10 +905,13 @@ func (m *Manager) startManifestListener(srv *tsnet.Server) error {
 
 func (m *Manager) stopManifestListener() error {
 	m.mu.Lock()
+	manifestNode := m.manifestNode
 	httpSrv := m.manifestSrv
 	ln := m.manifestLn
+	m.manifestNode = nil
 	m.manifestSrv = nil
 	m.manifestLn = nil
+	m.manifestHost = ""
 	m.manifestUp = false
 	m.mu.Unlock()
 
@@ -866,6 +921,9 @@ func (m *Manager) stopManifestListener() error {
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			return fmt.Errorf("shutdown tsnet Manifest listener: %w", err)
 		}
+	}
+	if manifestNode != nil {
+		manifestNode.Close()
 	}
 	if ln != nil {
 		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {

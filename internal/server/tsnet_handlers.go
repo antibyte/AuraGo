@@ -50,9 +50,13 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 		if host != "" && status.HomepageServing {
 			homepageURL = fmt.Sprintf("https://%s:8443", host)
 		}
-		if host != "" && status.ManifestServing {
+		manifestHost := strings.TrimSuffix(status.ManifestDNS, ".")
+		if manifestHost == "" {
+			manifestHost = host
+		}
+		if manifestHost != "" && status.ManifestServing {
 			port := tsnetCfgManifestPort(s)
-			manifestURL = fmt.Sprintf("https://%s:%d", host, port)
+			manifestURL = fmt.Sprintf("https://%s:%d", manifestHost, port)
 		}
 		spaceAgentHost := strings.TrimSuffix(status.SpaceAgentDNS, ".")
 		if spaceAgentHost != "" && status.SpaceAgentServing {
@@ -84,6 +88,7 @@ func handleTsNetStatus(s *Server) http.HandlerFunc {
 			"web_ui_url":          webUIURL,
 			"homepage_url":        homepageURL,
 			"manifest_url":        manifestURL,
+			"manifest_dns":        status.ManifestDNS,
 			"space_agent_dns":     status.SpaceAgentDNS,
 			"space_agent_url":     spaceAgentURL,
 			"public_url":          publicURL,

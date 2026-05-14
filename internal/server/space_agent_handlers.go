@@ -591,13 +591,17 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 	if s != nil && s.TsNetManager != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeManifest {
 		status := s.TsNetManager.GetStatus()
 		if status.ManifestServing {
-			if host := tsnetStatusHost(status.DNS, status.CertDNS); host != "" {
+			host := strings.TrimSuffix(strings.TrimSpace(status.ManifestDNS), ".")
+			if host == "" {
+				host = tsnetStatusHost(status.DNS, status.CertDNS)
+			}
+			if host != "" {
 				return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
 			}
 		}
 		if requestLooksTailscale(r) {
-			if host := requestForwardedHost(r); host != "" {
-				return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+			if derived := deriveManifestTailscaleURL(cfg, r, tsnetCfgManifestPort(s)); derived != "" {
+				return derived
 			}
 		}
 	}
@@ -605,6 +609,20 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 		return tunnelURL
 	}
 	return manifestURLWithRequestHost(fallbackURL, r)
+}
+
+func deriveManifestTailscaleURL(cfg *config.Config, r *http.Request, port int) string {
+	if cfg == nil {
+		return ""
+	}
+	host := deriveNamedTailscaleHost(cfg, r, strings.TrimSpace(cfg.Tailscale.TsNet.ManifestHostname), "-manifest")
+	if host == "" {
+		return ""
+	}
+	if port <= 0 {
+		port = 8444
+	}
+	return fmt.Sprintf("https://%s:%d", host, port)
 }
 
 func manifestURLWithRequestHost(rawURL string, r *http.Request) string {
@@ -673,6 +691,17 @@ func requestLooksTailscale(r *http.Request) bool {
 }
 
 func deriveSpaceAgentTailscaleURL(cfg *config.Config, r *http.Request) string {
+	if cfg == nil {
+		return ""
+	}
+	host := deriveNamedTailscaleHost(cfg, r, strings.TrimSpace(cfg.Tailscale.TsNet.SpaceAgentHostname), "-space-agent")
+	if host == "" {
+		return ""
+	}
+	return "https://" + host
+}
+
+func deriveNamedTailscaleHost(cfg *config.Config, r *http.Request, configuredHost string, fallbackSuffix string) string {
 	if cfg == nil || r == nil {
 		return ""
 	}
@@ -694,16 +723,16 @@ func deriveSpaceAgentTailscaleURL(cfg *config.Config, r *http.Request) string {
 	if len(parts) < 4 {
 		return ""
 	}
-	spaceHost := strings.TrimSpace(cfg.Tailscale.TsNet.SpaceAgentHostname)
-	if spaceHost == "" {
+	namedHost := strings.TrimSpace(configuredHost)
+	if namedHost == "" {
 		base := strings.TrimSpace(cfg.Tailscale.TsNet.Hostname)
 		if base == "" {
 			base = parts[0]
 		}
-		spaceHost = base + "-space-agent"
+		namedHost = base + fallbackSuffix
 	}
-	parts[0] = strings.ToLower(spaceHost)
-	return "https://" + strings.Join(parts, ".")
+	parts[0] = strings.ToLower(namedHost)
+	return strings.Join(parts, ".")
 }
 
 func spaceAgentURLUsesLoopbackHost(raw string) bool {
