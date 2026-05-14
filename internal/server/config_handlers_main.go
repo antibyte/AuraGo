@@ -649,7 +649,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker || manifestSidecarAuthConfigChanged(oldCfg, *newCfg)
 			oldManifestRuntime := oldCfg.Manifest
 			newManifestRuntime := newCfg.Manifest
 			oldManifestRuntime.APIKey = ""
@@ -1044,6 +1044,11 @@ func tsnetHasAnyExposure(cfg config.Config) bool {
 		cfg.Tailscale.TsNet.ExposeHomepage ||
 		cfg.Tailscale.TsNet.ExposeManifest ||
 		cfg.Tailscale.TsNet.ExposeSpaceAgent
+}
+
+func manifestSidecarAuthConfigChanged(oldCfg, newCfg config.Config) bool {
+	return oldCfg.Tailscale.TsNet.Enabled != newCfg.Tailscale.TsNet.Enabled ||
+		oldCfg.Tailscale.TsNet.ExposeManifest != newCfg.Tailscale.TsNet.ExposeManifest
 }
 
 func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {

@@ -39,3 +39,18 @@ func TestTsNetHasAnyExposureIncludesManifest(t *testing.T) {
 		t.Fatal("tsnetHasAnyExposure() = false, want true when Manifest exposure is enabled")
 	}
 }
+
+func TestManifestSidecarAuthConfigChangedDetectsTailscaleManifestExposureToggle(t *testing.T) {
+	oldCfg := config.Config{}
+	oldCfg.Manifest.Enabled = true
+	oldCfg.Manifest.AutoStart = true
+	oldCfg.Manifest.Mode = "managed"
+	oldCfg.Tailscale.TsNet.Enabled = true
+
+	newCfg := oldCfg
+	newCfg.Tailscale.TsNet.ExposeManifest = true
+
+	if !manifestSidecarAuthConfigChanged(oldCfg, newCfg) {
+		t.Fatal("manifestSidecarAuthConfigChanged() = false, want true when Manifest Tailscale exposure changes")
+	}
+}

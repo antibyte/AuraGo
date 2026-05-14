@@ -41,6 +41,7 @@ type ManifestSidecarConfig struct {
 	InternalBaseURL       string
 	BrowserBaseURL        string
 	ProviderBaseURL       string
+	TrustedOrigins        []string
 	ContainerName         string
 	Image                 string
 	Host                  string
@@ -154,6 +155,7 @@ func ResolveManifestSidecarConfig(cfg *config.Config, runningInDocker bool) (Man
 		InternalBaseURL:       internalBaseURL,
 		BrowserBaseURL:        browserBaseURL,
 		ProviderBaseURL:       strings.TrimRight(internalBaseURL, "/") + "/v1",
+		TrustedOrigins:        manifestAdditionalTrustedOrigins(cfg),
 		ContainerName:         containerName,
 		Image:                 defaultString(cfg.Manifest.Image, manifestDefaultImage),
 		Host:                  host,
@@ -291,6 +293,7 @@ func manifestTrustedOrigins(sidecar ManifestSidecarConfig) []string {
 		fmt.Sprintf("http://127.0.0.1:%d", hostPort),
 		fmt.Sprintf("http://localhost:%d", hostPort),
 	}
+	origins = append(origins, sidecar.TrustedOrigins...)
 	out := make([]string, 0, len(origins))
 	seen := map[string]struct{}{}
 	for _, origin := range origins {
@@ -305,6 +308,13 @@ func manifestTrustedOrigins(sidecar ManifestSidecarConfig) []string {
 		out = append(out, origin)
 	}
 	return out
+}
+
+func manifestAdditionalTrustedOrigins(cfg *config.Config) []string {
+	if cfg == nil || !cfg.Tailscale.TsNet.Enabled || !cfg.Tailscale.TsNet.ExposeManifest {
+		return nil
+	}
+	return []string{"https://*.ts.net"}
 }
 
 func normalizeManifestBrowserBaseURL(raw string) string {

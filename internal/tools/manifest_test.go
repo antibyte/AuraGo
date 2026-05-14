@@ -233,6 +233,62 @@ func TestBuildManifestPayloadUsesRequestBrowserURLForBetterAuth(t *testing.T) {
 	}
 }
 
+func TestBuildManifestPayloadTrustsTailscaleOriginsWhenExposed(t *testing.T) {
+	cfg := manifestTestConfig()
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+
+	sidecar, err := ResolveManifestSidecarConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+
+	raw, err := buildManifestCreatePayload(sidecar, "aurago_manifest")
+	if err != nil {
+		t.Fatalf("buildManifestCreatePayload() error = %v", err)
+	}
+	payload := decodeManifestPayload(t, raw)
+	env := strings.Join(interfaceSliceToStrings(payload["Env"]), "\n")
+	want := "BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:2099,http://localhost:2099,https://*.ts.net"
+	if !strings.Contains(env, want) {
+		t.Fatalf("Manifest env missing %q:\n%s", want, env)
+	}
+}
+
+func TestManifestContainerNeedsRecreateWhenTailscaleTrustedOriginMissing(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": [
+				"PORT=2099",
+				"BETTER_AUTH_URL=http://127.0.0.1:2099",
+				"BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:2099,http://localhost:2099",
+				"MANIFEST_TELEMETRY_DISABLED=1"
+			]
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+			}
+		},
+		"NetworkSettings": {
+			"Networks": {
+				"aurago_manifest": {}
+			}
+		}
+	}`)
+	cfg := manifestTestConfig()
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+	sidecar, err := ResolveManifestSidecarConfig(cfg, false)
+	if err != nil {
+		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
+	}
+
+	if !manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
+		t.Fatal("expected Manifest container without Tailscale trusted origin to require recreation")
+	}
+}
+
 func TestManifestContainerNeedsRecreateForLoopbackOnlyBinding(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
