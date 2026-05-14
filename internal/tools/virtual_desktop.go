@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -132,6 +133,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if isVirtualDesktopStandaloneWidgetHTML(path) && strings.TrimSpace(content) == "" {
 			return virtualDesktopJSON("error", "desktop widget HTML file must not be empty", nil, nil)
 		}
+		content = rewriteVirtualDesktopPrinterCameraURLsForPath(cfg, path, content)
 		if app, entryPath, ok := virtualDesktopRootHTMLAppFromFile(path); ok && strings.TrimSpace(content) != "" {
 			if err := svc.WriteFile(ctx, path, content, desktop.SourceAgent); err != nil {
 				return virtualDesktopJSON("error", err.Error(), nil, nil)
@@ -228,6 +230,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
+		files = rewriteVirtualDesktopPrinterCameraURLsForFiles(cfg, files)
 		if err := svc.InstallApp(ctx, manifest, files, desktop.SourceAgent); err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
@@ -682,6 +685,74 @@ func cleanVirtualDesktopSlashPath(rawPath string) string {
 		return "."
 	}
 	return path.Clean(p)
+}
+
+func rewriteVirtualDesktopPrinterCameraURLsForPath(cfg *config.Config, rawPath, content string) string {
+	clean := cleanVirtualDesktopSlashPath(rawPath)
+	if !strings.HasPrefix(clean, "Apps/") && !strings.HasPrefix(clean, "Widgets/") {
+		return content
+	}
+	return RewriteVirtualDesktopPrinterCameraURLs(cfg, content)
+}
+
+func rewriteVirtualDesktopPrinterCameraURLsForFiles(cfg *config.Config, files map[string]string) map[string]string {
+	if len(files) == 0 {
+		return files
+	}
+	rewritten := make(map[string]string, len(files))
+	for filePath, content := range files {
+		rewritten[filePath] = RewriteVirtualDesktopPrinterCameraURLs(cfg, content)
+	}
+	return rewritten
+}
+
+// RewriteVirtualDesktopPrinterCameraURLs maps known configured printer camera
+// stream URLs to AuraGo's same-origin proxy for generated desktop HTML/JS.
+func RewriteVirtualDesktopPrinterCameraURLs(cfg *config.Config, content string) string {
+	if cfg == nil || content == "" || !cfg.ThreeDPrinters.Enabled || !cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled {
+		return content
+	}
+	rewritten := content
+	for _, printer := range cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers {
+		printerID := strings.TrimSpace(printer.ID)
+		host := virtualDesktopPrinterHost(printer.URL)
+		if printerID == "" || host == "" {
+			continue
+		}
+		proxyURL := "/api/3d-printers/" + url.PathEscape(printerID) + "/camera/stream"
+		for _, candidate := range []string{
+			"http://" + host + ":3031/video",
+			"https://" + host + ":3031/video",
+			"//" + host + ":3031/video",
+			host + ":3031/video",
+		} {
+			rewritten = strings.ReplaceAll(rewritten, candidate, proxyURL)
+		}
+	}
+	return rewritten
+}
+
+func virtualDesktopPrinterHost(rawURL string) string {
+	s := strings.TrimSpace(rawURL)
+	if s == "" {
+		return ""
+	}
+	parseInput := s
+	if !strings.Contains(parseInput, "://") {
+		parseInput = "ws://" + parseInput
+	}
+	parsed, err := url.Parse(parseInput)
+	if err == nil && strings.TrimSpace(parsed.Hostname()) != "" {
+		return strings.TrimSpace(parsed.Hostname())
+	}
+	host := strings.TrimPrefix(s, "//")
+	if i := strings.IndexAny(host, "/?#"); i >= 0 {
+		host = host[:i]
+	}
+	if i := strings.LastIndex(host, ":"); i > -1 {
+		host = host[:i]
+	}
+	return strings.TrimSpace(host)
 }
 
 func virtualDesktopTitleFromID(id string) string {

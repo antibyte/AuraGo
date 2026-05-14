@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
@@ -24,7 +26,7 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/space-invaders/index.html?desktop_token=test", nil)
 	rec := httptest.NewRecorder()
 
-	if !serveDesktopExactIndexFile(rec, req, desktopDir) {
+	if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) {
 		t.Fatal("expected exact desktop index file to be served before FileServer redirect")
 	}
 	if got := rec.Header().Get("Content-Security-Policy"); got != desktopAppWorkspaceCSP {
@@ -61,5 +63,38 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 		t.Fatalf("body did not contain app key bridge marker: %q", rec.Body.String())
 	} else if gameIndex := strings.Index(rec.Body.String(), `src="game.js"`); gameIndex < 0 || bridgeIndex > gameIndex {
 		t.Fatalf("app key bridge must be injected before game scripts: bridge=%d game=%d body=%q", bridgeIndex, gameIndex, rec.Body.String())
+	}
+}
+
+func TestServeDesktopExactIndexFileRewritesPrinterCameraURLToProxy(t *testing.T) {
+	t.Parallel()
+
+	desktopDir := t.TempDir()
+	appDir := filepath.Join(desktopDir, "Apps", "printer-camera")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	rawURL := "http://192.168.6.181:3031/video"
+	if err := os.WriteFile(filepath.Join(appDir, "index.html"), []byte(`<video src="`+rawURL+`"></video>`), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers = []config.ElegooCentauriCarbonPrinterConfig{{
+		ID:  "printer-1",
+		URL: "ws://192.168.6.181/websocket",
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/printer-camera/index.html?desktop_token=test", nil)
+	rec := httptest.NewRecorder()
+	if !serveDesktopExactIndexFile(rec, req, desktopDir, cfg) {
+		t.Fatal("expected exact desktop index file to be served")
+	}
+	if strings.Contains(rec.Body.String(), rawURL) {
+		t.Fatalf("served app kept raw camera URL: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `/api/3d-printers/printer-1/camera/stream`) {
+		t.Fatalf("served app did not contain proxied camera URL: %s", rec.Body.String())
 	}
 }

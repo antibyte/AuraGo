@@ -650,6 +650,78 @@ func TestExecuteVirtualDesktopInstallAppNormalizesIconAlias(t *testing.T) {
 	t.Fatalf("todo-board not installed: %+v", bootstrap.Data.InstalledApps)
 }
 
+func TestExecuteVirtualDesktopWriteFileRewritesConfiguredPrinterCameraURLToProxy(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers = []config.ElegooCentauriCarbonPrinterConfig{{
+		ID:  "printer-1",
+		URL: "ws://192.168.6.181/websocket",
+	}}
+	rawURL := "http://192.168.6.181:3031/video"
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/printer-camera/index.html",
+		"content":   `<img src="` + rawURL + `?t=123" alt="printer">`,
+	})
+	if !strings.Contains(exec.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", exec.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Widgets/printer-camera/index.html",
+	})
+	if strings.Contains(read.Output, rawURL) {
+		t.Fatalf("desktop widget kept raw camera URL: %s", read.Output)
+	}
+	if !strings.Contains(read.Output, `/api/3d-printers/printer-1/camera/stream?t=123`) {
+		t.Fatalf("desktop widget did not use same-origin camera proxy: %s", read.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopInstallAppRewritesConfiguredPrinterCameraURLToProxy(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers = []config.ElegooCentauriCarbonPrinterConfig{{
+		ID:  "printer-1",
+		URL: "ws://192.168.6.181/websocket",
+	}}
+	rawURL := "http://192.168.6.181:3031/video"
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "printer-camera",
+			"name":    "Printer Camera",
+			"version": "1.0.0",
+			"icon":    "camera",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": `<video src="` + rawURL + `"></video>`,
+		},
+	})
+	if !strings.Contains(exec.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", exec.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Apps/printer-camera/index.html",
+	})
+	if strings.Contains(read.Output, rawURL) {
+		t.Fatalf("desktop app kept raw camera URL: %s", read.Output)
+	}
+	if !strings.Contains(read.Output, `/api/3d-printers/printer-1/camera/stream`) {
+		t.Fatalf("desktop app did not use same-origin camera proxy: %s", read.Output)
+	}
+}
+
 func TestExecuteVirtualDesktopWriteFileRootAppHTMLRegistersRunnableGeneratedApp(t *testing.T) {
 	t.Parallel()
 

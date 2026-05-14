@@ -13,12 +13,13 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/tools"
 	"aurago/ui"
 )
 
-const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
-const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-same-origin; default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; object-src 'none'; base-uri 'none'"
+const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'none'"
+const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-same-origin; default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; object-src 'none'; base-uri 'none'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
@@ -211,7 +212,7 @@ func injectDesktopAppKeyBridgeHTML(content []byte) []byte {
 	return out
 }
 
-func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, desktopDir string) bool {
+func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, desktopDir string, cfg *config.Config) bool {
 	if !shouldInjectDesktopWidgetAutoResize(r) {
 		return false
 	}
@@ -240,6 +241,7 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 	if err != nil {
 		return false
 	}
+	content = []byte(tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content)))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
 	return true
@@ -254,7 +256,7 @@ func desktopWorkspaceCSPForPath(requestPath string) string {
 	return desktopWidgetWorkspaceCSP
 }
 
-func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string) bool {
+func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string, cfg *config.Config) bool {
 	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
 	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
 		return false
@@ -281,6 +283,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
+	content = []byte(tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content)))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSP)
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
@@ -744,10 +747,10 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(r.URL.Path))
-		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir) {
+		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir, s.Cfg) {
 			return
 		}
-		if serveDesktopExactIndexFile(w, r, desktopDir) {
+		if serveDesktopExactIndexFile(w, r, desktopDir, s.Cfg) {
 			return
 		}
 		desktopFileHandler.ServeHTTP(w, r)

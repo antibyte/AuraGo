@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
@@ -22,7 +24,7 @@ func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/weather.html?widget_id=weather", nil)
 	rec := httptest.NewRecorder()
-	if !serveDesktopWidgetAutoResizeHTML(rec, req, root) {
+	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, nil) {
 		t.Fatal("expected widget HTML to be served with auto-resize injection")
 	}
 
@@ -49,6 +51,38 @@ func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Type"); !strings.Contains(got, "text/html") {
 		t.Fatalf("Content-Type = %q, want text/html", got)
+	}
+}
+
+func TestDesktopWidgetAutoResizeRewritesPrinterCameraURLToProxy(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "Widgets", "printer-camera"), 0755); err != nil {
+		t.Fatalf("mkdir widget dir: %v", err)
+	}
+	rawURL := "http://192.168.6.181:3031/video"
+	if err := os.WriteFile(filepath.Join(root, "Widgets", "printer-camera", "index.html"), []byte(`<img src="`+rawURL+`?t=1">`), 0644); err != nil {
+		t.Fatalf("write widget: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers = []config.ElegooCentauriCarbonPrinterConfig{{
+		ID:  "printer-1",
+		URL: "ws://192.168.6.181/websocket",
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera", nil)
+	rec := httptest.NewRecorder()
+	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, cfg) {
+		t.Fatal("expected widget HTML to be served")
+	}
+	if strings.Contains(rec.Body.String(), rawURL) {
+		t.Fatalf("served widget kept raw camera URL: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `/api/3d-printers/printer-1/camera/stream?t=1`) {
+		t.Fatalf("served widget did not contain proxied camera URL: %s", rec.Body.String())
 	}
 }
 

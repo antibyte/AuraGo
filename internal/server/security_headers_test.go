@@ -99,6 +99,19 @@ func TestDesktopWorkspaceCSPAllowsGeneratedAppCDNs(t *testing.T) {
 	}
 }
 
+func TestDesktopWorkspaceCSPAllowsSameOriginMedia(t *testing.T) {
+	const mediaSrc = "media-src 'self' data: blob:"
+	if !strings.Contains(desktopAppWorkspaceCSP, mediaSrc) {
+		t.Fatalf("generated app CSP must allow same-origin media streams: %s", desktopAppWorkspaceCSP)
+	}
+	if !strings.Contains(desktopWidgetWorkspaceCSP, mediaSrc) {
+		t.Fatalf("widget CSP must allow same-origin media streams: %s", desktopWidgetWorkspaceCSP)
+	}
+	if strings.Contains(desktopWidgetWorkspaceCSP, "media-src 'self' data: blob: http:") || strings.Contains(desktopWidgetWorkspaceCSP, "media-src 'self' data: blob: https:") {
+		t.Fatalf("widget CSP must not allow arbitrary remote media: %s", desktopWidgetWorkspaceCSP)
+	}
+}
+
 func TestSecurityHeadersDoNotCacheVersionlessDesktopSDK(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
