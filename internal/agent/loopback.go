@@ -48,6 +48,29 @@ func buildLoopbackConversationMessages(base []openai.ChatCompletionMessage, hist
 	return append(finalMessages, currentMsg)
 }
 
+func buildLoopbackSessionConversationMessages(base []openai.ChatCompletionMessage, sessionMessages []memory.HistoryMessage, safeMessage string) []openai.ChatCompletionMessage {
+	finalMessages := append([]openai.ChatCompletionMessage(nil), base...)
+	currentMsg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage}
+	currentIncluded := false
+	for _, stored := range sessionMessages {
+		if stored.IsInternal {
+			continue
+		}
+		msg := stored.ChatCompletionMessage
+		if msg.Role == "" || msg.Content == "" {
+			continue
+		}
+		finalMessages = append(finalMessages, msg)
+		if msg.Role == currentMsg.Role && msg.Content == currentMsg.Content {
+			currentIncluded = true
+		}
+	}
+	if !currentIncluded {
+		finalMessages = append(finalMessages, currentMsg)
+	}
+	return finalMessages
+}
+
 // Loopback injects an external message into the agent loop synchronously.
 // Used by webhook-based integrations (e.g. Telnyx SMS) to relay incoming
 // messages through the full agent pipeline including tool execution.
@@ -127,7 +150,26 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 	finalMessages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 	}
-	finalMessages = buildLoopbackConversationMessages(finalMessages, historyManager, safeMessage, shouldPersistLoopbackHistory(sessionID) && !isInternalMessage)
+	includeGlobalHistory := shouldPersistLoopbackHistory(sessionID) && !isInternalMessage
+	if includeGlobalHistory || isInternalMessage {
+		finalMessages = buildLoopbackConversationMessages(finalMessages, historyManager, safeMessage, includeGlobalHistory)
+	} else {
+		sessionMessages, err := shortTermMem.GetSessionMessages(sessionID)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("[Loopback] Failed to load session history, continuing with current message only", "session", sessionID, "error", err)
+			}
+			finalMessages = append(finalMessages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage})
+		} else {
+			finalMessages = buildLoopbackSessionConversationMessages(finalMessages, sessionMessages, safeMessage)
+			if sanitized, dropped := SanitizeToolMessages(finalMessages); dropped > 0 {
+				if logger != nil {
+					logger.Warn("[Loopback] Sanitized orphaned tool messages in session history", "session", sessionID, "dropped", dropped, "before", len(finalMessages), "after", len(sanitized))
+				}
+				finalMessages = sanitized
+			}
+		}
+	}
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,

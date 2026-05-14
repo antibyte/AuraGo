@@ -103,3 +103,33 @@ func TestBuildLoopbackConversationMessagesDoesNotDuplicateCurrentDefaultMessage(
 		t.Fatalf("current prompt count = %d, want 1: %#v", count, messages)
 	}
 }
+
+func TestBuildLoopbackSessionConversationMessagesIncludesVirtualDesktopContext(t *testing.T) {
+	sessionMessages := []memory.HistoryMessage{
+		{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "MUSIK nicht sound"}},
+		{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Sag mir kurz noch den Style."}},
+		{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "retro arcade"}},
+	}
+
+	messages := buildLoopbackSessionConversationMessages(
+		[]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: "system"}},
+		sessionMessages,
+		"retro arcade",
+	)
+
+	if len(messages) != 4 {
+		t.Fatalf("message count = %d, want 4: %#v", len(messages), messages)
+	}
+	if messages[1].Content != "MUSIK nicht sound" || messages[2].Content != "Sag mir kurz noch den Style." {
+		t.Fatalf("prior desktop context was not preserved: %#v", messages)
+	}
+	countCurrent := 0
+	for _, msg := range messages {
+		if msg.Role == openai.ChatMessageRoleUser && msg.Content == "retro arcade" {
+			countCurrent++
+		}
+	}
+	if countCurrent != 1 {
+		t.Fatalf("current desktop prompt count = %d, want 1: %#v", countCurrent, messages)
+	}
+}
