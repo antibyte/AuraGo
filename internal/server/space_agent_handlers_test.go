@@ -521,6 +521,44 @@ func TestHandleIntegrationWebhostsUsesDedicatedTailscaleManifestURL(t *testing.T
 	}
 }
 
+func TestHandleIntegrationWebhostsDerivesTailscaleManifestURLWithoutManagerStatus(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.Port = 2099
+	cfg.Manifest.HostPort = 2099
+	cfg.Manifest.PostgresPassword = "pg-secret"
+	cfg.Manifest.BetterAuthSecret = "better-auth-secret"
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = true
+	cfg.Tailscale.TsNet.Hostname = "aurago"
+	cfg.Tailscale.TsNet.ManifestHostname = "aurago-manifest"
+	cfg.Tailscale.TsNet.ManifestPort = 8444
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "aurago.taild1480.ts.net"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			ID  string `json:"id"`
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Manifest entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].ID != "manifest" || resp.Webhosts[0].URL != "https://aurago-manifest.taild1480.ts.net:8444" {
+		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
+	}
+}
+
 func TestManifestURLWithRequestHostReplacesLocalhost(t *testing.T) {
 	got := manifestURLWithRequestHost("http://127.0.0.1:2099", nil)
 	if got != "http://127.0.0.1:2099" {

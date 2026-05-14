@@ -586,19 +586,25 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 	if cfg == nil {
 		return fallbackURL
 	}
-	if s != nil && s.TsNetManager != nil && cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeManifest {
-		status := s.TsNetManager.GetStatus()
-		if status.ManifestServing {
-			host := strings.TrimSuffix(strings.TrimSpace(status.ManifestDNS), ".")
-			if host == "" {
-				host = tsnetStatusHost(status.DNS, status.CertDNS)
-			}
-			if host != "" {
-				return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+	if cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.ExposeManifest {
+		if s != nil && s.TsNetManager != nil {
+			status := s.TsNetManager.GetStatus()
+			if status.ManifestServing {
+				host := strings.TrimSuffix(strings.TrimSpace(status.ManifestDNS), ".")
+				if host == "" {
+					host = tsnetStatusHost(status.DNS, status.CertDNS)
+				}
+				if host != "" {
+					return fmt.Sprintf("https://%s:%d", host, tsnetCfgManifestPort(s))
+				}
 			}
 		}
 		if requestLooksTailscale(r) {
-			if derived := deriveManifestTailscaleURL(cfg, r, tsnetCfgManifestPort(s)); derived != "" {
+			port := cfg.Tailscale.TsNet.ManifestPort
+			if s != nil && s.Cfg != nil {
+				port = tsnetCfgManifestPort(s)
+			}
+			if derived := deriveManifestTailscaleURL(cfg, r, port); derived != "" {
 				return derived
 			}
 		}
