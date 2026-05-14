@@ -207,6 +207,27 @@ func TestVirtualDesktopChat_MessageTimestampsRemainWired(t *testing.T) {
 	}
 }
 
+func TestVirtualDesktopChat_HistoryDisplayStripsEscapedDesktopRequestWrapper(t *testing.T) {
+	t.Parallel()
+
+	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	if err != nil {
+		t.Fatalf("read desktop chat app JS: %v", err)
+	}
+	appJS := string(appContent)
+	for _, marker := range []string{
+		"decodeDesktopChatHistoryEntities",
+		"&lt;",
+		"&gt;",
+		"&#34;",
+		"desktop_user_request",
+	} {
+		if !strings.Contains(appJS, marker) {
+			t.Fatalf("desktop chat history display must handle escaped external_data wrappers, missing marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 

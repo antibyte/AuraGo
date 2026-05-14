@@ -621,8 +621,9 @@
     }
 
     function desktopChatHistoryDisplayText(role, content) {
-        let text = String(content || '').replace(/<done\s*\/?>/gi, '').trim();
+        let text = decodeDesktopChatHistoryEntities(content).replace(/<done\s*\/?>/gi, '').trim();
         if (role === 'user') {
+            text = text.replace(/^\s*;\s*(?=<external_data\b)/i, '').trim();
             const typed = text.match(/<external_data\b[^>]*type=["']desktop_user_request["'][^>]*>([\s\S]*?)<\/external_data>/i);
             if (typed) text = typed[1];
             else {
@@ -632,6 +633,21 @@
             text = text.replace(/<\/?external_data[^>]*>/gi, '').trim();
         }
         return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function decodeDesktopChatHistoryEntities(content) {
+        let text = String(content || '');
+        for (let i = 0; i < 2; i += 1) {
+            const next = text
+                .replace(/&lt;/gi, '<')
+                .replace(/&gt;/gi, '>')
+                .replace(/&quot;|&#34;/gi, '"')
+                .replace(/&#39;|&apos;/gi, "'")
+                .replace(/&amp;/gi, '&');
+            if (next === text) break;
+            text = next;
+        }
+        return text;
     }
 
     function appendDesktopChatWelcome(host) {
