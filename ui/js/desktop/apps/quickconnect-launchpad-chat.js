@@ -529,6 +529,11 @@
     function renderChat(id, context) {
         const host = contentEl(id);
         host.innerHTML = `<div class="vd-chat">
+            <div class="vd-chat-toolbar">
+                <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
+                    ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</span>
+                </button>
+            </div>
             <div class="vd-chat-log"></div>
             <div class="vd-chat-context" data-chat-context hidden></div>
             <form class="vd-chat-form">
@@ -539,17 +544,13 @@
         </div>`;
         const input = host.querySelector('.vd-chat-input');
         const voiceBtn = host.querySelector('.vd-chat-voice');
-        const chatLog = host.querySelector('.vd-chat-log');
-        const renderer = window.DesktopChatRenderer;
-        if (renderer) {
-            renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
-        } else {
-            appendChat(host, 'agent', t('desktop.chat_welcome'));
-        }
         input.placeholder = t('desktop.chat_placeholder');
         initDesktopChatVoice(host, input, voiceBtn);
         setDesktopChatBusy(host, false);
         applyChatLaunchContext(id, context || {});
+        loadDesktopChatHistory(host);
+        const clearHistory = host.querySelector('[data-chat-clear-history]');
+        if (clearHistory) clearHistory.addEventListener('click', () => clearDesktopChatHistory(host));
         host.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
             if (state.chatBusy) {
@@ -559,6 +560,7 @@
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
+            host._desktopChatHistoryToken = null;
             state.chatBusy = true;
             setDesktopChatBusy(host, true);
             const chatLog = host.querySelector('.vd-chat-log');
@@ -578,9 +580,131 @@
         });
     }
 
+    async function loadDesktopChatHistory(host) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        if (!chatLog) return;
+        const token = Symbol('desktop-chat-history');
+        host._desktopChatHistoryToken = token;
+        chatLog.innerHTML = `<div class="vd-chat-history-status">${esc(desktopText('desktop.loading', 'Loading...'))}</div>`;
+        try {
+            const messages = await api('/history?session_id=virtual-desktop');
+            if (host._desktopChatHistoryToken !== token) return;
+            chatLog.innerHTML = '';
+            const visible = (Array.isArray(messages) ? messages : [])
+                .map(normalizeDesktopChatHistoryMessage)
+                .filter(Boolean)
+                .slice(-60);
+            if (!visible.length) {
+                appendDesktopChatWelcome(host);
+                return;
+            }
+            visible.forEach(message => appendDesktopChatHistoryBubble(host, message));
+            chatLog.scrollTop = chatLog.scrollHeight;
+        } catch (err) {
+            if (host._desktopChatHistoryToken !== token) return;
+            chatLog.innerHTML = '';
+            appendDesktopChatWelcome(host);
+            if (typeof showDesktopNotification === 'function') {
+                showDesktopNotification({ message: desktopText('desktop.chat_history_load_error', 'Could not load chat history.') });
+            }
+        }
+    }
+
+    function normalizeDesktopChatHistoryMessage(message) {
+        if (!message || !message.role) return null;
+        const rawRole = String(message.role || '').toLowerCase();
+        const role = rawRole === 'assistant' || rawRole === 'agent' ? 'agent' : (rawRole === 'user' ? 'user' : '');
+        if (!role) return null;
+        const text = desktopChatHistoryDisplayText(role, message.content || '');
+        if (!text) return null;
+        return { role, text, timestamp: message.timestamp || message.Timestamp || '' };
+    }
+
+    function desktopChatHistoryDisplayText(role, content) {
+        let text = String(content || '').replace(/<done\s*\/?>/gi, '').trim();
+        if (role === 'user') {
+            const typed = text.match(/<external_data\b[^>]*type=["']desktop_user_request["'][^>]*>([\s\S]*?)<\/external_data>/i);
+            if (typed) text = typed[1];
+            else {
+                const marker = text.match(/User request:\s*([\s\S]*)$/i);
+                if (marker) text = marker[1];
+            }
+            text = text.replace(/<\/?external_data[^>]*>/gi, '').trim();
+        }
+        return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function appendDesktopChatWelcome(host) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
+        else if (host) appendChat(host, 'agent', t('desktop.chat_welcome'));
+    }
+
+    function appendDesktopChatHistoryBubble(host, message) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        if (!chatLog || !message || !message.text) return;
+        const renderer = window.DesktopChatRenderer;
+        if (!renderer) {
+            appendChat(host, message.role, message.text);
+            return;
+        }
+        const bubble = renderer.createBubble(message.role, '');
+        if (message.role === 'user') {
+            bubble.textContent = message.text;
+        } else {
+            bubble.innerHTML = renderer.renderMarkdown(message.text);
+            renderer.processImages(bubble);
+            if (window.MermaidLoader) window.MermaidLoader.processBlocks(bubble);
+        }
+        chatLog.appendChild(bubble);
+        renderer.appendTimestamp(chatLog, message.role, message.timestamp);
+    }
+
+    async function clearDesktopChatHistory(host) {
+        if (!host || state.chatBusy) return;
+        const ok = await confirmDesktopChatClear(host);
+        if (!ok) return;
+        try {
+            await api('/clear?session_id=virtual-desktop', { method: 'DELETE' });
+            host._desktopChatHistoryToken = null;
+            const chatLog = host.querySelector('.vd-chat-log');
+            if (chatLog) chatLog.innerHTML = '';
+            appendDesktopChatWelcome(host);
+            if (typeof showDesktopNotification === 'function') {
+                showDesktopNotification({ message: desktopText('desktop.chat_history_cleared', 'Chat history cleared.') });
+            }
+        } catch (err) {
+            appendDesktopChatError(host, err);
+        }
+    }
+
+    function confirmDesktopChatClear(host) {
+        return new Promise(resolve => {
+            const container = host && host.querySelector('.vd-chat');
+            if (!container) { resolve(false); return; }
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-qc-modal-overlay';
+            overlay.innerHTML = `<div class="vd-qc-confirm">
+                <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</div>
+                <div class="vd-qc-confirm-msg">${esc(desktopText('desktop.chat_clear_confirm', 'Delete the visible desktop chat history?'))}</div>
+                <div class="vd-qc-confirm-actions">
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>
+                </div>
+            </div>`;
+            container.appendChild(overlay);
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
+            overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) { overlay.remove(); resolve(false); }
+            });
+        });
+    }
+
     function setDesktopChatBusy(host, busy) {
         if (!host) return;
-        const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]');
+        const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]'), clearBtn = host.querySelector('[data-chat-clear-history]');
         const stop = desktopText('desktop.chat_stop', 'Stop'), send = desktopText('desktop.send', 'Send');
         if (input) input.disabled = !!busy;
         if (voiceBtn) {
@@ -589,6 +713,7 @@
         }
         if (sendBtn) { sendBtn.classList.toggle('is-stop', !!busy); sendBtn.title = busy ? stop : send; }
         if (label) label.textContent = busy ? stop : send;
+        if (clearBtn) clearBtn.disabled = !!busy;
     }
 
     function requestDesktopChatAbort(host) { if (host && typeof host._desktopChatAbort === 'function') host._desktopChatAbort(); }

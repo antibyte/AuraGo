@@ -2657,8 +2657,48 @@
 
 .vd-chat {
     display: grid;
-    grid-template-rows: 1fr auto auto;
+    grid-template-rows: auto 1fr auto auto;
     min-height: 0;
+    position: relative;
+}
+
+.vd-chat-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 10px 0;
+}
+
+.vd-chat-clear-history {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.vd-chat-clear-history:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.vd-chat-clear-history:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vd-chat-toolbar-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
 }
 
 .vd-chat-log {
@@ -2667,6 +2707,13 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.vd-chat-history-status {
+    align-self: center;
+    color: var(--vd-muted);
+    font-size: 0.86rem;
+    margin: auto;
 }
 
 .vd-chat-bubble {

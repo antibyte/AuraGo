@@ -2,6 +2,7 @@ package server
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -94,6 +95,27 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	}
 	if strings.Contains(source, "context.WithTimeout(context.Background(), 10*time.Minute)") {
 		t.Fatal("desktop chat must not use context.Background for agent loopback timeout")
+	}
+}
+
+func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	if err != nil {
+		t.Fatalf("ReadFile desktop chat UI: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"data-chat-clear-history",
+		"loadDesktopChatHistory(host)",
+		"api('/history?session_id=virtual-desktop')",
+		"api('/clear?session_id=virtual-desktop', { method: 'DELETE' })",
+		"type=[\"']desktop_user_request",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat history UI missing marker %q", marker)
+		}
 	}
 }
 
