@@ -547,8 +547,7 @@
         input.placeholder = t('desktop.chat_placeholder');
         initDesktopChatVoice(host, input, voiceBtn);
         setDesktopChatBusy(host, false);
-        applyChatLaunchContext(id, context || {});
-        loadDesktopChatHistory(host);
+        loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {}));
         const clearHistory = host.querySelector('[data-chat-clear-history]');
         if (clearHistory) clearHistory.addEventListener('click', () => clearDesktopChatHistory(host));
         host.querySelector('form').addEventListener('submit', async (event) => {
@@ -557,27 +556,32 @@
                 if (event.submitter && event.submitter.classList && event.submitter.classList.contains('vd-chat-send')) requestDesktopChatAbort(host);
                 return;
             }
-            const message = input.value.trim();
-            if (!message) return;
-            input.value = '';
-            host._desktopChatHistoryToken = null;
-            state.chatBusy = true;
-            setDesktopChatBusy(host, true);
-            const chatLog = host.querySelector('.vd-chat-log');
-            const renderer = window.DesktopChatRenderer;
-            if (renderer) renderer.appendRichBubble(chatLog, 'user', message);
-            else appendChat(host, 'user', message);
-            try {
-                await sendDesktopChatStream(host, message, chatContextPayload(host));
-                await loadBootstrap();
-            } catch (err) {
-                if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
-            } finally {
-                state.chatBusy = false;
-                host._desktopChatAbort = null;
-                setDesktopChatBusy(host, false);
-            }
+            await submitDesktopChatMessage(host, input.value.trim());
         });
+    }
+
+    async function submitDesktopChatMessage(host, message) {
+        const input = host && host.querySelector('.vd-chat-input');
+        message = String(message || '').trim();
+        if (!host || !message || state.chatBusy) return;
+        if (input) input.value = '';
+        host._desktopChatHistoryToken = null;
+        state.chatBusy = true;
+        setDesktopChatBusy(host, true);
+        const chatLog = host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer) renderer.appendRichBubble(chatLog, 'user', message);
+        else appendChat(host, 'user', message);
+        try {
+            await sendDesktopChatStream(host, message, chatContextPayload(host));
+            await loadBootstrap();
+        } catch (err) {
+            if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
+        } finally {
+            state.chatBusy = false;
+            host._desktopChatAbort = null;
+            setDesktopChatBusy(host, false);
+        }
     }
 
     async function loadDesktopChatHistory(host) {
@@ -855,6 +859,15 @@
         const input = host.querySelector('.vd-chat-input');
         if (input && context && context.chat_prefill && !input.value.trim()) {
             input.value = context.chat_prefill;
+        }
+        if (context.chat_autosend && state.chatBusy) {
+            if (input) input.focus();
+            return;
+        }
+        if (context.chat_autosend && input.value.trim() && !state.chatBusy) {
+            window.setTimeout(() => {
+                submitDesktopChatMessage(host, input.value.trim()).catch(err => appendDesktopChatError(host, err));
+            }, 0);
         }
         if (input) input.focus();
     }

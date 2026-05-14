@@ -243,7 +243,7 @@ func TestDesktopFilesCanBeAddedOrAskedInAgentChat(t *testing.T) {
 		"{ label: t('desktop.fm.ask_agent', 'Ask Agent'), action: 'ask-agent'",
 		"{ label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat'",
 		"{ label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent'",
-		"openApp('agent-chat', { chat_files: [chatFileContextFromEntry(entry)] })",
+		"openAgentChatForFile(entry)",
 		"desktop.chat_ask_file_prompt",
 	} {
 		if !strings.Contains(combined, marker) {

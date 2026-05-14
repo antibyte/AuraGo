@@ -180,6 +180,28 @@
             if (fallback) fallback.select();
         }
 
+        function currentFileEntry() {
+            const path = pathInput.value.trim() || currentPath || DEFAULT_PATH;
+            return { path, name: path.split('/').filter(Boolean).pop() || path };
+        }
+
+        async function runAgentTask() {
+            const prompt = ctx.promptDialog || (async () => null);
+            const task = await prompt(t('desktop.agent_task_title', 'Task for Agent'), '');
+            if (!task) return;
+            await save();
+            if (typeof ctx.openAgentChatForFile === 'function') {
+                ctx.openAgentChatForFile(currentFileEntry(), { task, autosend: true });
+            }
+        }
+
+        async function sendToAgentChat() {
+            await save();
+            if (typeof ctx.openAgentChatForFile === 'function') {
+                ctx.openAgentChatForFile(currentFileEntry());
+            }
+        }
+
         function setWindowMenus() {
             if (typeof ctx.setWindowMenus !== 'function') return;
             ctx.setWindowMenus(windowId, [
@@ -216,6 +238,22 @@
                         { id: 'paste', labelKey: 'desktop.fm.paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: readonly, action: () => editCommand('paste') },
                         { type: 'separator' },
                         { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: selectAllText }
+                    ]
+                },
+                {
+                    id: 'agent',
+                    labelKey: 'desktop.menu_agent',
+                    items: [
+                        { id: 'agent-task', labelKey: 'desktop.agent_task_for_agent', icon: 'agent', action: () => runAgentTask().catch(err => {
+                            setStatus(err.message || String(err), 'save-error');
+                            setTimeout(() => clearSaveError(statusNode), 6000);
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) },
+                        { id: 'agent-send-chat', labelKey: 'desktop.agent_send_to_chat', icon: 'chat', action: () => sendToAgentChat().catch(err => {
+                            setStatus(err.message || String(err), 'save-error');
+                            setTimeout(() => clearSaveError(statusNode), 6000);
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) }
                     ]
                 }
             ]);

@@ -140,6 +140,70 @@ func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
 	}
 }
 
+func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		path    string
+		markers []string
+	}{
+		{
+			name: "editor",
+			path: "js/desktop/apps/settings-calculator.js",
+			markers: []string{
+				"id: 'agent'",
+				"labelKey: 'desktop.menu_agent'",
+				"id: 'agent-task'",
+				"labelKey: 'desktop.agent_task_for_agent'",
+				"id: 'agent-send-chat'",
+				"labelKey: 'desktop.agent_send_to_chat'",
+				"openAgentChatForFile",
+				"await saveEditor()",
+			},
+		},
+		{
+			name: "writer",
+			path: "js/desktop/apps/writer.js",
+			markers: []string{
+				"id: 'agent'",
+				"labelKey: 'desktop.menu_agent'",
+				"id: 'agent-task'",
+				"labelKey: 'desktop.agent_task_for_agent'",
+				"id: 'agent-send-chat'",
+				"labelKey: 'desktop.agent_send_to_chat'",
+				"ctx.openAgentChatForFile",
+				"await save()",
+			},
+		},
+		{
+			name: "sheets",
+			path: "js/desktop/apps/sheets.js",
+			markers: []string{
+				"id: 'agent'",
+				"labelKey: 'desktop.menu_agent'",
+				"id: 'agent-task'",
+				"labelKey: 'desktop.agent_task_for_agent'",
+				"id: 'agent-send-chat'",
+				"labelKey: 'desktop.agent_send_to_chat'",
+				"ctx.openAgentChatForFile",
+				"await save()",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := readDesktopAssetText(t, tt.path)
+			for _, marker := range tt.markers {
+				if !strings.Contains(source, marker) {
+					t.Fatalf("%s missing Agent menu marker %q", tt.path, marker)
+				}
+			}
+		})
+	}
+}
+
 func TestSheetsFormulaStateUsesSingleSetter(t *testing.T) {
 	t.Parallel()
 

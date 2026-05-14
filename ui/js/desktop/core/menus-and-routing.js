@@ -944,7 +944,7 @@
                 notify: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
-                updateWindowContext: updateWindowContext,
+                updateWindowContext: updateWindowContext, openAgentChatForFile,
                 setWindowMenus,
                 clearWindowMenus,
                 wireContextMenuBoundary, promptDialog
@@ -959,7 +959,7 @@
                 notify: showDesktopNotification,
                 readonly: !!((state.bootstrap || {}).readonly),
                 loadBootstrap,
-                updateWindowContext: updateWindowContext,
+                updateWindowContext: updateWindowContext, openAgentChatForFile,
                 setWindowMenus,
                 clearWindowMenus,
                 wireContextMenuBoundary, promptDialog

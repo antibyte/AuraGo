@@ -608,6 +608,28 @@
             window.open(exportURL(format), '_blank', 'noopener');
         }
 
+        function currentFileEntry() {
+            const path = pathInput.value.trim() || currentPath || DEFAULT_PATH;
+            return { path, name: path.split('/').filter(Boolean).pop() || path };
+        }
+
+        async function runAgentTask() {
+            const prompt = ctx.promptDialog || (async () => null);
+            const task = await prompt(t('desktop.agent_task_title', 'Task for Agent'), '');
+            if (!task) return;
+            await save();
+            if (typeof ctx.openAgentChatForFile === 'function') {
+                ctx.openAgentChatForFile(currentFileEntry(), { task, autosend: true });
+            }
+        }
+
+        async function sendToAgentChat() {
+            await save();
+            if (typeof ctx.openAgentChatForFile === 'function') {
+                ctx.openAgentChatForFile(currentFileEntry());
+            }
+        }
+
         function setWindowMenus() {
             if (typeof ctx.setWindowMenus !== 'function') return;
             ctx.setWindowMenus(windowId, [
@@ -646,6 +668,20 @@
                         { id: 'insert-row-below', labelKey: 'desktop.sheets_insert_row_below', icon: 'list', disabled: readonly, action: () => insertRow(selectionRange().endRow + 1) },
                         { id: 'insert-col-left', labelKey: 'desktop.sheets_insert_col_left', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().startCol) },
                         { id: 'insert-col-right', labelKey: 'desktop.sheets_insert_col_right', icon: 'grid', disabled: readonly, action: () => insertColumn(selectionRange().endCol + 1) }
+                    ]
+                },
+                {
+                    id: 'agent',
+                    labelKey: 'desktop.menu_agent',
+                    items: [
+                        { id: 'agent-task', labelKey: 'desktop.agent_task_for_agent', icon: 'agent', action: () => runAgentTask().catch(err => {
+                            setStatus(err.message || String(err));
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) },
+                        { id: 'agent-send-chat', labelKey: 'desktop.agent_send_to_chat', icon: 'chat', action: () => sendToAgentChat().catch(err => {
+                            setStatus(err.message || String(err));
+                            notify({ type: 'error', message: err.message || String(err) });
+                        }) }
                     ]
                 }
             ]);

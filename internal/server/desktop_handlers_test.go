@@ -136,6 +136,34 @@ func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
 	}
 }
 
+func TestDesktopChatUILaunchContextSupportsFileAutosend(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	if err != nil {
+		t.Fatalf("ReadFile desktop chat UI: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"chat_autosend",
+		"submitDesktopChatMessage(host, input.value.trim())",
+		"if (context.chat_autosend && input.value.trim() && !state.chatBusy)",
+		"if (context.chat_autosend && state.chatBusy)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat autosend UI missing marker %q", marker)
+		}
+	}
+
+	windowRuntime, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "core", "window-shell-runtime.js"))
+	if err != nil {
+		t.Fatalf("ReadFile desktop window runtime: %v", err)
+	}
+	if !strings.Contains(string(windowRuntime), "applyChatLaunchContext(existing.id, context)") {
+		t.Fatal("agent-chat launches should reuse the existing chat window and merge launch context")
+	}
+}
+
 func TestDesktopJSONHandlersUseBodyLimits(t *testing.T) {
 	t.Parallel()
 

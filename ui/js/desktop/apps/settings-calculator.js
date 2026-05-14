@@ -146,10 +146,27 @@
         };
     }
 
+    function agentTaskPrompt(entry, task) {
+        return desktopText('desktop.agent_task_prompt', 'Please work on {{path}}.\n\nTask:\n{{task}}')
+            .replaceAll('{{path}}', entry.path || '')
+            .replaceAll('{{name}}', entry.name || entry.path || '')
+            .replaceAll('{{task}}', task || '');
+    }
+
+    function openAgentChatForFile(file, options) {
+        const entry = chatFileContextFromEntry(file);
+        if (!entry) return;
+        const context = { chat_files: [entry] };
+        const task = String((options && options.task) || '').trim();
+        if (task) context.chat_prefill = agentTaskPrompt(entry, task);
+        if (options && options.autosend === true) context.chat_autosend = true;
+        openApp('agent-chat', context);
+    }
+
     function addFileContextToChat(file) {
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
-        openApp('agent-chat', { chat_files: [chatFileContextFromEntry(entry)] });
+        openAgentChatForFile(entry);
     }
 
     function askAgentAboutFile(file) {
@@ -298,6 +315,7 @@
                 await loadBootstrap();
             } catch (err) {
                 status.textContent = err.message;
+                throw err;
             }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
@@ -329,6 +347,22 @@
                     } },
                     { type: 'separator' },
                     { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => textarea && textarea.select() }
+                ]
+            },
+            {
+                id: 'agent',
+                labelKey: 'desktop.menu_agent',
+                items: [
+                    { id: 'agent-task', labelKey: 'desktop.agent_task_for_agent', icon: 'agent', action: async () => {
+                        const task = await promptDialog(t('desktop.agent_task_title'), '');
+                        if (!task) return;
+                        await saveEditor();
+                        openAgentChatForFile({ path }, { task, autosend: true });
+                    } },
+                    { id: 'agent-send-chat', labelKey: 'desktop.agent_send_to_chat', icon: 'chat', action: async () => {
+                        await saveEditor();
+                        openAgentChatForFile({ path });
+                    } }
                 ]
             },
             {
