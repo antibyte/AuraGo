@@ -402,32 +402,74 @@ func ListGuildChannels(guildID string, logger *slog.Logger) ([]*discordgo.Channe
 
 // ── Message Handler ─────────────────────────────────────────────────────────
 
-func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
-	// Ignore own messages
-	if m.Author.ID == s.State.User.ID {
-		return
+type messageDecision struct {
+	Accepted    bool
+	Reason      string
+	IsDM        bool
+	IsMentioned bool
+}
+
+func shouldHandleDiscordMessage(botUserID string, m *discordgo.MessageCreate, cfg *config.Config) messageDecision {
+	if m == nil || m.Author == nil {
+		return messageDecision{Reason: "invalid_message"}
+	}
+	if m.Author.ID == botUserID {
+		return messageDecision{Reason: "self"}
 	}
 
 	allowedUserID := strings.TrimSpace(cfg.Discord.AllowedUserID)
 	if allowedUserID == "" {
-		logger.Warn("[Discord] Blocking message because allowed_user_id is not configured", "user_id", m.Author.ID, "username", m.Author.Username)
-		return
+		return messageDecision{Reason: "missing_allowed_user"}
 	}
 	if allowedUserID == "0" {
-		logger.Warn("[Discord] Discovery mode: blocked message from user", "user_id", m.Author.ID, "username", m.Author.Username)
-		return
+		return messageDecision{Reason: "discovery_mode"}
 	}
 	if m.Author.ID != allowedUserID {
-		logger.Warn("[Discord] Blocked unauthorized Discord message", "user_id", m.Author.ID)
-		return
+		return messageDecision{Reason: "unauthorized_user"}
 	}
 
-	// [Guild filter] — if guild_id is set, only accept messages from that guild
-	if cfg.Discord.GuildID != "" && m.GuildID != cfg.Discord.GuildID {
-		// Allow DMs (GuildID == "") through
-		if m.GuildID != "" {
-			return
+	if cfg.Discord.GuildID != "" && m.GuildID != "" && m.GuildID != cfg.Discord.GuildID {
+		return messageDecision{Reason: "wrong_guild"}
+	}
+
+	isDM := m.GuildID == ""
+	isMentioned := false
+	for _, mention := range m.Mentions {
+		if mention.ID == botUserID {
+			isMentioned = true
+			break
 		}
+	}
+	if isDM {
+		return messageDecision{Accepted: true, Reason: "dm", IsDM: true, IsMentioned: isMentioned}
+	}
+	if isMentioned {
+		return messageDecision{Accepted: true, Reason: "mention", IsMentioned: true}
+	}
+	if defaultChannelID := strings.TrimSpace(cfg.Discord.DefaultChannelID); defaultChannelID != "" && m.ChannelID == defaultChannelID {
+		return messageDecision{Accepted: true, Reason: "default_channel"}
+	}
+	return messageDecision{Reason: "not_mentioned"}
+}
+
+func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
+	botUserID := ""
+	if s != nil && s.State != nil && s.State.User != nil {
+		botUserID = s.State.User.ID
+	}
+	decision := shouldHandleDiscordMessage(botUserID, m, cfg)
+	if !decision.Accepted {
+		switch decision.Reason {
+		case "missing_allowed_user":
+			logger.Warn("[Discord] Blocking message because allowed_user_id is not configured", "user_id", m.Author.ID, "username", m.Author.Username)
+		case "discovery_mode":
+			logger.Warn("[Discord] Discovery mode: blocked message from user", "user_id", m.Author.ID, "username", m.Author.Username)
+		case "unauthorized_user":
+			logger.Warn("[Discord] Blocked unauthorized Discord message", "user_id", m.Author.ID)
+		case "not_mentioned":
+			logger.Debug("[Discord] Ignoring channel message without bot mention outside default channel", "channel", m.ChannelID)
+		}
+		return
 	}
 
 	inputText := m.Content
@@ -436,24 +478,10 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	// Bot must be mentioned or DMed to respond (avoid responding to every message)
-	isDM := m.GuildID == ""
-	isMentioned := false
-	for _, mention := range m.Mentions {
-		if mention.ID == s.State.User.ID {
-			isMentioned = true
-			break
-		}
-	}
-
-	if !isDM && !isMentioned {
-		return // Only respond when mentioned or in DMs
-	}
-
 	// Strip the bot mention from the message text
-	if isMentioned {
-		inputText = strings.ReplaceAll(inputText, "<@"+s.State.User.ID+">", "")
-		inputText = strings.ReplaceAll(inputText, "<@!"+s.State.User.ID+">", "")
+	if decision.IsMentioned {
+		inputText = strings.ReplaceAll(inputText, "<@"+botUserID+">", "")
+		inputText = strings.ReplaceAll(inputText, "<@!"+botUserID+">", "")
 		inputText = strings.TrimSpace(inputText)
 	}
 
@@ -477,7 +505,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	logger.Info("[Discord] Processing message", "user", m.Author.Username, "channel", m.ChannelID, "isDM", isDM)
+	logger.Info("[Discord] Processing message", "user", m.Author.Username, "channel", m.ChannelID, "isDM", decision.IsDM, "trigger", decision.Reason)
 
 	// Slash command interception
 	if strings.HasPrefix(inputText, "/") {

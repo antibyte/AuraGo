@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func TestStatusReportsDisabledAndMissingToken(t *testing.T) {
@@ -37,5 +39,47 @@ func TestStatusAnnotatesDisallowedIntentErrors(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(st.Message), "message content intent") {
 		t.Fatalf("message = %q, want message content intent hint", st.Message)
+	}
+}
+
+func TestShouldHandleDiscordMessageAllowsDefaultChannelWithoutMention(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "user-1"
+	cfg.Discord.DefaultChannelID = "channel-1"
+
+	msg := &discordgo.MessageCreate{Message: &discordgo.Message{
+		Author:    &discordgo.User{ID: "user-1", Username: "Andi"},
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		Content:   "status bitte",
+	}}
+
+	decision := shouldHandleDiscordMessage("bot-1", msg, cfg)
+	if !decision.Accepted {
+		t.Fatalf("decision = %+v, want default channel message accepted", decision)
+	}
+	if decision.Reason != "default_channel" {
+		t.Fatalf("reason = %q, want default_channel", decision.Reason)
+	}
+}
+
+func TestShouldHandleDiscordMessageIgnoresOtherChannelWithoutMention(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "user-1"
+	cfg.Discord.DefaultChannelID = "channel-1"
+
+	msg := &discordgo.MessageCreate{Message: &discordgo.Message{
+		Author:    &discordgo.User{ID: "user-1", Username: "Andi"},
+		GuildID:   "guild-1",
+		ChannelID: "channel-2",
+		Content:   "status bitte",
+	}}
+
+	decision := shouldHandleDiscordMessage("bot-1", msg, cfg)
+	if decision.Accepted {
+		t.Fatalf("decision = %+v, want non-default channel without mention ignored", decision)
+	}
+	if decision.Reason != "not_mentioned" {
+		t.Fatalf("reason = %q, want not_mentioned", decision.Reason)
 	}
 }
