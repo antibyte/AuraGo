@@ -1281,11 +1281,16 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	t.Parallel()
 
 	mainPath := filepath.Join("js", "config", "main.js")
+	pagePath := "config.html"
 	modulePath := filepath.Join("cfg", "manifest.js")
 
 	mainContent, err := os.ReadFile(mainPath)
 	if err != nil {
 		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	pageContent, err := os.ReadFile(pagePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", pagePath, err)
 	}
 	moduleContent, err := os.ReadFile(modulePath)
 	if err != nil {
@@ -1293,8 +1298,9 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	}
 
 	mainJS := string(mainContent)
+	pageHTML := string(pageContent)
 	for _, marker := range []string{
-		"CONFIG_ASSET_VERSION = '15'",
+		"CONFIG_ASSET_VERSION = '16'",
 		"{ key: 'manifest'",
 		"manifest: { m: 'manifest', fn: 'renderManifestSection' }",
 		"function fieldLabelText",
@@ -1303,6 +1309,9 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("%s missing Manifest config marker %q", mainPath, marker)
 		}
+	}
+	if !strings.Contains(pageHTML, "/js/config/main.js?v=16") {
+		t.Fatalf("%s must load the cache-busted config main script", pagePath)
 	}
 
 	moduleJS := string(moduleContent)
