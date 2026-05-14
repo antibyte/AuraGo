@@ -157,6 +157,8 @@
         const entry = chatFileContextFromEntry(file);
         if (!entry) return;
         const context = { chat_files: [entry] };
+        const sourceApp = String((options && (options.sourceApp || options.source_app)) || '').trim();
+        if (sourceApp) context.chat_source_app = sourceApp;
         const task = String((options && options.task) || '').trim();
         if (task) context.chat_prefill = agentTaskPrompt(entry, task);
         if (options && options.autosend === true) context.chat_autosend = true;
@@ -357,11 +359,11 @@
                         const task = await promptDialog(t('desktop.agent_task_title'), '');
                         if (!task) return;
                         await saveEditor();
-                        openAgentChatForFile({ path }, { task, autosend: true });
+                        openAgentChatForFile({ path }, { task, autosend: true, sourceApp: 'editor' });
                     } },
                     { id: 'agent-send-chat', labelKey: 'desktop.agent_send_to_chat', icon: 'chat', action: async () => {
                         await saveEditor();
-                        openAgentChatForFile({ path });
+                        openAgentChatForFile({ path }, { sourceApp: 'editor' });
                     } }
                 ]
             },

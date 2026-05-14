@@ -841,6 +841,7 @@
         const clear = bar.querySelector('[data-chat-context-clear]');
         if (clear) clear.addEventListener('click', () => {
             host.dataset.chatFiles = '[]';
+            delete host.dataset.chatSourceApp;
             renderChatContextBar(host);
         });
     }
@@ -855,6 +856,9 @@
             if (!merged.some(existingFile => existingFile.path === file.path)) merged.push(file);
         });
         host.dataset.chatFiles = JSON.stringify(merged);
+        const sourceApp = String((context && (context.chat_source_app || context.source_app || context.origin_app)) || '').trim();
+        if (sourceApp) host.dataset.chatSourceApp = sourceApp;
+        else if (incoming.length) delete host.dataset.chatSourceApp;
         renderChatContextBar(host);
         const input = host.querySelector('.vd-chat-input');
         if (input && context && context.chat_prefill && !input.value.trim()) {
@@ -875,8 +879,10 @@
     function chatContextPayload(host) {
         const files = chatAttachedFiles(host);
         if (!files.length) return {};
+        const sourceApp = String((host && host.dataset.chatSourceApp) || '').trim();
         return {
             source: 'desktop-file',
+            origin_app: sourceApp,
             current_file: files[0].path,
             open_files: files.map(file => file.path)
         };

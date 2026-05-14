@@ -70,6 +70,28 @@ func TestBuildDesktopAgentPromptIncludesDesktopFileContext(t *testing.T) {
 	}
 }
 
+func TestBuildDesktopAgentPromptKeepsEditorTasksInEditor(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Please improve this text.", desktopChatContext{
+		Source:      "desktop-file",
+		OriginApp:   "editor",
+		CurrentFile: "Documents/note.txt",
+		OpenFiles:   []string{"Documents/note.txt"},
+	})
+
+	for _, want := range []string{
+		"This task was launched from the Editor app",
+		"write the result back to the same desktop file",
+		"open_in_app with app_id \"editor\"",
+		"Do not open Writer",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("editor-origin prompt missing marker %q in:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testing.T) {
 	t.Parallel()
 

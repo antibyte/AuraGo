@@ -341,6 +341,9 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	if !strings.Contains(appIDDescription, "open_in_app") {
 		t.Fatalf("app_id description missing open_in_app guidance: %s", appIDDescription)
 	}
+	if !strings.Contains(appIDDescription, "editor") {
+		t.Fatalf("app_id description missing editor guidance: %s", appIDDescription)
+	}
 	manifest, _ := props["manifest"].(map[string]interface{})
 	manifestDescription, _ := manifest["description"].(string)
 	for _, want := range []string{"icon_catalog.preferred", "icon_catalog.aliases", "icon_catalog.categories", "icon is optional", "runtime defaults to aura-desktop-sdk@1"} {
@@ -369,6 +372,7 @@ func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
 	manual := string(data)
 	for _, want := range []string{
 		"`open_app` / `open_in_app`",
+		"`editor`",
 		"`AuraDesktop.menu.set(menus)`",
 		"`AuraDesktop.menu.clear()`",
 		"`AuraDesktop.menu.onAction(handler)`",

@@ -619,14 +619,14 @@
             if (!task) return;
             await save();
             if (typeof ctx.openAgentChatForFile === 'function') {
-                ctx.openAgentChatForFile(currentFileEntry(), { task, autosend: true });
+                ctx.openAgentChatForFile(currentFileEntry(), { task, autosend: true, sourceApp: 'sheets' });
             }
         }
 
         async function sendToAgentChat() {
             await save();
             if (typeof ctx.openAgentChatForFile === 'function') {
-                ctx.openAgentChatForFile(currentFileEntry());
+                ctx.openAgentChatForFile(currentFileEntry(), { sourceApp: 'sheets' });
             }
         }
 

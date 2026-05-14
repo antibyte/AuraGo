@@ -1191,7 +1191,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
-				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, or widget ownership."),
+				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, and code-studio for code work."),
 				"manifest": map[string]interface{}{
 					"type":                 "object",
 					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is optional but should come from icon_catalog.categories, icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; when omitted AuraGo infers one from id/name/entry/description. runtime defaults to aura-desktop-sdk@1.",

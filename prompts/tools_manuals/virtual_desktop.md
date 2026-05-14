@@ -26,7 +26,7 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `export_file`: export an Office file to another workspace file. Use `path`, `output_path`, and `format` (`docx`, `html`, `md`, `txt`, `xlsx`, or `csv`).
 - `install_app`: register a generated app and install its files under `Apps/<id>/`. Provide `manifest` and `files`.
 - `upsert_widget`: register or update a pinned widget. Provide `widget`.
-- `open_app` / `open_in_app`: ask the browser desktop to open an app. Provide `app_id` and optionally `path` to open a specific file. Available apps: `writer` (documents), `sheets` (spreadsheets), `code-studio` (code). Use this after creating files so the user can see them immediately.
+- `open_app` / `open_in_app`: ask the browser desktop to open an app. Provide `app_id` and optionally `path` to open a specific file. Available apps: `editor` (plain text workspace files), `writer` (word-processing documents), `sheets` (spreadsheets), `code-studio` (code). Use this after creating files so the user can see them immediately.
 - `show_notification`: show a desktop notification. Provide `title` and `content`.
 
 ## App Manifest

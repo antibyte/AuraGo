@@ -55,7 +55,8 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 		"context && context.path != null",
 		"normalizeDesktopPath(context.path)",
 		"win.context && normalizeDesktopPath(win.context.path) === requestedPath",
-		"appId === 'writer' || appId === 'sheets'",
+		"appId === 'editor' || appId === 'writer' || appId === 'sheets'",
+		"if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');",
 		"context: windowContext",
 		"updateWindowContext: updateWindowContext",
 		"ctx.updateWindowContext(windowId, { path: currentPath })",
@@ -201,6 +202,30 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
+	t.Parallel()
+
+	editorSource := readDesktopAssetText(t, "js/desktop/apps/settings-calculator.js")
+	for _, marker := range []string{
+		"sourceApp: 'editor'",
+		"chat_source_app = sourceApp",
+	} {
+		if !strings.Contains(editorSource, marker) {
+			t.Fatalf("editor Agent launch context missing marker %q", marker)
+		}
+	}
+
+	chatSource := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"host.dataset.chatSourceApp",
+		"origin_app: sourceApp",
+	} {
+		if !strings.Contains(chatSource, marker) {
+			t.Fatalf("desktop chat launch context missing marker %q", marker)
+		}
 	}
 }
 

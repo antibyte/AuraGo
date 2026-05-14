@@ -296,6 +296,7 @@ func sseWriteDone(w http.ResponseWriter) {
 
 type desktopChatContext struct {
 	Source          string   `json:"source"`
+	OriginApp       string   `json:"origin_app,omitempty"`
 	CurrentFile     string   `json:"current_file"`
 	CurrentLanguage string   `json:"current_language"`
 	CurrentContent  string   `json:"current_content"`
@@ -404,7 +405,7 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 	var b strings.Builder
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	b.WriteString("\n\nNever use file_editor, filesystem, smart_file_read, or other agent_workspace file tools for Virtual Desktop paths. Paths beginning with Apps/ or Widgets/ live in the Virtual Desktop workspace, not agent_workspace/workdir; use virtual_desktop read_file, write_file, install_app, or open_in_app with the same path.")
-	b.WriteString("\n\nYou can open files in desktop apps using the virtual_desktop tool with operation \"open_in_app\". Available apps: writer (documents, docx, html, md, txt), sheets (spreadsheets, xlsx, csv), code-studio (code files, scripts). After creating or writing a file, proactively open it in the appropriate app so the user can see it immediately. Example: after writing a document, use open_in_app with app_id \"writer\" and path to the file.")
+	b.WriteString("\n\nYou can open files in desktop apps using the virtual_desktop tool with operation \"open_in_app\". Available apps: editor (plain text workspace files), writer (word-processing documents, docx, html), sheets (spreadsheets, xlsx, csv), code-studio (code files, scripts). After creating or writing a file, proactively open it in the appropriate app so the user can see it immediately. Example: after writing a document, use open_in_app with app_id \"writer\" and path to the file.")
 	if chatContext.Source == "code-studio" {
 		b.WriteString("\n\nThe user is coding in Code Studio.")
 		b.WriteString("\nImportant: Code Studio files live inside the dedicated Code Studio container workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
@@ -434,6 +435,9 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 	}
 	if chatContext.Source != "code-studio" && (strings.TrimSpace(chatContext.CurrentFile) != "" || len(chatContext.OpenFiles) > 0) {
 		b.WriteString("\n\nThe user has attached desktop workspace file context. Use the virtual_desktop tool with operation \"read_file\" or the relevant desktop document/workbook tools when you need file contents; do not assume contents from the filename alone.")
+		if chatContext.OriginApp == "editor" {
+			b.WriteString("\nImportant: This task was launched from the Editor app. If the request asks you to change the attached file, write the result back to the same desktop file with virtual_desktop write_file, then call virtual_desktop open_in_app with app_id \"editor\" and the same path. Do not open Writer for this Editor-origin task unless the user explicitly asks for Writer or a word-processing document.")
+		}
 		if strings.TrimSpace(chatContext.CurrentFile) != "" {
 			b.WriteString("\nCurrent desktop file:\n")
 			b.WriteString(desktopExternalData("desktop_current_file", chatContext.CurrentFile, 2048))

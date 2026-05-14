@@ -9,7 +9,6 @@
             container.innerHTML = `<div class="vd-widget-body">${esc(widget.title)}</div>`;
         }
     }
-
     function renderAnalogClockWidget(container) {
         const size = Math.min(container.parentElement.offsetWidth || 200, container.parentElement.offsetHeight || 200);
         const svgSize = Math.max(80, size - 20);
@@ -567,7 +566,7 @@
         });
         return [...state.windows.values()].find(win => {
             if (win.appId !== appId) return false;
-            if ((appId === 'writer' || appId === 'sheets') && context && context.path != null) {
+            if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
                 const requestedPath = normalizeDesktopPath(context.path);
                 return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
             }
@@ -687,6 +686,7 @@
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
             }
+            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             return;
         }
