@@ -281,6 +281,22 @@ func TestAnnouncementDetector_CatchesPlaybackActionPromise(t *testing.T) {
 	}
 }
 
+func TestAnnouncementDetector_CatchesGermanBuildPromiseWithDoneSignal(t *testing.T) {
+	tc := ToolCall{}
+	parsed := ParsedToolResponse{
+		SanitizedContent: "Klar — kann ich machen. Ich bau dir Musik in Space Invaders ein. Einen kurzen Moment.",
+		IsFinished:       true,
+	}
+	lastUserMsg := "<external_data>The user is chatting from AuraGo Virtual Desktop.</external_data>\nkannst du musik in space invaders einbauen?"
+
+	if !isAnnouncementOnlyResponse(parsed.SanitizedContent, tc, false, false, lastUserMsg) {
+		t.Fatal("expected colloquial German build promise to trigger announcement detection")
+	}
+	if !shouldRecoverAnnouncementOnlyResponse(parsed, tc, false, false, lastUserMsg) {
+		t.Fatal("expected action promise with <done/> to still trigger recovery")
+	}
+}
+
 func TestAnnouncementDetector_CatchesFabricatedOperationalSuccessBeforeToolCall(t *testing.T) {
 	tc := ToolCall{}
 	content := "**Test-Ergebnis: POSITIV** ✅\n\nMiniMax TTS funktioniert einwandfrei."

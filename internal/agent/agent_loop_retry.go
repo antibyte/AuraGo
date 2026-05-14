@@ -267,9 +267,8 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 	}
 
 	announcementOnly := announcementContent != "" &&
-		!parsedToolResp.IsFinished &&
 		!tc.IsTool &&
-		isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
+		shouldRecoverAnnouncementOnlyResponse(parsedToolResp, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
 	if announcementOnly && s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 		s.announcementCount++
 		currentLogger.Warn("[Sync] Announcement-only text response detected, requesting tool call or completion signal",

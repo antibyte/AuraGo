@@ -28,7 +28,7 @@ var postToolForwardCues = []string{
 }
 
 var postToolActionCues = []string{
-	"ich baue", "baue ich", "ich deploye", "deploye ich", "ich starte", "starte ich",
+	"ich baue", "ich bau", "baue ich", "ich deploye", "deploye ich", "ich starte", "starte ich",
 	"ich prüfe", "prüfe ich", "ich installiere", "installiere ich", "ich führe", "führe ich",
 	"ich werde", "werde ich", "i will", "i'll", "let me", "starting", "launching",
 }
@@ -157,6 +157,17 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
+}
+
+func shouldRecoverAnnouncementOnlyResponse(parsedToolResp ParsedToolResponse, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
+	announcementContent := parsedToolResp.SanitizedContent
+	if announcementContent == "" || tc.IsTool {
+		return false
+	}
+	if !isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg) {
+		return false
+	}
+	return true
 }
 
 func claimsToolUnavailableWithoutDiscovery(content string) bool {
