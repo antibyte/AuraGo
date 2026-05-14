@@ -10,6 +10,27 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+type captureHealthReporter struct {
+	events    []HealthEvent
+	successes []HealthSuccess
+}
+
+func (r *captureHealthReporter) ReportLLMHealthEvent(event HealthEvent) {
+	r.events = append(r.events, event)
+}
+
+func (r *captureHealthReporter) ReportLLMHealthSuccess(success HealthSuccess) {
+	r.successes = append(r.successes, success)
+}
+
+func withHealthReporter(t *testing.T, reporter HealthReporter) {
+	t.Helper()
+	SetHealthReporter(reporter)
+	t.Cleanup(func() {
+		SetHealthReporter(nil)
+	})
+}
+
 type mockRetryClient struct {
 	callCount   int
 	shouldRetry []error
@@ -146,6 +167,48 @@ func TestExecuteWithRetry_TransientRetries(t *testing.T) {
 	}
 }
 
+func TestExecuteWithRetryReportsTransientProviderError(t *testing.T) {
+	reporter := &captureHealthReporter{}
+	withHealthReporter(t, reporter)
+	client := &mockRetryClient{
+		shouldRetry: []error{
+			errors.New("connection timeout"),
+			nil,
+		},
+	}
+
+	_, err := ExecuteWithCustomRetry(context.Background(), client, openai.ChatCompletionRequest{Model: "primary-model"}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	if err != nil {
+		t.Fatalf("ExecuteWithRetry returned error after retryable provider failure: %v", err)
+	}
+
+	if len(reporter.events) != 1 {
+		t.Fatalf("health events len = %d, want 1: %+v", len(reporter.events), reporter.events)
+	}
+	event := reporter.events[0]
+	if event.Operation != "chat_completion" {
+		t.Fatalf("operation = %q, want chat_completion", event.Operation)
+	}
+	if event.Model != "primary-model" {
+		t.Fatalf("model = %q, want primary-model", event.Model)
+	}
+	if event.ErrorCategory != ErrCategoryTemporaryTransport {
+		t.Fatalf("category = %q, want %q", event.ErrorCategory, ErrCategoryTemporaryTransport)
+	}
+	if !event.Retryable {
+		t.Fatal("expected retryable health event")
+	}
+	if event.Attempt != 1 {
+		t.Fatalf("attempt = %d, want 1", event.Attempt)
+	}
+	if event.ErrorSummary == "" {
+		t.Fatal("expected non-empty error summary")
+	}
+	if len(reporter.successes) != 1 {
+		t.Fatalf("successes len = %d, want 1", len(reporter.successes))
+	}
+}
+
 func TestExecuteWithRetry_RetriesPerAttemptDeadlineWhenParentContextActive(t *testing.T) {
 	withPerAttemptTimeout(t, 1*time.Millisecond)
 	client := &perAttemptTimeoutClient{}
@@ -158,6 +221,34 @@ func TestExecuteWithRetry_RetriesPerAttemptDeadlineWhenParentContextActive(t *te
 	}
 	if client.callCount != 2 {
 		t.Fatalf("callCount = %d, want 2", client.callCount)
+	}
+}
+
+func TestExecuteWithRetryReportsPerAttemptDeadlineAsProviderError(t *testing.T) {
+	withPerAttemptTimeout(t, 1*time.Millisecond)
+	reporter := &captureHealthReporter{}
+	withHealthReporter(t, reporter)
+	client := &perAttemptTimeoutClient{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := ExecuteWithCustomRetry(ctx, client, openai.ChatCompletionRequest{Model: "slow-model"}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	if err != nil {
+		t.Fatalf("ExecuteWithRetry returned error after per-attempt timeout retry: %v", err)
+	}
+
+	if len(reporter.events) != 1 {
+		t.Fatalf("health events len = %d, want 1: %+v", len(reporter.events), reporter.events)
+	}
+	event := reporter.events[0]
+	if event.ErrorCategory != ErrCategoryContextDeadline {
+		t.Fatalf("category = %q, want %q", event.ErrorCategory, ErrCategoryContextDeadline)
+	}
+	if event.PerAttemptTimeout != time.Millisecond {
+		t.Fatalf("per-attempt timeout = %s, want 1ms", event.PerAttemptTimeout)
+	}
+	if !event.Retryable {
+		t.Fatal("expected per-attempt deadline to be reported as retryable provider issue")
 	}
 }
 
@@ -231,6 +322,53 @@ func TestExecuteWithRetry_ContextCancellationDuringWait(t *testing.T) {
 
 	if !IsContextError(err) {
 		t.Errorf("ExecuteWithRetry should return context error, got: %v", err)
+	}
+}
+
+func TestExecuteWithRetryDoesNotReportParentContextCancel(t *testing.T) {
+	reporter := &captureHealthReporter{}
+	withHealthReporter(t, reporter)
+	client := &mockRetryClient{
+		shouldRetry: []error{context.Canceled},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := ExecuteWithRetry(ctx, client, openai.ChatCompletionRequest{Model: "primary-model"}, nil, nil)
+	if !IsContextError(err) {
+		t.Fatalf("expected context error, got %v", err)
+	}
+	if len(reporter.events) != 0 {
+		t.Fatalf("health events len = %d, want 0: %+v", len(reporter.events), reporter.events)
+	}
+	if len(reporter.successes) != 0 {
+		t.Fatalf("successes len = %d, want 0", len(reporter.successes))
+	}
+}
+
+func TestExecuteWithRetryReportsNonRetryableProviderProblemImmediately(t *testing.T) {
+	reporter := &captureHealthReporter{}
+	withHealthReporter(t, reporter)
+	client := &mockRetryClient{
+		shouldRetry: []error{&openai.APIError{HTTPStatusCode: http.StatusUnauthorized, Message: "invalid api key"}},
+	}
+
+	_, err := ExecuteWithRetry(context.Background(), client, openai.ChatCompletionRequest{Model: "primary-model"}, nil, nil)
+	if err == nil {
+		t.Fatal("expected non-retryable provider error")
+	}
+	if len(reporter.events) != 1 {
+		t.Fatalf("health events len = %d, want 1: %+v", len(reporter.events), reporter.events)
+	}
+	event := reporter.events[0]
+	if event.ErrorCategory != ErrCategoryAuthError {
+		t.Fatalf("category = %q, want %q", event.ErrorCategory, ErrCategoryAuthError)
+	}
+	if event.Retryable {
+		t.Fatal("expected non-retryable health event")
+	}
+	if event.Attempt != 1 {
+		t.Fatalf("attempt = %d, want 1", event.Attempt)
 	}
 }
 

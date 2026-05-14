@@ -92,6 +92,43 @@ type FeedbackProvider interface {
 	Send(event, message string)
 }
 
+type activeProviderModelProvider interface {
+	ActiveProviderAndModel() (string, string)
+}
+
+func activeProviderAndModel(client ChatClient, fallbackModel string) (string, string) {
+	if scopedClient, ok := client.(activeProviderModelProvider); ok {
+		return scopedClient.ActiveProviderAndModel()
+	}
+	return "", fallbackModel
+}
+
+func reportProviderError(client ChatClient, req openai.ChatCompletionRequest, operation string, err error, attempt int, retryable bool, timeout time.Duration) {
+	if err == nil {
+		return
+	}
+	provider, model := activeProviderAndModel(client, req.Model)
+	ReportLLMHealthEvent(HealthEvent{
+		Operation:         operation,
+		Provider:          provider,
+		Model:             model,
+		ErrorCategory:     ClassifyError(err),
+		ErrorSummary:      safeAPIError(err),
+		Attempt:           attempt,
+		Retryable:         retryable,
+		PerAttemptTimeout: timeout,
+	})
+}
+
+func reportProviderSuccess(client ChatClient, req openai.ChatCompletionRequest, operation string) {
+	provider, model := activeProviderAndModel(client, req.Model)
+	ReportLLMHealthSuccess(HealthSuccess{
+		Operation: operation,
+		Provider:  provider,
+		Model:     model,
+	})
+}
+
 func ExecuteWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (openai.ChatCompletionResponse, error) {
 	return ExecuteWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval)
 }
@@ -120,6 +157,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		attemptCancel()
 
 		if err == nil {
+			reportProviderSuccess(client, req, "chat_completion")
 			if logger != nil {
 				logger.Info("[LLM Retry] CreateChatCompletion succeeded",
 					"attempt", attempt+1,
@@ -145,6 +183,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
+			reportProviderError(client, req, "chat_completion", err, attempt+1, false, timeout)
 			if logger != nil {
 				logger.Error("[LLM Retry] Non-retryable error, aborting",
 					"error", err,
@@ -158,6 +197,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		attempt++
+		reportProviderError(client, req, "chat_completion", err, attempt, true, timeout)
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
 				logger.Error("[LLM Retry] Max retry attempts reached, aborting",
@@ -244,6 +284,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		attemptCancel()
 
 		if err == nil {
+			reportProviderSuccess(client, req, "chat_completion_stream")
 			if logger != nil {
 				logger.Info("[LLM Stream Retry] CreateChatCompletionStream succeeded",
 					"attempt", attempt+1,
@@ -269,6 +310,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
+			reportProviderError(client, req, "chat_completion_stream", err, attempt+1, false, timeout)
 			if logger != nil {
 				logger.Error("[LLM Stream Retry] Non-retryable error, aborting",
 					"error", err,
@@ -282,6 +324,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		attempt++
+		reportProviderError(client, req, "chat_completion_stream", err, attempt, true, timeout)
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
 				logger.Error("[LLM Stream Retry] Max retry attempts reached, aborting",

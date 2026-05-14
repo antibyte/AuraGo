@@ -641,6 +641,11 @@ func main() {
 
 	// Warnings Registry for runtime health / security issue tracking
 	warningsRegistry := warnings.NewRegistry()
+	llmHealthThreshold := cfg.FallbackLLM.ErrorThreshold
+	if llmHealthThreshold <= 0 {
+		llmHealthThreshold = 3
+	}
+	llm.SetHealthReporter(warnings.NewLLMProviderMonitor(warningsRegistry, llmHealthThreshold, 10*time.Minute))
 
 	// Process Registry for background daemon management
 	registry := tools.NewProcessRegistry(appLog)

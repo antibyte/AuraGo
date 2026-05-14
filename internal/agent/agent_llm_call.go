@@ -175,6 +175,16 @@ func handleStreamingResponse(
 		select {
 		case <-timer.C:
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
+			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
+			llm.ReportLLMHealthEvent(llm.HealthEvent{
+				Operation:         "stream_idle_timeout",
+				Provider:          telemetryScope.ProviderType,
+				Model:             telemetryScope.Model,
+				ErrorCategory:     llm.ErrCategoryContextDeadline,
+				ErrorSummary:      fmt.Sprintf("no stream chunks received within %s", idleTimeout),
+				Retryable:         true,
+				PerAttemptTimeout: idleTimeout,
+			})
 			cancelResp()
 			stm.Close()
 			contextCancelled = true
