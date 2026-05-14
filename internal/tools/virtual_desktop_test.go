@@ -84,6 +84,59 @@ func TestExecuteVirtualDesktopWriteFileAutoRegistersStandaloneWidget(t *testing.
 	t.Fatalf("weather_pforzheim widget not registered: %+v", bootstrap.Data.Widgets)
 }
 
+func TestExecuteVirtualDesktopWriteFileAutoRegistersStandaloneWidgetIndexFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/printer-camera/index.html",
+		"content":   "<main>Printer camera</main>",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			WidgetID string `json:"widget_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output = %s", payload.Status, exec.Output)
+	}
+	if payload.Data.WidgetID != "printer-camera" {
+		t.Fatalf("widget_id = %q, want printer-camera", payload.Data.WidgetID)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var bootstrap struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widgets []struct {
+				ID    string `json:"id"`
+				AppID string `json:"app_id"`
+				Entry string `json:"entry"`
+			} `json:"widgets"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(status.Output), &bootstrap); err != nil {
+		t.Fatalf("unmarshal status: %v\n%s", err, status.Output)
+	}
+	for _, widget := range bootstrap.Data.Widgets {
+		if widget.ID == "printer-camera" {
+			if widget.AppID != "" {
+				t.Fatalf("app_id = %q, want standalone widget", widget.AppID)
+			}
+			if widget.Entry != "printer-camera/index.html" {
+				t.Fatalf("entry = %q, want printer-camera/index.html", widget.Entry)
+			}
+			return
+		}
+	}
+	t.Fatalf("printer-camera widget not registered: %+v", bootstrap.Data.Widgets)
+}
+
 func TestExecuteVirtualDesktopWriteFileRejectsEmptyStandaloneWidgetHTML(t *testing.T) {
 	t.Parallel()
 
@@ -103,6 +156,74 @@ func TestExecuteVirtualDesktopWriteFileRejectsEmptyStandaloneWidgetHTML(t *testi
 	if payload.Status != "error" {
 		t.Fatalf("status = %q, want error: %s", payload.Status, exec.Output)
 	}
+}
+
+func TestExecuteVirtualDesktopUpsertWidgetNormalizesExistingStandaloneWidgetIndexFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/printer-camera/index.html",
+		"content":   "<main>Printer camera</main>",
+	})
+	var writePayload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(write.Output), &writePayload); err != nil {
+		t.Fatalf("unmarshal write output: %v\n%s", err, write.Output)
+	}
+	if writePayload.Status != "ok" {
+		t.Fatalf("write_file status = %q, output = %s", writePayload.Status, write.Output)
+	}
+
+	upsert := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "upsert_widget",
+		"widget": map[string]interface{}{
+			"id":     "printer-camera",
+			"app_id": "printer-camera",
+			"title":  "Printer Camera",
+			"entry":  "index.html",
+			"icon":   "camera",
+		},
+	})
+	var upsertPayload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(upsert.Output), &upsertPayload); err != nil {
+		t.Fatalf("unmarshal upsert output: %v\n%s", err, upsert.Output)
+	}
+	if upsertPayload.Status != "ok" {
+		t.Fatalf("upsert_widget status = %q message = %q output = %s", upsertPayload.Status, upsertPayload.Message, upsert.Output)
+	}
+
+	status := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "status"})
+	var bootstrap struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widgets []struct {
+				ID    string `json:"id"`
+				AppID string `json:"app_id"`
+				Entry string `json:"entry"`
+			} `json:"widgets"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(status.Output), &bootstrap); err != nil {
+		t.Fatalf("unmarshal status: %v\n%s", err, status.Output)
+	}
+	for _, widget := range bootstrap.Data.Widgets {
+		if widget.ID == "printer-camera" {
+			if widget.AppID != "" {
+				t.Fatalf("app_id = %q, want standalone widget", widget.AppID)
+			}
+			if widget.Entry != "printer-camera/index.html" {
+				t.Fatalf("entry = %q, want printer-camera/index.html", widget.Entry)
+			}
+			return
+		}
+	}
+	t.Fatalf("printer-camera widget not registered: %+v", bootstrap.Data.Widgets)
 }
 
 func TestExecuteVirtualDesktopUpsertWidgetNormalizesExistingStandaloneWidgetFile(t *testing.T) {

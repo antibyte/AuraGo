@@ -335,6 +335,9 @@ func TestKlipperCameraURLSelectsConfiguredWebcam(t *testing.T) {
 	if !strings.Contains(out, server.URL+"/webcam/toolhead") {
 		t.Fatalf("unexpected output: %s", out)
 	}
+	if !strings.Contains(out, `"/api/3d-printers/voron/camera/stream"`) {
+		t.Fatalf("camera_url output missing same-origin proxy URL: %s", out)
+	}
 }
 
 func TestElegooCentauriCarbonCameraURLPrefersSchemaURL(t *testing.T) {

@@ -141,7 +141,9 @@ AuraDesktop.contextMenu.set(event => {
 
 ## Widget Registration
 
-For a simple standalone widget, write complete non-empty HTML directly to `Widgets/<widget_id>.html` with `write_file`. The desktop automatically registers and pins that file as a widget. Do not write empty placeholder HTML. If `write_file` returns an empty-content error, retry by sending the full HTML in `content` before claiming completion.
+For a simple standalone widget, write complete non-empty HTML directly to `Widgets/<widget_id>.html` or `Widgets/<widget_id>/index.html` with `write_file`. The desktop automatically registers and pins that file as a widget. Do not write empty placeholder HTML. If `write_file` returns an empty-content error, retry by sending the full HTML in `content` before claiming completion.
+
+For 3D printer camera widgets, first call `three_d_printer` with `operation: "camera_url"` or `operation: "show_live_stream"` and use the returned same-origin `proxy_url` in the widget HTML, for example `<img src="/api/3d-printers/printer-1/camera/stream">`. Do not use the raw LAN URL inside generated HTML, and do not request a `network` permission for a simple camera widget.
 
 For widgets owned by a generated app, register them with `upsert_widget`. An app-backed widget can use the SDK bridge and app permissions.
 
@@ -168,5 +170,5 @@ For widgets owned by a generated app, register them with `upsert_widget`. An app
 }
 ```
 
-If `entry` is set, it must be a file inside the owning app directory (`Apps/<app_id>/`). Widget entries should also load the SDK stylesheet and script.
+If `entry` is set for an app-backed widget, it must be a file inside the owning app directory (`Apps/<app_id>/`). Standalone widget entries live under `Widgets/` and may be either `<widget_id>.html` or `<widget_id>/index.html`. Widget entries should also load the SDK stylesheet and script when they need SDK features.
 Register an iframe widget only after the owning app has been installed and the widget entry file exists with non-empty HTML content.

@@ -471,7 +471,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.ThreeDPrinterEnabled {
 		tools = append(tools, tool("three_d_printer",
-			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon and Klipper/Moonraker status, files, camera snapshots/analysis/live stream, and guarded standard print controls.",
+			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon and Klipper/Moonraker status, files, camera snapshots/analysis/live stream, and guarded standard print controls. camera_url returns both the raw stream url and a same-origin proxy_url; generated browser UI should use proxy_url.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1147,7 +1147,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		tools = append(tools, tool("virtual_desktop",
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+
 				"Generated apps should use the Aura Desktop SDK runtime and choose semantic icons from status.icon_catalog.categories, status.icon_catalog.preferred, or status.icon_catalog.aliases; the active desktop theme resolves them through Papirus or WhiteSur assets. If icon is omitted, AuraGo infers one from id/name/title when possible. Emoji icons and unknown custom names are rejected. Use sprite:<name> only for deliberate legacy sprite fallback. "+
-				"To create a simple standalone widget, write non-empty HTML directly to Widgets/<widget_id>.html; the desktop registers and pins it automatically. "+
+				"To create a simple standalone widget, write non-empty HTML directly to Widgets/<widget_id>.html or Widgets/<widget_id>/index.html; the desktop registers and pins it automatically. "+
 				"Generated apps may use common static library CDNs such as cdn.jsdelivr.net, cdnjs.cloudflare.com, unpkg.com, esm.sh, and cdn.skypack.dev; widgets remain stricter and should not fetch arbitrary third-party APIs directly. "+
 				"All file paths are constrained to the virtual desktop workspace. Do not include secrets in generated app files.",
 			schema(map[string]interface{}{
@@ -1156,9 +1156,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Virtual desktop operation to perform",
 					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
 				},
-				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'."),
+				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'."),
 				"file_path": prop("string", "Alias for path."),
-				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html this must be complete, non-empty HTML."),
+				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html or Widgets/<widget_id>/index.html this must be complete, non-empty HTML."),
 				"title":     prop("string", "Notification title or widget title."),
 				"html":      prop("string", "Optional HTML representation for write_document/export flows."),
 				"document": map[string]interface{}{

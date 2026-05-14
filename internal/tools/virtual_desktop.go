@@ -417,19 +417,15 @@ func normalizeVirtualDesktopStandaloneWidget(ctx context.Context, svc *desktop.S
 	if svc == nil || widget == nil {
 		return
 	}
-	entry := strings.TrimSpace(widget.Entry)
-	if entry == "" {
-		candidate := strings.TrimSpace(widget.ID)
-		if candidate != "" {
-			entry = candidate + ".html"
+	cleanEntry := ""
+	for _, candidate := range virtualDesktopStandaloneWidgetEntryCandidates(widget.ID, widget.Entry) {
+		candidatePath := path.Join("Widgets", candidate)
+		if _, _, err := svc.ReadFile(ctx, candidatePath); err == nil {
+			cleanEntry = candidate
+			break
 		}
 	}
-	if entry == "" {
-		return
-	}
-	cleanEntry := path.Base(cleanVirtualDesktopSlashPath(entry))
-	candidatePath := path.Join("Widgets", cleanEntry)
-	if _, _, err := svc.ReadFile(ctx, candidatePath); err != nil {
+	if cleanEntry == "" {
 		return
 	}
 	widget.AppID = ""
@@ -443,6 +439,37 @@ func normalizeVirtualDesktopStandaloneWidget(ctx context.Context, svc *desktop.S
 	if widget.Title == "" {
 		widget.Title = virtualDesktopTitleFromID(strings.TrimSuffix(cleanEntry, path.Ext(cleanEntry)))
 	}
+}
+
+func virtualDesktopStandaloneWidgetEntryCandidates(rawID, rawEntry string) []string {
+	id := strings.ToLower(strings.TrimSpace(rawID))
+	id = virtualDesktopWidgetIDSanitizer.ReplaceAllString(id, "-")
+	id = strings.Trim(id, "_-")
+	entry := strings.TrimPrefix(cleanVirtualDesktopSlashPath(rawEntry), "Widgets/")
+	seen := map[string]bool{}
+	var candidates []string
+	add := func(candidate string) {
+		candidate = strings.TrimPrefix(cleanVirtualDesktopSlashPath(candidate), "Widgets/")
+		if candidate == "." || candidate == "" || strings.HasPrefix(candidate, "../") || path.IsAbs(candidate) {
+			return
+		}
+		if seen[candidate] {
+			return
+		}
+		seen[candidate] = true
+		candidates = append(candidates, candidate)
+	}
+	if entry != "." && entry != "" {
+		add(entry)
+		if id != "" && !strings.Contains(entry, "/") {
+			add(path.Join(id, entry))
+		}
+	}
+	if id != "" {
+		add(id + ".html")
+		add(path.Join(id, "index.html"))
+	}
+	return candidates
 }
 
 func virtualDesktopStandaloneWidgetOpenEvent(ctx context.Context, svc *desktop.Service, rawPath string) (desktop.Widget, *desktop.Event, bool, error) {
@@ -576,21 +603,13 @@ func virtualDesktopExportOffice(sourceName string, data []byte, outputPath, form
 }
 
 func isVirtualDesktopStandaloneWidgetHTML(rawPath string) bool {
-	clean := cleanVirtualDesktopSlashPath(rawPath)
-	return path.Dir(clean) == "Widgets" && strings.EqualFold(path.Ext(clean), ".html")
+	_, _, ok := virtualDesktopStandaloneWidgetPath(rawPath)
+	return ok
 }
 
 func virtualDesktopStandaloneWidgetFromFile(rawPath string) (desktop.Widget, bool) {
-	if !isVirtualDesktopStandaloneWidgetHTML(rawPath) {
-		return desktop.Widget{}, false
-	}
-	clean := cleanVirtualDesktopSlashPath(rawPath)
-	entry := path.Base(clean)
-	id := strings.TrimSuffix(entry, path.Ext(entry))
-	id = strings.ToLower(strings.TrimSpace(id))
-	id = virtualDesktopWidgetIDSanitizer.ReplaceAllString(id, "_")
-	id = strings.Trim(id, "_-")
-	if len(id) < 2 {
+	id, entry, ok := virtualDesktopStandaloneWidgetPath(rawPath)
+	if !ok {
 		return desktop.Widget{}, false
 	}
 	return desktop.Widget{
@@ -604,6 +623,32 @@ func virtualDesktopStandaloneWidgetFromFile(rawPath string) (desktop.Widget, boo
 		H:       2,
 		Config:  map[string]interface{}{},
 	}, true
+}
+
+func virtualDesktopStandaloneWidgetPath(rawPath string) (string, string, bool) {
+	clean := cleanVirtualDesktopSlashPath(rawPath)
+	if !strings.HasPrefix(clean, "Widgets/") || !strings.EqualFold(path.Ext(clean), ".html") {
+		return "", "", false
+	}
+	rel := strings.TrimPrefix(clean, "Widgets/")
+	dir := path.Dir(rel)
+	entry := path.Base(rel)
+	id := ""
+	if dir == "." {
+		id = strings.TrimSuffix(entry, path.Ext(entry))
+	} else if strings.EqualFold(entry, "index.html") && path.Dir(dir) == "." {
+		id = dir
+		entry = path.Join(dir, entry)
+	} else {
+		return "", "", false
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	id = virtualDesktopWidgetIDSanitizer.ReplaceAllString(id, "-")
+	id = strings.Trim(id, "_-")
+	if len(id) < 2 {
+		return "", "", false
+	}
+	return id, entry, true
 }
 
 func virtualDesktopRootHTMLAppFromFile(rawPath string) (desktop.AppManifest, string, bool) {

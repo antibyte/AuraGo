@@ -237,5 +237,5 @@ func cleanOptionalDesktopFile(rawPath string) string {
 	if strings.TrimSpace(rawPath) == "" {
 		return ""
 	}
-	return cleanDesktopPath(rawPath)
+	return filepath.ToSlash(cleanDesktopPath(rawPath))
 }

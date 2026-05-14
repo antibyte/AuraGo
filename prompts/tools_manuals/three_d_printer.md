@@ -21,7 +21,7 @@ Supported protocols:
 - `attributes`: fetch printer metadata and capabilities.
 - `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.
 - `history`: fetch print history IDs.
-- `camera_url`: get the printer camera stream URL as data only. Use this when the user explicitly asks for the URL, not when they want to watch the camera.
+- `camera_url`: get the printer camera stream URL as data only. The response includes `url` for the raw printer stream and `proxy_url` for AuraGo's same-origin browser proxy. Use `proxy_url` in generated desktop apps/widgets; it avoids browser mixed-content/CORS issues and keeps the stream routed through AuraGo.
 - `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available.
 - `analyze_camera`: capture, store, and register a snapshot, then analyze it with the configured Vision provider.
 - `show_live_stream`: render the live camera in chat through AuraGo's same-origin MJPEG/image-stream proxy. Use this for requests like "show the camera", "open the printer video", or "let me watch the printer". Do not capture or convert frames for this operation.

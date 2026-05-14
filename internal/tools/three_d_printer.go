@@ -219,7 +219,8 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if err != nil {
 			return threeDPrinterJSONError(err.Error())
 		}
-		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "protocol": printer.Protocol, "url": streamURL})
+		proxyURL := "/api/3d-printers/" + url.PathEscape(printer.ID) + "/camera/stream"
+		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "protocol": printer.Protocol, "url": streamURL, "proxy_url": proxyURL, "mime_type": "multipart/x-mixed-replace"})
 	case "camera_snapshot":
 		return executeThreeDPrinterSnapshot(ctx, cfg, printer)
 	case "show_live_stream":
