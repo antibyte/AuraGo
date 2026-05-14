@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Aktivuje integraci automatizace prohlížeče. Agent může navigovat na weby, vyplňovat formuláře, klikat na prvky, pořizovat snímky obrazovky a extrahovat data pomocí izolovaného sidecar kontejneru Playwright.",
+  "help.browser_automation.enabled": "Povolí Browser Automation integraci. Agent může navigovat webové stránky, vyplňovat formuláře, klikat na prvky, pořizovat screenshoty a extrahovat data pomocí izolovaného CloakBrowser sidecar kontejneru.",
   "help.browser_automation.readonly": "V režimu pouze pro čtení může agent pouze navigovat a číst obsah stránek. Vyplňování formulářů, klikání a souborové operace jsou zablokovány.",
   "help.browser_automation.headless": "Spustí prohlížeč bez viditelného okna (doporučeno). Deaktivujte pouze pro účely ladění — sidecar ve výchozím nastavení nemá žádný výstup na displej.",
   "help.browser_automation.allow_file_uploads": "Umožňuje agentovi nahrávat místní soubory na webové stránky prostřednictvím vstupních polí pro soubory.",
   "help.browser_automation.allow_file_downloads": "Umožňuje agentovi stahovat soubory z webových stránek. Stažené soubory se ukládají do nakonfigurovaného adresáře pro stahování.",
-  "help.browser_automation.mode": "Provozní režim služby automatizace prohlížeče. V současné době je podporován pouze režim 'sidecar', který spouští Playwright v izolovaném Docker kontejneru.",
-  "help.browser_automation.url": "Interní URL služby Playwright sidecar. Použijte název Docker kontejneru nebo služby jako název hostitele (např. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Provozní režim služby automatizace prohlížeče. Momentálně je podporován pouze režim 'sidecar', který spouští CloakBrowser ve izolovaném Docker kontejneru.",
+  "help.browser_automation.url": "Interní URL sidecar služby pro automatizaci prohlížeče. Použijte název Docker kontejneru nebo název služby jako hostname (např. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Název Docker kontejneru pro sidecar automatizace prohlížeče. Musí být jedinečný na vašem Docker hostiteli.",
   "help.browser_automation.image": "Docker image pro sidecar automatizace prohlížeče. Automaticky se vytvoří z Dockerfile v nakonfigurovaném adresáři.",
   "help.browser_automation.dockerfile_dir": "Adresář obsahující Dockerfile pro vytvoření image automatizace prohlížeče. Výchozí je instalační adresář AuraGo.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Maximální počet souběžných relací prohlížeče. Každá relace spotřebovává paměť v sidecar kontejneru. Výchozí: 3.",
   "help.browser_automation.viewport.width": "Šířka viewportu prohlížeče v pixelech. Ovlivňuje vykreslování stránek. Výchozí: 1280.",
   "help.browser_automation.viewport.height": "Výška viewportu prohlížeče v pixelech. Ovlivňuje vykreslování stránek. Výchozí: 720.",
-  "help.browser_automation.auto_build": "Automaticky vytvoří Docker image, pokud při spuštění sidecar neexistuje. Deaktivujte pro ruční správu image."
+  "help.browser_automation.auto_build": "Automaticky vytvoří Docker image, pokud při spuštění sidecar neexistuje. Deaktivujte pro ruční správu image.",
+  "config.browser_automation.cloak_info": "Stealth režim poháněný CloakBrowser – prochází bot detekcí pomocí úprav na úrovni zdrojového kódu.",
+  "config.browser_automation.cloak_humanize_label": "Humanizovat chování",
+  "help.browser_automation.cloak_humanize": "Simuluje lidské pohyby myši, psaní na klávesnici a scrollování. Pomáhá překonat behaviorální detekci botů.",
+  "config.browser_automation.cloak_human_preset_label": "Preset chování",
+  "help.browser_automation.cloak_human_preset": "Rychlost simulace: 'default' (normální) nebo 'careful' (pomalejší, opatrnější).",
+  "config.browser_automation.cloak_proxy_label": "Proxy URL",
+  "help.browser_automation.cloak_proxy": "Volitelný proxy server pro browser sessions (HTTP nebo SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Seed otisku",
+  "help.browser_automation.cloak_fingerprint_seed": "Pevný seed pro deterministický prohlížečový otisk. Užitečné pro konzistentní identitu napříč sessions."
 }

@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Aktiviert die Browser-Automation-Integration. Der Agent kann Websites navigieren, Formulare ausfüllen, Elemente anklicken, Screenshots erstellen und Daten über einen isolierten Playwright-Sidecar-Container extrahieren.",
+  "help.browser_automation.enabled": "Aktiviert die Browser-Automation-Integration. Der Agent kann Webseiten navigieren, Formulare ausfüllen, auf Elemente klicken, Screenshots erstellen und Daten mit einem isolierten CloakBrowser-Sidecar-Container extrahieren.",
   "help.browser_automation.readonly": "Im Nur-Lese-Modus kann der Agent nur navigieren und Seiteninhalte lesen. Formularausfüllung, Klicks und Dateioperationen werden blockiert.",
   "help.browser_automation.headless": "Startet den Browser ohne sichtbares Fenster (empfohlen). Nur zur Fehlerbehebung deaktivieren — der Sidecar hat standardmäßig keine Display-Ausgabe.",
   "help.browser_automation.allow_file_uploads": "Erlaubt dem Agenten, lokale Dateien über Datei-Eingabefelder auf Webseiten hochzuladen.",
   "help.browser_automation.allow_file_downloads": "Erlaubt dem Agenten, Dateien von Webseiten herunterzuladen. Heruntergeladene Dateien werden im konfigurierten Download-Verzeichnis gespeichert.",
-  "help.browser_automation.mode": "Betriebsmodus des Browser-Automation-Dienstes. Derzeit wird nur der Modus 'sidecar' unterstützt, bei dem Playwright in einem isolierten Docker-Container läuft.",
-  "help.browser_automation.url": "Interne URL des Playwright-Sidecar-Dienstes. Verwende den Docker-Containernamen oder Servicenamen als Hostnamen (z.B. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Betriebsmodus für den Browser-Automation-Service. Derzeit wird nur der 'sidecar'-Modus unterstützt, der CloakBrowser in einem isolierten Docker-Container ausführt.",
+  "help.browser_automation.url": "Interne URL des CloakBrowser-Sidecar-Services. Verwenden Sie den Docker-Container-Namen oder Service-Namen als Hostname (z.B. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker-Container-Name für den Browser-Automation-Sidecar. Muss auf dem Docker-Host eindeutig sein.",
   "help.browser_automation.image": "Docker-Image für den Browser-Automation-Sidecar. Wird automatisch aus dem Dockerfile im konfigurierten Verzeichnis erstellt.",
   "help.browser_automation.dockerfile_dir": "Verzeichnis mit dem Dockerfile zum Erstellen des Browser-Automation-Images. Standard ist das AuraGo-Installationsverzeichnis.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Maximale Anzahl gleichzeitiger Browser-Sitzungen. Jede Sitzung verbraucht Speicher im Sidecar-Container. Standard: 3.",
   "help.browser_automation.viewport.width": "Browser-Viewport-Breite in Pixeln. Beeinflusst, wie Seiten dargestellt werden. Standard: 1280.",
   "help.browser_automation.viewport.height": "Browser-Viewport-Höhe in Pixeln. Beeinflusst, wie Seiten dargestellt werden. Standard: 720.",
-  "help.browser_automation.auto_build": "Erstellt das Docker-Image automatisch, wenn es beim Start des Sidecars nicht vorhanden ist. Deaktivieren, um das Image manuell zu verwalten."
+  "help.browser_automation.auto_build": "Erstellt das Docker-Image automatisch, wenn es beim Start des Sidecars nicht vorhanden ist. Deaktivieren, um das Image manuell zu verwalten.",
+  "config.browser_automation.cloak_info": "Stealth-Modus powered by CloakBrowser – besteht Bot-Erkennung durch Fingerabdruck-Patches auf Quellcode-Ebene.",
+  "config.browser_automation.cloak_humanize_label": "Menschliches Verhalten simulieren",
+  "help.browser_automation.cloak_humanize": "Simuliert menschliche Mausbewegungen, Tastatureingaben und Scroll-Verhalten. Hilft, verhaltensbasierte Bot-Erkennung zu überwinden.",
+  "config.browser_automation.cloak_human_preset_label": "Verhaltens-Preset",
+  "help.browser_automation.cloak_human_preset": "Simulationsgeschwindigkeit: 'default' (normal) oder 'careful' (langsamer, vorsichtiger).",
+  "config.browser_automation.cloak_proxy_label": "Proxy-URL",
+  "help.browser_automation.cloak_proxy": "Optionaler Proxy-Server für Browser-Sessions (HTTP oder SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint-Seed",
+  "help.browser_automation.cloak_fingerprint_seed": "Fester Seed für deterministischen Browser-Fingerprint. Nützlich für konsistente Identität über Sessions hinweg."
 }

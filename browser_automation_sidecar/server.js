@@ -2,7 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
-const { chromium } = require('playwright');
+const { launch } = require('cloakbrowser');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
@@ -24,6 +24,10 @@ const MAX_SCREENSHOT_BYTES = Math.max(256 * 1024, parseInt(process.env.MAX_SCREE
 const MAX_DOWNLOAD_RECORDS = Math.max(1, parseInt(process.env.MAX_DOWNLOAD_RECORDS || '25', 10));
 const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RETENTION_MINUTES || String(Math.ceil((SESSION_TTL_MS * 2) / 60000)), 10) * 60 * 1000);
 const DEFAULT_SCREENSHOT_DIR = path.join(WORKSPACE_ROOT, 'browser_screenshots');
+const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
+const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
+const CLOAK_PROXY = String(process.env.CLOAK_PROXY || '').trim();
+const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
 const sessions = new Map();
 let browserPromise = null;
@@ -122,7 +126,18 @@ function pushDownloadEntry(session, entry) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = chromium.launch({ headless: HEADLESS }).catch((error) => {
+    const launchOptions = {
+      headless: HEADLESS,
+      humanize: CLOAK_HUMANIZE,
+      humanPreset: CLOAK_HUMAN_PRESET,
+    };
+    if (CLOAK_PROXY) {
+      launchOptions.proxy = CLOAK_PROXY;
+    }
+    if (CLOAK_FINGERPRINT_SEED) {
+      launchOptions.args = [`--fingerprint=${CLOAK_FINGERPRINT_SEED}`];
+    }
+    browserPromise = launch(launchOptions).catch((error) => {
       browserPromise = null;
       throw error;
     });

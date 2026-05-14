@@ -4,10 +4,17 @@ WORKDIR /app
 
 COPY browser_automation_sidecar/package.json /app/package.json
 COPY browser_automation_sidecar/package-lock.json /app/package-lock.json
-RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --omit=dev
+RUN npm ci --omit=dev
 
 COPY browser_automation_sidecar/server.js /app/server.js
 RUN chown -R pwuser:pwuser /app
+
+# Pre-download CloakBrowser stealth binary so the first startup is fast.
+# The binary is cached under /home/pwuser/.cache for runtime use.
+RUN node -e "const cb=require('cloakbrowser');cb.launch().then(b=>b.close()).catch(()=>process.exit(0))" || true && \
+    mkdir -p /home/pwuser/.cache && \
+    if [ -d /root/.cache/cloakbrowser ]; then mv /root/.cache/cloakbrowser /home/pwuser/.cache/; fi && \
+    chown -R pwuser:pwuser /home/pwuser/.cache
 
 ENV NODE_ENV=production
 ENV PORT=7331

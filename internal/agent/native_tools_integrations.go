@@ -1101,9 +1101,10 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.BrowserAutomationEnabled {
 		tools = append(tools, tool("browser_automation",
-			"Control a full browser session through the optional Playwright sidecar. "+
+			"Control a full browser session through the optional browser automation sidecar (CloakBrowser stealth Chromium). "+
 				"Use it for multi-step website automation: navigate pages, inspect UI state, click buttons, type into fields, select options, upload files, take screenshots, and retrieve browser downloads. "+
-				"Work in a loop: create_session or navigate, extract/current_state, perform one action, wait_for if needed, then extract again.",
+				"Work in a loop: create_session or navigate, extract/current_state, perform one action, wait_for if needed, then extract again. "+
+				"When stealth mode is enabled in config, the browser passes bot detection (reCAPTCHA, Cloudflare Turnstile) using source-level fingerprint patches and human-like behavior.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

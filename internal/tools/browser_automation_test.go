@@ -382,6 +382,31 @@ func TestBrowserAutomationManagedURLHost(t *testing.T) {
 	}
 }
 
+func TestBrowserAutomationSidecarConfigIncludesCloakOptions(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.CloakHumanize = true
+	cfg.BrowserAutomation.CloakHumanPreset = "careful"
+	cfg.BrowserAutomation.CloakProxy = "http://proxy:8080"
+	cfg.BrowserAutomation.CloakFingerprintSeed = "12345"
+
+	sidecarCfg, err := ResolveBrowserAutomationSidecarConfig(cfg)
+	if err != nil {
+		t.Fatalf("ResolveBrowserAutomationSidecarConfig() error = %v", err)
+	}
+	if !sidecarCfg.CloakHumanize {
+		t.Fatal("CloakHumanize = false, want true")
+	}
+	if sidecarCfg.CloakHumanPreset != "careful" {
+		t.Fatalf("CloakHumanPreset = %q, want careful", sidecarCfg.CloakHumanPreset)
+	}
+	if sidecarCfg.CloakProxy != "http://proxy:8080" {
+		t.Fatalf("CloakProxy = %q, want http://proxy:8080", sidecarCfg.CloakProxy)
+	}
+	if sidecarCfg.CloakFingerprintSeed != "12345" {
+		t.Fatalf("CloakFingerprintSeed = %q, want 12345", sidecarCfg.CloakFingerprintSeed)
+	}
+}
+
 func TestBrowserAutomationEffectiveContainerName(t *testing.T) {
 	tests := []struct {
 		name        string

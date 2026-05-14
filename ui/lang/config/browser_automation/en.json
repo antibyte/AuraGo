@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Enables the Browser Automation integration. The agent can navigate websites, fill forms, click elements, take screenshots, and extract data using an isolated Playwright sidecar container.",
+  "help.browser_automation.enabled": "Enables the Browser Automation integration. The agent can navigate websites, fill forms, click elements, take screenshots, and extract data using an isolated CloakBrowser sidecar container.",
   "help.browser_automation.readonly": "In read-only mode, the agent can only navigate and read page content. Form filling, clicking buttons, and file operations are blocked.",
   "help.browser_automation.headless": "Runs the browser without a visible window (recommended). Disable only for debugging purposes — the sidecar has no display output by default.",
   "help.browser_automation.allow_file_uploads": "Allows the agent to upload local files to web pages via file input fields.",
   "help.browser_automation.allow_file_downloads": "Allows the agent to download files from web pages. Downloaded files are stored in the configured download directory.",
-  "help.browser_automation.mode": "Operating mode for the browser automation service. Currently only 'sidecar' mode is supported, which runs Playwright in an isolated Docker container.",
-  "help.browser_automation.url": "Internal URL of the Playwright sidecar service. Use the Docker container name or service name as hostname (e.g. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Operating mode for the browser automation service. Currently only 'sidecar' mode is supported, which runs CloakBrowser in an isolated Docker container.",
+  "help.browser_automation.url": "Internal URL of the CloakBrowser sidecar service. Use the Docker container name or service name as hostname (e.g. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker container name for the browser automation sidecar. Must be unique on your Docker host.",
   "help.browser_automation.image": "Docker image for the browser automation sidecar. Built automatically from the Dockerfile in the configured directory.",
   "help.browser_automation.dockerfile_dir": "Directory containing the Dockerfile for building the browser automation image. Default is the AuraGo install directory.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Maximum number of concurrent browser sessions. Each session uses memory in the sidecar container. Default: 3.",
   "help.browser_automation.viewport.width": "Browser viewport width in pixels. Affects how pages are rendered. Default: 1280.",
   "help.browser_automation.viewport.height": "Browser viewport height in pixels. Affects how pages are rendered. Default: 720.",
-  "help.browser_automation.auto_build": "Automatically build the Docker image if it does not exist when the sidecar is started. Disable to manage the image manually."
+  "help.browser_automation.auto_build": "Automatically build the Docker image if it does not exist when the sidecar is started. Disable to manage the image manually.",
+  "config.browser_automation.cloak_info": "Stealth mode powered by CloakBrowser – passes bot detection with source-level fingerprint patches.",
+  "config.browser_automation.cloak_humanize_label": "Humanize behavior",
+  "help.browser_automation.cloak_humanize": "Simulates human-like mouse movements, typing and scrolling. Helps overcome behavioral bot detection.",
+  "config.browser_automation.cloak_human_preset_label": "Behavior preset",
+  "help.browser_automation.cloak_human_preset": "Simulation speed: 'default' (normal) or 'careful' (slower, more deliberate).",
+  "config.browser_automation.cloak_proxy_label": "Proxy URL",
+  "help.browser_automation.cloak_proxy": "Optional proxy server for browser sessions (HTTP or SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint seed",
+  "help.browser_automation.cloak_fingerprint_seed": "Fixed seed for deterministic browser fingerprint. Useful for consistent identity across sessions."
 }

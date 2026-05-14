@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Aktiverer nettleserautomatiseringsintegrasjonen. Agenten kan navigere nettsider, fylle ut skjemaer, klikke på elementer, ta skjermbilder og trekke ut data via en isolert Playwright-sidecar-container.",
+  "help.browser_automation.enabled": "Aktiverer Browser Automation-integrasjonen. Agenten kan navigere på nettsteder, fylle ut skjemaer, klikke på elementer, ta skjermbilder og trekke ut data ved hjelp av en isolert CloakBrowser sidecar-container.",
   "help.browser_automation.readonly": "I skrivebeskyttet modus kan agenten bare navigere og lese sideinnhold. Skjemautfylling, klikk og filoperasjoner er blokkert.",
   "help.browser_automation.headless": "Kjører nettleseren uten et synlig vindu (anbefalt). Deaktiver kun for feilsøking — sidecaren har ingen skjermutdata som standard.",
   "help.browser_automation.allow_file_uploads": "Tillater agenten å laste opp lokale filer til nettsider via filinndatafelt.",
   "help.browser_automation.allow_file_downloads": "Tillater agenten å laste ned filer fra nettsider. Nedlastede filer lagres i den konfigurerte nedlastingsmappen.",
-  "help.browser_automation.mode": "Driftsmodus for nettleserautomatiseringstjenesten. Foreløpig støttes kun 'sidecar'-modus, som kjører Playwright i en isolert Docker-container.",
-  "help.browser_automation.url": "Intern URL for Playwright-sidecar-tjenesten. Bruk Docker-containernavnet eller tjenestenavnet som vertsnavn (f.eks. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Driftsmodus for nettleserautomatiserings-tjenesten. For øyeblikket støttes kun 'sidecar'-modus, som kjører CloakBrowser i en isolert Docker-container.",
+  "help.browser_automation.url": "Intern URL for CloakBrowser sidecar-tjenesten. Bruk Docker-container-navnet eller tjenestenavnet som hostname (f.eks. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker-containernavn for nettleserautomatiserings-sidecaren. Må være unikt på din Docker-vert.",
   "help.browser_automation.image": "Docker-image for nettleserautomatiserings-sidecaren. Bygges automatisk fra Dockerfilen i den konfigurerte mappen.",
   "help.browser_automation.dockerfile_dir": "Mappe som inneholder Dockerfilen for bygging av nettleserautomatiserings-image. Standard er AuraGo-installasjonsmappen.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Maksimalt antall samtidige nettlesersesjoner. Hver sesjon bruker minne i sidecar-containeren. Standard: 3.",
   "help.browser_automation.viewport.width": "Bredde på nettleser-viewport i piksler. Påvirker hvordan sider rendres. Standard: 1280.",
   "help.browser_automation.viewport.height": "Høyde på nettleser-viewport i piksler. Påvirker hvordan sider rendres. Standard: 720.",
-  "help.browser_automation.auto_build": "Bygger automatisk Docker-image hvis det ikke finnes når sidecaren startes. Deaktiver for å administrere image manuelt."
+  "help.browser_automation.auto_build": "Bygger automatisk Docker-image hvis det ikke finnes når sidecaren startes. Deaktiver for å administrere image manuelt.",
+  "config.browser_automation.cloak_info": "Stealth-modus drevet av CloakBrowser – passerer bot-deteksjon med kildekode-nivå fingeravtrykk-patcher.",
+  "config.browser_automation.cloak_humanize_label": "Humanisere oppførsel",
+  "help.browser_automation.cloak_humanize": "Simulerer menneskelige musebevegelser, typing og scrolling. Hjelper til med å overvinne atferdsbasert bot-deteksjon.",
+  "config.browser_automation.cloak_human_preset_label": "Atferdspreset",
+  "help.browser_automation.cloak_human_preset": "Simuleringshastighet: 'default' (normal) eller 'careful' (tregere, mer forsiktig).",
+  "config.browser_automation.cloak_proxy_label": "Proxy-URL",
+  "help.browser_automation.cloak_proxy": "Valgfri proxy-server for nettleserøkter (HTTP eller SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Fingeravtrykk-seed",
+  "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk nettleser-fingeravtrykk. Nyttig for konsistent identitet på tvers av økter."
 }

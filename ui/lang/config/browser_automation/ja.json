@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "ブラウザー自動操作の統合を有効にします。エージェントは分離されたPlaywrightサイドカーコンテナーを使用して、ウェブサイトのナビゲート、フォーム入力、要素のクリック、スクリーンショットの取得、データの抽出を行えます。",
+  "help.browser_automation.enabled": "Browser Automation統合を有効にします。エージェントは、分離されたCloakBrowser sidecarコンテナを使用して、Webサイトをナビゲートし、フォームに入力し、要素をクリックし、スクリーンショットを撮影し、データを抽出できます。",
   "help.browser_automation.readonly": "読み取り専用モードでは、エージェントはナビゲートとページ内容の読み取りのみ可能です。フォーム入力、クリック、ファイル操作はブロックされます。",
   "help.browser_automation.headless": "可視ウィンドウなしでブラウザーを実行します（推奨）。デバッグ目的でのみ無効にしてください — サイドカーにはデフォルトでディスプレイ出力がありません。",
   "help.browser_automation.allow_file_uploads": "エージェントがファイル入力フィールドを介してローカルファイルをウェブページにアップロードすることを許可します。",
   "help.browser_automation.allow_file_downloads": "エージェントがウェブページからファイルをダウンロードすることを許可します。ダウンロードされたファイルは設定されたダウンロードディレクトリに保存されます。",
-  "help.browser_automation.mode": "ブラウザー自動操作サービスの動作モード。現在は'sidecar'モードのみサポートされており、Playwrightを分離されたDockerコンテナーで実行します。",
-  "help.browser_automation.url": "Playwrightサイドカーサービスの内部URL。Dockerコンテナー名またはサービス名をホスト名として使用してください（例: http://browser-automation:7331）。",
+  "help.browser_automation.mode": "ブラウザ自動化サービスの動作モード。現在、'sidecar'モードのみがサポートされています。これは、CloakBrowserを分離されたDockerコンテナで実行します。",
+  "help.browser_automation.url": "CloakBrowser sidecarサービスの内部URL。ホスト名としてDockerコンテナ名またはサービス名を使用します（例: http://browser-automation:7331）。",
   "help.browser_automation.container_name": "ブラウザー自動操作サイドカーのDockerコンテナー名。Dockerホスト上で一意である必要があります。",
   "help.browser_automation.image": "ブラウザー自動操作サイドカーのDockerイメージ。設定されたディレクトリのDockerfileから自動的にビルドされます。",
   "help.browser_automation.dockerfile_dir": "ブラウザー自動操作イメージをビルドするためのDockerfileを含むディレクトリ。デフォルトはAuraGoのインストールディレクトリです。",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "同時ブラウザーセッションの最大数。各セッションはサイドカーコンテナーのメモリを使用します。デフォルト: 3。",
   "help.browser_automation.viewport.width": "ブラウザービューポートの幅（ピクセル）。ページのレンダリング方法に影響します。デフォルト: 1280。",
   "help.browser_automation.viewport.height": "ブラウザービューポートの高さ（ピクセル）。ページのレンダリング方法に影響します。デフォルト: 720。",
-  "help.browser_automation.auto_build": "サイドカー起動時にDockerイメージが存在しない場合、自動的にビルドします。手動でイメージを管理する場合は無効にしてください。"
+  "help.browser_automation.auto_build": "サイドカー起動時にDockerイメージが存在しない場合、自動的にビルドします。手動でイメージを管理する場合は無効にしてください。",
+  "config.browser_automation.cloak_info": "CloakBrowser搭載のステルスモード – ソースレベルのフィンガープリントパッチでボット検出を回避します。",
+  "config.browser_automation.cloak_humanize_label": "人間らしい動作",
+  "help.browser_automation.cloak_humanize": "人間のようなマウスの動き、タイピング、スクロールをシミュレートします。行動ベースのボット検出を回避するのに役立ちます。",
+  "config.browser_automation.cloak_human_preset_label": "動作プリセット",
+  "help.browser_automation.cloak_human_preset": "シミュレーション速度: 'default' (通常) または 'careful' (遅く、慎重)。",
+  "config.browser_automation.cloak_proxy_label": "プロキシURL",
+  "help.browser_automation.cloak_proxy": "ブラウザセッション用のオプションのプロキシサーバー（HTTPまたはSOCKS5）。",
+  "config.browser_automation.cloak_fingerprint_seed_label": "フィンガープリントシード",
+  "help.browser_automation.cloak_fingerprint_seed": "決定論的ブラウザフィンガープリントの固定シード。セッション間で一貫した識別に役立ちます。"
 }

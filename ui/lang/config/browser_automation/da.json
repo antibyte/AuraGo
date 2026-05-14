@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Aktiverer browserautomatiseringsintegrationen. Agenten kan navigere på websteder, udfylde formularer, klikke på elementer, tage skærmbilleder og udtrække data via en isoleret Playwright-sidecar-container.",
+  "help.browser_automation.enabled": "Aktiverer Browser Automation-integrationen. Agenten kan navigere på websider, udfylde formularer, klikke på elementer, tage screenshots og udtrække data ved hjælp af en isoleret CloakBrowser sidecar-container.",
   "help.browser_automation.readonly": "I skrivebeskyttet tilstand kan agenten kun navigere og læse sideindhold. Formularudfyldning, klik og filoperationer er blokeret.",
   "help.browser_automation.headless": "Kører browseren uden et synligt vindue (anbefalet). Deaktiver kun til fejlfinding — sidecaren har som standard ingen skærmvisning.",
   "help.browser_automation.allow_file_uploads": "Tillader agenten at uploade lokale filer til websider via filinputfelter.",
   "help.browser_automation.allow_file_downloads": "Tillader agenten at downloade filer fra websider. Downloadede filer gemmes i det konfigurerede download-mappe.",
-  "help.browser_automation.mode": "Driftstilstand for browserautomatiseringstjenesten. I øjeblikket understøttes kun 'sidecar'-tilstand, som kører Playwright i en isoleret Docker-container.",
-  "help.browser_automation.url": "Intern URL for Playwright-sidecar-tjenesten. Brug Docker-containernavnet eller tjenestenavnet som værtsnavn (f.eks. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Driftstilstand for browserautomatiserings-tjenesten. I øjeblikket understøttes kun 'sidecar'-tilstand, som kører CloakBrowser i en isoleret Docker-container.",
+  "help.browser_automation.url": "Intern URL for CloakBrowser sidecar-tjenesten. Brug Docker-container-navnet eller tjenestenavnet som hostname (f.eks. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker-containernavn for browserautomatiserings-sidecaren. Skal være unikt på din Docker-vært.",
   "help.browser_automation.image": "Docker-image til browserautomatiserings-sidecaren. Bygges automatisk fra Dockerfilen i det konfigurerede mappe.",
   "help.browser_automation.dockerfile_dir": "Mappe der indeholder Dockerfilen til bygning af browserautomatiserings-image. Standard er AuraGo-installationsmappen.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Maksimalt antal samtidige browsersessioner. Hver session bruger hukommelse i sidecar-containeren. Standard: 3.",
   "help.browser_automation.viewport.width": "Browser viewport-bredde i pixels. Påvirker hvordan sider gengives. Standard: 1280.",
   "help.browser_automation.viewport.height": "Browser viewport-højde i pixels. Påvirker hvordan sider gengives. Standard: 720.",
-  "help.browser_automation.auto_build": "Bygger automatisk Docker-image, hvis det ikke findes, når sidecaren startes. Deaktiver for at administrere image manuelt."
+  "help.browser_automation.auto_build": "Bygger automatisk Docker-image, hvis det ikke findes, når sidecaren startes. Deaktiver for at administrere image manuelt.",
+  "config.browser_automation.cloak_info": "Stealth-tilstand drevet af CloakBrowser – passerer bot-detektion med kildekode-niveau fingeraftryk.",
+  "config.browser_automation.cloak_humanize_label": "Humaniser adfærd",
+  "help.browser_automation.cloak_humanize": "Simulerer menneskelige musebevægelser, tastning og rulning. Hjælper med at overvinde adfærdsbaseret bot-detektion.",
+  "config.browser_automation.cloak_human_preset_label": "Adfærdspreset",
+  "help.browser_automation.cloak_human_preset": "Simuleringshastighed: 'default' (normal) eller 'careful' (langsommere, forsigtig).",
+  "config.browser_automation.cloak_proxy_label": "Proxy URL",
+  "help.browser_automation.cloak_proxy": "Valgfri proxy-server til browsersessioner (HTTP eller SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Fingeraftryks-seed",
+  "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk browser-fingeraftryk. Nyttigt til konsistent identitet på tværs af sessioner."
 }

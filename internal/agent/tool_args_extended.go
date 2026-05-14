@@ -142,9 +142,12 @@ type browserAutomationArgs struct {
 	OutputPath   string
 	FullPage     bool
 	FilePath     string
-	DownloadName string
-	DOMSnippet   bool
-	MaxElements  int
+	DownloadName         string
+	DOMSnippet           bool
+	MaxElements          int
+	CloakHumanize        bool
+	CloakProxy           string
+	CloakFingerprintSeed string
 }
 
 type spaceAgentArgs struct {

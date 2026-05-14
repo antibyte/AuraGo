@@ -44,10 +44,13 @@ type BrowserAutomationRequest struct {
 	TimeoutMs    int
 	OutputPath   string
 	FullPage     bool
-	FilePath     string
-	DownloadName string
-	DOMSnippet   bool
-	MaxElements  int
+	FilePath             string
+	DownloadName         string
+	DOMSnippet           bool
+	MaxElements          int
+	CloakHumanize        bool
+	CloakProxy           string
+	CloakFingerprintSeed string
 }
 
 type BrowserAutomationSidecarConfig struct {
@@ -63,11 +66,15 @@ type BrowserAutomationSidecarConfig struct {
 	Headless       bool
 	AllowUploads   bool
 	AllowDownloads bool
-	ReadOnly       bool
-	WorkspaceDir   string
-	DownloadDir    string
-	ViewportWidth  int
-	ViewportHeight int
+	ReadOnly             bool
+	WorkspaceDir         string
+	DownloadDir          string
+	ViewportWidth        int
+	ViewportHeight       int
+	CloakHumanize        bool
+	CloakHumanPreset     string
+	CloakProxy           string
+	CloakFingerprintSeed string
 }
 
 var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -514,11 +521,15 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		Headless:       cfg.BrowserAutomation.Headless,
 		AllowUploads:   cfg.BrowserAutomation.AllowFileUploads,
 		AllowDownloads: cfg.BrowserAutomation.AllowFileDownloads,
-		ReadOnly:       cfg.BrowserAutomation.ReadOnly,
-		WorkspaceDir:   workspaceRoot,
-		DownloadDir:    downloadsRoot,
-		ViewportWidth:  cfg.BrowserAutomation.Viewport.Width,
-		ViewportHeight: cfg.BrowserAutomation.Viewport.Height,
+		ReadOnly:             cfg.BrowserAutomation.ReadOnly,
+		WorkspaceDir:         workspaceRoot,
+		DownloadDir:          downloadsRoot,
+		ViewportWidth:        cfg.BrowserAutomation.Viewport.Width,
+		ViewportHeight:       cfg.BrowserAutomation.Viewport.Height,
+		CloakHumanize:        cfg.BrowserAutomation.CloakHumanize,
+		CloakHumanPreset:     cfg.BrowserAutomation.CloakHumanPreset,
+		CloakProxy:           cfg.BrowserAutomation.CloakProxy,
+		CloakFingerprintSeed: cfg.BrowserAutomation.CloakFingerprintSeed,
 	}, nil
 }
 
@@ -718,6 +729,14 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		"DOWNLOAD_ROOT=" + browserAutomationDownloadsDir,
 		fmt.Sprintf("VIEWPORT_WIDTH=%d", max(320, sidecarCfg.ViewportWidth)),
 		fmt.Sprintf("VIEWPORT_HEIGHT=%d", max(240, sidecarCfg.ViewportHeight)),
+		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),
+		fmt.Sprintf("CLOAK_HUMAN_PRESET=%s", sidecarCfg.CloakHumanPreset),
+	}
+	if sidecarCfg.CloakProxy != "" {
+		env = append(env, "CLOAK_PROXY="+sidecarCfg.CloakProxy)
+	}
+	if sidecarCfg.CloakFingerprintSeed != "" {
+		env = append(env, "CLOAK_FINGERPRINT_SEED="+sidecarCfg.CloakFingerprintSeed)
 	}
 
 	payload := map[string]interface{}{

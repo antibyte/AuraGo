@@ -194,7 +194,11 @@ type BrowserAutomationConfig struct {
 	Viewport           BrowserAutomationViewport `yaml:"viewport"`             // default viewport for sessions
 	Headless           bool                      `yaml:"headless"`             // run browser headless
 	ReadOnly           bool                      `yaml:"readonly"`             // block mutating actions when true
-	ScreenshotsDir     string                    `yaml:"screenshots_dir"`      // workspace-relative screenshot directory
+	ScreenshotsDir       string                    `yaml:"screenshots_dir"`        // workspace-relative screenshot directory
+	CloakHumanize        bool                      `yaml:"cloak_humanize"`         // enable human-like mouse/keyboard/scroll behavior
+	CloakHumanPreset     string                    `yaml:"cloak_human_preset"`     // "default" or "careful"
+	CloakProxy           string                    `yaml:"cloak_proxy"`            // proxy URL for CloakBrowser (optional)
+	CloakFingerprintSeed string                    `yaml:"cloak_fingerprint_seed"` // fixed fingerprint seed for consistent identity (optional)
 }
 
 // SpaceAgentConfig holds settings for the optional managed Space Agent sidecar.

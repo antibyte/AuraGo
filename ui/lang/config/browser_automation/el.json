@@ -1,11 +1,11 @@
 {
-  "help.browser_automation.enabled": "Ενεργοποιεί την ενσωμάτωση αυτοματοποίησης προγράμματος περιήγησης. Ο πράκτορας μπορεί να πλοηγηθεί σε ιστοσελίδες, να συμπληρώσει φόρμες, να κάνει κλικ σε στοιχεία, να τραβήξει στιγμιότυπα οθόνης και να εξάγει δεδομένα μέσω ενός απομονωμένου sidecar container Playwright.",
+  "help.browser_automation.enabled": "Ενεργοποιεί την ενσωμάτωση Browser Automation. Ο πράκτορας μπορεί να περιηγηθεί σε ιστοσελίδες, να συμπληρώσει φόρμες, να κάνει κλικ σε στοιχεία, να τραβήξει στιγμιότυπα και να εξαγάγει δεδομένα χρησιμοποιώντας ένα απομονωμένο CloakBrowser sidecar container.",
   "help.browser_automation.readonly": "Σε λειτουργία μόνο ανάγνωσης, ο πράκτορας μπορεί μόνο να πλοηγείται και να διαβάζει περιεχόμενο σελίδας. Η συμπλήρωση φορμών, τα κλικ και οι λειτουργίες αρχείων αποκλείονται.",
   "help.browser_automation.headless": "Εκτελεί το πρόγραμμα περιήγησης χωρίς ορατό παράθυρο (συνιστάται). Απενεργοποιήστε μόνο για εντοπισμό σφαλμάτων — το sidecar δεν έχει έξοδο οθόνης από προεπιλογή.",
   "help.browser_automation.allow_file_uploads": "Επιτρέπει στον πράκτορα να μεταφορτώνει τοπικά αρχεία σε ιστοσελίδες μέσω πεδίων εισαγωγής αρχείων.",
   "help.browser_automation.allow_file_downloads": "Επιτρέπει στον πράκτορα να κατεβάζει αρχεία από ιστοσελίδες. Τα ληφθέντα αρχεία αποθηκεύονται στον ρυθμισμένο κατάλογο λήψεων.",
-  "help.browser_automation.mode": "Λειτουργία λειτουργίας της υπηρεσίας αυτοματοποίησης προγράμματος περιήγησης. Προς το παρόν υποστηρίζεται μόνο η λειτουργία 'sidecar', η οποία εκτελεί το Playwright σε έναν απομονωμένο container Docker.",
-  "help.browser_automation.url": "Εσωτερικό URL της υπηρεσίας Playwright sidecar. Χρησιμοποιήστε το όνομα container Docker ή το όνομα υπηρεσίας ως όνομα κεντρικού υπολογιστή (π.χ. http://browser-automation:7331).",
+  "help.browser_automation.mode": "Λειτουργία λειτουργίας της υπηρεσίας αυτοματισμού προγράμματος περιήγησης. Προς το παρόν υποστηρίζεται μόνο η λειτουργία 'sidecar', η οποία εκτελεί το CloakBrowser σε ένα απομονωμένο Docker container.",
+  "help.browser_automation.url": "Εσωτερικό URL της υπηρεσίας CloakBrowser sidecar. Χρησιμοποιήστε το όνομα του Docker container ή το όνομα της υπηρεσίας ως hostname (π.χ. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Όνομα container Docker για το sidecar αυτοματοποίησης προγράμματος περιήγησης. Πρέπει να είναι μοναδικό στον κεντρικό υπολογιστή Docker.",
   "help.browser_automation.image": "Εικόνα Docker για το sidecar αυτοματοποίησης προγράμματος περιήγησης. Δημιουργείται αυτόματα από το Dockerfile στον ρυθμισμένο κατάλογο.",
   "help.browser_automation.dockerfile_dir": "Κατάλογος που περιέχει το Dockerfile για τη δημιουργία της εικόνας αυτοματοποίησης προγράμματος περιήγησης. Η προεπιλογή είναι ο κατάλογος εγκατάστασης AuraGo.",
@@ -15,5 +15,14 @@
   "help.browser_automation.max_sessions": "Μέγιστος αριθμός ταυτόχρονων συνεδριών προγράμματος περιήγησης. Κάθε συνεδρία χρησιμοποιεί μνήμη στο sidecar container. Προεπιλογή: 3.",
   "help.browser_automation.viewport.width": "Πλάτος viewport προγράμματος περιήγησης σε pixel. Επηρεάζει τον τρόπο απόδοσης των σελίδων. Προεπιλογή: 1280.",
   "help.browser_automation.viewport.height": "Ύψος viewport προγράμματος περιήγησης σε pixel. Επηρεάζει τον τρόπο απόδοσης των σελίδων. Προεπιλογή: 720.",
-  "help.browser_automation.auto_build": "Αυτόματη δημιουργία της εικόνας Docker αν δεν υπάρχει κατά την εκκίνηση του sidecar. Απενεργοποιήστε για χειροκίνητη διαχείριση της εικόνας."
+  "help.browser_automation.auto_build": "Αυτόματη δημιουργία της εικόνας Docker αν δεν υπάρχει κατά την εκκίνηση του sidecar. Απενεργοποιήστε για χειροκίνητη διαχείριση της εικόνας.",
+  "config.browser_automation.cloak_info": "Λειτουργία stealth με CloakBrowser – περνάει τον εντοπισμό bot με patches δακτυλικών αποτυπωμάτων σε επίπεδο πηγαίου κώδικα.",
+  "config.browser_automation.cloak_humanize_label": "Ανθρωποποίηση συμπεριφοράς",
+  "help.browser_automation.cloak_humanize": "Προσομοιώνει ανθρώπινες κινήσεις ποντικιού, πληκτρολόγηση και κύλιση. Βοηθά στην υπέρβαση ανίχνευσης bot βάσει συμπεριφοράς.",
+  "config.browser_automation.cloak_human_preset_label": "Προεπιλογή συμπεριφοράς",
+  "help.browser_automation.cloak_human_preset": "Ταχύτητα προσομοίωσης: 'default' (κανονική) ή 'careful' (πιο αργή, προσεκτική).",
+  "config.browser_automation.cloak_proxy_label": "URL διακομιστή μεσολάβησης",
+  "help.browser_automation.cloak_proxy": "Προαιρετικός διακομιστής μεσολάβησης για συνεδρίες προγράμματος περιήγησης (HTTP ή SOCKS5).",
+  "config.browser_automation.cloak_fingerprint_seed_label": "Σπόρος δακτυλικού αποτυπώματος",
+  "help.browser_automation.cloak_fingerprint_seed": "Σταθερός σπόρος για ντετερμινιστικό δακτυλικό αποτύπωμα. Χρήσιμο για συνεπή ταυτότητα σε όλες τις συνεδρίες."
 }

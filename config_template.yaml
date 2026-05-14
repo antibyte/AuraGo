@@ -395,7 +395,7 @@ tools:
         container_image: ghcr.io/jauderho/yt-dlp:latest    # Docker image used in docker mode
         auto_pull: true                                   # automatically pull the container image when missing
     browser_automation:
-        enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
+        enabled: false                                     # enable browser_automation tool (CloakBrowser stealth browser sidecar)
     virtual_desktop:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     office_document:
@@ -611,6 +611,10 @@ browser_automation:
     headless: true
     readonly: false
     screenshots_dir: browser_screenshots
+    cloak_humanize: false                                  # simulate human-like mouse, keyboard and scroll behavior
+    cloak_human_preset: default                            # behavior preset: default (normal) or careful (slower)
+    cloak_proxy: ""                                        # optional proxy for browser sessions (http://user:pass@proxy:8080)
+    cloak_fingerprint_seed: ""                             # fixed seed for consistent browser fingerprint across sessions
 space_agent:
     enabled: false
     auto_start: true

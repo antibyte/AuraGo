@@ -132,6 +132,22 @@ async function renderBrowserAutomationSection(section) {
     html += '<input class="field-input" type="number" min="240" max="2160" value="' + (viewport.height || 720) + '" data-path="browser_automation.viewport.height"></div>';
     html += '</div>';
 
+    // CloakBrowser stealth options
+    html += '<div class="cfg-note-banner cfg-note-banner-info">🛡️ ' + t('config.browser_automation.cloak_info') + '</div>';
+    html += baToggleRow('config.browser_automation.cloak_humanize_label', 'help.browser_automation.cloak_humanize', data.cloak_humanize === true, 'browser_automation.cloak_humanize');
+
+    html += baFieldWithHelp('config.browser_automation.cloak_human_preset_label', 'help.browser_automation.cloak_human_preset',
+        '<select class="field-input" data-path="browser_automation.cloak_human_preset">' +
+        '<option value="default"' + ((data.cloak_human_preset || 'default') === 'default' ? ' selected' : '') + '>default</option>' +
+        '<option value="careful"' + (data.cloak_human_preset === 'careful' ? ' selected' : '') + '>careful</option>' +
+        '</select>');
+
+    html += baFieldWithHelp('config.browser_automation.cloak_proxy_label', 'help.browser_automation.cloak_proxy',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_proxy || '') + '" data-path="browser_automation.cloak_proxy" placeholder="http://user:pass@proxy:8080">');
+
+    html += baFieldWithHelp('config.browser_automation.cloak_fingerprint_seed_label', 'help.browser_automation.cloak_fingerprint_seed',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_fingerprint_seed || '') + '" data-path="browser_automation.cloak_fingerprint_seed" placeholder="e.g. 12345">');
+
     html += baToggleRow('config.browser_automation.auto_build_label', 'help.browser_automation.auto_build', data.auto_build !== false, 'browser_automation.auto_build');
     html += '</div>';
     html += '</details>';

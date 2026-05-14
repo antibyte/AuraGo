@@ -1,10 +1,10 @@
 ---
-description: browser_automation: Full browser automation through an optional Playwright sidecar with persistent sessions.
+description: browser_automation: Full browser automation through an optional CloakBrowser stealth sidecar with persistent sessions.
 ---
 
 # `browser_automation` Tool
 
-The **browser_automation** tool gives you a full browser session for multi-step website workflows.
+The **browser_automation** tool gives you a full browser session for multi-step website workflows using a stealth Chromium browser (CloakBrowser).
 
 It is designed for tasks such as:
 - opening a website and navigating through multiple pages
@@ -17,6 +17,12 @@ It is designed for tasks such as:
 - retrieving browser downloads
 
 **Requires:** both `browser_automation.enabled: true` and `tools.browser_automation.enabled: true`.
+
+**Stealth Features (when configured):**
+- Source-level fingerprint patches (canvas, WebGL, audio, fonts, GPU) make the browser indistinguishable from a real user.
+- `humanize` mode simulates human mouse curves, typing delays, and scroll patterns.
+- Optional proxy support per sidecar instance.
+- Fixed fingerprint seed for consistent identity across sessions.
 
 ## Operating Pattern
 
@@ -109,3 +115,5 @@ Returns the chosen download from the allowed download directory.
 - For visual verification, call `screenshot` and then `analyze_image`.
 - Never request full HTML dumps. The tool already returns a compact structured summary.
 - In read-only mode, mutating actions are blocked.
+- When stealth/humanize is enabled, actions take slightly longer due to simulated human behavior. Use adequate `timeout_ms` values.
+- For bot-protected sites (reCAPTCHA, Cloudflare Turnstile), enable `cloak_humanize` in the browser automation config for best results.

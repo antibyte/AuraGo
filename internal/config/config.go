@@ -254,6 +254,7 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.Headless = true
 	cfg.BrowserAutomation.ReadOnly = false
 	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
+	cfg.BrowserAutomation.CloakHumanPreset = "default"
 
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
