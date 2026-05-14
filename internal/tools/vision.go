@@ -16,6 +16,8 @@ import (
 
 var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
+const DefaultVisionModel = "google/gemini-2.0-flash-001"
+
 // AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
 // The prompt parameter controls what the model should focus on.
 func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
@@ -30,7 +32,7 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 
 	model := strings.TrimSpace(cfg.Vision.Model)
 	if model == "" {
-		model = "google/gemini-2.0-flash-001"
+		model = DefaultVisionModel
 	}
 
 	if apiKey == "" {

@@ -63,23 +63,22 @@ type ThreeDPrinterConfig struct {
 }
 
 type ThreeDPrinterRequest struct {
-	Operation         string `json:"operation"`
-	Protocol          string `json:"protocol,omitempty"`
-	PrinterID         string `json:"printer_id"`
-	URL               string `json:"url,omitempty"`
-	APIKey            string `json:"api_key,omitempty"`
-	MainboardID       string `json:"mainboard_id,omitempty"`
-	WebcamName        string `json:"webcam_name,omitempty"`
-	TimeoutSeconds    int    `json:"timeout_seconds,omitempty"`
-	Filename          string `json:"filename"`
-	Directory         string `json:"directory"`
-	Prompt            string `json:"prompt"`
-	LightOn           *bool  `json:"light_on,omitempty"`
-	StartLayer        int    `json:"start_layer"`
-	Calibration       bool   `json:"calibration"`
-	TimeLapse         bool   `json:"time_lapse"`
-	ShowInChat        bool   `json:"show_in_chat"`
-	InternalStreamURL string `json:"-"`
+	Operation      string `json:"operation"`
+	Protocol       string `json:"protocol,omitempty"`
+	PrinterID      string `json:"printer_id"`
+	URL            string `json:"url,omitempty"`
+	APIKey         string `json:"api_key,omitempty"`
+	MainboardID    string `json:"mainboard_id,omitempty"`
+	WebcamName     string `json:"webcam_name,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+	Filename       string `json:"filename"`
+	Directory      string `json:"directory"`
+	Prompt         string `json:"prompt"`
+	LightOn        *bool  `json:"light_on,omitempty"`
+	StartLayer     int    `json:"start_layer"`
+	Calibration    bool   `json:"calibration"`
+	TimeLapse      bool   `json:"time_lapse"`
+	ShowInChat     bool   `json:"show_in_chat"`
 }
 
 type ThreeDPrinterMediaResult struct {

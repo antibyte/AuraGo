@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/inventory"
 	"aurago/internal/security"
@@ -123,6 +124,67 @@ func isTTSConfigured(cfg *config.Config) bool {
 	default:
 		return false
 	}
+}
+
+func logThreeDPrinterOperation(logger *slog.Logger, req threeDPrinterArgs) {
+	if logger == nil {
+		return
+	}
+	operation := strings.ToLower(strings.TrimSpace(req.Operation))
+	args := []any{"operation", req.Operation, "printer_id", req.PrinterID}
+	if operation == "start_print" {
+		args = append(args, "filename", req.Filename)
+	}
+	logger.Info("LLM requested 3D printer operation", args...)
+}
+
+func handleThreeDPrinterAnalyzeCamera(ctx context.Context, cfg *config.Config, runtimeCfg tools.ThreeDPrinterConfig, req threeDPrinterArgs, budgetTracker *budget.Tracker) string {
+	snapshotRaw := tools.ExecuteThreeDPrinter(ctx, runtimeCfg, tools.ThreeDPrinterRequest{Operation: "camera_snapshot", PrinterID: req.PrinterID})
+	var snapshot struct {
+		Status    string `json:"status"`
+		LocalPath string `json:"local_path"`
+		WebPath   string `json:"web_path"`
+		Message   string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(snapshotRaw), &snapshot); err != nil || snapshot.Status == "error" || snapshot.LocalPath == "" {
+		if err != nil {
+			data, _ := json.Marshal(map[string]string{
+				"status":  "error",
+				"message": "snapshot failed: " + err.Error(),
+			})
+			return "Tool Output: " + string(data)
+		}
+		return "Tool Output: " + snapshotRaw
+	}
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = "Analyze this 3D printer camera snapshot. Describe print progress, visible issues, adhesion problems, spaghetti failures, and anything that needs attention."
+	}
+	analysis, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(snapshot.LocalPath, prompt, cfg)
+	if err != nil {
+		data, _ := json.Marshal(map[string]string{
+			"status":        "error",
+			"message":       "camera snapshot analysis failed: " + err.Error(),
+			"snapshot_path": snapshot.LocalPath,
+		})
+		return "Tool Output: " + string(data)
+	}
+	if budgetTracker != nil {
+		vModel := cfg.Vision.Model
+		if vModel == "" {
+			vModel = tools.DefaultVisionModel
+		}
+		budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
+	}
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":     "ok",
+		"snapshot":   snapshot.WebPath,
+		"local_path": snapshot.LocalPath,
+		"analysis":   analysis,
+		"prompt":     prompt,
+		"printer_id": req.PrinterID,
+	})
+	return "Tool Output: " + string(data)
 }
 
 func resolveChromecastTarget(req *chromecastArgs, inventoryDB *sql.DB, logger *slog.Logger) error {
@@ -530,6 +592,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			runtimeCfg := tools.BuildThreeDPrinterRuntimeConfig(cfg)
 			runtimeCfg.MediaDB = dc.MediaRegistryDB
+			logThreeDPrinterOperation(logger, req)
 			toolReq := tools.ThreeDPrinterRequest{
 				Operation:   req.Operation,
 				PrinterID:   req.PrinterID,
@@ -543,52 +606,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				ShowInChat:  req.ShowInChat,
 			}
 			if strings.EqualFold(req.Operation, "analyze_camera") {
-				snapshotRaw := tools.ExecuteThreeDPrinter(ctx, runtimeCfg, tools.ThreeDPrinterRequest{Operation: "camera_snapshot", PrinterID: req.PrinterID})
-				var snapshot struct {
-					Status    string `json:"status"`
-					LocalPath string `json:"local_path"`
-					WebPath   string `json:"web_path"`
-					Message   string `json:"message"`
-				}
-				if err := json.Unmarshal([]byte(snapshotRaw), &snapshot); err != nil || snapshot.Status == "error" || snapshot.LocalPath == "" {
-					if err != nil {
-						data, _ := json.Marshal(map[string]string{
-							"status":  "error",
-							"message": "snapshot failed: " + err.Error(),
-						})
-						return "Tool Output: " + string(data)
-					}
-					return "Tool Output: " + snapshotRaw
-				}
-				prompt := strings.TrimSpace(req.Prompt)
-				if prompt == "" {
-					prompt = "Analyze this 3D printer camera snapshot. Describe print progress, visible issues, adhesion problems, spaghetti failures, and anything that needs attention."
-				}
-				analysis, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(snapshot.LocalPath, prompt, cfg)
-				if err != nil {
-					data, _ := json.Marshal(map[string]string{
-						"status":        "error",
-						"message":       "camera snapshot analysis failed: " + err.Error(),
-						"snapshot_path": snapshot.LocalPath,
-					})
-					return "Tool Output: " + string(data)
-				}
-				if budgetTracker != nil {
-					vModel := cfg.Vision.Model
-					if vModel == "" {
-						vModel = "google/gemini-2.5-flash-lite-preview-09-2025"
-					}
-					budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
-				}
-				data, _ := json.Marshal(map[string]interface{}{
-					"status":     "ok",
-					"snapshot":   snapshot.WebPath,
-					"local_path": snapshot.LocalPath,
-					"analysis":   analysis,
-					"prompt":     prompt,
-					"printer_id": req.PrinterID,
-				})
-				return "Tool Output: " + string(data)
+				return handleThreeDPrinterAnalyzeCamera(ctx, cfg, runtimeCfg, req, budgetTracker)
 			}
 			raw := tools.ExecuteThreeDPrinter(ctx, runtimeCfg, toolReq)
 			if dc.Broker != nil {
@@ -603,6 +621,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						dc.Broker.Send("image", string(payload))
 					}
 				case "show_live_stream":
+					if !req.ShowInChat {
+						break
+					}
 					var stream struct {
 						Status    string `json:"status"`
 						ProxyURL  string `json:"proxy_url"`

@@ -1,14 +1,21 @@
 package agent
 
 import (
+	"context"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/tools"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
@@ -139,4 +146,132 @@ func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToTTSDir(t *testing.T)
 	if _, err := os.Stat(filepath.Join(dataDir, "tts", "ueberall_zuhause.mp3")); err != nil {
 		t.Fatalf("expected published file in tts dir: %v", err)
 	}
+}
+
+func TestDispatchThreeDPrinterAnalyzeCameraUsesDefaultVisionBudgetModel(t *testing.T) {
+	originalAnalyze := dispatchAnalyzeImageWithPrompt
+	defer func() { dispatchAnalyzeImageWithPrompt = originalAnalyze }()
+
+	imageServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write([]byte{0xff, 0xd8, 0xff, 0xdb})
+	}))
+	defer imageServer.Close()
+	wsURL, closeWS := mockAgentThreeDPrinterCameraURLServer(t, imageServer.URL+"/snapshot.jpg")
+	defer closeWS()
+
+	dispatchAnalyzeImageWithPrompt = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+		if _, err := os.Stat(filePath); err != nil {
+			t.Fatalf("snapshot path should exist: %v", err)
+		}
+		return "camera looks healthy", 11, 13, nil
+	}
+
+	cfg := agentThreeDPrinterConfig(t, wsURL)
+	cfg.Budget.Enabled = true
+	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action: "three_d_printer",
+		Params: map[string]interface{}{
+			"operation":  "analyze_camera",
+			"printer_id": "lab",
+		},
+	}, &DispatchContext{
+		Cfg:           cfg,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		BudgetTracker: tracker,
+	})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle three_d_printer")
+	}
+	if !strings.Contains(out, `"analysis":"camera looks healthy"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+	status := tracker.GetStatus()
+	if status.Models[tools.DefaultVisionModel].Calls != 1 {
+		t.Fatalf("budget models = %#v, want one call for %q", status.Models, tools.DefaultVisionModel)
+	}
+}
+
+func TestDispatchThreeDPrinterShowLiveStreamHonorsShowInChat(t *testing.T) {
+	wsURL, closeWS := mockAgentThreeDPrinterCameraURLServer(t, "http://127.0.0.1:8080/video")
+	defer closeWS()
+	cfg := agentThreeDPrinterConfig(t, wsURL)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	broker := &captureBroker{}
+	out, ok := dispatchPlatform(context.Background(), ToolCall{
+		Action: "three_d_printer",
+		Params: map[string]interface{}{
+			"operation":  "show_live_stream",
+			"printer_id": "lab",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: logger, Broker: broker})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle three_d_printer")
+	}
+	if !strings.Contains(out, `"proxy_url"`) {
+		t.Fatalf("expected stream URL payload, got: %s", out)
+	}
+	if len(broker.events) != 0 {
+		t.Fatalf("broker events = %#v, want none without show_in_chat", broker.events)
+	}
+
+	broker = &captureBroker{}
+	_, ok = dispatchPlatform(context.Background(), ToolCall{
+		Action: "three_d_printer",
+		Params: map[string]interface{}{
+			"operation":    "show_live_stream",
+			"printer_id":   "lab",
+			"show_in_chat": true,
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: logger, Broker: broker})
+	if !ok {
+		t.Fatal("expected dispatchPlatform to handle three_d_printer")
+	}
+	if len(broker.events) != 1 || broker.events[0].event != "live_stream" {
+		t.Fatalf("broker events = %#v, want one live_stream event", broker.events)
+	}
+}
+
+func agentThreeDPrinterConfig(t *testing.T, wsURL string) *config.Config {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.DefaultPrinter = "lab"
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled = true
+	cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers = []config.ElegooCentauriCarbonPrinterConfig{{
+		ID:             "lab",
+		URL:            wsURL,
+		TimeoutSeconds: 2,
+	}}
+	return cfg
+}
+
+func mockAgentThreeDPrinterCameraURLServer(t *testing.T, cameraURL string) (string, func()) {
+	t.Helper()
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Fatalf("upgrade error = %v", err)
+		}
+		defer conn.Close()
+		var payload map[string]interface{}
+		if err := conn.ReadJSON(&payload); err != nil {
+			t.Fatalf("ReadJSON error = %v", err)
+		}
+		data := payload["Data"].(map[string]interface{})
+		requestID := data["RequestID"].(string)
+		if err := conn.WriteJSON(map[string]interface{}{
+			"Data": map[string]interface{}{
+				"RequestID": requestID,
+				"Data":      map[string]interface{}{"Url": cameraURL},
+			},
+		}); err != nil {
+			t.Fatalf("WriteJSON error = %v", err)
+		}
+	}))
+	return "ws" + strings.TrimPrefix(server.URL, "http") + "/websocket", server.Close
 }

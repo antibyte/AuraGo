@@ -90,7 +90,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if budgetTracker != nil {
 				vModel := cfg.Vision.Model
 				if vModel == "" {
-					vModel = "google/gemini-2.5-flash-lite-preview-09-2025"
+					vModel = tools.DefaultVisionModel
 				}
 				budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
 			}
