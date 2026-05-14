@@ -488,7 +488,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"start_layer":  prop("integer", "Start layer for start_print, default 0."),
 				"calibration":  prop("boolean", "Enable printer calibration for start_print."),
 				"time_lapse":   prop("boolean", "Enable timelapse for start_print."),
-				"show_in_chat": prop("boolean", "Request inline chat live stream rendering when operation is show_live_stream."),
+				"show_in_chat": prop("boolean", "Compatibility flag for show_live_stream; the stream is rendered inline by default."),
 			}, "operation"),
 		))
 	}

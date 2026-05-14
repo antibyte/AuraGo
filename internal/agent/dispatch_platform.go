@@ -621,9 +621,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						dc.Broker.Send("image", string(payload))
 					}
 				case "show_live_stream":
-					if !req.ShowInChat {
-						break
-					}
 					var stream struct {
 						Status    string `json:"status"`
 						ProxyURL  string `json:"proxy_url"`

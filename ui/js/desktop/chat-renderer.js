@@ -4,6 +4,7 @@
     const DesktopChatRenderer = {
         seenSSEImages: new Set(),
         seenSSEVideos: new Set(),
+        seenSSELiveStreams: new Set(),
         seenSSEAudios: new Set(),
         seenSSEDocuments: new Set(),
         _md: null,
@@ -312,6 +313,44 @@
             video.style.borderRadius = '8px';
             if (videoData.title) video.title = videoData.title;
             bubble.appendChild(video);
+            chatLog.appendChild(bubble);
+            const stamp = this.appendTimestamp(chatLog, 'agent');
+            (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });
+        },
+
+        appendLiveStreamMessage(chatLog, streamData) {
+            const key = streamData && (streamData.path || streamData.stream_url || streamData.message);
+            if (!streamData || !key || this.seenSSELiveStreams.has(key)) return;
+            this.seenSSELiveStreams.add(key);
+
+            const bubble = this.createBubble('agent', '');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-video-wrapper chat-live-stream-wrapper';
+
+            const title = String(streamData.title || 'Live stream').trim();
+            if (title) {
+                const titleEl = document.createElement('div');
+                titleEl.className = 'chat-video-title';
+                titleEl.textContent = title;
+                wrapper.appendChild(titleEl);
+            }
+
+            if (streamData.path) {
+                const img = document.createElement('img');
+                img.className = 'chat-video-player chat-live-stream';
+                img.src = streamData.path;
+                img.alt = title || 'Live stream';
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = '8px';
+                wrapper.appendChild(img);
+            } else {
+                const msg = document.createElement('div');
+                msg.className = 'chat-video-actions';
+                msg.textContent = String(streamData.message || streamData.error || streamData.stream_url || '').trim();
+                wrapper.appendChild(msg);
+            }
+
+            bubble.appendChild(wrapper);
             chatLog.appendChild(bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
             (stamp || bubble).scrollIntoView({ block: 'end', behavior: 'smooth' });

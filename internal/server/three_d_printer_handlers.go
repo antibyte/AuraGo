@@ -167,7 +167,11 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Accel-Buffering", "no")
 		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
 		_, _ = io.Copy(w, resp.Body)
 	}
 }

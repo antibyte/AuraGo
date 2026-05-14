@@ -157,18 +157,18 @@ const DefaultVisionModel = "google/gemini-2.0-flash-001"
 - [ ] Run: `go test ./internal/agent ./internal/tools -run "Vision|ThreeDPrinter" -count=1`.
 - [ ] Commit: `fix: align 3d printer camera analysis with vision defaults`.
 
-## Task 6: Honor `show_in_chat` and Remove Dead Request State
+## Task 6: Inline Live Stream Rendering
 
 **Files:**
 - Modify: `internal/tools/three_d_printer.go`
 - Modify: `internal/agent/dispatch_platform.go`
 - Modify: `internal/agent/dispatch_platform_test.go`
 
-- [ ] Remove `InternalStreamURL` from `ThreeDPrinterRequest`.
-- [ ] Change live-stream broker sending to only happen when `req.ShowInChat == true`, while still returning `proxy_url` and `stream_url` in tool output for normal calls.
-- [ ] Add a dispatch test that `show_live_stream` does not send broker events by default and does when `show_in_chat` is true.
-- [ ] Run: `go test ./internal/agent ./internal/tools -run ThreeDPrinter -count=1`.
-- [ ] Commit: `fix: honor 3d printer show_in_chat flag`.
+- [x] Remove `InternalStreamURL` from `ThreeDPrinterRequest`.
+- [x] Treat `show_live_stream` as the explicit inline-rendering operation when a chat broker is available; keep `camera_url` for URL-only requests.
+- [x] Add a dispatch test that `show_live_stream` sends the same-origin proxied stream.
+- [x] Run: `go test ./internal/agent ./internal/tools -run ThreeDPrinter -count=1`.
+- [x] Commit: `fix: render 3d printer live streams inline`.
 
 ## Task 7: Add Structured Logging for 3D Printer Operations
 

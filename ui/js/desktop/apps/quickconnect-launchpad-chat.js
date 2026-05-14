@@ -912,6 +912,14 @@
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
+                    } else if (event === 'live_stream') {
+                        try {
+                            const streamData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) {
+                                renderer.appendLiveStreamMessage(chatLog, streamData);
+                                keepAgentStatusAtEnd();
+                            }
+                        } catch (_) {}
                     } else if (event === 'audio') {
                         try {
                             const audioData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;

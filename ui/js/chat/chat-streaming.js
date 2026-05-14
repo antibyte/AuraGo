@@ -379,8 +379,9 @@ function handleSSEMessage(e) {
         } else if (data.event === 'live_stream') {
             try {
                 const streamData = JSON.parse(data.detail);
-                if (streamData && streamData.path && !seenSSELiveStreams.has(streamData.path)) {
-                    seenSSELiveStreams.add(streamData.path);
+                const streamKey = streamData && (streamData.path || streamData.stream_url || streamData.message);
+                if (streamKey && !seenSSELiveStreams.has(streamKey)) {
+                    seenSSELiveStreams.add(streamKey);
                     if (typeof appendLiveStreamMessage === 'function') appendLiveStreamMessage(streamData);
                 }
             } catch (e) { }

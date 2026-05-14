@@ -193,7 +193,7 @@ func TestDispatchThreeDPrinterAnalyzeCameraUsesDefaultVisionBudgetModel(t *testi
 	}
 }
 
-func TestDispatchThreeDPrinterShowLiveStreamHonorsShowInChat(t *testing.T) {
+func TestDispatchThreeDPrinterShowLiveStreamEmitsInlineStream(t *testing.T) {
 	wsURL, closeWS := mockAgentThreeDPrinterCameraURLServer(t, "http://127.0.0.1:8080/video")
 	defer closeWS()
 	cfg := agentThreeDPrinterConfig(t, wsURL)
@@ -213,24 +213,11 @@ func TestDispatchThreeDPrinterShowLiveStreamHonorsShowInChat(t *testing.T) {
 	if !strings.Contains(out, `"proxy_url"`) {
 		t.Fatalf("expected stream URL payload, got: %s", out)
 	}
-	if len(broker.events) != 0 {
-		t.Fatalf("broker events = %#v, want none without show_in_chat", broker.events)
-	}
-
-	broker = &captureBroker{}
-	_, ok = dispatchPlatform(context.Background(), ToolCall{
-		Action: "three_d_printer",
-		Params: map[string]interface{}{
-			"operation":    "show_live_stream",
-			"printer_id":   "lab",
-			"show_in_chat": true,
-		},
-	}, &DispatchContext{Cfg: cfg, Logger: logger, Broker: broker})
-	if !ok {
-		t.Fatal("expected dispatchPlatform to handle three_d_printer")
-	}
 	if len(broker.events) != 1 || broker.events[0].event != "live_stream" {
 		t.Fatalf("broker events = %#v, want one live_stream event", broker.events)
+	}
+	if !strings.Contains(broker.events[0].message, `"/api/3d-printers/lab/camera/stream"`) {
+		t.Fatalf("live_stream payload = %s, want proxied same-origin stream", broker.events[0].message)
 	}
 }
 

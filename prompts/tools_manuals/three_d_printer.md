@@ -21,10 +21,10 @@ Supported protocols:
 - `attributes`: fetch printer metadata and capabilities.
 - `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.
 - `history`: fetch print history IDs.
-- `camera_url`: get the printer camera stream URL. Klipper uses Moonraker webcam entries and may select a configured webcam name.
+- `camera_url`: get the printer camera stream URL as data only. Use this when the user explicitly asks for the URL, not when they want to watch the camera.
 - `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available.
 - `analyze_camera`: capture, store, and register a snapshot, then analyze it with the configured Vision provider.
-- `show_live_stream`: return the proxied MJPEG or browser-compatible image stream. Set `show_in_chat` to true when the stream should also be rendered inline in chat.
+- `show_live_stream`: render the live camera in chat through AuraGo's same-origin MJPEG/image-stream proxy. Use this for requests like "show the camera", "open the printer video", or "let me watch the printer". Do not capture or convert frames for this operation.
 - `start_print`: start an explicit `filename`. Elegoo also supports `start_layer`, `calibration`, and `time_lapse`; Klipper sends the filename to Moonraker unchanged.
 - `pause_print`, `resume_print`, `cancel_print`: control the active job when write access is allowed.
 - `set_camera_light`: set `light_on` true or false for Elegoo when write access is allowed. Klipper v1 does not support light control.
@@ -37,6 +37,10 @@ Supported protocols:
 
 ```json
 {"operation":"analyze_camera","printer_id":"lab-printer","prompt":"Check whether the print is still adhering to the bed."}
+```
+
+```json
+{"operation":"show_live_stream","printer_id":"lab-printer"}
 ```
 
 ```json

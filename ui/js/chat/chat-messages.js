@@ -637,7 +637,6 @@ function createChatLiveStreamElement(streamData) {
     img.className = 'chat-video-player chat-live-stream';
     img.src = path;
     img.alt = title || 'Live stream';
-    img.loading = 'lazy';
     wrapper.appendChild(img);
 
     const actions = document.createElement('div');
