@@ -5,6 +5,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
+	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"context"
@@ -989,6 +990,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] File indexer restarted")
 			} else {
 				s.Logger.Info("[Config UI] File indexer stopped")
+			}
+		}
+		if loadErr == nil && newCfg != nil && s.InventoryDB != nil {
+			created, updated, syncErr := services.SyncThreeDPrinterDevices(s.InventoryDB, newCfg.ThreeDPrinters)
+			if syncErr != nil {
+				s.Logger.Warn("[Config UI] Failed to sync 3D printers into device registry", "error", syncErr)
+			} else if created > 0 || updated > 0 {
+				s.Logger.Info("[Config UI] Synced 3D printers into device registry", "created", created, "updated", updated)
 			}
 		}
 

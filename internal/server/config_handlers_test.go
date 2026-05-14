@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/inventory"
 	"aurago/internal/security"
 
 	"gopkg.in/yaml.v3"
@@ -259,6 +260,86 @@ func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	if !strings.Contains(body, "Invalid JSON") || strings.Contains(strings.ToLower(body), "unexpected eof") {
 		t.Fatalf("expected generic invalid JSON response, got %q", body)
 	}
+}
+
+func TestHandleUpdateConfigRegistersConfigured3DPrinterDevice(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("three_d_printers:\n  enabled: true\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	db, err := inventory.InitDB(filepath.Join(tmpDir, "inventory.db"))
+	if err != nil {
+		t.Fatalf("init inventory db: %v", err)
+	}
+	defer db.Close()
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	s := &Server{
+		Cfg:         loaded,
+		Logger:      slog.Default(),
+		Vault:       vault,
+		InventoryDB: db,
+	}
+
+	body := strings.NewReader(`{
+		"three_d_printers": {
+			"enabled": true,
+			"klipper": {
+				"enabled": true,
+				"printers": [
+					{
+						"id": "voron",
+						"name": "Voron 2.4",
+						"url": "http://192.168.6.60:7125",
+						"timeout_seconds": 10
+					}
+				]
+			}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+	rec := httptest.NewRecorder()
+
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	devices, err := inventory.QueryDevices(db, "3d-printer", "printer", "Voron 2.4")
+	if err != nil {
+		t.Fatalf("query devices: %v", err)
+	}
+	if len(devices) != 1 {
+		t.Fatalf("registered devices = %d, want 1: %#v", len(devices), devices)
+	}
+	got := devices[0]
+	if got.IPAddress != "192.168.6.60" || got.Port != 7125 {
+		t.Fatalf("device address = %s:%d, want 192.168.6.60:7125", got.IPAddress, got.Port)
+	}
+	if !containsString(got.Tags, "klipper") {
+		t.Fatalf("device tags = %#v, want klipper tag", got.Tags)
+	}
+	if !strings.Contains(got.Description, "3D printer") {
+		t.Fatalf("device description = %q, want 3D printer context", got.Description)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestValidateManagedDockerBackendsRejectsLocalOllamaEmbeddingsWhenDockerDisabled(t *testing.T) {
