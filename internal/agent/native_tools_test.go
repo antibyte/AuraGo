@@ -1201,6 +1201,72 @@ func TestNormalizeStrictSchemaAddsMissingArrayItems(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasAreStrictOpenAICompatibleAfterNormalization(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	var violations []string
+
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		params, ok := toolSchema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			violations = append(violations, toolSchema.Function.Name+".parameters is not an object schema")
+			continue
+		}
+		normalizeStrictSchemaRequiredRec(params)
+		collectStrictOpenAISchemaViolations(toolSchema.Function.Name+".parameters", params, &violations)
+	}
+
+	if len(violations) > 0 {
+		t.Fatalf("native tool schemas are not OpenAI strict-compatible:\n%s", strings.Join(violations, "\n"))
+	}
+}
+
+func collectStrictOpenAISchemaViolations(path string, node map[string]interface{}, violations *[]string) {
+	switch node["type"] {
+	case "object":
+		props, _ := node["properties"].(map[string]interface{})
+		if len(props) > 0 {
+			requiredRaw, exists := node["required"]
+			if !exists {
+				*violations = append(*violations, path+" object with properties is missing required")
+			} else {
+				for name := range props {
+					if !containsRequiredValue(requiredRaw, name) {
+						*violations = append(*violations, path+" required missing property "+name)
+					}
+				}
+			}
+		}
+		if node["additionalProperties"] != false {
+			*violations = append(*violations, path+" object must set additionalProperties=false")
+		}
+		for name, raw := range props {
+			if child, ok := raw.(map[string]interface{}); ok {
+				collectStrictOpenAISchemaViolations(path+"."+name, child, violations)
+			}
+		}
+	case "array":
+		items, ok := node["items"].(map[string]interface{})
+		if !ok {
+			*violations = append(*violations, path+" array is missing object items schema")
+			return
+		}
+		collectStrictOpenAISchemaViolations(path+"[]", items, violations)
+	default:
+	}
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if arr, ok := node[key].([]interface{}); ok {
+			for i, raw := range arr {
+				if child, ok := raw.(map[string]interface{}); ok {
+					collectStrictOpenAISchemaViolations(fmt.Sprintf("%s.%s[%d]", path, key, i), child, violations)
+				}
+			}
+		}
+	}
+}
+
 func containsRequiredValue(items interface{}, target string) bool {
 	switch typed := items.(type) {
 	case []string:
