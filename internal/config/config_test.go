@@ -1142,6 +1142,49 @@ func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
 	}
 }
 
+func TestManifestProviderManagedIgnoresBrowserBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = "http://manifest:2099"
+	cfg.Manifest.APIKey = "mnfst_from_manifest_section"
+	cfg.Providers = []ProviderEntry{{
+		ID:      "manifest",
+		Type:    "manifest",
+		BaseURL: "https://aurago-manifest.taild1480.ts.net/v1",
+		Model:   "manifest/auto",
+	}}
+	cfg.LLM.Provider = "manifest"
+
+	cfg.ResolveProviders()
+
+	if cfg.Providers[0].BaseURL != "http://manifest:2099/v1" {
+		t.Fatalf("provider base_url = %q, want managed internal Manifest /v1 URL", cfg.Providers[0].BaseURL)
+	}
+	if cfg.LLM.BaseURL != "http://manifest:2099/v1" {
+		t.Fatalf("LLM base_url = %q, want managed internal Manifest /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
+func TestManifestProviderManagedIgnoresBrowserManifestURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.Runtime.IsDocker = true
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = "https://aurago-manifest.taild1480.ts.net"
+	cfg.Manifest.APIKey = "mnfst_from_manifest_section"
+	cfg.Providers = []ProviderEntry{{
+		ID:    "manifest",
+		Type:  "manifest",
+		Model: "manifest/auto",
+	}}
+	cfg.LLM.Provider = "manifest"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.BaseURL != "http://manifest:2099/v1" {
+		t.Fatalf("LLM base_url = %q, want managed Docker-internal Manifest /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
 func TestManifestProviderExternalDefaultBaseURL(t *testing.T) {
 	cfg := &Config{}
 	cfg.Manifest.Mode = "external"

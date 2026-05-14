@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -185,13 +186,24 @@ func (c *Config) ManifestProviderBaseURL() string {
 		return providerutil.NormalizeBaseURL(c.Manifest.ExternalBaseURL)
 	}
 	base := providerutil.NormalizeBaseURL(c.Manifest.URL)
+	if isTailscaleMagicDNSURL(base) {
+		base = ""
+	}
 	if base == "" {
-		base = providerutil.NormalizeBaseURL(defaultSidecarURL(probeDockerContainer(), "manifest", 2099))
+		base = providerutil.NormalizeBaseURL(defaultSidecarURL(c.Runtime.IsDocker || probeDockerContainer(), "manifest", 2099))
 	}
 	if base == "" {
 		return ""
 	}
 	return strings.TrimRight(base, "/") + "/v1"
+}
+
+func isTailscaleMagicDNSURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil {
+		return false
+	}
+	return strings.HasSuffix(strings.ToLower(strings.TrimSuffix(parsed.Hostname(), ".")), ".ts.net")
 }
 
 // ResolveProviders populates the resolved (yaml:"-") fields on every LLM slot
@@ -210,7 +222,7 @@ func (c *Config) ResolveProviders() {
 			slog.Warn("[Config] Provider has unknown type — possible typo in config",
 				"provider_id", p.ID, "type", p.Type)
 		}
-		if lower == "manifest" && strings.TrimSpace(p.BaseURL) == "" {
+		if lower == "manifest" && (strings.ToLower(strings.TrimSpace(c.Manifest.Mode)) != "external" || strings.TrimSpace(p.BaseURL) == "") {
 			p.BaseURL = c.ManifestProviderBaseURL()
 		}
 		if lower == "manifest" && strings.TrimSpace(p.APIKey) == "" {
