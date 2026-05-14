@@ -25,6 +25,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	sdcpCmdStatus      = 0
+	sdcpCmdAttributes  = 1
+	sdcpCmdStartPrint  = 128
+	sdcpCmdPausePrint  = 129
+	sdcpCmdCancelPrint = 130
+	sdcpCmdResumePrint = 131
+	sdcpCmdFiles       = 258
+	sdcpCmdHistory     = 320
+	sdcpCmdCameraURL   = 386
+	sdcpCmdCameraLight = 403
+)
+
 type ElegooCentauriCarbonPrinter struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`
@@ -186,7 +199,7 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/printer/objects/list", nil, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 1, map[string]interface{}{})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdAttributes, map[string]interface{}{})
 	case "files":
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/server/files/list", url.Values{"root": []string{"gcodes"}}, nil)
@@ -195,12 +208,12 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if dir == "" {
 			dir = "/local"
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 258, map[string]interface{}{"Url": dir})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdFiles, map[string]interface{}{"Url": dir})
 	case "history":
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodGet, "/server/history/list", url.Values{"limit": []string{"20"}}, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 320, map[string]interface{}{})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdHistory, map[string]interface{}{})
 	case "camera_url":
 		streamURL, _, err := ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
@@ -227,7 +240,7 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/start", url.Values{"filename": []string{filename}}, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 128, map[string]interface{}{
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdStartPrint, map[string]interface{}{
 			"Filename":           filename,
 			"StartLayer":         req.StartLayer,
 			"Calibration_switch": boolAsInt(req.Calibration),
@@ -238,17 +251,17 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/pause", nil, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 129, map[string]interface{}{})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdPausePrint, map[string]interface{}{})
 	case "cancel_print":
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/cancel", nil, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 130, map[string]interface{}{})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdCancelPrint, map[string]interface{}{})
 	case "resume_print":
 		if printer.Klipper != nil {
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/resume", nil, nil)
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 131, map[string]interface{}{})
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdResumePrint, map[string]interface{}{})
 	case "set_camera_light":
 		if printer.Klipper != nil {
 			return threeDPrinterJSONError("set_camera_light is not supported for Klipper in standard-actions mode")
@@ -256,7 +269,7 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if req.LightOn == nil {
 			return threeDPrinterJSONError("light_on is required for set_camera_light")
 		}
-		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, 403, map[string]interface{}{
+		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdCameraLight, map[string]interface{}{
 			"LightStatus": map[string]interface{}{
 				"SecondLight": *req.LightOn,
 				"RgbLight":    []int{0, 0, 0},
@@ -302,15 +315,15 @@ func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ResolvedTh
 }
 
 func ElegooCentauriCarbonStatus(ctx context.Context, printer ElegooCentauriCarbonPrinter) string {
-	return elegooCentauriCarbonCommandJSON(ctx, printer, 0, map[string]interface{}{})
+	return elegooCentauriCarbonCommandJSON(ctx, printer, sdcpCmdStatus, map[string]interface{}{})
 }
 
 func ElegooCentauriCarbonCameraURL(ctx context.Context, printer ElegooCentauriCarbonPrinter) (string, error) {
-	resp, err := elegooCentauriCarbonCommand(ctx, printer, 386, map[string]interface{}{"Enable": 1})
+	resp, err := elegooCentauriCarbonCommand(ctx, printer, sdcpCmdCameraURL, map[string]interface{}{"Enable": 1})
 	if err != nil {
 		return "", err
 	}
-	streamURL := findHTTPURL(resp)
+	streamURL := findElegooCameraURL(resp)
 	if streamURL == "" {
 		encoded, _ := json.Marshal(resp)
 		return "", fmt.Errorf("camera stream URL was not found in printer response: %s", string(encoded))
@@ -662,14 +675,19 @@ func elegooCentauriCarbonCommand(ctx context.Context, printer ElegooCentauriCarb
 	if err := conn.WriteJSON(payload); err != nil {
 		return nil, fmt.Errorf("send SDCP command %d: %w", cmd, err)
 	}
+	unrelatedResponses := 0
 	for {
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
 		var resp map[string]interface{}
 		if err := conn.ReadJSON(&resp); err != nil {
 			return nil, fmt.Errorf("read SDCP response for command %d: %w", cmd, err)
 		}
-		if responseMatches(resp, requestID) || cmd == 0 || cmd == 1 {
+		if responseMatches(resp, requestID) || cmd == sdcpCmdStatus || cmd == sdcpCmdAttributes {
 			return resp, nil
+		}
+		unrelatedResponses++
+		if unrelatedResponses > 50 {
+			return nil, fmt.Errorf("too many unrelated SDCP responses for command %d", cmd)
 		}
 	}
 }
@@ -701,6 +719,35 @@ func findHTTPURL(value interface{}) string {
 				return found
 			}
 		}
+	}
+	return ""
+}
+
+func findElegooCameraURL(resp map[string]interface{}) string {
+	for _, path := range [][]string{
+		{"Data", "Data", "Url"},
+		{"Data", "Url"},
+		{"Url"},
+	} {
+		if got := httpURLAtPath(resp, path...); got != "" {
+			return got
+		}
+	}
+	return findHTTPURL(resp)
+}
+
+func httpURLAtPath(value interface{}, path ...string) string {
+	current := value
+	for _, key := range path {
+		obj, ok := current.(map[string]interface{})
+		if !ok {
+			return ""
+		}
+		current = obj[key]
+	}
+	got, _ := current.(string)
+	if strings.HasPrefix(got, "http://") || strings.HasPrefix(got, "https://") {
+		return got
 	}
 	return ""
 }

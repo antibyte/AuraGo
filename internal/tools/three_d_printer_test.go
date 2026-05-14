@@ -86,6 +86,84 @@ func TestThreeDPrinterStartPrintRequiresExplicitFilename(t *testing.T) {
 	}
 }
 
+func TestThreeDPrinterListPrintersReturnsConfiguredPrinters(t *testing.T) {
+	cfg := ThreeDPrinterConfig{
+		Enabled:        true,
+		DefaultPrinter: "lab",
+		ElegooCentauriCarbon: ElegooCentauriCarbonConfig{
+			Enabled:  true,
+			Printers: []ElegooCentauriCarbonPrinter{{ID: "lab", URL: "ws://192.168.1.50/websocket"}},
+		},
+		Klipper: KlipperConfig{
+			Enabled:  true,
+			Printers: []KlipperPrinter{{ID: "voron", URL: "http://192.168.1.60:7125"}},
+		},
+	}
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "list_printers"})
+	if !strings.Contains(out, `"default_printer":"lab"`) || !strings.Contains(out, `"id":"voron"`) {
+		t.Fatalf("unexpected list output: %s", out)
+	}
+}
+
+func TestElegooCentauriCarbonMutationAndInfoCommandsUseExpectedSDCPCommands(t *testing.T) {
+	tests := []struct {
+		name      string
+		req       ThreeDPrinterRequest
+		wantCmd   int
+		wantField string
+	}{
+		{name: "attributes", req: ThreeDPrinterRequest{Operation: "attributes"}, wantCmd: sdcpCmdAttributes},
+		{name: "history", req: ThreeDPrinterRequest{Operation: "history"}, wantCmd: sdcpCmdHistory},
+		{name: "files custom dir", req: ThreeDPrinterRequest{Operation: "files", Directory: "/usb"}, wantCmd: sdcpCmdFiles, wantField: "/usb"},
+		{name: "pause", req: ThreeDPrinterRequest{Operation: "pause_print"}, wantCmd: sdcpCmdPausePrint},
+		{name: "resume", req: ThreeDPrinterRequest{Operation: "resume_print"}, wantCmd: sdcpCmdResumePrint},
+		{name: "cancel", req: ThreeDPrinterRequest{Operation: "cancel_print"}, wantCmd: sdcpCmdCancelPrint},
+		{name: "camera light", req: ThreeDPrinterRequest{Operation: "set_camera_light", LightOn: boolPtr(true)}, wantCmd: sdcpCmdCameraLight},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+				data := payload["Data"].(map[string]interface{})
+				if got := int(data["Cmd"].(float64)); got != tt.wantCmd {
+					t.Fatalf("Cmd = %d, want %d", got, tt.wantCmd)
+				}
+				if tt.wantField != "" {
+					cmdData := data["Data"].(map[string]interface{})
+					if got := cmdData["Url"]; got != tt.wantField {
+						t.Fatalf("Url = %v, want %q", got, tt.wantField)
+					}
+				}
+				requestID := data["RequestID"].(string)
+				if err := conn.WriteJSON(map[string]interface{}{
+					"Data": map[string]interface{}{
+						"Cmd":       tt.wantCmd,
+						"RequestID": requestID,
+						"Ack":       true,
+					},
+				}); err != nil {
+					t.Fatalf("WriteJSON error = %v", err)
+				}
+			})
+			defer closeServer()
+
+			cfg := ThreeDPrinterConfig{
+				Enabled:        true,
+				ReadOnly:       false,
+				DefaultPrinter: "lab",
+				ElegooCentauriCarbon: ElegooCentauriCarbonConfig{
+					Enabled:  true,
+					Printers: []ElegooCentauriCarbonPrinter{{ID: "lab", URL: wsURL, TimeoutSeconds: 2}},
+				},
+			}
+			tt.req.PrinterID = "lab"
+			out := ExecuteThreeDPrinter(context.Background(), cfg, tt.req)
+			if !strings.Contains(out, `"status":"ok"`) {
+				t.Fatalf("unexpected output: %s", out)
+			}
+		})
+	}
+}
+
 func TestValidateThreeDPrinterStreamURLRequiresConfiguredHost(t *testing.T) {
 	if err := ValidateThreeDPrinterStreamURL("ws://192.168.1.50/websocket", "http://192.168.1.50:8080/video"); err != nil {
 		t.Fatalf("expected matching host to pass: %v", err)
@@ -183,6 +261,39 @@ func TestKlipperStartPrintRequiresFilenameAndCallsMoonraker(t *testing.T) {
 	}
 }
 
+func TestKlipperMutationAndInfoCommandsUseExpectedMoonrakerPaths(t *testing.T) {
+	tests := []struct {
+		operation  string
+		wantMethod string
+		wantPath   string
+	}{
+		{operation: "attributes", wantMethod: http.MethodGet, wantPath: "/printer/objects/list"},
+		{operation: "history", wantMethod: http.MethodGet, wantPath: "/server/history/list"},
+		{operation: "pause_print", wantMethod: http.MethodPost, wantPath: "/printer/print/pause"},
+		{operation: "resume_print", wantMethod: http.MethodPost, wantPath: "/printer/print/resume"},
+		{operation: "cancel_print", wantMethod: http.MethodPost, wantPath: "/printer/print/cancel"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.operation, func(t *testing.T) {
+			var gotMethod, gotPath string
+			server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+				gotMethod = r.Method
+				gotPath = r.URL.Path
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok"})
+			})
+			defer server.Close()
+
+			out := ExecuteThreeDPrinter(context.Background(), klipperOnlyConfig(server.URL), ThreeDPrinterRequest{Operation: tt.operation, PrinterID: "voron"})
+			if gotMethod != tt.wantMethod || gotPath != tt.wantPath {
+				t.Fatalf("request = %s %s, want %s %s", gotMethod, gotPath, tt.wantMethod, tt.wantPath)
+			}
+			if !strings.Contains(out, `"status":"ok"`) {
+				t.Fatalf("unexpected output: %s", out)
+			}
+		})
+	}
+}
+
 func TestThreeDPrinterExecuteBlocksKlipperMutationsInReadOnlyMode(t *testing.T) {
 	called := false
 	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +337,53 @@ func TestKlipperCameraURLSelectsConfiguredWebcam(t *testing.T) {
 	}
 }
 
+func TestElegooCentauriCarbonCameraURLPrefersSchemaURL(t *testing.T) {
+	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+		data := payload["Data"].(map[string]interface{})
+		requestID := data["RequestID"].(string)
+		if err := conn.WriteJSON(map[string]interface{}{
+			"Url": "http://192.168.1.50/not-camera",
+			"Data": map[string]interface{}{
+				"RequestID": requestID,
+				"Data": map[string]interface{}{
+					"Url": "http://192.168.1.50/camera-stream",
+				},
+			},
+		}); err != nil {
+			t.Fatalf("WriteJSON error = %v", err)
+		}
+	})
+	defer closeServer()
+
+	got, err := ElegooCentauriCarbonCameraURL(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2})
+	if err != nil {
+		t.Fatalf("ElegooCentauriCarbonCameraURL error = %v", err)
+	}
+	if got != "http://192.168.1.50/camera-stream" {
+		t.Fatalf("camera URL = %q, want schema URL", got)
+	}
+}
+
+func TestElegooCentauriCarbonCommandStopsAfterTooManyUnrelatedResponses(t *testing.T) {
+	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+		for i := 0; i < 51; i++ {
+			if err := conn.WriteJSON(map[string]interface{}{
+				"Data": map[string]interface{}{
+					"RequestID": "other-request",
+				},
+			}); err != nil {
+				t.Fatalf("WriteJSON error = %v", err)
+			}
+		}
+	})
+	defer closeServer()
+
+	_, err := elegooCentauriCarbonCommand(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 5}, sdcpCmdCameraURL, map[string]interface{}{})
+	if err == nil || !strings.Contains(err.Error(), "unrelated") {
+		t.Fatalf("err = %v, want unrelated response limit error", err)
+	}
+}
+
 func TestStoreThreeDPrinterMediaWritesSafeFileAndRegistersMedia(t *testing.T) {
 	dataDir := t.TempDir()
 	db := initThreeDPrinterMediaTestDB(t)
@@ -255,6 +413,10 @@ func TestStoreThreeDPrinterMediaWritesSafeFileAndRegistersMedia(t *testing.T) {
 	if _, err := os.Stat(result.LocalPath); err != nil {
 		t.Fatalf("stored file missing: %v", err)
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func TestStoreThreeDPrinterMediaRejectsInvalidInputs(t *testing.T) {
