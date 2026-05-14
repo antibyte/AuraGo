@@ -86,6 +86,27 @@ func TestDesktopWidgetAutoResizeRewritesPrinterCameraURLToProxy(t *testing.T) {
 	}
 }
 
+func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "Widgets", "printer-camera"), 0755); err != nil {
+		t.Fatalf("mkdir widget dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Widgets", "printer-camera", "index.html"), []byte(`<img src="/api/3d-printers/printer-1/camera/stream">`), 0644); err != nil {
+		t.Fatalf("write widget: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera&desktop_token=abc.def", nil)
+	rec := httptest.NewRecorder()
+	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, nil) {
+		t.Fatal("expected widget HTML to be served")
+	}
+	if !strings.Contains(rec.Body.String(), `/api/3d-printers/printer-1/camera/stream?desktop_token=abc.def`) {
+		t.Fatalf("served widget did not append desktop token to camera proxy: %s", rec.Body.String())
+	}
+}
+
 func TestDesktopWidgetAutoResizeInjectionIsConditionalAndIdempotent(t *testing.T) {
 	t.Parallel()
 

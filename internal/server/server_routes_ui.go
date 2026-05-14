@@ -7,8 +7,10 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +24,8 @@ const desktopWidgetWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modal
 const desktopAppWorkspaceCSP = "sandbox allow-scripts allow-forms allow-modals allow-same-origin; default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh https://cdn.skypack.dev; object-src 'none'; base-uri 'none'"
 const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
+
+var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'<>\\\s)]+/camera/stream(?:\?[^"'<>\\\s)]*)?`)
 
 // uiBuildVersion is set once at server start and used as a cache-busting
 // query parameter for all embedded static assets.  Formatted as a compact
@@ -241,7 +245,7 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 	if err != nil {
 		return false
 	}
-	content = []byte(tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content)))
+	content = prepareDesktopHTMLContentForEmbed(content, cfg, r.URL.Query().Get(desktopEmbedTokenParam))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
 	return true
@@ -283,11 +287,35 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
-	content = []byte(tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content)))
+	content = prepareDesktopHTMLContentForEmbed(content, cfg, r.URL.Query().Get(desktopEmbedTokenParam))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSP)
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
+}
+
+func prepareDesktopHTMLContentForEmbed(content []byte, cfg *config.Config, embedToken string) []byte {
+	rewritten := tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content))
+	rewritten = appendDesktopTokenToPrinterCameraProxies(rewritten, embedToken)
+	return []byte(rewritten)
+}
+
+func appendDesktopTokenToPrinterCameraProxies(content, embedToken string) string {
+	embedToken = strings.TrimSpace(embedToken)
+	if content == "" || embedToken == "" {
+		return content
+	}
+	encodedToken := url.QueryEscape(embedToken)
+	return desktopPrinterCameraProxyPattern.ReplaceAllStringFunc(content, func(match string) string {
+		if strings.Contains(match, desktopEmbedTokenParam+"=") {
+			return match
+		}
+		separator := "?"
+		if strings.Contains(match, "?") {
+			separator = "&"
+		}
+		return match + separator + desktopEmbedTokenParam + "=" + encodedToken
+	})
 }
 
 func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) (*http.Server, error) {

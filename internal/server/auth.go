@@ -180,34 +180,45 @@ func issueDesktopEmbedToken(secret, rawPath string, now time.Time) (string, erro
 	return payloadPart + "." + signaturePart, nil
 }
 
-func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool {
-	if r == nil || strings.TrimSpace(secret) == "" || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
-		return false
+func parseDesktopEmbedToken(token, secret string, now time.Time) (desktopEmbedTokenPayload, bool) {
+	var payload desktopEmbedTokenPayload
+	if strings.TrimSpace(secret) == "" {
+		return payload, false
 	}
-	token := strings.TrimSpace(r.URL.Query().Get(desktopEmbedTokenParam))
+	token = strings.TrimSpace(token)
 	if token == "" {
-		return false
+		return payload, false
 	}
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return false
+		return payload, false
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(parts[0]))
 	wantSig := mac.Sum(nil)
 	gotSig, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil || !hmac.Equal(gotSig, wantSig) {
-		return false
+		return payload, false
 	}
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return false
+		return payload, false
 	}
-	var payload desktopEmbedTokenPayload
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
-		return false
+		return payload, false
 	}
 	if payload.Expires <= now.Unix() {
+		return payload, false
+	}
+	return payload, true
+}
+
+func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool {
+	if r == nil || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
+		return false
+	}
+	payload, ok := parseDesktopEmbedToken(r.URL.Query().Get(desktopEmbedTokenParam), secret, now)
+	if !ok {
 		return false
 	}
 	requestPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
@@ -215,6 +226,51 @@ func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool 
 		return false
 	}
 	return payload.Path == requestPath
+}
+
+func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Time) bool {
+	if r == nil || !isSafeMethod(r.Method) || !isDesktopEmbedResourcePath(r.URL.Path) {
+		return false
+	}
+	token := strings.TrimSpace(r.URL.Query().Get(desktopEmbedTokenParam))
+	if token == "" {
+		token = desktopEmbedTokenFromReferer(r)
+	}
+	payload, ok := parseDesktopEmbedToken(token, secret, now)
+	if !ok {
+		return false
+	}
+	desktopPath, err := normalizeDesktopEmbedPath(payload.Path)
+	if err != nil {
+		return false
+	}
+	return desktopEmbedPathCanLoadResource(desktopPath)
+}
+
+func desktopEmbedTokenFromReferer(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	raw := strings.TrimSpace(r.Header.Get("Referer"))
+	if raw == "" {
+		return ""
+	}
+	ref, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(ref.Query().Get(desktopEmbedTokenParam))
+}
+
+func isDesktopEmbedResourcePath(requestPath string) bool {
+	return strings.HasPrefix(requestPath, "/api/3d-printers/") && strings.HasSuffix(requestPath, "/camera/stream")
+}
+
+func desktopEmbedPathCanLoadResource(desktopPath string) bool {
+	if !strings.HasPrefix(desktopPath, "Apps/") && !strings.HasPrefix(desktopPath, "Widgets/") {
+		return false
+	}
+	return strings.EqualFold(pathpkg.Ext(desktopPath), ".html")
 }
 
 func normalizeDesktopEmbedPath(rawPath string) (string, error) {
@@ -705,7 +761,8 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if validDesktopEmbedToken(r, secret, time.Now()) {
+		now := time.Now()
+		if validDesktopEmbedToken(r, secret, now) || validDesktopEmbedResourceToken(r, secret, now) {
 			next.ServeHTTP(w, r)
 			return
 		}
