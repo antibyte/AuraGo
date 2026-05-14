@@ -183,7 +183,7 @@ func manifestStatus(ctx context.Context, s *Server, cfg *config.Config) map[stri
 
 func manifestStatusForRequest(ctx context.Context, s *Server, cfg *config.Config, r *http.Request) map[string]interface{} {
 	out := manifestStatus(ctx, s, cfg)
-	manifestRewriteBrowserURL(r, out)
+	manifestRewriteBrowserURLForRequest(s, cfg, r, out)
 	return out
 }
 
@@ -199,8 +199,19 @@ func manifestBrowserBaseURLForRequest(s *Server, cfg *config.Config, r *http.Req
 }
 
 func manifestRewriteBrowserURL(r *http.Request, payload map[string]interface{}) {
+	manifestRewriteBrowserURLForRequest(nil, nil, r, payload)
+}
+
+func manifestRewriteBrowserURLForRequest(s *Server, cfg *config.Config, r *http.Request, payload map[string]interface{}) {
 	rawURL, ok := payload["url"].(string)
 	if !ok || strings.TrimSpace(rawURL) == "" {
+		return
+	}
+	if cfg != nil {
+		payload["url"] = manifestBrowserURL(s, cfg, r, rawURL)
+		return
+	}
+	if requestLooksTailscale(r) {
 		return
 	}
 	payload["url"] = manifestURLWithRequestHost(rawURL, r)

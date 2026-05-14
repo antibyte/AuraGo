@@ -199,6 +199,18 @@ func TestManifestStatusHTMLURLUsesRequestHostForLoopbackBrowserURL(t *testing.T)
 	}
 }
 
+func TestManifestStatusURLDoesNotInventTailscaleSidecarPort(t *testing.T) {
+	payload := map[string]interface{}{"url": "http://127.0.0.1:2099"}
+	req := httptest.NewRequest(http.MethodGet, "https://aurago.taild1480.ts.net/api/manifest/status", nil)
+	req.Host = "aurago.taild1480.ts.net"
+
+	manifestRewriteBrowserURL(req, payload)
+
+	if payload["url"] != "http://127.0.0.1:2099" {
+		t.Fatalf("url = %v, want local fallback for non-exposed Manifest on Tailscale", payload["url"])
+	}
+}
+
 func TestManifestBrowserBaseURLForRequestUsesRequestHost(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Enabled = true
@@ -215,5 +227,27 @@ func TestManifestBrowserBaseURLForRequestUsesRequestHost(t *testing.T) {
 	got := manifestBrowserBaseURLForRequest(&Server{Cfg: cfg}, cfg, req)
 	if got != "http://192.168.6.43:2099" {
 		t.Fatalf("manifestBrowserBaseURLForRequest() = %q, want request host Manifest URL", got)
+	}
+}
+
+func TestManifestBrowserBaseURLForRequestDoesNotInventTailscaleSidecarPort(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Enabled = true
+	cfg.Manifest.Mode = "managed"
+	cfg.Manifest.URL = "http://127.0.0.1:2099"
+	cfg.Manifest.Host = "127.0.0.1"
+	cfg.Manifest.Port = 2099
+	cfg.Manifest.HostPort = 2099
+	cfg.Manifest.PostgresPassword = "pg-secret"
+	cfg.Manifest.BetterAuthSecret = "better-auth-secret"
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.ExposeManifest = false
+
+	req := httptest.NewRequest(http.MethodGet, "https://aurago.taild1480.ts.net/api/manifest/status", nil)
+	req.Host = "aurago.taild1480.ts.net"
+
+	got := manifestBrowserBaseURLForRequest(&Server{Cfg: cfg}, cfg, req)
+	if got != "http://127.0.0.1:2099" {
+		t.Fatalf("manifestBrowserBaseURLForRequest() = %q, want local fallback when Manifest is not exposed over tsnet", got)
 	}
 }

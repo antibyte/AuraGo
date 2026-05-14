@@ -608,6 +608,9 @@ func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallback
 	if tunnelURL := tools.GetTunnelURL(); tunnelURL != "" {
 		return tunnelURL
 	}
+	if requestLooksTailscale(r) {
+		return fallbackURL
+	}
 	return manifestURLWithRequestHost(fallbackURL, r)
 }
 
