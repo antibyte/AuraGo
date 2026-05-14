@@ -150,6 +150,10 @@ async function threeDPrinterTest(protocol, index) {
     const result = document.getElementById('three-d-printer-test-result-' + protocol + '-' + index);
     const btn = document.getElementById('three-d-printer-test-' + protocol + '-' + index);
     if (!result || !btn) return;
+    if (!threeDPrinterURLLooksValid(protocol, printer.url || '')) {
+        result.textContent = t('config.three_d_printers.test_failed');
+        return;
+    }
     btn.disabled = true;
     result.textContent = t('config.three_d_printers.testing');
     try {
@@ -175,5 +179,17 @@ async function threeDPrinterTest(protocol, index) {
         result.textContent = t('config.three_d_printers.test_failed');
     } finally {
         btn.disabled = false;
+    }
+}
+
+function threeDPrinterURLLooksValid(protocol, value) {
+    try {
+        const parsed = new URL(value || '');
+        const allowed = protocol === 'klipper'
+            ? ['http:', 'https:']
+            : ['ws:', 'wss:'];
+        return allowed.includes(parsed.protocol);
+    } catch (err) {
+        return false;
     }
 }
