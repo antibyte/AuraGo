@@ -369,7 +369,7 @@ func StoreFrigateMedia(dataDir string, mediaDB *sql.DB, operation string, params
 	hash := hex.EncodeToString(hashBytes[:])
 	ext := frigateMediaExtension(contentType, operation)
 	identity := firstNonEmptyString(params.EventID, params.Camera, "media")
-	filename := fmt.Sprintf("%s_%s_%s%s", sanitizeFrigateFileToken(operation), sanitizeFrigateFileToken(identity), now.Format("150405.000000000"), ext)
+	filename := fmt.Sprintf("%s_%s_%s%s", sanitizeMediaFileToken(operation), sanitizeMediaFileToken(identity), now.Format("150405.000000000"), ext)
 	localPath := filepath.Join(destDir, filename)
 	if err := os.WriteFile(localPath, data, 0644); err != nil {
 		return result, fmt.Errorf("write frigate media: %w", err)
@@ -430,7 +430,7 @@ func frigateMediaType(ext, contentType string) string {
 	return "image"
 }
 
-func sanitizeFrigateFileToken(value string) string {
+func sanitizeMediaFileToken(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return "media"

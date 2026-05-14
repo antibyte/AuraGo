@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -56,6 +57,7 @@ type ThreeDPrinterConfig struct {
 	ReadOnly             bool                       `json:"readonly"`
 	DefaultPrinter       string                     `json:"default_printer"`
 	DataDir              string                     `json:"-"`
+	MediaDB              *sql.DB                    `json:"-"`
 	ElegooCentauriCarbon ElegooCentauriCarbonConfig `json:"elegoo_centauri_carbon"`
 	Klipper              KlipperConfig              `json:"klipper"`
 }
@@ -88,6 +90,7 @@ type ThreeDPrinterMediaResult struct {
 	LocalPath   string `json:"local_path,omitempty"`
 	WebPath     string `json:"web_path,omitempty"`
 	SHA256      string `json:"sha256,omitempty"`
+	MediaID     int64  `json:"media_id,omitempty"`
 	Message     string `json:"message"`
 }
 
@@ -378,7 +381,7 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 	}
 }
 
-func StoreThreeDPrinterMedia(dataDir, printerID string, data []byte, contentType string) (ThreeDPrinterMediaResult, error) {
+func StoreThreeDPrinterMedia(dataDir string, mediaDB *sql.DB, printerID string, data []byte, contentType string) (ThreeDPrinterMediaResult, error) {
 	result := ThreeDPrinterMediaResult{
 		Status:      "ok",
 		ContentType: contentType,
@@ -391,6 +394,11 @@ func StoreThreeDPrinterMedia(dataDir, printerID string, data []byte, contentType
 	if len(data) == 0 {
 		return result, fmt.Errorf("snapshot data is empty")
 	}
+	absDataDir, err := filepath.Abs(strings.TrimSpace(dataDir))
+	if err != nil {
+		return result, fmt.Errorf("resolve data directory: %w", err)
+	}
+	dataDir = filepath.Clean(absDataDir)
 	now := time.Now().UTC()
 	relDir := filepath.Join("3d_printer_media", now.Format("2006"), now.Format("01"), now.Format("02"))
 	destDir := filepath.Join(dataDir, relDir)
@@ -405,15 +413,35 @@ func StoreThreeDPrinterMedia(dataDir, printerID string, data []byte, contentType
 	} else if strings.HasPrefix(contentType, "image/webp") {
 		ext = ".webp"
 	}
-	filename := fmt.Sprintf("snapshot_%s_%s%s", sanitizeFrigateFileToken(printerID), now.Format("150405.000000000"), ext)
+	filename := fmt.Sprintf("snapshot_%s_%s%s", sanitizeMediaFileToken(printerID), now.Format("150405.000000000"), ext)
 	localPath := filepath.Join(destDir, filename)
 	if err := os.WriteFile(localPath, data, 0644); err != nil {
 		return result, fmt.Errorf("write snapshot: %w", err)
 	}
+	webPath := "/files/3d_printer_media/" + strings.ReplaceAll(filepath.ToSlash(filepath.Join(now.Format("2006"), now.Format("01"), now.Format("02"), filename)), " ", "%20")
 	result.Stored = true
 	result.LocalPath = localPath
-	result.WebPath = "/files/3d_printer_media/" + strings.ReplaceAll(filepath.ToSlash(filepath.Join(now.Format("2006"), now.Format("01"), now.Format("02"), filename)), " ", "%20")
+	result.WebPath = webPath
 	result.SHA256 = hash
+	if mediaDB != nil {
+		mediaID, _, err := RegisterMedia(mediaDB, MediaItem{
+			MediaType:   "image",
+			SourceTool:  "three_d_printer",
+			Filename:    filename,
+			FilePath:    localPath,
+			WebPath:     webPath,
+			FileSize:    int64(len(data)),
+			Format:      strings.TrimPrefix(ext, "."),
+			Provider:    "three_d_printer",
+			Description: fmt.Sprintf("3D printer snapshot for %s", printerID),
+			Tags:        []string{"3d_printer", "snapshot", printerID},
+			Hash:        hash,
+		})
+		if err != nil {
+			return result, fmt.Errorf("register 3D printer media: %w", err)
+		}
+		result.MediaID = mediaID
+	}
 	return result, nil
 }
 
@@ -697,7 +725,7 @@ func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, 
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
-	result, err := StoreThreeDPrinterMedia(cfg.DataDir, printer.ID, data, contentType)
+	result, err := StoreThreeDPrinterMedia(cfg.DataDir, cfg.MediaDB, printer.ID, data, contentType)
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}

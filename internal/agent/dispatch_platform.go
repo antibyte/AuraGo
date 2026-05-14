@@ -529,6 +529,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"3D printer integration is not enabled. Set three_d_printers.enabled=true in config.yaml."}`
 			}
 			runtimeCfg := tools.BuildThreeDPrinterRuntimeConfig(cfg)
+			runtimeCfg.MediaDB = dc.MediaRegistryDB
 			toolReq := tools.ThreeDPrinterRequest{
 				Operation:   req.Operation,
 				PrinterID:   req.PrinterID,

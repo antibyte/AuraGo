@@ -99,7 +99,7 @@ func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		result, err := tools.StoreThreeDPrinterMedia(s.Cfg.Directories.DataDir, printer.ID, data, contentType)
+		result, err := tools.StoreThreeDPrinterMedia(s.Cfg.Directories.DataDir, s.MediaRegistryDB, printer.ID, data, contentType)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusInternalServerError)
 			return

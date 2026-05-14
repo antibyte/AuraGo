@@ -2,10 +2,13 @@ package tools
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -221,6 +224,56 @@ func TestKlipperCameraURLSelectsConfiguredWebcam(t *testing.T) {
 	if !strings.Contains(out, server.URL+"/webcam/toolhead") {
 		t.Fatalf("unexpected output: %s", out)
 	}
+}
+
+func TestStoreThreeDPrinterMediaWritesSafeFileAndRegistersMedia(t *testing.T) {
+	dataDir := t.TempDir()
+	db := initThreeDPrinterMediaTestDB(t)
+
+	result, err := StoreThreeDPrinterMedia(dataDir, db, `door/../../event 1`, []byte{0xff, 0xd8, 0xff, 0xdb}, "image/jpeg")
+	if err != nil {
+		t.Fatalf("StoreThreeDPrinterMedia error = %v", err)
+	}
+	if !result.Stored {
+		t.Fatal("expected stored result")
+	}
+	if result.LocalPath == "" || !strings.HasPrefix(result.LocalPath, filepath.Join(dataDir, "3d_printer_media")) {
+		t.Fatalf("local path %q should stay inside data/3d_printer_media", result.LocalPath)
+	}
+	if strings.Contains(filepath.Base(result.LocalPath), "..") || strings.Contains(filepath.Base(result.LocalPath), "/") || strings.Contains(filepath.Base(result.LocalPath), `\`) {
+		t.Fatalf("unsafe filename %q", filepath.Base(result.LocalPath))
+	}
+	if result.WebPath == "" || !strings.HasPrefix(result.WebPath, "/files/3d_printer_media/") {
+		t.Fatalf("web path = %q, want /files/3d_printer_media prefix", result.WebPath)
+	}
+	if result.SHA256 == "" {
+		t.Fatal("expected sha256")
+	}
+	if result.MediaID == 0 {
+		t.Fatal("expected media registry id")
+	}
+	if _, err := os.Stat(result.LocalPath); err != nil {
+		t.Fatalf("stored file missing: %v", err)
+	}
+}
+
+func TestStoreThreeDPrinterMediaRejectsInvalidInputs(t *testing.T) {
+	if _, err := StoreThreeDPrinterMedia("", nil, "lab", []byte{1}, "image/jpeg"); err == nil || !strings.Contains(err.Error(), "data directory") {
+		t.Fatalf("empty data dir err = %v, want data directory error", err)
+	}
+	if _, err := StoreThreeDPrinterMedia(t.TempDir(), nil, "lab", nil, "image/jpeg"); err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("empty data err = %v, want empty data error", err)
+	}
+}
+
+func initThreeDPrinterMediaTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB error = %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }
 
 func klipperOnlyConfig(baseURL string) ThreeDPrinterConfig {
