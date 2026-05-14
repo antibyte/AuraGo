@@ -364,6 +364,30 @@ func TestElegooCentauriCarbonCameraURLPrefersSchemaURL(t *testing.T) {
 	}
 }
 
+func TestElegooCentauriCarbonCameraURLNormalizesSchemelessVideoURL(t *testing.T) {
+	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+		data := payload["Data"].(map[string]interface{})
+		requestID := data["RequestID"].(string)
+		if err := conn.WriteJSON(map[string]interface{}{
+			"Data": map[string]interface{}{
+				"RequestID": requestID,
+				"VideoUrl":  "192.168.6.181:3031/video",
+			},
+		}); err != nil {
+			t.Fatalf("WriteJSON error = %v", err)
+		}
+	})
+	defer closeServer()
+
+	got, err := ElegooCentauriCarbonCameraURL(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2})
+	if err != nil {
+		t.Fatalf("ElegooCentauriCarbonCameraURL error = %v", err)
+	}
+	if got != "http://192.168.6.181:3031/video" {
+		t.Fatalf("camera URL = %q, want normalized VideoUrl", got)
+	}
+}
+
 func TestElegooCentauriCarbonCommandStopsAfterTooManyUnrelatedResponses(t *testing.T) {
 	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
 		for i := 0; i < 51; i++ {

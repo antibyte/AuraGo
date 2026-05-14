@@ -328,6 +328,10 @@ func ElegooCentauriCarbonCameraURL(ctx context.Context, printer ElegooCentauriCa
 		encoded, _ := json.Marshal(resp)
 		return "", fmt.Errorf("camera stream URL was not found in printer response: %s", string(encoded))
 	}
+	streamURL, err = resolvePrinterHTTPURL(printer.URL, streamURL)
+	if err != nil {
+		return "", err
+	}
 	return streamURL, nil
 }
 
@@ -619,6 +623,15 @@ func selectKlipperWebcam(resp map[string]interface{}, wantedName string) (map[st
 
 func resolvePrinterHTTPURL(baseURL, rawURL string) (string, error) {
 	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return "", fmt.Errorf("invalid printer camera URL: empty URL")
+	}
+	baseScheme := printerHTTPScheme(baseURL)
+	if strings.HasPrefix(rawURL, "//") {
+		rawURL = baseScheme + ":" + rawURL
+	} else if looksLikeSchemelessHostURL(rawURL) {
+		rawURL = baseScheme + "://" + rawURL
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid printer camera URL: %w", err)
@@ -631,9 +644,28 @@ func resolvePrinterHTTPURL(baseURL, rawURL string) (string, error) {
 		return "", fmt.Errorf("invalid configured printer URL")
 	}
 	if base.Scheme != "http" && base.Scheme != "https" {
-		base.Scheme = "http"
+		base.Scheme = baseScheme
 	}
 	return base.ResolveReference(parsed).String(), nil
+}
+
+func printerHTTPScheme(baseURL string) string {
+	base, err := url.Parse(strings.TrimSpace(baseURL))
+	if err == nil && (base.Scheme == "https" || base.Scheme == "wss") {
+		return "https"
+	}
+	return "http"
+}
+
+func looksLikeSchemelessHostURL(rawURL string) bool {
+	if strings.Contains(rawURL, "://") || strings.HasPrefix(rawURL, "/") {
+		return false
+	}
+	hostPart := rawURL
+	if idx := strings.IndexAny(hostPart, "/?#"); idx >= 0 {
+		hostPart = hostPart[:idx]
+	}
+	return strings.Contains(hostPart, ".") || strings.Contains(hostPart, ":") || strings.EqualFold(hostPart, "localhost")
 }
 
 func elegooCentauriCarbonCommandJSON(ctx context.Context, printer ElegooCentauriCarbonPrinter, cmd int, data map[string]interface{}) string {
@@ -726,17 +758,20 @@ func findHTTPURL(value interface{}) string {
 func findElegooCameraURL(resp map[string]interface{}) string {
 	for _, path := range [][]string{
 		{"Data", "Data", "Url"},
+		{"Data", "Data", "VideoUrl"},
 		{"Data", "Url"},
+		{"Data", "VideoUrl"},
 		{"Url"},
+		{"VideoUrl"},
 	} {
-		if got := httpURLAtPath(resp, path...); got != "" {
+		if got := stringAtPath(resp, path...); got != "" {
 			return got
 		}
 	}
 	return findHTTPURL(resp)
 }
 
-func httpURLAtPath(value interface{}, path ...string) string {
+func stringAtPath(value interface{}, path ...string) string {
 	current := value
 	for _, key := range path {
 		obj, ok := current.(map[string]interface{})
@@ -746,10 +781,7 @@ func httpURLAtPath(value interface{}, path ...string) string {
 		current = obj[key]
 	}
 	got, _ := current.(string)
-	if strings.HasPrefix(got, "http://") || strings.HasPrefix(got, "https://") {
-		return got
-	}
-	return ""
+	return strings.TrimSpace(got)
 }
 
 func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, printer ResolvedThreeDPrinter) string {
