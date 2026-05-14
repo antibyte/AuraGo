@@ -283,17 +283,23 @@ func TestAnnouncementDetector_CatchesPlaybackActionPromise(t *testing.T) {
 
 func TestAnnouncementDetector_CatchesGermanBuildPromiseWithDoneSignal(t *testing.T) {
 	tc := ToolCall{}
-	parsed := ParsedToolResponse{
-		SanitizedContent: "Klar — kann ich machen. Ich bau dir Musik in Space Invaders ein. Einen kurzen Moment.",
-		IsFinished:       true,
-	}
 	lastUserMsg := "<external_data>The user is chatting from AuraGo Virtual Desktop.</external_data>\nkannst du musik in space invaders einbauen?"
 
-	if !isAnnouncementOnlyResponse(parsed.SanitizedContent, tc, false, false, lastUserMsg) {
-		t.Fatal("expected colloquial German build promise to trigger announcement detection")
+	cases := []string{
+		"Klar — kann ich machen. Ich bau dir Musik in Space Invaders ein. Einen kurzen Moment.",
+		"Ja — kann ich.\nIch bau dir jetzt echte **Retro-Arcade-Hintergrundmusik** in Space Invaders ein (loopend, mit sauberem Start nach User-Input).",
 	}
-	if !shouldRecoverAnnouncementOnlyResponse(parsed, tc, false, false, lastUserMsg) {
-		t.Fatal("expected action promise with <done/> to still trigger recovery")
+	for _, content := range cases {
+		parsed := ParsedToolResponse{
+			SanitizedContent: content,
+			IsFinished:       true,
+		}
+		if !isAnnouncementOnlyResponse(parsed.SanitizedContent, tc, false, false, lastUserMsg) {
+			t.Fatalf("expected colloquial German build promise to trigger announcement detection: %q", content)
+		}
+		if !shouldRecoverAnnouncementOnlyResponse(parsed, tc, false, false, lastUserMsg) {
+			t.Fatalf("expected action promise with <done/> to still trigger recovery: %q", content)
+		}
 	}
 }
 

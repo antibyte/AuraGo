@@ -44,7 +44,7 @@ var operationalTerms = []string{
 	"edit", "update", "modify", "inspect", "create",
 	"lint", "screenshot", "publish", "commit", "push", "pull", "grep",
 	"open", "browse", "render", "compile", "generate", "homepage", "netlify",
-	"docker", "git", "play", "playing", "abspielen", "abgespielt", "spiele", "song", "musik", "audio",
+	"docker", "git", "play", "playing", "abspielen", "abgespielt", "spiele", "song", "musik", "hintergrundmusik", "music", "background music", "audio",
 	"google home", "chromecast", "cast",
 }
 
