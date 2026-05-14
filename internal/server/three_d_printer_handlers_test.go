@@ -107,6 +107,22 @@ func TestHandleThreeDPrinterTestSupportsAdHocKlipperPrinter(t *testing.T) {
 	}
 }
 
+func TestHandleThreeDPrinterTestRejectsMalformedJSON(t *testing.T) {
+	cfg := &config.Config{}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	req := httptest.NewRequest(http.MethodPost, "/api/3d-printers/test", strings.NewReader("{"))
+	rec := httptest.NewRecorder()
+
+	handleThreeDPrinterTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(strings.ToLower(rec.Body.String()), "invalid json") {
+		t.Fatalf("expected invalid JSON error, got: %s", rec.Body.String())
+	}
+}
+
 func TestHandleThreeDPrinterSnapshotStoresImageFromKlipperSnapshotURL(t *testing.T) {
 	moonraker := newKlipperCameraServer(t, "/snapshot.jpg", testJPEG(t))
 	defer moonraker.Close()

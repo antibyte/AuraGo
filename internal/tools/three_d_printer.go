@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -96,6 +98,47 @@ type ResolvedThreeDPrinter struct {
 	URL      string
 	Elegoo   *ElegooCentauriCarbonPrinter
 	Klipper  *KlipperPrinter
+}
+
+func BuildThreeDPrinterRuntimeConfig(cfg *config.Config) ThreeDPrinterConfig {
+	if cfg == nil {
+		return ThreeDPrinterConfig{}
+	}
+	printers := make([]ElegooCentauriCarbonPrinter, 0, len(cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers))
+	for _, printer := range cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers {
+		printers = append(printers, ElegooCentauriCarbonPrinter{
+			ID:             printer.ID,
+			Name:           printer.Name,
+			URL:            printer.URL,
+			MainboardID:    printer.MainboardID,
+			TimeoutSeconds: printer.TimeoutSeconds,
+		})
+	}
+	klipperPrinters := make([]KlipperPrinter, 0, len(cfg.ThreeDPrinters.Klipper.Printers))
+	for _, printer := range cfg.ThreeDPrinters.Klipper.Printers {
+		klipperPrinters = append(klipperPrinters, KlipperPrinter{
+			ID:             printer.ID,
+			Name:           printer.Name,
+			URL:            printer.URL,
+			APIKey:         printer.APIKey,
+			TimeoutSeconds: printer.TimeoutSeconds,
+			WebcamName:     printer.WebcamName,
+		})
+	}
+	return ThreeDPrinterConfig{
+		Enabled:        cfg.ThreeDPrinters.Enabled,
+		ReadOnly:       cfg.ThreeDPrinters.ReadOnly,
+		DefaultPrinter: cfg.ThreeDPrinters.DefaultPrinter,
+		DataDir:        cfg.Directories.DataDir,
+		ElegooCentauriCarbon: ElegooCentauriCarbonConfig{
+			Enabled:  cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled,
+			Printers: printers,
+		},
+		Klipper: KlipperConfig{
+			Enabled:  cfg.ThreeDPrinters.Klipper.Enabled,
+			Printers: klipperPrinters,
+		},
+	}
 }
 
 func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req ThreeDPrinterRequest) string {

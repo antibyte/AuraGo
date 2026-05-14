@@ -102,47 +102,6 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	return ttsCfg
 }
 
-func buildRuntimeThreeDPrinterConfig(cfg *config.Config) tools.ThreeDPrinterConfig {
-	if cfg == nil {
-		return tools.ThreeDPrinterConfig{}
-	}
-	printers := make([]tools.ElegooCentauriCarbonPrinter, 0, len(cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers))
-	for _, printer := range cfg.ThreeDPrinters.ElegooCentauriCarbon.Printers {
-		printers = append(printers, tools.ElegooCentauriCarbonPrinter{
-			ID:             printer.ID,
-			Name:           printer.Name,
-			URL:            printer.URL,
-			MainboardID:    printer.MainboardID,
-			TimeoutSeconds: printer.TimeoutSeconds,
-		})
-	}
-	klipperPrinters := make([]tools.KlipperPrinter, 0, len(cfg.ThreeDPrinters.Klipper.Printers))
-	for _, printer := range cfg.ThreeDPrinters.Klipper.Printers {
-		klipperPrinters = append(klipperPrinters, tools.KlipperPrinter{
-			ID:             printer.ID,
-			Name:           printer.Name,
-			URL:            printer.URL,
-			APIKey:         printer.APIKey,
-			TimeoutSeconds: printer.TimeoutSeconds,
-			WebcamName:     printer.WebcamName,
-		})
-	}
-	return tools.ThreeDPrinterConfig{
-		Enabled:        cfg.ThreeDPrinters.Enabled,
-		ReadOnly:       cfg.ThreeDPrinters.ReadOnly,
-		DefaultPrinter: cfg.ThreeDPrinters.DefaultPrinter,
-		DataDir:        cfg.Directories.DataDir,
-		ElegooCentauriCarbon: tools.ElegooCentauriCarbonConfig{
-			Enabled:  cfg.ThreeDPrinters.ElegooCentauriCarbon.Enabled,
-			Printers: printers,
-		},
-		Klipper: tools.KlipperConfig{
-			Enabled:  cfg.ThreeDPrinters.Klipper.Enabled,
-			Printers: klipperPrinters,
-		},
-	}
-}
-
 func isTTSConfigured(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
@@ -569,7 +528,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.ThreeDPrinters.Enabled {
 				return `Tool Output: {"status":"error","message":"3D printer integration is not enabled. Set three_d_printers.enabled=true in config.yaml."}`
 			}
-			runtimeCfg := buildRuntimeThreeDPrinterConfig(cfg)
+			runtimeCfg := tools.BuildThreeDPrinterRuntimeConfig(cfg)
 			toolReq := tools.ThreeDPrinterRequest{
 				Operation:   req.Operation,
 				PrinterID:   req.PrinterID,
