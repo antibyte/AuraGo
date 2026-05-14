@@ -86,11 +86,13 @@
   "config.providers.filter_models": "Konfigurierte Modelle filtern...",
   "config.providers.no_filter_results": "Kein Modell stimmt mit \"{{q}}\" überein",
   "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.type_manifest": "Manifest",
   "config.providers.hint.workers_ai": "Cloudflare API-Token mit Workers AI Berechtigungen.",
   "config.providers.account_id": "Account-ID",
   "config.providers.account_id_help": "Ihre Cloudflare Account-ID (zu finden in der Dashboard-URL oder API-Einstellungen).",
   "config.providers.account_id_empty_error": "Account-ID ist für Workers AI erforderlich.",
   "config.providers.workers_ai_url_auto": "URL wird automatisch aus der Account-ID generiert.",
+  "config.providers.manifest_url_auto": "URL wird aus den Manifest-Einstellungen ermittelt.",
   "config.providers.error": "Fehler",
   "config.providers.free_badge": "KOSTENLOS",
   "config.providers.cost_input_output": "Eingabe / Ausgabe",
@@ -126,5 +128,6 @@
   "config.providers.revoke_confirm_title": "OAuth-Token widerrufen",
   "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform",
   "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.manifest": "Nutzt die Manifest-Integrationseinstellungen. Im Managed-Modus spricht AuraGo den internen Sidecar an.",
   "config.providers.hint.yepapi": "API-Schlüssel vom YepAPI-Dashboard. Basis-URL sollte https://api.yepapi.com/v1/ai für LLM-Chat sein."
 }

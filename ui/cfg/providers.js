@@ -765,6 +765,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
             minimax: 'https://api.minimax.io/v1',
             'workers-ai': '',
+            manifest: '',
             yepapi: 'https://api.yepapi.com/v1/ai',
             custom: ''
         };
@@ -776,10 +777,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             google: 'config.providers.hint.google',
             openai: 'config.providers.hint.openai',
             'workers-ai': 'config.providers.hint.workers_ai',
+            manifest: 'config.providers.hint.manifest',
             minimax: 'config.providers.hint.minimax',
             yepapi: 'config.providers.hint.yepapi',
             custom: 'config.providers.hint.custom'
         };
+
+        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom'];
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
@@ -793,6 +797,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
+            const currentType = data.type || 'openai';
+            const isManagedManifestInitial = currentType === 'manifest';
+            const isAutoURLInitial = currentType === 'workers-ai' || isManagedManifestInitial;
+            const initialURLHint = isManagedManifestInitial ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto');
 
             overlay.innerHTML = `
             <div class="prov-modal-panel" onclick="event.stopPropagation()">
@@ -813,15 +821,15 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','yepapi','custom'].map(typ =>
+                        ${PROVIDER_TYPES.map(typ =>
                             `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${t('config.providers.type_' + typ.replace('-', '_'))}</option>`
                         ).join('')}
                     </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_base_url_label')}</div>
-                    <input class="field-input ${(data.type || '') === 'workers-ai' ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}" ${(data.type || '') === 'workers-ai' ? 'disabled' : ''}>
-                    <div id="prov-url-auto-hint" class="prov-field-hint ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">${t('config.providers.workers_ai_url_auto')}</div>
+                    <input class="field-input ${isAutoURLInitial ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(isAutoURLInitial ? '' : (data.base_url || ''))}" placeholder="${isAutoURLInitial ? initialURLHint : (PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter)}" ${isAutoURLInitial ? 'disabled' : ''}>
+                    <div id="prov-url-auto-hint" class="prov-field-hint ${isAutoURLInitial ? '' : 'is-hidden'}">${initialURLHint}</div>
                 </div>
 
                 <!-- Workers AI Account ID (only visible when type = workers-ai) -->
@@ -1000,8 +1008,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
                 const isWorkersAI = typ === 'workers-ai';
+                const isManagedManifest = typ === 'manifest';
+                const isAutoURLProvider = isWorkersAI || isManagedManifest;
                 // Auto-fill URL when empty OR when it still contains a known default URL (i.e. user hasn't typed a custom one)
-                if (isWorkersAI) {
+                if (isAutoURLProvider) {
                     urlInput.value = '';
                     urlInput.disabled = true;
                     urlInput.classList.add('is-disabled');
@@ -1013,7 +1023,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     }
                 }
                 // Update placeholder
-                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (PROVIDER_BASE_URLS[typ] || 'https://...');
+                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (PROVIDER_BASE_URLS[typ] || 'https://...'));
                 // Update hint
                 if (hintEl) {
                     const hintKey = PROVIDER_HINTS[typ];
@@ -1021,7 +1031,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 }
                 // Show/hide Workers AI account ID + URL auto hint
                 if (accountIdBlock) setHidden(accountIdBlock, !isWorkersAI);
-                if (urlAutoHint) setHidden(urlAutoHint, !isWorkersAI);
+                if (urlAutoHint) {
+                    urlAutoHint.textContent = isManagedManifest ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto');
+                    setHidden(urlAutoHint, !isAutoURLProvider);
+                }
                 // Show/hide Ollama model query block
                 if (ollamaBlock) setHidden(ollamaBlock, typ !== 'ollama');
                 // Show/hide OpenRouter model browser block
@@ -1160,6 +1173,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
                 if (type === 'workers-ai') {
                         if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
+                } else if (type === 'manifest') {
+                        // Manifest providers are resolved from the Manifest integration settings.
                 } else if (!base_url) {
                         showToast(t('config.providers.url_empty_error'), 'warn'); return;
                 }

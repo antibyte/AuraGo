@@ -123,8 +123,11 @@
   "config.providers.type_openai": "openai",
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.type_manifest": "Manifest",
   "config.providers.url_empty_error": "Base URL must not be empty.",
   "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID.",
+  "config.providers.manifest_url_auto": "URL hentes fra Manifest-indstillingerne.",
   "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.manifest": "Bruger Manifest-integrationsindstillingerne. I managed tilstand taler AuraGo med den interne sidecar.",
   "config.providers.hint.yepapi": "API-nøgle fra YepAPI-dashboard. Basis-URL skal være https://api.yepapi.com/v1/ai til LLM-chat."
 }

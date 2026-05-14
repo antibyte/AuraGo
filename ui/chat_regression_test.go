@@ -1432,6 +1432,56 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "providers.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"'manifest'",
+		"config.providers.hint.manifest",
+		"config.providers.manifest_url_auto",
+		"const isManagedManifest = typ === 'manifest';",
+		"type === 'workers-ai'",
+		"type === 'manifest'",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing explicit Manifest provider marker %q", modulePath, marker)
+		}
+	}
+
+	files, err := filepath.Glob(filepath.Join("lang", "config", "providers", "*.json"))
+	if err != nil {
+		t.Fatalf("glob provider lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all provider language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range []string{
+			"config.providers.type_manifest",
+			"config.providers.hint.manifest",
+			"config.providers.manifest_url_auto",
+		} {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+		}
+	}
+}
+
 func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	t.Parallel()
 

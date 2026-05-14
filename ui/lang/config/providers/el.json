@@ -123,8 +123,11 @@
   "config.providers.type_openai": "openai",
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.type_manifest": "Manifest",
   "config.providers.url_empty_error": "Base URL must not be empty.",
   "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID.",
+  "config.providers.manifest_url_auto": "To URL ypologizetai apo tis rythmiseis Manifest.",
   "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.manifest": "Chrisiopoiei tis rythmiseis ensomatosis Manifest. Se managed leitourgia to AuraGo epikoinonei me to esoteriko sidecar.",
   "config.providers.hint.yepapi": "Κλειδί API από το dashboard του YepAPI. Το Base URL πρέπει να είναι https://api.yepapi.com/v1/ai για LLM chat."
 }

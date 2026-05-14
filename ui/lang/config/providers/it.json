@@ -123,8 +123,11 @@
   "config.providers.type_openai": "openai",
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.type_manifest": "Manifest",
   "config.providers.url_empty_error": "L'URL Base non può essere vuoto.",
   "config.providers.workers_ai_url_auto": "L'URL viene generato automaticamente dall'ID account.",
+  "config.providers.manifest_url_auto": "L'URL viene risolto dalle impostazioni Manifest.",
   "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.manifest": "Usa le impostazioni dell'integrazione Manifest. In modalita gestita AuraGo comunica con il sidecar interno.",
   "config.providers.hint.yepapi": "Chiave API dalla dashboard di YepAPI. L'URL di base deve essere https://api.yepapi.com/v1/ai per la chat LLM."
 }

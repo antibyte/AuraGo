@@ -123,8 +123,11 @@
   "config.providers.type_openai": "ओपनाई",
   "config.providers.type_openrouter": "ओपनराउटर",
   "config.providers.type_workers_ai": "workers-ai",
+  "config.providers.type_manifest": "Manifest",
   "config.providers.url_empty_error": "आधार यूआरएल खाली नहीं होना चाहिए.",
   "config.providers.workers_ai_url_auto": "URL खाता ID से स्वचालित रूप से उत्पन्न होता है।",
+  "config.providers.manifest_url_auto": "URL Manifest settings se resolve hota hai.",
   "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.manifest": "Manifest integration settings ka upyog karta hai. Managed mode me AuraGo internal sidecar se baat karta hai.",
   "config.providers.hint.yepapi": "YepAPI डैशबोर्ड से API कुंजी। LLM चैट के लिए बेस URL https://api.yepapi.com/v1/ai होना चाहिए।"
 }
