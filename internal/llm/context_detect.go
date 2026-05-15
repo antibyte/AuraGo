@@ -230,23 +230,34 @@ func lookupKnownContextWindow(model string) (int, bool) {
 }
 
 // DetectContextWindow queries the LLM provider API for the model's context window size.
+// It checks the static model registry first, then falls back to provider-specific API probing.
 // Supports OpenRouter and Ollama (via /api/show). Returns the context length in tokens, or 0 if detection fails.
 func DetectContextWindow(baseURL, apiKey, model, provider string, logger *slog.Logger) int {
-	// Check static known-models table first — covers providers that don't expose
-	// an OpenRouter-compatible /api/v1/models endpoint (MiniMax, direct Anthropic, etc.)
-	if ctxLen, ok := lookupKnownContextWindow(model); ok {
-		logger.Info("[ContextDetect] Using known context window from static table", "model", model, "context_length", ctxLen)
+	lowerProvider := strings.ToLower(provider)
+	lowerModel := strings.ToLower(model)
+
+	// 1. Check the authoritative models.dev registry first (most up-to-date static data)
+	if ctxLen, ok := DetectContextWindowFromRegistry(lowerProvider, lowerModel); ok {
+		logger.Info("[ContextDetect] Using known context window from model registry", "model", model, "provider", provider, "context_length", ctxLen)
 		return ctxLen
 	}
-	lowerProvider := strings.ToLower(provider)
+
+	// 2. Check legacy static known-models table — covers providers that don't expose
+	// an OpenRouter-compatible /api/v1/models endpoint (MiniMax, direct Anthropic, etc.)
+	if ctxLen, ok := lookupKnownContextWindow(model); ok {
+		logger.Info("[ContextDetect] Using known context window from legacy static table", "model", model, "context_length", ctxLen)
+		return ctxLen
+	}
+
+	// 3. Provider-specific API probing
 	if lowerProvider == "ollama" {
 		return detectContextWindowOllama(baseURL, model, logger)
 	}
 	// Anthropic's /v1/models endpoint exists but does NOT return context_length.
-	// All Claude models should already be covered by the static table above.
+	// All Claude models should already be covered by the static tables above.
 	// Skip the API call to avoid a useless HTTP request that always returns 0.
 	if lowerProvider == "anthropic" {
-		logger.Debug("[ContextDetect] Anthropic provider: static table is authoritative, skipping API query", "model", model)
+		logger.Debug("[ContextDetect] Anthropic provider: static tables are authoritative, skipping API query", "model", model)
 		return 0
 	}
 	return detectContextWindowOpenRouter(baseURL, apiKey, model, logger)

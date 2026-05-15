@@ -80,6 +80,7 @@ func FetchPricingForProvider(providerType, apiKey, baseURL string) ([]ModelPrici
 
 // StaticPricingForModel returns the hardcoded price for a specific model and provider,
 // or zero rates if no pricing is known. Used as a last-resort fallback in budget tracking.
+// It checks hand-maintained tables first, then falls back to the models.dev registry.
 func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 	var table []ModelPricing
 	switch strings.ToLower(providerType) {
@@ -103,10 +104,10 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 		table = directQwenPricing()
 	case "zai":
 		table = directZAIPricing()
-	default:
-		return ModelPricing{}, false
 	}
+
 	lower := strings.ToLower(modelID)
+	// Search in hand-maintained tables first
 	for _, p := range table {
 		if strings.ToLower(p.ModelID) == lower {
 			return p, true
@@ -118,6 +119,12 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 			return p, true
 		}
 	}
+
+	// Fallback to models.dev registry
+	if pricing, ok := GetPricingFromRegistry(providerType, modelID); ok && (pricing.InputPerMillion > 0 || pricing.OutputPerMillion > 0) {
+		return pricing, true
+	}
+
 	return ModelPricing{}, false
 }
 
