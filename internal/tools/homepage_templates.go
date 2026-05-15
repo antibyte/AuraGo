@@ -60,14 +60,14 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 		cmd := fmt.Sprintf("mkdir -p /workspace/%s/%s && printf '%%s' '%s' | base64 -d > /workspace/%s/%s",
 			projectName, dir, encoded, projectName, f.path)
 		result := homepageDockerExecFunc(dockerCfg, homepageContainerName, cmd, "")
-		if errMsg := homepageTemplateExecError(result); errMsg != "" {
+		if errMsg := homepageDockerExecErrorMessage(result); errMsg != "" {
 			return errJSON("template file write failed for %s: %s", f.path, errMsg)
 		}
 	}
 	return ""
 }
 
-func homepageTemplateExecError(result string) string {
+func homepageDockerExecErrorMessage(result string) string {
 	var execResult map[string]interface{}
 	if err := json.Unmarshal([]byte(result), &execResult); err != nil {
 		return ""

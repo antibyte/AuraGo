@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -217,20 +218,35 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	// Use base64 to safely pass content through shell
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	projectDir := homepageProjectDirFromPath(path)
+	if err := homepageEnsureProjectWritable(dockerCfg, projectDir, logger); err != nil {
+		return errJSON("Homepage project %q is not writable and automatic permission repair failed: %v", projectDir, err)
+	}
 	// Ensure parent directory exists
-	dir := filepath.Dir(path)
-	cmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
-	// Check for DockerExec errors via JSON status field.
-	var execResult map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &execResult); err == nil {
-		if status, ok := execResult["status"].(string); ok && status == "error" {
-			errMsg, _ := execResult["error"].(string)
-			return errJSON("write file failed for %s: %s", path, errMsg)
-		}
+	dir := pathpkgDir(path)
+	cmd := fmt.Sprintf("mkdir -p /workspace/%s && printf '%%s' '%s' | base64 -d > /workspace/%s", dir, encoded, path)
+	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, cmd, "")
+	if errMsg := homepageDockerExecErrorMessage(result); errMsg != "" {
+		return errJSON("write file failed for %s: %s", path, errMsg)
 	}
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
 	return string(out)
+}
+
+func homepageProjectDirFromPath(relPath string) string {
+	normalized := filepath.ToSlash(strings.TrimSpace(relPath))
+	parts := strings.Split(normalized, "/")
+	if len(parts) == 0 {
+		return "."
+	}
+	if parts[0] == "" {
+		return "."
+	}
+	return parts[0]
+}
+
+func pathpkgDir(relPath string) string {
+	return path.Dir(filepath.ToSlash(relPath))
 }
 
 // HomepageEditFile performs precise file editing inside the container (or locally).

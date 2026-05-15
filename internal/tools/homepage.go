@@ -45,6 +45,7 @@ var homepageWebCaptureFunc = WebCapture
 
 var homepageUIDGIDPattern = regexp.MustCompile(`^\d+:\d+$`)
 var homepageWorkspaceGeneratedOutputPattern = regexp.MustCompile(`(?i)(?:^|[\s"'=;|&])/(?:workspace)/[^\s"';&|]+/(?:dist|build|out)(?:/|$)`)
+var homepageExecWorkspaceProjectPattern = regexp.MustCompile(`(?i)(?:^|[\s"'=;|&>])/(?:workspace)/([A-Za-z0-9_-]+)(?:/|$)`)
 
 // activePythonServerCmd tracks the last Python HTTP server started as fallback.
 var (
@@ -679,6 +680,54 @@ func homepageEnsureProjectNodeArtifactsWritable(dockerCfg DockerConfig, projectD
 	return nil
 }
 
+func homepageEnsureProjectWritable(dockerCfg DockerConfig, projectDir string, logger *slog.Logger) error {
+	if projectDir == "" || projectDir == "." {
+		return homepageEnsureWorkspaceWritable(dockerCfg, logger)
+	}
+	checkCmd := homepageProjectWritableCheckCommand(projectDir)
+	raw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, checkCmd, "", nil)
+	exitCode, checkOutput := homepageDockerExecResult(raw)
+	if exitCode == 0 {
+		return nil
+	}
+
+	uidGid, err := homepageDetectContainerUIDGID(dockerCfg)
+	if err != nil {
+		return err
+	}
+
+	repairCmd := homepageProjectWritableRepairCommand(uidGid, projectDir)
+	repairRaw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, repairCmd, "0:0", nil)
+	repairCode, repairOutput := homepageDockerExecResult(repairRaw)
+	if repairCode != 0 {
+		return fmt.Errorf("project permission repair failed with exit code %d: %s", repairCode, truncateStr(strings.TrimSpace(repairOutput), 500))
+	}
+
+	raw = homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, checkCmd, "", nil)
+	exitCode, recheckOutput := homepageDockerExecResult(raw)
+	if exitCode != 0 {
+		if strings.TrimSpace(recheckOutput) == "" {
+			recheckOutput = checkOutput
+		}
+		return fmt.Errorf("project directory %q is still not writable after permission repair: %s", projectDir, truncateStr(strings.TrimSpace(recheckOutput), 500))
+	}
+
+	if logger != nil {
+		logger.Info("[Homepage] Repaired project permissions", "project_dir", projectDir, "uid_gid", uidGid)
+	}
+	return nil
+}
+
+func homepageProjectWritableCheckCommand(projectDir string) string {
+	projectPath := homepageContainerProjectPath(projectDir)
+	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; touch %s/.aurago-project-write-test && rm -f %s/.aurago-project-write-test", projectPath, projectPath, projectPath)
+}
+
+func homepageProjectWritableRepairCommand(uidGid, projectDir string) string {
+	projectPath := homepageContainerProjectPath(projectDir)
+	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; chown -R %s %s; chmod -R u+rwX,g+rwX %s", projectPath, uidGid, projectPath, projectPath)
+}
+
 func homepageProjectNodeArtifactsCheckCommand(projectDir string) string {
 	projectPath := homepageContainerProjectPath(projectDir)
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; if [ ! -d node_modules ]; then exit 0; fi; touch node_modules/.aurago-write-test && rm -f node_modules/.aurago-write-test; mkdir -p node_modules/.vite-temp; touch node_modules/.vite-temp/.aurago-write-test && rm -f node_modules/.vite-temp/.aurago-write-test", projectPath, projectPath)
@@ -838,7 +887,21 @@ func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
+	normalizedCommand := strings.ToLower(strings.ReplaceAll(command, "\\", "/"))
+	if projectDir := homepageProjectDirFromExecCommand(command); projectDir != "" && homepageExecCommandMayWrite(normalizedCommand) {
+		if err := homepageEnsureProjectWritable(dockerCfg, projectDir, logger); err != nil {
+			return errJSON("Homepage project %q is not writable and automatic permission repair failed: %v", projectDir, err)
+		}
+	}
 	return homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, command, "", env)
+}
+
+func homepageProjectDirFromExecCommand(command string) string {
+	match := homepageExecWorkspaceProjectPattern.FindStringSubmatch(command)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
 }
 
 func validateHomepageExecCommand(command string) error {
@@ -861,6 +924,9 @@ func homepageExecCommandMayWrite(normalized string) bool {
 		" cp -",
 		" mv ",
 		" mv -",
+		"mkdir ",
+		" mkdir ",
+		" mkdir -",
 		" rm ",
 		" rm -",
 		" sed -i",
@@ -992,12 +1058,15 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
-	scaffoldResult := DockerExec(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
+	if err := homepageEnsureProjectWritable(dockerCfg, name, logger); err != nil {
+		return errJSON("Homepage project %q is not writable and automatic permission repair failed: %v", name, err)
+	}
+	scaffoldResult := homepageDockerExecFunc(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
 
 	// Verify the project directory was actually created.
 	// Scaffolding tools like create-vite may print warnings but fail silently
 	// (e.g. Node version mismatch / EBADENGINE) without creating the directory.
-	verifyResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", name), "")
+	verifyResult := homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", name), "")
 	var vr map[string]interface{}
 	if json.Unmarshal([]byte(verifyResult), &vr) == nil {
 		out, _ := vr["output"].(string)

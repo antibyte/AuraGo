@@ -3,6 +3,7 @@ package tools
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHomepageContainerVersionsPinned(t *testing.T) {
@@ -130,6 +131,116 @@ func TestHomepageExecRepairsWorkspaceBeforeRunningCommand(t *testing.T) {
 	}
 }
 
+func TestHomepageExecRepairsDetectedProjectBeforeWorkspaceWrite(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+
+	workspaceChecks := 0
+	projectChecks := 0
+	repairedProject := false
+	ranUserCommand := false
+
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+		switch {
+		case strings.Contains(cmd, "/workspace/.aurago-write-test"):
+			workspaceChecks++
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test"):
+			projectChecks++
+			if projectChecks == 1 {
+				return `{"status":"error","exit_code":1,"output":"touch: cannot touch '/workspace/ki-news/.aurago-project-write-test': Permission denied"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(cmd, "id -u"):
+			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
+		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 /workspace/ki-news"):
+			repairedProject = true
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case cmd == "cat > /workspace/ki-news/src/main.ts << 'EOF'\nconsole.log('ok')\nEOF":
+			if !repairedProject {
+				return `{"status":"error","exit_code":1,"output":"/bin/sh: 1: cannot create /workspace/ki-news/src/main.ts: Permission denied"}`
+			}
+			ranUserCommand = true
+			return `{"status":"ok","exit_code":0,"output":""}`
+		default:
+			t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)
+			return `{"status":"error","exit_code":1}`
+		}
+	}
+
+	result := HomepageExec(HomepageConfig{}, "cat > /workspace/ki-news/src/main.ts << 'EOF'\nconsole.log('ok')\nEOF", nil, slogDiscard())
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected exec to succeed after project repair, got: %s", result)
+	}
+	if workspaceChecks == 0 || projectChecks < 2 || !repairedProject || !ranUserCommand {
+		t.Fatalf("expected workspace check, project repair, and user command; workspaceChecks=%d projectChecks=%d repaired=%v ran=%v", workspaceChecks, projectChecks, repairedProject, ranUserCommand)
+	}
+}
+
+func TestHomepageInitProjectRepairsExistingProjectBeforeScaffold(t *testing.T) {
+	oldInternalExec := homepageDockerExecInternalFunc
+	oldExec := homepageDockerExecFunc
+	defer func() {
+		homepageDockerExecInternalFunc = oldInternalExec
+		homepageDockerExecFunc = oldExec
+	}()
+
+	dockerHost := "unit-test-init-project-repair"
+	dockerAvailabilityMu.Lock()
+	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{available: true, expiry: time.Now().Add(dockerAvailabilityCacheTTL)}
+	dockerAvailabilityMu.Unlock()
+	defer invalidateDockerAvailabilityCache(dockerHost)
+
+	workspaceChecks := 0
+	projectChecks := 0
+	repairedProject := false
+
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+		switch {
+		case strings.Contains(cmd, "/workspace/.aurago-write-test"):
+			workspaceChecks++
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test"):
+			projectChecks++
+			if projectChecks == 1 {
+				return `{"status":"error","exit_code":1,"output":"touch: Permission denied"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(cmd, "id -u"):
+			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
+		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 /workspace/ki-news"):
+			repairedProject = true
+			return `{"status":"ok","exit_code":0,"output":""}`
+		default:
+			t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)
+			return `{"status":"error","exit_code":1}`
+		}
+	}
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		switch {
+		case strings.Contains(command, "cd /workspace && mkdir -p ki-news"):
+			if !repairedProject {
+				return `{"status":"error","exit_code":1,"output":"/bin/sh: 1: cannot create ki-news/index.html: Permission denied"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case strings.Contains(command, "test -d /workspace/ki-news"):
+			return `{"status":"ok","exit_code":0,"output":"EXISTS\n"}`
+		default:
+			t.Fatalf("unexpected docker exec command user=%q cmd=%q", user, command)
+			return `{"status":"error","exit_code":1}`
+		}
+	}
+
+	got := HomepageInitProject(HomepageConfig{DockerHost: dockerHost}, "html", "ki-news", "", slogDiscard())
+	if !strings.Contains(got, `"status":"ok"`) {
+		t.Fatalf("expected init_project to succeed after project repair, got: %s", got)
+	}
+	if workspaceChecks == 0 || projectChecks < 2 || !repairedProject {
+		t.Fatalf("expected workspace check and project repair, workspaceChecks=%d projectChecks=%d repaired=%v", workspaceChecks, projectChecks, repairedProject)
+	}
+}
+
 func TestHomepageEnsureProjectNodeArtifactsWritableRepairsRootOwnedNodeModules(t *testing.T) {
 	oldExec := homepageDockerExecInternalFunc
 	defer func() { homepageDockerExecInternalFunc = oldExec }()
@@ -201,6 +312,29 @@ func TestHomepageProjectNodeArtifactsCommandsUseProjectScopedPaths(t *testing.T)
 		"cd /workspace/ki-news",
 		`chown -R 1001:1001 "$path"`,
 		"node_modules .vite .next dist build out package-lock.json",
+	} {
+		if !strings.Contains(repairCmd, want) {
+			t.Fatalf("repair command missing %q: %s", want, repairCmd)
+		}
+	}
+}
+
+func TestHomepageProjectWritableCommandsUseProjectScopedPaths(t *testing.T) {
+	checkCmd := homepageProjectWritableCheckCommand("ki-news")
+	for _, want := range []string{
+		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
+		"touch /workspace/ki-news/.aurago-project-write-test",
+	} {
+		if !strings.Contains(checkCmd, want) {
+			t.Fatalf("check command missing %q: %s", want, checkCmd)
+		}
+	}
+
+	repairCmd := homepageProjectWritableRepairCommand("1001:1001", "ki-news")
+	for _, want := range []string{
+		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
+		"chown -R 1001:1001 /workspace/ki-news",
+		"chmod -R u+rwX,g+rwX /workspace/ki-news",
 	} {
 		if !strings.Contains(repairCmd, want) {
 			t.Fatalf("repair command missing %q: %s", want, repairCmd)

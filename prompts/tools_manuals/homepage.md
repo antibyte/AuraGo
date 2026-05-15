@@ -140,6 +140,8 @@ Only use this when the user explicitly asks to destroy/reset the homepage enviro
 `write_file`, `read_file`, `edit_file`, `list_files`, and other project-file operations work against the **homepage dev workspace**, not the published web root.
 Keep `project_dir`/`path` values relative to the homepage workspace.
 
+If an existing project directory is owned by root or otherwise not writable by the homepage container user, `write_file`, `init_project`, and write-oriented `exec` commands will attempt an automatic project-scoped permission repair before failing. Do not retry with manual `chmod` from the unprivileged container user; inspect the returned repair error instead.
+
 ### exec — Run a shell command in the container
 ```json
 {"action": "homepage", "operation": "exec", "command": "cd /workspace/my-site && npm run dev"}
