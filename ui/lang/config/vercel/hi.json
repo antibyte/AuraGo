@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "डिप्लॉयमेंट की अनुमति दें",
   "config.vercel.allow_domain_management": "डोमेन प्रबंधन की अनुमति दें",
   "config.vercel.allow_env_management": "एनवायरनमेंट वेरिएबल प्रबंधन की अनुमति दें",
-  "config.vercel.allow_project_management": "साइट प्रबंधन की अनुमति दें (बनाएँ/अपडेट/हटाएँ)",
+  "config.vercel.allow_project_management": "प्रोजेक्ट प्रबंधन की अनुमति दें (बनाएँ/अपडेट/हटाएँ)",
   "config.vercel.connecting": "कनेक्ट हो रहा है…",
   "config.vercel.default_project_id": "डिफ़ॉल्ट साइट ID",
   "config.vercel.disabled_desc": "एजेंट को Vercel साइट्स, डिप्लॉय, एनवायरनमेंट वेरिएबल्स और अधिक प्रबंधित करने देने के लिए ऊपर का टॉगल सक्षम करें।",

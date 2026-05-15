@@ -19,7 +19,7 @@ Design, develop, build, test and deploy professional websites using AuraGo's web
 | `rebuild` | Rebuild the dev container from scratch |
 | `destroy` | Remove everything; requires explicit `force: true` |
 | `init_project` | Create a new web project |
-| `exec` | Run a shell command in the container |
+| `exec` | Run a diagnostic shell command in the container |
 | `write_file` | Write/create a file |
 | `read_file` | Read a file |
 | `list_files` | List project files |
@@ -53,7 +53,8 @@ When updating or publishing an existing homepage project, use this direct path:
 
 1. `homepage` → `list_files` with `path: "."` to identify the project directory.
 2. `homepage` → `read_file` / `write_file` with a project-prefixed `path`, for example `my-site/index.html`.
-3. `homepage` → `build`, `deploy_netlify`, `deploy_vercel`, or `publish_local` with `project_dir: "my-site"`.
+3. `homepage` → `build` with `project_dir: "my-site"`; missing dependencies are installed automatically.
+4. `homepage` → `publish_local` for browser checks, then `deploy_netlify` or `deploy_vercel`.
 4. Verify the returned deployment URL or the live page before reporting success.
 
 Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use `homepage` operations instead.
@@ -147,7 +148,7 @@ If an existing project directory is owned by root or otherwise not writable by t
 {"action": "homepage", "operation": "exec", "command": "cd /workspace/my-site && npm run dev"}
 ```
 
-Use `exec` for development commands such as installing packages, builds, tests, and dev servers. Do not use shell redirects, `cp`, `mv`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy the generated output.
+Use `exec` for diagnostics such as reading package metadata, checking logs, or running one-off inspection commands. Do not use it as the normal build/deploy path, and do not use shell redirects, `cp`, `mv`, `rm`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy through `deploy_netlify` or `deploy_vercel`.
 
 ### write_file — Write/create a file
 Content is safely base64-encoded internally. Parent directories are created automatically.
@@ -467,7 +468,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
-- Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
+- Use compound operations (`init_project`, `build`, `publish_local`, `deploy_netlify`, `deploy_vercel`) to save tokens and keep the pipeline recoverable — avoid running many individual `exec` calls
 - **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. Always use `homepage` → `write_file` instead.
 - **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage` → `exec`, `list_files`, `read_file`, `write_file`, or `build`.
 - **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.
@@ -481,7 +482,7 @@ Simply embed the image in your HTML using the exact URL path from `media_registr
 <img src="/files/generated_images/img_20260316_114059_254b5b21fe9f.jpeg" alt="Banner">
 ```
 
-The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/generated_images/` references, and includes those image files in the deployment package automatically. After deploying, the image will be live at the same URL path on Netlify.
+The `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for `/files/generated_images/` and other generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL. After deploying, bundled generated assets are live at the same URL path on Netlify.
 
 ### Using Vercel Deployments
 
@@ -505,7 +506,9 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 ```
 
 Notes:
-- `deploy_vercel` is designed for static-first homepage projects such as HTML, Vite, Astro, Nuxt static output, and Next.js with static export.
+- `deploy_vercel` is designed for homepage workspace projects including HTML, Vite/React, Astro, and Next.js.
+- Framework projects deploy Vercel-native from the project root after a local build check; explicit static `build_dir` values are deployed only when they contain a valid `index.html`.
+- Do not patch Next.js into static export for Vercel. Let Vercel build and route the framework project from source.
 - AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.
 - If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.
 - Alias or custom domain assignment requires `vercel.allow_domain_management=true`.

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -24,6 +25,11 @@ type NetlifyConfig struct {
 }
 
 var netlifyBaseURL = "https://api.netlify.com/api/v1"
+
+var (
+	netlifyDeployPollAttempts = 30
+	netlifyDeployPollInterval = 2 * time.Second
+)
 
 // netlifyDial tries all resolved IP addresses for the host in order.
 // Go's default dialer stops at the first failure; this mirrors curl's behavior
@@ -483,6 +489,54 @@ func NetlifyGetDeploy(cfg NetlifyConfig, deployID string) string {
 		"error_message": strVal(deploy, "error_message"),
 	})
 	return string(out)
+}
+
+// NetlifyWaitForDeploy polls a deploy until Netlify reports a terminal state.
+func NetlifyWaitForDeploy(cfg NetlifyConfig, deployID string, maxAttempts int, delay time.Duration) string {
+	if deployID == "" {
+		return errJSON("deploy_id is required")
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = netlifyDeployPollAttempts
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	var last map[string]interface{}
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		raw := NetlifyGetDeploy(cfg, deployID)
+		var current map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &current); err != nil {
+			return errJSON("Failed to parse deploy status: %v", err)
+		}
+		last = current
+		if current["status"] != "ok" {
+			return raw
+		}
+		state := strings.ToLower(strVal(current, "state"))
+		switch state {
+		case "ready":
+			current["attempts"] = attempt
+			out, _ := json.Marshal(current)
+			return string(out)
+		case "error", "failed", "rejected":
+			msg := strVal(current, "error_message")
+			if msg == "" {
+				msg = "Netlify deploy ended in state " + state
+			}
+			return errJSON("%s", msg)
+		}
+		if attempt < maxAttempts && delay > 0 {
+			time.Sleep(delay)
+		}
+	}
+	if last != nil {
+		last["status"] = "error"
+		last["message"] = "Timed out waiting for Netlify deploy to become ready"
+		out, _ := json.Marshal(last)
+		return string(out)
+	}
+	return errJSON("Timed out waiting for Netlify deploy to become ready")
 }
 
 // NetlifyDeployZip creates a new deploy by uploading a ZIP archive.

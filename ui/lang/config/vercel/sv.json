@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Tillåt distributioner",
   "config.vercel.allow_domain_management": "Tillåt domänhantering",
   "config.vercel.allow_env_management": "Tillåt hantering av miljövariabler",
-  "config.vercel.allow_project_management": "Tillåt webbplatshantering (skapa/uppdatera/radera)",
+  "config.vercel.allow_project_management": "Tillåt projekthantering (skapa/uppdatera/radera)",
   "config.vercel.connecting": "Ansluter…",
   "config.vercel.default_project_id": "Standard webbplats-ID",
   "config.vercel.disabled_desc": "Aktivera reglaget ovan för att låta agenten hantera Vercel-webbplatser, distributioner, miljövariabler och mer.",

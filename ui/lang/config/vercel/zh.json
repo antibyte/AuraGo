@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "允许部署",
   "config.vercel.allow_domain_management": "允许域名管理",
   "config.vercel.allow_env_management": "允许环境变量管理",
-  "config.vercel.allow_project_management": "允许站点管理（创建/更新/删除）",
+  "config.vercel.allow_project_management": "允许项目管理（创建/更新/删除）",
   "config.vercel.connecting": "连接中…",
   "config.vercel.default_project_id": "默认站点 ID",
   "config.vercel.disabled_desc": "启用上方的开关，让代理管理 Vercel 站点、部署、环境变量等。",

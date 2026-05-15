@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Tillat distribusjoner",
   "config.vercel.allow_domain_management": "Tillat domeneadministrasjon",
   "config.vercel.allow_env_management": "Tillat administrasjon av miljøvariabler",
-  "config.vercel.allow_project_management": "Tillat nettstedadministrasjon (opprett/oppdater/slett)",
+  "config.vercel.allow_project_management": "Tillat prosjektadministrasjon (opprett/oppdater/slett)",
   "config.vercel.connecting": "Kobler til…",
   "config.vercel.default_project_id": "Standard nettsted-ID",
   "config.vercel.disabled_desc": "Aktiver bryteren ovenfor for å la agenten administrere Vercel-nettsteder, distribusjoner, miljøvariabler og mer.",

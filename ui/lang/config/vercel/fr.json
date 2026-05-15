@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Autoriser les déploiements",
   "config.vercel.allow_domain_management": "Autoriser la gestion des domaines",
   "config.vercel.allow_env_management": "Autoriser la gestion des variables d'environnement",
-  "config.vercel.allow_project_management": "Autoriser la gestion des sites (créer/modifier/supprimer)",
+  "config.vercel.allow_project_management": "Autoriser la gestion des projets (créer/modifier/supprimer)",
   "config.vercel.connecting": "Connexion…",
   "config.vercel.default_project_id": "ID de site par défaut",
   "config.vercel.disabled_desc": "Activez le commutateur ci-dessus pour permettre à l'agent de gérer les sites, déploiements, variables d'environnement et plus sur Vercel.",

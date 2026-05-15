@@ -42,3 +42,25 @@ func TestBuildVercelDeployCommandSkipsLinkWithoutProjectRef(t *testing.T) {
 		t.Fatalf("expected deploy command, got: %s", cmd)
 	}
 }
+
+func TestHomepageVercelStrategyUsesProjectRootForFrameworks(t *testing.T) {
+	candidate := homepageDeployCandidate{BuildDir: "dist", ContainerSubdir: "vite-site/dist", Kind: "spa"}
+	deploySubdir, useCandidate := homepageVercelDeploySubdir("vite-site", "vite", "", candidate)
+	if deploySubdir != "vite-site" {
+		t.Fatalf("framework deploys should run from project root, got %q", deploySubdir)
+	}
+	if useCandidate {
+		t.Fatal("framework deploys should not deploy the static output subdirectory by default")
+	}
+}
+
+func TestHomepageVercelStrategyAllowsExplicitStaticBuildDir(t *testing.T) {
+	candidate := homepageDeployCandidate{BuildDir: "dist", ContainerSubdir: "vite-site/dist", Kind: "spa"}
+	deploySubdir, useCandidate := homepageVercelDeploySubdir("vite-site", "vite", "dist", candidate)
+	if deploySubdir != "vite-site/dist" {
+		t.Fatalf("explicit build_dir should deploy static output, got %q", deploySubdir)
+	}
+	if !useCandidate {
+		t.Fatal("explicit build_dir should use the validated static candidate")
+	}
+}

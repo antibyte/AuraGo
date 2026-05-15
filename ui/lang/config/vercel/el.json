@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Να επιτρέπονται τα deployments",
   "config.vercel.allow_domain_management": "Να επιτρέπεται η διαχείριση τομέων",
   "config.vercel.allow_env_management": "Να επιτρέπεται η διαχείριση μεταβλητών περιβάλλοντος",
-  "config.vercel.allow_project_management": "Να επιτρέπεται η διαχείριση ιστότοπων (δημιουργία/ενημέρωση/διαγραφή)",
+  "config.vercel.allow_project_management": "Να επιτρέπεται η διαχείριση έργων (δημιουργία/ενημέρωση/διαγραφή)",
   "config.vercel.connecting": "Σύνδεση…",
   "config.vercel.default_project_id": "Προεπιλεγμένο ID ιστότοπου",
   "config.vercel.disabled_desc": "Ενεργοποιήστε τον διακόπτη παραπάνω για να αφήσετε τον πράκτορα να διαχειρίζεται ιστότοπους, deployments, μεταβλητές περιβάλλοντος και άλλα στο Vercel.",

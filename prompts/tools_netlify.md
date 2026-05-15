@@ -14,7 +14,7 @@ conditions: ["netlify_enabled"]
 - `get_site` — Get detailed info about a site (`site_id` optional if default configured)
 - `create_site` — Create a new site (`site_name` = subdomain, `custom_domain` optional)
 - `update_site` — Update site settings (`site_id`, `site_name`, `custom_domain`)
-- `delete_site` — Permanently delete a site (`site_id` required)
+- `delete_site` — Permanently delete a site (`site_id` required; requires `netlify.allow_site_management=true` and not readonly)
 
 **Deploy operations:**
 - `list_deploys` — List recent deploys for a site
@@ -47,8 +47,8 @@ conditions: ["netlify_enabled"]
 **Parameters:** `operation`, `site_id`, `site_name`, `custom_domain`, `deploy_id`, `env_key`, `env_value`, `env_context`, `form_id`, `hook_id`, `hook_type`, `hook_event`, `url`, `value`
 
 **Homepage → Netlify deployment (only supported method):**
-- Use `homepage` → `deploy_netlify` — handles build + ZIP + upload entirely server-side
-  - Params: `project_dir`, `site_id` (optional if default configured), `title`, `draft`
+- Use `homepage` → `deploy_netlify` — handles dependency install, build, static output validation, ZIP upload, deploy polling, and live URL verification entirely server-side
+  - Params: `project_dir`, `site_id` (optional if default configured or site management may auto-create), `title`, `draft`
 
 ⚠️ ZIP-based deploy operations are intentionally not part of the agent flow.
 The agent cannot reliably pass binary/base64 data through tool arguments — the ZIP will be truncated or corrupted, causing 400 errors. Always use `homepage › deploy_netlify` for homepage deployments.

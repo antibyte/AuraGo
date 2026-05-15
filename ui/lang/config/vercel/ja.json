@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "デプロイを許可",
   "config.vercel.allow_domain_management": "ドメイン管理を許可",
   "config.vercel.allow_env_management": "環境変数の管理を許可",
-  "config.vercel.allow_project_management": "サイト管理を許可（作成/更新/削除）",
+  "config.vercel.allow_project_management": "プロジェクト管理を許可（作成/更新/削除）",
   "config.vercel.connecting": "接続中…",
   "config.vercel.default_project_id": "デフォルトサイトID",
   "config.vercel.disabled_desc": "上のトグルを有効にすると、エージェントがVercelのサイト、デプロイ、環境変数などを管理できるようになります。",

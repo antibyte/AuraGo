@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Deploys toestaan",
   "config.vercel.allow_domain_management": "Domeinbeheer toestaan",
   "config.vercel.allow_env_management": "Beheer van omgevingsvariabelen toestaan",
-  "config.vercel.allow_project_management": "Sitebeheer toestaan (aanmaken/bijwerken/verwijderen)",
+  "config.vercel.allow_project_management": "Projectbeheer toestaan (aanmaken/bijwerken/verwijderen)",
   "config.vercel.connecting": "Verbinden…",
   "config.vercel.default_project_id": "Standaard site-ID",
   "config.vercel.disabled_desc": "Schakel de schakelaar hierboven in om de agent Vercel-sites, deploys, omgevingsvariabelen en meer te laten beheren.",

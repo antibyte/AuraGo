@@ -914,7 +914,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			}
 		}
 		logger.Info("[Homepage] Attempting build before Netlify deploy", "dir", projectDir)
-		buildResult := HomepageBuild(cfg, projectDir, logger)
+		buildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
 		var br map[string]interface{}
 		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
 			if s, _ := br["status"].(string); s != "error" {
@@ -932,7 +932,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
 		logger.Info("[Homepage] Netlify: .next server build detected — patching Next.js config for static export and rebuilding")
 		ensureNextJsStaticExport(projectRoot, logger)
-		rebuildResult := HomepageBuild(cfg, projectDir, logger)
+		rebuildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
 		var rb map[string]interface{}
 		if err := json.Unmarshal([]byte(rebuildResult), &rb); err == nil {
 			if s, _ := rb["status"].(string); s != "error" {
@@ -946,32 +946,11 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		}
 	}
 
-	// Resolve the host-side path to zip.
-	var deployPath string
-	if buildDir == "" || buildDir == "." {
-		projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
-		// If no explicit buildDir was given, check whether a standard build output
-		// subdirectory (out, dist, build) already contains an index.html.
-		// This prevents the ZIP from including the whole project tree with the build
-		// output nested under a subdirectory (e.g. out/index.html instead of index.html),
-		// which would make Netlify return "Page not found" even with SPA redirects.
-		detected := ""
-		for _, sub := range []string{"out", "dist", "build"} {
-			candidate := filepath.Join(projectRoot, sub, "index.html")
-			if _, err := os.Stat(candidate); err == nil {
-				detected = sub
-				break
-			}
-		}
-		if detected != "" {
-			logger.Info("[Homepage] Auto-detected build output subdirectory", "subdir", detected)
-			deployPath = filepath.Join(projectRoot, detected)
-		} else {
-			deployPath = projectRoot
-		}
-	} else {
-		deployPath = filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
+	candidate, candidateErr := homepageDetectDeployCandidate(cfg, projectDir, buildDir, "")
+	if candidateErr != nil {
+		return errJSON("No valid Netlify deploy output for %q: %v. Netlify ZIP deploys require a static directory with index.html.", projectDir, candidateErr)
 	}
+	deployPath := candidate.Path
 
 	// Verify the deploy path exists.
 	if _, err := os.Stat(deployPath); err != nil {
@@ -1119,7 +1098,28 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			logger.Info("[Homepage] Site resolved", "name", siteID, "uuid", uuid)
 			resolvedID = uuid
 		}
-		// If uuid == "", site doesn't exist yet — auto-create below after deploy attempt.
+		// If uuid == "", site doesn't exist yet — auto-create below before deploy.
+	}
+	if resolvedID == "" {
+		resolvedID = strings.TrimSpace(nfCfg.DefaultSiteID)
+	}
+	if resolvedID == "" {
+		if !nfCfg.AllowSiteManagement {
+			return errJSON("Netlify site_id is required because netlify.allow_site_management is false and no default_site_id is configured")
+		}
+		siteName := homepageProviderNameFromProjectDir(projectDir)
+		logger.Info("[Homepage] No Netlify site_id configured, auto-creating site", "name", siteName)
+		createResult := NetlifyCreateSite(nfCfg, siteName, "")
+		var cr map[string]interface{}
+		if json.Unmarshal([]byte(createResult), &cr) != nil || cr["status"] != "ok" {
+			return errJSON("Netlify site_id is missing and auto-creation failed: %s", createResult)
+		}
+		if id := strVal(cr, "id"); id != "" {
+			resolvedID = id
+		}
+		if resolvedID == "" {
+			return errJSON("Netlify site auto-creation did not return a site ID: %s", createResult)
+		}
 	}
 
 	logger.Info("[Homepage] Deploying to Netlify", "site_id", resolvedID, "bytes", len(zipBytes), "draft", draft)
@@ -1129,7 +1129,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// Only do this when siteID was a name (not a UUID), to avoid recreating a deleted site by UUID.
 	var dr map[string]interface{}
 	if json.Unmarshal([]byte(deployResult), &dr) == nil {
-		if code, _ := dr["http_code"].(float64); code == 404 && !looksLikeUUID(siteID) {
+		if code, _ := dr["http_code"].(float64); code == 404 && !looksLikeUUID(siteID) && nfCfg.AllowSiteManagement {
 			logger.Info("[Homepage] Site not found, auto-creating", "name", siteID)
 			createResult := NetlifyCreateSite(nfCfg, siteID, "")
 			var cr map[string]interface{}
@@ -1156,7 +1156,44 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 			}
 		}
 	}
-	return deployResult
+	if json.Unmarshal([]byte(deployResult), &dr) != nil || dr["status"] == "error" {
+		return deployResult
+	}
+	deployID := strVal(dr, "id")
+	if deployID != "" {
+		waitResult := NetlifyWaitForDeploy(nfCfg, deployID, netlifyDeployPollAttempts, netlifyDeployPollInterval)
+		var wr map[string]interface{}
+		if json.Unmarshal([]byte(waitResult), &wr) == nil {
+			if wr["status"] == "error" {
+				return errJSON("Netlify deploy failed after upload: %s", strVal(wr, "message"))
+			}
+			for k, v := range wr {
+				if k != "status" {
+					dr["deploy_"+k] = v
+				}
+			}
+		}
+	}
+	verifyURL := strVal(dr, "deploy_url")
+	if verifyURL == "" {
+		verifyURL = strVal(dr, "url")
+	}
+	if verifyURL == "" {
+		verifyURL = strVal(dr, "deploy_deploy_url")
+	}
+	if verifyURL == "" {
+		verifyURL = strVal(dr, "deploy_url")
+	}
+	if verifyURL != "" {
+		verify := homepageVerifyDeploymentURL(verifyURL)
+		if verify.Status != "ok" {
+			return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
+		}
+		dr["verified"] = true
+		dr["verified_url"] = verify.URL
+	}
+	out, _ := json.Marshal(dr)
+	return string(out)
 }
 
 func normalizeVercelDeployTarget(target string) string {
@@ -1272,35 +1309,46 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 
 	target = normalizeVercelDeployTarget(target)
 	framework := detectHomepageFramework(projectRoot)
+	projectInfo, projectInfoErr := homepageResolveProject(cfg, projectDir)
+	if projectInfoErr != nil {
+		return errJSON("%v", projectInfoErr)
+	}
 
 	if buildDir == "" {
-		if isNextJsProject(projectRoot) {
-			if patched := ensureNextJsStaticExport(projectRoot, logger); patched {
-				logger.Info("[Homepage] Vercel: Next.js config patched for static export")
-			}
-		}
 		logger.Info("[Homepage] Attempting build before Vercel deploy", "dir", projectDir, "target", target)
-		buildResult := HomepageBuild(cfg, projectDir, logger)
+		buildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
 		var br map[string]interface{}
 		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
-			if s, _ := br["status"].(string); s != "error" {
-				buildDir = detectBuildDir(cfg, projectDir)
-			} else {
+			if s, _ := br["status"].(string); s == "error" {
 				return decorateHomepageBuildFailure(buildResult, projectDir)
 			}
 		}
 	}
 
-	if buildDir == ".next" {
-		buildDir = "."
+	candidate := homepageDeployCandidate{
+		BuildDir:        ".",
+		Path:            projectRoot,
+		ContainerSubdir: projectDir,
+		Kind:            "framework-source",
 	}
-
-	deploySubdir := projectDir
-	deployPath := projectRoot
-	if buildDir != "" && buildDir != "." {
-		deploySubdir = filepath.ToSlash(filepath.Join(projectDir, buildDir))
-		deployPath = filepath.Join(projectRoot, buildDir)
+	if strings.TrimSpace(buildDir) != "" && buildDir != "." {
+		var candidateErr error
+		candidate, candidateErr = homepageDetectDeployCandidate(cfg, projectDir, buildDir, framework)
+		if candidateErr != nil {
+			return errJSON("No valid Vercel static deploy output for %q: %v", projectDir, candidateErr)
+		}
+	} else if !projectInfo.HasPackageJSON {
+		var candidateErr error
+		candidate, candidateErr = homepageDetectDeployCandidate(cfg, projectDir, ".", framework)
+		if candidateErr != nil {
+			return errJSON("No valid Vercel static deploy output for %q: %v", projectDir, candidateErr)
+		}
 	}
+	deploySubdir, staticOutputDeploy := homepageVercelDeploySubdir(projectDir, framework, buildDir, candidate)
+	if !projectInfo.HasPackageJSON {
+		staticOutputDeploy = true
+	}
+	deployPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(deploySubdir))
 	if _, err := os.Stat(deployPath); err != nil {
 		return errJSON("Deploy path does not exist: %s", deployPath)
 	}
@@ -1355,7 +1403,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		}
 	}
 
-	logger.Info("[Homepage] Deploying to Vercel", "project", projectRef, "path", deploySubdir, "target", target)
+	logger.Info("[Homepage] Deploying to Vercel", "project", projectRef, "path", deploySubdir, "target", target, "static_output", staticOutputDeploy)
 
 	scopeFlag := vercelScopeFlag(vcfg)
 	deployCmd := buildVercelDeployCommand(deploySubdir, cliProjectRef, target, vcfg)
@@ -1372,6 +1420,10 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	deploymentURL := extractVercelDeploymentURL(deployOutput)
 	if deploymentURL == "" {
 		return errJSON("Vercel deploy finished but no deployment URL could be detected. Output: %s", truncateStr(strings.TrimSpace(deployOutput), 1200))
+	}
+	verify := homepageVerifyDeploymentURL(deploymentURL)
+	if verify.Status != "ok" {
+		return errJSON("Vercel deploy completed but live verification failed: %s", verify.Message)
 	}
 
 	aliasResults := []map[string]interface{}{}
@@ -1452,13 +1504,20 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	}
 
 	result := map[string]interface{}{
-		"status":         "ok",
-		"message":        "Vercel deployment complete",
-		"project_id":     projectRef,
-		"project_dir":    projectDir,
-		"deploy_path":    filepath.ToSlash(deploySubdir),
+		"status":      "ok",
+		"message":     "Vercel deployment complete",
+		"project_id":  projectRef,
+		"project_dir": projectDir,
+		"deploy_path": filepath.ToSlash(deploySubdir),
+		"deploy_strategy": func() string {
+			if staticOutputDeploy {
+				return "static-output"
+			}
+			return "framework-source"
+		}(),
 		"target":         target,
 		"deployment_url": deploymentURL,
+		"verified":       true,
 		"aliases":        aliasResults,
 		"output":         strings.TrimSpace(deployOutput),
 	}
@@ -1738,58 +1797,11 @@ func looksLikeUUID(s string) bool {
 }
 
 func detectBuildDir(cfg HomepageConfig, projectDir string) string {
-	// Helper for local filesystem detection
-	detectLocal := func() string {
-		if cfg.WorkspacePath != "" {
-			for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
-				p := filepath.Join(cfg.WorkspacePath, projectDir, dir)
-				if s, err := os.Stat(p); err == nil && s.IsDir() {
-					// Skip .next for Next.js projects unless it contains an index.html.
-					// A bare .next/ is a server-side build that Caddy cannot serve.
-					if dir == ".next" {
-						projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
-						if isNextJsProject(projectRoot) {
-							indexPath := filepath.Join(p, "index.html")
-							if _, idxErr := os.Stat(indexPath); idxErr != nil {
-								// .next exists but has no index.html — server-side build, skip
-								continue
-							}
-						}
-					}
-					return dir
-				}
-			}
-		}
-		// No standard build dir found — serve project root directly.
-		// This handles plain HTML projects that have no build step.
+	candidate, err := homepageDetectDeployCandidate(cfg, projectDir, "", "")
+	if err != nil {
 		return "."
 	}
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		return detectLocal()
-	}
-
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Try common build output directories via Docker first
-	for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
-		// Skip .next for Next.js projects unless it contains servable content.
-		if dir == ".next" && cfg.WorkspacePath != "" {
-			projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
-			if isNextJsProject(projectRoot) {
-				checkResult := DockerExec(dockerCfg, homepageContainerName,
-					fmt.Sprintf("test -f /workspace/%s/.next/index.html && echo HAS_INDEX", projectDir), "")
-				if !strings.Contains(checkResult, "HAS_INDEX") {
-					continue
-				}
-			}
-		}
-		result := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s/%s && echo yes", projectDir, dir), "")
-		if strings.Contains(result, "yes") {
-			return dir
-		}
-	}
-	// Fallback to local filesystem if container check yields nothing
-	return detectLocal()
+	return candidate.BuildDir
 }
 
 func homepageCaddyfile(domain string, port int) string {
@@ -1973,8 +1985,10 @@ func ensureNextJsStaticExport(projectRoot string, logger *slog.Logger) bool {
 		configPath = filepath.Join(projectRoot, "next.config.js")
 	}
 	minimal := "/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  output: 'export',\n};\n\nmodule.exports = nextConfig;\n"
-	if strings.HasSuffix(configPath, ".ts") || strings.HasSuffix(configPath, ".mjs") {
+	if strings.HasSuffix(configPath, ".ts") {
 		minimal = "import type { NextConfig } from 'next';\n\nconst nextConfig: NextConfig = {\n  output: 'export',\n};\n\nexport default nextConfig;\n"
+	} else if strings.HasSuffix(configPath, ".mjs") {
+		minimal = "/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  output: 'export',\n};\n\nexport default nextConfig;\n"
 	}
 	if werr := os.WriteFile(configPath, []byte(minimal), 0644); werr == nil {
 		logger.Info("[Homepage] Wrote minimal Next.js config with output: 'export'", "file", configPath)

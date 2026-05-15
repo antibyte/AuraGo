@@ -2,7 +2,7 @@
   "config.vercel.allow_deploy": "Permitir deploys",
   "config.vercel.allow_domain_management": "Permitir gerenciamento de domínios",
   "config.vercel.allow_env_management": "Permitir gerenciamento de variáveis de ambiente",
-  "config.vercel.allow_project_management": "Permitir gerenciamento de sites (criar/atualizar/excluir)",
+  "config.vercel.allow_project_management": "Permitir gerenciamento de projetos (criar/atualizar/excluir)",
   "config.vercel.connecting": "Conectando…",
   "config.vercel.default_project_id": "ID do site padrão",
   "config.vercel.disabled_desc": "Ative o botão acima para permitir que o agente gerencie sites, deploys, variáveis de ambiente e mais no Vercel.",

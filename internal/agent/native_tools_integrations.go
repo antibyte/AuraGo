@@ -246,7 +246,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.NetlifyEnabled {
 		tools = append(tools, tool("netlify",
-			"Manage Netlify sites, deploys, environment variables, forms, hooks, and SSL certificates via the Netlify API.",
+			"Manage Netlify sites, deploys, environment variables, forms, hooks, and SSL certificates via the Netlify API. Site deletion is gated by netlify.allow_site_management and readonly.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -272,12 +272,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.VercelEnabled {
 		tools = append(tools, tool("vercel",
-			"Manage Vercel projects, deployments, environment variables, domains, and aliases via the Vercel API. Project deletion is intentionally not exposed to the autonomous agent. Use homepage deploy_vercel for homepage workspace publishing.",
+			"Manage Vercel projects, deployments, environment variables, domains, and aliases via the Vercel API. Project deletion is gated by vercel.allow_project_management and readonly. Use homepage deploy_vercel for homepage workspace publishing.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"check_connection", "list_projects", "get_project", "create_project", "update_project", "list_deployments", "get_deployment", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_domains", "add_domain", "verify_domain", "list_aliases", "assign_alias"},
+					"enum":        []string{"check_connection", "list_projects", "get_project", "create_project", "update_project", "delete_project", "list_deployments", "get_deployment", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_domains", "add_domain", "verify_domain", "list_aliases", "assign_alias"},
 				},
 				"project_id":       prop("string", "Vercel project ID or name (uses default_project_id if omitted)"),
 				"project_name":     prop("string", "Project name for create_project"),

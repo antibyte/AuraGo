@@ -173,19 +173,6 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
 			}
 			req := decodeNetlifyArgs(tc)
-			token, tokenErr := vault.ReadSecret("netlify_token")
-			if tokenErr != nil || token == "" {
-				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
-			}
-			nfCfg := tools.NetlifyConfig{
-				Token:               token,
-				DefaultSiteID:       cfg.Netlify.DefaultSiteID,
-				TeamSlug:            cfg.Netlify.TeamSlug,
-				ReadOnly:            cfg.Netlify.ReadOnly,
-				AllowDeploy:         cfg.Netlify.AllowDeploy,
-				AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
-				AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
-			}
 			// Read-only mode: block all mutating operations
 			if cfg.Netlify.ReadOnly {
 				switch req.Operation {
@@ -215,6 +202,19 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				case "set_env", "delete_env":
 					return `Tool Output: {"status":"error","message":"Netlify env var management is not allowed. Set netlify.allow_env_management=true in config.yaml."}`
 				}
+			}
+			token, tokenErr := vault.ReadSecret("netlify_token")
+			if tokenErr != nil || token == "" {
+				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
+			}
+			nfCfg := tools.NetlifyConfig{
+				Token:               token,
+				DefaultSiteID:       cfg.Netlify.DefaultSiteID,
+				TeamSlug:            cfg.Netlify.TeamSlug,
+				ReadOnly:            cfg.Netlify.ReadOnly,
+				AllowDeploy:         cfg.Netlify.AllowDeploy,
+				AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
+				AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
 			}
 			switch req.Operation {
 			// ── Sites ──
@@ -301,33 +301,15 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
 			}
 			req := decodeVercelArgs(tc)
-			if req.Operation == "delete_project" {
-				return `Tool Output: {"status":"error","message":"Vercel delete_project is not available to the autonomous agent because it permanently deletes projects. Use the Vercel dashboard or an explicit admin-only maintenance path outside the agent loop for project deletion."}`
-			}
-			token, tokenErr := vault.ReadSecret("vercel_token")
-			if tokenErr != nil || token == "" {
-				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
-			}
-			vcfg := tools.VercelConfig{
-				Token:                  token,
-				DefaultProjectID:       cfg.Vercel.DefaultProjectID,
-				TeamID:                 cfg.Vercel.TeamID,
-				TeamSlug:               cfg.Vercel.TeamSlug,
-				ReadOnly:               cfg.Vercel.ReadOnly,
-				AllowDeploy:            cfg.Vercel.AllowDeploy,
-				AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
-				AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
-				AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
-			}
 			if cfg.Vercel.ReadOnly {
 				switch req.Operation {
-				case "create_project", "update_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias", "rollback", "cancel_deploy":
+				case "create_project", "update_project", "delete_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias", "rollback", "cancel_deploy":
 					return `Tool Output: {"status":"error","message":"Vercel is in read-only mode. Disable vercel.readonly to allow changes."}`
 				}
 			}
 			if !cfg.Vercel.AllowProjectManagement {
 				switch req.Operation {
-				case "create_project", "update_project":
+				case "create_project", "update_project", "delete_project":
 					return `Tool Output: {"status":"error","message":"Vercel project management is not allowed. Set vercel.allow_project_management=true in config.yaml."}`
 				}
 			}
@@ -349,6 +331,21 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					return `Tool Output: {"status":"error","message":"Vercel domain and alias management is not allowed. Set vercel.allow_domain_management=true in config.yaml."}`
 				}
 			}
+			token, tokenErr := vault.ReadSecret("vercel_token")
+			if tokenErr != nil || token == "" {
+				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
+			}
+			vcfg := tools.VercelConfig{
+				Token:                  token,
+				DefaultProjectID:       cfg.Vercel.DefaultProjectID,
+				TeamID:                 cfg.Vercel.TeamID,
+				TeamSlug:               cfg.Vercel.TeamSlug,
+				ReadOnly:               cfg.Vercel.ReadOnly,
+				AllowDeploy:            cfg.Vercel.AllowDeploy,
+				AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
+				AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
+				AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
+			}
 			switch req.Operation {
 			case "check_connection":
 				logger.Info("LLM requested Vercel connection check")
@@ -365,6 +362,9 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			case "update_project":
 				logger.Info("LLM requested Vercel update project", "project_id", req.ProjectID)
 				return "Tool Output: " + tools.VercelUpdateProject(vcfg, req.ProjectID, req.ProjectName, req.Framework, req.RootDirectory, req.OutputDirectory)
+			case "delete_project":
+				logger.Info("LLM requested Vercel delete project", "project_id", req.ProjectID)
+				return "Tool Output: " + tools.VercelDeleteProject(vcfg, req.ProjectID)
 			case "list_deployments":
 				logger.Info("LLM requested Vercel list deployments", "project_id", req.ProjectID)
 				return "Tool Output: " + tools.VercelListDeployments(vcfg, req.ProjectID)
@@ -405,7 +405,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Vercel get env var", "project_id", req.ProjectID, "key", req.EnvKey)
 				return "Tool Output: " + tools.VercelGetEnv(vcfg, req.ProjectID, req.EnvKey)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, list_deployments, get_deployment, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
+				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, delete_project, list_deployments, get_deployment, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
 			}
 
 		default:

@@ -1101,28 +1101,32 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	}
 	logger.Info("[Homepage] Build", "dir", projectDir)
 
-	// Detect plain HTML projects: no package.json â†’ no build needed.
-	if cfg.WorkspacePath != "" {
-		pkgPath := filepath.Join(cfg.WorkspacePath, projectDir, "package.json")
-		if _, err := os.Stat(pkgPath); err != nil {
-			logger.Info("[Homepage] No package.json found -- plain HTML project, skipping build")
-			out, _ := json.Marshal(map[string]interface{}{
-				"status": "ok",
-				"output": "Plain HTML project -- no build required",
-				"note":   "This project has no package.json. deploy_netlify and publish_local will serve or package the project directory directly.",
-			})
-			return string(out)
-		}
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	project, err := homepageResolveProject(cfg, projectDir)
+	if err != nil {
+		return errJSON("%v", err)
+	}
+	if !project.HasPackageJSON {
+		logger.Info("[Homepage] No package.json found -- plain HTML project, skipping build")
+		out, _ := json.Marshal(map[string]interface{}{
+			"status": "ok",
+			"output": "Plain HTML project -- no build required",
+			"note":   "This project has no package.json. deploy_netlify and publish_local will serve or package the project directory directly.",
+		})
+		return string(out)
 	}
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	prep := homepagePrepareDependencies(cfg, project, logger)
+	if prep.Status != "ok" {
+		return errJSON("Dependency preparation failed for project_dir %q: %s", projectDir, prep.Message)
+	}
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
 	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
 		return errJSON("Homepage project %q has Node/Vite artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
 	}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && npm run build 2>&1", projectDir), "")
+	return homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, homepageBuildCommand(project.PackageManager)), "")
 }
 
 // HomepageInstallDeps installs npm packages inside the container.

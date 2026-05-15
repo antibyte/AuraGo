@@ -315,7 +315,7 @@ func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
-func TestBuiltinToolSchemasDoNotExposeVercelDeleteProject(t *testing.T) {
+func TestBuiltinToolSchemasExposeVercelDeleteProject(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
 	for _, schema := range schemas {
 		if schema.Function == nil || schema.Function.Name != "vercel" {
@@ -339,10 +339,10 @@ func TestBuiltinToolSchemasDoNotExposeVercelDeleteProject(t *testing.T) {
 		}
 		for _, op := range enumVals {
 			if op == "delete_project" {
-				t.Fatal("vercel schema must not expose delete_project to autonomous agents")
+				return
 			}
 		}
-		return
+		t.Fatal("vercel schema must expose delete_project behind config permissions")
 	}
 	t.Fatal("vercel schema not found")
 }
@@ -847,6 +847,38 @@ func TestBuiltinToolSchemasNetlifyOmitsZipDeployOperations(t *testing.T) {
 		return
 	}
 
+	t.Fatal("netlify schema not found")
+}
+
+func TestBuiltinToolSchemasExposeNetlifyDeleteSite(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{NetlifyEnabled: true})
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "netlify" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("netlify parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("netlify properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("netlify operation property missing")
+		}
+		enumVals, ok := opProp["enum"].([]string)
+		if !ok {
+			t.Fatalf("netlify operation enum type = %T, want []string", opProp["enum"])
+		}
+		for _, op := range enumVals {
+			if op == "delete_site" {
+				return
+			}
+		}
+		t.Fatal("netlify schema must expose delete_site behind config permissions")
+	}
 	t.Fatal("netlify schema not found")
 }
 
