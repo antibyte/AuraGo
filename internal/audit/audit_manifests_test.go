@@ -320,7 +320,8 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 		"actions/setup-go",
 		"go test ./...",
 		"go test -race ./internal/llm ./internal/server ./internal/memory",
-		"golang/govulncheck-action",
+		"go install golang.org/x/vuln/cmd/govulncheck@latest",
+		"govulncheck ./...",
 	} {
 		if !strings.Contains(workflowText, needle) {
 			t.Fatalf("CI workflows must include %q", needle)
@@ -353,7 +354,9 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"actions/checkout@v4",
+		"actions/setup-go@v5",
 		"actions/setup-node@v4",
+		"golang/govulncheck-action",
 		"docker/setup-qemu-action@v3",
 		"docker/setup-buildx-action@v3",
 		"docker/login-action@v3",
@@ -366,6 +369,7 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	}
 	for _, required := range []string{
 		"actions/checkout@v6",
+		"actions/setup-go@v6",
 		"actions/setup-node@v6",
 		"docker/setup-qemu-action@v4",
 		"docker/setup-buildx-action@v4",

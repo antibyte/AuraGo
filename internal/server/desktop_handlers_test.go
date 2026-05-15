@@ -182,7 +182,7 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
 	t.Parallel()
 
-	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "agent-chat.js"))
 	if err != nil {
 		t.Fatalf("ReadFile desktop chat UI: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
 func TestDesktopChatUILaunchContextSupportsFileAutosend(t *testing.T) {
 	t.Parallel()
 
-	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "agent-chat.js"))
 	if err != nil {
 		t.Fatalf("ReadFile desktop chat UI: %v", err)
 	}
