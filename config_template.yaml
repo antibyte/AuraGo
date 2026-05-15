@@ -450,17 +450,24 @@ s3:
 #     type: manifest
 #     name: "Manifest Gateway"
 #     model: "manifest/auto"
+#     capabilities:                                      # optional; omitted or auto=true enables per-model detection
+#       auto: true                                       # detect from provider metadata, models.dev registry, and safe heuristics
+#       tool_calling: true                               # stored detected/manual value for the current model
+#       structured_outputs: false
+#       multimodal: false
+#       detected_model: "manifest/auto"
+#       source: "legacy_fallback"                        # manual, openrouter, models.dev, heuristic, legacy_fallback
 providers: []
 llm:
     provider: ""
-    multimodal: false                                      # enable image inputs (multimodal chat) in the main agent loop
-    multimodal_provider_types_extra: []                    # optional: extra provider types treated as multimodal-capable (e.g. ["ollama"])
+    multimodal: false                                      # deprecated fallback only when provider/model capabilities are unknown
+    multimodal_provider_types_extra: []                    # legacy fallback: extra provider types treated as multimodal-capable (e.g. ["ollama"])
     helper_enabled: false                                   # recommended: enable a dedicated helper LLM for internal analysis/background features
     helper_provider: ""                                     # if disabled or unset, many helper-dependent features will not work fully
     helper_model: ""                                        # optional override; use a smaller, cost-efficient model here when possible
-    use_native_functions: true
+    use_native_functions: true                              # deprecated fallback only when provider/model capabilities are unknown
     temperature: 0.7
-    structured_outputs: false
+    structured_outputs: false                               # deprecated fallback only when provider/model capabilities are unknown
     anthropic_thinking:
         enabled: false                                   # enable Anthropic "thinking" (only for supported Claude models)
         budget_tokens: 10000                             # tokens reserved for thinking; 0 uses default

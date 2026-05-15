@@ -138,6 +138,45 @@ homepage:
 	}
 }
 
+func TestLoadPreservesProviderCapabilityOverrides(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+providers:
+  - id: main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: unknown-local-model
+    capabilities:
+      auto: false
+      tool_calling: true
+      structured_outputs: false
+      multimodal: true
+      detected_model: unknown-local-model
+      source: manual
+llm:
+  provider: main
+`)
+
+	p := cfg.FindProvider("main")
+	if p == nil {
+		t.Fatal("provider main not found")
+	}
+	if p.Capabilities.AutoEnabled() {
+		t.Fatal("expected manual provider capabilities")
+	}
+	if !p.Capabilities.ToolCalling {
+		t.Fatal("expected tool_calling override to load")
+	}
+	if p.Capabilities.StructuredOutputs {
+		t.Fatal("did not expect structured_outputs override")
+	}
+	if !p.Capabilities.Multimodal {
+		t.Fatal("expected multimodal override to load")
+	}
+	if p.Capabilities.Source != "manual" {
+		t.Fatalf("source = %q, want manual", p.Capabilities.Source)
+	}
+}
+
 func TestAdaptiveToolsMaxToolsDefaultsToSixteenWhenEnabled(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `
 agent:

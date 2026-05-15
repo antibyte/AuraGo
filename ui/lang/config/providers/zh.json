@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "通过 GitHub Device Flow 授权。",
   "config.providers.hint.opencode_go": "来自 OpenCode Go 的 API 密钥。",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "模型能力",
+  "config.providers.cap_use_detected": "使用检测值",
+  "config.providers.cap_tool_calling": "工具调用",
+  "config.providers.cap_structured_outputs": "结构化输出",
+  "config.providers.cap_multimodal": "多模态输入",
+  "config.providers.cap_auto_source": "已从 {source} 为 {model} 自动检测。",
+  "config.providers.cap_manual_source": "此模型使用手动覆盖。",
+  "config.providers.cap_detecting": "正在检测模型能力...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

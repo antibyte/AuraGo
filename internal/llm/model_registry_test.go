@@ -2,6 +2,8 @@ package llm
 
 import (
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestGetModelInfo(t *testing.T) {
@@ -107,7 +109,7 @@ func TestGetPricingFromRegistry(t *testing.T) {
 
 func TestGetCapabilitiesFromRegistry(t *testing.T) {
 	// GPT-4o supports tool calling and structured output but not reasoning
-	toolCall, reasoning, structuredOutput, ok := GetCapabilitiesFromRegistry("openai", "gpt-4o")
+	toolCall, reasoning, structuredOutput, multimodal, ok := GetCapabilitiesFromRegistry("openai", "gpt-4o")
 	if !ok {
 		t.Fatal("Expected capabilities for gpt-4o")
 	}
@@ -120,13 +122,62 @@ func TestGetCapabilitiesFromRegistry(t *testing.T) {
 	if !structuredOutput {
 		t.Error("gpt-4o should support structured output")
 	}
+	if !multimodal {
+		t.Error("gpt-4o should support multimodal image input")
+	}
 
 	// o3-pro supports reasoning
-	_, reasoning, _, ok = GetCapabilitiesFromRegistry("openai", "o3-pro")
+	_, reasoning, _, _, ok = GetCapabilitiesFromRegistry("openai", "o3-pro")
 	if !ok {
 		t.Fatal("Expected capabilities for o3-pro")
 	}
 	if !reasoning {
 		t.Error("o3-pro should support reasoning")
+	}
+}
+
+func TestCapabilitiesFromOpenRouterModelMetadata(t *testing.T) {
+	caps, ok := CapabilitiesFromOpenRouterModel(OpenRouterModelMetadata{
+		ID:                  "anthropic/claude-opus-4.7-fast",
+		SupportedParameters: []string{"tools", "structured_outputs", "response_format"},
+		Architecture: OpenRouterArchitecture{
+			InputModalities: []string{"text", "image", "file"},
+		},
+	})
+	if !ok {
+		t.Fatal("expected OpenRouter metadata to produce capabilities")
+	}
+	if !caps.ToolCalling {
+		t.Fatal("expected tools parameter to enable tool calling")
+	}
+	if !caps.StructuredOutputs {
+		t.Fatal("expected structured_outputs parameter to enable structured outputs")
+	}
+	if !caps.Multimodal {
+		t.Fatal("expected image input modality to enable multimodal")
+	}
+	if caps.Source != "openrouter" {
+		t.Fatalf("source = %q, want openrouter", caps.Source)
+	}
+}
+
+func TestResolveProviderCapabilitiesUsesLegacyFallbackForUnknownModel(t *testing.T) {
+	caps := ResolveProviderCapabilities(config.ProviderEntry{
+		Type:  "custom",
+		Model: "totally-unknown-model",
+	}, CapabilityFallback{
+		ToolCalling:       true,
+		StructuredOutputs: true,
+		Multimodal:        true,
+	})
+
+	if caps.Source != CapabilitySourceLegacyFallback {
+		t.Fatalf("source = %q, want legacy fallback", caps.Source)
+	}
+	if caps.Known {
+		t.Fatal("expected unknown model to remain marked unknown")
+	}
+	if !caps.ToolCalling || !caps.StructuredOutputs || !caps.Multimodal {
+		t.Fatalf("expected legacy fallback flags, got %+v", caps)
 	}
 }

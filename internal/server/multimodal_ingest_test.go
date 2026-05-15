@@ -81,6 +81,49 @@ func TestPromoteUploadedImagesToMultiContent_Disabled(t *testing.T) {
 	}
 }
 
+func TestPromoteUploadedImagesToMultiContent_UsesProviderMultimodalCapability(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	autoFalse := false
+	cfg := &config.Config{}
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "custom"
+	cfg.LLM.Model = "manual-vision-model"
+	cfg.LLM.Multimodal = false
+	cfg.Providers = []config.ProviderEntry{{
+		ID:      "main",
+		Type:    "custom",
+		BaseURL: "https://example.test/v1",
+		Model:   "manual-vision-model",
+		Capabilities: config.ProviderCapabilities{
+			Auto:          &autoFalse,
+			ToolCalling:   true,
+			Multimodal:    true,
+			DetectedModel: "manual-vision-model",
+			Source:        "manual",
+		},
+	}}
+
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "agent_workspace/workdir/attachments/img.png",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	if len(out.MultiContent) != 2 {
+		t.Fatalf("expected MultiContent parts (text + image), got %d", len(out.MultiContent))
+	}
+	if out.MultiContent[1].Type != openai.ChatMessagePartTypeImageURL {
+		t.Fatalf("expected second part type image_url, got %q", out.MultiContent[1].Type)
+	}
+}
+
 func TestBuildOptimizedImageDataURI_DownscalesAndEncodesJPEG(t *testing.T) {
 	// Create a large image with alpha variation so the encoder takes the JPEG path
 	// (PNG-with-alpha would be huge; we flatten and encode JPEG).

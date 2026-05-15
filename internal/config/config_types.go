@@ -62,15 +62,33 @@ var ValidSpecialistRoles = map[string]bool{
 	"writer":     true,
 }
 
+// ProviderCapabilities stores the model feature switches for a provider's
+// current model. Auto defaults to true when omitted for backward compatibility.
+type ProviderCapabilities struct {
+	Auto              *bool  `yaml:"auto,omitempty" json:"auto,omitempty"`
+	ToolCalling       bool   `yaml:"tool_calling,omitempty" json:"tool_calling"`
+	StructuredOutputs bool   `yaml:"structured_outputs,omitempty" json:"structured_outputs"`
+	Multimodal        bool   `yaml:"multimodal,omitempty" json:"multimodal"`
+	DetectedModel     string `yaml:"detected_model,omitempty" json:"detected_model,omitempty"`
+	Source            string `yaml:"source,omitempty" json:"source,omitempty"`
+}
+
+// AutoEnabled reports whether capability values should be detected from model
+// metadata. Missing auto means true so existing configs keep auto behavior.
+func (c ProviderCapabilities) AutoEnabled() bool {
+	return c.Auto == nil || *c.Auto
+}
+
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID      string `yaml:"id"       json:"id"`         // unique slug, e.g. "main", "vision", "local-ollama"
-	Name    string `yaml:"name"     json:"name"`       // human-readable label shown in UI
-	Type    string `yaml:"type"     json:"type"`       // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL string `yaml:"base_url" json:"base_url"`   // API base URL
-	APIKey  string `yaml:"-" vault:"api_key" json:"-"` // API key (vault-only)
-	Model   string `yaml:"model"    json:"model"`      // default model name
+	ID           string               `yaml:"id"       json:"id"`         // unique slug, e.g. "main", "vision", "local-ollama"
+	Name         string               `yaml:"name"     json:"name"`       // human-readable label shown in UI
+	Type         string               `yaml:"type"     json:"type"`       // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL      string               `yaml:"base_url" json:"base_url"`   // API base URL
+	APIKey       string               `yaml:"-" vault:"api_key" json:"-"` // API key (vault-only)
+	Model        string               `yaml:"model"    json:"model"`      // default model name
+	Capabilities ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
 	// Cloudflare Workers AI — required when Type is "workers-ai"
 	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID

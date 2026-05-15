@@ -785,7 +785,7 @@ async function renderSection(key) {
     // Legacy fields superseded by provider management — hide from UI
     const EMBEDDINGS_SKIP_KEYS = new Set(['api_key', 'external_model', 'external_url', 'internal_model']);
     // Legacy fields superseded by provider management — hide from UI
-    const LLM_SKIP_KEYS = new Set(['api_key', 'base_url', 'model']);
+    const LLM_SKIP_KEYS = new Set(['api_key', 'base_url', 'model', 'use_native_functions', 'structured_outputs', 'multimodal', 'multimodal_provider_types_extra']);
     // Sections whose api_key/base_url/model are managed by provider entries
     const PROVIDER_MANAGED_SECTIONS = new Set(['vision', 'whisper']);
     // Tool sub-keys with dedicated sections — hide from generic 'tools' section

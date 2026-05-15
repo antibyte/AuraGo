@@ -16,20 +16,32 @@ import (
 
 // providerJSON is the API representation of a provider entry.
 type providerJSON struct {
-	ID                string             `json:"id"`
-	Name              string             `json:"name"`
-	Type              string             `json:"type"`
-	BaseURL           string             `json:"base_url"`
-	APIKey            string             `json:"api_key"`
-	Model             string             `json:"model"`
-	AccountID         string             `json:"account_id"`
-	AuthType          string             `json:"auth_type"`
-	OAuthAuthURL      string             `json:"oauth_auth_url"`
-	OAuthTokenURL     string             `json:"oauth_token_url"`
-	OAuthClientID     string             `json:"oauth_client_id"`
-	OAuthClientSecret string             `json:"oauth_client_secret"`
-	OAuthScopes       string             `json:"oauth_scopes"`
-	Models            []config.ModelCost `json:"models,omitempty"`
+	ID                    string                    `json:"id"`
+	Name                  string                    `json:"name"`
+	Type                  string                    `json:"type"`
+	BaseURL               string                    `json:"base_url"`
+	APIKey                string                    `json:"api_key"`
+	Model                 string                    `json:"model"`
+	AccountID             string                    `json:"account_id"`
+	AuthType              string                    `json:"auth_type"`
+	OAuthAuthURL          string                    `json:"oauth_auth_url"`
+	OAuthTokenURL         string                    `json:"oauth_token_url"`
+	OAuthClientID         string                    `json:"oauth_client_id"`
+	OAuthClientSecret     string                    `json:"oauth_client_secret"`
+	OAuthScopes           string                    `json:"oauth_scopes"`
+	Models                []config.ModelCost        `json:"models,omitempty"`
+	Capabilities          *providerCapabilitiesJSON `json:"capabilities,omitempty"`
+	EffectiveCapabilities providerCapabilitiesJSON  `json:"effective_capabilities,omitempty"`
+}
+
+type providerCapabilitiesJSON struct {
+	Auto              bool   `json:"auto"`
+	ToolCalling       bool   `json:"tool_calling"`
+	StructuredOutputs bool   `json:"structured_outputs"`
+	Multimodal        bool   `json:"multimodal"`
+	DetectedModel     string `json:"detected_model,omitempty"`
+	Source            string `json:"source,omitempty"`
+	Known             bool   `json:"known,omitempty"`
 }
 
 const maskedKey = "••••••••"
@@ -45,6 +57,56 @@ func normalizeProviderAuthType(authType string) string {
 		return "api_key"
 	}
 	return normalized
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func providerCapabilitiesToJSON(c config.ProviderCapabilities) providerCapabilitiesJSON {
+	return providerCapabilitiesJSON{
+		Auto:              c.AutoEnabled(),
+		ToolCalling:       c.ToolCalling,
+		StructuredOutputs: c.StructuredOutputs,
+		Multimodal:        c.Multimodal,
+		DetectedModel:     c.DetectedModel,
+		Source:            c.Source,
+	}
+}
+
+func providerCapabilitiesFromJSON(c *providerCapabilitiesJSON) config.ProviderCapabilities {
+	if c == nil {
+		return config.ProviderCapabilities{}
+	}
+	return config.ProviderCapabilities{
+		Auto:              boolPtr(c.Auto),
+		ToolCalling:       c.ToolCalling,
+		StructuredOutputs: c.StructuredOutputs,
+		Multimodal:        c.Multimodal,
+		DetectedModel:     c.DetectedModel,
+		Source:            c.Source,
+	}
+}
+
+func providerCapabilitiesResultToJSON(c llm.ProviderCapabilityResult) providerCapabilitiesJSON {
+	return providerCapabilitiesJSON{
+		Auto:              c.Source != llm.CapabilitySourceManual,
+		ToolCalling:       c.ToolCalling,
+		StructuredOutputs: c.StructuredOutputs,
+		Multimodal:        c.Multimodal,
+		DetectedModel:     c.DetectedModel,
+		Source:            c.Source,
+		Known:             c.Known,
+	}
+}
+
+func providerCapabilitiesConfigured(c config.ProviderCapabilities) bool {
+	return c.Auto != nil ||
+		c.ToolCalling ||
+		c.StructuredOutputs ||
+		c.Multimodal ||
+		strings.TrimSpace(c.DetectedModel) != "" ||
+		strings.TrimSpace(c.Source) != ""
 }
 
 type vaultMutation struct {
@@ -137,7 +199,12 @@ func handleProviders(s *Server) http.HandlerFunc {
 // handleGetProviders returns the provider list with API keys masked.
 func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 	s.CfgMu.RLock()
-	providers := s.Cfg.Providers
+	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
+	fallback := llm.CapabilityFallback{
+		ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
+		StructuredOutputs: s.Cfg.LLM.StructuredOutputs,
+		Multimodal:        s.Cfg.LLM.Multimodal,
+	}
 	s.CfgMu.RUnlock()
 
 	out := make([]providerJSON, len(providers))
@@ -152,21 +219,25 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 			clientSecret = maskedKey
 		}
 		out[i] = providerJSON{
-			ID:                p.ID,
-			Name:              p.Name,
-			Type:              p.Type,
-			BaseURL:           p.BaseURL,
-			APIKey:            apiKey,
-			Model:             p.Model,
-			AccountID:         p.AccountID,
-			AuthType:          authType,
-			OAuthAuthURL:      p.OAuthAuthURL,
-			OAuthTokenURL:     p.OAuthTokenURL,
-			OAuthClientID:     p.OAuthClientID,
-			OAuthClientSecret: clientSecret,
-			OAuthScopes:       p.OAuthScopes,
-			Models:            p.Models,
+			ID:                    p.ID,
+			Name:                  p.Name,
+			Type:                  p.Type,
+			BaseURL:               p.BaseURL,
+			APIKey:                apiKey,
+			Model:                 p.Model,
+			AccountID:             p.AccountID,
+			AuthType:              authType,
+			OAuthAuthURL:          p.OAuthAuthURL,
+			OAuthTokenURL:         p.OAuthTokenURL,
+			OAuthClientID:         p.OAuthClientID,
+			OAuthClientSecret:     clientSecret,
+			OAuthScopes:           p.OAuthScopes,
+			Models:                p.Models,
+			Capabilities:          &providerCapabilitiesJSON{},
+			EffectiveCapabilities: providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
 		}
+		caps := providerCapabilitiesToJSON(p.Capabilities)
+		out[i].Capabilities = &caps
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -315,6 +386,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			OAuthClientSecret: clientSecret,
 			OAuthScopes:       p.OAuthScopes,
 			Models:            p.Models,
+			Capabilities:      providerCapabilitiesFromJSON(p.Capabilities),
 		}
 	}
 
@@ -427,6 +499,61 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		"active_llm_model": activeLLMModel,
 		"active_llm_type":  activeLLMProvider,
 	})
+}
+
+// handleProviderCapabilities detects capability flags for a provider/model pair.
+func handleProviderCapabilities(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		providerID := strings.TrimSpace(r.URL.Query().Get("id"))
+		providerType := strings.TrimSpace(r.URL.Query().Get("type"))
+		model := strings.TrimSpace(r.URL.Query().Get("model"))
+
+		s.CfgMu.RLock()
+		fallback := llm.CapabilityFallback{
+			ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
+			StructuredOutputs: s.Cfg.LLM.StructuredOutputs,
+			Multimodal:        s.Cfg.LLM.Multimodal,
+		}
+		var provider config.ProviderEntry
+		if providerID != "" {
+			if p := s.Cfg.FindProvider(providerID); p != nil {
+				provider = *p
+			}
+		}
+		s.CfgMu.RUnlock()
+
+		if providerType != "" {
+			provider.Type = providerType
+		}
+		if model != "" {
+			provider.Model = model
+		}
+		if strings.TrimSpace(provider.Type) == "" && strings.TrimSpace(provider.Model) == "" {
+			jsonError(w, "Missing provider type or model", http.StatusBadRequest)
+			return
+		}
+
+		var caps llm.ProviderCapabilityResult
+		var ok bool
+		if strings.EqualFold(provider.Type, "openrouter") {
+			var err error
+			caps, ok, err = llm.FetchOpenRouterModelCapabilities(provider.Model)
+			if err != nil {
+				s.Logger.Warn("[Providers] OpenRouter capability lookup failed", "model", provider.Model, "error", err)
+			}
+		}
+		if !ok {
+			provider.Capabilities = config.ProviderCapabilities{}
+			caps = llm.ResolveProviderCapabilities(provider, fallback)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(providerCapabilitiesResultToJSON(caps))
+	}
 }
 
 // handleProviderPricing dispatches GET/POST for /api/providers/pricing?id=<providerID>.
@@ -568,6 +695,21 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 			}
 		}
 		m["models"] = ml
+	}
+	if providerCapabilitiesConfigured(e.Capabilities) {
+		caps := map[string]interface{}{
+			"auto":               e.Capabilities.AutoEnabled(),
+			"tool_calling":       e.Capabilities.ToolCalling,
+			"structured_outputs": e.Capabilities.StructuredOutputs,
+			"multimodal":         e.Capabilities.Multimodal,
+		}
+		if e.Capabilities.DetectedModel != "" {
+			caps["detected_model"] = e.Capabilities.DetectedModel
+		}
+		if e.Capabilities.Source != "" {
+			caps["source"] = e.Capabilities.Source
+		}
+		m["capabilities"] = caps
 	}
 	if e.AuthType != "" && e.AuthType != "api_key" {
 		m["auth_type"] = e.AuthType

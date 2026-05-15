@@ -1128,6 +1128,16 @@ func rawString(parent map[string]interface{}, key string) string {
 }
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
+	type providerCapabilityFingerprint struct {
+		ID                string
+		Model             string
+		Auto              bool
+		ToolCalling       bool
+		StructuredOutputs bool
+		Multimodal        bool
+		DetectedModel     string
+		Source            string
+	}
 	type llmFingerprint struct {
 		Provider                     string
 		LegacyURL                    string
@@ -1141,6 +1151,23 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		StructuredOutputs            bool
 		Multimodal                   bool
 		MultimodalProviderTypesExtra []string
+		ProviderCapabilities         []providerCapabilityFingerprint
+	}
+	providerCaps := func(cfg config.Config) []providerCapabilityFingerprint {
+		out := make([]providerCapabilityFingerprint, 0, len(cfg.Providers))
+		for _, p := range cfg.Providers {
+			out = append(out, providerCapabilityFingerprint{
+				ID:                p.ID,
+				Model:             p.Model,
+				Auto:              p.Capabilities.AutoEnabled(),
+				ToolCalling:       p.Capabilities.ToolCalling,
+				StructuredOutputs: p.Capabilities.StructuredOutputs,
+				Multimodal:        p.Capabilities.Multimodal,
+				DetectedModel:     p.Capabilities.DetectedModel,
+				Source:            p.Capabilities.Source,
+			})
+		}
+		return out
 	}
 	oldFP := llmFingerprint{
 		Provider:                     oldCfg.LLM.Provider,
@@ -1155,6 +1182,7 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		StructuredOutputs:            oldCfg.LLM.StructuredOutputs,
 		Multimodal:                   oldCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: oldCfg.LLM.MultimodalProviderTypesExtra,
+		ProviderCapabilities:         providerCaps(oldCfg),
 	}
 	newFP := llmFingerprint{
 		Provider:                     newCfg.LLM.Provider,
@@ -1169,6 +1197,7 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		StructuredOutputs:            newCfg.LLM.StructuredOutputs,
 		Multimodal:                   newCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: newCfg.LLM.MultimodalProviderTypesExtra,
+		ProviderCapabilities:         providerCaps(newCfg),
 	}
 	return !reflect.DeepEqual(oldFP, newFP)
 }

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -26,7 +27,8 @@ var attachmentPathRe = regexp.MustCompile(`agent_workspace/workdir/attachments/(
 var analyzeImageForFallback = tools.AnalyzeImageWithPrompt
 
 func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatCompletionMessage, workspaceDir string, logger *slog.Logger) openai.ChatCompletionMessage {
-	if cfg == nil || !cfg.LLM.Multimodal {
+	effectiveCaps := llm.ResolveConfigProviderCapabilities(cfg)
+	if cfg == nil || !effectiveCaps.Multimodal {
 		return msg
 	}
 	if msg.Role != openai.ChatMessageRoleUser || strings.TrimSpace(msg.Content) == "" {
@@ -120,6 +122,10 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
+	}
+	effectiveCaps := llm.ResolveConfigProviderCapabilities(cfg)
+	if effectiveCaps.Multimodal && effectiveCaps.Source != llm.CapabilitySourceLegacyFallback {
+		return true
 	}
 	pt := strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType))
 	model := strings.ToLower(strings.TrimSpace(cfg.LLM.Model))

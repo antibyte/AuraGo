@@ -83,13 +83,13 @@ func GetPricingFromRegistry(provider, modelID string) (ModelPricing, bool) {
 }
 
 // GetCapabilitiesFromRegistry returns capability flags from the static registry.
-func GetCapabilitiesFromRegistry(provider, modelID string) (toolCall, reasoning, structuredOutput bool, ok bool) {
+func GetCapabilitiesFromRegistry(provider, modelID string) (toolCall, reasoning, structuredOutput, multimodal bool, ok bool) {
 	entry, ok := GetModelInfo(provider, modelID)
 	if !ok {
 		entry, ok = GetModelInfoByID(modelID)
 	}
 	if !ok {
-		return false, false, false, false
+		return false, false, false, false, false
 	}
-	return entry.SupportsToolCall, entry.SupportsReasoning, entry.SupportsStructuredOutput, true
+	return entry.SupportsToolCall, entry.SupportsReasoning, entry.SupportsStructuredOutput, entry.SupportsMultimodal, true
 }

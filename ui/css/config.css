@@ -5826,6 +5826,11 @@ select.cfg-input option {
 .prov-ollama-error { font-size: 0.75rem; color: var(--danger); margin-top: 0.35rem; }
 
 .prov-group-divider { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border-subtle); }
+.prov-cap-row {
+    display: flex; align-items: center; gap: 0.45rem; margin-top: 0.45rem;
+    font-size: 0.78rem; color: var(--text-secondary);
+}
+.prov-cap-row input { accent-color: var(--accent); }
 .prov-model-pricing-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
 .prov-model-pricing-title { margin-bottom: 0; }
 .prov-model-pricing-actions { display: flex; gap: 0.4rem; }

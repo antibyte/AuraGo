@@ -22,14 +22,48 @@ Primary LLM provider for all agent reasoning.
 | Key | Default | Description |
 |---|---|---|
 | `provider` | `""` | **Required.** Provider entry ID from the `providers` list. |
-| `use_native_functions` | `true` | Enable native function calling (tool use). |
+| `use_native_functions` | `true` | Deprecated compatibility fallback for native function calling. Provider/model `capabilities.tool_calling` decides this for known models. |
 | `temperature` | `0.7` | Creativity/randomness (0.0–2.0). |
-| `structured_outputs` | `false` | Force structured JSON outputs (for supported models). |
+| `structured_outputs` | `false` | Deprecated compatibility fallback for strict structured tool schemas. Provider/model `capabilities.structured_outputs` decides this for known models. |
+| `multimodal` | `false` | Deprecated compatibility fallback for image-capable chat models. Provider/model `capabilities.multimodal` decides this for known models. |
 | `helper_enabled` | `false` | Enable dedicated helper LLM for internal analysis. |
 | `helper_provider` | `""` | Provider ID for helper LLM (smaller/cheaper recommended). |
 | `helper_model` | `""` | Model override for helper LLM. |
 
 > ⚠️ **Legacy:** `base_url`, `api_key`, and `model` under `llm` still work for backward compatibility, but the provider system (`providers` + `llm.provider`) is the recommended approach.
+
+---
+
+## `providers`
+
+Provider entries describe concrete API endpoints and models. Model capabilities are stored per provider/model so tool calling, structured outputs, and multimodal uploads can be enabled only where the selected model supports them.
+
+```yaml
+providers:
+  - id: main
+    type: openrouter
+    name: "Main LLM"
+    base_url: "https://openrouter.ai/api/v1"
+    model: "openai/gpt-4o"
+    capabilities:
+      auto: true
+      tool_calling: true
+      structured_outputs: true
+      multimodal: true
+      detected_model: "openai/gpt-4o"
+      source: "openrouter"
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `capabilities.auto` | `true` | When `true` or omitted, AuraGo refreshes capability checkboxes from model metadata when the provider type/model changes. |
+| `capabilities.tool_calling` | `false` | Enables native tool calling for this provider/model when effective. |
+| `capabilities.structured_outputs` | `false` | Enables strict structured output schemas for this provider/model when effective. |
+| `capabilities.multimodal` | `false` | Enables image/file input promotion for the main chat path when effective. |
+| `capabilities.detected_model` | `""` | Model ID the stored detected values belong to. Used to refresh stale auto values after model changes. |
+| `capabilities.source` | `""` | Detection source: `manual`, `openrouter`, `models.dev`, `heuristic`, or `legacy_fallback`. |
+
+Detection order is manual provider overrides first, then live OpenRouter metadata when available, the generated `models.dev` registry, conservative local heuristics, and finally the deprecated global `llm` fallback fields for unknown models.
 
 ---
 

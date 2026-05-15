@@ -70,13 +70,13 @@
     },
     "use_native_functions": {
       "title": "Native Function Calling",
-      "description": "Uses the LLM's native tool calling capability. Only enable if your model supports this (GPT-4, Claude, Gemini).",
-      "warning": "⚠️ Free-tier models often do NOT support this!"
+      "description": "Deprecated global fallback. Provider/model capabilities now decide native tool calling for known models.",
+      "warning": "⚠️ Configure this in the provider's Model Capabilities block unless you need a fallback for unknown models."
     },
     "structured_outputs": {
       "title": "Structured Outputs",
-      "description": "Enables strict mode for tool calls with constrained output formats.",
-      "warning": "⚠️ Only for models that support this (GPT-4o, GPT-4o-mini)!"
+      "description": "Deprecated global fallback. Provider/model capabilities now decide strict structured tool schemas for known models.",
+      "warning": "⚠️ Configure this in the provider's Model Capabilities block unless you need a fallback for unknown models."
     }
   },
   "embeddings": {

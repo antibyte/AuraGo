@@ -2,6 +2,7 @@ package invasion
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -31,6 +32,7 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 
 	// ── LLM — either inherit from master or use egg's own ──
 	if egg.InheritLLM {
+		caps := llm.ResolveConfigProviderCapabilities(masterCfg)
 		// SECURITY NOTE: The master's API key is included in the config YAML.
 		// For Docker deployments the config is copied into the container as a file
 		// (not an env var) to prevent exposure via "docker inspect". For SSH
@@ -42,18 +44,28 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 			"base_url":             masterCfg.LLM.BaseURL,
 			"api_key":              masterCfg.LLM.APIKey,
 			"model":                masterCfg.LLM.Model,
-			"use_native_functions": masterCfg.LLM.UseNativeFunctions,
+			"use_native_functions": caps.ToolCalling,
 			"temperature":          masterCfg.LLM.Temperature,
-			"structured_outputs":   masterCfg.LLM.StructuredOutputs,
+			"structured_outputs":   caps.StructuredOutputs,
+			"multimodal":           caps.Multimodal,
 		}
 	} else {
+		caps := llm.ResolveProviderCapabilities(config.ProviderEntry{
+			Type:  egg.Provider,
+			Model: egg.Model,
+		}, llm.CapabilityFallback{
+			ToolCalling:       true,
+			StructuredOutputs: false,
+			Multimodal:        false,
+		})
 		llmSection := map[string]interface{}{
 			"provider":             egg.Provider,
 			"base_url":             egg.BaseURL,
 			"model":                egg.Model,
-			"use_native_functions": true,
+			"use_native_functions": caps.ToolCalling,
 			"temperature":          0.7,
-			"structured_outputs":   false,
+			"structured_outputs":   caps.StructuredOutputs,
+			"multimodal":           caps.Multimodal,
 		}
 		// API key will be empty here — it must be injected from vault or sent via secret channel
 		if egg.APIKeyRef != "" {

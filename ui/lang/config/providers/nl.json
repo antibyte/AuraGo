@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "Autoriseer via GitHub Device Flow.",
   "config.providers.hint.opencode_go": "API-sleutel van OpenCode Go.",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "Modelmogelijkheden",
+  "config.providers.cap_use_detected": "Gedetecteerde waarden gebruiken",
+  "config.providers.cap_tool_calling": "Toolaanroepen",
+  "config.providers.cap_structured_outputs": "Gestructureerde uitvoer",
+  "config.providers.cap_multimodal": "Multimodale invoer",
+  "config.providers.cap_auto_source": "Automatisch gedetecteerd via {source} voor {model}.",
+  "config.providers.cap_manual_source": "Handmatige overschrijving voor dit model.",
+  "config.providers.cap_detecting": "Modelmogelijkheden detecteren...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

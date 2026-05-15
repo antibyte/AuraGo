@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "Autoriser via GitHub Device Flow.",
   "config.providers.hint.opencode_go": "API-nøgle fra OpenCode Go.",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "Modelfunktioner",
+  "config.providers.cap_use_detected": "Brug registrerede værdier",
+  "config.providers.cap_tool_calling": "Værktøjskald",
+  "config.providers.cap_structured_outputs": "Strukturerede output",
+  "config.providers.cap_multimodal": "Multimodale input",
+  "config.providers.cap_auto_source": "Automatisk registreret fra {source} for {model}.",
+  "config.providers.cap_manual_source": "Manuel tilsidesættelse for denne model.",
+  "config.providers.cap_detecting": "Registrerer modelfunktioner...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

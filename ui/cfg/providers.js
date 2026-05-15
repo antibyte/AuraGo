@@ -133,6 +133,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         context_length: m.context_length || 0,
                         pricing: m.pricing || {},
                         architecture: m.architecture || {},
+                        supported_parameters: m.supported_parameters || [],
                         top_provider: m.top_provider || {},
                     }));
                     // Sort by name
@@ -249,6 +250,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         context_length: m.context_length,
                         inputPerMillion: parseFloat(m.pricing.prompt || '0') * 1000000,
                         outputPerMillion: parseFloat(m.pricing.completion || '0') * 1000000,
+                        architecture: m.architecture || {},
+                        supported_parameters: m.supported_parameters || [],
                     });
                     overlay.remove();
                 };
@@ -421,6 +424,133 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             }
             providerRenderModelsTable();
             showToast(t('config.budget.model_cost_updated', { model: m.id }));
+        }
+
+        function providerInitialCapabilities(data) {
+            const raw = data.capabilities || {};
+            const effective = data.effective_capabilities || {};
+            const auto = raw.auto !== false;
+            const src = auto ? effective : raw;
+            return {
+                auto,
+                tool_calling: !!src.tool_calling,
+                structured_outputs: !!src.structured_outputs,
+                multimodal: !!src.multimodal,
+                detected_model: src.detected_model || data.model || '',
+                source: src.source || (auto ? 'auto' : 'manual'),
+                known: src.known === true
+            };
+        }
+
+        function providerSetCapabilityUI(caps) {
+            const block = document.getElementById('prov-capabilities-block');
+            if (!block) return;
+            const normalized = {
+                auto: caps.auto !== false,
+                tool_calling: !!caps.tool_calling,
+                structured_outputs: !!caps.structured_outputs,
+                multimodal: !!caps.multimodal,
+                detected_model: caps.detected_model || (document.getElementById('prov-model') || {}).value || '',
+                source: caps.source || (caps.auto === false ? 'manual' : 'auto'),
+                known: caps.known === true
+            };
+            block.dataset.auto = normalized.auto ? 'true' : 'false';
+            block.dataset.detectedModel = normalized.detected_model || '';
+            block.dataset.source = normalized.source || '';
+            block.dataset.known = normalized.known ? 'true' : 'false';
+            ['tool_calling', 'structured_outputs', 'multimodal'].forEach(key => {
+                const input = document.getElementById('prov-cap-' + key.replace('_', '-'));
+                if (input) input.checked = !!normalized[key];
+            });
+            providerUpdateCapabilitySource();
+        }
+
+        function providerUpdateCapabilitySource() {
+            const block = document.getElementById('prov-capabilities-block');
+            const sourceEl = document.getElementById('prov-cap-source');
+            const resetBtn = document.getElementById('prov-cap-reset');
+            if (!block || !sourceEl) return;
+            const auto = block.dataset.auto !== 'false';
+            const source = block.dataset.source || (auto ? 'auto' : 'manual');
+            const model = block.dataset.detectedModel || (document.getElementById('prov-model') || {}).value || '';
+            sourceEl.textContent = auto
+                ? t('config.providers.cap_auto_source', { source, model: model || '—' })
+                : t('config.providers.cap_manual_source');
+            if (resetBtn) setHidden(resetBtn, auto);
+        }
+
+        function providerReadCapabilities() {
+            const block = document.getElementById('prov-capabilities-block');
+            const get = id => {
+                const el = document.getElementById(id);
+                return !!(el && el.checked);
+            };
+            const auto = !block || block.dataset.auto !== 'false';
+            return {
+                auto,
+                tool_calling: get('prov-cap-tool-calling'),
+                structured_outputs: get('prov-cap-structured-outputs'),
+                multimodal: get('prov-cap-multimodal'),
+                detected_model: (block && block.dataset.detectedModel) || (document.getElementById('prov-model') || {}).value || '',
+                source: auto ? ((block && block.dataset.source) || 'auto') : 'manual'
+            };
+        }
+
+        function providerMarkCapabilitiesManual() {
+            const block = document.getElementById('prov-capabilities-block');
+            if (!block) return;
+            block.dataset.auto = 'false';
+            block.dataset.source = 'manual';
+            block.dataset.detectedModel = (document.getElementById('prov-model') || {}).value || '';
+            block.dataset.known = 'true';
+            providerUpdateCapabilitySource();
+        }
+
+        function providerOpenRouterCapabilitiesFromModel(m) {
+            const params = new Set((m.supported_parameters || []).map(p => String(p).toLowerCase()));
+            const arch = m.architecture || {};
+            const inputs = Array.isArray(arch.input_modalities) ? arch.input_modalities : [];
+            const modality = String(arch.modality || '').split('->')[0];
+            const multimodalInputs = new Set(['image', 'images', 'file', 'files', 'pdf', 'audio', 'video']);
+            const multimodal = inputs.some(x => multimodalInputs.has(String(x).toLowerCase()))
+                || modality.split(/[+,\s]+/).some(x => multimodalInputs.has(String(x).toLowerCase()));
+            return {
+                auto: true,
+                tool_calling: params.has('tools') || params.has('tool_choice'),
+                structured_outputs: params.has('structured_outputs') || params.has('response_format'),
+                multimodal,
+                detected_model: m.id || '',
+                source: 'openrouter',
+                known: true
+            };
+        }
+
+        function providerApplyOpenRouterModelCapabilities(m) {
+            if (!m || !document.getElementById('prov-capabilities-block')) return;
+            providerSetCapabilityUI(providerOpenRouterCapabilitiesFromModel(m));
+        }
+
+        async function providerRefreshCapabilityDetection(force) {
+            const block = document.getElementById('prov-capabilities-block');
+            if (!block) return;
+            if (!force && block.dataset.auto === 'false') return;
+            const type = (document.getElementById('prov-type') || {}).value || '';
+            const model = (document.getElementById('prov-model') || {}).value || '';
+            const id = (document.getElementById('prov-id') || {}).value || '';
+            if (!type && !model) return;
+            const sourceEl = document.getElementById('prov-cap-source');
+            if (sourceEl) sourceEl.textContent = t('config.providers.cap_detecting');
+            const qs = new URLSearchParams({ type, model });
+            if (id) qs.set('id', id);
+            try {
+                const resp = await fetch('/api/providers/capabilities?' + qs.toString());
+                if (!resp.ok) throw new Error(await resp.text());
+                const caps = await resp.json();
+                providerSetCapabilityUI({ ...caps, auto: true });
+            } catch (e) {
+                block.dataset.source = 'legacy_fallback';
+                providerUpdateCapabilitySource();
+            }
         }
 
         /**
@@ -706,6 +836,12 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const authBadge = isOAuth
                     ? '<span class="prov-provider-pill prov-provider-pill-oauth">🔑 OAuth2</span>'
                     : '';
+                const caps = p.effective_capabilities || p.capabilities || {};
+                const capPills = [
+                    caps.tool_calling ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_tool_calling'))}">${escapeHtml(t('config.providers.cap_tool_short'))}</span>` : '',
+                    caps.structured_outputs ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_structured_outputs'))}">${escapeHtml(t('config.providers.cap_structured_short'))}</span>` : '',
+                    caps.multimodal ? `<span class="prov-provider-pill" title="${escapeAttr(t('config.providers.cap_multimodal'))}">${escapeHtml(t('config.providers.cap_multimodal_short'))}</span>` : ''
+                ].filter(Boolean).join('');
                 let authInfo;
                 if (isOAuth) {
                     authInfo = `<span class="prov-text-muted" id="oauth-status-${idx}">🔑 OAuth2</span>`;
@@ -719,7 +855,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div class="provider-card prov-provider-card" data-idx="${idx}">
                     <div class="prov-provider-head">
                         <div class="prov-provider-title">
-                            ${escapeAttr(p.name || p.id)}${typeBadge}${authBadge}
+                            ${escapeAttr(p.name || p.id)}${typeBadge}${authBadge}${capPills}
                             <span class="prov-provider-id">ID: ${escapeAttr(p.id)}</span>
                         </div>
                         <div class="prov-provider-head-actions">
@@ -877,6 +1013,28 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
                 </div>
 
+                <div class="field-group prov-group-divider" id="prov-capabilities-block">
+                    <div class="prov-model-pricing-head">
+                        <div class="field-label prov-model-pricing-title">🧩 ${t('config.providers.capabilities_title')}</div>
+                        <button type="button" class="btn-save prov-btn-muted prov-btn-xs" id="prov-cap-reset">
+                            ${t('config.providers.cap_use_detected')}
+                        </button>
+                    </div>
+                    <div class="prov-field-hint" id="prov-cap-source"></div>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-tool-calling">
+                        <span>${t('config.providers.cap_tool_calling')}</span>
+                    </label>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-structured-outputs">
+                        <span>${t('config.providers.cap_structured_outputs')}</span>
+                    </label>
+                    <label class="prov-cap-row">
+                        <input type="checkbox" id="prov-cap-multimodal">
+                        <span>${t('config.providers.cap_multimodal')}</span>
+                    </label>
+                </div>
+
                 <!-- Ollama model query (only visible when type = ollama) -->
                 <div id="prov-ollama-block" class="field-group prov-provider-type-block is-ollama ${(data.type || 'openai') === 'ollama' ? '' : 'is-hidden'}">
                     <div class="prov-type-block-actions">
@@ -895,7 +1053,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <!-- OpenRouter model browser (only visible when type = openrouter) -->
                 <div id="prov-openrouter-block" class="field-group prov-provider-type-block is-openrouter ${(data.type || 'openai') === 'openrouter' ? '' : 'is-hidden'}">
                     <div class="prov-type-block-actions">
-                        <button type="button" class="btn-save prov-openrouter-btn" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);})">
+                        <button type="button" class="btn-save prov-openrouter-btn" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);providerApplyOpenRouterModelCapabilities(m);})">
                             🌐 ${t('config.providers.open_model_browser')}
                         </button>
                         <span class="prov-inline-muted">${t('config.providers.browse_openrouter')}</span>
@@ -1047,6 +1205,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);
+            providerSetCapabilityUI(providerInitialCapabilities(data));
+            ['prov-cap-tool-calling', 'prov-cap-structured-outputs', 'prov-cap-multimodal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', providerMarkCapabilitiesManual);
+            });
+            const capResetBtn = document.getElementById('prov-cap-reset');
+            if (capResetBtn) capResetBtn.addEventListener('click', () => providerRefreshCapabilityDetection(true));
 
             // ── Wire up fetch pricing button ──
             const fetchPricingBtn = document.getElementById('prov-fetch-pricing-btn');
@@ -1111,7 +1276,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (_authTypeGroup) setHidden(_authTypeGroup, typ === 'copilot');
                 if (_apikeySec) setHidden(_apikeySec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value === 'oauth2'));
                 if (_oauthSec) setHidden(_oauthSec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value !== 'oauth2'));
+                providerRefreshCapabilityDetection(false);
             });
+
+            const modelInput = document.getElementById('prov-model');
+            if (modelInput) {
+                let capDetectTimer;
+                modelInput.addEventListener('input', () => {
+                    clearTimeout(capDetectTimer);
+                    capDetectTimer = setTimeout(() => providerRefreshCapabilityDetection(false), 350);
+                });
+            }
 
             // ── Auth type toggle ──
             const authTypeSelect = document.getElementById('prov-auth-type');
@@ -1364,6 +1539,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
                 // Include model pricing data
                 entry.models = providerGetModels();
+                entry.capabilities = providerReadCapabilities();
 
                 onSave(entry);
                 closeProviderModal();

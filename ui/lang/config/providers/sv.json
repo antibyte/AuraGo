@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "Auktorisera via GitHub Device Flow.",
   "config.providers.hint.opencode_go": "API-nyckel från OpenCode Go.",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "Modellfunktioner",
+  "config.providers.cap_use_detected": "Använd upptäckta värden",
+  "config.providers.cap_tool_calling": "Verktygsanrop",
+  "config.providers.cap_structured_outputs": "Strukturerade utdata",
+  "config.providers.cap_multimodal": "Multimodala indata",
+  "config.providers.cap_auto_source": "Automatiskt upptäckt från {source} för {model}.",
+  "config.providers.cap_manual_source": "Manuell åsidosättning för denna modell.",
+  "config.providers.cap_detecting": "Upptäcker modellfunktioner...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

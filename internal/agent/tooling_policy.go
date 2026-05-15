@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/prompts"
 )
 
@@ -16,6 +17,10 @@ type ModelCapabilities struct {
 	IsOllama                  bool
 	IsDeepSeek                bool
 	IsAnthropic               bool
+	ProviderToolCalling       bool
+	ProviderStructuredOutputs bool
+	ProviderMultimodal        bool
+	CapabilitySource          string
 	AutoEnableNativeFunctions bool
 	SupportsStructuredOutputs bool
 	SupportsParallelToolCalls bool
@@ -97,8 +102,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	// that use the Anthropic API protocol (type: anthropic) such as Kimi-for-coding or GLM variants.
 	// Using lowerProvider alone would incorrectly flag any model using the Anthropic SDK.
 	isAnthropic := strings.Contains(lowerModel, "claude")
-	isNemotron := strings.Contains(lowerModel, "nemotron")
-	isStepFun := strings.HasPrefix(lowerModel, "step-") || strings.Contains(lowerModel, "/step-")
+	providerCaps := llm.ResolveConfigProviderCapabilities(cfg)
 
 	// Models from providers known to NOT support OpenAI-style strict mode on
 	// individual tool definitions (Function.Strict=true). Ollama supports
@@ -135,8 +139,12 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsOllama:                     isOllama,
 		IsDeepSeek:                   isDeepSeek,
 		IsAnthropic:                  isAnthropic,
-		AutoEnableNativeFunctions:    isDeepSeek || isAnthropic || isNemotron || isStepFun,
-		SupportsStructuredOutputs:    !isNoStrictStructuredOutputs,
+		ProviderToolCalling:          providerCaps.ToolCalling,
+		ProviderStructuredOutputs:    providerCaps.StructuredOutputs,
+		ProviderMultimodal:           providerCaps.Multimodal,
+		CapabilitySource:             providerCaps.Source,
+		AutoEnableNativeFunctions:    providerCaps.ToolCalling,
+		SupportsStructuredOutputs:    providerCaps.StructuredOutputs && !isNoStrictStructuredOutputs,
 		SupportsParallelToolCalls:    !isOllama,
 		DisableNativeFunctionCalling: isGLMFamily,
 	}
@@ -166,14 +174,14 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
 
-	useNativeFunctions := cfg.LLM.UseNativeFunctions || caps.AutoEnableNativeFunctions
+	useNativeFunctions := caps.ProviderToolCalling
 	// Force JSON text mode for models known to emit tool calls in text content rather
 	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
 	// JSON extraction path is used regardless of what the config says.
 	if caps.DisableNativeFunctionCalling {
 		useNativeFunctions = false
 	}
-	autoEnabled := !cfg.LLM.UseNativeFunctions && caps.AutoEnableNativeFunctions
+	autoEnabled := !cfg.LLM.UseNativeFunctions && useNativeFunctions
 	effectiveMaxToolGuides := cfg.Agent.MaxToolGuides
 	if effectiveMaxToolGuides <= 0 {
 		effectiveMaxToolGuides = 5
@@ -218,8 +226,8 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		FamilyTelemetry:            familyTelemetry,
 		UseNativeFunctions:         useNativeFunctions,
 		AutoEnabledNativeFunctions: autoEnabled && useNativeFunctions, // only true if it actually was auto-enabled
-		StructuredOutputsRequested: cfg.LLM.StructuredOutputs,
-		StructuredOutputsEnabled:   cfg.LLM.StructuredOutputs && caps.SupportsStructuredOutputs,
+		StructuredOutputsRequested: caps.ProviderStructuredOutputs,
+		StructuredOutputsEnabled:   caps.ProviderStructuredOutputs && caps.SupportsStructuredOutputs,
 		ParallelToolCallsEnabled:   caps.SupportsParallelToolCalls,
 		DockerEnabled:              dockerEnabled,
 		SandboxEnabled:             sandboxEnabled,

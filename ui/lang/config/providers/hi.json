@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "GitHub Device Flow के माध्यम से अधिकृत करें।",
   "config.providers.hint.opencode_go": "OpenCode Go से API कुंजी।",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "मॉडल क्षमताएँ",
+  "config.providers.cap_use_detected": "पहचाने गए मान उपयोग करें",
+  "config.providers.cap_tool_calling": "टूल कॉलिंग",
+  "config.providers.cap_structured_outputs": "संरचित आउटपुट",
+  "config.providers.cap_multimodal": "मल्टीमॉडल इनपुट",
+  "config.providers.cap_auto_source": "{model} के लिए {source} से स्वतः पहचाना गया।",
+  "config.providers.cap_manual_source": "इस मॉडल के लिए मैनुअल ओवरराइड।",
+  "config.providers.cap_detecting": "मॉडल क्षमताएँ पहचानी जा रही हैं...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

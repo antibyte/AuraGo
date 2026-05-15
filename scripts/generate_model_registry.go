@@ -17,9 +17,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Mapping from AuraGo provider type to models.dev provider ID
@@ -54,6 +57,7 @@ type ModelInfo struct {
 	SupportsToolCall         bool
 	SupportsReasoning        bool
 	SupportsStructuredOutput bool
+	SupportsMultimodal       bool
 	InputPricePer1M          float64
 	OutputPricePer1M         float64
 	CacheReadPricePer1M      float64
@@ -111,6 +115,19 @@ func main() {
 			}
 			if so, ok := model["structured_output"].(bool); ok {
 				info.SupportsStructuredOutput = so
+			}
+			if attachment, ok := model["attachment"].(bool); ok && attachment {
+				info.SupportsMultimodal = true
+			}
+			if modalities, ok := model["modalities"].(map[string]interface{}); ok {
+				if inputs, ok := modalities["input"].([]interface{}); ok {
+					for _, input := range inputs {
+						if isMultimodalInput(fmt.Sprint(input)) {
+							info.SupportsMultimodal = true
+							break
+						}
+					}
+				}
 			}
 
 			// Parse limits
@@ -186,6 +203,7 @@ type ModelRegistryEntry struct {
 	SupportsToolCall         bool    ` + "`json:\"supports_tool_call\"`" + `
 	SupportsReasoning        bool    ` + "`json:\"supports_reasoning\"`" + `
 	SupportsStructuredOutput bool    ` + "`json:\"supports_structured_output\"`" + `
+	SupportsMultimodal       bool    ` + "`json:\"supports_multimodal\"`" + `
 	InputPricePer1M          float64 ` + "`json:\"input_price_per_1m\"`" + `   // USD per 1M tokens
 	OutputPricePer1M         float64 ` + "`json:\"output_price_per_1m\"`" + `  // USD per 1M tokens
 	CacheReadPricePer1M      float64 ` + "`json:\"cache_read_price_per_1m\"`" + `
@@ -208,13 +226,14 @@ var KnownModelRegistry = map[string]ModelRegistryEntry{
 		SupportsToolCall: %v,
 		SupportsReasoning: %v,
 		SupportsStructuredOutput: %v,
+		SupportsMultimodal: %v,
 		InputPricePer1M: %g,
 		OutputPricePer1M: %g,
 		CacheReadPricePer1M: %g,
 		CacheWritePricePer1M: %g,
 	},
 `, key, m.ID, m.Name, m.Provider, m.ContextWindow, m.MaxOutputTokens,
-			m.SupportsToolCall, m.SupportsReasoning, m.SupportsStructuredOutput,
+			m.SupportsToolCall, m.SupportsReasoning, m.SupportsStructuredOutput, m.SupportsMultimodal,
 			m.InputPricePer1M, m.OutputPricePer1M, m.CacheReadPricePer1M, m.CacheWritePricePer1M))
 	}
 
@@ -228,43 +247,35 @@ var KnownModelRegistry = map[string]ModelRegistryEntry{
 	fmt.Fprintf(os.Stderr, "Wrote %d entries to %s (%d bytes)\n", len(allModels), outFile, b.Len())
 }
 
-func fetchModelsDevAPI() ([]byte, error) {
-	// Use a simple HTTP GET with Go's net/http
-	// We import this inline to avoid external dependencies for the generator
-	const code = `
-package main
-import (
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"time"
-)
-func main() {
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, _ := http.NewRequest("GET", "https://models.dev/api.json", nil)
-	req.Header.Set("User-Agent", "AuraGo-ModelSync/1.0")
-	resp, err := client.Do(req)
-	if err != nil { fmt.Fprintln(os.Stderr, "Error:", err); os.Exit(1) }
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 { fmt.Fprintf(os.Stderr, "HTTP %d\n", resp.StatusCode); os.Exit(1) }
-	body, _ := io.ReadAll(resp.Body)
-	os.Stdout.Write(body)
-}
-`
-	// Write temp file
-	tmpFile := "/tmp/fetch_models_dev.go"
-	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
-		return nil, err
+func isMultimodalInput(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "image", "images", "file", "files", "pdf", "audio", "video":
+		return true
+	default:
+		return false
 	}
-	defer os.Remove(tmpFile)
+}
 
-	// Run it
+func fetchModelsDevAPI() ([]byte, error) {
 	out, err := os.ReadFile("disposable/models_dev_raw.json")
 	if err == nil && len(out) > 0 {
 		fmt.Fprintln(os.Stderr, "Using cached disposable/models_dev_raw.json")
 		return out, nil
 	}
 
-	return nil, fmt.Errorf("please run the fetch script manually: go run %s > disposable/models_dev_raw.json", tmpFile)
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("GET", "https://models.dev/api.json", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "AuraGo-ModelSync/1.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("models.dev returned HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }

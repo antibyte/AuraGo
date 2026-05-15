@@ -95,6 +95,68 @@ llm:
 	}
 }
 
+func TestHandleProvidersRoundTripsCapabilities(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o
+llm:
+  provider: main
+`)
+
+	body := `[{
+		"id":"main",
+		"name":"Main",
+		"type":"openai",
+		"base_url":"https://api.openai.com/v1",
+		"model":"gpt-4o",
+		"auth_type":"api_key",
+		"capabilities":{
+			"auto":false,
+			"tool_calling":true,
+			"structured_outputs":true,
+			"multimodal":true,
+			"detected_model":"gpt-4o",
+			"source":"manual"
+		}
+	}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/providers", nil)
+	rec = httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var providers []providerJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(providers) != 1 {
+		t.Fatalf("provider count = %d, want 1", len(providers))
+	}
+	if providers[0].Capabilities == nil {
+		t.Fatal("expected capabilities in provider response")
+	}
+	if providers[0].Capabilities.Auto {
+		t.Fatal("expected manual capabilities to round-trip")
+	}
+	if !providers[0].Capabilities.ToolCalling || !providers[0].Capabilities.StructuredOutputs || !providers[0].Capabilities.Multimodal {
+		t.Fatalf("capabilities did not round-trip: %+v", *providers[0].Capabilities)
+	}
+	if !providers[0].EffectiveCapabilities.ToolCalling || !providers[0].EffectiveCapabilities.StructuredOutputs || !providers[0].EffectiveCapabilities.Multimodal {
+		t.Fatalf("effective capabilities not returned: %+v", providers[0].EffectiveCapabilities)
+	}
+}
+
 func TestHandlePutProvidersDeletesClearedStaticApiKey(t *testing.T) {
 	t.Parallel()
 

@@ -151,5 +151,16 @@
   "config.providers.hint.copilot": "Εξουσιοδοτήστε μέσω GitHub Device Flow.",
   "config.providers.hint.opencode_go": "Κλειδί API από OpenCode Go.",
   "config.providers.type_copilot": "copilot",
-  "config.providers.type_opencode_go": "opencode-go"
+  "config.providers.type_opencode_go": "opencode-go",
+  "config.providers.capabilities_title": "Δυνατότητες μοντέλου",
+  "config.providers.cap_use_detected": "Χρήση ανιχνευμένων τιμών",
+  "config.providers.cap_tool_calling": "Κλήση εργαλείων",
+  "config.providers.cap_structured_outputs": "Δομημένες έξοδοι",
+  "config.providers.cap_multimodal": "Πολυτροπικές είσοδοι",
+  "config.providers.cap_auto_source": "Ανιχνεύτηκε αυτόματα από {source} για {model}.",
+  "config.providers.cap_manual_source": "Χειροκίνητη παράκαμψη για αυτό το μοντέλο.",
+  "config.providers.cap_detecting": "Ανίχνευση δυνατοτήτων μοντέλου...",
+  "config.providers.cap_tool_short": "Tools",
+  "config.providers.cap_structured_short": "JSON",
+  "config.providers.cap_multimodal_short": "Vision"
 }

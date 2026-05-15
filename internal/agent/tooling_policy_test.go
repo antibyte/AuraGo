@@ -70,6 +70,42 @@ func TestBuildToolingPolicyHonorsExplicitNativeFunctions(t *testing.T) {
 	}
 }
 
+func TestBuildToolingPolicyUsesProviderCapabilities(t *testing.T) {
+	autoFalse := false
+	cfg := &config.Config{}
+	cfg.LLM.Provider = "main"
+	cfg.LLM.ProviderType = "custom"
+	cfg.LLM.Model = "manual-tools-model"
+	cfg.LLM.StructuredOutputs = false
+	cfg.LLM.UseNativeFunctions = false
+	cfg.Providers = []config.ProviderEntry{{
+		ID:      "main",
+		Type:    "custom",
+		BaseURL: "https://example.test/v1",
+		Model:   "manual-tools-model",
+		Capabilities: config.ProviderCapabilities{
+			Auto:              &autoFalse,
+			ToolCalling:       true,
+			StructuredOutputs: true,
+			Multimodal:        false,
+			DetectedModel:     "manual-tools-model",
+			Source:            "manual",
+		},
+	}}
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if !policy.UseNativeFunctions {
+		t.Fatal("expected provider tool_calling capability to enable native functions")
+	}
+	if !policy.StructuredOutputsRequested {
+		t.Fatal("expected provider structured_outputs capability to request structured outputs")
+	}
+	if !policy.StructuredOutputsEnabled {
+		t.Fatal("expected provider structured_outputs capability to enable strict schemas")
+	}
+}
+
 func TestReconcileToolPromptModeDowngradesNativeWhenNoSchemas(t *testing.T) {
 	flags := prompts.ContextFlags{
 		NativeToolsEnabled: true,
