@@ -445,7 +445,7 @@
 
         const u = clamp((x + GRID.width * 0.5) / GRID.width, 0, 1);
         const v = clamp((z + GRID.depth * 0.5) / GRID.depth, 0, 1);
-        const px = Math.floor((1 - u) * (textMaskSize.width - 1));
+        const px = Math.floor(u * (textMaskSize.width - 1));
         const py = Math.floor(v * (textMaskSize.height - 1));
         const alpha = textMask[(py * textMaskSize.width + px) * 4 + 3] / 255;
         let letterIndex = -1;

@@ -682,6 +682,28 @@ func TestChatFrontend_ThreeDeeImpactsUseCinematicParticleBurst(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_ThreeDeeTextMaskIsNotMirrored(t *testing.T) {
+	t.Parallel()
+
+	shaderContent, err := os.ReadFile(filepath.Join("js", "chat", "threedee-shader.js"))
+	if err != nil {
+		t.Fatalf("read threedee shader: %v", err)
+	}
+
+	shaderJS := string(shaderContent)
+	if strings.Contains(shaderJS, "Math.floor((1 - u) * (textMaskSize.width - 1))") {
+		t.Fatal("threedee text mask must not mirror the AURA GO heightfield horizontally")
+	}
+	for _, marker := range []string{
+		"ctx.fillText('AURA GO'",
+		"const px = Math.floor(u * (textMaskSize.width - 1));",
+	} {
+		if !strings.Contains(shaderJS, marker) {
+			t.Fatalf("threedee shader missing unmirrored text mask marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	t.Parallel()
 
