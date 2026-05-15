@@ -704,6 +704,33 @@ func TestChatFrontend_ThreeDeeTextMaskIsNotMirrored(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_ThreeDeeColorPatternTransitionsAreSmooth(t *testing.T) {
+	t.Parallel()
+
+	shaderContent, err := os.ReadFile(filepath.Join("js", "chat", "threedee-shader.js"))
+	if err != nil {
+		t.Fatalf("read threedee shader: %v", err)
+	}
+
+	shaderJS := string(shaderContent)
+	if strings.Contains(shaderJS, "const pattern = Math.floor(modeElapsed(3, t) / 4) % 4;") {
+		t.Fatal("threedee matrix color mode must not hard-switch between patterns")
+	}
+	for _, marker := range []string{
+		"const COLOR_PATTERN_DURATION = 4;",
+		"const COLOR_PATTERN_FADE = 1.4;",
+		"function colorPatternAt",
+		"const cycleProgress = cycle - Math.floor(cycle);",
+		"const blend = smoothstep(1 - COLOR_PATTERN_FADE / COLOR_PATTERN_DURATION, 1, cycleProgress);",
+		"colorPatternAt(nextPattern, x, z, height, t, colorAccentNext);",
+		"colorAccent.lerp(colorAccentNext, blend);",
+	} {
+		if !strings.Contains(shaderJS, marker) {
+			t.Fatalf("threedee shader missing smooth color transition marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	t.Parallel()
 

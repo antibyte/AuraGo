@@ -21,6 +21,8 @@
     const MODE_DURATION = 18;
     const MODE_FADE = 2;
     const MODE_COUNT = 4;
+    const COLOR_PATTERN_DURATION = 4;
+    const COLOR_PATTERN_FADE = 1.4;
 
     let smokeTexture;
     const spheres = [];
@@ -45,6 +47,7 @@
     let colorMid;
     let colorHigh;
     let colorAccent;
+    let colorAccentNext;
 
     let textCanvas;
     let textMask;
@@ -488,6 +491,21 @@
         return (push + ring) * weight;
     }
 
+    function colorPatternAt(pattern, x, z, height, t, target) {
+        if (pattern === 0) {
+            target.setHSL(((x + z) * 0.035 + t * 0.12) % 1, 0.9, 0.58);
+        } else if (pattern === 1) {
+            const rings = Math.sin(Math.hypot(x, z) * 1.9 - t * 5.1) * 0.5 + 0.5;
+            target.setHSL(0.56 + rings * 0.25, 0.95, 0.48 + rings * 0.18);
+        } else if (pattern === 2) {
+            const fire = clamp((height + 0.9) / 1.8 + Math.sin(x * 0.8 + t * 4.2) * 0.12, 0, 1);
+            target.setRGB(0.2 + fire * 1.2, 0.04 + fire * 0.42, fire * fire * 0.08);
+        } else {
+            const pulse = Math.pow(Math.sin(x * 1.2 - z * 0.9 + t * 7.5) * 0.5 + 0.5, 2.2);
+            target.setRGB(0.08 + pulse * 0.35, 0.35 + pulse * 0.65, 0.75 + pulse * 0.25);
+        }
+    }
+
     function colorOverrideForPosition(x, z, height, t, target) {
         const weight = Math.max(modeWeight(3, t), 0);
         if (weight <= 0.001) {
@@ -495,18 +513,16 @@
             return;
         }
 
-        const pattern = Math.floor(modeElapsed(3, t) / 4) % 4;
-        if (pattern === 0) {
-            colorAccent.setHSL(((x + z) * 0.035 + t * 0.12) % 1, 0.9, 0.58);
-        } else if (pattern === 1) {
-            const rings = Math.sin(Math.hypot(x, z) * 1.9 - t * 5.1) * 0.5 + 0.5;
-            colorAccent.setHSL(0.56 + rings * 0.25, 0.95, 0.48 + rings * 0.18);
-        } else if (pattern === 2) {
-            const fire = clamp((height + 0.9) / 1.8 + Math.sin(x * 0.8 + t * 4.2) * 0.12, 0, 1);
-            colorAccent.setRGB(0.2 + fire * 1.2, 0.04 + fire * 0.42, fire * fire * 0.08);
-        } else {
-            const pulse = Math.pow(Math.sin(x * 1.2 - z * 0.9 + t * 7.5) * 0.5 + 0.5, 2.2);
-            colorAccent.setRGB(0.08 + pulse * 0.35, 0.35 + pulse * 0.65, 0.75 + pulse * 0.25);
+        const cycle = modeElapsed(3, t) / COLOR_PATTERN_DURATION;
+        const pattern = Math.floor(cycle) % 4;
+        const cycleProgress = cycle - Math.floor(cycle);
+        const nextPattern = (pattern + 1) % 4;
+        const blend = smoothstep(1 - COLOR_PATTERN_FADE / COLOR_PATTERN_DURATION, 1, cycleProgress);
+
+        colorPatternAt(pattern, x, z, height, t, colorAccent);
+        if (blend > 0.001) {
+            colorPatternAt(nextPattern, x, z, height, t, colorAccentNext);
+            colorAccent.lerp(colorAccentNext, blend);
         }
 
         colorForHeight(height, target);
@@ -753,6 +769,7 @@
         colorMid = new THREE.Color(0x24324c);
         colorHigh = new THREE.Color(0x9bd7ff);
         colorAccent = new THREE.Color(0x7dd3fc);
+        colorAccentNext = new THREE.Color(0x7dd3fc);
 
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x060914, 0.035);
