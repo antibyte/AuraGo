@@ -253,7 +253,7 @@ home_assistant:
     access_token: ""
     enabled: false
     url: ""
-    allowed_services: []                                  # explicit call_service allowlist; empty blocks service calls
+    allowed_services: []                                  # optional call_service allowlist; empty allows all services
     blocked_services: []                                  # explicit denylist, evaluated before allowed_services
 homepage:
     enabled: false

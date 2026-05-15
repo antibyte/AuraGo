@@ -151,6 +151,8 @@
   "help.github.read_only": "启用后，代理只能读取存储库、问题和 PR，但无法创建、删除或修改文件。",
   "help.github.token": "GitHub API 的个人访问令牌 (PAT)。在 https://github.com/settings/tokens 上创建一个具有所需范围（存储库、问题等）的令牌。加密存储在保管库中。",
   "help.home_assistant.access_token": "用于家庭助理身份验证的长期访问令牌。",
+  "help.home_assistant.allowed_services": "代理可以调用的 Home Assistant 服务可选列表，例如 light.turn_on。留空表示允许所有服务，除非它们在下方被阻止。",
+  "help.home_assistant.blocked_services": "代理绝不能调用的 Home Assistant 服务，例如 lock.unlock。此阻止列表会先于允许服务检查。",
   "help.home_assistant.enabled": "实现 Home Assistant 智能家居集成。",
   "help.home_assistant.read_only": "启用后，代理只能读取设备状态，但无法调用服务（无法切换设备）。",
   "help.home_assistant.url": "Home Assistant 实例的 URL，例如'http://192.168.1.100:8123'。",

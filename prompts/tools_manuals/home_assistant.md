@@ -34,7 +34,7 @@ Returns: complete entity object with state, attributes, last_changed, etc.
 ### call_service
 Call a Home Assistant service to control a device.
 
-Requires `home_assistant.allowed_services` to explicitly include the requested `domain.service`.
+`home_assistant.allowed_services` is optional. When it is empty, all services are allowed unless blocked by `home_assistant.blocked_services`. When it contains entries, the requested `domain.service` must be listed.
 
 ```json
 {"action": "home_assistant", "operation": "call_service", "domain": "light", "service": "turn_on", "entity_id": "light.living_room"}

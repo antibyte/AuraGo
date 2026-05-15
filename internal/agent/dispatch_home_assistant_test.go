@@ -28,22 +28,10 @@ func TestDispatchHomeAssistantBlocksUnlistedService(t *testing.T) {
 	}
 }
 
-func TestDispatchHomeAssistantRequiresAllowedServicesForCallService(t *testing.T) {
-	cfg := &config.Config{}
-	cfg.HomeAssistant.Enabled = true
-
-	out, ok := dispatchServices(context.Background(), ToolCall{
-		Action:    "home_assistant",
-		Operation: "call_service",
-		Domain:    "light",
-		Service:   "turn_on",
-	}, &DispatchContext{Cfg: cfg, Logger: testLogger})
-
-	if !ok {
-		t.Fatal("expected dispatchServices to handle home_assistant")
-	}
-	if !strings.Contains(out, "allowed_services") {
-		t.Fatalf("output = %s, want allowed_services denial", out)
+func TestHomeAssistantServiceGateAllowsEmptyAllowedServices(t *testing.T) {
+	got := homeAssistantServiceGate("light", "turn_on", nil, nil)
+	if got != "" {
+		t.Fatalf("homeAssistantServiceGate() = %q, want no denial", got)
 	}
 }
 

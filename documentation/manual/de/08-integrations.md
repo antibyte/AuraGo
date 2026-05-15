@@ -144,7 +144,7 @@ home_assistant:
     - "lock.unlock"
 ```
 
-`allowed_services` ist eine explizite Allowlist für `call_service`; leer blockiert Service-Aufrufe, während Statusabfragen weiter möglich sind.
+`allowed_services` ist eine optionale Allowlist für `call_service`; leer erlaubt alle Services, solange sie nicht in `blocked_services` stehen.
 
 ## MQTT Integration
 

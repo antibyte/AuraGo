@@ -144,7 +144,7 @@ home_assistant:
       - "lock.unlock"
 ```
 
-`allowed_services` is an explicit allowlist for `call_service`; leave it empty to block service calls while still allowing state reads.
+`allowed_services` is an optional allowlist for `call_service`; leave it empty to allow all services unless they are listed in `blocked_services`.
 
 ---
 

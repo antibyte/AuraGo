@@ -215,6 +215,8 @@ Smart-home control via the Home Assistant REST API.
 | `read_only` | `false` | When `true`, the agent can only read device states but cannot call services (no toggling devices). |
 | `url` | `"http://localhost:8123"` | Home Assistant base URL. |
 | `access_token` | `""` | Long-Lived Access Token (generate in your HA profile). |
+| `allowed_services` | `[]` | Optional `call_service` allowlist. Empty allows all services unless blocked by `blocked_services`. |
+| `blocked_services` | `[]` | Explicit `call_service` denylist, evaluated before `allowed_services`. |
 
 ---
 

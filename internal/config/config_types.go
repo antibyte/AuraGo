@@ -738,7 +738,7 @@ type Config struct {
 		Enabled         bool     `yaml:"enabled"`
 		ReadOnly        bool     `yaml:"readonly"`               // true = only read states, block call_service
 		URL             string   `yaml:"url"`                    // Home Assistant base URL
-		AllowedServices []string `yaml:"allowed_services"`       // explicit allowlist for call_service, e.g. light.turn_on; empty = no service calls
+		AllowedServices []string `yaml:"allowed_services"`       // optional allowlist for call_service, e.g. light.turn_on; empty = allow all services
 		BlockedServices []string `yaml:"blocked_services"`       // explicit denylist for call_service, e.g. lock.unlock
 		AccessToken     string   `yaml:"-" vault:"access_token"` // vault-only
 	} `yaml:"home_assistant"`

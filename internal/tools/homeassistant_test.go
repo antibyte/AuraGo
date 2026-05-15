@@ -54,13 +54,6 @@ func TestHACallServiceRespectsDirectAllowAndBlockLists(t *testing.T) {
 		wantText string
 	}{
 		{
-			name:     "empty allowlist denies",
-			cfg:      HAConfig{},
-			domain:   "light",
-			service:  "turn_on",
-			wantText: "allowed_services is empty",
-		},
-		{
 			name:     "missing allowlist entry denies",
 			cfg:      HAConfig{AllowedServices: []string{"switch.turn_on"}},
 			domain:   "light",
@@ -87,6 +80,13 @@ func TestHACallServiceRespectsDirectAllowAndBlockLists(t *testing.T) {
 				t.Fatalf("message = %q, want %q", parsed["message"], tc.wantText)
 			}
 		})
+	}
+}
+
+func TestHomeAssistantServiceGateAllowsEmptyAllowedServices(t *testing.T) {
+	got := homeAssistantServiceGate("switch", "turn_on", nil, nil)
+	if got != "" {
+		t.Fatalf("homeAssistantServiceGate() = %q, want no denial", got)
 	}
 }
 

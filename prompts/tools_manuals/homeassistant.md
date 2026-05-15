@@ -61,7 +61,7 @@ home_assistant:
   url: "http://homeassistant.local:8123"  # Home Assistant URL
   access_token: "your_long_lived_access_token"  # From Home Assistant profile
   read_only: false  # Set true to block service calls
-  allowed_services: ["light.turn_on", "light.turn_off"]  # Empty blocks service calls
+  allowed_services: ["light.turn_on", "light.turn_off"]  # Empty allows all services
   blocked_services: ["lock.unlock"]
 ```
 
@@ -70,6 +70,6 @@ home_assistant:
 - **Entity IDs**: Format is `domain.name` (e.g. `light.living_room`, `sensor.temperature`).
 - **Domains**: Common domains include `light`, `switch`, `sensor`, `climate`, `cover`, `automation`, `script`.
 - **Read-only mode**: When `home_assistant.read_only: true`, service calls are blocked.
-- **Service allowlist**: `call_service` requires `home_assistant.allowed_services` to include `domain.service`; an empty list blocks all service calls.
+- **Service allowlist**: `home_assistant.allowed_services` is optional. Empty allows all service calls unless blocked by `home_assistant.blocked_services`; non-empty restricts `call_service` to listed `domain.service` entries.
 - **Service data**: Some services accept additional data (e.g. `{"brightness": 255}` for `turn_on`).
 - **Long-lived tokens**: Create in Home Assistant UI → Profile → Long-Lived Access Tokens.

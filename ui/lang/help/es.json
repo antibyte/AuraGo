@@ -151,6 +151,8 @@
   "help.github.read_only": "Cuando está habilitado, el agente solo puede leer repositorios, problemas y relaciones públicas, pero no puede crear, eliminar ni modificar archivos.",
   "help.github.token": "Token de acceso personal (PAT) para la API de GitHub. Cree uno en https://github.com/settings/tokens con los alcances requeridos (repositorio, problemas, etc.). Almacenado cifrado en la bóveda.",
   "help.home_assistant.access_token": "Token de acceso de larga duración para la autenticación de Home Assistant.",
+  "help.home_assistant.allowed_services": "Lista opcional de servicios de Home Assistant que el agente puede llamar, como light.turn_on. Dejala vacia para permitir todos los servicios salvo los bloqueados abajo.",
+  "help.home_assistant.blocked_services": "Servicios de Home Assistant que el agente nunca debe llamar, como lock.unlock. Esta lista de bloqueo se comprueba antes de los servicios permitidos.",
   "help.home_assistant.enabled": "Permite la integración en el hogar inteligente de Home Assistant.",
   "help.home_assistant.read_only": "Cuando está habilitado, el agente solo puede leer los estados del dispositivo pero no puede llamar a servicios (no alternar dispositivos).",
   "help.home_assistant.url": "URL de la instancia de Home Assistant, p. 'http://192.168.1.100:8123'.",

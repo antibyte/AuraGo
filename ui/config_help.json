@@ -205,6 +205,14 @@
     "access_token": {
       "title": "Access Token",
       "description": "Long-lived access token from your HA profile. Stored in vault."
+    },
+    "allowed_services": {
+      "title": "Allowed Services",
+      "description": "Optional list of Home Assistant services the agent may call, such as light.turn_on. Leave empty to allow all services unless they are blocked below."
+    },
+    "blocked_services": {
+      "title": "Blocked Services",
+      "description": "Services the agent must never call, such as lock.unlock. This denylist is checked before allowed services."
     }
   },
   "uptime_kuma": {

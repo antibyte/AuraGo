@@ -151,6 +151,8 @@
   "help.github.read_only": "有効にすると、エージェントはリポジトリ、課題、PR の読み取りのみが可能ですが、ファイルの作成、削除、変更はできません。",
   "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。",
   "help.home_assistant.access_token": "ホーム アシスタント認証用の長期間有効なアクセス トークン。",
+  "help.home_assistant.allowed_services": "エージェントが呼び出せる Home Assistant サービスの任意リストです (例: light.turn_on)。空のままにすると、下でブロックされていないすべてのサービスを許可します。",
+  "help.home_assistant.blocked_services": "エージェントが絶対に呼び出せない Home Assistant サービスです (例: lock.unlock)。このブロックリストは許可サービスより先に確認されます。",
   "help.home_assistant.enabled": "ホームアシスタントのスマートホーム統合を有効にします。",
   "help.home_assistant.read_only": "有効にすると、エージェントはデバイス状態の読み取りのみが可能ですが、サービスを呼び出すことはできません (デバイスの切り替えはありません)。",
   "help.home_assistant.url": "ホーム アシスタント インスタンスの URL (例: 「http://192.168.1.100:8123」。",

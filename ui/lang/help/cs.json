@@ -151,6 +151,8 @@
   "help.github.read_only": "Pouze pro cteni pro github.",
   "help.github.token": "Osobní přístupový token (PAT) pro GitHub API. Vytvořte jej na https://github.com/settings/tokens s požadovanými rozsahy (repo, problémy atd.). Uloženo zašifrovaně v trezoru.",
   "help.home_assistant.access_token": "Token pro home_assistant.",
+  "help.home_assistant.allowed_services": "Volitelny seznam sluzeb Home Assistant, ktere muze agent volat, napr. light.turn_on. Ponechte prazdne, chcete-li povolit vsechny sluzby krome tech v seznamu blokovanych.",
+  "help.home_assistant.blocked_services": "Sluzby Home Assistant, ktere agent nikdy nesmi volat, napr. lock.unlock. Tento seznam blokovani se kontroluje pred povolenymi sluzbami.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Pouze pro cteni pro home_assistant.",
   "help.home_assistant.url": "URL Home Assistant.",

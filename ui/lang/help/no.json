@@ -151,6 +151,8 @@
   "help.github.read_only": "When enabled, the agent can only read repos, issues, and PRs but cannot create, delete, or modify files.",
   "help.github.token": "Personal Access Token (PAT) for the GitHub API. Create one at https://github.com/settings/tokens with the required scopes (repo, issues, etc.). Stored encrypted in the vault.",
   "help.home_assistant.access_token": "Long-lived access token for Home Assistant auth.",
+  "help.home_assistant.allowed_services": "Valgfri liste over Home Assistant-tjenester agenten kan kalle, f.eks. light.turn_on. La den staa tom for aa tillate alle tjenester med mindre de er blokkert nedenfor.",
+  "help.home_assistant.blocked_services": "Home Assistant-tjenester agenten aldri kan kalle, f.eks. lock.unlock. Denne blokkeringslisten sjekkes foer tillatte tjenester.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "When enabled, the agent can only read device states but cannot call services (no toggling devices).",
   "help.home_assistant.url": "URL of the Home Assistant instance, e.g. 'http://192.168.1.100:8123'.",
