@@ -17,6 +17,8 @@
     const spheres = [];
     const sprites = [];
     const fogPlanes = [];
+    const impactLights = [];
+    const shockwaves = [];
 
     const GRID = {
         width: 24,
@@ -110,13 +112,28 @@
         const strength = 0.55 + Math.random() * 0.45;
         
         if (!window.sphereGeom) {
-            window.sphereGeom = new THREE.SphereGeometry(0.12, 16, 16);
+            window.sphereGeom = new THREE.SphereGeometry(0.18, 24, 24);
             window.sphereMat = new THREE.MeshStandardMaterial({
-                color: 0xffffff, emissive: 0x818cf8, emissiveIntensity: 2, roughness: 0.1, metalness: 0.9
+                color: 0xffaa00, 
+                emissive: 0xff4400, 
+                emissiveIntensity: 0.8, 
+                roughness: 0.2, 
+                metalness: 0.7
+            });
+            window.shockwaveGeom = new THREE.RingGeometry(0.1, 0.4, 32);
+            window.shockwaveMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
             });
         }
         
         const mesh = new THREE.Mesh(window.sphereGeom, window.sphereMat);
+        const light = new THREE.PointLight(0xff6600, 3, 10);
+        mesh.add(light);
         mesh.position.set(x, 6, z - 5.3);
         scene.add(mesh);
         
@@ -168,11 +185,50 @@
 
             if (s.y <= heightAt(s.x, s.z, t) - 2.55) {
                 addImpulse(s.x, s.z, s.strength);
-                for(let j=0; j<8; j++) {
-                    createSmokeSprite(s.x, s.y, s.z - 5.3, 0x22d3ee, 0.6, 1.0);
+                
+                for(let j=0; j<6; j++) {
+                    createSmokeSprite(s.x, s.y, s.z - 5.3, 0xff8800, 0.6, 1.0);
                 }
+                
+                const flash = new THREE.PointLight(0xffaa00, 8, 15);
+                flash.position.set(s.x, s.y, s.z - 5.3);
+                scene.add(flash);
+                impactLights.push({ light: flash, life: 0.6, maxLife: 0.6 });
+                
+                const shock = new THREE.Mesh(window.shockwaveGeom, window.shockwaveMat.clone());
+                shock.position.set(s.x, s.y + 0.05, s.z - 5.3);
+                shock.rotation.x = -Math.PI / 2;
+                scene.add(shock);
+                shockwaves.push({ mesh: shock, life: 0.8, maxLife: 0.8 });
+                
                 scene.remove(s.mesh);
                 spheres.splice(i, 1);
+            }
+        }
+        
+        for (let i = impactLights.length - 1; i >= 0; i--) {
+            let l = impactLights[i];
+            l.life -= dt;
+            if (l.life <= 0) {
+                scene.remove(l.light);
+                impactLights.splice(i, 1);
+            } else {
+                l.light.intensity = 8 * (l.life / l.maxLife);
+            }
+        }
+        
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+            let s = shockwaves[i];
+            s.life -= dt;
+            if (s.life <= 0) {
+                scene.remove(s.mesh);
+                s.mesh.material.dispose();
+                shockwaves.splice(i, 1);
+            } else {
+                const progress = 1.0 - (s.life / s.maxLife);
+                const scale = 1.0 + progress * 6.0;
+                s.mesh.scale.set(scale, scale, scale);
+                s.mesh.material.opacity = 0.8 * (1.0 - Math.pow(progress, 1.5));
             }
         }
         
