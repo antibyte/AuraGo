@@ -27,6 +27,8 @@ const (
 )
 
 var tcpDialTimeout = net.DialTimeout
+var listenTLSWithTimeoutFn = listenTLSWithTimeout
+var homepageExposureRetryDelay = 5 * time.Second
 
 // Status represents the current state of the tsnet node.
 type Status struct {
@@ -53,30 +55,31 @@ type Manager struct {
 	cfg    *config.Config
 	logger *slog.Logger
 
-	mu             sync.Mutex
-	server         *tsnet.Server
-	listener       net.Listener // main listener (Funnel or TLS)
-	tailnetLn      net.Listener // secondary direct-tailnet TLS listener when Funnel is active
-	httpSrv        *http.Server
-	homepageLn     net.Listener
-	homepageSrv    *http.Server
-	manifestNode   *tsnet.Server
-	manifestLn     net.Listener
-	manifestSrv    *http.Server
-	manifestHost   string
-	spaceAgentNode *tsnet.Server
-	spaceAgentLn   net.Listener
-	spaceAgentSrv  *http.Server
-	spaceAgentHost string
-	running        bool
-	starting       bool // true while Start() is blocked waiting for tsnet auth / certs
-	servingHTTP    bool // true when an HTTP/HTTPS listener is active
-	homepageUp     bool // true when the homepage proxy listener is active
-	manifestUp     bool // true when the Manifest proxy listener is active
-	spaceAgentUp   bool // true when the dedicated Space Agent node is active
-	httpFallback   bool // true when serving HTTP (no TLS) instead of HTTPS
-	funnelActive   bool // true when the AuraGo listener is exposed via Tailscale Funnel
-	lastErr        string
+	mu               sync.Mutex
+	server           *tsnet.Server
+	listener         net.Listener // main listener (Funnel or TLS)
+	tailnetLn        net.Listener // secondary direct-tailnet TLS listener when Funnel is active
+	httpSrv          *http.Server
+	homepageLn       net.Listener
+	homepageSrv      *http.Server
+	manifestNode     *tsnet.Server
+	manifestLn       net.Listener
+	manifestSrv      *http.Server
+	manifestHost     string
+	spaceAgentNode   *tsnet.Server
+	spaceAgentLn     net.Listener
+	spaceAgentSrv    *http.Server
+	spaceAgentHost   string
+	running          bool
+	starting         bool // true while Start() is blocked waiting for tsnet auth / certs
+	servingHTTP      bool // true when an HTTP/HTTPS listener is active
+	homepageUp       bool // true when the homepage proxy listener is active
+	homepageRetrying bool // true while a background retry is waiting for the homepage backend
+	manifestUp       bool // true when the Manifest proxy listener is active
+	spaceAgentUp     bool // true when the dedicated Space Agent node is active
+	httpFallback     bool // true when serving HTTP (no TLS) instead of HTTPS
+	funnelActive     bool // true when the AuraGo listener is exposed via Tailscale Funnel
+	lastErr          string
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -510,7 +513,14 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 		}
 	}
 	if wantHomepage && !homepageUp {
-		if err := m.startHomepageListener(srv); err != nil {
+		if !homepageProxyBackendReachable(m.cfg.Homepage.WebServerPort, 2*time.Second) {
+			err := homepageBackendUnavailableError(m.cfg.Homepage.WebServerPort)
+			m.logger.Warn("[tsnet] Homepage exposure could not be started", "error", err)
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+			m.scheduleHomepageExposureRetry()
+		} else if err := m.startHomepageListener(srv); err != nil {
 			m.logger.Warn("[tsnet] Homepage exposure could not be started", "error", err)
 			m.mu.Lock()
 			m.lastErr = err.Error()
@@ -541,6 +551,61 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	m.mu.Unlock()
 
 	return nil
+}
+
+func (m *Manager) homepageExposureWantedLocked() bool {
+	return m.cfg != nil &&
+		m.cfg.Tailscale.TsNet.ExposeHomepage &&
+		m.cfg.Homepage.WebServerEnabled &&
+		m.cfg.Homepage.WebServerPort > 0
+}
+
+func (m *Manager) scheduleHomepageExposureRetry() {
+	m.mu.Lock()
+	if m.homepageRetrying {
+		m.mu.Unlock()
+		return
+	}
+	m.homepageRetrying = true
+	m.mu.Unlock()
+
+	go m.retryHomepageExposure()
+}
+
+func (m *Manager) retryHomepageExposure() {
+	for {
+		time.Sleep(homepageExposureRetryDelay)
+
+		m.mu.Lock()
+		if !m.running || m.server == nil || m.homepageUp || !m.homepageExposureWantedLocked() {
+			m.homepageRetrying = false
+			m.mu.Unlock()
+			return
+		}
+		srv := m.server
+		port := m.cfg.Homepage.WebServerPort
+		m.mu.Unlock()
+
+		if !homepageProxyBackendReachable(port, 2*time.Second) {
+			continue
+		}
+
+		if err := m.startHomepageListener(srv); err != nil {
+			if m.logger != nil {
+				m.logger.Warn("[tsnet] Homepage exposure retry failed", "error", err)
+			}
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+			continue
+		}
+
+		m.mu.Lock()
+		m.homepageRetrying = false
+		m.lastErr = ""
+		m.mu.Unlock()
+		return
+	}
 }
 
 // UpgradeToHTTP keeps backward compatibility for the existing callers.
@@ -724,14 +789,14 @@ func (m *Manager) stopMainListener() error {
 
 func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
 	if !homepageProxyBackendReachable(m.cfg.Homepage.WebServerPort, 2*time.Second) {
-		return fmt.Errorf("homepage backend http://127.0.0.1:%d is not reachable; start the homepage web server before enabling tsnet homepage exposure", m.cfg.Homepage.WebServerPort)
+		return homepageBackendUnavailableError(m.cfg.Homepage.WebServerPort)
 	}
 	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(m.cfg.Homepage.WebServerPort))
 	if err != nil {
 		return fmt.Errorf("invalid homepage proxy target: %w", err)
 	}
 
-	ln, err := listenTLSWithTimeout(srv, ":8443", tsnetTLSStrictTimeout)
+	ln, err := listenTLSWithTimeoutFn(srv, ":8443", tsnetTLSStrictTimeout)
 	if err != nil {
 		return fmt.Errorf("homepage exposure requires Tailscale HTTPS on :8443: %w", err)
 	}
@@ -774,6 +839,10 @@ func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
 	}()
 
 	return nil
+}
+
+func homepageBackendUnavailableError(port int) error {
+	return fmt.Errorf("homepage backend http://127.0.0.1:%d is not reachable; the tsnet homepage listener will retry after the homepage web server starts", port)
 }
 
 func homepageProxyBackendReachable(port int, timeout time.Duration) bool {

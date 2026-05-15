@@ -2,11 +2,16 @@ package tsnetnode
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+
+	"tailscale.com/tsnet"
 )
 
 func TestManifestProxyTarget(t *testing.T) {
@@ -81,3 +86,104 @@ func TestHomepageProxyBackendReachableReportsClosedPort(t *testing.T) {
 		t.Fatal("closed homepage backend port should not be reported reachable")
 	}
 }
+
+func TestReconfigureExposureRetriesHomepageAfterBackendBecomesReachable(t *testing.T) {
+	oldDial := tcpDialTimeout
+	oldListen := listenTLSWithTimeoutFn
+	oldRetryDelay := homepageExposureRetryDelay
+	defer func() {
+		tcpDialTimeout = oldDial
+		listenTLSWithTimeoutFn = oldListen
+		homepageExposureRetryDelay = oldRetryDelay
+	}()
+
+	backendUp := make(chan struct{})
+	tcpDialTimeout = func(network, address string, timeout time.Duration) (net.Conn, error) {
+		if network != "tcp" || address != "127.0.0.1:8080" {
+			t.Fatalf("unexpected dial target network=%q address=%q", network, address)
+		}
+		select {
+		case <-backendUp:
+			serverConn, clientConn := net.Pipe()
+			_ = serverConn.Close()
+			return clientConn, nil
+		default:
+			return nil, errors.New("connection refused")
+		}
+	}
+
+	listener := newBlockingListener("tailnet-homepage")
+	listenTLSWithTimeoutFn = func(srv *tsnet.Server, addr string, timeout time.Duration) (net.Listener, error) {
+		if srv == nil {
+			t.Fatal("expected tsnet server")
+		}
+		if addr != ":8443" {
+			t.Fatalf("expected homepage listener on :8443, got %q", addr)
+		}
+		return listener, nil
+	}
+	homepageExposureRetryDelay = 5 * time.Millisecond
+
+	cfg := &config.Config{}
+	cfg.Tailscale.TsNet.ExposeHomepage = true
+	cfg.Homepage.WebServerEnabled = true
+	cfg.Homepage.WebServerPort = 8080
+	m := NewManager(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.server = &tsnet.Server{}
+	m.running = true
+
+	if err := m.ReconfigureExposure(http.NewServeMux()); err != nil {
+		t.Fatalf("ReconfigureExposure returned error: %v", err)
+	}
+	if m.GetStatus().HomepageServing {
+		t.Fatal("homepage should not be serving while backend is still down")
+	}
+
+	close(backendUp)
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if m.GetStatus().HomepageServing {
+			_ = listener.Close()
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	_ = listener.Close()
+	t.Fatal("homepage exposure was not retried after backend became reachable")
+}
+
+type blockingListener struct {
+	closed chan struct{}
+	addr   net.Addr
+}
+
+func newBlockingListener(addr string) *blockingListener {
+	return &blockingListener{
+		closed: make(chan struct{}),
+		addr:   fakeAddr(addr),
+	}
+}
+
+func (l *blockingListener) Accept() (net.Conn, error) {
+	<-l.closed
+	return nil, net.ErrClosed
+}
+
+func (l *blockingListener) Close() error {
+	select {
+	case <-l.closed:
+	default:
+		close(l.closed)
+	}
+	return nil
+}
+
+func (l *blockingListener) Addr() net.Addr {
+	return l.addr
+}
+
+type fakeAddr string
+
+func (a fakeAddr) Network() string { return "tcp" }
+func (a fakeAddr) String() string  { return string(a) }
