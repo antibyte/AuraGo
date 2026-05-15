@@ -165,7 +165,8 @@
 }
 
 [data-theme="threedee"] .bubble.bot {
-    border: 1px solid transparent;
+    border: 2px solid transparent;
+    background-clip: padding-box;
     box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -174,28 +175,27 @@
 [data-theme="threedee"] .bubble.bot::before {
     content: '';
     position: absolute;
-    inset: -1px;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
     border-radius: inherit;
-    border: 2px solid transparent;
     background: linear-gradient(
         90deg,
         rgba(129, 140, 248, 0.9),
         rgba(34, 211, 238, 0.9),
         rgba(192, 132, 252, 0.9),
         rgba(129, 140, 248, 0.9)
-    ) border-box;
-    -webkit-mask:
-        linear-gradient(#fff 0 0) padding-box,
-        linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    );
+    background-size: 200% 200%;
+    z-index: -1;
     pointer-events: none;
     animation: threedeeBorderRotate 3s linear infinite, threedeePulse 2s ease-in-out infinite alternate;
-    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.6));
 }
 
 [data-theme="threedee"] .bubble.user {
-    border: 1px solid transparent;
+    border: 2px solid transparent;
+    background-clip: padding-box;
     box-shadow:
         0 16px 36px rgba(79, 70, 229, 0.36),
         inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -204,24 +204,22 @@
 [data-theme="threedee"] .bubble.user::before {
     content: '';
     position: absolute;
-    inset: -1px;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
     border-radius: inherit;
-    border: 2px solid transparent;
     background: linear-gradient(
         90deg,
         rgba(79, 70, 229, 0.9),
         rgba(45, 212, 191, 0.9),
         rgba(251, 146, 60, 0.9),
         rgba(79, 70, 229, 0.9)
-    ) border-box;
-    -webkit-mask:
-        linear-gradient(#fff 0 0) padding-box,
-        linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    );
+    background-size: 200% 200%;
+    z-index: -1;
     pointer-events: none;
     animation: threedeeBorderRotate 3s linear infinite reverse, threedeePulseUser 2s ease-in-out infinite alternate;
-    filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.6));
 }
 
 [data-theme="threedee"] .avatar {

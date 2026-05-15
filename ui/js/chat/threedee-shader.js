@@ -117,7 +117,7 @@
         }
         
         const mesh = new THREE.Mesh(window.sphereGeom, window.sphereMat);
-        mesh.position.set(x, 6, z);
+        mesh.position.set(x, 6, z - 5.3);
         scene.add(mesh);
         
         spheres.push({
@@ -163,13 +163,13 @@
             s.mesh.position.y = s.y;
             
             if (Math.random() < 0.6) {
-                createSmokeSprite(s.x, s.y, s.z, 0x818cf8, 0.4, 0.6);
+                createSmokeSprite(s.x, s.y, s.z - 5.3, 0x818cf8, 0.4, 0.6);
             }
 
             if (s.y <= heightAt(s.x, s.z, t) - 2.55) {
                 addImpulse(s.x, s.z, s.strength);
                 for(let j=0; j<8; j++) {
-                    createSmokeSprite(s.x, s.y, s.z, 0x22d3ee, 0.6, 1.0);
+                    createSmokeSprite(s.x, s.y, s.z - 5.3, 0x22d3ee, 0.6, 1.0);
                 }
                 scene.remove(s.mesh);
                 spheres.splice(i, 1);
