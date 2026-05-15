@@ -686,6 +686,65 @@ func TestLoadMediaConversionDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadWebScraperCanonicalEnabledWinsOverLegacyAgentFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	raw := []byte(`
+agent:
+  allow_web_scraper: false
+tools:
+  web_scraper:
+    enabled: true
+    summary_mode: false
+`)
+	if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Tools.WebScraper.Enabled {
+		t.Fatal("expected tools.web_scraper.enabled=true to win over deprecated agent.allow_web_scraper=false")
+	}
+}
+
+func TestLoadWebScraperMigratesLegacyAgentFlagWhenCanonicalMissing(t *testing.T) {
+	tests := []struct {
+		name   string
+		legacy bool
+		want   bool
+	}{
+		{name: "legacy enabled", legacy: true, want: true},
+		{name: "legacy disabled", legacy: false, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yaml")
+			raw := []byte(`
+agent:
+  allow_web_scraper: ` + map[bool]string{true: "true", false: "false"}[tt.legacy] + `
+`)
+			if err := os.WriteFile(configPath, raw, 0o644); err != nil {
+				t.Fatalf("failed to write config file: %v", err)
+			}
+
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+
+			if cfg.Tools.WebScraper.Enabled != tt.want {
+				t.Fatalf("tools.web_scraper.enabled = %v, want %v", cfg.Tools.WebScraper.Enabled, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadVideoDownloadDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

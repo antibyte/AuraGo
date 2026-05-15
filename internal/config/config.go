@@ -726,10 +726,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Migrate legacy agent.allow_web_scraper → tools.web_scraper.enabled.
-	// Only apply when the field is explicitly set to false in the YAML.
-	// A nil pointer means the field was absent — don't disable the scraper.
-	if cfg.Agent.AllowWebScraper != nil && !*cfg.Agent.AllowWebScraper {
-		cfg.Tools.WebScraper.Enabled = false
+	// The canonical tools.web_scraper.enabled value wins when both fields exist.
+	if cfg.Agent.AllowWebScraper != nil && !yamlHasPath(data, "tools", "web_scraper", "enabled") {
+		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.
