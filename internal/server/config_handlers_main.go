@@ -1309,14 +1309,9 @@ func mergeConfigArrayValue(dst map[string]interface{}, key, fullPath string, sv 
 		dst[key] = cleanModels
 		return
 	}
-	// Protect against empty arrays overwriting non-empty existing arrays.
-	// This prevents accidental clearing of configured lists when saving
-	// a section where the field happened to be empty in the DOM.
-	if len(sv) == 0 {
-		if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
-			return // keep existing non-empty array
-		}
-	}
+	// For regular arrays, an explicit JSON [] means the user cleared the list in
+	// the config UI. Keep path-specific protections above for structured arrays
+	// where an empty UI payload can be accidental.
 	dst[key] = sv
 }
 

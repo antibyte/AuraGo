@@ -244,6 +244,44 @@ func TestConfigDeepMergePreservesExistingArrays(t *testing.T) {
 	}
 }
 
+func TestConfigDeepMergeClearsHomeAssistantServiceLists(t *testing.T) {
+	dst := map[string]interface{}{
+		"home_assistant": map[string]interface{}{
+			"enabled": true,
+			"allowed_services": []interface{}{
+				"light.turn_on",
+				"switch.turn_off",
+			},
+			"blocked_services": []interface{}{
+				"homeassistant.restart",
+			},
+		},
+	}
+	src := map[string]interface{}{
+		"home_assistant": map[string]interface{}{
+			"allowed_services": []interface{}{},
+			"blocked_services": []interface{}{},
+		},
+	}
+
+	deepMerge(dst, src, "")
+
+	out, err := yaml.Marshal(dst)
+	if err != nil {
+		t.Fatalf("marshal merged config: %v", err)
+	}
+	var cfg config.Config
+	if err := yaml.Unmarshal(out, &cfg); err != nil {
+		t.Fatalf("merged config should validate, got error: %v\n%s", err, string(out))
+	}
+	if got := len(cfg.HomeAssistant.AllowedServices); got != 0 {
+		t.Fatalf("allowed_services len = %d, want 0\n%s", got, string(out))
+	}
+	if got := len(cfg.HomeAssistant.BlockedServices); got != 0 {
+		t.Fatalf("blocked_services len = %d, want 0\n%s", got, string(out))
+	}
+}
+
 func TestConfigDeepMergeConvertsNumericKeyedPrinterMapToArray(t *testing.T) {
 	dst := map[string]interface{}{}
 	src := map[string]interface{}{
