@@ -147,5 +147,9 @@
   "config.providers.hint.qwen": "Chiave API da Alibaba DashScope.",
   "config.providers.hint.zai": "Chiave API da Z.ai (BigModel).",
   "config.providers.hint.llamacpp": "Nessuna chiave API richiesta per llama.cpp locale.",
-  "config.providers.hint.lmstudio": "Nessuna chiave API richiesta per LM Studio."
+  "config.providers.hint.lmstudio": "Nessuna chiave API richiesta per LM Studio.",
+  "config.providers.hint.copilot": "Autorizza tramite GitHub Device Flow.",
+  "config.providers.hint.opencode_go": "Chiave API da OpenCode Go.",
+  "config.providers.type_copilot": "copilot",
+  "config.providers.type_opencode_go": "opencode-go"
 }

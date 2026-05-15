@@ -110,6 +110,14 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") {
 			return "provider=lmstudio but URL doesn't reference localhost — LM Studio is typically on localhost:1234"
 		}
+	case "copilot":
+		if !strings.Contains(lower, "githubcopilot") {
+			return "provider=copilot but URL does not contain 'githubcopilot' — use https://api.githubcopilot.com"
+		}
+	case "opencode-go":
+		if !strings.Contains(lower, "opencode") {
+			return "provider=opencode-go but URL does not contain 'opencode' — use https://opencode.ai/zen/go"
+		}
 	}
 	return ""
 }
@@ -323,6 +331,16 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		transport = at
 	}
 
+	if providerType == "copilot" {
+		if copilotAuthInstance != nil {
+			transport = &copilotTransport{base: transport, auth: copilotAuthInstance}
+		}
+	}
+
+	if providerType == "opencode-go" {
+		transport = &opencodeGoTransport{base: transport}
+	}
+
 	// Always return a custom HTTP client so every provider gets proper
 	// ResponseHeaderTimeout and transport settings.  Using nil here caused
 	// generic providers (crof.ai, openrouter, etc.) to fall back to the
@@ -420,6 +438,11 @@ func aiGatewaySegment(providerType string) string {
 		return "openai"
 	case "deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "llamacpp", "lmstudio":
 		// All Manifest Phase-1 providers are OpenAI-compatible.
+		return "openai"
+	case "opencode-go":
+		return "openai"
+	case "copilot":
+		// Copilot is OpenAI-compatible (with custom headers)
 		return "openai"
 	default:
 		return ""

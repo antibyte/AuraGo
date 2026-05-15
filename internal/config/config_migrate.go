@@ -180,6 +180,8 @@ var knownProviderTypes = map[string]bool{
 	"deepseek": true, "groq": true, "mistral": true,
 	"xai": true, "moonshot": true, "qwen": true,
 	"zai": true, "llamacpp": true, "lmstudio": true,
+	// Providers from Manifest (Phase 2 — special auth/routing)
+	"copilot": true, "opencode-go": true,
 }
 
 // ManifestProviderBaseURL returns the OpenAI-compatible /v1 endpoint for the

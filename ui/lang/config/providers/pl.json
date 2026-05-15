@@ -147,5 +147,9 @@
   "config.providers.hint.qwen": "Klucz API z Alibaba DashScope.",
   "config.providers.hint.zai": "Klucz API z Z.ai (BigModel).",
   "config.providers.hint.llamacpp": "Brak wymaganego klucza API dla lokalnego llama.cpp.",
-  "config.providers.hint.lmstudio": "Brak wymaganego klucza API dla LM Studio."
+  "config.providers.hint.lmstudio": "Brak wymaganego klucza API dla LM Studio.",
+  "config.providers.hint.copilot": "Autoryzuj przez GitHub Device Flow.",
+  "config.providers.hint.opencode_go": "Klucz API od OpenCode Go.",
+  "config.providers.type_copilot": "copilot",
+  "config.providers.type_opencode_go": "opencode-go"
 }

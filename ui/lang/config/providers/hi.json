@@ -147,5 +147,9 @@
   "config.providers.hint.qwen": "Alibaba DashScope से API कुंजी।",
   "config.providers.hint.zai": "Z.ai (BigModel) से API कुंजी।",
   "config.providers.hint.llamacpp": "स्थानीय llama.cpp के लिए API कुंजी की आवश्यकता नहीं।",
-  "config.providers.hint.lmstudio": "LM Studio के लिए API कुंजी की आवश्यकता नहीं।"
+  "config.providers.hint.lmstudio": "LM Studio के लिए API कुंजी की आवश्यकता नहीं।",
+  "config.providers.hint.copilot": "GitHub Device Flow के माध्यम से अधिकृत करें।",
+  "config.providers.hint.opencode_go": "OpenCode Go से API कुंजी।",
+  "config.providers.type_copilot": "copilot",
+  "config.providers.type_opencode_go": "opencode-go"
 }

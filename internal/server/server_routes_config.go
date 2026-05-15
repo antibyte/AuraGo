@@ -46,6 +46,11 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/oauth/status", handleOAuthStatus(s))
 	mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke(s))
 
+	// GitHub Copilot device-code flow endpoints
+	mux.HandleFunc("/api/copilot/device-code", handleCopilotDeviceCode(s))
+	mux.HandleFunc("/api/copilot/poll-token", handleCopilotPollToken(s))
+	mux.HandleFunc("/api/copilot/models", handleCopilotModels(s))
+
 	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

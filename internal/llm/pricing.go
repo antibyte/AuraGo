@@ -70,6 +70,9 @@ func FetchPricingForProvider(providerType, apiKey, baseURL string) ([]ModelPrici
 	// Local providers have zero cost.
 	case "llamacpp", "lmstudio":
 		return []ModelPricing{}, nil
+	// Manifest Phase-2 providers — subscription / bundled pricing
+	case "copilot", "opencode-go":
+		return []ModelPricing{}, nil
 	default:
 		return nil, nil
 	}

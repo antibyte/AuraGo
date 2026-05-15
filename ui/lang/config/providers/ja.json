@@ -147,5 +147,9 @@
   "config.providers.hint.qwen": "Alibaba DashScopeからのAPIキー。",
   "config.providers.hint.zai": "Z.ai (BigModel)からのAPIキー。",
   "config.providers.hint.llamacpp": "ローカルllama.cppではAPIキーは不要です。",
-  "config.providers.hint.lmstudio": "LM StudioではAPIキーは不要です。"
+  "config.providers.hint.lmstudio": "LM StudioではAPIキーは不要です。",
+  "config.providers.hint.copilot": "GitHub Device Flowで認証してください。",
+  "config.providers.hint.opencode_go": "OpenCode GoからのAPIキー。",
+  "config.providers.type_copilot": "copilot",
+  "config.providers.type_opencode_go": "opencode-go"
 }

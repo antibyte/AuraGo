@@ -777,7 +777,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
             zai: 'https://open.bigmodel.cn/api/paas/v4',
             llamacpp: 'http://localhost:8080',
-            lmstudio: 'http://localhost:1234'
+            lmstudio: 'http://localhost:1234',
+            // Manifest Phase-2 providers
+            copilot: 'https://api.githubcopilot.com',
+            'opencode-go': 'https://opencode.ai/zen/go'
         };
 
         const PROVIDER_HINTS = {
@@ -800,10 +803,13 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             qwen: 'config.providers.hint.qwen',
             zai: 'config.providers.hint.zai',
             llamacpp: 'config.providers.hint.llamacpp',
-            lmstudio: 'config.providers.hint.lmstudio'
+            lmstudio: 'config.providers.hint.lmstudio',
+            // Manifest Phase-2 providers
+            copilot: 'config.providers.hint.copilot',
+            'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio'];
+        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
@@ -997,6 +1003,27 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     ` : ''}
                 </div>
 
+                <!-- Copilot Auth Block (only visible for copilot type) -->
+                <div id="prov-copilot-block" class="field-group prov-group-divider ${(data.type || 'openai') === 'copilot' ? '' : 'is-hidden'}">
+                    <div class="field-label">🔷 GitHub Copilot</div>
+                    <div id="copilot-auth-status" class="prov-field-hint">${data._copilotAuthorized ? '✅ Authorized' : 'Not authorized. Click below to start device-code flow.'}</div>
+                    <div id="copilot-auth-actions">
+                        <button type="button" class="btn-save" id="copilot-start-auth-btn">
+                            🔐 Start GitHub Authorization
+                        </button>
+                    </div>
+                    <div id="copilot-device-code-area" class="is-hidden" style="margin-top:8px;">
+                        <div class="prov-field-hint">Visit the URL below and enter the code:</div>
+                        <div style="margin:8px 0;">
+                            <a id="copilot-verification-link" href="#" target="_blank" style="color:var(--accent);">https://github.com/login/device</a>
+                        </div>
+                        <div style="font-size:1.4rem;font-weight:bold;letter-spacing:2px;font-family:monospace;background:var(--input-bg);padding:8px 12px;border-radius:4px;text-align:center;" id="copilot-user-code">----</div>
+                        <button type="button" class="btn-save prov-btn-sm" id="copilot-check-status-btn" style="margin-top:8px;">
+                            ⏳ Check Authorization
+                        </button>
+                    </div>
+                </div>
+
                 <div class="prov-modal-actions">
                     <button class="btn-save prov-btn-muted prov-btn-md" onclick="document.getElementById('provider-modal-overlay').remove()">
                         ${t('config.providers.cancel')}
@@ -1061,8 +1088,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 if (openrouterBlock) setHidden(openrouterBlock, typ !== 'openrouter');
                 // Show/hide fetch pricing button
                 if (fetchPricingBtn) {
-                    setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ));
+                    setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'].includes(typ));
                 }
+                // Show/hide Copilot auth block
+                const copilotBlock = document.getElementById('prov-copilot-block');
+                if (copilotBlock) setHidden(copilotBlock, typ !== 'copilot');
             });
 
             // ── Auth type toggle ──
@@ -1075,6 +1105,71 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 setHidden(oauthSection, !isOA);
                 if (!isOA) rebuildCopyKeyDropdown();
             });
+
+            // ── Copilot device-code flow ──
+            const copilotStartBtn = document.getElementById('copilot-start-auth-btn');
+            const copilotCheckBtn = document.getElementById('copilot-check-status-btn');
+            const copilotDeviceArea = document.getElementById('copilot-device-code-area');
+            const copilotUserCode = document.getElementById('copilot-user-code');
+            const copilotLink = document.getElementById('copilot-verification-link');
+            const copilotStatus = document.getElementById('copilot-auth-status');
+            let copilotDeviceCode = '';
+            let copilotPollInterval = null;
+
+            if (copilotStartBtn) {
+                copilotStartBtn.onclick = async () => {
+                    try {
+                        copilotStartBtn.disabled = true;
+                        copilotStartBtn.textContent = '⏳ Requesting...';
+                        const resp = await fetch('/api/copilot/device-code', {method: 'POST'});
+                        const json = await resp.json();
+                        if (!resp.ok) throw new Error(json.error || 'Failed');
+                        copilotDeviceCode = json.device_code;
+                        copilotUserCode.textContent = json.user_code;
+                        copilotLink.href = json.verification_uri;
+                        copilotLink.textContent = json.verification_uri;
+                        setHidden(copilotDeviceArea, false);
+                        copilotStatus.textContent = '⏳ Waiting for authorization...';
+                        // Auto-poll
+                        if (copilotPollInterval) clearInterval(copilotPollInterval);
+                        copilotPollInterval = setInterval(() => {
+                            if (copilotCheckBtn) copilotCheckBtn.click();
+                        }, (json.interval || 5) * 1000);
+                    } catch (e) {
+                        showToast('❌ ' + e.message);
+                    } finally {
+                        copilotStartBtn.disabled = false;
+                        copilotStartBtn.textContent = '🔐 Start GitHub Authorization';
+                    }
+                };
+            }
+
+            if (copilotCheckBtn) {
+                copilotCheckBtn.onclick = async () => {
+                    if (!copilotDeviceCode) return;
+                    try {
+                        copilotCheckBtn.disabled = true;
+                        const resp = await fetch('/api/copilot/poll-token', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({device_code: copilotDeviceCode})
+                        });
+                        const json = await resp.json();
+                        if (json.status === 'authorized') {
+                            if (copilotPollInterval) clearInterval(copilotPollInterval);
+                            setHidden(copilotDeviceArea, true);
+                            copilotStatus.textContent = '✅ Authorized';
+                            showToast('GitHub Copilot authorized successfully');
+                        } else {
+                            // Still pending — keep polling
+                        }
+                    } catch (e) {
+                        // Polling errors are normal while pending
+                    } finally {
+                        copilotCheckBtn.disabled = false;
+                    }
+                };
+            }
 
             // ── Copy-key dropdown: rebuild on provider type change ──
             // rebuildCopyKeyDropdown filters providersCache by same type as the

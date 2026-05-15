@@ -594,6 +594,11 @@ func main() {
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
 
+	// Initialize GitHub Copilot auth manager if a token is stored in the vault
+	if copilotToken, err := vault.ReadSecret("copilot_github_token"); err == nil && copilotToken != "" {
+		llm.InitCopilotAuth(copilotToken)
+	}
+
 	// Web Push (PWA notifications) -- init after vault so VAPID keys can be stored/loaded
 	if _, err := push.NewManager(cfg.SQLite.PushPath, vault, appLog); err != nil {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)

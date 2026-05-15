@@ -147,5 +147,9 @@
   "config.providers.hint.qwen": "来自阿里巴巴 DashScope 的 API 密钥。",
   "config.providers.hint.zai": "来自 Z.ai（BigModel）的 API 密钥。",
   "config.providers.hint.llamacpp": "本地 llama.cpp 不需要 API 密钥。",
-  "config.providers.hint.lmstudio": "LM Studio 不需要 API 密钥。"
+  "config.providers.hint.lmstudio": "LM Studio 不需要 API 密钥。",
+  "config.providers.hint.copilot": "通过 GitHub Device Flow 授权。",
+  "config.providers.hint.opencode_go": "来自 OpenCode Go 的 API 密钥。",
+  "config.providers.type_copilot": "copilot",
+  "config.providers.type_opencode_go": "opencode-go"
 }
