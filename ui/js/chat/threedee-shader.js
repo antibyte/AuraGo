@@ -13,6 +13,15 @@
     let nextImpulseAt = 0;
     const impulses = [];
 
+    let currentMode = 0;
+    let previousMode = -1;
+    let modeStartTime = 0;
+    let previousModeStartTime = 0;
+    let modeTransitionStart = 0;
+    const MODE_DURATION = 18;
+    const MODE_FADE = 2;
+    const MODE_COUNT = 4;
+
     let smokeTexture;
     const spheres = [];
     const sprites = [];
@@ -35,6 +44,21 @@
     let colorLow;
     let colorMid;
     let colorHigh;
+    let colorAccent;
+
+    let textCanvas;
+    let textMask;
+    const textMaskSize = { width: 720, height: 420 };
+    const textLetters = [];
+
+    let mouseGridX = 0;
+    let mouseGridZ = 0;
+    let mouseActive = false;
+    let mouseDown = false;
+    let mouseLastImpulseAt = 0;
+    let raycaster;
+    let mousePlane;
+    let mouseGlow;
 
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -71,6 +95,60 @@
 
         while (impulses.length > MAX_IMPULSES) {
             impulses.shift();
+        }
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function smoothstep(edge0, edge1, value) {
+        const x = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+        return x * x * (3 - 2 * x);
+    }
+
+    function modeWeight(mode, t) {
+        if (mode === previousMode) {
+            return 1 - smoothstep(0, MODE_FADE, t - modeTransitionStart);
+        }
+        if (mode === currentMode) {
+            return previousMode >= 0 ? smoothstep(0, MODE_FADE, t - modeTransitionStart) : 1;
+        }
+        return 0;
+    }
+
+    function modeElapsed(mode, t) {
+        if (mode === previousMode) return Math.max(0, t - previousModeStartTime);
+        if (mode === currentMode) return Math.max(0, t - modeStartTime);
+        return 0;
+    }
+
+    function resetModeTransition(t) {
+        previousMode = -1;
+        previousModeStartTime = t;
+        modeTransitionStart = t;
+        modeStartTime = t;
+    }
+
+    function ensureImpactAssets() {
+        if (!window.sphereGeom) {
+            window.sphereGeom = new THREE.SphereGeometry(0.18, 24, 24);
+            window.sphereMat = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                emissive: 0xff4400,
+                emissiveIntensity: 0.8,
+                roughness: 0.2,
+                metalness: 0.7
+            });
+            window.shockwaveGeom = new THREE.RingGeometry(0.1, 0.4, 32);
+            window.shockwaveMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
         }
     }
 
@@ -210,25 +288,7 @@
         const z = (Math.random() - 0.5) * marginZ * 2;
         const strength = 0.55 + Math.random() * 0.45;
         
-        if (!window.sphereGeom) {
-            window.sphereGeom = new THREE.SphereGeometry(0.18, 24, 24);
-            window.sphereMat = new THREE.MeshStandardMaterial({
-                color: 0xffaa00, 
-                emissive: 0xff4400, 
-                emissiveIntensity: 0.8, 
-                roughness: 0.2, 
-                metalness: 0.7
-            });
-            window.shockwaveGeom = new THREE.RingGeometry(0.1, 0.4, 32);
-            window.shockwaveMat = new THREE.MeshBasicMaterial({
-                color: 0xffaa00,
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-        }
+        ensureImpactAssets();
         
         const driftX = (Math.random() - 0.5) * 2.2;
         const driftZ = 1.8 + Math.random() * 1.6;
@@ -351,6 +411,223 @@
         });
     }
 
+    function buildTextMask() {
+        if (textMask) return;
+
+        textCanvas = document.createElement('canvas');
+        textCanvas.width = textMaskSize.width;
+        textCanvas.height = textMaskSize.height;
+        const ctx = textCanvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '900 132px Inter, system-ui, sans-serif';
+        ctx.fillText('AURA GO', textCanvas.width / 2, textCanvas.height / 2 + 8);
+
+        const image = ctx.getImageData(0, 0, textCanvas.width, textCanvas.height).data;
+        textMask = image;
+        textLetters.length = 0;
+        const spans = [0.06, 0.20, 0.34, 0.48, 0.60, 0.74, 0.88];
+        for (let i = 0; i < spans.length; i++) {
+            textLetters.push({ center: spans[i], delay: i * 0.18 });
+        }
+    }
+
+    function sampleTextMask(x, z) {
+        if (!textMask) return { alpha: 0, letterIndex: -1 };
+
+        const u = clamp((x + GRID.width * 0.5) / GRID.width, 0, 1);
+        const v = clamp((z + GRID.depth * 0.5) / GRID.depth, 0, 1);
+        const px = Math.floor(u * (textMaskSize.width - 1));
+        const py = Math.floor((1 - v) * (textMaskSize.height - 1));
+        const alpha = textMask[(py * textMaskSize.width + px) * 4 + 3] / 255;
+        let letterIndex = -1;
+        let nearest = Infinity;
+
+        for (let i = 0; i < textLetters.length; i++) {
+            const distance = Math.abs(u - textLetters[i].center);
+            if (distance < nearest) {
+                nearest = distance;
+                letterIndex = i;
+            }
+        }
+
+        return { alpha, letterIndex };
+    }
+
+    function textHeightAt(x, z, t) {
+        const weight = Math.max(modeWeight(0, t), 0);
+        if (weight <= 0.001) return 0;
+
+        const sample = sampleTextMask(x, z);
+        if (sample.alpha <= 0.02 || sample.letterIndex < 0) return 0;
+
+        const elapsed = Math.max(0, modeElapsed(0, t) - textLetters[sample.letterIndex].delay);
+        const rise = smoothstep(0, 1.4, elapsed);
+        const overshoot = Math.sin(clamp(elapsed / 1.45, 0, 1) * Math.PI) * Math.exp(-elapsed * 0.9) * 0.34;
+        const settle = 0.9 + Math.sin(t * 0.9 + sample.letterIndex * 0.7) * 0.08;
+        const edgeLift = smoothstep(0.04, 0.6, sample.alpha);
+        return edgeLift * (rise * 1.35 + overshoot) * settle * weight;
+    }
+
+    function mouseHeightAt(x, z, t) {
+        const weight = Math.max(modeWeight(1, t), 0);
+        if (weight <= 0.001 || !mouseActive) return 0;
+
+        const dist = Math.hypot(x - mouseGridX, z - mouseGridZ);
+        const radius = mouseDown ? 3.4 : 2.5;
+        const push = Math.exp(-(dist * dist) / radius) * (mouseDown ? 1.15 : 0.7);
+        const ring = Math.sin(dist * 5.2 - t * 8.4) * Math.exp(-dist * 0.72) * 0.26;
+        return (push + ring) * weight;
+    }
+
+    function colorOverrideForPosition(x, z, height, t, target) {
+        const weight = Math.max(modeWeight(3, t), 0);
+        if (weight <= 0.001) {
+            colorForHeight(height, target);
+            return;
+        }
+
+        const pattern = Math.floor(modeElapsed(3, t) / 4) % 4;
+        if (pattern === 0) {
+            colorAccent.setHSL(((x + z) * 0.035 + t * 0.12) % 1, 0.9, 0.58);
+        } else if (pattern === 1) {
+            const rings = Math.sin(Math.hypot(x, z) * 1.9 - t * 5.1) * 0.5 + 0.5;
+            colorAccent.setHSL(0.56 + rings * 0.25, 0.95, 0.48 + rings * 0.18);
+        } else if (pattern === 2) {
+            const fire = clamp((height + 0.9) / 1.8 + Math.sin(x * 0.8 + t * 4.2) * 0.12, 0, 1);
+            colorAccent.setRGB(0.2 + fire * 1.2, 0.04 + fire * 0.42, fire * fire * 0.08);
+        } else {
+            const pulse = Math.pow(Math.sin(x * 1.2 - z * 0.9 + t * 7.5) * 0.5 + 0.5, 2.2);
+            colorAccent.setRGB(0.08 + pulse * 0.35, 0.35 + pulse * 0.65, 0.75 + pulse * 0.25);
+        }
+
+        colorForHeight(height, target);
+        target.lerp(colorAccent, weight * 0.88);
+    }
+
+    function colorTextForPosition(x, z, height, t, target) {
+        const weight = Math.max(modeWeight(0, t), 0);
+        if (weight <= 0.001) return false;
+
+        const sample = sampleTextMask(x, z);
+        if (sample.alpha <= 0.02) return false;
+
+        colorAccent.setHSL(0.52 + sample.letterIndex * 0.035 + Math.sin(t * 0.7) * 0.03, 0.92, 0.64);
+        target.lerp(colorAccent, smoothstep(0.04, 0.68, sample.alpha) * weight * 0.82);
+        return true;
+    }
+
+    function projectMouseToGrid(event) {
+        if (!raycaster || !camera || !mousePlane || !canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const ndc = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -(((event.clientY - rect.top) / rect.height) * 2 - 1)
+        );
+        const hit = new THREE.Vector3();
+        raycaster.setFromCamera(ndc, camera);
+        if (raycaster.ray.intersectPlane(mousePlane, hit)) {
+            mouseGridX = clamp(hit.x, -GRID.width * 0.5, GRID.width * 0.5);
+            mouseGridZ = clamp(hit.z - surface.position.z, -GRID.depth * 0.5, GRID.depth * 0.5);
+            mouseActive = true;
+        }
+    }
+
+    function onMouseMove(event) {
+        projectMouseToGrid(event);
+    }
+
+    function onMouseDown(event) {
+        mouseDown = true;
+        projectMouseToGrid(event);
+        ensureImpactAssets();
+        addImpulse(mouseGridX, mouseGridZ, 1.35);
+        spawnImpactBurst(mouseGridX, surface.position.y + 0.18, mouseGridZ + surface.position.z, 0.92);
+    }
+
+    function onMouseUp() {
+        mouseDown = false;
+    }
+
+    function enterMode(mode, t) {
+        if (mode === 0) {
+            buildTextMask();
+        } else if (mode === 1 && canvas) {
+            mouseActive = false;
+            mouseDown = false;
+            canvas.style.pointerEvents = 'auto';
+            canvas.classList.add('threedee-mouse-mode');
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mouseup', onMouseUp);
+        } else if (mode === 2) {
+            nextImpulseAt = Math.min(nextImpulseAt, t + 0.4);
+        }
+    }
+
+    function exitMode(mode) {
+        if (mode === 1 && canvas) {
+            canvas.style.pointerEvents = 'none';
+            canvas.classList.remove('threedee-mouse-mode');
+            canvas.removeEventListener('mousemove', onMouseMove);
+            canvas.removeEventListener('mousedown', onMouseDown);
+            window.removeEventListener('mouseup', onMouseUp);
+            mouseActive = false;
+            mouseDown = false;
+        }
+    }
+
+    function setMode(mode, t) {
+        if (!active) return;
+        const nextMode = ((mode % MODE_COUNT) + MODE_COUNT) % MODE_COUNT;
+        if (nextMode === currentMode) return;
+        const now = typeof t === 'number' ? t : performance.now() / 1000;
+        exitMode(currentMode);
+        previousMode = currentMode;
+        previousModeStartTime = modeStartTime;
+        currentMode = nextMode;
+        modeStartTime = now;
+        modeTransitionStart = now;
+        enterMode(currentMode, now);
+    }
+
+    function updateMode(dt, t) {
+        if (previousMode >= 0 && t - modeTransitionStart >= MODE_FADE) {
+            previousMode = -1;
+        }
+        if (t - modeStartTime >= MODE_DURATION) {
+            setMode(currentMode + 1, t);
+        }
+        if (currentMode === 1 && mouseActive) {
+            const interval = mouseDown ? 0.12 : 0.22;
+            if (t - mouseLastImpulseAt >= interval) {
+                addImpulse(mouseGridX, mouseGridZ, mouseDown ? 0.34 : 0.18);
+                mouseLastImpulseAt = t;
+            }
+        }
+
+        if (surface && surface.material) {
+            const colorWeight = modeWeight(3, t);
+            surface.material.opacity = 0.62 + colorWeight * 0.08;
+            surface.material.emissive = surface.material.emissive || new THREE.Color(0x000000);
+            surface.material.emissive.setRGB(0.02 * colorWeight, 0.08 * colorWeight, 0.14 * colorWeight);
+            surface.material.emissiveIntensity = colorWeight * 0.45;
+        }
+        if (mouseGlow) {
+            const glowWeight = modeWeight(1, t) * (mouseActive ? 1 : 0);
+            mouseGlow.visible = glowWeight > 0.01;
+            mouseGlow.position.set(mouseGridX, surface.position.y + 0.5, mouseGridZ + surface.position.z);
+            mouseGlow.material.opacity = 0.34 * glowWeight;
+            const scale = 0.85 + Math.sin(t * 8) * 0.08 + (mouseDown ? 0.35 : 0);
+            mouseGlow.scale.set(scale, scale, scale);
+        }
+    }
+
     function heightAt(x, z, t) {
         const slowWave = Math.sin(x * 0.46 + t * 0.72) * 0.22;
         const crossWave = Math.sin(z * 0.68 - t * 0.58) * 0.18;
@@ -368,6 +645,9 @@
             const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
             height += ring * envelope * fade * impulse.strength;
         }
+
+        height += textHeightAt(x, z, t);
+        height += mouseHeightAt(x, z, t);
 
         return height;
     }
@@ -467,6 +747,7 @@
         colorLow = new THREE.Color(0x101626);
         colorMid = new THREE.Color(0x24324c);
         colorHigh = new THREE.Color(0x9bd7ff);
+        colorAccent = new THREE.Color(0x7dd3fc);
 
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x060914, 0.035);
@@ -507,8 +788,21 @@
         scene.add(rim);
 
         createHeightfield();
-        
+
         if (!smokeTexture) smokeTexture = createSmokeTexture();
+
+        raycaster = new THREE.Raycaster();
+        mousePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -surface.position.y);
+        mouseGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: smokeTexture,
+            color: 0x7dd3fc,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        mouseGlow.visible = false;
+        scene.add(mouseGlow);
         
         if (fogPlanes.length === 0) {
             for (let i = 0; i < 15; i++) {
@@ -560,6 +854,10 @@
 
             position.array[i * 3 + 1] = height;
             colorForHeight(height, colorScratch);
+            if (currentMode === 3 || previousMode === 3) {
+                colorOverrideForPosition(x, z, height, t, colorScratch);
+            }
+            if (currentMode === 0 || previousMode === 0) colorTextForPosition(x, z, height, t, colorScratch);
             color.array[i * 3] = colorScratch.r;
             color.array[i * 3 + 1] = colorScratch.g;
             color.array[i * 3 + 2] = colorScratch.b;
@@ -587,7 +885,10 @@
 
         const dt = FRAME_INTERVAL * 0.001;
         const t = time * 0.001;
-        spawnImpulse(t, false);
+        updateMode(dt, t);
+        if (currentMode === 2) {
+            spawnImpulse(t, false);
+        }
         pruneImpulses(t);
         updateParticles(dt, t);
         updateSurface(t);
@@ -614,8 +915,11 @@
         active = true;
         lastFrame = 0;
         canvas.style.display = 'block';
+        currentMode = 0;
+        resetModeTransition(performance.now() / 1000);
+        enterMode(currentMode, modeStartTime);
 
-        if (impulses.length === 0) {
+        if (currentMode === 2 && impulses.length === 0) {
             addImpulse(0, 0, 0.9);
         }
         animationId = requestAnimationFrame(render);
@@ -627,6 +931,7 @@
             cancelAnimationFrame(animationId);
             animationId = null;
         }
+        exitMode(currentMode);
         if (canvas) canvas.style.display = 'none';
     }
 
@@ -683,6 +988,10 @@
                 typeof z === 'number' ? z : 0,
                 typeof strength === 'number' ? strength : 0.85
             );
+        },
+        setMode: function (mode) {
+            if (typeof mode !== 'number') return;
+            setMode(mode);
         }
     };
 })();

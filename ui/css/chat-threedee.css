@@ -544,6 +544,10 @@
     pointer-events: none;
 }
 
+#threedee-overlay.threedee-mouse-mode {
+    pointer-events: auto;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    KEYFRAME ANIMATIONS
    ═══════════════════════════════════════════════════════════════════ */
