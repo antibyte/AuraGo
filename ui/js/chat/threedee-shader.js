@@ -441,7 +441,7 @@
 
         const u = clamp((x + GRID.width * 0.5) / GRID.width, 0, 1);
         const v = clamp((z + GRID.depth * 0.5) / GRID.depth, 0, 1);
-        const px = Math.floor(u * (textMaskSize.width - 1));
+        const px = Math.floor((1 - u) * (textMaskSize.width - 1));
         const py = Math.floor((1 - v) * (textMaskSize.height - 1));
         const alpha = textMask[(py * textMaskSize.width + px) * 4 + 3] / 255;
         let letterIndex = -1;
@@ -562,9 +562,9 @@
             mouseDown = false;
             canvas.style.pointerEvents = 'auto';
             canvas.classList.add('threedee-mouse-mode');
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('mousedown', onMouseDown);
-            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('mousemove', onMouseMove, true);
+            window.addEventListener('mousedown', onMouseDown, true);
+            window.addEventListener('mouseup', onMouseUp, true);
         } else if (mode === 2) {
             nextImpulseAt = Math.min(nextImpulseAt, t + 0.4);
         }
@@ -574,9 +574,9 @@
         if (mode === 1 && canvas) {
             canvas.style.pointerEvents = 'none';
             canvas.classList.remove('threedee-mouse-mode');
-            canvas.removeEventListener('mousemove', onMouseMove);
-            canvas.removeEventListener('mousedown', onMouseDown);
-            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('mousemove', onMouseMove, true);
+            window.removeEventListener('mousedown', onMouseDown, true);
+            window.removeEventListener('mouseup', onMouseUp, true);
             mouseActive = false;
             mouseDown = false;
         }
