@@ -53,7 +53,7 @@
   "invasion.no_eggs": "Aucun egg configuré pour l'instant.",
   "invasion.no_nests": "Aucun nest configuré pour l'instant.",
   "invasion.notes": "Notes",
-  "invasion.page_title": "AuraGo - Invasion Control",
+  "invasion.page_title": "AuraGo - Contrôle d'invasion",
   "invasion.permanent": "Permanent (Service Systemd)",
   "invasion.ph_egg_description": "Que fait ce sous-agent ?",
   "invasion.ph_egg_name": "Agent Analytics",

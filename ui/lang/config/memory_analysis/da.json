@@ -16,7 +16,7 @@
   "config.memory_analysis.llm_reranking_help": "Efter den indledende vektorsøgning bruges LLM til at omarrangere resultater baseret på relevans for den aktuelle samtalekontekst. Mere præcis end rent lighedsscore.",
   "config.memory_analysis.llm_reranking_label": "LLM-omrangordning",
   "config.memory_analysis.model_hint": "tom = udbyderens standard",
-  "config.memory_analysis.model_label": "Model",
+  "config.memory_analysis.model_label": "Modelnavn",
   "config.memory_analysis.preset_conservative": "Konservativ: kun ugentlig refleksion",
   "config.memory_analysis.preset_custom": "Tilpasset",
   "config.memory_analysis.preset_desc": "Vælg et sikkert udrulningsniveau i stedet for at aktivere alle hukommelsesanalysestier på én gang.",

@@ -48,7 +48,7 @@
   "config.sql_connections.save": "Spara",
   "config.sql_connections.save_before_test": "Spara anslutningen först, testa sedan.",
   "config.sql_connections.sqlite_path_placeholder": "t.ex. /sökväg/till/databas.db",
-  "config.sql_connections.ssl_default": "Standard",
+  "config.sql_connections.ssl_default": "Standardläge",
   "config.sql_connections.ssl_disable": "Inaktiverat",
   "config.sql_connections.ssl_mode_label": "SSL-läge",
   "config.sql_connections.ssl_require": "Krävs",

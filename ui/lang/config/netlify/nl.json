@@ -64,7 +64,7 @@
   "config.remote_control.no_platforms": "Geen platforms beschikbaar",
   "config.remote_control.platforms_error": "Fout bij laden platforms",
   "config.remote_control.status_connected": "Verbonden",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Niet verbonden",
   "config.security_proxy.status_loading": "Laden…",
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.cert_status_error": "Laadfout",

@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Zabezpečení",
   "config.remote_control.ssh_insecure_host_key_label": "Povolit nezabezpečený hostitelský klíč SSH (⚠️ deaktivuje ochranu MITM, používat pouze v důvěryhodných sítích)",
   "config.remote_control.status_connected": "Připojeno",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Odpojeno",
   "config.security_proxy.status_loading": "Načítám…",
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.server.cert_status_error": "Chyba načítání",

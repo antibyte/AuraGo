@@ -6,7 +6,7 @@
   "config.image_generation.provider_desc": "Vyberte poskytovatele nakonfigurovaného ve správě poskytovatelů. Podporované typy: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Poskytovatel",
   "config.image_generation.select_provider": "— Vyberte poskytovatele —",
-  "config.image_generation.model_label": "Model",
+  "config.image_generation.model_label": "Model AI",
   "config.image_generation.model_hint": "prázdné = výchozí poskytovatele",
   "config.image_generation.defaults_title": "Výchozí nastavení",
   "config.image_generation.defaults_desc": "Výchozí hodnoty použité, když je agent neuvede ve volání nástroje.",

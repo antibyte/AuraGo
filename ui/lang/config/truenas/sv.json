@@ -36,7 +36,7 @@
   "config.remote_control.no_platforms": "Inga plattformar tillgängliga",
   "config.remote_control.platforms_error": "Fel vid laddning av plattformar",
   "config.remote_control.status_connected": "Ansluten",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Frånkopplad",
   "config.security_proxy.status_loading": "Laddar…",
   "config.security_proxy.status_unknown": "Okänd status",
   "config.server.cert_status_error": "Laddningsfel",

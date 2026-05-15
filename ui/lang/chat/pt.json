@@ -25,7 +25,7 @@
   "chat.confirm_clear_msg": "Iniciar um novo bate-papo? A memória de curto prazo é apagada.",
   "chat.confirm_clear_title": "Novo bate-papo",
   "chat.confirm_stop_msg": "Interromper a ação atual?",
-  "chat.confirm_stop_title": "Stop Action",
+  "chat.confirm_stop_title": "Parar ação",
   "chat.credits_pill_text": "💳 ${{amount}}",
   "chat.credits_pill_title": "Crédito OpenRouter",
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} consumido (pré-pago)",

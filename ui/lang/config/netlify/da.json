@@ -64,7 +64,7 @@
   "config.remote_control.no_platforms": "Ingen tilgængelige platforme",
   "config.remote_control.platforms_error": "Fejl ved indlæsning af platforme",
   "config.remote_control.status_connected": "Tilsluttet",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Afbrudt",
   "config.security_proxy.status_loading": "Indlæser…",
   "config.security_proxy.status_unknown": "Ukendt status",
   "config.server.cert_status_error": "Indlæsningsfejl",

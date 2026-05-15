@@ -6,7 +6,7 @@
   "config.image_generation.provider_desc": "Vælg en udbyder konfigureret i udbyderstyring. Understøttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Udbyder",
   "config.image_generation.select_provider": "— Vælg en udbyder —",
-  "config.image_generation.model_label": "Model",
+  "config.image_generation.model_label": "Modelnavn",
   "config.image_generation.model_hint": "tom = udbyderstandard",
   "config.image_generation.defaults_title": "Standardindstillinger",
   "config.image_generation.defaults_desc": "Standardværdier brugt når agenten ikke angiver dem i et værktøjskald.",

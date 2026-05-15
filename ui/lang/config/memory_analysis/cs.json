@@ -16,7 +16,7 @@
   "config.memory_analysis.llm_reranking_help": "Po počátečním vektorovém vyhledávání použije LLM k přeuspořádání výsledků podle relevance k aktuálnímu kontextu konverzace. Přesnější než čisté skóre podobnosti.",
   "config.memory_analysis.llm_reranking_label": "LLM přerovnání",
   "config.memory_analysis.model_hint": "prázdné = výchozí model poskytovatele",
-  "config.memory_analysis.model_label": "Model",
+  "config.memory_analysis.model_label": "Model AI",
   "config.memory_analysis.preset_conservative": "Konzervativní: pouze týdenní reflexe",
   "config.memory_analysis.preset_custom": "Vlastní",
   "config.memory_analysis.preset_desc": "Vyberte bezpečnou úroveň zavedení místo aktivace všech cest analýzy paměti najednou.",

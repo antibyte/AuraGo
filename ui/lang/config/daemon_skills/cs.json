@@ -49,7 +49,7 @@
   "config.remote_control.no_platforms": "Žádné platformy k dispozici",
   "config.remote_control.platforms_error": "Chyba načítání platforem",
   "config.remote_control.status_connected": "Připojeno",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Odpojeno",
   "config.security_proxy.status_loading": "Načítám…",
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.server.cert_status_error": "Chyba načítání",

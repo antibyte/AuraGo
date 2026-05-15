@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Uživatel",
   "cheatsheets.created_by_agent": "Vytvořil agent",
   "cheatsheets.created_by_user": "Vytvořil uživatel",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "AI agent",
   "cheatsheets.empty_agent": "Zatím žádné agentní cheaty.",
   "cheatsheets.char_limit_exceeded": "Překročen limit znaků",
   "cheatsheets.delete_locked": "Smazání zamčeno",

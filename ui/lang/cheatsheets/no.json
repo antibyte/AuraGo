@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Bruker",
   "cheatsheets.created_by_agent": "Opprettet av agenten",
   "cheatsheets.created_by_user": "Opprettet av brukeren",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "AI-agent",
   "cheatsheets.empty_agent": "Ingen agent-jukseark ennå.",
   "cheatsheets.char_limit_exceeded": "Tegngrensen er overskredet",
   "cheatsheets.delete_locked": "Sletting låst",

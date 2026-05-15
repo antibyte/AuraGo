@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktiv",
   "config.toggle.inactive": "Inaktiv",
   "config.tools.warning_banner": "⚠️ Disse bryterne styrer potensielt farlige funksjoner. Aktiver kun det du trenger.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat-overvåking",
   "config.section.heartbeat.desc": "Bakgrunnsvekker som periodisk sjekker oppgaver, avtaler og e-poster.",
   "config.heartbeat.enabled_label": "Aktiver Heartbeat",
   "config.heartbeat.check_tasks_label": "Sjekk åpne oppgaver",

@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Sicherheit",
   "config.remote_control.ssh_insecure_host_key_label": "Unsicheren SSH-Hostkey erlauben (⚠️ deaktiviert MITM-Schutz, nur in vertrauenswürdigen Netzwerken)",
   "config.remote_control.status_connected": "Verbunden",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Getrennt",
   "config.security_proxy.status_loading": "Laden…",
   "config.security_proxy.status_unknown": "Unbekannter Status",
   "config.server.cert_status_error": "Ladefehler",

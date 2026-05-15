@@ -26,7 +26,7 @@
   "containers.delete_force": "Tvångsavlägsna (avsluta om den körs)",
   "containers.delete_success": "Container borttagen",
   "containers.action_success": "Åtgärden lyckades",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Skal",
   "containers.terminal_title": "Container-shell",
   "containers.terminal_connecting": "Ansluter...",
   "containers.terminal_connected": "Ansluten",

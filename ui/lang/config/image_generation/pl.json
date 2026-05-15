@@ -6,7 +6,7 @@
   "config.image_generation.provider_desc": "Wybierz dostawcę skonfigurowanego w zarządzaniu dostawcami. Obsługiwane typy: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Dostawca",
   "config.image_generation.select_provider": "— Wybierz dostawcę —",
-  "config.image_generation.model_label": "Model",
+  "config.image_generation.model_label": "Model AI",
   "config.image_generation.model_hint": "puste = domyślne dostawcy",
   "config.image_generation.defaults_title": "Ustawienia domyślne",
   "config.image_generation.defaults_desc": "Wartości domyślne używane, gdy agent nie określi ich w wywołaniu narzędzia.",

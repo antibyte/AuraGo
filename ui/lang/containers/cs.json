@@ -26,7 +26,7 @@
   "containers.delete_force": "Vynutit odstranění (ukončit, pokud běží)",
   "containers.delete_success": "Kontejner odstraněn",
   "containers.action_success": "Akce úspěšná",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Příkazový shell",
   "containers.terminal_title": "Shell kontejneru",
   "containers.terminal_connecting": "Připojování...",
   "containers.terminal_connected": "Připojeno",

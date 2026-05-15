@@ -26,7 +26,7 @@
   "containers.delete_force": "Rimozione forzata (termina se in esecuzione)",
   "containers.delete_success": "Container rimosso",
   "containers.action_success": "Azione riuscita",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Shell di sistema",
   "containers.terminal_title": "Shell del container",
   "containers.terminal_connecting": "Connessione...",
   "containers.terminal_connected": "Connesso",

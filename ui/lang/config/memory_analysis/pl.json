@@ -16,7 +16,7 @@
   "config.memory_analysis.llm_reranking_help": "Po początkowym wyszukiwaniu wektorowym LLM zmienia kolejność wyników na podstawie istotności dla bieżącego kontekstu rozmowy. Dokładniejsze niż czyste wyniki podobieństwa.",
   "config.memory_analysis.llm_reranking_label": "Przebudowanie LLM",
   "config.memory_analysis.model_hint": "pusty = domyślny model dostawcy",
-  "config.memory_analysis.model_label": "Model",
+  "config.memory_analysis.model_label": "Model AI",
   "config.memory_analysis.preset_conservative": "Konserwatywny: tylko tygodniowa refleksja",
   "config.memory_analysis.preset_custom": "Niestandardowy",
   "config.memory_analysis.preset_desc": "Wybierz bezpieczny poziom wdrożenia zamiast włączać wszystkie ścieżki analizy pamięci naraz.",

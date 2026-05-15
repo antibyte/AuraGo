@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Segurança",
   "config.remote_control.ssh_insecure_host_key_label": "Permitir chave de host SSH insegura (⚠️ desativa a proteção MITM, use apenas em redes confiáveis)",
   "config.remote_control.status_connected": "Conectado",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Desligado",
   "config.security_proxy.status_loading": "Carregando…",
   "config.security_proxy.status_unknown": "Status desconhecido",
   "config.server.cert_status_error": "Erro de carregamento",

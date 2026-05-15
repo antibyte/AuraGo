@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktiv",
   "config.toggle.inactive": "Inaktiv",
   "config.tools.warning_banner": "⚠️ Diese Schalter steuern potenziell gefährliche Fähigkeiten. Nur aktivieren was du wirklich brauchst.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat-Überwachung",
   "config.section.heartbeat.desc": "Hintergrund-Wecker, der den Agenten in Intervallen aufweckt, um Aufgaben, Termine und E-Mails zu prüfen.",
   "config.heartbeat.enabled_label": "Heartbeat aktivieren",
   "config.heartbeat.check_tasks_label": "Offene Aufgaben prüfen",

@@ -28,7 +28,7 @@
   "config.tts.minimax_voice_id_label": "Stemme-ID",
   "config.tts.minimax_voice_id_help": "MiniMax-stemme ID (f.eks. engelsk_ekspressiv_fortæller).",
   "config.tts.minimax_voice_id_placeholder": "English_expressive_narrator",
-  "config.tts.minimax_model_label": "Model",
+  "config.tts.minimax_model_label": "Modelnavn",
   "config.tts.minimax_model_help": "MiniMax TTS model at bruge.",
   "config.tts.minimax_model_hd": "tale-2.8-hd (høj kvalitet)",
   "config.tts.minimax_model_turbo": "tale-2.8-turbo (hurtig)",

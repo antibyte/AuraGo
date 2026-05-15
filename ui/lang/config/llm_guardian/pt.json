@@ -8,7 +8,7 @@
   "config.llm_guardian.select_provider": "— LLM principal (padrão) —",
   "config.llm_guardian.model_label": "Modelo",
   "config.llm_guardian.model_hint": "vazio = padrão do provedor",
-  "config.llm_guardian.level_title": "Protection Level",
+  "config.llm_guardian.level_title": "Nível de proteção",
   "config.llm_guardian.level_desc": "Controla quais chamadas de ferramenta são enviadas ao Guardian para revisão. Níveis mais altos verificam mais operações, mas custam mais tokens.",
   "config.llm_guardian.level_label": "Nível padrão",
   "config.llm_guardian.level_off": "Desativado — Sem verificações LLM",

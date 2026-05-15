@@ -39,7 +39,7 @@
   "config.devices.col_ip": "IP",
   "config.devices.col_port": "Porta",
   "config.devices.col_mac": "MAC",
-  "config.devices.col_tags": "Tags",
+  "config.devices.col_tags": "Etiquetas",
   "config.devices.find_mac": "Buscar MAC",
   "config.devices.find_mac_tooltip": "Procurar endereço MAC na tabela ARP local (o dispositivo deve estar ativo)",
   "config.devices.find_mac_no_ip": "Por favor, insira um endereço IP primeiro.",
@@ -54,6 +54,6 @@
   "config.devices.ip_placeholder": "192.168.1.100",
   "config.devices.username_placeholder": "root",
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
-  "config.devices.field_tags_label": "Tags",
+  "config.devices.field_tags_label": "Etiquetas",
   "config.devices.field_vault_secret_id_label": "ID do segredo do cofre"
 }

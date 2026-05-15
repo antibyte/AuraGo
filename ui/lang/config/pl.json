@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktywny",
   "config.toggle.inactive": "Nieaktywny",
   "config.tools.warning_banner": "⚠️ Te przełączniki sterują potencjalnie niebezpiecznymi możliwościami. Włączaj tylko to, czego potrzebujesz.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Monitor heartbeat",
   "config.section.heartbeat.desc": "Planer budzenia w tle, który okresowo sprawdza zadania, spotkania i e-maile.",
   "config.heartbeat.enabled_label": "Włącz Heartbeat",
   "config.heartbeat.check_tasks_label": "Sprawdź otwarte zadania",

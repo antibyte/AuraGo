@@ -6,7 +6,7 @@
   "config.llm_guardian.provider_desc": "Vyberte poskytovatele pro Guardian LLM. Pro rozhodnutí pod jednu sekundu se doporučuje rychlý a levný model (např. Gemini Flash, GPT-4o-mini, lokální 3B).",
   "config.llm_guardian.provider_label": "Poskytovatel",
   "config.llm_guardian.select_provider": "— Hlavní LLM (výchozí) —",
-  "config.llm_guardian.model_label": "Model",
+  "config.llm_guardian.model_label": "Model AI",
   "config.llm_guardian.model_hint": "prázdné = výchozí poskytovatele",
   "config.llm_guardian.level_title": "Úroveň ochrany",
   "config.llm_guardian.level_desc": "Řídí, která volání nástrojů jsou odesílána Guardianu ke kontrole. Vyšší úrovně kontrolují více operací, ale stojí více tokenů.",

@@ -6,7 +6,7 @@
   "gallery.loading": "Laden...",
   "gallery.empty": "Noch keine Bilder. Generiere dein erstes Bild im Chat!",
   "gallery.images": "Bilder",
-  "gallery.prompt": "Prompt",
+  "gallery.prompt": "Prompttext",
   "gallery.enhanced_prompt": "Verbesserter Prompt",
   "gallery.provider": "Anbieter",
   "gallery.model": "Modell",

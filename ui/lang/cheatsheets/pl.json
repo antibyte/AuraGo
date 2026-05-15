@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Użytkownik",
   "cheatsheets.created_by_agent": "Utworzone przez agenta",
   "cheatsheets.created_by_user": "Utworzone przez użytkownika",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "Agent AI",
   "cheatsheets.empty_agent": "Nie ma jeszcze ściągawek agenta.",
   "cheatsheets.char_limit_exceeded": "Przekroczono limit znaków",
   "cheatsheets.delete_locked": "Usuwanie zablokowane",

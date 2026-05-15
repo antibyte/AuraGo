@@ -36,7 +36,7 @@
   "config.remote_control.no_platforms": "Brak dostępnych platform",
   "config.remote_control.platforms_error": "Błąd ładowania platform",
   "config.remote_control.status_connected": "Połączono",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Rozłączono",
   "config.security_proxy.basic_auth_desc": "Wymagaj nazwy użytkownika i hasła do dostępu do proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Włącz Basic Auth",
   "config.security_proxy.basic_auth_title": "Uwierzytelnianie podstawowe",

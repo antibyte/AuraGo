@@ -28,7 +28,7 @@
   "config.tts.minimax_voice_id_label": "ID hlasu",
   "config.tts.minimax_voice_id_help": "MiniMax hlas ID (např. English_expressive_narrator).",
   "config.tts.minimax_voice_id_placeholder": "English_expressive_narrator",
-  "config.tts.minimax_model_label": "Model",
+  "config.tts.minimax_model_label": "Model AI",
   "config.tts.minimax_model_help": "MiniMax TTS model k použití.",
   "config.tts.minimax_model_hd": "řeč-2,8-hd (vysoká kvalita)",
   "config.tts.minimax_model_turbo": "řeč-2,8-turbo (rychle)",

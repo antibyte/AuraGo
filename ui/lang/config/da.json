@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktiv",
   "config.toggle.inactive": "Inaktiv",
   "config.tools.warning_banner": "⚠️ Disse kontroller styrer potentielt farlige funktioner. Aktiver kun hvad du har brug for.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat-overvågning",
   "config.section.heartbeat.desc": "Baggrundsvækker der periodisk tjekker opgaver, aftaler og e-mails.",
   "config.heartbeat.enabled_label": "Aktiver Heartbeat",
   "config.heartbeat.check_tasks_label": "Tjek åbne opgaver",

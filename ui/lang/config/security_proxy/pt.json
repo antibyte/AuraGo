@@ -36,7 +36,7 @@
   "config.remote_control.no_platforms": "Nenhuma plataforma disponível",
   "config.remote_control.platforms_error": "Erro ao carregar plataformas",
   "config.remote_control.status_connected": "Conectado",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Desligado",
   "config.security_proxy.basic_auth_desc": "Exigir nome de usuário e senha antes de acessar o proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Ativar Basic Auth",
   "config.security_proxy.basic_auth_title": "Autenticação básica",

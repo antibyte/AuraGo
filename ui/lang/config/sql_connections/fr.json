@@ -8,7 +8,7 @@
   "config.sql_connections.col_actions": "Actions",
   "config.sql_connections.col_database": "Base de données",
   "config.sql_connections.col_description": "Description",
-  "config.sql_connections.col_driver": "Type",
+  "config.sql_connections.col_driver": "Genre",
   "config.sql_connections.col_host": "Hôte",
   "config.sql_connections.col_name": "Nom",
   "config.sql_connections.col_permissions": "Permissions",

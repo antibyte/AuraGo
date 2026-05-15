@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktiv",
   "config.toggle.inactive": "Inaktiv",
   "config.tools.warning_banner": "⚠️ Dessa växlar styr potentiellt farliga funktioner. Aktivera bara vad du behöver.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat-övervakning",
   "config.section.heartbeat.desc": "Bakgrundsväckare som regelbundet kontrollerar uppgifter, möten och e-post.",
   "config.heartbeat.enabled_label": "Aktivera Heartbeat",
   "config.heartbeat.check_tasks_label": "Kontrollera öppna uppgifter",

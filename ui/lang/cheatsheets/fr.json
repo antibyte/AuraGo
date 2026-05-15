@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Utilisateur",
   "cheatsheets.created_by_agent": "Créé par l'agent",
   "cheatsheets.created_by_user": "Créé par l'utilisateur",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "Agent IA",
   "cheatsheets.empty_agent": "Aucun aide-mémoire agent pour le moment.",
   "cheatsheets.char_limit_exceeded": "Limite de caractères dépassée",
   "cheatsheets.delete_locked": "Suppression verrouillée",

@@ -65,7 +65,7 @@
   "config.toggle.active": "Activo",
   "config.toggle.inactive": "Inactivo",
   "config.tools.warning_banner": "⚠️ Estos interruptores controlan funciones potencialmente peligrosas. Activa solo lo que necesites.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Supervisión heartbeat",
   "config.section.heartbeat.desc": "Programador de despertar en segundo plano que comprueba periódicamente tareas, citas y correos electrónicos.",
   "config.heartbeat.enabled_label": "Activar Heartbeat",
   "config.heartbeat.check_tasks_label": "Comprobar tareas abiertas",

@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Sicurezza",
   "config.remote_control.ssh_insecure_host_key_label": "Consenti chiave host SSH non sicura (⚠️ disabilita protezione MITM, usare solo su reti affidabili)",
   "config.remote_control.status_connected": "Connesso",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Disconnesso",
   "config.security_proxy.status_loading": "Caricamento…",
   "config.security_proxy.status_unknown": "Stato sconosciuto",
   "config.server.cert_status_error": "Errore di caricamento",

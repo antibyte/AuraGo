@@ -65,7 +65,7 @@
   "config.toggle.active": "Aktivní",
   "config.toggle.inactive": "Neaktivní",
   "config.tools.warning_banner": "⚠️ Tyto přepínače ovládají potenciálně nebezpečné funkce. Aktivujte pouze ty, které potřebujete.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Kontrola životního signálu",
   "config.section.heartbeat.desc": "Plánovač probuzení na pozadí, který pravidelně kontroluje úkoly, schůzky a e-maily.",
   "config.heartbeat.enabled_label": "Povolit Heartbeat",
   "config.heartbeat.check_tasks_label": "Kontrolovat otevřené úkoly",

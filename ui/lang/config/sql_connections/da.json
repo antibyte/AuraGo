@@ -48,7 +48,7 @@
   "config.sql_connections.save": "Gem",
   "config.sql_connections.save_before_test": "Gem forbindelsen først, test den derefter.",
   "config.sql_connections.sqlite_path_placeholder": "f.eks. /sti/til/database.db",
-  "config.sql_connections.ssl_default": "Standard",
+  "config.sql_connections.ssl_default": "Standardvalg",
   "config.sql_connections.ssl_disable": "Deaktiveret",
   "config.sql_connections.ssl_mode_label": "SSL-tilstand",
   "config.sql_connections.ssl_require": "Påkrævet",

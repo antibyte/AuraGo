@@ -34,7 +34,7 @@
   "config.webhooks.log_col_size": "Größe",
   "config.webhooks.log_col_status": "Zustand",
   "config.webhooks.log_col_time": "Zeit",
-  "config.webhooks.log_col_webhook": "Webhook",
+  "config.webhooks.log_col_webhook": "Webhook-Aufruf",
   "config.webhooks.log_delivered": "OK",
   "config.webhooks.log_empty": "Noch keine Webhook-Ereignisse.",
   "config.webhooks.log_error_prefix": "Fehler:",

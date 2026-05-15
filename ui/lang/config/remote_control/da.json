@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Sikkerhed",
   "config.remote_control.ssh_insecure_host_key_label": "Tillad usikker SSH-værtsnøgle (⚠️ deaktiverer MITM-beskyttelse, brug kun på betroede netværk)",
   "config.remote_control.status_connected": "Tilsluttet",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Afbrudt",
   "config.security_proxy.status_loading": "Indlæser…",
   "config.security_proxy.status_unknown": "Ukendt status",
   "config.server.cert_status_error": "Indlæsningsfejl",

@@ -6,7 +6,7 @@
   "config.image_generation.provider_desc": "Selecteer een provider die is geconfigureerd in Providerbeheer. Ondersteunde typen: OpenAI, OpenRouter, Stabiliteit AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Aanbieder",
   "config.image_generation.select_provider": "— Selecteer een aanbieder —",
-  "config.image_generation.model_label": "Model",
+  "config.image_generation.model_label": "Modelkeuze",
   "config.image_generation.model_hint": "leeg = standaard provider",
   "config.image_generation.defaults_title": "Standaardinstellingen",
   "config.image_generation.defaults_desc": "Standaardwaarden die worden gebruikt wanneer de agent ze niet opgeeft in een tool-call.",

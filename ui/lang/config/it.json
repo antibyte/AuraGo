@@ -65,7 +65,7 @@
   "config.toggle.active": "Attivo",
   "config.toggle.inactive": "Inattivo",
   "config.tools.warning_banner": "⚠️ Questi interruttori controllano funzionalità potenzialmente pericolose. Abilita solo ciò di cui hai bisogno.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Monitoraggio heartbeat",
   "config.section.heartbeat.desc": "Pianificatore di sveglia in background che controlla periodicamente attività, appuntamenti ed e-mail.",
   "config.heartbeat.enabled_label": "Attiva Heartbeat",
   "config.heartbeat.check_tasks_label": "Controlla attività aperte",

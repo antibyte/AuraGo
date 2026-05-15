@@ -16,7 +16,7 @@
   "config.memory_analysis.llm_reranking_help": "Na de initiële vectorzoekactie herordent de LLM de resultaten op basis van relevantie voor de huidige gesprekscontext. Nauwkeuriger dan pure gelijkenisscores.",
   "config.memory_analysis.llm_reranking_label": "LLM-herordening",
   "config.memory_analysis.model_hint": "leeg = standaard provider",
-  "config.memory_analysis.model_label": "Model",
+  "config.memory_analysis.model_label": "Modelkeuze",
   "config.memory_analysis.preset_conservative": "Conservatief: alleen wekelijkse reflectie",
   "config.memory_analysis.preset_custom": "Aangepast",
   "config.memory_analysis.preset_desc": "Kies een veilig uitrolniveau in plaats van alle geheugenanalysepaden tegelijk in te schakelen.",

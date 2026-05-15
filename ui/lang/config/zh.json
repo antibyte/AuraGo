@@ -65,7 +65,7 @@
   "config.toggle.active": "活跃",
   "config.toggle.inactive": "非活跃",
   "config.tools.warning_banner": "⚠️ 这些开关控制潜在危险的功能。只启用你需要的。",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat 监控",
   "config.section.heartbeat.desc": "后台唤醒调度器，定期检查任务、约会和电子邮件。",
   "config.heartbeat.enabled_label": "启用 Heartbeat",
   "config.heartbeat.check_tasks_label": "检查未完成任务",

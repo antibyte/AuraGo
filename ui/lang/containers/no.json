@@ -26,7 +26,7 @@
   "containers.delete_force": "Tving fjerning (avslutt hvis kjører)",
   "containers.delete_success": "Container fjernet",
   "containers.action_success": "Handling vellykket",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Kommandoskall",
   "containers.terminal_title": "Container-skall",
   "containers.terminal_connecting": "Kobler til...",
   "containers.terminal_connected": "Tilkoblet",

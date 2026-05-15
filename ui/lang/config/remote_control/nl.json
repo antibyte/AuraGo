@@ -59,7 +59,7 @@
   "config.remote_control.security_title": "Beveiliging",
   "config.remote_control.ssh_insecure_host_key_label": "Onveilige SSH-hostsleutel toestaan (⚠️ schakelt MITM-beveiliging uit, alleen gebruiken op vertrouwde netwerken)",
   "config.remote_control.status_connected": "Verbonden",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Niet verbonden",
   "config.security_proxy.status_loading": "Laden…",
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.cert_status_error": "Laadfout",

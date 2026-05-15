@@ -6,7 +6,7 @@
   "config.llm_guardian.provider_desc": "Selecteer een provider voor de Guardian LLM. Een snel, goedkoop model (bijv. Gemini Flash, GPT -4o-mini, lokaal 3B) wordt aanbevolen voor beslissingen in minder dan een seconde.",
   "config.llm_guardian.provider_label": "Aanbieder",
   "config.llm_guardian.select_provider": "— Hoofd-LLM (standaard) —",
-  "config.llm_guardian.model_label": "Model",
+  "config.llm_guardian.model_label": "Modelkeuze",
   "config.llm_guardian.model_hint": "leeg = standaard provider",
   "config.llm_guardian.level_title": "Beschermingsniveau",
   "config.llm_guardian.level_desc": "Bepaalt welke tooloproepen ter beoordeling naar de Guardian worden verzonden. Hogere niveaus controleren meer bewerkingen, maar kosten meer tokens.",

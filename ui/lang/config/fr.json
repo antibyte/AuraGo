@@ -65,7 +65,7 @@
   "config.toggle.active": "Actif",
   "config.toggle.inactive": "Inactif",
   "config.tools.warning_banner": "⚠️ Ces bascules contrôlent des fonctionnalités potentiellement dangereuses. N'activez que ce dont vous avez besoin.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Surveillance heartbeat",
   "config.section.heartbeat.desc": "Planificateur de réveil en arrière-plan qui vérifie périodiquement les tâches, les rendez-vous et les e-mails.",
   "config.heartbeat.enabled_label": "Activer Heartbeat",
   "config.heartbeat.check_tasks_label": "Vérifier les tâches ouvertes",

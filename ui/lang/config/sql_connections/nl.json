@@ -8,7 +8,7 @@
   "config.sql_connections.col_actions": "Acties",
   "config.sql_connections.col_database": "Database",
   "config.sql_connections.col_description": "Beschrijving",
-  "config.sql_connections.col_driver": "Type",
+  "config.sql_connections.col_driver": "Soort",
   "config.sql_connections.col_host": "Host",
   "config.sql_connections.col_name": "Naam",
   "config.sql_connections.col_permissions": "Rechten",

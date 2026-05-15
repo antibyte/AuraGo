@@ -505,7 +505,7 @@
   "dashboard.system_title": "システムステータス",
   "dashboard.system_uptime": "稼働時間",
   "dashboard.tab_agent": "エージェント",
-  "dashboard.tab_filesync": "File Sync",
+  "dashboard.tab_filesync": "ファイル同期",
   "dashboard.tab_knowledge": "ナレッジグラフ",
   "dashboard.tab_overview": "概要",
   "dashboard.tab_system": "システム",

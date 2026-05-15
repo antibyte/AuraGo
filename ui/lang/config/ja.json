@@ -65,7 +65,7 @@
   "config.toggle.active": "アクティブ",
   "config.toggle.inactive": "非アクティブ",
   "config.tools.warning_banner": "⚠️ これらのトグルは潜在的に危険な機能を制御します。必要なもののみ有効にしてください。",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat監視",
   "config.section.heartbeat.desc": "タスク、予定、メールを定期的に確認するバックグラウンド起動スケジューラー。",
   "config.heartbeat.enabled_label": "Heartbeatを有効にする",
   "config.heartbeat.check_tasks_label": "未完了タスクを確認",

@@ -6,7 +6,7 @@
   "config.llm_guardian.provider_desc": "Vælg en udbyder til Guardian LLM. En hurtig, billig model (f.eks. Gemini Flash, GPT-4o-mini, lokal 3B) anbefales til beslutninger under ét sekund.",
   "config.llm_guardian.provider_label": "Udbyder",
   "config.llm_guardian.select_provider": "— Hoved-LLM (standard) —",
-  "config.llm_guardian.model_label": "Model",
+  "config.llm_guardian.model_label": "Modelnavn",
   "config.llm_guardian.model_hint": "tom = udbyderstandard",
   "config.llm_guardian.level_title": "Beskyttelsesniveau",
   "config.llm_guardian.level_desc": "Styrer, hvilke værktøjsopkald der sendes til Guardian til gennemgang. Højere niveauer kontrollerer flere operationer, men koster flere tokens.",

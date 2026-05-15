@@ -1,5 +1,5 @@
 {
-  "config.github.agent_badge": "Agent",
+  "config.github.agent_badge": "KI-Agent",
   "config.github.agent_created_always_allowed": "Vom Agent erstellt - immer erlaubt",
   "config.github.agent_created_note": "Repos die der Agent selbst erstellt hat, sind immer zugänglich - auch ohne explizite Freigabe.",
   "config.github.allowed_repos_desc": "Der Agent darf nur auf die hier freigegebenen Repos zugreifen. Repos die der Agent selbst erstellt hat, sind immer erlaubt. Ist die Liste leer, darf der Agent nur auf selbst erstellte Repos zugreifen.",
@@ -95,7 +95,7 @@
   "config.section.adguard.desc": "DNS-Filter & Netzwerkschutz",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.agent.desc": "Agent-Verhalten und Optimierung",
-  "config.section.agent.label": "Agent",
+  "config.section.agent.label": "KI-Agent",
   "config.section.ai_gateway.desc": "LLM-Anfragen über Cloudflare AI Gateway leiten",
   "config.section.ai_gateway.label": "KI-Gateway",
   "config.section.ansible.desc": "Ansible-Automatisierung (sidecar oder local)",

@@ -26,7 +26,7 @@
   "containers.delete_force": "Erzwungenes Entfernen (beenden, falls laufend)",
   "containers.delete_success": "Container entfernt",
   "containers.action_success": "Aktion erfolgreich",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Shell-Zugriff",
   "containers.terminal_title": "Container-Shell",
   "containers.terminal_connecting": "Verbinde...",
   "containers.terminal_connected": "Verbunden",

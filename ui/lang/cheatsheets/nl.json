@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Gebruiker",
   "cheatsheets.created_by_agent": "Gemaakt door agent",
   "cheatsheets.created_by_user": "Gemaakt door gebruiker",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "AI-agent",
   "cheatsheets.empty_agent": "Nog geen agent-spiekbriefjes.",
   "cheatsheets.char_limit_exceeded": "Tekenlimiet overschreden",
   "cheatsheets.delete_locked": "Verwijderen vergrendeld",

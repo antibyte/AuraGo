@@ -4,7 +4,7 @@
   "config.video_gen.test_failed": "Niepowodzenie",
   "config.video_gen.provider_title": "Dostawca",
   "config.video_gen.provider_label": "Dostawca",
-  "config.video_gen.model_label": "Model",
+  "config.video_gen.model_label": "Model AI",
   "config.video_gen.resolution_label": "Rozdzielczość",
   "config.video_gen.test_desc": "Sprawdza połączenie bez generowania filmu.",
   "config.video_gen.timeout_label": "Limit czasu (s)",

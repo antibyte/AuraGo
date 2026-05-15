@@ -65,7 +65,7 @@
   "config.remote_control.no_platforms": "Nessuna piattaforma disponibile",
   "config.remote_control.platforms_error": "Errore nel caricamento delle piattaforme",
   "config.remote_control.status_connected": "Connesso",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Disconnesso",
   "config.security_proxy.status_loading": "Caricamento…",
   "config.security_proxy.status_unknown": "Stato sconosciuto",
   "config.server.cert_status_error": "Errore di caricamento",

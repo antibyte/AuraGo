@@ -6,7 +6,7 @@
   "gallery.loading": "Laddar...",
   "gallery.empty": "Inga bilder ännu. Skapa din första bild via chatten!",
   "gallery.images": "bilder",
-  "gallery.prompt": "Prompt",
+  "gallery.prompt": "Prompttext",
   "gallery.enhanced_prompt": "Förbättrad prompt",
   "gallery.provider": "Leverantör",
   "gallery.model": "Modell",

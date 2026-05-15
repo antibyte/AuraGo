@@ -20,7 +20,7 @@
   "config.homepage.deploy_password": "Passwort",
   "config.homepage.deploy_path": "Remote-Pfad",
   "config.homepage.deploy_port": "Hafen",
-  "config.homepage.deploy_title": "Deployment",
+  "config.homepage.deploy_title": "Bereitstellung",
   "config.homepage.deploy_user": "Benutzername",
   "config.homepage.dev_container": "Dev-Container",
   "config.homepage.disabled_desc": "Aktiviere den Schalter oben, damit der Agent Webseiten per Docker-Container gestalten und deployen kann.",

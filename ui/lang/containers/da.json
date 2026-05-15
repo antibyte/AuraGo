@@ -26,7 +26,7 @@
   "containers.delete_force": "Tving fjernelse (afslut hvis kørende)",
   "containers.delete_success": "Container fjernet",
   "containers.action_success": "Handling gennemført",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Kommandoskal",
   "containers.terminal_title": "Container-shell",
   "containers.terminal_connecting": "Opretter forbindelse...",
   "containers.terminal_connected": "Forbundet",

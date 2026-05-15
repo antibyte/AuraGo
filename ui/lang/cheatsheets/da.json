@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Bruger",
   "cheatsheets.created_by_agent": "Oprettet af agenten",
   "cheatsheets.created_by_user": "Oprettet af brugeren",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "AI-agent",
   "cheatsheets.empty_agent": "Ingen agent-snydeark endnu.",
   "cheatsheets.char_limit_exceeded": "Tegngrænse overskredet",
   "cheatsheets.delete_locked": "Sletning låst",

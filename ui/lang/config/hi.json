@@ -65,7 +65,7 @@
   "config.toggle.active": "सक्रिय",
   "config.toggle.inactive": "निष्क्रिय",
   "config.tools.warning_banner": "⚠️ ये टॉगल संभावित खतरनाक क्षमताओं को नियंत्रित करते हैं। केवल वही सक्षम करें जिसकी आपको आवश्यकता है।",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat निगरानी",
   "config.section.heartbeat.desc": "पृष्ठभूमि वेक-अप शेड्यूलर जो समय-समय पर कार्य, नियुक्तियों और ईमेल की जांच करता है।",
   "config.heartbeat.enabled_label": "Heartbeat सक्षम करें",
   "config.heartbeat.check_tasks_label": "खुले कार्य जांचें",

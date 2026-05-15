@@ -49,7 +49,7 @@
   "config.remote_control.no_platforms": "Brak dostępnych platform",
   "config.remote_control.platforms_error": "Błąd ładowania platform",
   "config.remote_control.status_connected": "Połączono",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Rozłączono",
   "config.security_proxy.status_loading": "Ładowanie…",
   "config.security_proxy.status_unknown": "Nieznany status",
   "config.server.cert_status_error": "Błąd ładowania",

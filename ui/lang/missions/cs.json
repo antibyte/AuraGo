@@ -207,7 +207,7 @@
   "missions.trigger_info_any_nest": "Jakékoli hnízdo",
   "missions.trigger_info_device_connected_prefix": "Připojeno:",
   "missions.trigger_info_device_disconnected_prefix": "Odpojeno:",
-  "missions.trigger_info_egg_prefix": "Egg:",
+  "missions.trigger_info_egg_prefix": "Vejce:",
   "missions.trigger_info_folder_prefix": "Složka:",
   "missions.trigger_info_fritzbox_any": "Jakákoli událost",
   "missions.trigger_info_fritzbox_prefix": "Fritz!Box:",

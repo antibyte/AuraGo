@@ -1,5 +1,5 @@
 {
-  "config.github.agent_badge": "Agent",
+  "config.github.agent_badge": "Agent IA",
   "config.github.agent_created_always_allowed": "Créé par l'agent - toujours autorisé",
   "config.github.agent_created_note": "Les depots crees par l'agent sont toujours accessibles - meme sans approbation explicite.",
   "config.github.allowed_repos_desc": "L'agent ne peut acceder qu'aux depots listes ici. Les depots crees par l'agent sont toujours autorises. Si la liste est vide, l'agent ne peut acceder qu'aux depots qu'il a crees.",
@@ -95,7 +95,7 @@
   "config.section.adguard.desc": "Filtrage DNS & protection réseau",
   "config.section.adguard.label": "AdGuard Home",
   "config.section.agent.desc": "Comportement et optimisation de l'agent",
-  "config.section.agent.label": "Agent",
+  "config.section.agent.label": "Agent IA",
   "config.section.ai_gateway.desc": "Acheminer les requêtes LLM via Cloudflare AI Gateway",
   "config.section.ai_gateway.label": "Passerelle IA",
   "config.section.ansible.desc": "Automatisation Ansible (mode sidecar ou local)",

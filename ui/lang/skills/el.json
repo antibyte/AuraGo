@@ -94,7 +94,7 @@
   "skills.generate_timeout": "Το προσχέδιο AI χρειάστηκε πολύ χρόνο. Δοκιμάστε ξανά ή συντομεύστε την εντολή.",
   "skills.generate_title": "Δημιουργία προχείρου δεξιότητας",
   "skills.guardian_decision": "Απόφαση",
-  "skills.guardian_title": "LLM Guardian",
+  "skills.guardian_title": "Φύλακας LLM",
   "skills.history_title": "Ιστορικό εκδόσεων",
   "skills.history_version": "Έκδοση",
   "skills.import_file_label": "Αρχείο πακέτου",

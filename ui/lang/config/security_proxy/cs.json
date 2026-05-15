@@ -36,7 +36,7 @@
   "config.remote_control.no_platforms": "Žádné platformy k dispozici",
   "config.remote_control.platforms_error": "Chyba načítání platforem",
   "config.remote_control.status_connected": "Připojeno",
-  "config.remote_control.status_offline": "Offline",
+  "config.remote_control.status_offline": "Odpojeno",
   "config.security_proxy.basic_auth_desc": "Vyžadovat uživatelské jméno a heslo pro přístup k proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Povolit Basic Auth",
   "config.security_proxy.basic_auth_title": "Základní ověření",

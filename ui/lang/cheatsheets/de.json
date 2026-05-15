@@ -45,7 +45,7 @@
   "cheatsheets.group_user": "Benutzer",
   "cheatsheets.created_by_agent": "Vom Agent erstellt",
   "cheatsheets.created_by_user": "Vom Benutzer erstellt",
-  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.group_agent": "KI-Agent",
   "cheatsheets.empty_agent": "Noch keine Agent-Spickzettel.",
   "cheatsheets.char_limit_exceeded": "Zeichenlimit überschritten",
   "cheatsheets.delete_locked": "Löschen gesperrt",

@@ -48,7 +48,7 @@
   "config.sql_connections.save": "Speichern",
   "config.sql_connections.save_before_test": "Speichere die Verbindung zuerst, dann teste sie.",
   "config.sql_connections.sqlite_path_placeholder": "z. B. /pfad/zur/datenbank.db",
-  "config.sql_connections.ssl_default": "Standard",
+  "config.sql_connections.ssl_default": "Standardmodus",
   "config.sql_connections.ssl_disable": "Deaktiviert",
   "config.sql_connections.ssl_mode_label": "SSL-Modus",
   "config.sql_connections.ssl_require": "Erforderlich",

@@ -242,7 +242,7 @@
   "missions.trigger_system_startup_hint": "Utför detta uppdrag automatiskt när AuraGo startar.",
   "missions.trigger_webhook": "🪝 Webhook",
   "missions.trigger_webhook_hint": "Webhooken måste skapas i Webhook Manager",
-  "missions.trigger_webhook_label": "Webhook",
+  "missions.trigger_webhook_label": "Webhook-anrop",
   "missions.trigger_webhook_loading": "Laddar webhooks...",
   "missions.trigger_webhook_none": "Inga webhooks tillgängliga",
   "missions.trigger_home_assistant_state": "🏠 Home Assistant statusändring",

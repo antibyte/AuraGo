@@ -23,7 +23,7 @@
   "dashboard.activity_title": "गतिविधि",
   "dashboard.activity_webhooks": "वेबहुक",
   "dashboard.adaptive_tools_active": "Active Tools",
-  "dashboard.adaptive_tools_max": "Adaptive Cap",
+  "dashboard.adaptive_tools_max": "अनुकूली सीमा",
   "dashboard.adaptive_tools_title": "अनुकूली उपकरण फ़िल्टरिंग",
   "dashboard.adaptive_tools_total_calls": "Total Calls",
   "dashboard.agent_banner_context": "संदर्भ:",
@@ -505,7 +505,7 @@
   "dashboard.system_title": "सिस्टम स्थिति",
   "dashboard.system_uptime": "अपटाइम",
   "dashboard.tab_agent": "एजेंट",
-  "dashboard.tab_filesync": "File Sync",
+  "dashboard.tab_filesync": "फ़ाइल सिंक",
   "dashboard.tab_knowledge": "ज्ञान ग्राफ",
   "dashboard.tab_overview": "अवलोकन",
   "dashboard.tab_system": "सिस्टम",
@@ -595,7 +595,7 @@
   "dashboard.quickstatus_plans": "योजनाएँ",
   "dashboard.integration_frigate": "Frigate",
   "dashboard.integration_three_d_printers": "3D प्रिंटर",
-  "dashboard.adaptive_tools_adaptive_cap": "Adaptive Cap",
+  "dashboard.adaptive_tools_adaptive_cap": "अनुकूली सीमा",
   "dashboard.adaptive_tools_total_cap": "Total Cap",
   "dashboard.adaptive_tools_last_count": "Last Tool Count"
 }

@@ -65,7 +65,7 @@
   "config.toggle.active": "Ενεργό",
   "config.toggle.inactive": "Ανενεργό",
   "config.tools.warning_banner": "⚠️ Αυτοί οι διακόπτες ελέγχουν δυνητικά επικίνδυνες δυνατότητες. Ενεργοποιήστε μόνο ό,τι χρειάζεστε.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Έλεγχος heartbeat",
   "config.section.heartbeat.desc": "Προγραμματιστής αφύπνισης στο παρασκήνιο που ελέγχει περιοδικά εργασίες, ραντεβού και emails.",
   "config.heartbeat.enabled_label": "Ενεργοποίηση Heartbeat",
   "config.heartbeat.check_tasks_label": "Έλεγχος ανοιχτών εργασιών",

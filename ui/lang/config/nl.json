@@ -65,7 +65,7 @@
   "config.toggle.active": "Actief",
   "config.toggle.inactive": "Inactief",
   "config.tools.warning_banner": "⚠️ Deze schakelaars besturen potentieel gevaarlijke mogelijkheden. Schakel alleen in wat u nodig hebt.",
-  "config.section.heartbeat.label": "Heartbeat",
+  "config.section.heartbeat.label": "Heartbeat-bewaking",
   "config.section.heartbeat.desc": "Achtergrond wekker die periodiek taken, afspraken en e-mails controleert.",
   "config.heartbeat.enabled_label": "Heartbeat inschakelen",
   "config.heartbeat.check_tasks_label": "Open taken controleren",

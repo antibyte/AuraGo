@@ -6,7 +6,7 @@
   "config.llm_guardian.provider_desc": "Wybierz dostawcę dla Guardian LLM. Szybki, tani model (np. Gemini Flash, GPT-4o-mini, lokalny 3B) jest zalecany dla decyzji poniżej sekundy.",
   "config.llm_guardian.provider_label": "Dostawca",
   "config.llm_guardian.select_provider": "— Główny LLM (domyślny) —",
-  "config.llm_guardian.model_label": "Model",
+  "config.llm_guardian.model_label": "Model AI",
   "config.llm_guardian.model_hint": "puste = domyślny dostawcy",
   "config.llm_guardian.level_title": "Poziom ochrony",
   "config.llm_guardian.level_desc": "Kontroluje, które wywołania narzędzi są wysyłane do Guardiana do przeglądu. Wyższe poziomy sprawdzają więcej operacji, ale kosztują więcej tokenów.",
