@@ -75,6 +75,7 @@ type homepageArgs struct {
 	Template     string
 	ProjectDir   string
 	AutoFix      bool
+	Force        bool
 	Packages     []string
 	URL          string
 	Viewport     string
@@ -346,6 +347,7 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Template:     firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
 		ProjectDir:   firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
 		AutoFix:      tc.AutoFix,
+		Force:        tc.Force,
 		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
 		Viewport:     firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
 		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path", "file_path")),
@@ -375,6 +377,9 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 	}
 	if autoFix, ok := toolArgBool(tc.Params, "auto_fix"); ok {
 		req.AutoFix = autoFix
+	}
+	if force, ok := toolArgBool(tc.Params, "force"); ok {
+		req.Force = force
 	}
 	if draft, ok := toolArgBool(tc.Params, "draft"); ok {
 		req.Draft = draft

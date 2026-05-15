@@ -428,6 +428,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage rebuild")
 				return "Tool Output: " + tools.HomepageRebuild(homepageCfg, logger)
 			case "destroy":
+				if !req.Force {
+					return `Tool Output: {"status":"error","message":"homepage destroy is destructive and requires force=true. Prefer status, start, init, rebuild, or targeted file operations unless the user explicitly asked to destroy the homepage environment."}`
+				}
 				logger.Info("LLM requested homepage destroy")
 				return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
 			case "exec":

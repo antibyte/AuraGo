@@ -167,6 +167,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
 				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
+				"force":         map[string]interface{}{"type": "boolean", "description": "Required and must be true for destructive homepage destroy. Do not set for normal init/rebuild/start/status/project work."},
 				"git_message":   prop("string", "Commit message (for 'git_commit')"),
 				"count":         prop("integer", "Number of entries (for 'git_log': default 10) or commits to revert (for 'git_rollback': default 1)"),
 				"path":          prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Required for read_file/write_file/list_files/edit_file/json_edit/yaml_edit/xml_edit. Do not write/edit generated output paths like 'my-project/dist/index.html'; edit source files and rebuild."),

@@ -17,7 +17,7 @@ Design, develop, build, test and deploy professional websites using AuraGo's web
 | `stop` | Stop the dev container |
 | `status` | Get environment status |
 | `rebuild` | Rebuild the dev container from scratch |
-| `destroy` | Remove everything |
+| `destroy` | Remove everything; requires explicit `force: true` |
 | `init_project` | Create a new web project |
 | `exec` | Run a shell command in the container |
 | `write_file` | Write/create a file |
@@ -111,8 +111,9 @@ Removes container and image, then rebuilds. Use when you need a fresh environmen
 
 ### destroy — Remove everything
 Removes both containers and the dev image.
+Only use this when the user explicitly asks to destroy/reset the homepage environment. For routine recovery prefer `status`, `start`, `init`, or `rebuild`.
 ```json
-{"action": "homepage", "operation": "destroy"}
+{"action": "homepage", "operation": "destroy", "force": true}
 ```
 
 ## Project Scaffolding
@@ -542,7 +543,7 @@ Notes:
 **Solutions:**
 1. Check Docker status: `docker ps -a`
 2. Start manually: `homepage start`
-3. If stuck: `homepage destroy` then `homepage init`
+3. If the user explicitly approves a destructive reset: `homepage destroy` with `force: true`, then `homepage init`
 
 ### init_project fails or install_deps can't find directory
 
