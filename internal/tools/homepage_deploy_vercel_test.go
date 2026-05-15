@@ -54,13 +54,24 @@ func TestHomepageVercelStrategyUsesProjectRootForFrameworks(t *testing.T) {
 	}
 }
 
-func TestHomepageVercelStrategyAllowsExplicitStaticBuildDir(t *testing.T) {
+func TestHomepageVercelStrategyIgnoresExplicitBuildDirForPackageProjects(t *testing.T) {
 	candidate := homepageDeployCandidate{BuildDir: "dist", ContainerSubdir: "vite-site/dist", Kind: "spa"}
-	deploySubdir, useCandidate := homepageVercelDeploySubdir("vite-site", "vite", "dist", candidate)
-	if deploySubdir != "vite-site/dist" {
-		t.Fatalf("explicit build_dir should deploy static output, got %q", deploySubdir)
+	deploySubdir, useCandidate := homepageVercelDeploySubdir("vite-site", "vite", "dist", candidate, true)
+	if deploySubdir != "vite-site" {
+		t.Fatalf("package projects should deploy from source root even with explicit build_dir, got %q", deploySubdir)
+	}
+	if useCandidate {
+		t.Fatal("package projects should not deploy the static output subdirectory")
+	}
+}
+
+func TestHomepageVercelStrategyAllowsExplicitStaticBuildDirForPlainStatic(t *testing.T) {
+	candidate := homepageDeployCandidate{BuildDir: "dist", ContainerSubdir: "static-site/dist", Kind: "static"}
+	deploySubdir, useCandidate := homepageVercelDeploySubdir("static-site", "static", "dist", candidate, false)
+	if deploySubdir != "static-site/dist" {
+		t.Fatalf("plain static explicit build_dir should deploy static output, got %q", deploySubdir)
 	}
 	if !useCandidate {
-		t.Fatal("explicit build_dir should use the validated static candidate")
+		t.Fatal("plain static explicit build_dir should use the validated static candidate")
 	}
 }

@@ -507,7 +507,7 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 
 Notes:
 - `deploy_vercel` is designed for homepage workspace projects including HTML, Vite/React, Astro, and Next.js.
-- Framework projects deploy Vercel-native from the project root after a local build check; explicit static `build_dir` values are deployed only when they contain a valid `index.html`.
+- Projects with `package.json` deploy Vercel-native from the project root after a local build check, even when `build_dir` is provided. Explicit static `build_dir` values are only for plain static projects without package metadata and must contain a valid `index.html`.
 - Do not patch Next.js into static export for Vercel. Let Vercel build and route the framework project from source.
 - AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.
 - If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.

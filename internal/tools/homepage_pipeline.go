@@ -262,10 +262,13 @@ func homepageCandidateKind(framework, buildDir string) string {
 	}
 }
 
-func homepageVercelDeploySubdir(projectDir, framework, explicitBuildDir string, candidate homepageDeployCandidate) (string, bool) {
+func homepageVercelDeploySubdir(projectDir, framework, explicitBuildDir string, candidate homepageDeployCandidate, hasPackageJSON ...bool) (string, bool) {
 	projectDir = strings.TrimSpace(projectDir)
 	if projectDir == "" {
 		projectDir = "."
+	}
+	if len(hasPackageJSON) > 0 && hasPackageJSON[0] {
+		return filepath.ToSlash(filepath.Clean(projectDir)), false
 	}
 	if strings.TrimSpace(explicitBuildDir) != "" && candidate.ContainerSubdir != "" {
 		return candidate.ContainerSubdir, true

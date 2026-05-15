@@ -1314,7 +1314,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		return errJSON("%v", projectInfoErr)
 	}
 
-	if buildDir == "" {
+	if projectInfo.HasPackageJSON {
 		logger.Info("[Homepage] Attempting build before Vercel deploy", "dir", projectDir, "target", target)
 		buildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
 		var br map[string]interface{}
@@ -1331,7 +1331,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		ContainerSubdir: projectDir,
 		Kind:            "framework-source",
 	}
-	if strings.TrimSpace(buildDir) != "" && buildDir != "." {
+	if strings.TrimSpace(buildDir) != "" && buildDir != "." && !projectInfo.HasPackageJSON {
 		var candidateErr error
 		candidate, candidateErr = homepageDetectDeployCandidate(cfg, projectDir, buildDir, framework)
 		if candidateErr != nil {
@@ -1344,7 +1344,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 			return errJSON("No valid Vercel static deploy output for %q: %v", projectDir, candidateErr)
 		}
 	}
-	deploySubdir, staticOutputDeploy := homepageVercelDeploySubdir(projectDir, framework, buildDir, candidate)
+	deploySubdir, staticOutputDeploy := homepageVercelDeploySubdir(projectDir, framework, buildDir, candidate, projectInfo.HasPackageJSON)
 	if !projectInfo.HasPackageJSON {
 		staticOutputDeploy = true
 	}
