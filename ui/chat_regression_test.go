@@ -1763,7 +1763,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		".tool-icon-stack.is-fading",
 		"--tool-stack-icon-size: clamp(44px, 4.6vw, 56px);",
 		"--tool-stack-icon-crop: 5px;",
-		"clip-path: inset(var(--tool-stack-icon-crop));",
+		"clip-path: inset(var(--tool-stack-icon-crop) 0 0 0);",
 		"width: var(--tool-stack-icon-size);",
 	} {
 		if !strings.Contains(css, marker) {
