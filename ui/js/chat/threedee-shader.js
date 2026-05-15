@@ -107,6 +107,10 @@
         return x * x * (3 - 2 * x);
     }
 
+    function softClip(value, limit) {
+        return Math.tanh(value / limit) * limit;
+    }
+
     function modeWeight(mode, t) {
         if (mode === previousMode) {
             return 1 - smoothstep(0, MODE_FADE, t - modeTransitionStart);
@@ -442,7 +446,7 @@
         const u = clamp((x + GRID.width * 0.5) / GRID.width, 0, 1);
         const v = clamp((z + GRID.depth * 0.5) / GRID.depth, 0, 1);
         const px = Math.floor((1 - u) * (textMaskSize.width - 1));
-        const py = Math.floor((1 - v) * (textMaskSize.height - 1));
+        const py = Math.floor(v * (textMaskSize.height - 1));
         const alpha = textMask[(py * textMaskSize.width + px) * 4 + 3] / 255;
         let letterIndex = -1;
         let nearest = Infinity;
@@ -639,11 +643,12 @@
             if (age < 0 || age > IMPULSE_LIFETIME) continue;
 
             const dist = Math.hypot(x - impulse.x, z - impulse.z);
-            const radius = age * 3.15;
-            const ring = Math.sin((dist - radius) * 4.9);
-            const envelope = Math.exp(-Math.abs(dist - radius) * 1.08);
+            const radius = age * 3.05;
+            const ring = Math.sin((dist - radius) * 3.65);
+            const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
             const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
-            height += ring * envelope * fade * impulse.strength;
+            const strength = softClip(impulse.strength, 1.08);
+            height += softClip(ring * envelope * fade * strength, 0.72);
         }
 
         height += textHeightAt(x, z, t);
