@@ -1632,6 +1632,34 @@ func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendProviderModalCancelUsesScopedCloseHandler(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "providers.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+
+	moduleJS := string(moduleContent)
+	if strings.Contains(moduleJS, `onclick="if(copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()"`) {
+		t.Fatal("provider modal cancel must not reference a non-global copilotPollInterval from inline HTML")
+	}
+	for _, marker := range []string{
+		"function closeProviderModal()",
+		"clearInterval(copilotPollInterval);",
+		`id="provider-modal-close-btn"`,
+		`id="provider-modal-cancel-btn"`,
+		"document.getElementById('provider-modal-close-btn')?.addEventListener('click', closeProviderModal);",
+		"document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', closeProviderModal);",
+		"overlay.onclick = (e) => { if (e.target === overlay) closeProviderModal(); };",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing provider modal close marker %q", modulePath, marker)
+		}
+	}
+}
+
 func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	t.Parallel()
 

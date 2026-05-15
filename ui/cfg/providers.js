@@ -819,7 +819,15 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const overlay = document.createElement('div');
             overlay.id = 'provider-modal-overlay';
             overlay.className = 'prov-modal-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            let copilotPollInterval = null;
+            function closeProviderModal() {
+                if (copilotPollInterval) {
+                    clearInterval(copilotPollInterval);
+                    copilotPollInterval = null;
+                }
+                overlay.remove();
+            }
+            overlay.onclick = (e) => { if (e.target === overlay) closeProviderModal(); };
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
@@ -832,7 +840,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             <div class="prov-modal-panel" onclick="event.stopPropagation()">
                 <div class="prov-modal-header">
                     <div class="prov-modal-title">${title}</div>
-                    <button onclick="if(typeof copilotPollInterval!=='undefined'&&copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()" class="prov-modal-close-btn">✕</button>
+                    <button type="button" id="provider-modal-close-btn" class="prov-modal-close-btn">✕</button>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_id_label')}</div>
@@ -1025,7 +1033,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
 
                 <div class="prov-modal-actions">
-                    <button class="btn-save prov-btn-muted prov-btn-md" onclick="if(copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()">
+                    <button type="button" id="provider-modal-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">
                         ${t('config.providers.cancel')}
                     </button>
                     <button class="btn-save prov-btn-md" id="prov-save-btn">
@@ -1034,6 +1042,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
             </div>`;
             document.body.appendChild(overlay);
+            document.getElementById('provider-modal-close-btn')?.addEventListener('click', closeProviderModal);
+            document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', closeProviderModal);
 
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);
@@ -1122,7 +1132,6 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const copilotLink = document.getElementById('copilot-verification-link');
             const copilotStatus = document.getElementById('copilot-auth-status');
             let copilotDeviceCode = '';
-            let copilotPollInterval = null;
 
             if (copilotStartBtn) {
                 copilotStartBtn.onclick = async () => {
@@ -1357,7 +1366,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 entry.models = providerGetModels();
 
                 onSave(entry);
-                overlay.remove();
+                closeProviderModal();
             };
 
             // Focus first editable field
