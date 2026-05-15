@@ -19,6 +19,7 @@
     const fogPlanes = [];
     const impactLights = [];
     const shockwaves = [];
+    let cameraShake = 0;
 
     const GRID = {
         width: 24,
@@ -86,12 +87,13 @@
         return new THREE.CanvasTexture(canvas);
     }
 
-    function createSmokeSprite(x, y, z, color, scale, life) {
+    function createSmokeSprite(x, y, z, color, scale, life, options) {
+        const opts = options || {};
         const material = new THREE.SpriteMaterial({
             map: smokeTexture,
             color: color,
             transparent: true,
-            opacity: 0.5,
+            opacity: opts.opacity == null ? 0.5 : opts.opacity,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
@@ -99,7 +101,104 @@
         sprite.position.set(x, y, z);
         sprite.scale.set(scale, scale, scale);
         scene.add(sprite);
-        sprites.push({ sprite, life, maxLife: life, initialScale: scale });
+        sprites.push({
+            sprite,
+            life,
+            maxLife: life,
+            initialScale: scale,
+            baseOpacity: material.opacity,
+            vx: opts.vx || 0,
+            vy: opts.vy || 0,
+            vz: opts.vz || 0,
+            spin: opts.spin || 0,
+            expansion: opts.expansion == null ? 1.0 : opts.expansion,
+            fadePower: opts.fadePower == null ? 1.0 : opts.fadePower,
+            kind: opts.kind || 'smoke'
+        });
+    }
+
+    function createTrailParticle(s, kind) {
+        const trailCone = kind || 'trailCone';
+        const heat = Math.random();
+        const spark = trailCone === 'debrisSpark';
+        const drift = spark ? 0.9 : 0.24;
+        const scale = spark ? 0.045 + Math.random() * 0.07 : 0.14 + Math.random() * 0.16;
+        const life = spark ? 0.24 + Math.random() * 0.22 : 0.34 + Math.random() * 0.3;
+        const backX = -s.vx * (0.04 + Math.random() * 0.05);
+        const backZ = -s.vz * (0.04 + Math.random() * 0.05);
+        const color = spark
+            ? (heat > 0.5 ? 0xfff2a8 : 0xff7a18)
+            : (heat > 0.58 ? 0xffa23a : 0x7dd3fc);
+
+        createSmokeSprite(
+            s.x + backX + (Math.random() - 0.5) * 0.14,
+            s.y + 0.08 + (Math.random() - 0.5) * 0.12,
+            s.zScene + backZ + (Math.random() - 0.5) * 0.14,
+            color,
+            scale,
+            life,
+            {
+                vx: backX * 7 + (Math.random() - 0.5) * drift,
+                vy: spark ? 0.8 + Math.random() * 1.6 : 0.12 + Math.random() * 0.28,
+                vz: backZ * 7 + (Math.random() - 0.5) * drift,
+                spin: (Math.random() - 0.5) * 3.5,
+                opacity: spark ? 0.85 : 0.42,
+                expansion: spark ? 0.35 : 1.65,
+                fadePower: spark ? 1.7 : 1.25,
+                kind: trailCone
+            }
+        );
+    }
+
+    function spawnImpactBurst(x, y, z, strength) {
+        for (let j = 0; j < 10; j++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.55 + Math.random() * 1.4;
+            createSmokeSprite(x, y + 0.04, z, j % 3 === 0 ? 0xffffff : 0xff8a1c, 0.25 + Math.random() * 0.38, 0.72 + Math.random() * 0.45, {
+                vx: Math.cos(angle) * speed,
+                vy: 0.25 + Math.random() * 0.95,
+                vz: Math.sin(angle) * speed,
+                spin: (Math.random() - 0.5) * 2.2,
+                opacity: 0.52,
+                expansion: 2.4,
+                fadePower: 1.35,
+                kind: 'blastBloom'
+            });
+        }
+
+        for (let j = 0; j < 22; j++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1.2 + Math.random() * 3.2;
+            createTrailParticle({
+                x,
+                y: y + 0.04,
+                zScene: z,
+                vx: -Math.cos(angle) * speed,
+                vz: -Math.sin(angle) * speed
+            }, 'debrisSpark');
+        }
+
+        const flash = new THREE.PointLight(0xffb347, 13 * strength, 20);
+        flash.position.set(x, y + 0.12, z);
+        scene.add(flash);
+        impactLights.push({ light: flash, life: 0.72, maxLife: 0.72, baseIntensity: 13 * strength });
+
+        for (let ring = 0; ring < 3; ring++) {
+            const shock = new THREE.Mesh(window.shockwaveGeom, window.shockwaveMat.clone());
+            shock.position.set(x, y + 0.04 + ring * 0.018, z);
+            shock.rotation.x = -Math.PI / 2;
+            scene.add(shock);
+            shockwaves.push({
+                mesh: shock,
+                life: 0.68 + ring * 0.14,
+                maxLife: 0.68 + ring * 0.14,
+                maxScale: 7.0 + ring * 2.4,
+                baseOpacity: 0.88 - ring * 0.16,
+                kind: 'blastRing'
+            });
+        }
+
+        cameraShake = Math.max(cameraShake, 0.16 + strength * 0.12);
     }
 
     function spawnImpulse(t, immediate) {
@@ -131,18 +230,28 @@
             });
         }
         
+        const driftX = (Math.random() - 0.5) * 2.2;
+        const driftZ = 1.8 + Math.random() * 1.6;
+        const fallTime = 0.82 + Math.random() * 0.22;
+        const startX = x - driftX;
+        const startZScene = z - 5.3 - driftZ;
+
         const mesh = new THREE.Mesh(window.sphereGeom, window.sphereMat);
         const light = new THREE.PointLight(0xff6600, 3, 10);
         mesh.add(light);
-        mesh.position.set(x, 6, z - 5.3);
+        mesh.position.set(startX, 6, startZScene);
         scene.add(mesh);
         
         spheres.push({
             mesh: mesh,
-            x: x,
+            x: startX,
             y: 6,
-            z: z,
+            zScene: startZScene,
+            vx: driftX / fallTime,
+            vz: driftZ / fallTime,
             vy: -8 - Math.random() * 4,
+            spinX: 2 + Math.random() * 4,
+            spinZ: 1.2 + Math.random() * 3,
             strength: strength
         });
 
@@ -167,39 +276,36 @@
                 sprites.splice(i, 1);
             } else {
                 const ratio = p.life / p.maxLife;
-                p.sprite.material.opacity = ratio * 0.5;
-                const s = p.initialScale * (2.0 - ratio);
+                p.sprite.material.opacity = p.baseOpacity * Math.pow(ratio, p.fadePower);
+                const s = p.initialScale * (1 + p.expansion * (1 - ratio));
                 p.sprite.scale.set(s, s, s);
-                p.sprite.position.y += dt * 0.5;
+                p.sprite.position.x += p.vx * dt;
+                p.sprite.position.y += (p.vy + 0.12) * dt;
+                p.sprite.position.z += p.vz * dt;
+                p.sprite.material.rotation += p.spin * dt;
             }
         }
 
         for (let i = spheres.length - 1; i >= 0; i--) {
             let s = spheres[i];
+            s.x += s.vx * dt;
             s.y += s.vy * dt;
-            s.mesh.position.y = s.y;
+            s.zScene += s.vz * dt;
+            s.mesh.position.set(s.x, s.y, s.zScene);
+            s.mesh.rotation.x += s.spinX * dt;
+            s.mesh.rotation.z += s.spinZ * dt;
             
-            if (Math.random() < 0.6) {
-                createSmokeSprite(s.x, s.y, s.z - 5.3, 0x818cf8, 0.4, 0.6);
+            if (Math.random() < 0.78) {
+                createTrailParticle(s, 'trailCone');
+            }
+            if (Math.random() < 0.28) {
+                createTrailParticle(s, 'debrisSpark');
             }
 
-            if (s.y <= heightAt(s.x, s.z, t) - 2.55) {
-                addImpulse(s.x, s.z, s.strength);
-                
-                for(let j=0; j<6; j++) {
-                    createSmokeSprite(s.x, s.y, s.z - 5.3, 0xff8800, 0.6, 1.0);
-                }
-                
-                const flash = new THREE.PointLight(0xffaa00, 8, 15);
-                flash.position.set(s.x, s.y, s.z - 5.3);
-                scene.add(flash);
-                impactLights.push({ light: flash, life: 0.6, maxLife: 0.6 });
-                
-                const shock = new THREE.Mesh(window.shockwaveGeom, window.shockwaveMat.clone());
-                shock.position.set(s.x, s.y + 0.05, s.z - 5.3);
-                shock.rotation.x = -Math.PI / 2;
-                scene.add(shock);
-                shockwaves.push({ mesh: shock, life: 0.8, maxLife: 0.8 });
+            const gridZ = s.zScene + 5.3;
+            if (s.y <= heightAt(s.x, gridZ, t) - 2.55) {
+                addImpulse(s.x, gridZ, s.strength * 1.38);
+                spawnImpactBurst(s.x, s.y, s.zScene, s.strength);
                 
                 scene.remove(s.mesh);
                 spheres.splice(i, 1);
@@ -213,7 +319,7 @@
                 scene.remove(l.light);
                 impactLights.splice(i, 1);
             } else {
-                l.light.intensity = 8 * (l.life / l.maxLife);
+                l.light.intensity = (l.baseIntensity || 8) * Math.pow(l.life / l.maxLife, 1.15);
             }
         }
         
@@ -226,9 +332,10 @@
                 shockwaves.splice(i, 1);
             } else {
                 const progress = 1.0 - (s.life / s.maxLife);
-                const scale = 1.0 + progress * 6.0;
+                const scale = 1.0 + progress * (s.maxScale || 6.0);
                 s.mesh.scale.set(scale, scale, scale);
-                s.mesh.material.opacity = 0.8 * (1.0 - Math.pow(progress, 1.5));
+                s.mesh.material.opacity = (s.baseOpacity || 0.8) * (1.0 - Math.pow(progress, 1.35));
+                s.mesh.position.y += dt * 0.08;
             }
         }
         
@@ -487,9 +594,13 @@
 
         if (camera) {
             const sway = Math.sin(t * 0.2) * 0.18;
-            camera.position.x = sway;
-            camera.position.y = 5.1 + Math.sin(t * 0.17) * 0.18;
+            const shakeX = (Math.random() - 0.5) * cameraShake;
+            const shakeY = (Math.random() - 0.5) * cameraShake * 0.6;
+            camera.position.x = sway + shakeX;
+            camera.position.y = 5.1 + Math.sin(t * 0.17) * 0.18 + shakeY;
             camera.lookAt(sway * 0.25, -2.0, -5.7);
+            cameraShake *= 0.82;
+            if (cameraShake < 0.003) cameraShake = 0;
         }
 
         renderer.render(scene, camera);

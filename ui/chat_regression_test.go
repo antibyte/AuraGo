@@ -638,6 +638,30 @@ func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_ThreeDeeImpactsUseCinematicParticleBurst(t *testing.T) {
+	t.Parallel()
+
+	shaderContent, err := os.ReadFile(filepath.Join("js", "chat", "threedee-shader.js"))
+	if err != nil {
+		t.Fatalf("read threedee shader: %v", err)
+	}
+
+	shaderJS := string(shaderContent)
+	for _, marker := range []string{
+		"let cameraShake = 0;",
+		"function createTrailParticle",
+		"function spawnImpactBurst",
+		"trailCone",
+		"blastRing",
+		"debrisSpark",
+		"cameraShake = Math.max(cameraShake",
+	} {
+		if !strings.Contains(shaderJS, marker) {
+			t.Fatalf("threedee shader missing cinematic impact marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	t.Parallel()
 
