@@ -4,7 +4,7 @@
   "config.fritzbox.feature_enabled": "Ενεργοποιημένο",
   "config.fritzbox.feature_readonly": "Μόνο ανάγνωση",
   "config.fritzbox.features_title": "Ομάδες λειτουργιών",
-  "config.fritzbox.group_network": "📶 Δίκτυο \u0026 WLAN",
+  "config.fritzbox.group_network": "📶 Δίκτυο & WLAN",
   "config.fritzbox.group_polling": "Δειγματοληψία τηλεφωνίας",
   "config.fritzbox.group_smarthome": "🏡 Έξυπνο σπίτι",
   "config.fritzbox.group_storage": "💾 Αποθήκευση / NAS",

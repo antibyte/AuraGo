@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Namn",
   "config.chromecast.col_port": "Port",
   "config.chromecast.delete_confirm": "Verkligen ta bort Chromecast-enhet \"{name}\"? Detta kan inte ångras.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Det gick inte att ta bort",
   "config.chromecast.delete_tooltip": "Ta bort",
   "config.chromecast.desc_placeholder": "Valfri beskrivning…",
   "config.chromecast.devices_desc": "Hantera dina Chromecast-enheter. Använd mDNS-sökning för att hitta enheter på ditt nätverk, eller lägg till dem manuellt. Ge varje enhet ett beskrivande namn så att agenten kan identifiera den (t.ex. \"Vardagsrum\").",
@@ -36,6 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Spara",
   "config.chromecast.tts_port_label": "TTS-port",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Okänd",
   "config.chromecast.port_placeholder": "8009"
 }

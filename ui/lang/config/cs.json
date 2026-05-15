@@ -126,7 +126,7 @@
   "config.yepapi.testing": "Testování...",
   "config.yepapi.test_success": "Připojení úspěšné — API klíč je platný.",
   "config.yepapi.test_error": "Připojení selhalo — zkontrolujte API klíč a nastavení poskytovatele.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.yepapi.provider_info": "YepAPI lze také použít jako poskytovatele LLM. Nakonfigurujte jej v sekci Poskytovatelé zadáním „yepapi“.",
   "config.frigate_title": "Frigate NVR",
   "config.frigate_enabled": "Povolit Frigate",
   "config.frigate_url": "URL Frigate",

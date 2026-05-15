@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Om din webbläsare visar ERR_CONNECTION_REFUSED, kopiera den fullständiga URL:en från adressfältet och klistra in den nedan för att slutföra auktoriseringen.",
   "config.google_workspace.oauth_manual_btn": "Slutför auktorisering",
   "config.google_workspace.oauth_manual_success": "Auktorisering lyckades",
-  "config.google_workspace.oauth_manual_failed": "Auktorisering misslyckades: ",
+  "config.google_workspace.oauth_manual_failed": "Auktorisering misslyckades:",
   "config.google_workspace.testing": "⏳ Testar..."
 }

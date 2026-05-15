@@ -154,7 +154,9 @@ func TestInterpolateFunction(t *testing.T) {
 		{"{0} + {1} = 2", []any{"1", "1"}, "1 + 1 = 2"},
 		{"No placeholders", nil, "No placeholders"},
 		{"Map: {name}", []any{map[string]any{"name": "Alice"}}, "Map: Alice"},
+		{"Map: {{name}}", []any{map[string]any{"name": "Alice"}}, "Map: Alice"},
 		{"Mixed {0} and {name}", []any{"index", map[string]any{"name": "Bob"}}, "Mixed index and Bob"},
+		{"Mixed {0} and {{name}}", []any{"index", map[string]any{"name": "Bob"}}, "Mixed index and Bob"},
 		{"Empty string", []any{}, "Empty string"},
 	}
 

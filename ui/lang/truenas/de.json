@@ -22,7 +22,7 @@
   "truenas.btn_test_connection": "Verbindung testen",
   "truenas.btn_create": "Erstellen",
   "truenas.btn_delete": "Löschen",
-  "truenas.btn_rollback": "Rollback",
+  "truenas.btn_rollback": "Zurücksetzen",
   "truenas.filter_all_datasets": "Alle Datasets",
   "truenas.loading_pools": "Pools werden geladen...",
   "truenas.loading_datasets": "Datasets werden geladen...",

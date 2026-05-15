@@ -189,7 +189,7 @@ async function containerAction(id, action) {
             showToast(dockerErrMsg(data.message), 'error');
         }
     } catch (e) {
-        showToast(t('common.error') || 'Error', 'error');
+        showToast(t('common.error'), 'error');
     }
 }
 
@@ -417,7 +417,7 @@ async function confirmDelete() {
             showToast(dockerErrMsg(data.message), 'error');
         }
     } catch (e) {
-        showToast(t('common.error') || 'Error', 'error');
+        showToast(t('common.error'), 'error');
     } finally {
         if (deleteTarget) {
             deleteInFlight = false;
@@ -438,7 +438,7 @@ function setDeleteConfirmBusy(busy) {
 // Docker wraps errors as {"message":"..."}; our Go handler may also JSON-encode
 // them further. We unwrap up to two layers.
 function dockerErrMsg(msg) {
-    if (!msg) return t('common.error') || 'Error';
+    if (!msg) return t('common.error');
     let text = msg;
     for (let i = 0; i < 2; i++) {
         try {

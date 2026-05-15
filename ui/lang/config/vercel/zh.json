@@ -29,7 +29,7 @@
   "config.vercel.test_title": "连接测试",
   "config.vercel.token_desc": "来自 Vercel 的个人访问令牌。安全存储在保险库中。",
   "config.vercel.token_empty": "请输入令牌",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "个人访问令牌",
   "config.vercel.token_saved": "令牌已保存到保险库",
   "config.vercel.token_title": "API 令牌"
 }

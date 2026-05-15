@@ -43,5 +43,5 @@
   "config.memory_analysis.threshold_label": "Schwellenwert",
   "config.memory_analysis.threshold_title": "Auto-Bestätigungs-Schwelle",
   "config.memory_analysis.unified_block_help": "Wichtige Erinnerungen werden zu einem kompakten Kontextblock zusammengefasst, statt einzeln aufgelistet zu werden. Reduziert den Token-Verbrauch, ohne wichtige Informationen zu verbergen.",
-  "config.memory_analysis.unified_block_label": "Unified Memory Block"
+  "config.memory_analysis.unified_block_label": "Einheitlicher Speicherblock"
 }

@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Jméno",
   "config.chromecast.col_port": "Přístav",
   "config.chromecast.delete_confirm": "Opravdu smazat zařízení Chromecast „{name}“? Toto nelze vrátit zpět.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Smazání se nezdařilo",
   "config.chromecast.delete_tooltip": "Smazat",
   "config.chromecast.desc_placeholder": "Nepovinný popis…",
   "config.chromecast.devices_desc": "Spravujte svá zařízení Chromecast. Použijte zjišťování mDNS k vyhledání zařízení ve vaší síti nebo je přidejte ručně. Každému zařízení dejte popisný název, aby jej mohl agent oslovit (např. „Obývací pokoj“).",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "Je vyžadován název zařízení.",
   "config.chromecast.no_devices": "Nejsou zaregistrována žádná zařízení Chromecast. Pomocí „Discover Devices“ je vyhledejte ve své síti.",
   "config.chromecast.no_devices_found": "V síti nebyla nalezena žádná zařízení Chromecast. Ujistěte se, že jsou vaše zařízení zapnutá a připojená ke stejné síti.",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "Přístav",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Uložit",
   "config.chromecast.tts_port_label": "Port TTS",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Neznámý",
   "config.chromecast.port_placeholder": "8009"
 }

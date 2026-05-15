@@ -34,7 +34,7 @@
   "truenas.empty_shares": "Geen SMB-delingen gevonden",
   "truenas.label_host": "Host",
   "truenas.hint_host": "Hostnaam of IP-adres van uw TrueNAS-server",
-  "truenas.label_apikey": "API Key",
+  "truenas.label_apikey": "API-sleutel",
   "truenas.hint_apikey": "Create an API key under System → API Keys in TrueNAS",
   "truenas.label_https": "HTTPS gebruiken",
   "truenas.label_insecure": "Zelfondertekende certificaten accepteren (onveilig)",

@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Nom",
   "config.chromecast.col_port": "Port",
   "config.chromecast.delete_confirm": "Supprimer l'appareil Chromecast « {name} » ? Cette action est irréversible.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Échec de la suppression",
   "config.chromecast.delete_tooltip": "Supprimer",
   "config.chromecast.desc_placeholder": "Description optionnelle…",
   "config.chromecast.devices_desc": "Gérez vos appareils Chromecast. Utilisez la découverte mDNS pour trouver les appareils sur votre réseau, ou ajoutez-les manuellement. Donnez à chaque appareil un nom convivial pour que l'agent puisse l'identifier (ex. « Salon »).",
@@ -36,6 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Enregistrer",
   "config.chromecast.tts_port_label": "Port TTS",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Inconnu",
   "config.chromecast.port_placeholder": "8009"
 }

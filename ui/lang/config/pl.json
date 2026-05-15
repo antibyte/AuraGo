@@ -126,7 +126,7 @@
   "config.yepapi.testing": "Testowanie...",
   "config.yepapi.test_success": "Połączenie udane — klucz API jest ważny.",
   "config.yepapi.test_error": "Połączenie nieudane — sprawdź klucz API i ustawienia dostawcy.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.yepapi.provider_info": "YepAPI może być również używane jako dostawca LLM. Skonfiguruj go w sekcji Dostawcy, wpisując „yepapi”.",
   "config.frigate_title": "Frigate NVR",
   "config.frigate_enabled": "Włącz Frigate",
   "config.frigate_url": "URL Frigate",

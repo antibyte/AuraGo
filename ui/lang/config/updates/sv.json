@@ -59,14 +59,14 @@
   "config.updates.confirm_install": "Uppdateringen startar nu. AuraGo kommer att starta om automatiskt efteråt.\n\nLadda om sidan efter cirka 30–60 sekunder.",
   "config.updates.current": "Aktuell",
   "config.updates.error": "Fel",
-  "config.updates.install_button": "⬆️ Install Update",
+  "config.updates.install_button": "⬆️ Installera uppdatering",
   "config.updates.installing": "Installerar…",
   "config.updates.latest": "Senaste",
   "config.updates.running": "Kör…",
   "config.updates.started": "✅ Uppdatering startade — AuraGo startar om. Ladda om på 60-talet...",
   "config.updates.up_to_date": "Upp till datum",
   "config.updates.version": "Version",
-  "config.updates.warning_banner": "Uppdateringen ersätter binärfiler, uppmaningar och UI-filer. \u003cstrong\u003eDin konfiguration och data bevaras.\u003c/strong\u003e AuraGo kommer att starta om efter uppdateringen.",
+  "config.updates.warning_banner": "Uppdateringen ersätter binärfiler, uppmaningar och UI-filer. <strong>Din konfiguration och data bevaras.</strong> AuraGo kommer att starta om efter uppdateringen.",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.webdav.secret_empty": "Värdet är tomt"
 }

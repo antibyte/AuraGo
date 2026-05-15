@@ -1,7 +1,7 @@
 {
   "config.header.restart_full": "↻ Neustart",
   "config.header.restart_tooltip": "AuraGo Service Neustarten",
-  "config.nav.chat": "Chat",
+  "config.nav.chat": "Chatten",
   "config.nav.dashboard": "Dashboard",
   "config.nav.missions": "Missionen",
   "config.nav.config": "Konfiguration",

@@ -4,9 +4,9 @@
   "config.google_workspace.readonly_hint": "जब सक्रिय हो, केवल पढ़ने के ऑपरेशन की अनुमति है (ईमेल भेजना, इवेंट बनाना, दस्तावेज संपादित करना आदि नहीं)",
   "config.google_workspace.oauth_title": "OAuth2 सेटअप",
   "config.google_workspace.oauth_desc": "Google Workspace प्रमाणीकरण के लिए OAuth2 का उपयोग करता है। Google Cloud Console में एक OAuth2 क्लाइंट बनाएं, redirect URI को अपने AuraGo URL + /api/oauth/callback पर सेट करें, और क्रेडेंशियल नीचे पेस्ट करें।",
-  "config.google_workspace.client_id_label": "OAuth2 Client ID",
+  "config.google_workspace.client_id_label": "OAuth2 क्लाइंट ID",
   "config.google_workspace.client_id_hint": "Google Cloud Console → API और सेवाएं → क्रेडेंशियल से",
-  "config.google_workspace.client_secret_label": "OAuth2 Client Secret",
+  "config.google_workspace.client_secret_label": "OAuth2 क्लाइंट रहस्य",
   "config.google_workspace.client_secret_hint": "vault में एन्क्रिप्टेड रूप से संग्रहीत। secret पेस्ट करें और सहेजें पर क्लिक करें।",
   "config.google_workspace.save_vault": "Vault में सहेजें",
   "config.google_workspace.connection_label": "OAuth2 कनेक्शन",
@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "यदि आपका ब्राउज़र ERR_CONNECTION_REFUSED दिखाता है, तो एड्रेस बार से पूरा URL कॉपी करें और प्राधिकरण पूरा करने के लिए नीचे पेस्ट करें।",
   "config.google_workspace.oauth_manual_btn": "प्राधिकरण पूरा करें",
   "config.google_workspace.oauth_manual_success": "प्राधिकरण सफल",
-  "config.google_workspace.oauth_manual_failed": "प्राधिकरण विफल: ",
+  "config.google_workspace.oauth_manual_failed": "प्राधिकरण विफल:",
   "config.google_workspace.testing": "⏳ परीक्षण..."
 }

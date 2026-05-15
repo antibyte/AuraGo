@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.cert_status_error": "Laadfout",
   "config.server.cert_status_loading": "Laden…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-toolbrug",
   "config.tailscale.key_empty": "Sleutel is leeg",
   "config.tailscale.key_save_failed": "Opslaan mislukt",
   "config.tailscale.key_saved": "Sleutel opgeslagen",

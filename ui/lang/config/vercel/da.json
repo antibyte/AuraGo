@@ -29,7 +29,7 @@
   "config.vercel.test_title": "Forbindelsestest",
   "config.vercel.token_desc": "Personal Access Token fra Vercel. Opbevares sikkert i vaultet.",
   "config.vercel.token_empty": "Indtast venligst en token",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "Personligt adgangstoken",
   "config.vercel.token_saved": "Token gemt i vault",
   "config.vercel.token_title": "API-token"
 }

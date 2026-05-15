@@ -26,7 +26,7 @@
   "containers.delete_force": "Wymuś usunięcie (zabij, jeśli uruchomiony)",
   "containers.delete_success": "Kontener usunięty",
   "containers.action_success": "Akcja zakończona pomyślnie",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "Powłoka",
   "containers.terminal_title": "Powłoka kontenera",
   "containers.terminal_connecting": "Łączenie...",
   "containers.terminal_connected": "Połączono",

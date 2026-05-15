@@ -5,7 +5,7 @@
   "config.providers.account_id_placeholder": "例如 a1b2c3d4e5f6...",
   "config.providers.add_model": "添加模型",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 API Key",
+  "config.providers.auth_type_api_key": "🔑 API 密钥",
   "config.providers.auth_type_api_key_option": "🔑 API 密钥",
   "config.providers.auth_type_oauth2": "🔐 OAuth2 授权码",
   "config.providers.auth_type_oauth2_option": "🔐 OAuth2 授权码",

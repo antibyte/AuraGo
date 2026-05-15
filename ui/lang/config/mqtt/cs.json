@@ -28,7 +28,7 @@
   "config.mqtt.qos_0": "0 – Nejvýše jednou (fire & forget)",
   "config.mqtt.qos_1": "1 – Alespoň jednou (potvrzené doručení)",
   "config.mqtt.qos_2": "2 – Právě jednou (zaručené doručení)",
-  "config.mqtt.qos_label": "Quality of Service (QoS)",
+  "config.mqtt.qos_label": "Kvalita služby (QoS)",
   "config.mqtt.readonly_label": "Režim pouze čtení",
   "config.mqtt.refresh_btn": "Obnovit",
   "config.mqtt.relay_to_agent_label": "Přeposlat agentovi",

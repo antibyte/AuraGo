@@ -34,7 +34,7 @@
   "truenas.empty_shares": "Nenhum compartilhamento SMB encontrado",
   "truenas.label_host": "Anfitrião",
   "truenas.hint_host": "Nome do host ou endereço IP do seu servidor TrueNAS",
-  "truenas.label_apikey": "API Key",
+  "truenas.label_apikey": "Chave API",
   "truenas.hint_apikey": "Create an API key under System → API Keys in TrueNAS",
   "truenas.label_https": "Usar HTTPS",
   "truenas.label_insecure": "Aceitar certificados autoassinados (inseguro)",

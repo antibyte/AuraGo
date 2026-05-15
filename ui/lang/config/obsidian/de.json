@@ -3,7 +3,7 @@
   "config.obsidian.readonly_label": "Nur Lesen",
   "config.obsidian.destructive_label": "Destruktive Aktionen erlauben",
   "config.obsidian.host_label": "Host",
-  "config.obsidian.port_label": "Port",
+  "config.obsidian.port_label": "Hafen",
   "config.obsidian.https_label": "HTTPS verwenden",
   "config.obsidian.insecure_label": "Unsicheres SSL",
   "config.obsidian.apikey_label": "API-Schlüssel",

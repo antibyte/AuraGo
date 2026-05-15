@@ -75,7 +75,7 @@
   "config.heartbeat.additional_prompt_placeholder": "z.B. Prüfe auch die System-Logs auf kritische Fehler...",
   "config.heartbeat.day_window_title": "Tag-Zeitfenster",
   "config.heartbeat.night_window_title": "Nacht-Zeitfenster",
-  "config.heartbeat.window_start_label": "Start",
+  "config.heartbeat.window_start_label": "Starten",
   "config.heartbeat.window_end_label": "Ende",
   "config.heartbeat.window_interval_label": "Intervall",
   "config.heartbeat.interval_15m": "15 Minuten",

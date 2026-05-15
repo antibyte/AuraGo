@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "未知状态",
   "config.server.cert_status_error": "加载错误",
   "config.server.cert_status_loading": "加载中…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python工具桥",
   "config.tailscale.key_empty": "密钥为空",
   "config.tailscale.key_save_failed": "保存失败",
   "config.tailscale.key_saved": "密钥已保存",
@@ -66,7 +66,7 @@
   "config.updates.started": "✅ 更新已开始 — AuraGo 正在重启。60 秒后重新加载...",
   "config.updates.up_to_date": "已是最新",
   "config.updates.version": "版本",
-  "config.updates.warning_banner": "更新将替换二进制文件、提示和 UI 文件。\u003cstrong\u003e您的配置和数据将被保留。\u003c/strong\u003eAuraGo 将在更新后重启。",
+  "config.updates.warning_banner": "更新将替换二进制文件、提示和 UI 文件。<strong>您的配置和数据将被保留。</strong>AuraGo 将在更新后重启。",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空"
 }

@@ -53,7 +53,7 @@
   "config.a2a.status_unavailable": "Stav A2A není dostupný",
   "config.a2a.streaming": "Streamování (SSE)",
   "config.a2a.test_btn": "Testovat A2A server",
-  "config.a2a.test_btn_short": "Test",
+  "config.a2a.test_btn_short": "Testovat",
   "config.a2a.test_fail": "Server neběží",
   "config.a2a.test_ok": "Server běží",
   "config.a2a.testing": "Testování…",

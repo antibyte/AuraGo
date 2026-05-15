@@ -1,18 +1,18 @@
 {
-  "config.backup.create_desc": "Creates an \u003cstrong\u003e.ago\u003c/strong\u003e archive (ZIP) with config, prompts, data and skills. When a password is set, all vault secrets (API keys, tokens) are also securely included — ideal for migrating to a new instance (e.g. with systemd-injected master key).",
+  "config.backup.create_desc": "Oppretter et <strong>.ago </strong> arkiv ( ZIP ) med konfigurasjon, ledetekster, data og ferdigheter. Når et passord er angitt, er alle hvelvhemmeligheter (API-nøkler, tokens) også sikkert inkludert - ideelt for å migrere til en ny forekomst (f.eks. med systemd-injisert hovednøkkel).",
   "config.backup.card_create_title": "Sikkerhetskopieinnhold",
   "config.backup.card_encryption_title": "Kryptering",
   "config.backup.card_import_title": "Gjenopprett sikkerhetskopi",
-  "config.backup.create_download": "⬇️ Backup Maken \u0026 Downloaden",
+  "config.backup.create_download": "⬇️ Backup Maken & Downloaden",
   "config.backup.creating": "⏳ Backup maken…",
   "config.backup.decryption_failed": "Decryptie mislukt — verkeerd wachtwoord?",
   "config.backup.decryption_placeholder": "Decryptie wachtwoord…",
-  "config.backup.downloaded": "Gedownload: ",
+  "config.backup.downloaded": "Gedownload:",
   "config.backup.encryption_placeholder": "Encryptie wachtwoord…",
   "config.backup.import_button": "📥 Backup Importeren",
   "config.backup.import_password_label": "🔒 Wachtwoord (alleen voor versleutelde backups)",
   "config.backup.import_success": "Importeren succesvol",
-  "config.backup.import_warning": "\u003cstrong\u003eImportant:\u003c/strong\u003e Import overwrites existing files. Config, prompts and data will be replaced. A restart is recommended after import.",
+  "config.backup.import_warning": "<strong> Viktig: </strong> Import overskriver eksisterende filer. Konfigurasjon, ledetekster og data vil bli erstattet. En omstart anbefales etter import.",
   "config.backup.importing": "⏳ Importeren…",
   "config.backup.include_vectordb": "VectorDB opnemen (embeddings — kan groot zijn)",
   "config.backup.include_workdir": "Workdir opnemen (agent_workspace/workdir)",
@@ -28,5 +28,5 @@
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 Backup Maken",
   "config.backup.tab_import": "📥 Backup Importeren",
-  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, login password, tokens) will be included."
+  "config.backup.vault_included_hint": "🔐 Hvelvhemmeligheter (API-nøkler, påloggingspassord, tokens) vil bli inkludert."
 }

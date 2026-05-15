@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Όνομα",
   "config.chromecast.col_port": "Θύρα",
   "config.chromecast.delete_confirm": "Να διαγραφεί η συσκευή Chromecast «{name}»; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Η διαγραφή απέτυχε",
   "config.chromecast.delete_tooltip": "Διαγραφή",
   "config.chromecast.desc_placeholder": "Προαιρετική περιγραφή…",
   "config.chromecast.devices_desc": "Διαχειριστείτε τις συσκευές Chromecast σας. Χρησιμοποιήστε την ανακάλυψη mDNS για να βρείτε συσκευές στο δίκτυό σας ή προσθέστε τες χειροκίνητα. Δώστε σε κάθε συσκευή ένα φιλικό όνομα ώστε ο πράκτορας να μπορεί να την αναγνωρίσει (π.χ. «Σαλόνι»).",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "Απαιτείται όνομα συσκευής.",
   "config.chromecast.no_devices": "Δεν υπάρχουν εγγεγραμμένες συσκευές Chromecast. Χρησιμοποιήστε «Αναζήτηση συσκευών» για να τις βρείτε στο δίκτυό σας.",
   "config.chromecast.no_devices_found": "Δεν βρέθηκαν συσκευές Chromecast στο δίκτυο. Βεβαιωθείτε ότι οι συσκευές σας είναι ενεργοποιημένες και συνδεδεμένες στο ίδιο δίκτυο.",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "Θύρα",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Αποθήκευση",
   "config.chromecast.tts_port_label": "Θύρα TTS",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Άγνωστο",
   "config.chromecast.port_placeholder": "8009"
 }

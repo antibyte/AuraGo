@@ -6,7 +6,7 @@
   "config.media_conversion.readonly_label": "Nur-Lese-Modus",
   "config.media_conversion.ffmpeg_path_label": "FFmpeg-Pfad",
   "config.media_conversion.imagemagick_path_label": "ImageMagick-Pfad",
-  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.timeout_label": "Zeitlimit",
   "config.media_conversion.seconds": "Sekunden",
   "config.media_conversion.test_button": "Tools testen",
   "config.media_conversion.loading": "Prüfe Tools…",

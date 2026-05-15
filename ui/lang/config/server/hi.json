@@ -89,7 +89,7 @@
   "config.server.port_label": "पोर्ट",
   "config.server.selfsigned_port_warning": "1024 से कम पोर्ट के लिए Linux/macOS पर root/व्यवस्थापक अधिकार आवश्यक हैं। बिना उन्नत अधिकारों के स्थानीय पहुंच के लिए पोर्ट 8443 का उपयोग करें।",
   "config.server.ui_language_label": "UI भाषा",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "पायथन टूल ब्रिज",
   "config.tailscale.key_empty": "कुंजी खाली है",
   "config.tailscale.key_save_failed": "सेव विफल",
   "config.tailscale.key_saved": "कुंजी सेव हुई",

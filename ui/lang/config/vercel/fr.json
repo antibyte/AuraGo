@@ -29,7 +29,7 @@
   "config.vercel.test_title": "Test de connexion",
   "config.vercel.token_desc": "Personal Access Token de Vercel. Stocké en toute sécurité dans le coffre-fort.",
   "config.vercel.token_empty": "Veuillez entrer un jeton",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "Jeton d'accès personnel",
   "config.vercel.token_saved": "Jeton enregistré dans le coffre-fort",
   "config.vercel.token_title": "Jeton API"
 }

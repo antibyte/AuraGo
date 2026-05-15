@@ -1,8 +1,8 @@
 {
   "config.homepage.allow_container": "Να επιτρέπεται η διαχείριση containers (εκκίνηση/διακοπή/ανακατασκευή)",
   "config.homepage.allow_deploy": "Να επιτρέπεται η ανάπτυξη σε απομακρυσμένους διακομιστές",
-  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Να επιτρέπεται η προσωρινή υπερχείλιση προϋπολογισμού διακριτικών για ροές αρχικής σελίδας",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Αυξάνει προσωρινά τον προϋπολογισμό προτροπής του συστήματος αρχικής σελίδας σε σχέση με τις μέγιστες κλήσεις του διακόπτη κυκλώματος αρχικής σελίδας ενώ είναι ενεργή η τρέχουσα αλυσίδα ενεργειών της αρχικής σελίδας.",
   "config.homepage.circuit_breaker_desc": "Το εργαλείο ιστοσελίδας χρειάζεται συχνά πολλές διαδοχικές κλήσεις εργαλείων. Αυτό ορίζει ένα ξεχωριστό, υψηλότερο όριο που ισχύει προσωρινά από την πρώτη κλήση ιστοσελίδας μέχρι το τέλος της τρέχουσας αλυσίδας ενεργειών.",
   "config.homepage.circuit_breaker_max_calls": "Μέγ. κλήσεις εργαλείων",
   "config.homepage.circuit_breaker_title": "Ασφαλής διακοπή",
@@ -41,7 +41,7 @@
   "config.homepage.test_failed": "Η σύνδεση απέτυχε",
   "config.homepage.test_success": "Η σύνδεση πέτυχε",
   "config.homepage.test_title": "Δοκιμή σύνδεσης",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.token_budget_preview": "Οι ροές της αρχικής σελίδας ενδέχεται να χρησιμοποιούν προσωρινά περίπου {effective} διακριτικά προτροπής αντί για {base}, με βάση τις επιτρεπόμενες κλήσεις εργαλείων {homepage_calls} / {base_calls}.",
   "config.homepage.web_container": "Διακομιστής Web",
   "config.homepage.webserver_desc": "Εκτελέστε έναν τοπικό διακομιστή Caddy σε Docker για προεπισκόπηση και φιλοξενία ιστοσελίδων. Υποστηρίζει αυτόματο HTTPS όταν έχει οριστεί domain.",
   "config.homepage.webserver_domain": "Τομέας",
@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "Εντοπισμός…",
   "config.homepage.workspace_autodetect_success": "Η διαδρομή χώρου εργασίας εντοπίστηκε επιτυχώς.",
   "config.homepage.workspace_autodetect_title": "Αυτόματος εντοπισμός διαδρομής από το τρέχον container",
-  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_desc": "Ορίστε την απόλυτη διαδρομή κεντρικού υπολογιστή που είναι προσαρτημένη στο κοντέινερ της αρχικής σελίδας ως /χώρος εργασίας.",
   "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας",
   "config.homepage.workspace_path_missing_warning": "Ο διακομιστής ιστού είναι ενεργός αλλά δεν έχει οριστεί διαδρομή χώρου εργασίας. Εισάγετε την απόλυτη διαδρομή κεντρικού υπολογιστή (π.χ. /home/aurago/aurago/agent_workspace/homepage) ή χρησιμοποιήστε αυτόματη ανίχνευση.",
-  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_relative_hint": "Μέσα στις κλήσεις εργαλείων αρχικής σελίδας, διατηρήστε το project_dir και τη διαδρομή σε σχέση με αυτόν τον χώρο εργασίας, για παράδειγμα \"my-site\" ή \" my-site/src / app/page.tsx\".",
   "config.homepage.workspace_title": "Χώρος εργασίας"
 }

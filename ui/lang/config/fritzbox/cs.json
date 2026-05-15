@@ -4,7 +4,7 @@
   "config.fritzbox.feature_enabled": "Povoleno",
   "config.fritzbox.feature_readonly": "Pouze pro čtení",
   "config.fritzbox.features_title": "Skupiny funkcí",
-  "config.fritzbox.group_network": "📶 Síť \u0026 WLAN",
+  "config.fritzbox.group_network": "📶 Síť & WLAN",
   "config.fritzbox.group_polling": "Polling telefonie",
   "config.fritzbox.group_smarthome": "🏡 Chytrá domácnost",
   "config.fritzbox.group_storage": "💾 Úložiště / NAS",

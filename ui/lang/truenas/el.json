@@ -34,7 +34,7 @@
   "truenas.empty_shares": "Δεν βρέθηκαν SMB shares",
   "truenas.label_host": "Κεντρικός υπολογιστής",
   "truenas.hint_host": "Όνομα κεντρικού υπολογιστή ή διεύθυνση IP του διακομιστή TrueNAS",
-  "truenas.label_apikey": "API Key",
+  "truenas.label_apikey": "Κλειδί API",
   "truenas.hint_apikey": "Create an API key under System → API Keys in TrueNAS",
   "truenas.label_https": "Χρήση HTTPS",
   "truenas.label_insecure": "Αποδοχή αυτο-υπογεγραμμένων πιστοποιητικών (μη ασφαλές)",

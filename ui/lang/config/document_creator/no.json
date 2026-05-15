@@ -6,7 +6,7 @@
   "config.document_creator.disabled_notice": "Dokumentskaper er deaktivert",
   "config.document_creator.enabled_label": "Aktivert",
   "config.document_creator.gotenberg_timeout_label": "Tidsavbrudd",
-  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
+  "config.document_creator.gotenberg_title": "🐳 Göteborg",
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "Laster…",
   "config.document_creator.output_dir_label": "Utdatakatalog",
@@ -17,9 +17,9 @@
   "config.document_creator.test_fail": "Tilkobling mislyktes",
   "config.document_creator.test_gotenberg": "Test tilkobling",
   "config.document_creator.test_ok": "Tilkobling vellykket",
-  "config.document_creator.url_required": "Gotenberg URL is required",
+  "config.document_creator.url_required": "Gotenberg URL er påkrevd",
   "help.document_creator.backend": "Maroto er et rent Go PDF-bibliotek uten eksterne avhengigheter. Gotenberg er en Docker-tjeneste med full dokumentkonvertering, skjermbilder og støtte for Office-formater.",
-  "help.document_creator.gotenberg_timeout": "Maximum time in seconds to wait for document generation.",
-  "help.document_creator.gotenberg_url": "Base URL of the Gotenberg service (e.g. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_timeout": "Maksimal tid i sekunder for å vente på dokumentgenerering.",
+  "help.document_creator.gotenberg_url": "Base URL for Gotenberg-tjenesten (f.eks. http://gotenberg:3000 ).",
   "help.document_creator.output_dir": "Katalog der genererte dokumenter lagres."
 }

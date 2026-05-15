@@ -29,7 +29,7 @@
   "config.vercel.test_title": "Test połączenia",
   "config.vercel.token_desc": "Personal Access Token z Vercel. Bezpiecznie przechowywany w sejfie.",
   "config.vercel.token_empty": "Proszę wprowadzić token",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "Osobisty token dostępu",
   "config.vercel.token_saved": "Token zapisany w sejfie",
   "config.vercel.token_title": "Token API"
 }

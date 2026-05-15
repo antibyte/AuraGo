@@ -1,8 +1,8 @@
 {
   "config.homepage.allow_container": "Zezwól na zarządzanie kontenerami (start/stop/przebudowa)",
   "config.homepage.allow_deploy": "Zezwól na wdrażanie na serwery zdalne",
-  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Zezwalaj na tymczasowe przepełnienie budżetu tokena dla przepływów strony głównej",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Tymczasowo zwiększa budżet podpowiedzi systemu strony głównej w stosunku do maksymalnej liczby wywołań wyłącznika strony głównej, gdy bieżący łańcuch działań strony głównej jest aktywny.",
   "config.homepage.circuit_breaker_desc": "Narzędzie homepage często wymaga wielu kolejnych wywołań narzędzi. Ustawia to oddzielny, wyższy limit, który obowiązuje tymczasowo od pierwszego wywołania homepage do końca bieżącego łańcucha akcji.",
   "config.homepage.circuit_breaker_max_calls": "Maks. wywołań narzędzi",
   "config.homepage.circuit_breaker_title": "Bezpiecznik",
@@ -41,7 +41,7 @@
   "config.homepage.test_failed": "Połączenie nieudane",
   "config.homepage.test_success": "Połączenie udane",
   "config.homepage.test_title": "Test połączenia",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.token_budget_preview": "Przepływy strony głównej mogą tymczasowo używać około {effective} tokenów zachęty zamiast {base} w oparciu o dozwolone wywołania narzędzi {homepage_calls} / {base_calls}.",
   "config.homepage.web_container": "Serwer WWW",
   "config.homepage.webserver_desc": "Uruchom lokalny serwer Caddy w Dockerze do podglądu i hostingu stron. Obsługuje automatyczny HTTPS przy ustawionej domenie.",
   "config.homepage.webserver_domain": "Domena",
@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "Wykrywanie…",
   "config.homepage.workspace_autodetect_success": "Ścieżka obszaru roboczego wykryta pomyślnie.",
   "config.homepage.workspace_autodetect_title": "Wykryj ścieżkę przestrzeni roboczej z działającego kontenera homepage",
-  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_desc": "Ustaw bezwzględną ścieżkę hosta zamontowaną w kontenerze strony głównej jako /workspace.",
   "config.homepage.workspace_path": "Ścieżka przestrzeni roboczej",
   "config.homepage.workspace_path_missing_warning": "Serwer WWW jest włączony, ale ścieżka przestrzeni roboczej nie jest ustawiona. Podaj bezwzględną ścieżkę hosta do projektu (np. /home/aurago/aurago/agent_workspace/homepage) lub użyj autodetekcji.",
-  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_relative_hint": "Wewnątrz wywołań narzędzi strony głównej zachowaj katalog_projektu i ścieżkę względem tego obszaru roboczego, na przykład „moja-witryna” lub „ my-site/src / app/page.tsx”.",
   "config.homepage.workspace_title": "Przestrzeń robocza"
 }

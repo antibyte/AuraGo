@@ -1,6 +1,6 @@
 {
   "config.security.applying": "Tillämpar…",
-  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
+  "config.security.fix_all_auto": "Åtgärda {n} problem som kan åtgärdas automatiskt",
   "config.security.fix_now": "Åtgärda nu",
   "config.security.modal.apply": "Tillämpa korrigeringar",
   "config.security.modal.desc": "Den här ändringen introducerade kritiska säkerhetsproblem. Tillämpa automatiska korrigeringar nu?",

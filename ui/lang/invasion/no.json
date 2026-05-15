@@ -54,7 +54,7 @@
   "invasion.no_nests": "Ingen nests konfigurert ennå.",
   "invasion.notes": "Notater",
   "invasion.page_title": "AuraGo - Invasjons Kontroll",
-  "invasion.permanent": "Permanent (Systemd Service)",
+  "invasion.permanent": "Permanent (systemd-tjeneste)",
   "invasion.ph_egg_description": "Hva gjør denne sub-agenten?",
   "invasion.ph_egg_name": "Analyseagent",
   "invasion.ph_host": "192.168.1.100",

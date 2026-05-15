@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Opdatering startet — AuraGo genstarter. Genindlæs i 60'erne...",
   "config.updates.up_to_date": "Op til dato",
   "config.updates.version": "Version",
-  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. \u003cstrong\u003eYour configuration and data are preserved.\u003c/strong\u003e AuraGo will restart after the update.",
+  "config.updates.warning_banner": "Opdateringen erstatter binære filer, prompts og UI-filer. <strong>Din konfiguration og dine data bevares.</strong> AuraGo genstarter efter opdateringen.",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.webdav.secret_empty": "Værdien er tom"
 }

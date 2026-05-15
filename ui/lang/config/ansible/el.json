@@ -1,8 +1,8 @@
 {
   "config.ansible.generate_token_btn": "Generate Token",
   "config.ansible.generate_token_generating": "Δημιουργία…",
-  "config.ansible.generate_token_ok": "Token generated and saved to vault. Container will be restarted.",
-  "config.ansible.generate_token_fail": "Failed to generate token.",
+  "config.ansible.generate_token_ok": "Το διακριτικό δημιουργήθηκε και αποθηκεύτηκε στο θησαυροφυλάκιο. Θα γίνει επανεκκίνηση του κοντέινερ.",
+  "config.ansible.generate_token_fail": "Αποτυχία δημιουργίας διακριτικού.",
   "config.ansible.generate_token_copy": "Αντιγραφή",
   "config.ansible.generate_token_copied": "Αντιγράφηκε!"
 }

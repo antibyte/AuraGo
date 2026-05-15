@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Navn",
   "config.chromecast.col_port": "Port",
   "config.chromecast.delete_confirm": "Vil du virkelig slette Chromecast-enhet \"{name}\"? Dette kan ikke angres.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Sletting mislyktes",
   "config.chromecast.delete_tooltip": "Slett",
   "config.chromecast.desc_placeholder": "Valgfri beskrivelse…",
   "config.chromecast.devices_desc": "Administrer Chromecast-enhetene dine. Bruk mDNS-søk for å finne enheter på nettverket ditt, eller legg dem til manuelt. Gi hver enhet et beskrivende navn slik at agenten kan identifisere den (f.eks. \"Stue\").",
@@ -36,6 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Lagre",
   "config.chromecast.tts_port_label": "TTS-port",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Ukjent",
   "config.chromecast.port_placeholder": "8009"
 }

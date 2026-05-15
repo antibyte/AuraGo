@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Status desconhecido",
   "config.server.cert_status_error": "Erro de carregamento",
   "config.server.cert_status_loading": "Carregando…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Ponte de ferramentas Python",
   "config.tailscale.key_empty": "A chave está vazia",
   "config.tailscale.key_save_failed": "Falha ao salvar",
   "config.tailscale.key_saved": "Chave salva",

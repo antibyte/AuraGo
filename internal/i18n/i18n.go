@@ -320,16 +320,18 @@ func interpolate(s string, params []any) string {
 
 	// First pass: replace indexed placeholders
 	for i, p := range params {
-		placeholder := fmt.Sprintf("{%d}", i)
-		result = strings.ReplaceAll(result, placeholder, fmt.Sprint(p))
+		value := fmt.Sprint(p)
+		result = strings.ReplaceAll(result, fmt.Sprintf("{{%d}}", i), value)
+		result = strings.ReplaceAll(result, fmt.Sprintf("{%d}", i), value)
 	}
 
 	// Second pass: replace named placeholders from any map[string]any in params
 	for _, p := range params {
 		if m, ok := p.(map[string]any); ok {
 			for k, v := range m {
-				placeholder := fmt.Sprintf("{%s}", k)
-				result = strings.ReplaceAll(result, placeholder, fmt.Sprint(v))
+				value := fmt.Sprint(v)
+				result = strings.ReplaceAll(result, fmt.Sprintf("{{%s}}", k), value)
+				result = strings.ReplaceAll(result, fmt.Sprintf("{%s}", k), value)
 			}
 		}
 	}

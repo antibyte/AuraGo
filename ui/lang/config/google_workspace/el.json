@@ -4,9 +4,9 @@
   "config.google_workspace.readonly_hint": "Όταν είναι ενεργό, επιτρέπονται μόνο λειτουργίες ανάγνωσης (χωρίς αποστολή email, δημιουργία γεγονότων, επεξεργασία εγγράφων κ.λπ.)",
   "config.google_workspace.oauth_title": "Ρύθμιση OAuth2",
   "config.google_workspace.oauth_desc": "Το Google Workspace χρησιμοποιεί OAuth2 για τον έλεγχο ταυτότητας. Δημιουργήστε έναν πελάτη OAuth2 στην Google Cloud Console, ορίστε το URI ανακατεύθυνσης στη διεύθυνση URL του AuraGo + /api/oauth/callback και επικολλήστε τα διαπιστευτήρια παρακάτω.",
-  "config.google_workspace.client_id_label": "OAuth2 Client ID",
+  "config.google_workspace.client_id_label": "Πελάτης OAuth2 ID",
   "config.google_workspace.client_id_hint": "Από Google Cloud Console → APIs & Υπηρεσίες → Διαπιστευτήρια",
-  "config.google_workspace.client_secret_label": "OAuth2 Client Secret",
+  "config.google_workspace.client_secret_label": "Μυστικό πελάτη OAuth2",
   "config.google_workspace.client_secret_hint": "Αποθηκεύεται κρυπτογραφημένο στο vault. Επικολλήστε το secret και κάντε κλικ στο Αποθήκευση.",
   "config.google_workspace.save_vault": "Αποθήκευση στο Vault",
   "config.google_workspace.connection_label": "Σύνδεση OAuth2",
@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Αν το πρόγραμμα περιήγησής σας εμφανίζει ERR_CONNECTION_REFUSED, αντιγράψτε την πλήρη διεύθυνση URL από τη γραμμή διευθύνσεων και επικολλήστε την παρακάτω για να ολοκληρώσετε την εξουσιοδότηση.",
   "config.google_workspace.oauth_manual_btn": "Ολοκλήρωση εξουσιοδότησης",
   "config.google_workspace.oauth_manual_success": "Εξουσιοδότηση επιτυχής",
-  "config.google_workspace.oauth_manual_failed": "Εξουσιοδότηση απέτυχε: ",
+  "config.google_workspace.oauth_manual_failed": "Εξουσιοδότηση απέτυχε:",
   "config.google_workspace.testing": "⏳ Δοκιμή..."
 }

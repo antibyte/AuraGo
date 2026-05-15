@@ -89,7 +89,7 @@
   "config.server.port_label": "端口",
   "config.server.selfsigned_port_warning": "1024以下的端口在Linux/macOS上需要root/管理员权限。若要在无需提升权限的情况下进行本地访问，请使用端口8443。",
   "config.server.ui_language_label": "界面语言",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python工具桥",
   "config.tailscale.key_empty": "密钥为空",
   "config.tailscale.key_save_failed": "保存失败",
   "config.tailscale.key_saved": "密钥已保存",

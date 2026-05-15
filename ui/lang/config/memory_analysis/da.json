@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "AuraGo aktiverer automatisk samlet memory-kontekst, effektivitetsmåling, realtidsudtræk, query expansion og reranking baseret på live memory-sundhed og retrieval-kvalitet.",
-  "config.memory_analysis.auto_notice": "Adaptive memory strategy is always active",
+  "config.memory_analysis.auto_notice": "Adaptiv hukommelsesstrategi er altid aktiv",
   "config.memory_analysis.day_friday": "Fredag",
   "config.memory_analysis.day_monday": "Mandag",
   "config.memory_analysis.day_saturday": "Lørdag",

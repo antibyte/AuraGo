@@ -1,6 +1,6 @@
 {
   "config.security.applying": "Bruker…",
-  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
+  "config.security.fix_all_auto": "Løs {n} automatisk fiksbare problemer",
   "config.security.fix_now": "Fiks nå",
   "config.security.modal.apply": "Bruk rettelser",
   "config.security.modal.desc": "Denne endringen introduserte kritiske sikkerhetsproblemer. Bruk automatiske rettelser nå?",

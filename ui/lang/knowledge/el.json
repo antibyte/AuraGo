@@ -88,7 +88,7 @@
   "knowledge.credentials_password_stored": "Ο κωδικός έχει ήδη αποθηκευτεί στο vault.",
   "knowledge.credentials_token_label": "Token / API Key",
   "knowledge.credentials_token_placeholder": "Paste token or API key here...",
-  "knowledge.credentials_token_stored": "Token already stored in vault.",
+  "knowledge.credentials_token_stored": "Το token είναι ήδη αποθηκευμένο στη θυρίδα.",
   "knowledge.credentials_host_optional_hint": "Προαιρετικό για αυτόν τον τύπο διαπιστευτηρίων",
   "knowledge.credentials_certificate_label": "Πιστοποιητικό",
   "knowledge.credentials_certificate_mode_label": "Είσοδος πιστοποιητικού",

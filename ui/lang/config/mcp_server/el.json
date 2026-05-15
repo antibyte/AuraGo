@@ -1,5 +1,5 @@
 {
-  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.title": "Διακομιστής MCP",
   "config.mcp_server.enabled_label": "MCP Server ενεργοποιημένος",
   "config.mcp_server.require_auth": "Απαίτηση ελέγχου ταυτότητας",
   "config.mcp_server.allowed_tools": "Επιτρεπόμενα εργαλεία",
@@ -12,7 +12,7 @@
   "config.mcp_server.disabled_notice": "MCP Server απενεργοποιημένος",
   "config.mcp_server.disabled_desc": "Ενεργοποιήστε για έκθεση εργαλείων AuraGo μέσω MCP.",
   "config.mcp_server.info": "Εκθέτει εργαλεία AuraGo ως απομακρυσμένο MCP server μέσω Streamable HTTP.",
-  "config.mcp_server.vscode_bridge": "VS Code debug bridge",
+  "config.mcp_server.vscode_bridge": "VS Γέφυρα εντοπισμού σφαλμάτων κώδικα",
   "config.mcp_server.vscode_bridge_desc": "Προετοιμάζει το AuraGo για live debugging από το VS Code και παρόμοιους MCP clients με ασφαλές preset και bridge εργαλεία.",
   "config.mcp_server.vscode_bridge_notice": "Ενεργοποιεί ένα MCP preset εστιασμένο στο debugging με προτεινόμενα εργαλεία και βοηθούς ρύθμισης πελάτη.",
   "config.mcp_server.vscode_config": "Διαμόρφωση πελάτη",

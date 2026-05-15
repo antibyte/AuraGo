@@ -51,7 +51,7 @@
   "config.a2a.status_disabled": "A2A è disabilitato",
   "config.a2a.status_server_active": "Server attivo",
   "config.a2a.status_unavailable": "Stato A2A non disponibile",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Streaming ( SSE )",
   "config.a2a.test_btn": "Testa server A2A",
   "config.a2a.test_btn_short": "Testa",
   "config.a2a.test_fail": "Il server non è in esecuzione",

@@ -207,7 +207,7 @@
   "help.meshcentral.url": "MeshCentral 安装的根 URL（例如 https://mesh.example.com 或 https://host/meshcentral）。如果 MeshCentral 在子路径上运行，请包含它。没有尾部斜杠。",
   "help.meshcentral.username": "MeshCentral 登录的常规用户名。设置登录令牌时将被忽略。",
   "help.mqtt.broker": "MQTT 代理地址格式为“tcp://host:port”（例如“tcp://localhost:1883”）或“ssl://host:port”（对于 TLS）。",
-  "help.mqtt.buffer_max_messages": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500.",
+  "help.mqtt.buffer_max_messages": "缓冲区中的最大消息数。达到限制时最旧的消息将被丢弃。默认：500。",
   "help.mqtt.client_id": "代理连接的客户端 ID。默认值：“aurago”。每个经纪人必须是唯一的。",
   "help.mqtt.connect_timeout": "连接超时（秒）。默认值：15。",
   "help.mqtt.enabled": "启用 MQTT 集成。允许代理发布、接收和订阅 MQTT 消息。",

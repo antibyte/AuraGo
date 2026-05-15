@@ -5,7 +5,7 @@
   "config.jellyfin.https_label": "Brug HTTPS",
   "config.jellyfin.insecure_label": "Accepter selvsignerede certifikater",
   "config.jellyfin.host_label": "Jellyfin Vært",
-  "config.jellyfin.port_label": "Port",
+  "config.jellyfin.port_label": "Havn",
   "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "API-nøgle (Vault)",
   "config.jellyfin.apikey_placeholder": "Indtast API-nøgle…",

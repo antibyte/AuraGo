@@ -1,6 +1,6 @@
 {
   "config.daemon_skills.enabled_label": "Ativado",
-  "config.daemon_skills.global_rate_limit_secs_label": "Global Rate Limit (seconds)",
+  "config.daemon_skills.global_rate_limit_secs_label": "Limite de taxa global (segundos)",
   "config.daemon_skills.load_error": "Falha ao carregar estado do daemon",
   "config.daemon_skills.max_budget_per_hour_label": "Orçamento máx. por hora (USD)",
   "config.daemon_skills.max_concurrent_daemons_label": "Daemons simultâneos máx.",
@@ -54,7 +54,7 @@
   "config.security_proxy.status_unknown": "Status desconhecido",
   "config.server.cert_status_error": "Erro de carregamento",
   "config.server.cert_status_loading": "Carregando…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Ponte de ferramentas Python",
   "config.tailscale.key_empty": "A chave está vazia",
   "config.tailscale.key_save_failed": "Falha ao salvar",
   "config.tailscale.key_saved": "Chave salva",

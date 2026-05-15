@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "名前",
   "config.chromecast.col_port": "ポート",
   "config.chromecast.delete_confirm": "Chromecastデバイス「{name}」を本当に削除しますか？この操作は取り消せません。",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "削除に失敗しました",
   "config.chromecast.delete_tooltip": "削除",
   "config.chromecast.desc_placeholder": "任意の説明…",
   "config.chromecast.devices_desc": "Chromecastデバイスを管理します。mDNS検出を使用してネットワーク上のデバイスを見つけるか、手動で追加します。エージェントが識別できるように、各デバイスにわかりやすい名前を付けてください（例：「リビングルーム」）。",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "デバイス名は必須です。",
   "config.chromecast.no_devices": "Chromecastデバイスが登録されていません。「デバイスを検索」を使用してネットワーク上のデバイスを見つけてください。",
   "config.chromecast.no_devices_found": "ネットワーク上にChromecastデバイスが見つかりませんでした。デバイスの電源が入っていて、同じネットワークに接続されていることを確認してください。",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "ポート",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "保存",
   "config.chromecast.tts_port_label": "TTSポート",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "不明",
   "config.chromecast.port_placeholder": "8009"
 }

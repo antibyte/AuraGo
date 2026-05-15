@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Nombre",
   "config.chromecast.col_port": "Puerto",
   "config.chromecast.delete_confirm": "¿Eliminar el dispositivo Chromecast \"{name}\"? Esta acción no se puede deshacer.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Eliminación fallida",
   "config.chromecast.delete_tooltip": "Eliminar",
   "config.chromecast.desc_placeholder": "Descripción opcional…",
   "config.chromecast.devices_desc": "Gestiona tus dispositivos Chromecast. Usa el descubrimiento mDNS para encontrar dispositivos en tu red, o añádelos manualmente. Dale a cada dispositivo un nombre descriptivo para que el agente pueda identificarlo (p.ej. \"Salón\").",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "Se requiere un nombre de dispositivo.",
   "config.chromecast.no_devices": "No hay dispositivos Chromecast registrados. Usa \"Buscar dispositivos\" para encontrarlos en tu red.",
   "config.chromecast.no_devices_found": "No se encontraron dispositivos Chromecast en la red. Asegúrate de que tus dispositivos estén encendidos y conectados a la misma red.",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "Puerto",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Guardar",
   "config.chromecast.tts_port_label": "Puerto TTS",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Desconocido",
   "config.chromecast.port_placeholder": "8009"
 }

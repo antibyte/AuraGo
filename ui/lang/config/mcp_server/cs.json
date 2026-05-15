@@ -12,7 +12,7 @@
   "config.mcp_server.disabled_notice": "MCP Server je vypnutý",
   "config.mcp_server.disabled_desc": "Povolte pro zpřístupnění nástrojů AuraGo přes MCP.",
   "config.mcp_server.info": "Zpřístupňuje nástroje AuraGo jako vzdálený MCP server přes Streamable HTTP.",
-  "config.mcp_server.vscode_bridge": "VS Code debug bridge",
+  "config.mcp_server.vscode_bridge": "VS Most pro ladění kódu",
   "config.mcp_server.vscode_bridge_desc": "Připraví AuraGo pro živé ladění z VS Code a podobných MCP klientů pomocí bezpečné předvolby a bridge nástrojů.",
   "config.mcp_server.vscode_bridge_notice": "Aktivuje ladící MCP preset s doporučenými nástroji a pomocníky pro nastavení klienta.",
   "config.mcp_server.vscode_config": "Konfigurace klienta",

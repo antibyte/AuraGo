@@ -6,7 +6,7 @@
   "config.media_conversion.readonly_label": "Jen pro čtení",
   "config.media_conversion.ffmpeg_path_label": "Cesta k FFmpeg",
   "config.media_conversion.imagemagick_path_label": "Cesta k ImageMagick",
-  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.timeout_label": "Časový limit",
   "config.media_conversion.seconds": "sekundy",
   "config.media_conversion.test_button": "Otestovat nástroje",
   "config.media_conversion.loading": "Kontroluji nástroje…",

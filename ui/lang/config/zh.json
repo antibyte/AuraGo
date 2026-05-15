@@ -126,7 +126,7 @@
   "config.yepapi.testing": "测试中...",
   "config.yepapi.test_success": "连接成功 — API 密钥有效。",
   "config.yepapi.test_error": "连接失败 — 请检查您的 API 密钥和提供商设置。",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.yepapi.provider_info": "YepAPI 也可用作 LLM 提供商。请在“提供商”部分将类型配置为 'yepapi'。",
   "config.frigate_title": "Frigate NVR",
   "config.frigate_enabled": "启用 Frigate",
   "config.frigate_url": "Frigate URL",

@@ -207,7 +207,7 @@
   "help.meshcentral.url": "Root URL instalacji MeshCentral (np. https://mesh.example.com lub https://host/meshcentral). Jeśli MeshCentral działa na sub-path, uwzględnij go. Bez końcowego ukośnika.",
   "help.meshcentral.username": "Zwykła nazwa użytkownika do logowania MeshCentral. Ignorowane, gdy ustawiony jest token logowania.",
   "help.mqtt.broker": "Adres brokera MQTT w formacie 'tcp://host:port' (np. 'tcp://localhost:1883') lub 'ssl://host:port' dla TLS.",
-  "help.mqtt.buffer_max_messages": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500.",
+  "help.mqtt.buffer_max_messages": "Maksymalna liczba wiadomości w buforze. Najstarsze wiadomości są odrzucane po osiągnięciu limitu. Domyślnie: 500.",
   "help.mqtt.client_id": "ID klienta dla połączenia z brokerem. Domyślnie: 'aurago'. Musi być unikalne na broker.",
   "help.mqtt.connect_timeout": "Limit czasu połączenia w sekundach. Domyślnie: 15.",
   "help.mqtt.enabled": "Włącza integrację MQTT. Pozwala agentowi publikować, odbierać i subskrybować wiadomości MQTT.",

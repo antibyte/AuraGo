@@ -2,7 +2,7 @@
   "config.prompts.additional_prompt_title": "Prompt di Sistema Aggiuntivo",
   "config.prompts.additional_prompt_label": "Istruzioni aggiuntive (sempre aggiunte alla fine del system prompt)",
   "config.prompts.personalities_title": "Profili di Personalità",
-  "config.prompts.active_label": "Attivo: ",
+  "config.prompts.active_label": "Attivo:",
   "config.prompts.new_personality": "Nuova Personalità",
   "config.prompts.core_tooltip": "Persona integrata (sola lettura)",
   "config.prompts.name_label": "Nome Personalità",

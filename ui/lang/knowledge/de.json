@@ -38,7 +38,7 @@
   "knowledge.devices_col_name": "Name",
   "knowledge.devices_col_type": "Typ",
   "knowledge.devices_col_ip": "IP",
-  "knowledge.devices_col_port": "Port",
+  "knowledge.devices_col_port": "Hafen",
   "knowledge.devices_col_user": "Benutzer",
   "knowledge.devices_col_mac": "MAC",
   "knowledge.devices_col_tags": "Tags",

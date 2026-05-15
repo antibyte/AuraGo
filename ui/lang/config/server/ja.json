@@ -89,7 +89,7 @@
   "config.server.port_label": "ポート",
   "config.server.selfsigned_port_warning": "1024未満のポートはLinux/macOSでroot/管理者権限が必要です。昇格した権限なしでローカルアクセスするには、ポート8443を使用してください。",
   "config.server.ui_language_label": "UI 言語",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python ツール ブリッジ",
   "config.tailscale.key_empty": "キーが空です",
   "config.tailscale.key_save_failed": "保存に失敗しました",
   "config.tailscale.key_saved": "キー保存済み",

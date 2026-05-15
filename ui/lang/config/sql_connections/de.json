@@ -42,7 +42,7 @@
   "config.sql_connections.perm_write": "Schreiben (INSERT)",
   "config.sql_connections.permissions_hint": "Steuere, was der KI-Agent mit dieser Datenbank tun darf.",
   "config.sql_connections.permissions_title": "Agent-Berechtigungen",
-  "config.sql_connections.port_label": "Port",
+  "config.sql_connections.port_label": "Hafen",
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Speichern",

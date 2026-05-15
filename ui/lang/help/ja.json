@@ -207,7 +207,7 @@
   "help.meshcentral.url": "MeshCentral インストールのルート URL (例: https://mesh.example.com または https://host/meshcentral)。 MeshCentral がサブパスで実行されている場合は、それを含めます。末尾のスラッシュはありません。",
   "help.meshcentral.username": "MeshCentral ログイン用の通常のユーザー名。ログイントークンが設定されている場合は無視されます。",
   "help.mqtt.broker": "「tcp://host:port」（例：「tcp://localhost:1883」）または TLS の場合は「ssl://host:port」形式の MQTT ブローカー アドレス。",
-  "help.mqtt.buffer_max_messages": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500.",
+  "help.mqtt.buffer_max_messages": "バッファ内の最大メッセージ数。制限に達すると古いメッセージが破棄されます。デフォルト：500。",
   "help.mqtt.client_id": "ブローカー接続のクライアント ID。デフォルト: 「オーラゴ」。ブローカーごとに一意である必要があります。",
   "help.mqtt.connect_timeout": "接続タイムアウト（秒）。デフォルト：15。",
   "help.mqtt.enabled": "MQTT 統合を有効にします。エージェントが MQTT メッセージをパブリッシュ、受信、およびサブスクライブできるようにします。",

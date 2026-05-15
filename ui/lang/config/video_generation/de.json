@@ -3,7 +3,7 @@
   "config.video_gen.defaults_title": "Standardwerte",
   "config.video_gen.test_failed": "Fehlgeschlagen",
   "config.video_gen.timeout_label": "Timeout (Sek.)",
-  "config.video_gen.provider_title": "Provider",
+  "config.video_gen.provider_title": "Anbieter",
   "config.video_gen.resolution_label": "Auflösung",
   "config.video_gen.test_desc": "Prüft die Provider-Verbindung, ohne ein Video zu erzeugen.",
   "config.video_gen.enabled_label": "Videogenerierung aktiviert:",
@@ -22,6 +22,6 @@
   "config.video_gen.test_title": "Verbindung testen",
   "config.video_gen.aspect_ratio_label": "Seitenverhältnis",
   "config.video_gen.test_btn": "Verbindung testen",
-  "config.video_gen.provider_label": "Provider",
+  "config.video_gen.provider_label": "Anbieter",
   "config.video_gen.disabled_desc": "Aktiviere den Schalter oben, damit der Agent Videos erzeugen kann."
 }

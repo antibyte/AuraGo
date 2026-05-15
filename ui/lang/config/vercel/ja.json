@@ -29,7 +29,7 @@
   "config.vercel.test_title": "接続テスト",
   "config.vercel.token_desc": "VercelのPersonal Access Token。Vaultに安全に保存されます。",
   "config.vercel.token_empty": "トークンを入力してください",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "パーソナルアクセストークン",
   "config.vercel.token_saved": "トークンがVaultに保存されました",
   "config.vercel.token_title": "APIトークン"
 }

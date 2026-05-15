@@ -705,6 +705,24 @@ func TestTranslations_AllJSONFilesParse(t *testing.T) {
 	}
 }
 
+func TestSharedTranslateSupportsBracePlaceholderFormats(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile("shared.js")
+	if err != nil {
+		t.Fatalf("read shared.js: %v", err)
+	}
+	source := string(content)
+	for _, marker := range []string{
+		"replaceAll('{{' + a + '}}', b)",
+		"replaceAll('{' + a + '}', b)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("shared t() must support placeholder marker %s", marker)
+		}
+	}
+}
+
 func readJSONFileMap(path string) (map[string]any, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {

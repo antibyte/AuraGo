@@ -2,7 +2,7 @@
   "config.adguard.checking": "Kontrola připojení…",
   "config.adguard.connection_failed": "Připojení selhalo",
   "config.adguard.enabled_label": "Povoleno",
-  "config.adguard.loading": "Loading…",
+  "config.adguard.loading": "Načítání…",
   "config.adguard.not_running": "Neběží",
   "config.adguard.password_empty": "Nejprve zadejte heslo.",
   "config.adguard.password_label": "Heslo (Vault)",

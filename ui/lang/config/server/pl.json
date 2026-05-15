@@ -89,7 +89,7 @@
   "config.server.port_label": "Port",
   "config.server.selfsigned_port_warning": "Porty poniżej 1024 wymagają uprawnień root/administratora na Linux/macOS. Aby uzyskać lokalny dostęp bez podwyższonych uprawnień, użyj portu 8443.",
   "config.server.ui_language_label": "Język interfejsu",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Most narzędziowy Pythona",
   "config.tailscale.key_empty": "Klucz jest pusty",
   "config.tailscale.key_save_failed": "Zapisywanie nie powiodło się",
   "config.tailscale.key_saved": "Klucz zapisany",

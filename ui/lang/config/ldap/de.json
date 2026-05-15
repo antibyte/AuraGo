@@ -11,7 +11,7 @@
   "config.ldap.password_empty": "Bitte zuerst ein Passwort eingeben.",
   "config.ldap.password_save_failed": "Passwort konnte nicht im Vault gespeichert werden.",
   "config.ldap.password_saved": "Passwort im Vault gespeichert.",
-  "config.ldap.port_label": "Port",
+  "config.ldap.port_label": "Hafen",
   "config.ldap.readonly_label": "Nur-Lesen-Modus",
   "config.ldap.save_icon": "💾",
   "config.ldap.save_vault": "Im Vault speichern",

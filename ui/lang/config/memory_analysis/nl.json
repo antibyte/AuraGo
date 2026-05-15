@@ -1,5 +1,5 @@
 {
-  "config.memory_analysis.auto_desc": "AuraGo automatically enables unified memory context, effectiveness tracking, real-time extraction, query expansion, and reranking based on live memory health and retrieval quality.",
+  "config.memory_analysis.auto_desc": "AuraGo maakt automatisch uniforme geheugencontext, tracking van de effectiviteit, real-time extractie, uitbreiding van zoekopdrachten en herrangschikking mogelijk op basis van de gezondheid van het live geheugen en de kwaliteit van het ophalen.",
   "config.memory_analysis.auto_notice": "Adaptieve geheugenstrategie is altijd actief",
   "config.memory_analysis.day_friday": "Vrijdag",
   "config.memory_analysis.day_monday": "Maandag",
@@ -15,7 +15,7 @@
   "config.memory_analysis.enabled_label": "Geheugenanalyse geactiveerd:",
   "config.memory_analysis.llm_reranking_help": "Na de initiële vectorzoekactie herordent de LLM de resultaten op basis van relevantie voor de huidige gesprekscontext. Nauwkeuriger dan pure gelijkenisscores.",
   "config.memory_analysis.llm_reranking_label": "LLM-herordening",
-  "config.memory_analysis.model_hint": "empty = provider default",
+  "config.memory_analysis.model_hint": "leeg = standaard provider",
   "config.memory_analysis.model_label": "Model",
   "config.memory_analysis.preset_conservative": "Conservatief: alleen wekelijkse reflectie",
   "config.memory_analysis.preset_custom": "Aangepast",

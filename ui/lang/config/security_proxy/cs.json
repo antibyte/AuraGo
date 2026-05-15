@@ -83,7 +83,7 @@
   "config.security_proxy.status_title": "Stav proxy a ovládání",
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.security_proxy.tls_desc": "Konfigurujte doménu a Let's Encrypt TLS certifikát. Nechte doménu prázdnou pro režim pouze s portem.",
-  "config.security_proxy.tls_title": "Doména \u0026 TLS",
+  "config.security_proxy.tls_title": "Doména & TLS",
   "config.security_proxy.error_prefix": "Chyba",
   "config.server.cert_status_error": "Chyba načítání",
   "config.server.cert_status_loading": "Načítám…",

@@ -1,7 +1,7 @@
 {
   "config.ldap.base_dn_label": "Základní DN",
   "config.ldap.bind_dn_label": "Bind DN",
-  "config.ldap.bind_password_label": "Bind Password (Vault)",
+  "config.ldap.bind_password_label": "Svázat heslo (Sejf)",
   "config.ldap.password_placeholder": "Zadejte bind heslo…",
   "config.ldap.enabled_label": "Povoleno",
   "config.ldap.group_search_base_label": "Základna vyhledávání skupin",
@@ -11,7 +11,7 @@
   "config.ldap.password_empty": "Nejprve zadejte heslo.",
   "config.ldap.password_save_failed": "Nepodařilo se uložit heslo do vault.",
   "config.ldap.password_saved": "Heslo uloženo do vault.",
-  "config.ldap.port_label": "Port",
+  "config.ldap.port_label": "Přístav",
   "config.ldap.readonly_label": "Režim pouze pro čtení",
   "config.ldap.save_icon": "💾",
   "config.ldap.save_vault": "Uložit do Vault",

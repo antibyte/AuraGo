@@ -207,7 +207,7 @@
   "help.meshcentral.url": "मेशसेंट्रल इंस्टॉलेशन का रूट यूआरएल (उदाहरण के लिए https://mesh.example.com या https://host/meshcentral)। यदि मेशसेंट्रल उप-पथ पर चलता है, तो इसे शामिल करें। कोई अनुगामी स्लैश नहीं.",
   "help.meshcentral.username": "मेशसेंट्रल लॉगिन के लिए नियमित उपयोगकर्ता नाम। लॉगिन टोकन सेट होने पर अनदेखा किया जाता है।",
   "help.mqtt.broker": "टीएलएस के लिए 'tcp://host:port' (उदाहरण के लिए 'tcp://localhost:1883') या 'ssl://host:port' प्रारूप में MQTT ब्रोकर का पता।",
-  "help.mqtt.buffer_max_messages": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500.",
+  "help.mqtt.buffer_max_messages": "बफर में अधिकतम संदेश संख्या। सीमा पर पहुँचने पर सबसे पुराने संदेश हटा दिए जाते हैं। डिफ़ॉल्ट: 500।",
   "help.mqtt.client_id": "ब्रोकर कनेक्शन के लिए क्लाइंट आईडी। डिफ़ॉल्ट: 'ऑरागो'। प्रति ब्रोकर अद्वितीय होना चाहिए।",
   "help.mqtt.connect_timeout": "सेकंड में कनेक्शन टाइमआउट। डिफ़ॉल्ट: 15।",
   "help.mqtt.enabled": "MQTT एकीकरण सक्षम करता है. एजेंट को MQTT संदेशों को प्रकाशित करने, प्राप्त करने और सदस्यता लेने की अनुमति देता है।",

@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Status desconhecido",
   "config.server.cert_status_error": "Erro de carregamento",
   "config.server.cert_status_loading": "Carregando…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Ponte de ferramentas Python",
   "config.tailscale.key_empty": "A chave está vazia",
   "config.tailscale.key_save_failed": "Falha ao salvar",
   "config.tailscale.key_saved": "Chave salva",
@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Atualização iniciada — o AuraGo está reiniciando. Recarregue em 60s…",
   "config.updates.up_to_date": "Atualizado",
   "config.updates.version": "Versão",
-  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. \u003cstrong\u003eYour configuration and data are preserved.\u003c/strong\u003e AuraGo will restart after the update.",
+  "config.updates.warning_banner": "A atualização substitui binários, prompts e ficheiros da UI. <strong>A sua configuração e os seus dados são preservados.</strong> O AuraGo reinicia após a atualização.",
   "config.web_scraper.summary_mode": "Modo de resumo",
   "config.webdav.secret_empty": "O valor está vazio"
 }

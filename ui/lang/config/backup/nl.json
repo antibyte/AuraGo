@@ -1,18 +1,18 @@
 {
-  "config.backup.create_desc": "Creates an \u003cstrong\u003e.ago\u003c/strong\u003e archive (ZIP) with config, prompts, data and skills. When a password is set, all vault secrets (API keys, tokens) are also securely included — ideal for migrating to a new instance (e.g. with systemd-injected master key).",
+  "config.backup.create_desc": "Creëert een <strong>.ago </strong> archief ( ZIP ) met configuratie, aanwijzingen, gegevens en vaardigheden. Wanneer een wachtwoord is ingesteld, worden alle kluisgeheimen (API sleutels, tokens) ook veilig opgenomen - ideaal voor migratie naar een nieuw exemplaar (bijvoorbeeld met een door het systeem geïnjecteerde hoofdsleutel).",
   "config.backup.card_create_title": "Back-upinhoud",
   "config.backup.card_encryption_title": "Versleuteling",
   "config.backup.card_import_title": "Back-up herstellen",
-  "config.backup.create_download": "⬇️ Backup Maken \u0026 Downloaden",
+  "config.backup.create_download": "⬇️ Backup Maken & Downloaden",
   "config.backup.creating": "⏳ Backup maken…",
   "config.backup.decryption_failed": "Decryptie mislukt — verkeerd wachtwoord?",
   "config.backup.decryption_placeholder": "Decryptie wachtwoord…",
-  "config.backup.downloaded": "Gedownload: ",
+  "config.backup.downloaded": "Gedownload:",
   "config.backup.encryption_placeholder": "Encryptie wachtwoord…",
   "config.backup.import_button": "📥 Backup Importeren",
   "config.backup.import_password_label": "🔒 Wachtwoord (alleen voor versleutelde backups)",
   "config.backup.import_success": "Importeren succesvol",
-  "config.backup.import_warning": "\u003cstrong\u003eImportant:\u003c/strong\u003e Import overwrites existing files. Config, prompts and data will be replaced. A restart is recommended after import.",
+  "config.backup.import_warning": "<strong> Belangrijk: </strong> Import overschrijft bestaande bestanden. Configuratie, aanwijzingen en gegevens worden vervangen. Na het importeren wordt een herstart aanbevolen.",
   "config.backup.importing": "⏳ Importeren…",
   "config.backup.include_vectordb": "VectorDB opnemen (embeddings — kan groot zijn)",
   "config.backup.include_workdir": "Workdir opnemen (agent_workspace/workdir)",
@@ -28,5 +28,5 @@
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 Backup Maken",
   "config.backup.tab_import": "📥 Backup Importeren",
-  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, login password, tokens) will be included."
+  "config.backup.vault_included_hint": "🔐 Kluisgeheimen (API sleutels, inlogwachtwoord, tokens) worden inbegrepen."
 }

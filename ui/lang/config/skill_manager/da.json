@@ -87,7 +87,7 @@
   "help.skill_manager.enabled": "Aktiver eller deaktiver færdighedshåndtering",
   "help.skill_manager.max_upload_size_mb": "Maksimal tilladt filstørrelse for færdighedsuploads i megabytes",
   "help.skill_manager.read_only": "Når aktiveret, forhindres alle ændringer af færdigheder (ingen upload, sletning eller skift)",
-  "help.skill_manager.require_sandbox": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system.",
+  "help.skill_manager.require_sandbox": "Når det er aktiveret, kan færdigheder kun udføres i containermiljøet med sandkasse. Dette forhindrer direkte adgang til systemet.",
   "help.skill_manager.require_scan": "Kør en sikkerhedsscanning af uploadede færdigheder før aktivering",
   "help.skill_manager.scan_with_guardian": "Brug LLM Guardian til at gennemgå uploadet færdighedskode for sikkerhedsproblemer"
 }

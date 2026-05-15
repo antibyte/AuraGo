@@ -4,9 +4,9 @@
   "config.google_workspace.readonly_hint": "Wanneer actief zijn alleen leesbewerkingen toegestaan (geen e-mails verzenden, evenementen aanmaken, documenten bewerken, enz.)",
   "config.google_workspace.oauth_title": "OAuth2-configuratie",
   "config.google_workspace.oauth_desc": "Google Workspace gebruikt OAuth2 voor authenticatie. Maak een OAuth2-client aan in de Google Cloud Console, stel de redirect URI in op uw AuraGo-URL + /api/oauth/callback, en plak de referenties hieronder.",
-  "config.google_workspace.client_id_label": "OAuth2 Client ID",
+  "config.google_workspace.client_id_label": "OAuth2-client ID",
   "config.google_workspace.client_id_hint": "Van Google Cloud Console → API's en Services → Referenties",
-  "config.google_workspace.client_secret_label": "OAuth2 Client Secret",
+  "config.google_workspace.client_secret_label": "OAuth2-clientgeheim",
   "config.google_workspace.client_secret_hint": "Versleuteld opgeslagen in de vault. Plak het geheim en klik op Opslaan.",
   "config.google_workspace.save_vault": "Opslaan in Vault",
   "config.google_workspace.connection_label": "OAuth2-verbinding",
@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Als uw browser ERR_CONNECTION_REFUSED toont, kopieer dan de volledige URL van de adresbalk en plak deze hieronder om de autorisatie te voltooien.",
   "config.google_workspace.oauth_manual_btn": "Autorisatie voltooien",
   "config.google_workspace.oauth_manual_success": "Autorisatie geslaagd",
-  "config.google_workspace.oauth_manual_failed": "Autorisatie mislukt: ",
+  "config.google_workspace.oauth_manual_failed": "Autorisatie mislukt:",
   "config.google_workspace.testing": "⏳ Testen..."
 }

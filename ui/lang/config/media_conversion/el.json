@@ -6,7 +6,7 @@
   "config.media_conversion.readonly_label": "Μόνο ανάγνωση",
   "config.media_conversion.ffmpeg_path_label": "Διαδρομή FFmpeg",
   "config.media_conversion.imagemagick_path_label": "Διαδρομή ImageMagick",
-  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.timeout_label": "Χρονικό όριο",
   "config.media_conversion.seconds": "δευτερόλεπτα",
   "config.media_conversion.test_button": "Δοκιμή εργαλείων",
   "config.media_conversion.loading": "Έλεγχος εργαλείων…",

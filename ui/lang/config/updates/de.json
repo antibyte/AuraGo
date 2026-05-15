@@ -55,7 +55,7 @@
   "config.updates.changelog": "Änderungen:",
   "config.updates.check_button": "🔍 Nach Updates suchen",
   "config.updates.checking": "Prüfe…",
-  "config.updates.commits": "commit(s)",
+  "config.updates.commits": "Commit(s)",
   "config.updates.confirm_install": "Das Update wird jetzt gestartet. AuraGo wird danach automatisch neu gestartet.\n\nBitte die Seite nach ca. 30–60 Sekunden neu laden.",
   "config.updates.current": "Aktuell",
   "config.updates.error": "Fehler",
@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Update gestartet — AuraGo startet neu. Seite in 60s neu laden…",
   "config.updates.up_to_date": "Aktuell",
   "config.updates.version": "Version",
-  "config.updates.warning_banner": "Das Update ersetzt Binärdateien, Prompts und UI-Dateien. \u003cstrong\u003eDeine Konfiguration und Daten bleiben erhalten.\u003c/strong\u003e AuraGo wird nach dem Update neu gestartet.",
+  "config.updates.warning_banner": "Das Update ersetzt Binärdateien, Prompts und UI-Dateien. <strong>Deine Konfiguration und Daten bleiben erhalten.</strong> AuraGo wird nach dem Update neu gestartet.",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
   "config.webdav.secret_empty": "Wert ist leer"
 }

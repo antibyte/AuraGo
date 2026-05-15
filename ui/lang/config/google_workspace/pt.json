@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Se o seu navegador mostrar ERR_CONNECTION_REFUSED, copie o URL completo da barra de endereço e cole-o abaixo para concluir a autorização.",
   "config.google_workspace.oauth_manual_btn": "Concluir autorização",
   "config.google_workspace.oauth_manual_success": "Autorização bem-sucedida",
-  "config.google_workspace.oauth_manual_failed": "Falha na autorização: ",
+  "config.google_workspace.oauth_manual_failed": "Falha na autorização:",
   "config.google_workspace.testing": "⏳ Testando..."
 }

@@ -29,7 +29,7 @@
   "config.vercel.test_title": "Verbindungstest",
   "config.vercel.token_desc": "Personal Access Token von Vercel. Sicher im Vault gespeichert.",
   "config.vercel.token_empty": "Bitte gib einen Token ein",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "Persönliches Zugriffstoken",
   "config.vercel.token_saved": "Token im Vault gespeichert",
   "config.vercel.token_title": "API-Token"
 }

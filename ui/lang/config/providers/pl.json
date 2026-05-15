@@ -7,7 +7,7 @@
   "config.providers.api_key_placeholder": "sk-...",
   "config.providers.auth_type_api_key": "🔑 Klucz API",
   "config.providers.auth_type_api_key_option": "🔑 Klucz API",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 Authorization Code",
+  "config.providers.auth_type_oauth2": "🔐 Kod autoryzacyjny OAuth2",
   "config.providers.auth_type_oauth2_option": "🔐 Kod autoryzacji OAuth2",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autentykacja",

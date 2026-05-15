@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "姓名",
   "config.chromecast.col_port": "港口",
   "config.chromecast.delete_confirm": "真的删除 Chromecast 设备“{name}”吗？此操作无法撤消。",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "删除失败",
   "config.chromecast.delete_tooltip": "删除",
   "config.chromecast.desc_placeholder": "可选描述...",
   "config.chromecast.devices_desc": "管理您的 Chromecast 设备。使用 mDNS 发现来查找网络上的设备，或手动添加它们。为每个设备指定一个友好的名称，以便代理可以对其进行寻址（例如“客厅”）。",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "需要设备名称。",
   "config.chromecast.no_devices": "没有注册 Chromecast 设备。使用“发现设备”在您的网络上查找它们。",
   "config.chromecast.no_devices_found": "网络上未找到 Chromecast 设备。确保您的设备已开机并连接到同一网络。",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "港口",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "节省",
   "config.chromecast.tts_port_label": "TTS 端口",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "未知",
   "config.chromecast.port_placeholder": "8009"
 }

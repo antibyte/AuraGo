@@ -2,7 +2,7 @@
   "config.prompts.additional_prompt_title": "Πρόσθετο Σύστημα Prompt",
   "config.prompts.additional_prompt_label": "Πρόσθετες οδηγίες (πάντα προστίθενται στο τέλος του system prompt)",
   "config.prompts.personalities_title": "Προφίλ Προσωπικότητας",
-  "config.prompts.active_label": "Ενεργό: ",
+  "config.prompts.active_label": "Ενεργό:",
   "config.prompts.new_personality": "Νέα Προσωπικότητα",
   "config.prompts.core_tooltip": "Ενσωματωμένη προσωπικότητα (μόνο για ανάγνωση)",
   "config.prompts.name_label": "Όνομα Προσωπικότητας",

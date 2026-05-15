@@ -60,7 +60,7 @@
   "config.security_proxy.status_unknown": "未知状态",
   "config.server.cert_status_error": "加载错误",
   "config.server.cert_status_loading": "加载中…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python工具桥",
   "config.tailscale.key_empty": "密钥为空",
   "config.tailscale.key_save_failed": "保存失败",
   "config.tailscale.key_saved": "密钥已保存",

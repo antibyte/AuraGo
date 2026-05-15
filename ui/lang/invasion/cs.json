@@ -62,7 +62,7 @@
   "invasion.ph_nest_notes": "Volitelné poznámky...",
   "invasion.ph_secret": "Heslo nebo SSH Private Key...",
   "invasion.ph_username": "Nasadit",
-  "invasion.port": "Port",
+  "invasion.port": "Přístav",
   "invasion.provider": "Poskytovatel",
   "invasion.route": "Směrování (zpětný kanál)",
   "invasion.route_config": "Konfigurace Směrování (JSON, volitelné)",

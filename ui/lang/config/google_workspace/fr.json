@@ -13,7 +13,7 @@
   "config.google_workspace.connect_btn": "Connecter",
   "config.google_workspace.disconnect_btn": "Déconnecter",
   "config.google_workspace.test_btn": "Tester la connexion",
-  "config.google_workspace.scopes_title": "Permissions (Scopes)",
+  "config.google_workspace.scopes_title": "Autorisations (étendues)",
   "config.google_workspace.scopes_desc": "Sélectionnez les services Google auxquels l'agent peut accéder. Les modifications prennent effet lors de la prochaine autorisation OAuth2.",
   "config.google_workspace.scope_gmail": "Gmail — Lecture",
   "config.google_workspace.scope_gmail_hint": "Lister et lire les e-mails",
@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Si votre navigateur affiche ERR_CONNECTION_REFUSED, copiez l'URL complète de la barre d'adresse et collez-la ci-dessous pour terminer l'autorisation.",
   "config.google_workspace.oauth_manual_btn": "Terminer l'autorisation",
   "config.google_workspace.oauth_manual_success": "Autorisation réussie",
-  "config.google_workspace.oauth_manual_failed": "Échec de l'autorisation : ",
+  "config.google_workspace.oauth_manual_failed": "Échec de l'autorisation :",
   "config.google_workspace.testing": "⏳ Test en cours..."
 }

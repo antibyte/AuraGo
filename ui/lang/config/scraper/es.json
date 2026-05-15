@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Estado desconocido",
   "config.server.cert_status_error": "Error de carga",
   "config.server.cert_status_loading": "Cargando…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Puente de herramientas Python",
   "config.tailscale.key_empty": "La clave está vacía",
   "config.tailscale.key_save_failed": "Error al guardar",
   "config.tailscale.key_saved": "Clave guardada",
@@ -58,9 +58,9 @@
   "config.web_scraper.disabled_notice": "Web Scraper está desactivado",
   "config.web_scraper.empty_main_llm": "vacío = LLM principal",
   "config.web_scraper.enabled_label": "Web Scraper activado:",
-  "config.web_scraper.summary_desc": "Las páginas web rasuradas se resumen a través del Helper LLM central cuando está habilitado. El agente recibe el resumen limpio en lugar del contenido completo de la página.\u003cbr\u003e\u003cstrong\u003eBeneficios:\u003c/strong\u003e ahorra tokens, reduce las llamadas de ayuda duplicadas y fortalece el sistema contra la inyección de prompts desde contenido externo.",
+  "config.web_scraper.summary_desc": "Las páginas web rasuradas se resumen a través del Helper LLM central cuando está habilitado. El agente recibe el resumen limpio en lugar del contenido completo de la página.<br><strong>Beneficios:</strong> ahorra tokens, reduce las llamadas de ayuda duplicadas y fortalece el sistema contra la inyección de prompts desde contenido externo.",
   "config.web_scraper.summary_mode": "Modo de resumen",
-  "config.web_scraper.summary_provider": "Helper LLM",
+  "config.web_scraper.summary_provider": "LLM auxiliar",
   "config.web_scraper.use_main_llm": "— Usar LLM principal —",
   "config.webdav.secret_empty": "El valor está vacío"
 }

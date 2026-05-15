@@ -11,7 +11,7 @@
   "config.danger.filesystem.desc": "Umožňuje agentovi zapisovat, mazat, přesouvat soubory a vytvářet adresáře prostřednictvím nástroje souborového systému.",
   "config.danger.network.title": "Síťové požadavky (api_request)",
   "config.danger.network.desc": "Umožňuje agentovi odesílat libovolné HTTP požadavky na externí URL.",
-  "config.danger.remote_shell.title": "Remote Shell (execute_remote_shell)",
+  "config.danger.remote_shell.title": "Vzdálený shell (execute_remote_shell)",
   "config.danger.remote_shell.desc": "Umožňuje agentovi spouštět shell příkazy na vzdálených serverech přes SSH.",
   "config.danger.self_update.title": "Samoaktualizace (manage_updates)",
   "config.danger.self_update.desc": "Umožňuje agentovi aktualizovat sebe a restartovat proces.",

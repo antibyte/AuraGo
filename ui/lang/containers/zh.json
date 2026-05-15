@@ -26,7 +26,7 @@
   "containers.delete_force": "强制移除（如正在运行则终止）",
   "containers.delete_success": "容器已移除",
   "containers.action_success": "操作成功",
-  "containers.btn_shell": "Shell",
+  "containers.btn_shell": "终端",
   "containers.terminal_title": "容器 Shell",
   "containers.terminal_connecting": "正在连接...",
   "containers.terminal_connected": "已连接",

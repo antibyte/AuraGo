@@ -126,7 +126,7 @@
   "config.yepapi.testing": "परीक्षण हो रहा है...",
   "config.yepapi.test_success": "कनेक्शन सफल — API कुंजी वैध है।",
   "config.yepapi.test_error": "कनेक्शन विफल — API कुंजी और प्रदाता सेटिंग्स जाँचें।",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.yepapi.provider_info": "YepAPI का उपयोग LLM प्रदाता के रूप में भी किया जा सकता है। इसे प्रदाता अनुभाग में 'yepapi' प्रकार के साथ कॉन्फ़िगर करें।",
   "config.frigate_title": "Frigate NVR",
   "config.frigate_enabled": "Frigate सक्षम करें",
   "config.frigate_url": "Frigate URL",

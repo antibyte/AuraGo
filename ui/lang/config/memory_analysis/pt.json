@@ -15,7 +15,7 @@
   "config.memory_analysis.enabled_label": "Análise de memória ativada:",
   "config.memory_analysis.llm_reranking_help": "Após a pesquisa vetorial inicial, o LLM reordena os resultados com base na relevância para o contexto de conversa atual. Mais preciso do que pontuações de similaridade puras.",
   "config.memory_analysis.llm_reranking_label": "Reordenação LLM",
-  "config.memory_analysis.model_hint": "empty = provider default",
+  "config.memory_analysis.model_hint": "vazio = padrão do provedor",
   "config.memory_analysis.model_label": "Modelo",
   "config.memory_analysis.preset_conservative": "Conservador: apenas reflexão semanal",
   "config.memory_analysis.preset_custom": "Personalizado",
@@ -39,9 +39,9 @@
   "config.memory_analysis.reflection_label": "Reflexão semanal ativada:",
   "config.memory_analysis.reflection_title": "Reflexão semanal",
   "config.memory_analysis.select_provider": "— LLM principal (padrão) —",
-  "config.memory_analysis.threshold_desc": "Confidence threshold (0.0–1.0) above which extracted memories are stored automatically without user confirmation. Lower values store more aggressively.",
+  "config.memory_analysis.threshold_desc": "Limite de confiança (0,0–1,0) acima do qual as memórias extraídas são armazenadas automaticamente sem confirmação do usuário. Valores mais baixos são armazenados de forma mais agressiva.",
   "config.memory_analysis.threshold_label": "Threshold",
-  "config.memory_analysis.threshold_title": "Auto-Confirm Threshold",
+  "config.memory_analysis.threshold_title": "Limiar de confirmação automática",
   "config.memory_analysis.unified_block_help": "Combina memórias importantes recentes num único bloco de contexto compacto em vez de listá-las individualmente. Reduz o uso de tokens mantendo toda a informação relevante acessível.",
   "config.memory_analysis.unified_block_label": "Bloco de memória unificado"
 }

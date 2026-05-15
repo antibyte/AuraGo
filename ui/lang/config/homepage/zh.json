@@ -1,8 +1,8 @@
 {
   "config.homepage.allow_container": "允许容器管理（启动/停止/重建）",
   "config.homepage.allow_deploy": "允许部署到远程服务器",
-  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.allow_temporary_token_budget_overflow": "允许主页流量临时代币预算溢出",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "当当前主页操作链处于活动状态时，暂时提高相对于主页断路器最大调用的主页系统提示预算。",
   "config.homepage.circuit_breaker_desc": "主页工具通常需要许多连续的工具调用。这里设置一个独立的、更高的限制，从第一次主页调用开始临时生效，直到当前操作链结束。",
   "config.homepage.circuit_breaker_max_calls": "最大工具调用数",
   "config.homepage.circuit_breaker_title": "熔断器",
@@ -41,7 +41,7 @@
   "config.homepage.test_failed": "连接失败",
   "config.homepage.test_success": "连接成功",
   "config.homepage.test_title": "连接测试",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.token_budget_preview": "根据 {homepage_calls} / {base_calls} 允许的工具调用，主页流程可能会暂时使用大约 {effective} 提示令牌而不是 {base} 。",
   "config.homepage.web_container": "Web服务器",
   "config.homepage.webserver_desc": "在Docker中运行本地Caddy Web服务器以预览和托管网站。设置域名后支持自动HTTPS。",
   "config.homepage.webserver_domain": "域名",
@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "检测中…",
   "config.homepage.workspace_autodetect_success": "工作区路径检测成功。",
   "config.homepage.workspace_autodetect_title": "从正在运行的homepage容器自动检测工作区路径",
-  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_desc": "将安装到主页容器中的绝对主机路径设置为/workspace。",
   "config.homepage.workspace_path": "工作区路径",
   "config.homepage.workspace_path_missing_warning": "Web服务器已启用，但未设置工作区路径。请输入项目的绝对主机路径（例如 /home/aurago/aurago/agent_workspace/homepage），或使用自动检测。",
-  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_relative_hint": "在主页工具调用内部，保留相对于该工作区的 project_dir 和路径，例如“my-site”或“my-site/src / app/page.tsx”。",
   "config.homepage.workspace_title": "工作区"
 }

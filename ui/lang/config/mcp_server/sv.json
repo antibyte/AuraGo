@@ -1,5 +1,5 @@
 {
-  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.title": "MCP-server",
   "config.mcp_server.enabled_label": "MCP Server aktiverad",
   "config.mcp_server.require_auth": "Kräv autentisering",
   "config.mcp_server.allowed_tools": "Tillåtna verktyg",

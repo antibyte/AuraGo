@@ -8,9 +8,9 @@
   "config.tokens.created_notice": "Token erstellt! Jetzt kopieren – wird nur einmal angezeigt.",
   "config.tokens.activated": "Token aktiviert",
   "config.tokens.deactivated": "Token deaktiviert",
-  "config.tokens.delete_confirm": "Token löschen: ",
+  "config.tokens.delete_confirm": "Token löschen:",
   "config.tokens.deleted": "Token gelöscht",
   "config.tokens.scopes_label": "Scopes:",
-  "config.tokens.toggle_disable": "Disable",
-  "config.tokens.toggle_enable": "Enable"
+  "config.tokens.toggle_disable": "Deaktiviert",
+  "config.tokens.toggle_enable": "Aktivieren"
 }

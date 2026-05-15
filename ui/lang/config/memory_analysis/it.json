@@ -22,7 +22,7 @@
   "config.memory_analysis.preset_desc": "Scegli un livello di implementazione sicuro invece di abilitare tutti i percorsi di analisi della memoria in una volta.",
   "config.memory_analysis.preset_full": "Completo: riflessione + espansione query + riordino + tempo reale",
   "config.memory_analysis.preset_hint": "personalizzato = mantenere flag manuali",
-  "config.memory_analysis.preset_label": "Preset",
+  "config.memory_analysis.preset_label": "Preimpostazione",
   "config.memory_analysis.preset_normal": "Normale: riflessione + espansione query",
   "config.memory_analysis.preset_title": "Preset di rollout",
   "config.memory_analysis.provider_desc": "L'analisi della memoria utilizza l'LLM ausiliario centrale dalle impostazioni LLM. Se disabilitato, questa funzione non può utilizzare il percorso batch dedicato.",

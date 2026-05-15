@@ -1,8 +1,8 @@
 {
   "config.homepage.allow_container": "कंटेनर प्रबंधन की अनुमति दें (शुरू/बंद/पुनर्निर्माण)",
   "config.homepage.allow_deploy": "रिमोट सर्वर पर डिप्लॉयमेंट की अनुमति दें",
-  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.allow_temporary_token_budget_overflow": "मुखपृष्ठ प्रवाह के लिए अस्थायी टोकन बजट अतिप्रवाह की अनुमति दें",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "वर्तमान होमपेज एक्शन चेन सक्रिय होने पर होमपेज सर्किट ब्रेकर अधिकतम कॉल के सापेक्ष होमपेज सिस्टम प्रॉम्प्ट बजट को अस्थायी रूप से बढ़ाता है।",
   "config.homepage.circuit_breaker_desc": "होमपेज टूल को अक्सर कई लगातार टूल कॉल की आवश्यकता होती है। यह एक अलग, उच्च सीमा सेट करता है जो पहले होमपेज कॉल से वर्तमान एक्शन चेन के अंत तक अस्थायी रूप से लागू होती है।",
   "config.homepage.circuit_breaker_max_calls": "अधिकतम टूल कॉल",
   "config.homepage.circuit_breaker_title": "सर्किट ब्रेकर",
@@ -41,7 +41,7 @@
   "config.homepage.test_failed": "कनेक्शन विफल",
   "config.homepage.test_success": "कनेक्शन सफल",
   "config.homepage.test_title": "कनेक्शन परीक्षण",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.token_budget_preview": "होमपेज प्रवाह अस्थायी रूप से {base} के बजाय {homepage_calls} / {base_calls} अनुमत टूल कॉल के आधार पर लगभग {effective} प्रॉम्प्ट टोकन का उपयोग कर सकता है।",
   "config.homepage.web_container": "वेब सर्वर",
   "config.homepage.webserver_desc": "वेबसाइटों के पूर्वावलोकन और होस्टिंग के लिए Docker में एक स्थानीय Caddy वेब सर्वर चलाएँ। डोमेन सेट होने पर स्वचालित HTTPS का समर्थन करता है।",
   "config.homepage.webserver_domain": "डोमेन",
@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "पहचान हो रही है…",
   "config.homepage.workspace_autodetect_success": "कार्यक्षेत्र पथ सफलतापूर्वक पहचाना गया।",
   "config.homepage.workspace_autodetect_title": "चल रहे homepage कंटेनर से कार्यस्थान पथ स्वतः पहचानें",
-  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_desc": "संपूर्ण होस्ट पथ सेट करें जो होमपेज कंटेनर में /वर्कस्पेस के रूप में माउंट किया गया है।",
   "config.homepage.workspace_path": "कार्यस्थान पथ",
   "config.homepage.workspace_path_missing_warning": "वेब सर्वर सक्षम है लेकिन कार्यस्थान पथ सेट नहीं है। अपने प्रोजेक्ट का पूर्ण होस्ट पथ दर्ज करें (जैसे /home/aurago/aurago/agent_workspace/homepage) या स्वतः पहचान का उपयोग करें।",
-  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, इस कार्यक्षेत्र से संबंधित प्रोजेक्ट_डीआईआर और पथ रखें, उदाहरण के लिए 'मेरी-साइट' या 'my-site/src / app/page.tsx'।",
   "config.homepage.workspace_title": "कार्यस्थान"
 }

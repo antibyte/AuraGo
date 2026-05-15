@@ -63,7 +63,7 @@
   "invasion.ph_secret": "Mot de passe ou Clé Privée SSH...",
   "invasion.ph_username": "Déployer",
   "invasion.port": "Port",
-  "invasion.provider": "Provider",
+  "invasion.provider": "Fournisseur",
   "invasion.route": "Route (Canal de Retour)",
   "invasion.route_config": "Config Route (JSON, optionnel)",
   "invasion.route_custom": "Personnalisée",

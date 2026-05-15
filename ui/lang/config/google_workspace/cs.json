@@ -4,9 +4,9 @@
   "config.google_workspace.readonly_hint": "Pokud je aktivní, jsou povoleny pouze operace čtení (bez odesílání e-mailů, vytváření událostí, úprav dokumentů atd.)",
   "config.google_workspace.oauth_title": "Nastavení OAuth2",
   "config.google_workspace.oauth_desc": "Google Workspace používá OAuth2 pro ověřování. Vytvořte klienta OAuth2 v Google Cloud Console, nastavte redirect URI na adresu AuraGo + /api/oauth/callback a zadejte přihlašovací údaje níže.",
-  "config.google_workspace.client_id_label": "OAuth2 Client ID",
+  "config.google_workspace.client_id_label": "Klient OAuth2 ID",
   "config.google_workspace.client_id_hint": "Z Google Cloud Console → API a Služby → Přihlašovací údaje",
-  "config.google_workspace.client_secret_label": "OAuth2 Client Secret",
+  "config.google_workspace.client_secret_label": "Tajný klíč klienta OAuth2",
   "config.google_workspace.client_secret_hint": "Uloženo šifrovaně ve vaultu. Vložte secret a klikněte na Uložit.",
   "config.google_workspace.save_vault": "Uložit do Vaultu",
   "config.google_workspace.connection_label": "Připojení OAuth2",
@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Pokud váš prohlížeč zobrazuje ERR_CONNECTION_REFUSED, zkopírujte celou adresu z adresního řádku a vložte ji níže pro dokončení autorizace.",
   "config.google_workspace.oauth_manual_btn": "Dokončit autorizaci",
   "config.google_workspace.oauth_manual_success": "Autorizace úspěšná",
-  "config.google_workspace.oauth_manual_failed": "Autorizace selhala: ",
+  "config.google_workspace.oauth_manual_failed": "Autorizace selhala:",
   "config.google_workspace.testing": "⏳ Testování..."
 }

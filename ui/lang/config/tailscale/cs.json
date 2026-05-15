@@ -77,7 +77,7 @@
   "config.tailscale.tsnet_homepage_requires_webserver": "Vystavení homepage vyžaduje, aby byl webový server Homepage nejprve povolen.",
   "config.tailscale.tsnet_space_agent_pending_hint": "Vystavení Space Agent je zapnuté. Pokud se URL nezobrazí, ověřte Space Agent, HTTPS wrapper a Tailscale HTTPS.",
   "config.tailscale.tsnet_space_agent_requires_enabled": "Nejprve povolte integraci Space Agent.",
-  "config.tailscale.tsnet_space_agent_url_label": "Space Agent URL",
+  "config.tailscale.tsnet_space_agent_url_label": "Vesmírný agent URL",
   "config.tailscale.tsnet_homepage_url_label": "URL domovské stránky",
   "config.tailscale.tsnet_hostname_hint": "Název hostitele ve vašem tailnetu (např. aurago → aurago.tailnet-name.ts.net)",
   "config.tailscale.tsnet_hostname_label": "Název hostitele",

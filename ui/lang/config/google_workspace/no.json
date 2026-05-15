@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Hvis nettleseren din viser ERR_CONNECTION_REFUSED, kan du kopiere hele URL-en fra adressefeltet og lime den inn nedenfor for å fullføre godkjenningen.",
   "config.google_workspace.oauth_manual_btn": "Fullfør godkjenning",
   "config.google_workspace.oauth_manual_success": "Godkjenning vellykket",
-  "config.google_workspace.oauth_manual_failed": "Godkjenning mislyktes: ",
+  "config.google_workspace.oauth_manual_failed": "Godkjenning mislyktes:",
   "config.google_workspace.testing": "⏳ Tester..."
 }

@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Estado desconocido",
   "config.server.cert_status_error": "Error de carga",
   "config.server.cert_status_loading": "Cargando…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Puente de herramientas Python",
   "config.tailscale.api_desc": "Conectar a la API de Tailscale para gestión de dispositivos y red.",
   "config.tailscale.api_key_hint": "Tu clave API de Tailscale (tskey-api-…). Almacenada de forma segura en el almacén de secretos.",
   "config.tailscale.api_key_label": "Clave API de Tailscale",

@@ -86,7 +86,7 @@
   "config.server.max_body_bytes_label": "Max. velikost těla (bajty)",
   "config.server.oauth_redirect_hint": "Přepíše základní URL pro OAuth callbacky (např. za reverse proxy).",
   "config.server.oauth_redirect_label": "Základní URL přesměrování OAuth",
-  "config.server.port_label": "Port",
+  "config.server.port_label": "Přístav",
   "config.server.selfsigned_port_warning": "Porty pod 1024 vyžadují oprávnění root/administrátor na Linuxu/macOS. Pro místní přístup bez zvýšených oprávnění použijte port 8443.",
   "config.server.ui_language_label": "Jazyk rozhraní",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

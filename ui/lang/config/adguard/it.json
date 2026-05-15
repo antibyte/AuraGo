@@ -5,7 +5,7 @@
   "config.adguard.loading": "Caricamento…",
   "config.adguard.not_running": "Non in esecuzione",
   "config.adguard.password_empty": "Inserisci prima una password.",
-  "config.adguard.password_label": "Password (Vault)",
+  "config.adguard.password_label": "Password (cassaforte)",
   "config.adguard.password_placeholder": "Inserisci password…",
   "config.adguard.password_save_failed": "Impossibile salvare la password nel vault.",
   "config.adguard.password_saved": "Password salvata nel vault.",

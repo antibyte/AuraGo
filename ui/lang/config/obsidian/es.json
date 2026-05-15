@@ -2,7 +2,7 @@
   "config.obsidian.enabled_label": "Activar Obsidian",
   "config.obsidian.readonly_label": "Solo lectura",
   "config.obsidian.destructive_label": "Permitir eliminación",
-  "config.obsidian.host_label": "Host",
+  "config.obsidian.host_label": "Anfitrión",
   "config.obsidian.port_label": "Puerto",
   "config.obsidian.https_label": "Usar HTTPS",
   "config.obsidian.insecure_label": "SSL inseguro",

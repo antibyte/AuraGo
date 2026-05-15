@@ -94,7 +94,7 @@
   "skills.generate_timeout": "Le brouillon IA a pris trop de temps. Veuillez réessayer ou raccourcir le prompt.",
   "skills.generate_title": "Générer un brouillon de compétence",
   "skills.guardian_decision": "Décision",
-  "skills.guardian_title": "LLM Guardian",
+  "skills.guardian_title": "Gardien LLM",
   "skills.history_title": "Historique des versions",
   "skills.history_version": "Version",
   "skills.import_file_label": "Fichier de bundle",

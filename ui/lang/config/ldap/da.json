@@ -11,7 +11,7 @@
   "config.ldap.password_empty": "Indtast først en adgangskode.",
   "config.ldap.password_save_failed": "Kunne ikke gemme adgangskode i vault.",
   "config.ldap.password_saved": "Adgangskode gemt i vault.",
-  "config.ldap.port_label": "Port",
+  "config.ldap.port_label": "Havn",
   "config.ldap.readonly_label": "Skrivebeskyttet tilstand",
   "config.ldap.save_icon": "💾",
   "config.ldap.save_vault": "Gem i Vault",

@@ -126,7 +126,7 @@
   "config.yepapi.testing": "Test en cours...",
   "config.yepapi.test_success": "Connexion réussie — la clé API est valide.",
   "config.yepapi.test_error": "Échec de la connexion — vérifiez votre clé API et les paramètres du fournisseur.",
-  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'.",
+  "config.yepapi.provider_info": "YepAPI peut également être utilisé comme fournisseur LLM. Configurez-le dans la section Fournisseurs avec le type 'yepapi'.",
   "config.frigate_title": "Frigate NVR",
   "config.frigate_enabled": "Activer Frigate",
   "config.frigate_url": "URL Frigate",

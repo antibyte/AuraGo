@@ -18,7 +18,10 @@
 function t(k, p) {
     const dict = typeof I18N !== 'undefined' ? I18N : null;
     let s = (dict && dict[k]) || k;
-    if (p) Object.entries(p).forEach(([a, b]) => s = s.replaceAll('{{' + a + '}}', b));
+    if (p) Object.entries(p).forEach(([a, b]) => {
+        s = s.replaceAll('{{' + a + '}}', b);
+        s = s.replaceAll('{' + a + '}', b);
+    });
     return s;
 }
 
@@ -1922,4 +1925,3 @@ if (!window._auragoSharedInitialized) {
     window._auragoSharedInitialized = true;
     scheduleInit();
 }
-

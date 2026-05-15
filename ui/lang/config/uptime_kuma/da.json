@@ -27,7 +27,7 @@
   "config.uptime_kuma.summary_down": "Nede",
   "config.uptime_kuma.summary_empty": "Ingen overvågningsdata tilgængelig endnu.",
   "config.uptime_kuma.summary_title": "Monitoroversigt",
-  "config.uptime_kuma.summary_total": "Total",
+  "config.uptime_kuma.summary_total": "I alt",
   "config.uptime_kuma.summary_unknown": "Ukendt",
   "config.uptime_kuma.summary_up": "Oppe",
   "config.uptime_kuma.test_btn": "Test forbindelse",

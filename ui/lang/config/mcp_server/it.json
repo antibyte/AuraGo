@@ -1,5 +1,5 @@
 {
-  "config.mcp_server.title": "MCP Server",
+  "config.mcp_server.title": "Server MCP",
   "config.mcp_server.enabled_label": "Server MCP abilitato",
   "config.mcp_server.require_auth": "Richiedi autenticazione",
   "config.mcp_server.allowed_tools": "Strumenti consentiti",

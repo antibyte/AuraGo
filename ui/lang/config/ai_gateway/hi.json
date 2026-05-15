@@ -1,8 +1,8 @@
 {
-  "config.ai_gateway.title": "AI Gateway",
+  "config.ai_gateway.title": "AI गेटवे",
   "config.ai_gateway.enabled_label": "AI Gateway सक्षम",
   "config.ai_gateway.account_id": "खाता ID",
-  "config.ai_gateway.account_id_placeholder": "Cloudflare Account ID",
+  "config.ai_gateway.account_id_placeholder": "क्लाउडफ्लेयर खाता ID",
   "config.ai_gateway.gateway_id": "गेटवे ID",
   "config.ai_gateway.gateway_id_placeholder": "my-gateway",
   "config.ai_gateway.disabled_notice": "AI Gateway अक्षम है",

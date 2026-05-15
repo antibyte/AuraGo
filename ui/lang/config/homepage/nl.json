@@ -1,8 +1,8 @@
 {
   "config.homepage.allow_container": "Containerbeheer toestaan (starten/stoppen/herbouwen)",
   "config.homepage.allow_deploy": "Deployment naar externe servers toestaan",
-  "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
+  "config.homepage.allow_temporary_token_budget_overflow": "Sta een tijdelijke overloop van het tokenbudget toe voor stromen op de startpagina",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Verhoogt tijdelijk het promptbudget van het systeem op de startpagina in verhouding tot het maximale aantal oproepen van de stroomonderbreker op de startpagina terwijl de huidige actieketen op de startpagina actief is.",
   "config.homepage.circuit_breaker_desc": "De homepage tool heeft vaak veel opeenvolgende tool-aanroepen nodig. Dit stelt een apart, hoger limiet in dat tijdelijk geldt vanaf de eerste homepage-aanroep tot het einde van de huidige actieketen.",
   "config.homepage.circuit_breaker_max_calls": "Max. tool-aanroepen",
   "config.homepage.circuit_breaker_title": "Circuit Breaker",
@@ -41,7 +41,7 @@
   "config.homepage.test_failed": "Verbinding mislukt",
   "config.homepage.test_success": "Verbinding geslaagd",
   "config.homepage.test_title": "Verbindingstest",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.token_budget_preview": "Homepaginastromen kunnen tijdelijk ongeveer {effective} prompttokens gebruiken in plaats van {base}, gebaseerd op {homepage_calls} / {base_calls} toegestane toolaanroepen.",
   "config.homepage.web_container": "Webserver",
   "config.homepage.webserver_desc": "Draai een lokale Caddy-webserver in Docker om websites te bekijken en te hosten. Ondersteunt automatische HTTPS wanneer een domein is ingesteld.",
   "config.homepage.webserver_domain": "Domein",
@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "Detecteren…",
   "config.homepage.workspace_autodetect_success": "Werkruimtepad succesvol gedetecteerd.",
   "config.homepage.workspace_autodetect_title": "Werkruimtepad automatisch detecteren vanuit de actieve homepage-container",
-  "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
+  "config.homepage.workspace_desc": "Stel het absolute hostpad dat in de startpaginacontainer is gekoppeld in als /workspace.",
   "config.homepage.workspace_path": "Werkruimtepad",
-  "config.homepage.workspace_path_missing_warning": "The web server is enabled but no workspace path is set. Enter the absolute host path to your homepage project (e.g. /home/aurago/aurago/agent_workspace/homepage) or click Auto-detect to find it automatically.",
-  "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
+  "config.homepage.workspace_path_missing_warning": "De webserver is ingeschakeld, maar er is geen werkruimtepad ingesteld. Voer het absolute hostpad naar uw startpaginaproject in (bijvoorbeeld / home/aurago / aurago/agent_workspace /homepage) of klik op Automatisch detecteren om het automatisch te vinden.",
+  "config.homepage.workspace_relative_hint": "Houd binnen de toolaanroepen van de startpagina project_dir en pad relatief ten opzichte van deze werkruimte, bijvoorbeeld 'mijn-site' of ' my-site/src / app/page.tsx '.",
   "config.homepage.workspace_title": "Werkruimte"
 }

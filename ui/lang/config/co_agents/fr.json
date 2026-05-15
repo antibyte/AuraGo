@@ -83,7 +83,7 @@
   "config.security_proxy.status_unknown": "État inconnu",
   "config.server.cert_status_error": "Erreur de chargement",
   "config.server.cert_status_loading": "Chargement…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Pont d'outils Python",
   "config.tailscale.key_empty": "La clé est vide",
   "config.tailscale.key_save_failed": "Échec de l'enregistrement",
   "config.tailscale.key_saved": "Clé enregistrée",

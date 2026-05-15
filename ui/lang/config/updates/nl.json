@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.cert_status_error": "Laadfout",
   "config.server.cert_status_loading": "Laden…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-toolbrug",
   "config.tailscale.key_empty": "Sleutel is leeg",
   "config.tailscale.key_save_failed": "Opslaan mislukt",
   "config.tailscale.key_saved": "Sleutel opgeslagen",
@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Update gestart — AuraGo start opnieuw. Herlaad over 60s…",
   "config.updates.up_to_date": "Up-to-date",
   "config.updates.version": "Versie",
-  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. \u003cstrong\u003eYour configuration and data are preserved.\u003c/strong\u003e AuraGo will restart after the update.",
+  "config.updates.warning_banner": "De update vervangt binaries, prompts en UI-bestanden. <strong>Je configuratie en gegevens blijven behouden.</strong> AuraGo herstart na de update.",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg"
 }

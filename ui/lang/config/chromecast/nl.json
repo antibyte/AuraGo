@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "Naam",
   "config.chromecast.col_port": "Poort",
   "config.chromecast.delete_confirm": "Chromecast-apparaat \"{name}\" echt verwijderen? Dit kan niet ongedaan worden gemaakt.",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "Verwijderen mislukt",
   "config.chromecast.delete_tooltip": "Verwijderen",
   "config.chromecast.desc_placeholder": "Optionele beschrijving…",
   "config.chromecast.devices_desc": "Beheer je Chromecast-apparaten. Gebruik mDNS-detectie om apparaten op je netwerk te vinden, of voeg ze handmatig toe. Geef elk apparaat een herkenbare naam zodat de agent het kan aanspreken (bijv. \"Woonkamer\").",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "Een apparaatnaam is vereist.",
   "config.chromecast.no_devices": "Geen Chromecast-apparaten geregistreerd. Gebruik \"Apparaten zoeken\" om ze op je netwerk te vinden.",
   "config.chromecast.no_devices_found": "Geen Chromecast-apparaten gevonden op het netwerk. Zorg ervoor dat je apparaten zijn ingeschakeld en verbonden met hetzelfde netwerk.",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "Poort",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Opslaan",
   "config.chromecast.tts_port_label": "TTS-poort",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "Onbekend",
   "config.chromecast.port_placeholder": "8009"
 }

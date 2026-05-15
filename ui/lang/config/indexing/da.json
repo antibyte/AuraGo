@@ -11,7 +11,7 @@
   "config.indexing.advanced_settings": "Avancerede indstillinger",
   "config.indexing.errors": "fouten",
   "config.indexing.files": "Bestanden",
-  "config.indexing.image_notice_desc": "Image analysis via Vision LLM can cause significant API costs when indexing many images. Each image is sent individually to the LLM and generates token costs. Recommendation: Only index folders with relevant images.",
+  "config.indexing.image_notice_desc": "Billedanalyse via Vision LLM kan forårsage betydelige API omkostninger ved indeksering af mange billeder. Hvert billede sendes individuelt til LLM og genererer token-omkostninger. Anbefaling: Indeks kun mapper med relevante billeder.",
   "config.indexing.image_notice_title": "Opmerking over afbeeldingsindexering",
   "config.indexing.images": "Afbeeldingen (geanalyseerd via Vision LLM, indien ingeschakeld)",
   "config.indexing.index_images_desc": "Wanneer ingeschakeld, worden afbeeldingsbestanden (.jpg, .png, .gif, .webp, .bmp) naar de Vision LLM gestuurd.",

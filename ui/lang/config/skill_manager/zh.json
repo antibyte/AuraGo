@@ -67,7 +67,7 @@
   "config.skill_manager.tool_bridge_no_tools": "没有可用的工具",
   "config.skill_manager.tool_bridge_none_selected": "未选择任何工具。Python 技能无法调用任何原生工具。",
   "config.skill_manager.tool_bridge_enabled_label": "已启用",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python工具桥",
   "config.tailscale.key_empty": "密钥为空",
   "config.tailscale.key_save_failed": "保存失败",
   "config.tailscale.key_saved": "密钥已保存",

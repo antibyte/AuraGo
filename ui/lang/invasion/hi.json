@@ -69,7 +69,7 @@
   "invasion.route_custom": "कस्टम",
   "invasion.route_direct": "सीधा",
   "invasion.route_ssh_tunnel": "SSH टनल",
-  "invasion.route_tailscale": "Tailscale",
+  "invasion.route_tailscale": "टेलस्केल",
   "invasion.route_wireguard": "WireGuard",
   "invasion.save": "सहेजें",
   "invasion.saved": "सहेजा गया!",

@@ -31,7 +31,7 @@
   "config.sql_connections.host_placeholder": "localhost",
   "config.sql_connections.loading": "⏳ Verbindingen laden…",
   "config.sql_connections.name_label": "Verbindingsnaam",
-  "config.sql_connections.name_placeholder": "e.g. Production DB",
+  "config.sql_connections.name_placeholder": "bijv. Productie DB",
   "config.sql_connections.name_required": "Verbindingsnaam is vereist.",
   "config.sql_connections.new_connection": "＋ Nieuwe verbinding",
   "config.sql_connections.password_label": "Wachtwoord",

@@ -193,7 +193,7 @@
   "dashboard.integration_fritzbox": "FritzBox",
   "dashboard.integration_github": "GitHub",
   "dashboard.integration_google_workspace": "Google Workspace",
-  "dashboard.integration_helper_llm": "Helper LLM",
+  "dashboard.integration_helper_llm": "辅助 LLM",
   "dashboard.integration_home_assistant": "Home Assistant",
   "dashboard.integration_homepage": "主页",
   "dashboard.integration_image_generation": "图像生成",

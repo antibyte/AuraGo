@@ -64,7 +64,7 @@
   "config.security_proxy.status_unknown": "अज्ञात स्थिति",
   "config.server.cert_status_error": "लोड त्रुटि",
   "config.server.cert_status_loading": "लोड हो रहा है…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "पायथन टूल ब्रिज",
   "config.tailscale.key_empty": "कुंजी खाली है",
   "config.tailscale.key_save_failed": "सेव विफल",
   "config.tailscale.key_saved": "कुंजी सेव हुई",

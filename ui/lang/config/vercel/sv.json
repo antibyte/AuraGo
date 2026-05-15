@@ -29,7 +29,7 @@
   "config.vercel.test_title": "Anslutningstest",
   "config.vercel.token_desc": "Personal Access Token från Vercel. Lagras säkert i valvet.",
   "config.vercel.token_empty": "Vänligen ange en token",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "Personlig åtkomsttoken",
   "config.vercel.token_saved": "Token sparad i valvet",
   "config.vercel.token_title": "API-token"
 }

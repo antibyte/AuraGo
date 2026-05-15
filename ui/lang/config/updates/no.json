@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Oppdatering startet — AuraGo starter på nytt. Last inn på nytt på 60-tallet...",
   "config.updates.up_to_date": "Oppdatert",
   "config.updates.version": "Versjon",
-  "config.updates.warning_banner": "Oppdateringen erstatter binærfiler, ledetekster og brukergrensesnittfiler. \u003cstrong\u003eDin konfigurasjon og data er bevart.\u003c/strong\u003e AuraGo vil starte på nytt etter oppdateringen.",
+  "config.updates.warning_banner": "Oppdateringen erstatter binærfiler, ledetekster og brukergrensesnittfiler. <strong>Din konfigurasjon og data er bevart.</strong> AuraGo vil starte på nytt etter oppdateringen.",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
   "config.webdav.secret_empty": "Verdien er tom"
 }

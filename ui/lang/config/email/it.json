@@ -11,7 +11,7 @@
   "config.email.smtp_send": "SMTP (Invio)",
   "config.email.smtp_port_help": "587 = STARTTLS, 465 = SSL/TLS.",
   "config.email.credentials": "Credenziali",
-  "config.email.username": "Username",
+  "config.email.username": "Nome utente",
   "config.email.keep_password": "Lascia vuoto per mantenere la password esistente.",
   "config.email.from_address": "Indirizzo Mittente",
   "config.email.from_help": "Vuoto = stesso di username.",

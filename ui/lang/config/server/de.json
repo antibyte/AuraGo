@@ -86,7 +86,7 @@
   "config.server.max_body_bytes_label": "Max Body-Größe (Bytes)",
   "config.server.oauth_redirect_hint": "Überschreibt die Basis-URL für OAuth-Callbacks (z.B. hinter einem Reverse Proxy).",
   "config.server.oauth_redirect_label": "OAuth Redirect Basis-URL",
-  "config.server.port_label": "Port",
+  "config.server.port_label": "Hafen",
   "config.server.selfsigned_port_warning": "Ports unter 1024 erfordern Root-/Administratorrechte unter Linux/macOS. Für lokalen Zugriff ohne erhöhte Rechte bitte Port 8443 verwenden.",
   "config.server.ui_language_label": "UI-Sprache",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

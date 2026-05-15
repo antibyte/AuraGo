@@ -9,7 +9,7 @@
   "config.chromecast.col_name": "नाम",
   "config.chromecast.col_port": "पोर्ट",
   "config.chromecast.delete_confirm": "Chromecast डिवाइस \"{name}\" को वास्तव में हटाएं? इसे पूर्ववत नहीं किया जा सकता।",
-  "config.chromecast.delete_failed": "Delete failed",
+  "config.chromecast.delete_failed": "हटाना विफल",
   "config.chromecast.delete_tooltip": "हटाएं",
   "config.chromecast.desc_placeholder": "वैकल्पिक विवरण…",
   "config.chromecast.devices_desc": "अपने Chromecast डिवाइस प्रबंधित करें। अपने नेटवर्क पर डिवाइस खोजने के लिए mDNS डिस्कवरी का उपयोग करें, या उन्हें मैन्युअल रूप से जोड़ें। प्रत्येक डिवाइस को एक दोस्ताना नाम दें ताकि एजेंट इसे पहचान सके (जैसे \"लिविंग रूम\")।",
@@ -32,10 +32,10 @@
   "config.chromecast.name_required": "डिवाइस का नाम आवश्यक है।",
   "config.chromecast.no_devices": "कोई Chromecast डिवाइस पंजीकृत नहीं है। अपने नेटवर्क पर उन्हें खोजने के लिए \"डिवाइस खोजें\" का उपयोग करें।",
   "config.chromecast.no_devices_found": "नेटवर्क पर कोई Chromecast डिवाइस नहीं मिला। सुनिश्चित करें कि आपके डिवाइस चालू हैं और उसी नेटवर्क से जुड़े हैं।",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "पोर्ट",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "सहेजें",
   "config.chromecast.tts_port_label": "TTS पोर्ट",
-  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.unknown": "अज्ञात",
   "config.chromecast.port_placeholder": "8009"
 }

@@ -32,7 +32,7 @@
   "config.chromecast.name_required": "Ein Gerätename ist erforderlich.",
   "config.chromecast.no_devices": "Keine Chromecast-Geräte registriert. Verwenden Sie „Geräte erkennen“, um sie in Ihrem Netzwerk zu finden.",
   "config.chromecast.no_devices_found": "Im Netzwerk wurden keine Chromecast-Geräte gefunden. Stellen Sie sicher, dass Ihre Geräte eingeschaltet und mit demselben Netzwerk verbunden sind.",
-  "config.chromecast.port_label": "Port",
+  "config.chromecast.port_label": "Hafen",
   "config.chromecast.port_placeholder": "8009",
   "config.chromecast.request_failed": "Anfrage fehlgeschlagen",
   "config.chromecast.save": "Speichern",

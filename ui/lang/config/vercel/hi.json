@@ -29,7 +29,7 @@
   "config.vercel.test_title": "कनेक्शन टेस्ट",
   "config.vercel.token_desc": "Vercel का Personal Access Token। वॉल्ट में सुरक्षित रूप से संग्रहीत।",
   "config.vercel.token_empty": "कृपया एक टोकन दर्ज करें",
-  "config.vercel.token_label": "Personal Access Token",
+  "config.vercel.token_label": "व्यक्तिगत पहुँच टोकन",
   "config.vercel.token_saved": "टोकन वॉल्ट में सेव हुआ",
   "config.vercel.token_title": "API टोकन"
 }

@@ -1,6 +1,6 @@
 {
   "config.security.applying": "Bezig met toepassen…",
-  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
+  "config.security.fix_all_auto": "{n} automatisch repareerbare problemen oplossen",
   "config.security.fix_now": "Nu verhelpen",
   "config.security.modal.apply": "Correcties toepassen",
   "config.security.modal.desc": "Deze wijziging heeft kritieke beveiligingsproblemen geïntroduceerd. Automatische correcties nu toepassen?",

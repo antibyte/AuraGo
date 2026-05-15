@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Nieznany status",
   "config.server.cert_status_error": "Błąd ładowania",
   "config.server.cert_status_loading": "Ładowanie…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Most narzędziowy Pythona",
   "config.tailscale.key_empty": "Klucz jest pusty",
   "config.tailscale.key_save_failed": "Zapisywanie nie powiodło się",
   "config.tailscale.key_saved": "Klucz zapisany",
@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Aktualizacja rozpoczęta — AuraGo się restartuje. Przeładuj za 60s…",
   "config.updates.up_to_date": "Aktualna",
   "config.updates.version": "Wersja",
-  "config.updates.warning_banner": "Aktualizacja zastępuje binaria, prompty i pliki UI. \u003cstrong\u003eTwoja konfiguracja i dane są zachowane.\u003c/strong\u003e AuraGo zrestartuje się po aktualizacji.",
+  "config.updates.warning_banner": "Aktualizacja zastępuje binaria, prompty i pliki UI. <strong>Twoja konfiguracja i dane są zachowane.</strong> AuraGo zrestartuje się po aktualizacji.",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta"
 }
