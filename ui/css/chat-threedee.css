@@ -176,20 +176,25 @@
     content: '';
     display: block;
     position: absolute;
-    top: -2px;
-    left: -2px;
-    width: calc(100% + 4px);
-    height: calc(100% + 4px);
-    border-radius: 12px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 2px; /* This defines the border thickness */
+    border-radius: inherit;
     background: linear-gradient(
         90deg,
-        rgba(129, 140, 248, 0.9),
-        rgba(34, 211, 238, 0.9),
-        rgba(192, 132, 252, 0.9),
-        rgba(129, 140, 248, 0.9)
-    );
+        rgba(129, 140, 248, 1),
+        rgba(34, 211, 238, 1),
+        rgba(192, 132, 252, 1),
+        rgba(129, 140, 248, 1)
+    ) border-box;
     background-size: 200% 200%;
-    z-index: -1;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    z-index: 10; /* Draw on top so shadows don't cover it */
     pointer-events: none;
     animation: threedeeBorderRotate 3s linear infinite, threedeePulse 2s ease-in-out infinite alternate;
 }
@@ -206,20 +211,25 @@
     content: '';
     display: block;
     position: absolute;
-    top: -2px;
-    left: -2px;
-    width: calc(100% + 4px);
-    height: calc(100% + 4px);
-    border-radius: 12px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 2px;
+    border-radius: inherit;
     background: linear-gradient(
         90deg,
-        rgba(79, 70, 229, 0.9),
-        rgba(45, 212, 191, 0.9),
-        rgba(251, 146, 60, 0.9),
-        rgba(79, 70, 229, 0.9)
-    );
+        rgba(79, 70, 229, 1),
+        rgba(45, 212, 191, 1),
+        rgba(251, 146, 60, 1),
+        rgba(79, 70, 229, 1)
+    ) border-box;
     background-size: 200% 200%;
-    z-index: -1;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    z-index: 10;
     pointer-events: none;
     animation: threedeeBorderRotate 3s linear infinite reverse, threedeePulseUser 2s ease-in-out infinite alternate;
 }
