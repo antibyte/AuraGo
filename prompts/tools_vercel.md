@@ -15,6 +15,8 @@ conditions: ["vercel_enabled"]
 - `create_project` — Create a new Vercel project (`project_name`, `framework`, `root_directory`, `output_directory`)
 - `update_project` — Update project settings (`project_id`, `project_name`, `framework`, `root_directory`, `output_directory`)
 
+Project deletion is intentionally not available to autonomous agent workflows because it permanently deletes live Vercel projects.
+
 **Deployment operations:**
 - `list_deployments` — List recent deployments for a project
 - `get_deployment` — Get details for a deployment (`deployment_id`)

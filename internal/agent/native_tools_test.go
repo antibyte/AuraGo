@@ -315,6 +315,38 @@ func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
+func TestBuiltinToolSchemasDoNotExposeVercelDeleteProject(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name != "vercel" {
+			continue
+		}
+		params, ok := schema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("vercel parameters type = %T, want map[string]interface{}", schema.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("vercel properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("vercel operation property missing")
+		}
+		enumVals, ok := opProp["enum"].([]string)
+		if !ok {
+			t.Fatalf("vercel operation enum type = %T, want []string", opProp["enum"])
+		}
+		for _, op := range enumVals {
+			if op == "delete_project" {
+				t.Fatal("vercel schema must not expose delete_project to autonomous agents")
+			}
+		}
+		return
+	}
+	t.Fatal("vercel schema not found")
+}
+
 func TestBuiltinToolSchemasInvasionControlSupportsEggName(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{InvasionControlEnabled: true})
 

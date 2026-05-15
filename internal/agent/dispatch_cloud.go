@@ -301,6 +301,9 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
 			}
 			req := decodeVercelArgs(tc)
+			if req.Operation == "delete_project" {
+				return `Tool Output: {"status":"error","message":"Vercel delete_project is not available to the autonomous agent because it permanently deletes projects. Use the Vercel dashboard or an explicit admin-only maintenance path outside the agent loop for project deletion."}`
+			}
 			token, tokenErr := vault.ReadSecret("vercel_token")
 			if tokenErr != nil || token == "" {
 				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
@@ -318,13 +321,13 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			}
 			if cfg.Vercel.ReadOnly {
 				switch req.Operation {
-				case "create_project", "update_project", "delete_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias", "rollback", "cancel_deploy":
+				case "create_project", "update_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias", "rollback", "cancel_deploy":
 					return `Tool Output: {"status":"error","message":"Vercel is in read-only mode. Disable vercel.readonly to allow changes."}`
 				}
 			}
 			if !cfg.Vercel.AllowProjectManagement {
 				switch req.Operation {
-				case "create_project", "update_project", "delete_project":
+				case "create_project", "update_project":
 					return `Tool Output: {"status":"error","message":"Vercel project management is not allowed. Set vercel.allow_project_management=true in config.yaml."}`
 				}
 			}
@@ -392,9 +395,6 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			case "assign_alias":
 				logger.Info("LLM requested Vercel assign alias", "deployment_id", req.DeploymentID, "alias", req.Alias)
 				return "Tool Output: " + tools.VercelAssignAlias(vcfg, req.DeploymentID, req.Alias)
-			case "delete_project":
-				logger.Info("LLM requested Vercel delete project", "project_id", req.ProjectID)
-				return "Tool Output: " + tools.VercelDeleteProject(vcfg, req.ProjectID)
 			case "rollback":
 				logger.Info("LLM requested Vercel rollback", "project_id", req.ProjectID, "deployment_id", req.DeploymentID)
 				return "Tool Output: " + tools.VercelRollback(vcfg, req.ProjectID, req.DeploymentID)
@@ -405,7 +405,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Vercel get env var", "project_id", req.ProjectID, "key", req.EnvKey)
 				return "Tool Output: " + tools.VercelGetEnv(vcfg, req.ProjectID, req.EnvKey)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, delete_project, list_deployments, get_deployment, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
+				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, list_deployments, get_deployment, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
 			}
 
 		default:

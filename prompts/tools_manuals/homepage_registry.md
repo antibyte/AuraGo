@@ -18,7 +18,7 @@ Projects are automatically registered and updated when you use `homepage` operat
   "description": "Personal portfolio site with project showcase",
   "framework": "astro",
   "url": "https://mysite.example.com",
-  "project_dir": "/workspace/portfolio",
+  "project_dir": "portfolio",
   "tags": ["portfolio", "personal"]
 }
 ```

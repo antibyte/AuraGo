@@ -92,6 +92,9 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			return formatToolPermissionDenied("execute_shell", "runtime_permissions", "agent.allow_shell", "execute_shell is disabled in Danger Zone settings")
 		}
 		req := decodeShellExecutionArgs(tc)
+		if isHomepageWorkspaceShellCommand(req.Command) {
+			return "Tool Output: [PERMISSION DENIED] This command targets the homepage container workspace (/workspace). Use the homepage tool instead, for example homepage exec with a concrete command and project_dir/list_files/read_file/build for homepage projects. execute_shell runs in agent_workspace/workdir, not inside the homepage container."
+		}
 		// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
 		if isBlockedEnvRead(req.Command) {
 			logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", Truncate(req.Command, 200))
@@ -203,4 +206,12 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 	default:
 		return ""
 	}
+}
+
+func isHomepageWorkspaceShellCommand(command string) bool {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return false
+	}
+	return strings.Contains(command, "/workspace") || strings.Contains(command, `\workspace`)
 }

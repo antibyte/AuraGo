@@ -56,7 +56,7 @@ When updating or publishing an existing homepage project, use this direct path:
 3. `homepage` → `build`, `deploy_netlify`, `deploy_vercel`, or `publish_local` with `project_dir: "my-site"`.
 4. Verify the returned deployment URL or the live page before reporting success.
 
-Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace.
+Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use `homepage` operations instead.
 
 ## Runtime Modes
 
@@ -469,6 +469,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
 - **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. Always use `homepage` → `write_file` instead.
+- **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage` → `exec`, `list_files`, `read_file`, `write_file`, or `build`.
 - **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.
 
 ### Using Generated Images in Netlify Deployments

@@ -11,7 +11,6 @@ Manage Vercel projects, deployments, environment variables, domains, and aliases
 | `get_project` | Get detailed project information |
 | `create_project` | Create a new Vercel project |
 | `update_project` | Update project settings |
-| `delete_project` | Permanently delete a project |
 | `list_deployments` | List recent deployments for a project |
 | `get_deployment` | Get details about a specific deployment |
 | `rollback` | Roll back to a previous deployment |
@@ -100,5 +99,6 @@ vercel:
 
 - **Authentication**: Store a Vercel Personal Access Token in the vault with key `vercel_token`.
 - **Permission model**: `readonly` blocks all mutations. The `allow_*` flags further gate deployments, project changes, environment variables, and domains.
+- **Project deletion**: `delete_project` is intentionally not exposed to autonomous agent workflows because it permanently deletes live Vercel projects. Delete projects through an explicit admin-only path outside the agent loop.
 - **Scope handling**: Team-scoped API calls use `team_id` or `team_slug` when configured.
 - **Homepage publishing**: Use `homepage` → `deploy_vercel` for homepage workspace deployments instead of hand-assembling CLI calls through `exec`.

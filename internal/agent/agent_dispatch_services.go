@@ -434,6 +434,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage destroy")
 				return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
 			case "exec":
+				if strings.TrimSpace(req.Command) == "" {
+					return `Tool Output: {"status":"error","message":"command is required for homepage exec. Do not retry an empty exec call. Use homepage list_files/read_file to inspect the project, homepage build for builds, or provide a concrete command that should run inside the homepage container."}`
+				}
 				logger.Info("LLM requested homepage exec", "cmd", req.Command)
 				var execEnv []string
 				// Auto-inject Netlify auth token when the command invokes the netlify CLI
