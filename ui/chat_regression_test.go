@@ -1252,6 +1252,28 @@ func TestConfigFrontendSpaceAgentSectionRemainsWired(t *testing.T) {
 	}
 }
 
+func TestConfigToolsSectionSkipsDedicatedToolSections(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "config", "main.js")
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	mainJS := string(mainContent)
+
+	for _, marker := range []string{
+		"'browser_automation', // \u2192 Browser Automation section",
+		"'skill_manager',  // \u2192 Skill Manager section",
+		"'daemon_skills'   // \u2192 Daemon Skills section",
+		"schemaChildren = schemaChildren.filter(f => !TOOLS_SKIP_KEYS.has(f.yaml_key));",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s is missing tools skip marker %q", mainPath, marker)
+		}
+	}
+}
+
 func TestConfigFrontendSpaceAgentI18nKeysExist(t *testing.T) {
 	t.Parallel()
 

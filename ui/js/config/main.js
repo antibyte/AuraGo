@@ -801,11 +801,14 @@ async function renderSection(key) {
         'web_capture',    // → Network Tools section
         'form_automation',// → Network Tools section
         'upnp_scan',      // → Network Tools section
+        'browser_automation', // → Browser Automation section
         'virtual_desktop',// → Virtual Desktop section
         'media_conversion',// → Media Conversion section
         'video_download', // → Video Download section
         'send_youtube_video', // → Video Download section
-        'document_creator'// → Document Creator section
+        'document_creator',// → Document Creator section
+        'skill_manager',  // → Skill Manager section
+        'daemon_skills'   // → Daemon Skills section
     ]);
 
     let html = '<div class="cfg-section active">';
