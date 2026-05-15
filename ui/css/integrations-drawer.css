@@ -183,6 +183,9 @@
 }
 
 .integration-open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     border-radius: 6px;
     background: var(--accent, #6c63ff);
@@ -193,6 +196,7 @@
     cursor: pointer;
     transition: opacity 0.2s, transform 0.15s;
     flex-shrink: 0;
+    text-decoration: none;
 }
 
 .integration-open:hover {

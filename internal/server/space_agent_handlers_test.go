@@ -391,6 +391,7 @@ func TestHandleIntegrationWebhostsIncludesHomepageLocalURL(t *testing.T) {
 	s.Cfg.Homepage.WebServerPort = 8080
 
 	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "localhost:8090"
 	rec := httptest.NewRecorder()
 
 	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
@@ -408,6 +409,34 @@ func TestHandleIntegrationWebhostsIncludesHomepageLocalURL(t *testing.T) {
 		t.Fatalf("webhosts = %#v, want one Homepage entry", resp.Webhosts)
 	}
 	if resp.Webhosts[0].ID != "homepage" || resp.Webhosts[0].URL != "http://localhost:8080" {
+		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
+	}
+}
+
+func TestHandleIntegrationWebhostsDerivesHomepageURLFromRequestHost(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Homepage.Enabled = true
+	s.Cfg.Homepage.WebServerPort = 8080
+
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	req.Host = "192.168.6.238:8090"
+	rec := httptest.NewRecorder()
+
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var resp struct {
+		Webhosts []struct {
+			ID  string `json:"id"`
+			URL string `json:"url"`
+		} `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(resp.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Homepage entry", resp.Webhosts)
+	}
+	if resp.Webhosts[0].ID != "homepage" || resp.Webhosts[0].URL != "http://192.168.6.238:8080" {
 		t.Fatalf("unexpected webhost: %#v", resp.Webhosts[0])
 	}
 }

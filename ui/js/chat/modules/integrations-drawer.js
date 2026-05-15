@@ -62,17 +62,9 @@ window.IntegrationsDrawer = (function () {
                             <span class="integration-url">${escapeHtml(url)}</span>
                         </div>
                     </div>
-                    ${url ? `<button type="button" class="integration-open" data-url="${escapeAttr(url)}">${escapeHtml(t('chat.integrations_open'))}</button>` : ''}
+                    ${url ? `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>` : ''}
                 </div>`;
         }).join('');
-
-        listEl.querySelectorAll('.integration-open').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const url = btn.dataset.url;
-                if (!url) return;
-                window.open(url, '_blank', 'noopener,noreferrer');
-            });
-        });
     }
 
     function open() {

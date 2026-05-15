@@ -284,11 +284,16 @@ func TestChatFrontend_IntegrationsDrawerRemainsWired(t *testing.T) {
 	drawerJS := string(drawerContent)
 	for _, marker := range []string{
 		"/api/integrations/webhosts",
-		"window.open(url, '_blank', 'noopener,noreferrer')",
+		`<a class="integration-open"`,
+		`target="_blank"`,
+		`rel="noopener noreferrer"`,
 	} {
 		if !strings.Contains(drawerJS, marker) {
 			t.Fatalf("integrations drawer JS missing marker %q", marker)
 		}
+	}
+	if strings.Contains(drawerJS, "window.open(") {
+		t.Fatal("integrations drawer should use native links instead of window.open()")
 	}
 	if strings.Contains(drawerJS, "alert(") {
 		t.Fatal("integrations drawer must not introduce alert()")

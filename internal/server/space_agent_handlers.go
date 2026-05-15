@@ -579,9 +579,27 @@ func homepageBrowserURL(s *Server, cfg *config.Config, r *http.Request) string {
 		return tunnelURL
 	}
 	if cfg.Homepage.WebServerPort > 0 {
-		return fmt.Sprintf("http://localhost:%d", cfg.Homepage.WebServerPort)
+		host := homepageRequestHost(r)
+		if host == "" {
+			host = "localhost"
+		}
+		return fmt.Sprintf("http://%s:%d", host, cfg.Homepage.WebServerPort)
 	}
 	return ""
+}
+
+func homepageRequestHost(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host := requestForwardedHost(r)
+	if host == "" {
+		return ""
+	}
+	if strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1" {
+		return "localhost"
+	}
+	return host
 }
 
 func manifestBrowserURL(s *Server, cfg *config.Config, r *http.Request, fallbackURL string) string {
