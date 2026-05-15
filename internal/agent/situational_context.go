@@ -177,7 +177,7 @@ func shouldGenerateInnerVoice(
 
 	// Trigger: task completed after errors (recovery) — consecutiveErrors is 0 when recovered,
 	// so use totalErrors to check whether any errors occurred this session.
-	if taskCompleted && totalErrors > 0 {
+	if taskCompleted && totalErrors > 0 && successCount > 0 {
 		return true
 	}
 

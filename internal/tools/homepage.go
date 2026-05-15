@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -537,19 +538,21 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		return okJSON("Dev container started", "container", homepageContainerName)
 	}
 
-	// Create new container -- run as the current UID/GID so bind-mounted
-	// workspace files are owned by the aurago user, not root.
+	// Create new container. On Unix, run as the current UID/GID so bind-mounted
+	// workspace files are owned by the aurago user, not root. On Windows,
+	// Docker Desktop bind mounts do not map host UID/GID in the same way.
 	workspaceMount := cfg.WorkspacePath + ":" + homepageWorkspaceMount
-	currentUser := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
 	payload := map[string]interface{}{
 		"Image": homepageImageName,
 		"Tty":   false,
-		"User":  currentUser,
 		"HostConfig": map[string]interface{}{
 			"Binds":         []string{workspaceMount},
 			"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		},
+	}
+	if user := homepageContainerUserSpec(); user != "" {
+		payload["User"] = user
 	}
 	body, _ := json.Marshal(payload)
 	createData, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+homepageContainerName, string(body))
@@ -574,6 +577,17 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 
 	logger.Info("[Homepage] Dev container initialized and running", "container", homepageContainerName)
 	return okJSON("Dev container initialized and running", "container", homepageContainerName)
+}
+
+func homepageContainerUserSpec() string {
+	return homepageContainerUserSpecForGOOS(runtime.GOOS, os.Getuid(), os.Getgid())
+}
+
+func homepageContainerUserSpecForGOOS(goos string, uid, gid int) string {
+	if goos == "windows" || uid < 0 || gid < 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d:%d", uid, gid)
 }
 
 func homepageEnsureWorkspaceWritable(dockerCfg DockerConfig, logger *slog.Logger) error {

@@ -76,6 +76,15 @@ func TestHomepageEnsureWorkspaceWritableRepairsBindMountAsContainerUser(t *testi
 	}
 }
 
+func TestHomepageContainerUserSpecSkipsHostUIDOnWindows(t *testing.T) {
+	if got := homepageContainerUserSpecForGOOS("windows", -1, -1); got != "" {
+		t.Fatalf("Windows Docker containers should use the image default user, got %q", got)
+	}
+	if got := homepageContainerUserSpecForGOOS("linux", 1001, 1002); got != "1001:1002" {
+		t.Fatalf("Unix Docker containers should use host uid/gid, got %q", got)
+	}
+}
+
 func TestHomepageExecRepairsWorkspaceBeforeRunningCommand(t *testing.T) {
 	oldExec := homepageDockerExecInternalFunc
 	defer func() { homepageDockerExecInternalFunc = oldExec }()

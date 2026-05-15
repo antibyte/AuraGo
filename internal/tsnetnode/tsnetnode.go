@@ -26,6 +26,8 @@ const (
 	legacyManifestTsNetPort  = 8444
 )
 
+var tcpDialTimeout = net.DialTimeout
+
 // Status represents the current state of the tsnet node.
 type Status struct {
 	Running           bool     `json:"running"`
@@ -721,6 +723,9 @@ func (m *Manager) stopMainListener() error {
 }
 
 func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
+	if !homepageProxyBackendReachable(m.cfg.Homepage.WebServerPort, 2*time.Second) {
+		return fmt.Errorf("homepage backend http://127.0.0.1:%d is not reachable; start the homepage web server before enabling tsnet homepage exposure", m.cfg.Homepage.WebServerPort)
+	}
 	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(m.cfg.Homepage.WebServerPort))
 	if err != nil {
 		return fmt.Errorf("invalid homepage proxy target: %w", err)
@@ -769,6 +774,18 @@ func (m *Manager) startHomepageListener(srv *tsnet.Server) error {
 	}()
 
 	return nil
+}
+
+func homepageProxyBackendReachable(port int, timeout time.Duration) bool {
+	if port <= 0 {
+		return false
+	}
+	conn, err := tcpDialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), timeout)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func (m *Manager) stopHomepageListener() error {

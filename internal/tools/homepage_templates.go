@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -55,20 +56,36 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	for _, f := range files {
 		encoded := base64.StdEncoding.EncodeToString([]byte(f.content))
-		dir := filepath.Dir(f.path)
-		cmd := fmt.Sprintf("mkdir -p /workspace/%s/%s && echo '%s' | base64 -d > /workspace/%s/%s",
+		dir := path.Dir(f.path)
+		cmd := fmt.Sprintf("mkdir -p /workspace/%s/%s && printf '%%s' '%s' | base64 -d > /workspace/%s/%s",
 			projectName, dir, encoded, projectName, f.path)
-		result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
-		// Check for DockerExec errors via JSON status field.
-		var execResult map[string]interface{}
-		if err := json.Unmarshal([]byte(result), &execResult); err == nil {
-			if status, ok := execResult["status"].(string); ok && status == "error" {
-				errMsg, _ := execResult["error"].(string)
-				return errJSON("template file write failed for %s: %s", f.path, errMsg)
-			}
+		result := homepageDockerExecFunc(dockerCfg, homepageContainerName, cmd, "")
+		if errMsg := homepageTemplateExecError(result); errMsg != "" {
+			return errJSON("template file write failed for %s: %s", f.path, errMsg)
 		}
 	}
 	return ""
+}
+
+func homepageTemplateExecError(result string) string {
+	var execResult map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &execResult); err != nil {
+		return ""
+	}
+	status, _ := execResult["status"].(string)
+	exitCode, output := homepageDockerExecResult(result)
+	if status != "error" && exitCode == 0 {
+		return ""
+	}
+	for _, key := range []string{"error", "message", "output"} {
+		if value, _ := execResult[key].(string); strings.TrimSpace(value) != "" {
+			return truncateStr(strings.TrimSpace(value), 500)
+		}
+	}
+	if strings.TrimSpace(output) != "" {
+		return truncateStr(strings.TrimSpace(output), 500)
+	}
+	return "docker exec failed"
 }
 
 // getTemplateFiles returns the starter files for a given template name.

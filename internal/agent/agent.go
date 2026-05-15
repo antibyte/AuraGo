@@ -697,6 +697,14 @@ func coerceToolCallStringFields(data []byte) []byte {
 		return data
 	}
 	changed := false
+	if val, ok := raw["items"]; ok {
+		v := bytes.TrimSpace(val)
+		if len(v) > 0 && v[0] == '"' {
+			raw["_items_raw"] = val
+			raw["items"] = json.RawMessage(`[]`)
+			changed = true
+		}
+	}
 	for key, val := range raw {
 		if _, ok := toolCallStringFields[key]; !ok {
 			continue

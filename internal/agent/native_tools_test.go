@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -695,6 +696,24 @@ func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	}
 	if _, ok := homepageProps["action"]; ok {
 		t.Fatal("homepage schema should not expose action as edit sub-operation field")
+	}
+}
+
+func TestToolCallUnmarshalToleratesStringItemsField(t *testing.T) {
+	raw := []byte(`{"operation":"init_project","name":"ki-news","items":"not a valid batch array"}`)
+
+	var tc ToolCall
+	if err := json.Unmarshal(raw, &tc); err != nil {
+		t.Fatalf("ToolCall unmarshal should tolerate malformed items fields: %v", err)
+	}
+	if tc.Operation != "init_project" || tc.Name != "ki-news" {
+		t.Fatalf("decoded tool call lost fields: %#v", tc)
+	}
+	if len(tc.Items) != 0 {
+		t.Fatalf("malformed string items should not populate typed Items, got: %#v", tc.Items)
+	}
+	if got, _ := tc.Params["_items_raw"].(string); got != "not a valid batch array" {
+		t.Fatalf("expected raw malformed items to be preserved in Params, got: %#v", tc.Params)
 	}
 }
 

@@ -235,6 +235,23 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	}
 }
 
+func TestShouldGenerateInnerVoice_RecoveryTriggerRequiresToolSuccess(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EngineV2 = true
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.MinIntervalSecs = 0
+	cfg.Personality.InnerVoice.ErrorStreakMin = 5
+
+	ResetInnerVoiceState()
+	applyInnerVoiceResult("sess-a", "seed", "seed", 0.8)
+
+	if shouldGenerateInnerVoice("sess-a", cfg, 0, 5, 0, true, false, false) {
+		t.Fatal("should not generate a recovery/completion inner voice when no tool succeeded after errors")
+	}
+}
+
 func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true

@@ -1,7 +1,10 @@
 package tsnetnode
 
 import (
+	"errors"
+	"net"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -60,5 +63,21 @@ func TestManifestTsNetPortUsesHTTPSDefault(t *testing.T) {
 				t.Fatalf("manifestTsNetPort(%d) = %d, want %d", tt.port, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestHomepageProxyBackendReachableReportsClosedPort(t *testing.T) {
+	oldDial := tcpDialTimeout
+	defer func() { tcpDialTimeout = oldDial }()
+
+	tcpDialTimeout = func(network, address string, timeout time.Duration) (net.Conn, error) {
+		if network != "tcp" || address != "127.0.0.1:8080" {
+			t.Fatalf("unexpected dial target network=%q address=%q", network, address)
+		}
+		return nil, errors.New("connection refused")
+	}
+
+	if homepageProxyBackendReachable(8080, time.Second) {
+		t.Fatal("closed homepage backend port should not be reported reachable")
 	}
 }
