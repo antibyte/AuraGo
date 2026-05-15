@@ -174,12 +174,13 @@
 
 [data-theme="threedee"] .bubble.bot::before {
     content: '';
+    display: block;
     position: absolute;
     top: -2px;
-    right: -2px;
-    bottom: -2px;
     left: -2px;
-    border-radius: inherit;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    border-radius: 12px;
     background: linear-gradient(
         90deg,
         rgba(129, 140, 248, 0.9),
@@ -203,12 +204,13 @@
 
 [data-theme="threedee"] .bubble.user::before {
     content: '';
+    display: block;
     position: absolute;
     top: -2px;
-    right: -2px;
-    bottom: -2px;
     left: -2px;
-    border-radius: inherit;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    border-radius: 12px;
     background: linear-gradient(
         90deg,
         rgba(79, 70, 229, 0.9),
