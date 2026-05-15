@@ -126,6 +126,27 @@ func TestFindServableProjectSingleProject(t *testing.T) {
 	}
 }
 
+func TestFindServableProjectPlainHTMLSubdir(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "ki-news"), 0755)
+	os.WriteFile(filepath.Join(dir, "ki-news", "index.html"), []byte("<h1>News</h1>"), 0644)
+
+	pd, bd := findServableProject(dir)
+	if pd != "ki-news" || bd != "." {
+		t.Fatalf("expected ki-news/. for plain HTML project, got project_dir=%q build_dir=%q", pd, bd)
+	}
+}
+
+func TestFindServableProjectPlainHTMLRoot(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "index.html"), []byte("<h1>Root</h1>"), 0644)
+
+	pd, bd := findServableProject(dir)
+	if pd != "" || bd != "." {
+		t.Fatalf("expected root plain HTML project, got project_dir=%q build_dir=%q", pd, bd)
+	}
+}
+
 func TestFindServableProjectMultipleProjects(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "site-a", "out"), 0755)
@@ -134,6 +155,19 @@ func TestFindServableProjectMultipleProjects(t *testing.T) {
 	pd, bd := findServableProject(dir)
 	if pd != "" || bd != "" {
 		t.Fatalf("expected empty when multiple candidates exist, got project_dir=%q build_dir=%q", pd, bd)
+	}
+}
+
+func TestFindServableProjectMultiplePlainHTMLProjects(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "site-a"), 0755)
+	os.MkdirAll(filepath.Join(dir, "site-b"), 0755)
+	os.WriteFile(filepath.Join(dir, "site-a", "index.html"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(dir, "site-b", "index.html"), []byte("b"), 0644)
+
+	pd, bd := findServableProject(dir)
+	if pd != "" || bd != "" {
+		t.Fatalf("expected empty when multiple plain HTML candidates exist, got project_dir=%q build_dir=%q", pd, bd)
 	}
 }
 

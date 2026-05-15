@@ -299,7 +299,7 @@ The generated Caddyfile uses `handle` blocks for proxy routes (matched first) an
 Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.
 
 ### webserver_start — Start local Caddy web server
-Serves the build output via Caddy (Docker required).
+Serves the build output via Caddy (Docker required). Always pass `project_dir` when you know which project should be public at `/`. If omitted, AuraGo restores the last published project or auto-detects a single servable project, including plain HTML projects with `index.html` at the project root.
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
 ```
@@ -311,6 +311,7 @@ Serves the build output via Caddy (Docker required).
 - `container_name`: `aurago-homepage-web`
 - `document_root`: `/srv`
 - `source_path`: Host-side build or project directory mounted into Caddy
+- `project_dir` / `build_dir`: The resolved workspace source mounted as `/srv`; for plain HTML projects, `build_dir` is `.`
 
 ### webserver_stop — Stop the web server
 ```json

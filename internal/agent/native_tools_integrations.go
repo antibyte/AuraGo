@@ -163,7 +163,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"command":       prop("string", "Shell command to execute (for 'exec'). Do not write directly into generated output directories such as /workspace/<project>/dist, build, or out; edit source files with write_file/edit_file and run build instead."),
 				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
 				"name":          prop("string", "Project name (for 'init_project')"),
-				"project_dir":   prop("string", "Project subdirectory within /workspace (default: '.')"),
+				"project_dir":   prop("string", "Project subdirectory within /workspace. Pass it for build/deploy/webserver_start when you know the project that should be served at the root URL."),
 				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
 				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},

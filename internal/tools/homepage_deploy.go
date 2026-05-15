@@ -67,8 +67,8 @@ func loadWebserverState(workspacePath string) (projectDir, buildDir string) {
 }
 
 // findServableProject scans the workspace for a project directory that already
-// has a servable static build output (out/, dist/, build/ — NOT .next/ which is
-// a server-side bundle). Returns (projectDir, buildDir) for the best candidate.
+// has a servable static output (out/, dist/, build/) or a plain index.html at
+// the project root. Returns (projectDir, buildDir) for the best candidate.
 // Returns ("", "") when no suitable project is found or when multiple candidates
 // exist (ambiguous — the user must choose via publish_local).
 //
@@ -84,31 +84,55 @@ func findServableProject(workspacePath string) (projectDir, buildDir string) {
 	}
 	var candidates []candidate
 
-	// Check workspace root itself first
+	addCandidate := func(projectDir, buildDir string) {
+		candidates = append(candidates, candidate{projectDir, buildDir})
+	}
+
+	hasIndexHTML := func(dir string) bool {
+		s, err := os.Stat(filepath.Join(dir, "index.html"))
+		return err == nil && !s.IsDir()
+	}
+
+	// Check workspace root itself first.
 	for _, dir := range []string{"out", "dist", "build"} {
 		p := filepath.Join(workspacePath, dir)
 		if s, err := os.Stat(p); err == nil && s.IsDir() {
-			candidates = append(candidates, candidate{"", dir})
+			addCandidate("", dir)
 			break
 		}
 	}
+	if len(candidates) == 0 && hasIndexHTML(workspacePath) {
+		addCandidate("", ".")
+	}
 
-	// Check immediate subdirectories
+	// Check immediate subdirectories.
 	entries, err := os.ReadDir(workspacePath)
 	if err != nil {
 		return "", ""
 	}
+	skipRootDirs := map[string]bool{
+		"out":          true,
+		"dist":         true,
+		"build":        true,
+		"public":       true,
+		"node_modules": true,
+	}
 	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || skipRootDirs[entry.Name()] {
 			continue
 		}
 		subDir := filepath.Join(workspacePath, entry.Name())
+		foundBuildOutput := false
 		for _, dir := range []string{"out", "dist", "build"} {
 			p := filepath.Join(subDir, dir)
 			if s, err := os.Stat(p); err == nil && s.IsDir() {
-				candidates = append(candidates, candidate{entry.Name(), dir})
+				addCandidate(entry.Name(), dir)
+				foundBuildOutput = true
 				break
 			}
+		}
+		if !foundBuildOutput && hasIndexHTML(subDir) {
+			addCandidate(entry.Name(), ".")
 		}
 	}
 
@@ -549,7 +573,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 				"port", fmt.Sprintf("%d", port),
 				"mode", "python",
 				"deploy_target", "python_fallback",
-				"source_path", hostBuildPath)
+				"source_path", hostBuildPath,
+				"project_dir", projectDir,
+				"build_dir", buildDir)
 		}
 
 		// Use Python HTTP server as fallback
@@ -570,6 +596,8 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 			"mode", "python",
 			"deploy_target", "python_fallback",
 			"source_path", hostBuildPath,
+			"project_dir", projectDir,
+			"build_dir", buildDir,
 			"note", "Limited functionality. Full features require Docker.")
 	}
 
@@ -667,6 +695,16 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	if !healthOK {
 		logger.Warn("[Homepage] Web server started but TCP health-check timed out", "addr", healthAddr)
 	}
+	if healthOK && cfg.WebServerDomain == "" {
+		statusCode, httpErr := waitHomepageRootHTTP(port, 5*time.Second)
+		if httpErr != nil {
+			logger.Warn("[Homepage] Web server root HTTP health-check failed", "error", httpErr)
+		} else if statusCode >= 400 {
+			DockerContainerAction(dockerCfg, homepageWebContainer, "stop", false)
+			DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
+			return errJSON("Web server started but / returned HTTP %d from /srv. Published source %s is not a valid root static site. Use project_dir for the site directory, or ensure the selected build_dir contains index.html.", statusCode, hostBuildPath)
+		}
+	}
 
 	logger.Info("[Homepage] Web server started", "port", port, "domain", cfg.WebServerDomain)
 	url := fmt.Sprintf("http://localhost:%d", port)
@@ -684,6 +722,8 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		"document_root", "/srv",
 		"config_path", "/etc/caddy/Caddyfile",
 		"source_path", hostBuildPath,
+		"project_dir", projectDir,
+		"build_dir", buildDir,
 	}
 	if lanIP != "" && !cfg.WebServerInternalOnly {
 		args = append(args, "lan_url", fmt.Sprintf("http://%s:%d", lanIP, port))
@@ -724,6 +764,29 @@ func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return containerStatus(dockerCfg, homepageWebContainer)
+}
+
+func waitHomepageRootHTTP(port int, timeout time.Duration) (int, error) {
+	if port <= 0 {
+		return 0, fmt.Errorf("invalid port %d", port)
+	}
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 750 * time.Millisecond}
+	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
+	var lastErr error
+	for {
+		resp, err := client.Get(url)
+		if err == nil {
+			defer resp.Body.Close()
+			return resp.StatusCode, nil
+		}
+		lastErr = err
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return 0, lastErr
 }
 
 // getLocalLANIP returns the first non-loopback IPv4 address of the host,
