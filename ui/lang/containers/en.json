@@ -25,5 +25,11 @@
   "containers.delete_confirm": "Are you sure you want to remove this container?",
   "containers.delete_force": "Force remove (kill if running)",
   "containers.delete_success": "Container removed",
-  "containers.action_success": "Action successful"
+  "containers.action_success": "Action successful",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "Container Shell",
+  "containers.terminal_connecting": "Connecting...",
+  "containers.terminal_connected": "Connected",
+  "containers.terminal_closed": "Session closed",
+  "containers.terminal_error": "Terminal error"
 }

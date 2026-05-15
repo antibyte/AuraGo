@@ -302,6 +302,44 @@
     word-break: break-all;
 }
 
+/* ── Terminal Modal ── */
+.ct-terminal-modal {
+    max-width: min(1100px, 96vw);
+}
+
+.ct-terminal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: min(620px, 70vh);
+}
+
+.ct-terminal-status {
+    min-height: 20px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    letter-spacing: 0;
+}
+
+.ct-terminal-output {
+    flex: 1;
+    min-height: 460px;
+    background: #05070a;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 8px;
+}
+
+.ct-terminal-output .xterm {
+    height: 100%;
+}
+
+.ct-terminal-output .xterm-viewport,
+.ct-terminal-output .xterm-screen {
+    border-radius: 6px;
+}
+
 /* ── Delete confirmation ── */
 .ct-delete-name {
     font-weight: 600;
@@ -383,6 +421,17 @@
     }
     .ct-filter-group {
         justify-content: center;
+    }
+    .ct-terminal-modal {
+        width: 98vw;
+        max-width: 98vw;
+        max-height: 92vh;
+    }
+    .ct-terminal-body {
+        min-height: 62vh;
+    }
+    .ct-terminal-output {
+        min-height: 52vh;
     }
 }
 

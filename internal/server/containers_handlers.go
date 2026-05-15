@@ -133,6 +133,17 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(result))
 
+		case "terminal":
+			if r.Method != http.MethodGet {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			if readOnly {
+				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
+				return
+			}
+			handleContainerTerminal(s, cfg, containerID, w, r)
+
 		case "": // DELETE /api/containers/{id} — remove container
 			if r.Method != http.MethodDelete {
 				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

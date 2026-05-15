@@ -25,5 +25,11 @@
   "containers.delete_confirm": "Είστε βέβαιοι ότι θέλετε να αφαιρέσετε αυτό το κοντέινερ;",
   "containers.delete_force": "Αναγκαστική αφαίρεση (τερματισμός αν εκτελείται)",
   "containers.delete_success": "Το κοντέινερ αφαιρέθηκε",
-  "containers.action_success": "Η ενέργεια ολοκληρώθηκε"
+  "containers.action_success": "Η ενέργεια ολοκληρώθηκε",
+  "containers.btn_shell": "Κέλυφος",
+  "containers.terminal_title": "Κέλυφος κοντέινερ",
+  "containers.terminal_connecting": "Σύνδεση...",
+  "containers.terminal_connected": "Συνδέθηκε",
+  "containers.terminal_closed": "Η συνεδρία έκλεισε",
+  "containers.terminal_error": "Σφάλμα τερματικού"
 }

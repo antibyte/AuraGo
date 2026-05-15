@@ -25,5 +25,11 @@
   "containers.delete_confirm": "Er du sikker på at du vil fjerne denne containeren?",
   "containers.delete_force": "Tving fjerning (avslutt hvis kjører)",
   "containers.delete_success": "Container fjernet",
-  "containers.action_success": "Handling vellykket"
+  "containers.action_success": "Handling vellykket",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "Container-skall",
+  "containers.terminal_connecting": "Kobler til...",
+  "containers.terminal_connected": "Tilkoblet",
+  "containers.terminal_closed": "Økt lukket",
+  "containers.terminal_error": "Terminalfeil"
 }

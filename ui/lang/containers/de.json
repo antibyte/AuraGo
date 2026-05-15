@@ -25,5 +25,11 @@
   "containers.delete_confirm": "Bist du sicher, dass du diesen Container entfernen möchtest?",
   "containers.delete_force": "Erzwungenes Entfernen (beenden, falls laufend)",
   "containers.delete_success": "Container entfernt",
-  "containers.action_success": "Aktion erfolgreich"
+  "containers.action_success": "Aktion erfolgreich",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "Container-Shell",
+  "containers.terminal_connecting": "Verbinde...",
+  "containers.terminal_connected": "Verbunden",
+  "containers.terminal_closed": "Sitzung geschlossen",
+  "containers.terminal_error": "Terminalfehler"
 }

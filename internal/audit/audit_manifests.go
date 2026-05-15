@@ -122,7 +122,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/remote/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "remote", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/invasion/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-or-internal-token", Category: "invasion", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/truenas/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
-		{Pattern: "/api/containers", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/containers", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},

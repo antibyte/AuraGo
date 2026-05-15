@@ -25,5 +25,11 @@
   "containers.delete_confirm": "このコンテナを削除してもよろしいですか？",
   "containers.delete_force": "強制削除（実行中の場合は強制終了）",
   "containers.delete_success": "コンテナが削除されました",
-  "containers.action_success": "アクションが成功しました"
+  "containers.action_success": "アクションが成功しました",
+  "containers.btn_shell": "シェル",
+  "containers.terminal_title": "コンテナシェル",
+  "containers.terminal_connecting": "接続中...",
+  "containers.terminal_connected": "接続済み",
+  "containers.terminal_closed": "セッション終了",
+  "containers.terminal_error": "ターミナルエラー"
 }

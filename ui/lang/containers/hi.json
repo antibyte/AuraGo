@@ -25,5 +25,11 @@
   "containers.delete_confirm": "क्या आप वाकई इस कंटेनर को हटाना चाहते हैं?",
   "containers.delete_force": "बलपूर्वक हटाएँ (चालू होने पर बंद करें)",
   "containers.delete_success": "कंटेनर हटा दिया गया",
-  "containers.action_success": "कार्रवाई सफल"
+  "containers.action_success": "कार्रवाई सफल",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "कंटेनर शेल",
+  "containers.terminal_connecting": "कनेक्ट हो रहा है...",
+  "containers.terminal_connected": "कनेक्टेड",
+  "containers.terminal_closed": "सत्र बंद",
+  "containers.terminal_error": "टर्मिनल त्रुटि"
 }

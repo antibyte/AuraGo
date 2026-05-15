@@ -25,5 +25,11 @@
   "containers.delete_confirm": "Weet u zeker dat u deze container wilt verwijderen?",
   "containers.delete_force": "Geforceerd verwijderen (beëindigen indien actief)",
   "containers.delete_success": "Container verwijderd",
-  "containers.action_success": "Actie geslaagd"
+  "containers.action_success": "Actie geslaagd",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "Container-shell",
+  "containers.terminal_connecting": "Verbinden...",
+  "containers.terminal_connected": "Verbonden",
+  "containers.terminal_closed": "Sessie gesloten",
+  "containers.terminal_error": "Terminalfout"
 }

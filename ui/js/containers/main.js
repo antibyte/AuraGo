@@ -7,6 +7,11 @@ let currentFilter = 'all';
 let lastDataHash = '';
 let pollTimer = null;
 let currentLogContainer = '';
+let terminal = null;
+let terminalFitAddon = null;
+let terminalSocket = null;
+let terminalResizeObserver = null;
+let terminalSessionToken = 0;
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -100,12 +105,14 @@ function renderCard(c) {
     const isPaused = state === 'paused';
     const deleteId = JSON.stringify(c.id || '').replace(/"/g, '&quot;');
     const deleteName = JSON.stringify(name).replace(/"/g, '&quot;');
+    const terminalName = JSON.stringify(name).replace(/"/g, '&quot;');
 
     let actionBtns = '';
     if (isRunning) {
         actionBtns = `
             <button class="btn btn-sm btn-secondary" onclick="containerAction('${c.id}','stop')" data-i18n="containers.btn_stop">⏹ Stop</button>
-            <button class="btn btn-sm btn-secondary" onclick="containerAction('${c.id}','restart')" data-i18n="containers.btn_restart">🔄 Restart</button>`;
+            <button class="btn btn-sm btn-secondary" onclick="containerAction('${c.id}','restart')" data-i18n="containers.btn_restart">🔄 Restart</button>
+            <button class="btn btn-sm btn-primary" onclick="showTerminal('${c.id}', ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
     } else if (isPaused) {
         actionBtns = `
             <button class="btn btn-sm btn-primary" onclick="containerAction('${c.id}','start')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
@@ -238,6 +245,135 @@ async function showInspect(id) {
 // eslint-disable-next-line no-unused-vars
 function closeInspectModal() {
     document.getElementById('inspect-modal').classList.remove('active');
+}
+
+// ── Terminal Modal ─────────────────────────────────────────────────────────
+
+// eslint-disable-next-line no-unused-vars
+function showTerminal(id, name) {
+    closeTerminalSession();
+    terminalSessionToken += 1;
+    const token = terminalSessionToken;
+    const modal = document.getElementById('terminal-modal');
+    const output = document.getElementById('terminal-output');
+    const title = document.getElementById('terminal-container-name');
+    title.textContent = name ? `· ${name}` : '';
+    output.innerHTML = '';
+    modal.classList.add('active');
+    setTerminalStatus('containers.terminal_connecting');
+
+    if (!window.Terminal) {
+        setTerminalStatus('containers.terminal_error');
+        return;
+    }
+
+    terminal = new window.Terminal({
+        cursorBlink: true,
+        convertEol: true,
+        fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+        fontSize: 13,
+        scrollback: 2000,
+        theme: {
+            background: '#05070a',
+            foreground: '#d7e1ec',
+            cursor: '#8bd3ff'
+        }
+    });
+    if (window.FitAddon && window.FitAddon.FitAddon) {
+        terminalFitAddon = new window.FitAddon.FitAddon();
+        terminal.loadAddon(terminalFitAddon);
+    }
+    terminal.open(output);
+    fitTerminal();
+    terminal.focus();
+
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    terminalSocket = new WebSocket(`${scheme}://${window.location.host}/api/containers/${encodeURIComponent(id)}/terminal`);
+    terminalSocket.binaryType = 'arraybuffer';
+
+    terminal.onData(data => {
+        if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+        terminalSocket.send(new TextEncoder().encode(data));
+    });
+
+    terminalSocket.onopen = () => {
+        if (token !== terminalSessionToken) return;
+        setTerminalStatus('containers.terminal_connected');
+        fitTerminal();
+    };
+    terminalSocket.onmessage = event => {
+        if (token !== terminalSessionToken || !terminal) return;
+        if (typeof event.data === 'string') {
+            terminal.write(event.data);
+            return;
+        }
+        terminal.write(new TextDecoder().decode(event.data));
+    };
+    terminalSocket.onerror = () => {
+        if (token !== terminalSessionToken) return;
+        setTerminalStatus('containers.terminal_error');
+    };
+    terminalSocket.onclose = () => {
+        if (token !== terminalSessionToken) return;
+        setTerminalStatus('containers.terminal_closed');
+        if (terminal) terminal.write(`\r\n[${t('containers.terminal_closed') || 'Session closed'}]\r\n`);
+    };
+
+    if (window.ResizeObserver) {
+        terminalResizeObserver = new ResizeObserver(() => fitTerminal());
+        terminalResizeObserver.observe(output);
+    }
+    window.addEventListener('resize', fitTerminal);
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeTerminalModal() {
+    document.getElementById('terminal-modal').classList.remove('active');
+    closeTerminalSession();
+}
+
+function closeTerminalSession() {
+    terminalSessionToken += 1;
+    window.removeEventListener('resize', fitTerminal);
+    if (terminalResizeObserver) {
+        terminalResizeObserver.disconnect();
+        terminalResizeObserver = null;
+    }
+    if (terminalSocket) {
+        terminalSocket.onopen = null;
+        terminalSocket.onmessage = null;
+        terminalSocket.onerror = null;
+        terminalSocket.onclose = null;
+        if (terminalSocket.readyState === WebSocket.OPEN || terminalSocket.readyState === WebSocket.CONNECTING) {
+            terminalSocket.close();
+        }
+        terminalSocket = null;
+    }
+    if (terminal) {
+        terminal.dispose();
+        terminal = null;
+    }
+    terminalFitAddon = null;
+}
+
+function fitTerminal() {
+    if (!terminal) return;
+    if (terminalFitAddon) {
+        try {
+            terminalFitAddon.fit();
+        } catch (e) {
+            // xterm cannot fit while the modal is hidden; the next visible resize will retry.
+        }
+    }
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+        terminalSocket.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
+    }
+}
+
+function setTerminalStatus(key) {
+    const el = document.getElementById('terminal-status');
+    if (!el) return;
+    el.textContent = t(key) || key;
 }
 
 // ── Delete Modal ────────────────────────────────────────────────────────────

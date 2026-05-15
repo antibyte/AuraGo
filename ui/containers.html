@@ -20,9 +20,12 @@
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
     </script>
     <script>const I18N={{.I18N}};</script>
+    <link rel="stylesheet" href="/css/xterm.css">
     <link rel="stylesheet" href="/css/containers.css">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
     <link href="/fonts/fonts.css" rel="stylesheet">
+    <script defer src="/js/vendor/xterm.min.js"></script>
+    <script defer src="/js/vendor/xterm-addon-fit.min.js"></script>
 </head>
 <body>
     <header class="app-header">
@@ -116,6 +119,23 @@
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeInspectModal()" data-i18n="common.btn_close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TERMINAL MODAL ═══════ -->
+    <div class="modal-overlay" id="terminal-modal">
+        <div class="modal modal-wide ct-terminal-modal">
+            <div class="modal-header">
+                <h2><span data-i18n="containers.terminal_title">Container Shell</span> <span id="terminal-container-name"></span></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTerminalModal()">&times;</button>
+            </div>
+            <div class="modal-body ct-terminal-body">
+                <div class="ct-terminal-status" id="terminal-status" data-i18n="containers.terminal_connecting">Connecting...</div>
+                <div class="ct-terminal-output" id="terminal-output"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeTerminalModal()" data-i18n="common.btn_close">Close</button>
             </div>
         </div>
     </div>

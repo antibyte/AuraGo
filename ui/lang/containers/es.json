@@ -25,5 +25,11 @@
   "containers.delete_confirm": "¿Está seguro de que desea eliminar este contenedor?",
   "containers.delete_force": "Forzar eliminación (terminar si está en ejecución)",
   "containers.delete_success": "Contenedor eliminado",
-  "containers.action_success": "Acción exitosa"
+  "containers.action_success": "Acción exitosa",
+  "containers.btn_shell": "Shell",
+  "containers.terminal_title": "Shell del contenedor",
+  "containers.terminal_connecting": "Conectando...",
+  "containers.terminal_connected": "Conectado",
+  "containers.terminal_closed": "Sesión cerrada",
+  "containers.terminal_error": "Error de terminal"
 }
