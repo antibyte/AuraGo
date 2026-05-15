@@ -20,7 +20,7 @@ func TestDesktopChatProvidesSpeechToTextInput(t *testing.T) {
 		}
 	}
 
-	chat := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	chat := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		`class="vd-chat-voice"`,
 		`data-i18n-title="desktop.chat_voice_input"`,

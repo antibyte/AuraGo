@@ -24,7 +24,7 @@ func TestDesktopChatShowsDetailedAgentActionStatus(t *testing.T) {
 		}
 	}
 
-	chat := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	chat := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		"renderer.formatAgentActionStatus(data)",
 		"renderer.extractToolCallNarration(data.detail || data.message || '')",
@@ -46,7 +46,7 @@ func TestDesktopChatShowsDetailedAgentActionStatus(t *testing.T) {
 func TestDesktopChatCanStopActiveStreamWithoutOverwritingHistory(t *testing.T) {
 	t.Parallel()
 
-	chat := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	chat := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		"setDesktopChatBusy(host, true)",
 		"setDesktopChatBusy(host, false)",

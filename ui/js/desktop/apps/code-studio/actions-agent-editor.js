@@ -1,4 +1,4 @@
-﻿        const target = state;
+        const target = state;
         if (!isLiveInstance(target)) return;
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
@@ -587,12 +587,9 @@
 
     function fileIcon(name) {
         const lang = languageForPath(name);
-        return ({ javascript: 'JS', python: 'PY', go: 'GO', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || 'â€¢';
+        return ({ javascript: 'JS', python: 'PY', go: 'GO', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '•';
     }
 
-    function joinPath(base, name) {
-        return (base || WORKSPACE_ROOT).replace(/\/+$/, '') + '/' + String(name || '').replace(/^\/+/, '');
-    }
 
     function parentPath(path) {
         const clean = String(path || WORKSPACE_ROOT).replace(/\/+$/, '');

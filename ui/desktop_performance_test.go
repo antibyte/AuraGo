@@ -71,7 +71,7 @@ func TestDesktopPerformanceCachesAppsAndBatchesChat(t *testing.T) {
 		}
 	}
 
-	chat := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	chat := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		"let streamTextFrame = 0",
 		"function queueStreamingBubbleFlush",

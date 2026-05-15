@@ -17,6 +17,7 @@
         '/js/desktop/apps/settings-calculator.js?v=' + assetV,
         '/js/desktop/apps/planning-gallery-music.js?v=' + assetV,
         '/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + assetV,
+        '/js/desktop/apps/agent-chat.js?v=' + assetV,
         '/js/desktop/core/sdk-events-bootstrap.js?v=' + assetV
     ]).catch(err => console.error('Failed to load Aura desktop main bundle', err));
 })();

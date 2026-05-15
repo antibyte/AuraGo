@@ -218,7 +218,7 @@ func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 		}
 	}
 
-	chatSource := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	chatSource := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		"host.dataset.chatSourceApp",
 		"origin_app: sourceApp",

@@ -162,7 +162,7 @@ func TestVirtualDesktopChat_MessageTimestampsRemainWired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read desktop chat renderer JS: %v", err)
 	}
-	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "agent-chat.js"))
 	if err != nil {
 		t.Fatalf("read desktop chat app JS: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestVirtualDesktopChat_MessageTimestampsRemainWired(t *testing.T) {
 func TestVirtualDesktopChat_HistoryDisplayStripsEscapedDesktopRequestWrapper(t *testing.T) {
 	t.Parallel()
 
-	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js"))
+	appContent, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "agent-chat.js"))
 	if err != nil {
 		t.Fatalf("read desktop chat app JS: %v", err)
 	}

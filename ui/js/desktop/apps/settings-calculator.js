@@ -1,4 +1,4 @@
-ï»¿            const files = body.files || [];
+            const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
                 <span class="vd-file-name">${esc(file.name)}</span>
@@ -76,9 +76,6 @@
         ]);
     }
 
-    function joinPath(base, name) {
-        return [base, name].filter(Boolean).join('/');
-    }
 
     function openEditorFile(path) {
         openApp('editor', { path });
@@ -633,27 +630,27 @@
                 tokens.push({ type: 'identifier', value: expression.slice(start, index) });
                 continue;
             }
-            if (char === 'Ï€') {
+            if (char === 'p') {
                 tokens.push({ type: 'identifier', value: 'PI' });
                 index += 1;
                 continue;
             }
-            if (char === 'âˆš') {
+            if (char === 'v') {
                 tokens.push({ type: 'identifier', value: 'sqrt' });
                 index += 1;
                 continue;
             }
-            if (char === 'Ã—') {
+            if (char === '×') {
                 tokens.push({ type: 'operator', value: '*' });
                 index += 1;
                 continue;
             }
-            if (char === 'Ã·') {
+            if (char === '÷') {
                 tokens.push({ type: 'operator', value: '/' });
                 index += 1;
                 continue;
             }
-            if ('+-*/%^()!Â²'.includes(char)) {
+            if ('+-*/%^()!²'.includes(char)) {
                 tokens.push({ type: 'operator', value: char });
                 index += 1;
                 continue;
@@ -752,7 +749,7 @@
         };
         const parsePostfixExpression = () => {
             let value = parsePrimaryExpression();
-            while (peek().type === 'operator' && (peek().value === '!' || peek().value === 'Â²')) {
+            while (peek().type === 'operator' && (peek().value === '!' || peek().value === '²')) {
                 const operator = consume().value;
                 value = operator === '!' ? calculatorFactorial(value) : Math.pow(value, 2);
             }
@@ -800,12 +797,12 @@
             standard: [
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: 'âŒ«' },
-                { key: 'Ã·', kind: 'op' },
+                { key: '?' },
+                { key: '÷', kind: 'op' },
                 { key: '7' },
                 { key: '8' },
                 { key: '9' },
-                { key: 'Ã—', kind: 'op' },
+                { key: '×', kind: 'op' },
                 { key: '4' },
                 { key: '5' },
                 { key: '6' },
@@ -814,7 +811,7 @@
                 { key: '2' },
                 { key: '3' },
                 { key: '+', kind: 'op' },
-                { key: 'Â±' },
+                { key: '±' },
                 { key: '0' },
                 { key: '.' },
                 { key: '=', kind: 'eq' }
@@ -825,26 +822,26 @@
                 { key: 'tan', kind: 'fn' },
                 { key: 'log', kind: 'fn' },
                 { key: 'ln', kind: 'fn' },
-                { key: 'Ï€', kind: 'fn' },
+                { key: 'p', kind: 'fn' },
                 { key: 'e', kind: 'fn' },
-                { key: 'xÂ²', kind: 'fn' },
-                { key: 'xÊ¸', kind: 'fn' },
+                { key: 'x²', kind: 'fn' },
+                { key: 'x?', kind: 'fn' },
                 { key: 'n!', kind: 'fn' },
-                { key: 'âˆš', kind: 'fn' },
+                { key: 'v', kind: 'fn' },
                 { key: '(', kind: 'fn' },
                 { key: ')', kind: 'fn' },
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: 'âŒ«' },
+                { key: '?' },
                 { key: '%', kind: 'op' },
                 { key: '7' },
                 { key: '8' },
                 { key: '9' },
-                { key: 'Ã·', kind: 'op' },
+                { key: '÷', kind: 'op' },
                 { key: '4' },
                 { key: '5' },
                 { key: '6' },
-                { key: 'Ã—', kind: 'op' },
+                { key: '×', kind: 'op' },
                 { key: '1' },
                 { key: '2' },
                 { key: '3' },
@@ -853,13 +850,13 @@
                 { key: '00' },
                 { key: '.' },
                 { key: '+', kind: 'op' },
-                { key: 'Â±' },
+                { key: '±' },
                 { key: '=', kind: 'eq' }
             ],
             programmer: [
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: 'âŒ«' },
+                { key: '?' },
                 { key: 'AND', kind: 'fn' },
                 { key: 'OR', kind: 'fn' },
                 { key: '7' },
@@ -876,12 +873,12 @@
                 { key: '2' },
                 { key: '3' },
                 { key: 'MOD', kind: 'fn' },
-                { key: 'Ã·', kind: 'op' },
+                { key: '÷', kind: 'op' },
                 { key: '0' },
                 { key: 'A', kind: 'fn' },
                 { key: 'B', kind: 'fn' },
                 { key: 'HEX_C', label: 'C', kind: 'fn' },
-                { key: 'Ã—', kind: 'op' },
+                { key: '×', kind: 'op' },
                 { key: 'D', kind: 'fn' },
                 { key: 'E', kind: 'fn' },
                 { key: 'F', kind: 'fn' },
@@ -997,7 +994,7 @@
             try {
                 if (key === 'C') expression = '';
                 else if (key === 'CE') expression = '';
-                else if (key === 'âŒ«') expression = expression.slice(0, -1);
+                else if (key === '?') expression = expression.slice(0, -1);
                 else if (key === '=') {
                     evaluate();
                     animateButton('=');
@@ -1012,13 +1009,13 @@
                     else if (/^[0-9A-Fa-f]$/.test(key)) {
                         if (validDigitForBase(key)) expression += key;
                     }
-                    else if (['+','-','Ã—','Ã·','(',')'].includes(key)) expression += key;
+                    else if (['+','-','×','÷','(',')'].includes(key)) expression += key;
                 }
-                else if (key === 'Â±') expression = expression ? `(-1*(${expression}))` : '-';
-                else if (key === 'xÂ²') expression += 'Â²';
-                else if (key === 'xÊ¸') expression += '^';
+                else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
+                else if (key === 'x²') expression += '²';
+                else if (key === 'x?') expression += '^';
                 else if (key === 'n!') expression += '!';
-                else if (['sin', 'cos', 'tan', 'log', 'ln', 'âˆš'].includes(key)) expression += `${key}(`;
+                else if (['sin', 'cos', 'tan', 'log', 'ln', 'v'].includes(key)) expression += `${key}(`;
                 else expression += key;
                 update();
                 flashDisplay();
@@ -1056,18 +1053,18 @@
             update();
         }));
         root.addEventListener('keydown', event => {
-            const map = { Enter: '=', Backspace: 'âŒ«', Escape: 'C', '*': 'Ã—', '/': 'Ã·' };
+            const map = { Enter: '=', Backspace: '?', Escape: 'C', '*': '×', '/': '÷' };
             const key = map[event.key] || event.key;
             if (mode === 'programmer') {
                 const programmerKey = key === 'c' || key === 'C' ? 'HEX_C' : key.toUpperCase();
-                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','âŒ«','Ã—','Ã·'].includes(key)) {
+                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','?','×','÷'].includes(key)) {
                     event.preventDefault();
                     animateButton(programmerKey);
                     press(programmerKey);
                     return;
                 }
             }
-            if (/^[0-9.+\-()%]$/.test(key) || ['=', 'âŒ«', 'C', 'Ã—', 'Ã·'].includes(key)) {
+            if (/^[0-9.+\-()%]$/.test(key) || ['=', '?', 'C', '×', '÷'].includes(key)) {
                 event.preventDefault();
                 animateButton(key);
                 press(key);

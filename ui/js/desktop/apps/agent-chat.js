@@ -1,0 +1,606 @@
+    function renderChat(id, context) {
+        const host = contentEl(id);
+        host.innerHTML = `<div class="vd-chat">
+            <div class="vd-chat-toolbar">
+                <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
+                    ${iconMarkup('trash', 'X', 'vd-chat-toolbar-icon', 14)}<span>${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</span>
+                </button>
+            </div>
+            <div class="vd-chat-log"></div>
+            <div class="vd-chat-context" data-chat-context hidden></div>
+            <form class="vd-chat-form">
+                <input class="vd-chat-input" autocomplete="off" data-i18n-placeholder="desktop.chat_placeholder">
+                <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
+                <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(t('desktop.send'))}</span></button>
+            </form>
+        </div>`;
+        const input = host.querySelector('.vd-chat-input');
+        const voiceBtn = host.querySelector('.vd-chat-voice');
+        input.placeholder = t('desktop.chat_placeholder');
+        initDesktopChatVoice(host, input, voiceBtn);
+        setDesktopChatBusy(host, false);
+        loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {}));
+        const clearHistory = host.querySelector('[data-chat-clear-history]');
+        if (clearHistory) clearHistory.addEventListener('click', () => clearDesktopChatHistory(host));
+        host.querySelector('form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (state.chatBusy) {
+                if (event.submitter && event.submitter.classList && event.submitter.classList.contains('vd-chat-send')) requestDesktopChatAbort(host);
+                return;
+            }
+            await submitDesktopChatMessage(host, input.value.trim());
+        });
+    }
+
+    async function submitDesktopChatMessage(host, message) {
+        const input = host && host.querySelector('.vd-chat-input');
+        message = String(message || '').trim();
+        if (!host || !message || state.chatBusy) return;
+        if (input) input.value = '';
+        host._desktopChatHistoryToken = null;
+        state.chatBusy = true;
+        setDesktopChatBusy(host, true);
+        const chatLog = host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer) renderer.appendRichBubble(chatLog, 'user', message);
+        else appendChat(host, 'user', message);
+        try {
+            await sendDesktopChatStream(host, message, chatContextPayload(host));
+            await loadBootstrap();
+        } catch (err) {
+            if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
+        } finally {
+            state.chatBusy = false;
+            host._desktopChatAbort = null;
+            setDesktopChatBusy(host, false);
+        }
+    }
+
+    async function loadDesktopChatHistory(host) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        if (!chatLog) return;
+        const token = Symbol('desktop-chat-history');
+        host._desktopChatHistoryToken = token;
+        chatLog.innerHTML = `<div class="vd-chat-history-status">${esc(desktopText('desktop.loading', 'Loading...'))}</div>`;
+        try {
+            const messages = await api('/history?session_id=virtual-desktop');
+            if (host._desktopChatHistoryToken !== token) return;
+            chatLog.innerHTML = '';
+            const visible = (Array.isArray(messages) ? messages : [])
+                .map(normalizeDesktopChatHistoryMessage)
+                .filter(Boolean)
+                .slice(-60);
+            if (!visible.length) {
+                appendDesktopChatWelcome(host);
+                return;
+            }
+            visible.forEach(message => appendDesktopChatHistoryBubble(host, message));
+            chatLog.scrollTop = chatLog.scrollHeight;
+        } catch (err) {
+            if (host._desktopChatHistoryToken !== token) return;
+            chatLog.innerHTML = '';
+            appendDesktopChatWelcome(host);
+            if (typeof showDesktopNotification === 'function') {
+                showDesktopNotification({ message: desktopText('desktop.chat_history_load_error', 'Could not load chat history.') });
+            }
+        }
+    }
+
+    function normalizeDesktopChatHistoryMessage(message) {
+        if (!message || !message.role) return null;
+        const rawRole = String(message.role || '').toLowerCase();
+        const role = rawRole === 'assistant' || rawRole === 'agent' ? 'agent' : (rawRole === 'user' ? 'user' : '');
+        if (!role) return null;
+        const text = desktopChatHistoryDisplayText(role, message.content || '');
+        if (!text) return null;
+        return { role, text, timestamp: message.timestamp || message.Timestamp || '' };
+    }
+
+    function desktopChatHistoryDisplayText(role, content) {
+        let text = decodeDesktopChatHistoryEntities(content).replace(/<done\s*\/?>/gi, '').trim();
+        if (role === 'user') {
+            text = text.replace(/^\s*;\s*(?=<external_data\b)/i, '').trim();
+            const typed = text.match(/<external_data\b[^>]*type=["']desktop_user_request["'][^>]*>([\s\S]*?)<\/external_data>/i);
+            if (typed) text = typed[1];
+            else {
+                const marker = text.match(/User request:\s*([\s\S]*)$/i);
+                if (marker) text = marker[1];
+            }
+            text = text.replace(/<\/?external_data[^>]*>/gi, '').trim();
+        }
+        return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function decodeDesktopChatHistoryEntities(content) {
+        let text = String(content || '');
+        for (let i = 0; i < 2; i += 1) {
+            const next = text
+                .replace(/&lt;/gi, '<')
+                .replace(/&gt;/gi, '>')
+                .replace(/&quot;|&#34;/gi, '"')
+                .replace(/&#39;|&apos;/gi, "'")
+                .replace(/&amp;/gi, '&');
+            if (next === text) break;
+            text = next;
+        }
+        return text;
+    }
+
+    function appendDesktopChatWelcome(host) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', t('desktop.chat_welcome'));
+        else if (host) appendChat(host, 'agent', t('desktop.chat_welcome'));
+    }
+
+    function appendDesktopChatHistoryBubble(host, message) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        if (!chatLog || !message || !message.text) return;
+        const renderer = window.DesktopChatRenderer;
+        if (!renderer) {
+            appendChat(host, message.role, message.text);
+            return;
+        }
+        const bubble = renderer.createBubble(message.role, '');
+        if (message.role === 'user') {
+            bubble.textContent = message.text;
+        } else {
+            bubble.innerHTML = renderer.renderMarkdown(message.text);
+            renderer.processImages(bubble);
+            if (window.MermaidLoader) window.MermaidLoader.processBlocks(bubble);
+        }
+        chatLog.appendChild(bubble);
+        renderer.appendTimestamp(chatLog, message.role, message.timestamp);
+    }
+
+    async function clearDesktopChatHistory(host) {
+        if (!host || state.chatBusy) return;
+        const ok = await confirmDesktopChatClear(host);
+        if (!ok) return;
+        try {
+            await api('/clear?session_id=virtual-desktop', { method: 'DELETE' });
+            host._desktopChatHistoryToken = null;
+            const chatLog = host.querySelector('.vd-chat-log');
+            if (chatLog) chatLog.innerHTML = '';
+            appendDesktopChatWelcome(host);
+            if (typeof showDesktopNotification === 'function') {
+                showDesktopNotification({ message: desktopText('desktop.chat_history_cleared', 'Chat history cleared.') });
+            }
+        } catch (err) {
+            appendDesktopChatError(host, err);
+        }
+    }
+
+    function confirmDesktopChatClear(host) {
+        return new Promise(resolve => {
+            const container = host && host.querySelector('.vd-chat');
+            if (!container) { resolve(false); return; }
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-qc-modal-overlay';
+            overlay.innerHTML = `<div class="vd-qc-confirm">
+                <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}</div>
+                <div class="vd-qc-confirm-msg">${esc(desktopText('desktop.chat_clear_confirm', 'Delete the visible desktop chat history?'))}</div>
+                <div class="vd-qc-confirm-actions">
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-danger" type="button" data-action="ok">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.delete'))}</span></button>
+                </div>
+            </div>`;
+            container.appendChild(overlay);
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
+            overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) { overlay.remove(); resolve(false); }
+            });
+        });
+    }
+
+    function setDesktopChatBusy(host, busy) {
+        if (!host) return;
+        const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]'), clearBtn = host.querySelector('[data-chat-clear-history]');
+        const stop = desktopText('desktop.chat_stop', 'Stop'), send = desktopText('desktop.send', 'Send');
+        if (input) input.disabled = !!busy;
+        if (voiceBtn) {
+            const disabled = !!busy || voiceBtn.dataset.voiceAvailable === 'false';
+            voiceBtn.disabled = disabled; voiceBtn.classList.toggle('is-disabled', disabled);
+        }
+        if (sendBtn) { sendBtn.classList.toggle('is-stop', !!busy); sendBtn.title = busy ? stop : send; }
+        if (label) label.textContent = busy ? stop : send;
+        if (clearBtn) clearBtn.disabled = !!busy;
+    }
+
+    function requestDesktopChatAbort(host) { if (host && typeof host._desktopChatAbort === 'function') host._desktopChatAbort(); }
+
+    function isDesktopChatAbortError(err) {
+        const name = err && err.name ? String(err.name) : '', message = err && err.message ? String(err.message) : '';
+        return name === 'AbortError' || /aborted|abort/i.test(message);
+    }
+
+    function appendDesktopChatError(host, err) {
+        const message = err && err.message ? err.message : String(err || 'Request failed'), chatLog = host && host.querySelector('.vd-chat-log'), renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) renderer.appendRichBubble(chatLog, 'agent', message);
+        else if (host) appendChat(host, 'agent', message);
+    }
+
+    function initDesktopChatVoice(host, input, voiceBtn) {
+        if (!input || !voiceBtn) return;
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const useBrowserSTT = !!(window.SpeechToText && window.SpeechToText.isSupported);
+        const useRecorderFallback = !!(window.VoiceRecorder && navigator.mediaDevices && window.MediaRecorder);
+        const unavailable = !isSecure || (!useBrowserSTT && !useRecorderFallback);
+        const unavailableText = desktopText('desktop.chat_voice_unavailable', 'Speech input requires HTTPS and browser microphone support.');
+
+        voiceBtn.title = desktopText('desktop.chat_voice_input', 'Voice input');
+        voiceBtn.setAttribute('aria-label', desktopText('desktop.chat_voice_input', 'Voice input'));
+        voiceBtn.dataset.voiceAvailable = unavailable ? 'false' : 'true';
+        if (unavailable) {
+            voiceBtn.disabled = true;
+            voiceBtn.classList.add('is-disabled');
+            voiceBtn.title = unavailableText;
+            return;
+        }
+
+        const populateInput = (text) => {
+            const value = String(text || '').trim();
+            if (!value) return;
+            input.value = value; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
+        };
+        const showVoiceError = (message) => {
+            voiceBtn.classList.remove('is-active');
+            if (typeof showDesktopNotification === 'function') showDesktopNotification({ message: message || unavailableText });
+        };
+
+        if (useBrowserSTT) {
+            const sttOptions = { onInterimResult: () => {}, onFinalResult: () => {}, onEnd: (text) => { voiceBtn.classList.remove('is-active'); populateInput(text); }, onError: showVoiceError };
+            if (!window.SpeechToText._overlay) window.SpeechToText.init(sttOptions);
+            else Object.assign(window.SpeechToText, sttOptions);
+        } else if (useRecorderFallback) {
+            const recorderOptions = { onTranscription: (text) => { voiceBtn.classList.remove('is-active'); populateInput(text); }, onError: showVoiceError };
+            if (!window.VoiceRecorder.overlay) window.VoiceRecorder.init(recorderOptions);
+            else Object.assign(window.VoiceRecorder, recorderOptions);
+        }
+
+        voiceBtn.addEventListener('click', () => {
+            if (useBrowserSTT) {
+                if (window.SpeechToText.isActive) {
+                    window.SpeechToText.stop(); voiceBtn.classList.remove('is-active');
+                } else {
+                    window.SpeechToText.start(); voiceBtn.classList.add('is-active');
+                }
+            } else if (useRecorderFallback) {
+                if (window.VoiceRecorder.isRecording) {
+                    window.VoiceRecorder.send(); voiceBtn.classList.remove('is-active');
+                } else {
+                    window.VoiceRecorder.start(); voiceBtn.classList.add('is-active');
+                }
+            }
+        });
+    }
+
+    function normalizeChatLaunchFiles(context) {
+        const files = [];
+        const raw = context && (context.chat_files || context.files || context.file);
+        const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+        list.forEach(item => {
+            const entry = typeof item === 'string' ? { path: item } : item;
+            const file = chatFileContextFromEntry(entry || {});
+            if (file && !files.some(existing => existing.path === file.path)) files.push(file);
+        });
+        return files;
+    }
+
+    function chatAttachedFiles(host) {
+        try {
+            const files = JSON.parse((host && host.dataset.chatFiles) || '[]');
+            return Array.isArray(files) ? files.filter(file => file && file.path) : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function renderChatContextBar(host) {
+        const bar = host && host.querySelector('[data-chat-context]');
+        if (!bar) return;
+        const files = chatAttachedFiles(host);
+        if (!files.length) {
+            bar.hidden = true;
+            bar.innerHTML = '';
+            return;
+        }
+        const names = files.map(file => file.name || file.path).join(', ');
+        bar.hidden = false;
+        bar.innerHTML = `<span>${esc(desktopText('desktop.chat_file_context', 'File context'))}: ${esc(names)}</span>
+            <button type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 12)}</button>`;
+        const clear = bar.querySelector('[data-chat-context-clear]');
+        if (clear) clear.addEventListener('click', () => {
+            host.dataset.chatFiles = '[]';
+            delete host.dataset.chatSourceApp;
+            renderChatContextBar(host);
+        });
+    }
+
+    function applyChatLaunchContext(id, context) {
+        const host = contentEl(id);
+        if (!host) return;
+        const existing = chatAttachedFiles(host);
+        const incoming = normalizeChatLaunchFiles(context || {});
+        const merged = existing.slice();
+        incoming.forEach(file => {
+            if (!merged.some(existingFile => existingFile.path === file.path)) merged.push(file);
+        });
+        host.dataset.chatFiles = JSON.stringify(merged);
+        const sourceApp = String((context && (context.chat_source_app || context.source_app || context.origin_app)) || '').trim();
+        if (sourceApp) host.dataset.chatSourceApp = sourceApp;
+        else if (incoming.length) delete host.dataset.chatSourceApp;
+        renderChatContextBar(host);
+        const input = host.querySelector('.vd-chat-input');
+        if (input && context && context.chat_prefill && !input.value.trim()) {
+            input.value = context.chat_prefill;
+        }
+        if (context.chat_autosend && state.chatBusy) {
+            if (input) input.focus();
+            return;
+        }
+        if (context.chat_autosend && input.value.trim() && !state.chatBusy) {
+            window.setTimeout(() => {
+                submitDesktopChatMessage(host, input.value.trim()).catch(err => appendDesktopChatError(host, err));
+            }, 0);
+        }
+        if (input) input.focus();
+    }
+
+    function chatContextPayload(host) {
+        const files = chatAttachedFiles(host);
+        if (!files.length) return {};
+        const sourceApp = String((host && host.dataset.chatSourceApp) || '').trim();
+        return {
+            source: 'desktop-file',
+            origin_app: sourceApp,
+            current_file: files[0].path,
+            open_files: files.map(file => file.path)
+        };
+    }
+
+    async function sendDesktopChatStream(host, message, context) {
+        const chatLog = host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer) renderer.resetDedupSets();
+        const statusEl = renderer ? renderer.createThinkingStatus() : null;
+        if (statusEl) chatLog.appendChild(statusEl);
+        let streamingBubble = null;
+        let streamingContent = '';
+        let streamTextFrame = 0;
+        let finalized = false;
+
+        return new Promise((resolve, reject) => {
+            const ctrl = new AbortController();
+            const abortChatStream = () => ctrl.abort();
+            host._desktopChatAbort = abortChatStream;
+            const timeout = setTimeout(() => {
+                ctrl.abort();
+                doReject(new Error('Request timed out'));
+            }, 10 * 60 * 1000);
+
+            function clearAbortHandle() {
+                if (host._desktopChatAbort === abortChatStream) host._desktopChatAbort = null;
+            }
+
+            function doFinalize() {
+                if (finalized) return;
+                finalized = true;
+                clearTimeout(timeout);
+                clearAbortHandle();
+                flushStreamingBubble();
+                if (statusEl && statusEl.parentNode) statusEl.remove();
+                if (streamingBubble) {
+                    streamingBubble.classList.remove('vd-streaming');
+                    if (renderer && streamingContent.trim()) {
+                        const html = renderer.renderMarkdown(streamingContent);
+                        streamingBubble.innerHTML = html;
+                        renderer.processImages(streamingBubble);
+                        if (window.MermaidLoader) {
+                            window.MermaidLoader.processBlocks(streamingBubble);
+                        }
+                    }
+                }
+                resolve();
+            }
+
+            function doReject(err) {
+                if (finalized) return;
+                finalized = true;
+                clearTimeout(timeout);
+                clearAbortHandle();
+                if (streamTextFrame) {
+                    const cancel = window.cancelAnimationFrame || window.clearTimeout;
+                    cancel(streamTextFrame);
+                    streamTextFrame = 0;
+                }
+                if (statusEl && statusEl.parentNode) statusEl.remove();
+                reject(err);
+            }
+
+            function flushStreamingBubble() {
+                streamTextFrame = 0;
+                if (!streamingBubble || !streamingBubble.classList.contains('vd-streaming')) return;
+                streamingBubble.textContent = streamingContent;
+                keepAgentStatusAtEnd();
+            }
+
+            function queueStreamingBubbleFlush() {
+                if (streamTextFrame) return;
+                const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+                streamTextFrame = schedule(flushStreamingBubble);
+            }
+
+            function keepAgentStatusAtEnd() {
+                if (!statusEl || statusEl.parentNode !== chatLog) return;
+                if (chatLog.lastElementChild !== statusEl) {
+                    chatLog.appendChild(statusEl);
+                }
+                statusEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            }
+
+            fetch('/api/desktop/chat/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, context }),
+                signal: ctrl.signal
+            }).then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(text || ('HTTP ' + response.status));
+                    });
+                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function processChunk() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            doFinalize();
+                            return;
+                        }
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6).trim();
+                                if (data === '[DONE]') {
+                                    doFinalize();
+                                    reader.cancel().catch(() => {});
+                                    return;
+                                }
+                                try {
+                                    handleStreamEvent(JSON.parse(data));
+                                } catch (_) {}
+                            }
+                        }
+                        processChunk();
+                    }).catch(err => {
+                        doReject(err);
+                    });
+                }
+
+                function handleStreamEvent(data) {
+                    if (!data) return;
+                    const event = data.event || data.type;
+                    if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
+                        const content = data.content || '';
+                        if (!content) return;
+                        if (!streamingBubble) {
+                            streamingBubble = document.createElement('div');
+                            streamingBubble.className = 'vd-chat-bubble agent vd-streaming';
+                            chatLog.appendChild(streamingBubble);
+                            if (renderer) renderer.appendTimestamp(chatLog, 'agent');
+                            keepAgentStatusAtEnd();
+                        }
+                        streamingContent += content;
+                        if (streamingBubble.classList.contains('vd-streaming')) {
+                            queueStreamingBubbleFlush();
+                        }
+                    } else if (event === 'thinking_block') {
+                        const state2 = data.state || '';
+                        if (statusEl && state2 === 'start' && renderer) {
+                            renderer.updateStatus(statusEl, desktopText('desktop.chat_thinking', 'Reasoning...'));
+                            keepAgentStatusAtEnd();
+                        }
+                    } else if (event === 'thinking' || event === 'tool_start' || event === 'tool_end' ||
+                        event === 'co_agent_spawn' || event === 'workflow_plan' || event === 'coding' ||
+                        event === 'error_recovery') {
+                        if (statusEl && renderer) {
+                            const status = renderer.formatAgentActionStatus(data);
+                            if (status) {
+                                renderer.updateStatus(statusEl, status);
+                                keepAgentStatusAtEnd();
+                            }
+                        }
+                    } else if (event === 'tool_call') {
+                        if (renderer) {
+                            const text = renderer.extractToolCallNarration(data.detail || data.message || '');
+                            if (text) {
+                                renderer.appendRichBubble(chatLog, 'agent', text);
+                                keepAgentStatusAtEnd();
+                            }
+                        }
+                    } else if (event === 'image') {
+                        try {
+                            const imgData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) {
+                                renderer.appendImageMessage(chatLog, imgData);
+                                keepAgentStatusAtEnd();
+                            }
+                        } catch (_) {}
+                    } else if (event === 'video') {
+                        try {
+                            const videoData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) {
+                                renderer.appendVideoMessage(chatLog, videoData);
+                                keepAgentStatusAtEnd();
+                            }
+                        } catch (_) {}
+                    } else if (event === 'live_stream') {
+                        try {
+                            const streamData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) {
+                                renderer.appendLiveStreamMessage(chatLog, streamData);
+                                keepAgentStatusAtEnd();
+                            }
+                        } catch (_) {}
+                    } else if (event === 'audio') {
+                        try {
+                            const audioData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) renderer.appendAudioMessage(chatLog, audioData);
+                        } catch (_) {}
+                    } else if (event === 'document') {
+                        try {
+                            const docData = typeof data.detail === 'string' ? JSON.parse(data.detail) : data.detail;
+                            if (renderer) {
+                                renderer.appendDocumentMessage(chatLog, docData);
+                                keepAgentStatusAtEnd();
+                            }
+                        } catch (_) {}
+                    } else if (event === 'final_response') {
+                        if (data.detail || data.message) {
+                            const text = data.detail || data.message || '';
+                            if (!streamingBubble && text.trim()) {
+                                if (renderer) {
+                                    renderer.appendRichBubble(chatLog, 'agent', text);
+                                    keepAgentStatusAtEnd();
+                                } else {
+                                    appendChat(host, 'agent', text);
+                                }
+                            } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
+                                streamingContent = text;
+                            }
+                        }
+                    } else if (event === 'done') {
+                        return;
+                    }
+                }
+
+                processChunk();
+            }).catch(err => {
+                doReject(err);
+            });
+        });
+    }
+
+    function appendChat(host, role, text) {
+        const bubble = document.createElement('div');
+        bubble.className = 'vd-chat-bubble ' + role;
+        bubble.textContent = text;
+        const chatLog = host.querySelector('.vd-chat-log');
+        chatLog.appendChild(bubble);
+        appendChatTimestamp(host, role);
+        bubble.scrollIntoView({ block: 'end' });
+    }
+
+    function appendChatTimestamp(host, role) {
+        const chatLog = host && host.querySelector('.vd-chat-log');
+        const renderer = window.DesktopChatRenderer;
+        if (renderer && chatLog) return renderer.appendTimestamp(chatLog, role);
+        return null;
+    }
+
