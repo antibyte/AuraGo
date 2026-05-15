@@ -489,7 +489,7 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `project_dir` | string | yes | Homepage workspace directory to deploy |
-| `project_id` | string | no | Vercel project name or ID; falls back to `vercel.default_project_id` |
+| `project_id` | string | no | Vercel project name or ID to link before deploying; falls back to `vercel.default_project_id` |
 | `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |
 | `target` | string | no | `preview` or `production` (default: `preview`) |
 | `alias` | string | no | Alias or domain to assign after a successful deployment |
@@ -505,7 +505,7 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 
 Notes:
 - `deploy_vercel` is designed for static-first homepage projects such as HTML, Vite, Astro, Nuxt static output, and Next.js with static export.
-- AuraGo validates the build first, then deploys from the homepage workspace via the Vercel CLI.
+- AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.
 - If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.
 - Alias or custom domain assignment requires `vercel.allow_domain_management=true`.
 

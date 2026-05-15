@@ -1233,6 +1233,17 @@ func vercelScopeFlag(cfg VercelConfig) string {
 	return ""
 }
 
+func buildVercelDeployCommand(deploySubdir, projectRef, target string, cfg VercelConfig) string {
+	scopeFlag := vercelScopeFlag(cfg)
+	linkPrefix := ""
+	if projectRef = strings.TrimSpace(projectRef); projectRef != "" {
+		linkPrefix = fmt.Sprintf("vercel link --yes --token $VERCEL_TOKEN --project %s%s && ",
+			shellSingleQuote(projectRef), scopeFlag)
+	}
+	return fmt.Sprintf("cd /workspace/%s && %svercel deploy --yes --archive=tgz --token $VERCEL_TOKEN --target=%s%s 2>&1",
+		deploySubdir, linkPrefix, shellSingleQuote(target), scopeFlag)
+}
+
 func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, buildDir, projectID, target, alias, domain string, allowProjectManagement, allowDomainManagement bool, logger *slog.Logger) string {
 	if strings.TrimSpace(vcfg.Token) == "" {
 		return errJSON("Vercel token is required")
@@ -1332,7 +1343,11 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		projectResult = createResult
 	}
 
+	cliProjectRef := projectRef
 	if projectObj, ok := projectResult["project"].(map[string]interface{}); ok {
+		if name := strVal(projectObj, "name"); name != "" {
+			cliProjectRef = name
+		}
 		if id := strVal(projectObj, "id"); id != "" {
 			projectRef = id
 		} else if name := strVal(projectObj, "name"); name != "" {
@@ -1343,8 +1358,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	logger.Info("[Homepage] Deploying to Vercel", "project", projectRef, "path", deploySubdir, "target", target)
 
 	scopeFlag := vercelScopeFlag(vcfg)
-	deployCmd := fmt.Sprintf("cd /workspace/%s && vercel deploy --yes --archive=tgz --token $VERCEL_TOKEN --project %s --target=%s%s 2>&1",
-		deploySubdir, shellSingleQuote(projectRef), shellSingleQuote(target), scopeFlag)
+	deployCmd := buildVercelDeployCommand(deploySubdir, cliProjectRef, target, vcfg)
 	deployRaw := HomepageExec(cfg, deployCmd, []string{"VERCEL_TOKEN=" + vcfg.Token}, logger)
 	deployOutput := extractOutput(deployRaw)
 

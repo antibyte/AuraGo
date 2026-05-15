@@ -47,7 +47,7 @@ You have expert-level web design and development capabilities through the `homep
 
 **Netlify deployment:** Always use `deploy_netlify` — it handles build + ZIP + upload entirely server-side. **Never use sandbox/Python to create a ZIP and pass it via `netlify › deploy_zip`** — binary/base64 data cannot be reliably transported through tool arguments and will produce a 400 error from the Netlify API.
 
-**Vercel deployment:** Use `deploy_vercel` for homepage workspace publishing to Vercel. It validates the build locally, deploys from the homepage workspace with the Vercel CLI, and can assign an alias or custom domain after deployment when permitted by config.
+**Vercel deployment:** Use `deploy_vercel` for homepage workspace publishing to Vercel. It validates the build locally, links the configured Vercel project when `project_id` or `vercel.default_project_id` is available, deploys from the homepage workspace with the Vercel CLI, and can assign an alias or custom domain after deployment when permitted by config.
 
 **Troubleshooting order:** If a homepage or Netlify action fails, do not blindly retry it. First inspect the exact error, then verify the project structure with `homepage` → `list_files` / `read_file`, then choose a different approach. If `project_dir` is involved, it must be relative to the homepage workspace, never an absolute `/workspace/...` path.
 If `homepage.workspace_path` is configured in the UI, that is only the host mount path. Tool arguments still stay relative, for example `project_dir: "my-site"` and `path: "my-site/src/app/page.tsx"`.
