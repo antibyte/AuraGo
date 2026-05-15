@@ -108,6 +108,26 @@ func TestChatFrontend_VideoPlayerFlowRemainsPresent(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_AudioEventAutoplayFlagKeepsVisiblePlayer(t *testing.T) {
+	t.Parallel()
+
+	streamingContent, err := os.ReadFile(filepath.Join("js", "chat", "chat-streaming.js"))
+	if err != nil {
+		t.Fatalf("read chat streaming JS: %v", err)
+	}
+	stream := string(streamingContent)
+	for _, marker := range []string{
+		"const shouldAutoPlay = speakerMode || audioData.autoplay === true;",
+		"if (shouldAutoPlay) {",
+		"if (!speakerMode) {",
+		"const player = new ChatAudioPlayer(audioData.path);",
+	} {
+		if !strings.Contains(stream, marker) {
+			t.Fatalf("chat streaming JS missing audio autoplay marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_MessageTimestampsRemainWired(t *testing.T) {
 	t.Parallel()
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,6 +34,26 @@ var (
 	sessionRequestLocks   = make(map[string]*sessionRequestLock)
 	muSessionRequestLocks sync.Mutex
 )
+
+const firstStartIntroAudioFilename = "brain_in_the _machine.mp3"
+
+func sendFirstStartIntroAudio(broker agent.FeedbackBroker) {
+	if broker == nil {
+		return
+	}
+	if sseBroker, ok := broker.(*SSEBrokerAdapter); ok && sseBroker.sse == nil {
+		return
+	}
+	payload, err := json.Marshal(map[string]interface{}{
+		"path":     "/files/audio/" + url.PathEscape(firstStartIntroAudioFilename),
+		"title":    "Brain in the Machine",
+		"autoplay": true,
+	})
+	if err != nil {
+		return
+	}
+	broker.Send("audio", string(payload))
+}
 
 type sessionRequestLock struct {
 	mu   sync.Mutex
@@ -521,6 +542,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				s.firstStartDone = true
 				s.muFirstStart.Unlock()
 				s.Logger.Info("[FirstStart] Injecting one-time naming prompt")
+				sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID))
 				finalMessages = append(finalMessages, openai.ChatCompletionMessage{
 					Role: openai.ChatMessageRoleSystem,
 					Content: "[FIRST START INITIALIZATION — ONE TIME ONLY] " +

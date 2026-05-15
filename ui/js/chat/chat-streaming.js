@@ -342,9 +342,11 @@ function handleSSEMessage(e) {
                 const audioData = JSON.parse(data.detail);
                 if (audioData && audioData.path && !seenSSEAudios.has(audioData.path)) {
                     seenSSEAudios.add(audioData.path);
-                    if (speakerMode) {
+                    const shouldAutoPlay = speakerMode || audioData.autoplay === true;
+                    if (shouldAutoPlay) {
                         enqueueAutoPlay(audioData.path);
-                    } else {
+                    }
+                    if (!speakerMode) {
                         const wrapper = document.createElement('div');
                         wrapper.className = 'chat-audio-wrapper';
                         if (audioData.title) {
