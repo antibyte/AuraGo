@@ -445,51 +445,30 @@ func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skill
 	})
 }
 
+var executeSkillSandboxCode = SandboxExecuteCode
+
 // ExecuteSkillInSandbox executes a skill inside the sandboxed container environment.
 // It reads the skill code, injects secrets/creds, prepends the args, and runs via SandboxExecuteCode.
 // Returns error if sandbox is unavailable or skill not found.
 func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
-	if _, err := validateSkillName(skillName); err != nil {
+	cleanSkillName, err := validateSkillName(strings.TrimSuffix(skillName, ".py"))
+	if err != nil {
 		return "", fmt.Errorf("invalid skill name: %w", err)
 	}
-	// Path traversal check: ensure the resolved path stays within skillsDir.
-	absSkillsDir, err := filepath.Abs(skillsDir)
+	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, cleanSkillName, argsJSON)
 	if err != nil {
-		return "", fmt.Errorf("invalid skills directory: %w", err)
+		return "", err
 	}
-	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, skillName+".py"))
-	if err != nil {
-		return "", fmt.Errorf("invalid skill path: %w", err)
+	if !strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
+		return "", fmt.Errorf("skill '%s' uses executable '%s'; sandbox execution supports Python skills only", cleanSkillName, manifest.Executable)
 	}
-	rel, err := filepath.Rel(absSkillsDir, absExecPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("skill path traversal detected for '%s'", skillName)
-	}
-	fi, err := os.Lstat(absExecPath)
-	if err != nil {
-		return "", fmt.Errorf("skill executable not accessible: %w", err)
-	}
-	if fi.Mode()&os.ModeSymlink != 0 {
-		return "", fmt.Errorf("symlinks are not allowed in skills directory")
-	}
+
 	// Read skill code
 	data, err := os.ReadFile(absExecPath)
 	if err != nil {
-		return "", fmt.Errorf("skill '%s' not found: %w", skillName, err)
+		return "", fmt.Errorf("skill '%s' not found: %w", cleanSkillName, err)
 	}
 	skillCode := string(data)
-
-	// Serialize args
-	if argsJSON == nil {
-		argsJSON = make(map[string]interface{})
-	}
-	argsBytes, err := json.Marshal(argsJSON)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize args: %w", err)
-	}
-	if len(argsBytes) > maxSkillArgsBytes {
-		return "", fmt.Errorf("skill args too large: %d bytes (max %d)", len(argsBytes), maxSkillArgsBytes)
-	}
 
 	// Build the execution script:
 	// 1. Prepend secrets/creds injection
@@ -509,7 +488,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 		prelude += BuildToolBridgePrelude(bridgeURL, bridgeToken, bridgeTools)
 	}
 
-	fullCode, err := buildSandboxSkillExecCode(skillName, skillCode, argsBytes, prelude)
+	fullCode, err := buildSandboxSkillExecCode(cleanSkillName, skillCode, []byte(argsString), prelude)
 	if err != nil {
 		return "", err
 	}
@@ -518,7 +497,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	if timeoutSeconds <= 0 {
 		timeoutSeconds = 30
 	}
-	result, err := SandboxExecuteCode(fullCode, "python", nil, timeoutSeconds, logger)
+	result, err := executeSkillSandboxCode(fullCode, "python", nil, timeoutSeconds, logger)
 	if err != nil {
 		return "", fmt.Errorf("sandbox execution failed: %w", err)
 	}

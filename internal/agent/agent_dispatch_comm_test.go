@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -103,6 +104,28 @@ func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
 	}
 	if strings.Contains(out, "skill not found") {
 		t.Fatalf("expected redirect before skill manager lookup, got %s", out)
+	}
+}
+
+func TestMergeSkillVaultKeysAcceptsPySuffix(t *testing.T) {
+	dir := t.TempDir()
+	manifest := tools.SkillManifest{
+		Name:       "weather_api",
+		Executable: "weather_api.py",
+		VaultKeys:  []string{"API_KEY"},
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "weather_api.json"), data, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	got := mergeSkillVaultKeys(dir, "weather_api.py", []string{"EXTRA_KEY", "API_KEY"})
+	want := []string{"EXTRA_KEY", "API_KEY"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("keys = %v, want %v", got, want)
 	}
 }
 

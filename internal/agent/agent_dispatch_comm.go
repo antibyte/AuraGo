@@ -25,8 +25,6 @@ import (
 	"aurago/internal/tools"
 )
 
-// mergeSkillVaultKeys combines vault_keys from a skill manifest with vault_keys from the tool call.
-// Duplicates are removed. Returns nil if no keys.
 // resolveSkillBridgeTools returns the intersection of the skill manifest's InternalTools
 // with the config's PythonToolBridge.AllowedTools. Returns nil if the bridge is disabled
 // or if the skill hasn't declared any internal_tools.
@@ -66,7 +64,10 @@ func toolBridgeURL(cfg *config.Config) string {
 	return internalAPIBaseURL(cfg) + "/api/internal/tool-bridge"
 }
 
+// mergeSkillVaultKeys combines vault_keys from a skill manifest with vault_keys from the tool call.
+// Duplicates are removed. Returns nil if no keys.
 func mergeSkillVaultKeys(skillsDir, skillName string, tcKeys []string) []string {
+	skillName = strings.TrimSuffix(skillName, ".py")
 	seen := make(map[string]bool, len(tcKeys))
 	var merged []string
 	for _, k := range tcKeys {
@@ -611,7 +612,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			// Resolve vault secrets: merge skill manifest vault_keys with tool call vault_keys.
 			// Split out cred:<id> entries — those are credential IDs, not vault keys.
-			allVaultKeys := mergeSkillVaultKeys(cfg.Directories.SkillsDir, skillName, tc.VaultKeys)
+			allVaultKeys := mergeSkillVaultKeys(cfg.Directories.SkillsDir, cleanSkillName, tc.VaultKeys)
 			var plainVaultKeys []string
 			var credIDsFromManifest []string
 			for _, k := range allVaultKeys {
@@ -653,9 +654,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
 			} else if len(secrets) > 0 || len(creds) > 0 || len(bridgeTools) > 0 {
-				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds, bridgeURL, bridgeToken, bridgeTools)
+				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, cleanSkillName, args, secrets, creds, bridgeURL, bridgeToken, bridgeTools)
 			} else {
-				res, skillErr = tools.ExecuteSkill(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
+				res, skillErr = tools.ExecuteSkill(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, cleanSkillName, args)
 			}
 			if skillErr != nil {
 				msg := fmt.Sprintf("Tool Output: ERROR executing skill: %s\nOutput: %s", security.Scrub(skillErr.Error()), security.Scrub(res))

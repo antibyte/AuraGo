@@ -96,7 +96,11 @@ After creation, use:
 {"action": "execute_skill", "skill": "weather_api", "skill_args": {"endpoint": "weather?q=Berlin", "method": "GET"}}
 ```
 
-### After Creation: Editing the Manifest
+### After Creation: Editing the Generated Skill
+
+If the template is only a starting point, edit the generated agent-owned `.py` file deliberately, keep the function name equal to the generated function name, and then test the skill with `execute_skill`. Do not modify user-owned skills unless the user explicitly asked for that. For a fully custom reusable capability, start with `minimal_skill`, replace the generated function body, update the manifest parameters/dependencies, write documentation, and verify with safe sample input.
+
+### Editing the Manifest
 
 `create_skill_from_template` writes both the Python script and the `.json` manifest. If the generated skill needs advanced fields, edit the manifest deliberately and then refresh or re-run the skill:
 

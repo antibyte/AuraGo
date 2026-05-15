@@ -1,6 +1,6 @@
 # Python Execution Tool (`execute_python`)
 
-Execute Python scripts in a sandboxed virtual environment.
+Execute Python scripts in AuraGo's isolated Python virtual environment. This is not a security sandbox: it runs on the host with the permissions granted by `agent.allow_python`. Prefer `execute_sandbox` for untrusted code when the sandbox is available.
 
 ## Parameters
 
@@ -73,3 +73,4 @@ This also works with `execute_sandbox`, `execute_skill`, and `run_tool` (or skil
 - Scripts run with a timeout (configurable in config.yaml)
 - stdout and stderr are captured and returned
 - For persistent tools, use `save_tool` instead
+- For reusable capabilities, prefer `create_skill_from_template` plus `execute_skill` verification instead of saving ad-hoc Python manually.

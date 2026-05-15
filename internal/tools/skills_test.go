@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -248,6 +249,66 @@ func TestExecuteSkillInSandbox_RejectMissingSkill(t *testing.T) {
 	}
 }
 
+func TestExecuteSkillInSandboxUsesManifestExecutable(t *testing.T) {
+	dir := t.TempDir()
+	manifest := SkillManifest{
+		Name:       "custom_skill",
+		Executable: "runner.py",
+	}
+	data, _ := json.Marshal(manifest)
+	if err := os.WriteFile(filepath.Join(dir, "custom_skill.json"), data, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "runner.py"), []byte("def custom_skill(value):\n    return {'value': value}\n"), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	old := executeSkillSandboxCode
+	t.Cleanup(func() { executeSkillSandboxCode = old })
+	var capturedCode string
+	executeSkillSandboxCode = func(code, lang string, libraries []string, timeoutSeconds int, logger *slog.Logger) (string, error) {
+		capturedCode = code
+		if lang != "python" {
+			t.Fatalf("lang = %q, want python", lang)
+		}
+		return `{"value":"ok"}`, nil
+	}
+
+	out, err := ExecuteSkillInSandbox(dir, "custom_skill.py", map[string]interface{}{"value": "ok"}, nil, nil, 0, nil, "", "", nil)
+	if err != nil {
+		t.Fatalf("ExecuteSkillInSandbox failed: %v", err)
+	}
+	if out != `{"value":"ok"}` {
+		t.Fatalf("output = %q", out)
+	}
+	if !strings.Contains(capturedCode, "def custom_skill(value):") {
+		t.Fatalf("sandbox code did not use manifest executable content:\n%s", capturedCode)
+	}
+}
+
+func TestExecuteSkillInSandboxRejectsNonPythonManifestExecutable(t *testing.T) {
+	dir := t.TempDir()
+	manifest := SkillManifest{
+		Name:       "shell_skill",
+		Executable: "runner.sh",
+	}
+	data, _ := json.Marshal(manifest)
+	if err := os.WriteFile(filepath.Join(dir, "shell_skill.json"), data, 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "runner.sh"), []byte("#!/bin/sh\necho ok\n"), 0o644); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	_, err := ExecuteSkillInSandbox(dir, "shell_skill", nil, nil, nil, 0, nil, "", "", nil)
+	if err == nil {
+		t.Fatal("expected non-Python sandbox error")
+	}
+	if !strings.Contains(err.Error(), "supports Python skills only") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestExtractSkillParameterNames_LegacyFlatMap(t *testing.T) {
 	params := map[string]interface{}{"stadt": "Name", "einheit": "Einheit"}
 	names := ExtractSkillParameterNames(params)
@@ -261,7 +322,7 @@ func TestExtractSkillParameterNames_JSONSchema(t *testing.T) {
 	params := map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
-			"stadt": map[string]interface{}{"type": "string"},
+			"stadt":   map[string]interface{}{"type": "string"},
 			"einheit": map[string]interface{}{"type": "string"},
 		},
 	}

@@ -34,7 +34,8 @@ func TestSkillPromptDocsExposeManifestAndRuntimeDetails(t *testing.T) {
 			"Testing",
 		},
 		filepath.Join(root, "prompts", "tools_manuals", "skill_templates.md"): {
-			"After Creation: Editing the Manifest",
+			"After Creation: Editing the Generated Skill",
+			"Editing the Manifest",
 			"Testing Your Skill",
 			"skill_manifest_spec.md",
 			"AURAGO_SECRET_<KEY>",

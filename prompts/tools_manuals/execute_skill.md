@@ -26,7 +26,7 @@ Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or p
 ## Notes
 - Skills are Python scripts in `agent_workspace/skills/` with a `.json` manifest
 - New skills can be created via `create_skill_from_template` and are immediately usable
-- Skills run in a sandboxed Python environment with automatic venv activation and vault secret injection
+- Skills run through AuraGo's managed Python environment with automatic venv activation, vault secret injection, and output scrubbing. If Skill Manager requires sandbox execution, Python skills are executed via `execute_sandbox`; otherwise they run in the host-side venv.
 - **Vault secrets**: If a skill needs secrets (API keys, tokens), the user must store them in the vault and assign them to the skill via the Web UI. Secrets are injected as `AURAGO_SECRET_<KEY>` where the key is uppercased and non-alphanumeric characters become `_`. Always inform the user about required secrets.
 - **Credentials**: Use `credential_ids` when a run needs stored credentials instead of simple vault keys. Credential records must allow Python access. Fields are injected as `AURAGO_CRED_<NAME>_<FIELD>`, for example `AURAGO_CRED_ROUTER_USERNAME`, `AURAGO_CRED_ROUTER_PASSWORD`, or `AURAGO_CRED_API_KEY_TOKEN`.
 - **Tool bridge**: Skills can call native AuraGo tools (e.g., `proxmox`, `docker_management`) directly via the Python tool bridge if enabled in config (`python_tool_bridge.enabled: true`). Add required tool names to the skill manifest's `internal_tools` field and ensure they are listed in `python_tool_bridge.allowed_tools`. Use `from aurago_tools import AuraGoTools, AuraGoToolError`, check `AuraGoTools.is_available()`, and catch `AuraGoToolError`. Call tools as `tools.call("tool_name", {"param1": "val"})`.

@@ -161,7 +161,7 @@ When asked to build a new tool, integration, or reusable capability:
 
 **Decision tree:**
 1. **Reusable Python capability** (API call, file conversion, data transform) → `list_skill_templates` first, then `create_skill_from_template`
-2. **If no template fits** → use `execute_skill` with a generic template, not raw `execute_python`
+2. **If no specialized template fits** → create a `minimal_skill`, edit the generated agent-owned `.py`/manifest deliberately, document it, then verify it with `execute_skill`
 3. **Background automation with cron/triggers** → `manage_missions`
 4. **One-off analysis script** → `execute_python`
 
@@ -178,7 +178,7 @@ Inside the skill Python code, use `AuraGoTools.is_available()` before constructi
 For full details, read the `skills_engine`, `skill_templates`, and `skill_manifest_spec` manuals via `discover_tools` → `get_tool_info`.
 
 **What to NEVER do:**
-- Write Python via `execute_python` and save it manually to disk — it won't be registered and won't get vault injection
+- Write reusable Python via `execute_python` and save it manually to disk — it won't be registered and won't get vault injection. Use `create_skill_from_template` plus deliberate edits to the generated agent-owned skill instead.
 - Create a `mission` for something that should be a reusable skill — missions are for automation, not for code you want to call repeatedly
 - Bypass `list_skills`/`list_skill_templates` and write custom code from scratch when a template exists
 
