@@ -176,6 +176,10 @@ var knownProviderTypes = map[string]bool{
 	"custom": true, "stability": true, "ideogram": true,
 	"vision": true, "minimax": true, "glm": true,
 	"yepapi": true, "manifest": true,
+	// Providers from Manifest (Phase 1 — OpenAI-compatible)
+	"deepseek": true, "groq": true, "mistral": true,
+	"xai": true, "moonshot": true, "qwen": true,
+	"zai": true, "llamacpp": true, "lmstudio": true,
 }
 
 // ManifestProviderBaseURL returns the OpenAI-compatible /v1 endpoint for the

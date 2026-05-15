@@ -567,7 +567,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
                 let pricing;
                 if (json.data) {
-                    const prefixMap = { openai: 'openai/', anthropic: 'anthropic/', google: 'google/' };
+                    const prefixMap = { openai: 'openai/', anthropic: 'anthropic/', google: 'google/', deepseek: 'deepseek/', mistral: 'mistralai/', xai: 'xai/', moonshot: 'moonshotai/', qwen: 'qwen/', zai: 'zhipuai/' };
                     const prefix = prefixMap[provType] || '';
                     pricing = (json.data || [])
                         .filter(m => m.pricing && (prefix ? m.id.startsWith(prefix) : true))
@@ -767,7 +767,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             'workers-ai': '',
             manifest: '',
             yepapi: 'https://api.yepapi.com/v1/ai',
-            custom: ''
+            custom: '',
+            // Manifest Phase-1 providers
+            deepseek: 'https://api.deepseek.com/v1',
+            groq: 'https://api.groq.com/openai/v1',
+            mistral: 'https://api.mistral.ai/v1',
+            xai: 'https://api.x.ai/v1',
+            moonshot: 'https://api.moonshot.ai/v1',
+            qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            zai: 'https://open.bigmodel.cn/api/paas/v4',
+            llamacpp: 'http://localhost:8080',
+            lmstudio: 'http://localhost:1234'
         };
 
         const PROVIDER_HINTS = {
@@ -780,10 +790,20 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             manifest: 'config.providers.hint.manifest',
             minimax: 'config.providers.hint.minimax',
             yepapi: 'config.providers.hint.yepapi',
-            custom: 'config.providers.hint.custom'
+            custom: 'config.providers.hint.custom',
+            // Manifest Phase-1 providers
+            deepseek: 'config.providers.hint.deepseek',
+            groq: 'config.providers.hint.groq',
+            mistral: 'config.providers.hint.mistral',
+            xai: 'config.providers.hint.xai',
+            moonshot: 'config.providers.hint.moonshot',
+            qwen: 'config.providers.hint.qwen',
+            zai: 'config.providers.hint.zai',
+            llamacpp: 'config.providers.hint.llamacpp',
+            lmstudio: 'config.providers.hint.lmstudio'
         };
 
-        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom'];
+        const PROVIDER_TYPES = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio'];
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
@@ -873,7 +893,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="prov-model-pricing-head">
                         <div class="field-label prov-model-pricing-title">💰 ${t('config.providers.model_pricing')}</div>
                         <div class="prov-model-pricing-actions">
-                            <button type="button" class="btn-save prov-fetch-pricing-btn ${['openrouter','openai','anthropic','google','ollama'].includes(data.type || 'openai') ? '' : 'is-hidden'}" id="prov-fetch-pricing-btn">
+                            <button type="button" class="btn-save prov-fetch-pricing-btn ${['openrouter','openai','anthropic','google','ollama','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio'].includes(data.type || 'openai') ? '' : 'is-hidden'}" id="prov-fetch-pricing-btn">
                                 📡 ${t('config.providers.fetch_pricing')}
                             </button>
                             <button type="button" class="btn-save prov-btn-muted prov-btn-xs" onclick="providerAddModelRow()">

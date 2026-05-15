@@ -51,6 +51,25 @@ func FetchPricingForProvider(providerType, apiKey, baseURL string) ([]ModelPrici
 		return fetchOllamaPricing(baseURL)
 	case "workers-ai":
 		return fetchWorkersAIPricing(apiKey, baseURL)
+	// Manifest Phase-1 providers — fetched via OpenRouter (filtered by vendor prefix)
+	case "deepseek":
+		return fetchOpenRouterPricingFiltered("deepseek/")
+	case "mistral":
+		return fetchOpenRouterPricingFiltered("mistralai/")
+	case "xai":
+		return fetchOpenRouterPricingFiltered("xai/")
+	case "moonshot":
+		return fetchOpenRouterPricingFiltered("moonshotai/")
+	case "qwen":
+		return fetchOpenRouterPricingFiltered("qwen/")
+	case "zai":
+		return fetchOpenRouterPricingFiltered("zhipuai/")
+	// Groq has no OpenRouter prefix mapping per Manifest; use static pricing.
+	case "groq":
+		return directGroqPricing(), nil
+	// Local providers have zero cost.
+	case "llamacpp", "lmstudio":
+		return []ModelPricing{}, nil
 	default:
 		return nil, nil
 	}
@@ -67,6 +86,20 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 		table = directAnthropicPricing()
 	case "google":
 		table = directGooglePricing()
+	case "groq":
+		table = directGroqPricing()
+	case "deepseek":
+		table = directDeepSeekPricing()
+	case "mistral":
+		table = directMistralPricing()
+	case "xai":
+		table = directXAIPricing()
+	case "moonshot":
+		table = directMoonshotPricing()
+	case "qwen":
+		table = directQwenPricing()
+	case "zai":
+		table = directZAIPricing()
 	default:
 		return ModelPricing{}, false
 	}
@@ -400,5 +433,86 @@ func workersAIKnownCosts() map[string]ModelPricing {
 		"@cf/qwen/qwen1.5-14b-chat-awq":                {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
 		"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {InputPerMillion: 0.15, OutputPerMillion: 0.15},
 		"@hf/thebloke/codellama-7b-instruct-awq":       {InputPerMillion: 0.0, OutputPerMillion: 0.0}, // free tier
+	}
+}
+
+// directDeepSeekPricing returns known DeepSeek model prices (USD per million tokens).
+// Source: https://platform.deepseek.com/pricing (prices as of early 2026).
+func directDeepSeekPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "deepseek-chat", InputPerMillion: 0.27, OutputPerMillion: 1.10},
+		{ModelID: "deepseek-reasoner", InputPerMillion: 0.55, OutputPerMillion: 2.19},
+		{ModelID: "deepseek-coder", InputPerMillion: 0.27, OutputPerMillion: 1.10},
+	}
+}
+
+// directGroqPricing returns known Groq model prices (USD per million tokens).
+// Source: https://groq.com/pricing (prices as of early 2026).
+func directGroqPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "llama-3.1-8b-instant", InputPerMillion: 0.05, OutputPerMillion: 0.08},
+		{ModelID: "llama-3.3-70b-versatile", InputPerMillion: 0.59, OutputPerMillion: 0.79},
+		{ModelID: "llama-3.2-1b-preview", InputPerMillion: 0.04, OutputPerMillion: 0.04},
+		{ModelID: "llama-3.2-3b-preview", InputPerMillion: 0.06, OutputPerMillion: 0.06},
+		{ModelID: "mixtral-8x7b-32768", InputPerMillion: 0.24, OutputPerMillion: 0.24},
+		{ModelID: "gemma2-9b-it", InputPerMillion: 0.20, OutputPerMillion: 0.20},
+		{ModelID: "qwen-2.5-32b", InputPerMillion: 0.79, OutputPerMillion: 0.79},
+		{ModelID: "qwen-2.5-coder-32b", InputPerMillion: 0.79, OutputPerMillion: 0.79},
+		{ModelID: "deepseek-r1-distill-llama-70b", InputPerMillion: 0.75, OutputPerMillion: 0.99},
+	}
+}
+
+// directMistralPricing returns known Mistral model prices (USD per million tokens).
+// Source: https://mistral.ai/pricing (prices as of early 2026).
+func directMistralPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "mistral-small-latest", InputPerMillion: 0.20, OutputPerMillion: 0.60},
+		{ModelID: "mistral-medium-latest", InputPerMillion: 2.70, OutputPerMillion: 8.10},
+		{ModelID: "mistral-large-latest", InputPerMillion: 2.00, OutputPerMillion: 6.00},
+		{ModelID: "codestral-latest", InputPerMillion: 0.30, OutputPerMillion: 0.90},
+		{ModelID: "pixtral-large-latest", InputPerMillion: 2.00, OutputPerMillion: 6.00},
+	}
+}
+
+// directXAIPricing returns known xAI model prices (USD per million tokens).
+// Source: https://x.ai/api/pricing (prices as of early 2026).
+func directXAIPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "grok-2", InputPerMillion: 2.00, OutputPerMillion: 10.00},
+		{ModelID: "grok-2-vision", InputPerMillion: 2.00, OutputPerMillion: 10.00},
+		{ModelID: "grok-3", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "grok-3-mini", InputPerMillion: 0.30, OutputPerMillion: 0.50},
+	}
+}
+
+// directMoonshotPricing returns known Moonshot model prices (USD per million tokens).
+// Source: https://platform.moonshot.cn/pricing (prices as of early 2026).
+func directMoonshotPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "moonshot-v1-8k", InputPerMillion: 0.50, OutputPerMillion: 0.50},
+		{ModelID: "moonshot-v1-32k", InputPerMillion: 1.00, OutputPerMillion: 1.00},
+		{ModelID: "moonshot-v1-128k", InputPerMillion: 2.00, OutputPerMillion: 2.00},
+	}
+}
+
+// directQwenPricing returns known Qwen (Alibaba) model prices (USD per million tokens).
+// Source: https://www.alibabacloud.com/help/en/model-studio/getting-started/models (prices as of early 2026).
+func directQwenPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "qwen-turbo", InputPerMillion: 0.30, OutputPerMillion: 0.60},
+		{ModelID: "qwen-plus", InputPerMillion: 0.80, OutputPerMillion: 2.00},
+		{ModelID: "qwen-max", InputPerMillion: 2.40, OutputPerMillion: 7.20},
+		{ModelID: "qwen-coder-plus", InputPerMillion: 0.50, OutputPerMillion: 1.50},
+	}
+}
+
+// directZAIPricing returns known Z.ai (Zhipu AI) model prices (USD per million tokens).
+// Source: https://open.bigmodel.cn/pricing (prices as of early 2026).
+func directZAIPricing() []ModelPricing {
+	return []ModelPricing{
+		{ModelID: "glm-4-flash", InputPerMillion: 0.0, OutputPerMillion: 0.0},
+		{ModelID: "glm-4-air", InputPerMillion: 0.50, OutputPerMillion: 0.50},
+		{ModelID: "glm-4-plus", InputPerMillion: 5.00, OutputPerMillion: 15.00},
+		{ModelID: "glm-4v-plus", InputPerMillion: 5.00, OutputPerMillion: 15.00},
 	}
 }

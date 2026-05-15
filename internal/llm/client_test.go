@@ -463,3 +463,86 @@ func TestNewClientFromProviderDetailsBuildsWorkersAIURLFromAccountID(t *testing.
 		t.Fatalf("BaseURL = %q, want workers-ai account URL", got)
 	}
 }
+
+func TestDetectProviderURLMismatchNewProviders(t *testing.T) {
+	// DeepSeek
+	if got := detectProviderURLMismatch("deepseek", "https://api.deepseek.com/v1"); got != "" {
+		t.Fatalf("deepseek valid mismatch = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("deepseek", "https://api.openai.com/v1"); got == "" {
+		t.Fatal("deepseek/openai mismatch: expected hint, got empty")
+	}
+
+	// Groq
+	if got := detectProviderURLMismatch("groq", "https://api.groq.com/openai/v1"); got != "" {
+		t.Fatalf("groq valid mismatch = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("groq", "https://api.openai.com/v1"); got == "" {
+		t.Fatal("groq/openai mismatch: expected hint, got empty")
+	}
+
+	// Mistral
+	if got := detectProviderURLMismatch("mistral", "https://api.mistral.ai/v1"); got != "" {
+		t.Fatalf("mistral valid mismatch = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("mistral", "https://api.openai.com/v1"); got == "" {
+		t.Fatal("mistral/openai mismatch: expected hint, got empty")
+	}
+
+	// xAI
+	if got := detectProviderURLMismatch("xai", "https://api.x.ai/v1"); got != "" {
+		t.Fatalf("xai valid mismatch = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("xai", "https://api.openai.com/v1"); got == "" {
+		t.Fatal("xai/openai mismatch: expected hint, got empty")
+	}
+
+	// Moonshot
+	if got := detectProviderURLMismatch("moonshot", "https://api.moonshot.ai/v1"); got != "" {
+		t.Fatalf("moonshot valid mismatch = %q, want empty", got)
+	}
+
+	// Qwen
+	if got := detectProviderURLMismatch("qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"); got != "" {
+		t.Fatalf("qwen valid mismatch = %q, want empty", got)
+	}
+
+	// Z.ai
+	if got := detectProviderURLMismatch("zai", "https://open.bigmodel.cn/api/paas/v4"); got != "" {
+		t.Fatalf("zai valid mismatch = %q, want empty", got)
+	}
+
+	// Local providers
+	if got := detectProviderURLMismatch("llamacpp", "http://localhost:8080/v1"); got != "" {
+		t.Fatalf("llamacpp valid mismatch = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("lmstudio", "http://localhost:1234/v1"); got != "" {
+		t.Fatalf("lmstudio valid mismatch = %q, want empty", got)
+	}
+}
+
+func TestAIGatewaySegmentNewProviders(t *testing.T) {
+	newProviders := []string{"deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "llamacpp", "lmstudio"}
+	for _, p := range newProviders {
+		if got := aiGatewaySegment(p); got != "openai" {
+			t.Fatalf("aiGatewaySegment(%q) = %q, want openai", p, got)
+		}
+	}
+}
+
+func TestNewClientFromProviderDetailsLocalProviders(t *testing.T) {
+	for _, provider := range []string{"llamacpp", "lmstudio"} {
+		client := NewClientFromProviderDetails(provider, "http://localhost:8080", "", "")
+		if client == nil {
+			t.Fatalf("expected %s client", provider)
+		}
+		configValue := reflect.ValueOf(client).Elem().FieldByName("config")
+		if !configValue.IsValid() {
+			t.Fatal("expected openai client config field")
+		}
+		// BaseURL should have /v1 appended
+		if got := configValue.FieldByName("BaseURL").String(); got != "http://localhost:8080/v1" {
+			t.Fatalf("BaseURL = %q, want http://localhost:8080/v1", got)
+		}
+	}
+}

@@ -74,6 +74,42 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") && !strings.Contains(lower, "ollama") {
 			return "provider=ollama but URL doesn't reference localhost or ollama — ollama is typically on localhost:11434"
 		}
+	case "deepseek":
+		if !strings.Contains(lower, "deepseek") {
+			return "provider=deepseek but URL does not contain 'deepseek' — use https://api.deepseek.com/v1"
+		}
+	case "groq":
+		if !strings.Contains(lower, "groq") {
+			return "provider=groq but URL does not contain 'groq' — use https://api.groq.com/openai/v1"
+		}
+	case "mistral":
+		if !strings.Contains(lower, "mistral") {
+			return "provider=mistral but URL does not contain 'mistral' — use https://api.mistral.ai/v1"
+		}
+	case "xai":
+		if !strings.Contains(lower, "x.ai") {
+			return "provider=xai but URL does not contain 'x.ai' — use https://api.x.ai/v1"
+		}
+	case "moonshot":
+		if !strings.Contains(lower, "moonshot") {
+			return "provider=moonshot but URL does not contain 'moonshot' — use https://api.moonshot.ai/v1"
+		}
+	case "qwen":
+		if !strings.Contains(lower, "alibaba") && !strings.Contains(lower, "dashscope") {
+			return "provider=qwen but URL does not contain 'alibaba' or 'dashscope' — use https://dashscope.aliyuncs.com/compatible-mode/v1"
+		}
+	case "zai":
+		if !strings.Contains(lower, "bigmodel") {
+			return "provider=zai but URL does not contain 'bigmodel' — use https://open.bigmodel.cn/api/paas/v4"
+		}
+	case "llamacpp":
+		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") {
+			return "provider=llamacpp but URL doesn't reference localhost — llama.cpp is typically on localhost:8080"
+		}
+	case "lmstudio":
+		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") {
+			return "provider=lmstudio but URL doesn't reference localhost — LM Studio is typically on localhost:1234"
+		}
 	}
 	return ""
 }
@@ -86,12 +122,13 @@ func NewClient(cfg *config.Config) *openai.Client {
 	apiKey := cfg.LLM.APIKey
 	providerType := strings.ToLower(cfg.LLM.ProviderType)
 	isOllama := providerType == "ollama"
+	isLocal := isOllama || providerType == "llamacpp" || providerType == "lmstudio"
 	aiGatewayToken := ""
 
-	// Ollama doesn't require an API key; use a dummy value so the SDK
+	// Local providers don't require an API key; use a dummy value so the SDK
 	// always sends a well-formed Authorization header.
-	if apiKey == "" && isOllama {
-		apiKey = "ollama"
+	if apiKey == "" && isLocal {
+		apiKey = providerType
 	}
 
 	clientConfig := openai.DefaultConfig(apiKey)
@@ -105,6 +142,12 @@ func NewClient(cfg *config.Config) *openai.Client {
 		// with "/v1".  Users commonly configure just "http://localhost:11434"
 		// which would produce a 404.  Auto-fix this.
 		if isOllama {
+			baseURL = strings.TrimRight(baseURL, "/")
+			if !strings.HasSuffix(baseURL, "/v1") {
+				baseURL = baseURL + "/v1"
+			}
+		}
+		if providerType == "llamacpp" || providerType == "lmstudio" {
 			baseURL = strings.TrimRight(baseURL, "/")
 			if !strings.HasSuffix(baseURL, "/v1") {
 				baseURL = baseURL + "/v1"
@@ -132,8 +175,8 @@ func NewClient(cfg *config.Config) *openai.Client {
 
 	// AI Gateway: rewrite BaseURL to route through Cloudflare AI Gateway.
 	// Provides caching, rate-limiting, logging and fallback for any provider.
-	// Does not apply to local providers (Ollama) — no point proxying localhost.
-	if cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isOllama {
+	// Does not apply to local providers (Ollama, llama.cpp, LM Studio) — no point proxying localhost.
+	if cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
 		segment := aiGatewaySegment(providerType)
 		if segment != "" {
 			clientConfig.BaseURL = fmt.Sprintf(
@@ -199,9 +242,10 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID string) *openai.Client {
 	pt := strings.ToLower(providerType)
 	isOllama := pt == "ollama"
+	isLocal := isOllama || pt == "llamacpp" || pt == "lmstudio"
 
-	if apiKey == "" && isOllama {
-		apiKey = "ollama"
+	if apiKey == "" && isLocal {
+		apiKey = pt
 	}
 
 	clientConfig := openai.DefaultConfig(apiKey)
@@ -209,6 +253,12 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 	if baseURL != "" {
 		u := providerutil.NormalizeBaseURL(baseURL)
 		if isOllama {
+			u = strings.TrimRight(u, "/")
+			if !strings.HasSuffix(u, "/v1") {
+				u = u + "/v1"
+			}
+		}
+		if pt == "llamacpp" || pt == "lmstudio" {
 			u = strings.TrimRight(u, "/")
 			if !strings.HasSuffix(u, "/v1") {
 				u = u + "/v1"
@@ -367,6 +417,9 @@ func aiGatewaySegment(providerType string) string {
 		return "openai"
 	case "yepapi":
 		// YepAPI LLM endpoint is OpenAI-compatible
+		return "openai"
+	case "deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "llamacpp", "lmstudio":
+		// All Manifest Phase-1 providers are OpenAI-compatible.
 		return "openai"
 	default:
 		return ""
