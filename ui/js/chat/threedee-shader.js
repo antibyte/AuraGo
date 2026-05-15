@@ -13,6 +13,11 @@
     let nextImpulseAt = 0;
     const impulses = [];
 
+    let smokeTexture;
+    const spheres = [];
+    const sprites = [];
+    const fogPlanes = [];
+
     const GRID = {
         width: 24,
         depth: 14,
@@ -66,6 +71,35 @@
         }
     }
 
+    function createSmokeTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 32, 32);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    function createSmokeSprite(x, y, z, color, scale, life) {
+        const material = new THREE.SpriteMaterial({
+            map: smokeTexture,
+            color: color,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(scale, scale, scale);
+        scene.add(sprite);
+        sprites.push({ sprite, life, maxLife: life, initialScale: scale });
+    }
+
     function spawnImpulse(t, immediate) {
         if (!immediate && t < nextImpulseAt) return;
 
@@ -73,7 +107,28 @@
         const marginZ = GRID.depth * 0.36;
         const x = (Math.random() - 0.5) * marginX * 2;
         const z = (Math.random() - 0.5) * marginZ * 2;
-        addImpulse(x, z, 0.55 + Math.random() * 0.45);
+        const strength = 0.55 + Math.random() * 0.45;
+        
+        if (!window.sphereGeom) {
+            window.sphereGeom = new THREE.SphereGeometry(0.12, 16, 16);
+            window.sphereMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff, emissive: 0x818cf8, emissiveIntensity: 2, roughness: 0.1, metalness: 0.9
+            });
+        }
+        
+        const mesh = new THREE.Mesh(window.sphereGeom, window.sphereMat);
+        mesh.position.set(x, 6, z);
+        scene.add(mesh);
+        
+        spheres.push({
+            mesh: mesh,
+            x: x,
+            y: 6,
+            z: z,
+            vy: -8 - Math.random() * 4,
+            strength: strength
+        });
+
         nextImpulseAt = t + 1.2 + Math.random() * 1.7;
     }
 
@@ -83,6 +138,54 @@
                 impulses.splice(i, 1);
             }
         }
+    }
+
+    function updateParticles(dt, t) {
+        for (let i = sprites.length - 1; i >= 0; i--) {
+            let p = sprites[i];
+            p.life -= dt;
+            if (p.life <= 0) {
+                scene.remove(p.sprite);
+                p.sprite.material.dispose();
+                sprites.splice(i, 1);
+            } else {
+                const ratio = p.life / p.maxLife;
+                p.sprite.material.opacity = ratio * 0.5;
+                const s = p.initialScale * (2.0 - ratio);
+                p.sprite.scale.set(s, s, s);
+                p.sprite.position.y += dt * 0.5;
+            }
+        }
+
+        for (let i = spheres.length - 1; i >= 0; i--) {
+            let s = spheres[i];
+            s.y += s.vy * dt;
+            s.mesh.position.y = s.y;
+            
+            if (Math.random() < 0.6) {
+                createSmokeSprite(s.x, s.y, s.z, 0x818cf8, 0.4, 0.6);
+            }
+
+            if (s.y <= heightAt(s.x, s.z, t) - 2.55) {
+                addImpulse(s.x, s.z, s.strength);
+                for(let j=0; j<8; j++) {
+                    createSmokeSprite(s.x, s.y, s.z, 0x22d3ee, 0.6, 1.0);
+                }
+                scene.remove(s.mesh);
+                spheres.splice(i, 1);
+            }
+        }
+        
+        fogPlanes.forEach(p => {
+            p.mesh.position.x += p.vx * dt;
+            p.mesh.position.z += p.vz * dt;
+            p.mesh.position.y = p.baseY + Math.sin(t * 0.5 + p.mesh.position.x) * 0.2;
+            
+            if (p.mesh.position.x > 15) {
+                p.mesh.position.x = -15;
+                p.mesh.position.z = (Math.random() - 0.5) * 20;
+            }
+        });
     }
 
     function heightAt(x, z, t) {
@@ -241,6 +344,32 @@
         scene.add(rim);
 
         createHeightfield();
+        
+        if (!smokeTexture) smokeTexture = createSmokeTexture();
+        
+        if (fogPlanes.length === 0) {
+            for (let i = 0; i < 15; i++) {
+                const material = new THREE.MeshBasicMaterial({
+                    map: smokeTexture,
+                    transparent: true,
+                    opacity: 0.12,
+                    depthWrite: false,
+                    color: 0x9bd7ff,
+                    blending: THREE.AdditiveBlending
+                });
+                const plane = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), material);
+                plane.position.set((Math.random() - 0.5) * 30, -2.0, (Math.random() - 0.5) * 20);
+                plane.rotation.x = -Math.PI / 2;
+                scene.add(plane);
+                fogPlanes.push({
+                    mesh: plane,
+                    vx: (Math.random() * 0.5 + 0.5),
+                    vz: (Math.random() - 0.5) * 0.2,
+                    baseY: -2.3 + Math.random() * 0.5
+                });
+            }
+        }
+        
         return true;
     }
 
@@ -293,9 +422,11 @@
         if (time - lastFrame < FRAME_INTERVAL) return;
         lastFrame = time;
 
+        const dt = FRAME_INTERVAL * 0.001;
         const t = time * 0.001;
         spawnImpulse(t, false);
         pruneImpulses(t);
+        updateParticles(dt, t);
         updateSurface(t);
 
         if (camera) {

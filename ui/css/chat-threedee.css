@@ -141,6 +141,7 @@
 }
 
 [data-theme="threedee"] .bubble {
+    position: relative;
     transform: translateZ(0) rotateX(0);
     transition:
         transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
@@ -164,17 +165,63 @@
 }
 
 [data-theme="threedee"] .bubble.bot {
-    border: 1px solid rgba(129, 140, 248, 0.24);
+    border: 1px solid transparent;
     box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+[data-theme="threedee"] .bubble.bot::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 2px solid transparent;
+    background: linear-gradient(
+        90deg,
+        rgba(129, 140, 248, 0.9),
+        rgba(34, 211, 238, 0.9),
+        rgba(192, 132, 252, 0.9),
+        rgba(129, 140, 248, 0.9)
+    ) border-box;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: threedeeBorderRotate 3s linear infinite, threedeePulse 2s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.6));
+}
+
 [data-theme="threedee"] .bubble.user {
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid transparent;
     box-shadow:
         0 16px 36px rgba(79, 70, 229, 0.36),
         inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="threedee"] .bubble.user::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 2px solid transparent;
+    background: linear-gradient(
+        90deg,
+        rgba(79, 70, 229, 0.9),
+        rgba(45, 212, 191, 0.9),
+        rgba(251, 146, 60, 0.9),
+        rgba(79, 70, 229, 0.9)
+    ) border-box;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: threedeeBorderRotate 3s linear infinite reverse, threedeePulseUser 2s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.6));
 }
 
 [data-theme="threedee"] .avatar {
@@ -623,8 +670,18 @@
 
 /* ── rotating border gradient for modals ──────────────────────────── */
 @keyframes threedeeBorderRotate {
-    0% { filter: hue-rotate(0deg); }
-    100% { filter: hue-rotate(360deg); }
+    0% { filter: hue-rotate(0deg); background-position: 0% 50%; }
+    100% { filter: hue-rotate(360deg); background-position: 200% 50%; }
+}
+
+@keyframes threedeePulse {
+    0% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.5)); }
+    100% { opacity: 1; transform: scale(1.015); filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.9)); }
+}
+
+@keyframes threedeePulseUser {
+    0% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 6px rgba(45, 212, 191, 0.5)); }
+    100% { opacity: 1; transform: scale(1.015); filter: drop-shadow(0 0 14px rgba(251, 146, 60, 0.9)); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
