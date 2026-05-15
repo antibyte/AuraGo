@@ -575,6 +575,85 @@ function initRadialMenu() {
 // AUTHENTICATION
 // ═══════════════════════════════════════════════════════════════
 
+window.AuraAuth = window.AuraAuth || {};
+
+(function () {
+    'use strict';
+
+    var authRedirectInProgress = false;
+    var originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+
+    function currentPathWithQuery() {
+        return (window.location.pathname || '/') + (window.location.search || '');
+    }
+
+    function isLoginOrSetupPage() {
+        var path = window.location.pathname || '';
+        return path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1;
+    }
+
+    function loginURL() {
+        return '/auth/login?redirect=' + encodeURIComponent(currentPathWithQuery());
+    }
+
+    function redirectToLogin() {
+        if (authRedirectInProgress || isLoginOrSetupPage()) return;
+        authRedirectInProgress = true;
+        window.location.replace(loginURL());
+    }
+
+    function requestPath(input) {
+        try {
+            var raw = typeof input === 'string' ? input : (input && input.url) || '';
+            if (!raw) return '';
+            var url = new URL(raw, window.location.origin);
+            if (url.origin !== window.location.origin) return '';
+            return url.pathname;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function shouldMonitorFetch(input) {
+        var path = requestPath(input);
+        if (!path) return false;
+        if (path.indexOf('/auth/') === 0) return false;
+        if (path === '/api/auth/status') return false;
+        return true;
+    }
+
+    function handleFetchAuthResponse(input, resp) {
+        if (!resp || !shouldMonitorFetch(input)) return;
+        if (resp.status === 401) {
+            redirectToLogin();
+            return;
+        }
+        if (resp.redirected && resp.url) {
+            try {
+                var redirected = new URL(resp.url, window.location.origin);
+                if (redirected.origin === window.location.origin && redirected.pathname.indexOf('/auth/login') === 0) {
+                    redirectToLogin();
+                }
+            } catch (_) { }
+        }
+    }
+
+    window.AuraAuth.redirectToLogin = redirectToLogin;
+    window.AuraAuth.loginURL = loginURL;
+    window.AuraAuth.nativeFetch = originalFetch;
+    window.AuraAuth.handleFetchAuthResponse = handleFetchAuthResponse;
+
+    if (!window._auragoAuthAwareFetchInstalled && originalFetch) {
+        window._auragoAuthAwareFetchInstalled = true;
+        window.fetch = function auragoAuthAwareFetch(input, init) {
+            return originalFetch(input, init).then(function (resp) {
+                try { handleFetchAuthResponse(input, resp); } catch (_) { }
+                return resp;
+            });
+        };
+    }
+}());
+
 /**
  * Check auth status and show logout button if enabled
  */
@@ -584,6 +663,10 @@ async function checkAuth() {
         if (resp.ok) {
             const data = await resp.json();
             if (data.enabled) {
+                if (data.authenticated === false) {
+                    window.AuraAuth.redirectToLogin();
+                    return;
+                }
                 // Show radial logout
                 const radialLogout = document.getElementById('radialLogout');
                 if (radialLogout) {
@@ -1421,20 +1504,26 @@ window.AuraSSE = (function () {
         _es.onmessage = _dispatch;
     }
 
-    // Auto-redirect to login on SSE auth failure
-    var _authRedirectInProgress = false;
     var _authCheckInProgress = false;
     function _redirectToLogin() {
-        if (_authRedirectInProgress) return;
-        if (window.location.pathname.indexOf('/login') !== -1 || window.location.pathname.indexOf('/setup') !== -1) return;
-        _authRedirectInProgress = true;
-        window.location.replace('/auth/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+        if (window.AuraAuth && typeof window.AuraAuth.redirectToLogin === 'function') {
+            window.AuraAuth.redirectToLogin();
+        }
     }
     function _checkAuthAfterSSEError() {
-        if (_authRedirectInProgress || _authCheckInProgress) return;
+        if (_authCheckInProgress) return;
         _authCheckInProgress = true;
         fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
-            if (r.status === 401) _redirectToLogin();
+            if (r.status === 401) {
+                _redirectToLogin();
+                return null;
+            }
+            if (!r.ok) return null;
+            return r.json().catch(function () { return null; });
+        }).then(function (data) {
+            if (data && data.enabled && data.authenticated === false) {
+                _redirectToLogin();
+            }
         }).catch(function () {}).then(function () {
             _authCheckInProgress = false;
         });

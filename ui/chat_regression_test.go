@@ -2260,9 +2260,13 @@ func TestSharedSSEAuthFailureRedirectsImmediately(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{
+		"window.AuraAuth.redirectToLogin = redirectToLogin;",
+		"window.fetch = function auragoAuthAwareFetch(input, init)",
+		"function handleFetchAuthResponse(input, resp)",
+		"if (resp.status === 401) {",
 		"function _checkAuthAfterSSEError()",
 		"fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' })",
-		"if (r.status === 401) _redirectToLogin();",
+		"if (data && data.enabled && data.authenticated === false) {",
 		"_typed['_error'].push(function () {",
 		"_checkAuthAfterSSEError();",
 	} {
