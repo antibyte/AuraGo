@@ -63,12 +63,23 @@ func handleCopilotPollToken(s *Server) http.HandlerFunc {
 		auth := llm.NewCopilotAuth()
 		resp, err := auth.PollForToken(body.DeviceCode)
 		if err != nil {
-			// If it's still pending, return the error text so the UI can keep polling
+			// Distinguish between "still waiting for user" and "real error"
+			errStr := err.Error()
+			if strings.Contains(errStr, "authorization_pending") || strings.Contains(errStr, "slow_down") {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusAccepted)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"status": "pending",
+					"error":  errStr,
+				})
+				return
+			}
+			// Expired token or other fatal error — stop polling
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusAccepted)
+			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{
-				"status": "pending",
-				"error":  err.Error(),
+				"status": "error",
+				"error":  errStr,
 			})
 			return
 		}

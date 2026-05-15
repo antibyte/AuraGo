@@ -332,9 +332,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	}
 
 	if providerType == "copilot" {
-		if copilotAuthInstance != nil {
-			transport = &copilotTransport{base: transport, auth: copilotAuthInstance}
-		}
+		transport = &copilotTransport{base: transport, auth: copilotAuthInstance}
 	}
 
 	if providerType == "opencode-go" {

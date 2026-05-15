@@ -36,8 +36,26 @@ func (t *opencodeGoTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		apiKey = auth[len("Bearer "):]
 	}
 
+	// Read body once so we can inspect the model and later rewrite it.
+	var body []byte
+	if req.Body != nil && req.Method == http.MethodPost {
+		var err error
+		body, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("opencode-go transport: read body: %w", err)
+		}
+		req.Body.Close()
+	}
+
 	// Determine model from body
-	model := t.extractModel(req)
+	model := ""
+	if len(body) > 0 {
+		var payload struct {
+			Model string `json:"model"`
+		}
+		_ = json.Unmarshal(body, &payload)
+		model = payload.Model
+	}
 	isMiniMax := strings.HasPrefix(strings.ToLower(model), "minimax-")
 
 	if isMiniMax {
@@ -55,60 +73,38 @@ func (t *opencodeGoTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		}
 
 		// Rewrite body from OpenAI to Anthropic format
-		if err := t.rewriteToAnthropic(clone); err != nil {
-			return nil, fmt.Errorf("opencode-go transport: rewrite to anthropic: %w", err)
-		}
+		newBody := t.rewriteToAnthropic(body)
+		clone.Body = io.NopCloser(bytes.NewReader(newBody))
+		clone.ContentLength = int64(len(newBody))
 	} else {
 		// OpenAI format: standard Bearer auth (already present)
 		clone.Header.Set("Content-Type", "application/json")
+		if len(body) > 0 {
+			clone.Body = io.NopCloser(bytes.NewReader(body))
+			clone.ContentLength = int64(len(body))
+		}
 	}
 
 	return t.baseTransport().RoundTrip(clone)
 }
 
-// extractModel reads the model field from the request body without consuming it.
-func (t *opencodeGoTransport) extractModel(req *http.Request) string {
-	if req.Body == nil || req.Method != http.MethodPost {
-		return ""
-	}
-	body, err := io.ReadAll(req.Body)
-	req.Body.Close()
-	if err != nil {
-		req.Body = io.NopCloser(bytes.NewReader(nil))
-		return ""
-	}
-	// Restore body for later reading
-	req.Body = io.NopCloser(bytes.NewReader(body))
-
-	var payload struct {
-		Model string `json:"model"`
-	}
-	_ = json.Unmarshal(body, &payload)
-	return payload.Model
-}
-
 // rewriteToAnthropic converts an OpenAI-format request body to Anthropic
 // Messages API format. This is a lightweight conversion; for full feature
 // parity (tools, vision, streaming) the anthropicTransport should be reused.
-func (t *opencodeGoTransport) rewriteToAnthropic(req *http.Request) error {
-	if req.Body == nil {
-		return nil
-	}
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		return err
+func (t *opencodeGoTransport) rewriteToAnthropic(body []byte) []byte {
+	if len(body) == 0 {
+		return body
 	}
 
 	var openaiReq struct {
-		Model    string                   `json:"model"`
-		Messages []map[string]interface{} `json:"messages"`
-		Stream   bool                     `json:"stream,omitempty"`
-		MaxTokens int                     `json:"max_tokens,omitempty"`
+		Model     string                   `json:"model"`
+		Messages  []map[string]interface{} `json:"messages"`
+		Stream    bool                     `json:"stream,omitempty"`
+		MaxTokens int                      `json:"max_tokens,omitempty"`
 	}
 	if err := json.Unmarshal(body, &openaiReq); err != nil {
 		// Not parseable — pass through unchanged
-		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return body
 	}
 
 	// Build Anthropic-style request
@@ -145,12 +141,9 @@ func (t *opencodeGoTransport) rewriteToAnthropic(req *http.Request) error {
 
 	newBody, err := json.Marshal(anthropicReq)
 	if err != nil {
-		req.Body = io.NopCloser(bytes.NewReader(body))
-		return nil
+		return body
 	}
-	req.Body = io.NopCloser(bytes.NewReader(newBody))
-	req.ContentLength = int64(len(newBody))
-	return nil
+	return newBody
 }
 
 func (t *opencodeGoTransport) baseTransport() http.RoundTripper {

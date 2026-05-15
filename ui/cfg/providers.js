@@ -779,8 +779,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             llamacpp: 'http://localhost:8080',
             lmstudio: 'http://localhost:1234',
             // Manifest Phase-2 providers
-            copilot: 'https://api.githubcopilot.com',
-            'opencode-go': 'https://opencode.ai/zen/go'
+            copilot: 'https://api.githubcopilot.com/v1',
+            'opencode-go': 'https://opencode.ai/zen/go/v1'
         };
 
         const PROVIDER_HINTS = {
@@ -832,7 +832,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             <div class="prov-modal-panel" onclick="event.stopPropagation()">
                 <div class="prov-modal-header">
                     <div class="prov-modal-title">${title}</div>
-                    <button onclick="document.getElementById('provider-modal-overlay').remove()" class="prov-modal-close-btn">✕</button>
+                    <button onclick="if(typeof copilotPollInterval!=='undefined'&&copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()" class="prov-modal-close-btn">✕</button>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_id_label')}</div>
@@ -1025,7 +1025,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 </div>
 
                 <div class="prov-modal-actions">
-                    <button class="btn-save prov-btn-muted prov-btn-md" onclick="document.getElementById('provider-modal-overlay').remove()">
+                    <button class="btn-save prov-btn-muted prov-btn-md" onclick="if(copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()">
                         ${t('config.providers.cancel')}
                     </button>
                     <button class="btn-save prov-btn-md" id="prov-save-btn">
@@ -1093,6 +1093,14 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 // Show/hide Copilot auth block
                 const copilotBlock = document.getElementById('prov-copilot-block');
                 if (copilotBlock) setHidden(copilotBlock, typ !== 'copilot');
+                // For copilot: hide standard auth sections
+                const _authTypeSel = document.getElementById('prov-auth-type');
+                const _authTypeGroup = _authTypeSel ? _authTypeSel.closest('.field-group') : null;
+                const _apikeySec = document.getElementById('prov-apikey-section');
+                const _oauthSec = document.getElementById('prov-oauth-section');
+                if (_authTypeGroup) setHidden(_authTypeGroup, typ === 'copilot');
+                if (_apikeySec) setHidden(_apikeySec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value === 'oauth2'));
+                if (_oauthSec) setHidden(_oauthSec, typ === 'copilot' || (_authTypeSel && _authTypeSel.value !== 'oauth2'));
             });
 
             // ── Auth type toggle ──
@@ -1160,6 +1168,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             setHidden(copilotDeviceArea, true);
                             copilotStatus.textContent = '✅ Authorized';
                             showToast('GitHub Copilot authorized successfully');
+                        } else if (json.status === 'error') {
+                            if (copilotPollInterval) clearInterval(copilotPollInterval);
+                            copilotStatus.textContent = '❌ Error: ' + (json.error || 'Unknown');
+                            showToast('❌ Copilot auth failed: ' + (json.error || 'Unknown'));
                         } else {
                             // Still pending — keep polling
                         }
@@ -1169,6 +1181,17 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         copilotCheckBtn.disabled = false;
                     }
                 };
+            }
+
+            // ── Initialize Copilot auth visibility on modal open ──
+            if ((data.type || 'openai') === 'copilot') {
+                const _authTypeSel = document.getElementById('prov-auth-type');
+                const _authTypeGroup = _authTypeSel ? _authTypeSel.closest('.field-group') : null;
+                const _apikeySec = document.getElementById('prov-apikey-section');
+                const _oauthSec = document.getElementById('prov-oauth-section');
+                if (_authTypeGroup) setHidden(_authTypeGroup, true);
+                if (_apikeySec) setHidden(_apikeySec, true);
+                if (_oauthSec) setHidden(_oauthSec, true);
             }
 
             // ── Copy-key dropdown: rebuild on provider type change ──
