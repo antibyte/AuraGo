@@ -203,6 +203,44 @@ func TestAlibabaProfileHasNoTTS(t *testing.T) {
 	t.Fatal("alibaba_coding profile not found")
 }
 
+func TestStepFunStepPlanReplacesGLMCodingProfile(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	for _, p := range profiles {
+		if p.ID == "zai_glm_coding" {
+			t.Fatalf("GLM coding profile should be replaced by StepFun Step Plan, still found %q", p.ID)
+		}
+		if p.ID != "stepfun_step_plan" {
+			continue
+		}
+		if p.Name != "StepFun Step Plan" {
+			t.Fatalf("stepfun name = %q, want StepFun Step Plan", p.Name)
+		}
+		if p.ProviderType != "openai" {
+			t.Fatalf("stepfun provider_type = %q, want openai", p.ProviderType)
+		}
+		if p.BaseURL != "https://api.stepfun.ai/step_plan/v1" {
+			t.Fatalf("stepfun base_url = %q, want step_plan endpoint", p.BaseURL)
+		}
+		if p.MainModel != "step-3.5-flash" {
+			t.Fatalf("stepfun main_model = %q, want step-3.5-flash", p.MainModel)
+		}
+		if p.Models.Helper == nil || p.Models.Helper.Model != "step-3.5-flash-2603" {
+			t.Fatalf("stepfun helper model = %v, want step-3.5-flash-2603", p.Models.Helper)
+		}
+		if !p.Features.Helper {
+			t.Fatal("stepfun profile should enable helper LLM")
+		}
+		if !p.NativeFunctionCalling {
+			t.Fatal("stepfun profile should enable native function calling")
+		}
+		return
+	}
+	t.Fatal("stepfun_step_plan profile not found")
+}
+
 func TestParseProfilesSkipsInvalid(t *testing.T) {
 	t.Parallel()
 

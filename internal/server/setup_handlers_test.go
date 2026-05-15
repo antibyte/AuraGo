@@ -338,8 +338,32 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 	}
 
 	foundMiniMax := false
+	foundStepFun := false
 	for _, raw := range profiles {
 		profile := raw.(map[string]interface{})
+		if profile["id"] == "stepfun_step_plan" {
+			foundStepFun = true
+			if profile["name"] != "StepFun Step Plan" {
+				t.Fatalf("stepfun name = %v, want StepFun Step Plan", profile["name"])
+			}
+			if profile["base_url"] != "https://api.stepfun.ai/step_plan/v1" {
+				t.Fatalf("stepfun base_url = %v, want step_plan endpoint", profile["base_url"])
+			}
+			if profile["main_model"] != "step-3.5-flash" {
+				t.Fatalf("stepfun main_model = %v, want step-3.5-flash", profile["main_model"])
+			}
+			models, ok := profile["models"].(map[string]interface{})
+			if !ok {
+				t.Fatal("expected stepfun models map in response")
+			}
+			helper, ok := models["helper"].(map[string]interface{})
+			if !ok {
+				t.Fatal("expected stepfun helper config in response")
+			}
+			if helper["model"] != "step-3.5-flash-2603" {
+				t.Fatalf("stepfun helper model = %v, want step-3.5-flash-2603", helper["model"])
+			}
+		}
 		if profile["id"] != "minimax_coding" {
 			continue
 		}
@@ -395,6 +419,17 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 	}
 	if !foundMiniMax {
 		t.Fatal("expected minimax_coding profile in response")
+	}
+	if !foundStepFun {
+		t.Fatal("expected stepfun_step_plan profile in response")
+	}
+}
+
+func TestSetupProviderHostAllowsStepFunStepPlan(t *testing.T) {
+	t.Parallel()
+
+	if !isAllowedSetupProviderHost("api.stepfun.ai") {
+		t.Fatal("expected api.stepfun.ai to be allowed for StepFun setup profile connection tests")
 	}
 }
 

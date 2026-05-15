@@ -135,39 +135,32 @@ profiles:
       helper:
         model: "qwen-plus" # Ideale Balance aus Speed und Performance für Helper-Tasks
 
-  - id: zai_glm_coding
-    name: "Z AI GLM Coding Plan"
-    description: "Zhipu AI GLM models. Excellent Chinese and English support with stable multi-step reasoning."
-    icon: "🧠"
+  - id: stepfun_step_plan
+    name: "StepFun Step Plan"
+    description: "StepFun Step Plan models for fast agentic coding with a dedicated helper LLM."
+    icon: "🪜"
     sort_order: 4
-    pricing_label: "Coding plan – included models"
-    pricing_url: "https://open.bigmodel.cn"
-    key_url: "https://open.bigmodel.cn/usercenter/apikeys"
-    key_placeholder: "gl-..."
+    pricing_label: "Step Plan – included models"
+    pricing_url: "https://platform.stepfun.com"
+    key_url: "https://platform.stepfun.com"
+    key_placeholder: "sk-..."
     provider_type: openai
-    base_url: "https://open.bigmodel.cn/api/paas/v4"
-    main_model: "glm-4.7" # Neues GLM Modell
+    base_url: "https://api.stepfun.ai/step_plan/v1"
+    main_model: "step-3.5-flash"
     native_function_calling: true
     default_trust_level: 3
     features:
-      vision: true
-      whisper: true
-      embeddings: true
+      vision: false
+      whisper: false
+      embeddings: false
       helper: true
       tts: false
       image_generation: false
       music_generation: false
       video_generation: false
     models:
-      vision:
-        model: "glm-4v-plus"
-      whisper:
-        model: "glm-4-voice"
-        mode: "multimodal"
-      embeddings:
-        model: "embedding-3"
       helper:
-        model: "glm-4.5-air" # Sehr schnelles und günstiges MoE Modell
+        model: "step-3.5-flash-2603"
 
   - id: kimi_code
     name: "Kimi Code"

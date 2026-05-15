@@ -668,6 +668,7 @@ func isAllowedSetupProviderHost(host string) bool {
 		"api.minimaxi.com",
 		"dashscope-intl.aliyuncs.com",
 		"open.bigmodel.cn",
+		"api.stepfun.ai",
 		"api.moonshot.cn",
 	}
 	for _, allowedHost := range allowed {
