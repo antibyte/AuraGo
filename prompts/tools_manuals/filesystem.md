@@ -40,7 +40,7 @@ Batch operations require `items`.
 
 - Use the exact operation names `read_file` and `write_file`.
 - Do not use shorthand names like `read` or `write` in tool calls.
-- If you need to work on homepage projects, do not use `filesystem` at all. Use the `homepage` tool's own `read_file` / `write_file` operations so files end up in the homepage workspace.
+- If you need to work on homepage, website, page, landing-page, Netlify, or Vercel projects, do not use `filesystem` at all. Use the `homepage` tool's own `list_files` / `read_file` / `write_file` / `edit_file` operations so files end up in the homepage workspace and the required `homepage` task rule plus `HOMEPAGE DESIGN SYSTEM` can be injected before work starts.
 
 ### Examples
 

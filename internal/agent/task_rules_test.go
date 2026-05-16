@@ -73,6 +73,49 @@ func TestBuildTaskRulePromptContextTreatsGermanPageRebuildAsHomepageWorkflow(t *
 	}
 }
 
+func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{Config: cfg}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "homepage"}, "xyzzy")
+	if !blocked {
+		t.Fatal("expected homepage tool call to be blocked until required rules are injected")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Homepage Workflow") {
+		t.Fatalf("homepage tool did not inject required rule:\n%s", state.flags.TaskRules)
+	}
+	if !strings.Contains(state.flags.HomepageDesignSystem, "Atmospheric Glass") {
+		t.Fatalf("homepage tool did not inject design system:\n%s", state.flags.HomepageDesignSystem)
+	}
+}
+
+func TestEnsureTaskRulesBeforeGenericFilesystemUsesHomepageIntentFallback(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{Config: cfg}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "filesystem"}, "lösche die ki news seite und erstelle sie komplett neu")
+	if !blocked {
+		t.Fatal("expected generic filesystem call to be blocked by homepage intent fallback")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Homepage Workflow") {
+		t.Fatalf("homepage fallback did not inject required rule:\n%s", state.flags.TaskRules)
+	}
+}
+
 func TestEnsureTaskRulesBeforeToolExecutionLoadsProjectDesignAfterInitialRule(t *testing.T) {
 	t.Parallel()
 

@@ -701,10 +701,12 @@ func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{HomepageEnabled: true, NetlifyEnabled: true})
 
 	var homepageProps map[string]interface{}
+	homepageDescription := ""
 	for _, s := range schemas {
 		if s.Function == nil || s.Function.Name != "homepage" {
 			continue
 		}
+		homepageDescription = s.Function.Description
 		params, ok := s.Function.Parameters.(map[string]interface{})
 		if !ok {
 			t.Fatalf("homepage parameters type = %T, want map[string]interface{}", s.Function.Parameters)
@@ -728,6 +730,11 @@ func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	}
 	if _, ok := homepageProps["action"]; ok {
 		t.Fatal("homepage schema should not expose action as edit sub-operation field")
+	}
+	for _, marker := range []string{"Required task rule: homepage", "# TASK RULES", "# HOMEPAGE DESIGN SYSTEM"} {
+		if !strings.Contains(homepageDescription, marker) {
+			t.Fatalf("homepage description missing %q: %s", marker, homepageDescription)
+		}
 	}
 }
 

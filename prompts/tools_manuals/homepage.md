@@ -2,6 +2,14 @@
 
 Design, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.
 
+## Required Task Rule
+
+The `homepage` tool has a required active task rule: `homepage`.
+
+Before planning, deleting, creating, editing, building, previewing, publishing, or deploying a homepage/website/page project, read and follow the current `# TASK RULES` section for `Homepage Workflow` and the `# HOMEPAGE DESIGN SYSTEM` section when it is present. The design system is not optional styling advice; it is the default visual contract for homepage work unless the user or project supplies a more specific `DESIGN.md`.
+
+If those sections are not visible yet, do not improvise with generic filesystem, shell, or ad-hoc design choices. Use the `homepage` tool path; the runtime will pause the first matching tool call, inject the required rule/design context, and ask you to retry only after reading it. Intent matching is only a convenience fallback, not the authority.
+
 ## Prerequisites
 
 - **Required**: Homepage integration enabled (`homepage.enabled: true`)

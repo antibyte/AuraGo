@@ -148,7 +148,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 
 	if ff.HomepageEnabled {
-		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML. Use this tool for homepage/web project files and for Netlify/Vercel publishing; do not use filesystem for homepage workspace files."
+		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML. Required task rule: homepage. Before homepage/web/page planning, deleting, creating, editing, building or deploying, read and follow # TASK RULES and # HOMEPAGE DESIGN SYSTEM when present; if absent, use this homepage tool path so the runtime can inject them before execution. Use this tool for homepage/web project files and for Netlify/Vercel publishing; do not use filesystem for homepage workspace files."
 		if !ff.HomepageAllowLocalServer {
 			homepageDesc += " REQUIRES DOCKER: Local Python server fallback is disabled for security. Ensure Docker is running or enable homepage.allow_local_server in config."
 		}
