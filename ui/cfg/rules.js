@@ -3,7 +3,11 @@
 let rulesState = {
     rules: [],
     selected: null,
-    current: null
+    current: null,
+    candidates: {
+        tools: [],
+        workflows: []
+    }
 };
 
 function rulesText(key, fallback, vars) {
@@ -32,6 +36,74 @@ function rulesFromCSV(value) {
         .filter(Boolean);
 }
 
+function rulesWorkflowFallbackCandidates() {
+    return [
+        'homepage', 'website', 'landing_page', 'web_design', 'build', 'preview', 'deploy',
+        'cronjobs', 'missions', 'heartbeat', 'remote_execution', 'containers', 'docker',
+        'proxmox', 'truenas', 'tailscale', 'cloudflare_tunnel', 'email', 'agentmail',
+        'webhooks', 'research', 'browser', 'scraper', 'secrets', 'security', 'audit',
+        'media', 'image_generation', 'video_generation', 'tts', 'smart_home',
+        'home_assistant', 'mcp', 'skills', 'co_agents', 'sql', 's3', 'webdav',
+        'google_workspace', 'onedrive', 'paperless', 'notes', 'memory',
+        'document_creation', 'virtual_desktop'
+    ].map(id => ({ id, label: id.replace(/_/g, ' ') }));
+}
+
+function rulesNormalizeCandidates(values) {
+    return (Array.isArray(values) ? values : [])
+        .map(item => {
+            if (typeof item === 'string') return { id: item, label: item };
+            const id = String(item && item.id || '').trim();
+            if (!id) return null;
+            return {
+                id,
+                label: String(item.label || id),
+                description: String(item.description || '')
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function rulesCandidateOptions(kind) {
+    const candidates = rulesNormalizeCandidates(rulesState.candidates && rulesState.candidates[kind]);
+    const placeholder = kind === 'tools'
+        ? rulesText('config.rules.select_tool', 'Select tool...')
+        : rulesText('config.rules.select_workflow', 'Select workflow...');
+    return `<option value="">${rulesEscape(placeholder)}</option>` + candidates.map(candidate => {
+        const label = candidate.description
+            ? `${candidate.id} — ${candidate.description}`
+            : `${candidate.id} — ${candidate.label}`;
+        return `<option value="${rulesEscape(candidate.id)}">${rulesEscape(label)}</option>`;
+    }).join('');
+}
+
+function rulesRenderTargetField(kind, label, values, placeholder) {
+    const inputID = kind === 'tools' ? 'rules-tools-input' : 'rules-workflows-input';
+    const selectID = kind === 'tools' ? 'rules-tools-select' : 'rules-workflows-select';
+    return `
+        <div class="field-group rules-target-field">
+            <span class="field-label">${label}</span>
+            <input id="${inputID}" class="field-input" value="${rulesEscape(rulesToCSV(values))}" placeholder="${rulesEscape(placeholder)}">
+            <div class="rules-target-picker">
+                <select id="${selectID}" class="field-input">${rulesCandidateOptions(kind)}</select>
+                <button type="button" class="wh-btn wh-btn-sm" onclick="rulesAddTarget('${kind}')">${rulesText('config.rules.add_target', 'Add')}</button>
+            </div>
+        </div>`;
+}
+
+function rulesAddTarget(kind) {
+    const input = document.getElementById(kind === 'tools' ? 'rules-tools-input' : 'rules-workflows-input');
+    const select = document.getElementById(kind === 'tools' ? 'rules-tools-select' : 'rules-workflows-select');
+    if (!input || !select || !select.value) return;
+    const values = rulesFromCSV(input.value);
+    if (!values.includes(select.value)) {
+        values.push(select.value);
+        input.value = rulesToCSV(values);
+    }
+    select.value = '';
+}
+
 async function renderRulesSection(section) {
     const content = document.getElementById('content');
     content.innerHTML = `
@@ -55,6 +127,13 @@ async function rulesLoad(selectID) {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         rulesState.rules = data.rules || [];
+        const candidates = data.candidates || {};
+        rulesState.candidates = {
+            tools: rulesNormalizeCandidates(candidates.tools),
+            workflows: rulesNormalizeCandidates(candidates.workflows).length
+                ? rulesNormalizeCandidates(candidates.workflows)
+                : rulesWorkflowFallbackCandidates()
+        };
         rulesState.selected = selectID || rulesState.selected || (rulesState.rules[0] && rulesState.rules[0].id) || null;
         rulesRenderBody(data.enabled !== false);
         if (rulesState.selected) {
@@ -212,14 +291,8 @@ function rulesRenderEditor(isNew) {
     <div class="rules-field-panel">
         <div class="rules-panel-title">${rulesText('config.rules.targeting', 'Matching targets')}</div>
         <div class="rules-grid rules-grid-targeting">
-            <label class="field-group">
-                <span class="field-label">${rulesText('config.rules.tools', 'Tools')}</span>
-                <input id="rules-tools-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.tools))}" placeholder="homepage, shell">
-            </label>
-            <label class="field-group">
-                <span class="field-label">${rulesText('config.rules.workflows', 'Workflows')}</span>
-                <input id="rules-workflows-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.workflows))}" placeholder="homepage, website">
-            </label>
+            ${rulesRenderTargetField('tools', rulesText('config.rules.tools', 'Tools'), rule.tools, 'homepage, shell')}
+            ${rulesRenderTargetField('workflows', rulesText('config.rules.workflows', 'Workflows'), rule.workflows, 'homepage, website')}
             <label class="field-group">
                 <span class="field-label">${rulesText('config.rules.keywords', 'Keywords')}</span>
                 <input id="rules-keywords-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.keywords))}" placeholder="homepage, redesign">

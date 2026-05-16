@@ -14,6 +14,10 @@ import (
 	"aurago/internal/config"
 )
 
+type rulesCandidateTest struct {
+	ID string `json:"id"`
+}
+
 func TestRulesHandlersListGetUpdateAndRestore(t *testing.T) {
 	t.Parallel()
 
@@ -35,12 +39,22 @@ func TestRulesHandlersListGetUpdateAndRestore(t *testing.T) {
 			ID      string `json:"id"`
 			BuiltIn bool   `json:"built_in"`
 		} `json:"rules"`
+		Candidates struct {
+			Tools     []rulesCandidateTest `json:"tools"`
+			Workflows []rulesCandidateTest `json:"workflows"`
+		} `json:"candidates"`
 	}
 	if err := json.Unmarshal(listRec.Body.Bytes(), &list); err != nil {
 		t.Fatalf("decode list: %v", err)
 	}
 	if len(list.Rules) == 0 || list.Rules[0].ID != "homepage" || !list.Rules[0].BuiltIn {
 		t.Fatalf("unexpected list response: %+v", list)
+	}
+	if !candidateIDsContain(list.Candidates.Tools, "filesystem") {
+		t.Fatalf("rules list must include tool candidates, got %+v", list.Candidates.Tools)
+	}
+	if !candidateIDsContain(list.Candidates.Workflows, "homepage") || !candidateIDsContain(list.Candidates.Workflows, "cronjobs") {
+		t.Fatalf("rules list must include workflow candidates, got %+v", list.Candidates.Workflows)
 	}
 
 	updateBody := `{"title":"Custom Homepage","enabled":true,"priority":77,"tools":["homepage"],"workflows":["homepage"],"keywords":["custom-homepage"],"body":"Use the custom design rule.","design":"# Custom DESIGN.md\n\n## Colors"}`
@@ -67,6 +81,15 @@ func TestRulesHandlersListGetUpdateAndRestore(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(promptsDir, "rules", "homepage", "rule.md")); !os.IsNotExist(err) {
 		t.Fatalf("restore should remove disk override, stat err=%v", err)
 	}
+}
+
+func candidateIDsContain(items []rulesCandidateTest, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRulesHandlerRejectsTraversalID(t *testing.T) {

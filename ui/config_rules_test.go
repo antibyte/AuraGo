@@ -15,7 +15,7 @@ func TestConfigRulesSectionContract(t *testing.T) {
 	for _, marker := range []string{
 		"config.section.rules.label",
 		"rules: { m: 'rules', fn: 'renderRulesSection' }",
-		"CONFIG_ASSET_VERSION = '18'",
+		"CONFIG_ASSET_VERSION = '19'",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("config main JS missing rules marker %q", marker)
@@ -33,6 +33,10 @@ func TestConfigRulesSectionContract(t *testing.T) {
 		"rules-field-panel",
 		"rules-design-input",
 		"rules-rule-input",
+		"rules-tools-select",
+		"rules-workflows-select",
+		"rulesAddTarget('${kind}')",
+		"function rulesAddTarget(kind)",
 		"showConfirm(",
 	} {
 		if !strings.Contains(rulesJS, marker) {
@@ -116,6 +120,9 @@ func TestConfigRulesEditorTranslationsExistInAllLocales(t *testing.T) {
 			"config.rules.rule_list",
 			"config.rules.targeting",
 			"config.rules.markdown_editor",
+			"config.rules.add_target",
+			"config.rules.select_tool",
+			"config.rules.select_workflow",
 		} {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing %s", path, key)

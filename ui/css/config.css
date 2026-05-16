@@ -6858,6 +6858,22 @@ select.cfg-input option {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.rules-target-field {
+    min-width: 0;
+}
+
+.rules-target-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    align-items: center;
+}
+
+.rules-target-picker select {
+    min-width: 0;
+}
+
 .rules-field-panel {
     display: block;
     margin-bottom: 0.9rem;

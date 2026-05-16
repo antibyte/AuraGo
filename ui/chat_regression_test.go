@@ -1441,7 +1441,7 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	mainJS := string(mainContent)
 	pageHTML := string(pageContent)
 	for _, marker := range []string{
-		"CONFIG_ASSET_VERSION = '18'",
+		"CONFIG_ASSET_VERSION = '19'",
 		"{ key: 'manifest'",
 		"manifest: { m: 'manifest', fn: 'renderManifestSection' }",
 		"function fieldLabelText",

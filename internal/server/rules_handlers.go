@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/agent"
 	taskrules "aurago/internal/rules"
 	promptsembed "aurago/prompts"
 
@@ -25,6 +26,12 @@ type ruleSaveRequest struct {
 	Design    string   `json:"design"`
 }
 
+type ruleCandidate struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+}
+
 func handleConfigRules(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -35,8 +42,9 @@ func handleConfigRules(s *Server) http.HandlerFunc {
 				return
 			}
 			writeJSON(w, map[string]interface{}{
-				"enabled": s.Cfg.Rules.Enabled,
-				"rules":   catalog.Rules,
+				"enabled":    s.Cfg.Rules.Enabled,
+				"rules":      catalog.Rules,
+				"candidates": buildRuleCandidates(s),
 			})
 		case http.MethodPost:
 			var req struct {
@@ -121,6 +129,79 @@ func handleConfigRuleRestore(s *Server) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, map[string]string{"status": "ok", "id": id})
+	}
+}
+
+func buildRuleCandidates(s *Server) map[string][]ruleCandidate {
+	var cfg = s.Cfg
+	toolSummaries := agent.ToolSummariesFromConfig(cfg)
+	tools := make([]ruleCandidate, 0, len(toolSummaries))
+	for _, summary := range toolSummaries {
+		id, desc, ok := strings.Cut(summary, ": ")
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		candidate := ruleCandidate{ID: id, Label: id}
+		if ok {
+			candidate.Description = strings.TrimSpace(desc)
+		}
+		tools = append(tools, candidate)
+	}
+
+	return map[string][]ruleCandidate{
+		"tools":     tools,
+		"workflows": defaultRuleWorkflowCandidates(),
+	}
+}
+
+func defaultRuleWorkflowCandidates() []ruleCandidate {
+	return []ruleCandidate{
+		{ID: "homepage", Label: "Homepage"},
+		{ID: "website", Label: "Website"},
+		{ID: "landing_page", Label: "Landing page"},
+		{ID: "web_design", Label: "Web design"},
+		{ID: "build", Label: "Build"},
+		{ID: "preview", Label: "Preview"},
+		{ID: "deploy", Label: "Deploy"},
+		{ID: "cronjobs", Label: "Cronjobs"},
+		{ID: "missions", Label: "Missions"},
+		{ID: "heartbeat", Label: "Heartbeat"},
+		{ID: "remote_execution", Label: "Remote execution"},
+		{ID: "containers", Label: "Containers"},
+		{ID: "docker", Label: "Docker"},
+		{ID: "proxmox", Label: "Proxmox"},
+		{ID: "truenas", Label: "TrueNAS"},
+		{ID: "tailscale", Label: "Tailscale"},
+		{ID: "cloudflare_tunnel", Label: "Cloudflare Tunnel"},
+		{ID: "email", Label: "Email"},
+		{ID: "agentmail", Label: "AgentMail"},
+		{ID: "webhooks", Label: "Webhooks"},
+		{ID: "research", Label: "Research"},
+		{ID: "browser", Label: "Browser automation"},
+		{ID: "scraper", Label: "Scraper"},
+		{ID: "secrets", Label: "Secrets and vault"},
+		{ID: "security", Label: "Security"},
+		{ID: "audit", Label: "Audit"},
+		{ID: "media", Label: "Media"},
+		{ID: "image_generation", Label: "Image generation"},
+		{ID: "video_generation", Label: "Video generation"},
+		{ID: "tts", Label: "Text to speech"},
+		{ID: "smart_home", Label: "Smart home"},
+		{ID: "home_assistant", Label: "Home Assistant"},
+		{ID: "mcp", Label: "MCP"},
+		{ID: "skills", Label: "Skills"},
+		{ID: "co_agents", Label: "Co-agents"},
+		{ID: "sql", Label: "SQL"},
+		{ID: "s3", Label: "S3"},
+		{ID: "webdav", Label: "WebDAV"},
+		{ID: "google_workspace", Label: "Google Workspace"},
+		{ID: "onedrive", Label: "OneDrive"},
+		{ID: "paperless", Label: "Paperless-ngx"},
+		{ID: "notes", Label: "Notes"},
+		{ID: "memory", Label: "Memory"},
+		{ID: "document_creation", Label: "Document creation"},
+		{ID: "virtual_desktop", Label: "Virtual desktop"},
 	}
 }
 
