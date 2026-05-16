@@ -1441,7 +1441,7 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	mainJS := string(mainContent)
 	pageHTML := string(pageContent)
 	for _, marker := range []string{
-		"CONFIG_ASSET_VERSION = '16'",
+		"CONFIG_ASSET_VERSION = '17'",
 		"{ key: 'manifest'",
 		"manifest: { m: 'manifest', fn: 'renderManifestSection' }",
 		"function fieldLabelText",
@@ -1451,7 +1451,7 @@ func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 			t.Fatalf("%s missing Manifest config marker %q", mainPath, marker)
 		}
 	}
-	if !strings.Contains(pageHTML, "/js/config/main.js?v=16") {
+	if !strings.Contains(pageHTML, "/js/config/main.js?v=17") {
 		t.Fatalf("%s must load the cache-busted config main script", pagePath)
 	}
 
