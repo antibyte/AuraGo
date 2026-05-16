@@ -296,6 +296,24 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 }
 
+func TestUpdateScriptSkipsMissingModifiedPromptsDuringBackup(t *testing.T) {
+	t.Parallel()
+
+	updateScript := readRepoFile(t, "update.sh")
+	for _, required := range []string{
+		`if [ ! -f "$DIR/$fp" ]; then`,
+		`warn "Skipping missing prompt file during backup: $fp"`,
+		`CUSTOM_COUNT=$((CUSTOM_COUNT + 1))`,
+	} {
+		if !strings.Contains(updateScript, required) {
+			t.Fatalf("update.sh prompt backup must tolerate missing prompt files; missing %q", required)
+		}
+	}
+	if strings.Contains(updateScript, `CUSTOM_COUNT=$(git -C "$DIR" ls-files --others --modified -- "prompts/" | wc -l)`) {
+		t.Fatal("update.sh must count only prompt files that were actually backed up")
+	}
+}
+
 func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	t.Parallel()
 

@@ -686,13 +686,21 @@ if [ -d "$PROMPTS_DIR" ]; then
         CUSTOM_COUNT=$(find "$PROMPTS_DIR" -type f | wc -l)
     else
         # Git install: back up only untracked/locally modified files
-        git -C "$DIR" ls-files --others --modified -- "prompts/" | while read -r fp; do
+        CUSTOM_COUNT=0
+        while IFS= read -r -d '' fp; do
+            if [ ! -f "$DIR/$fp" ]; then
+                warn "Skipping missing prompt file during backup: $fp"
+                continue
+            fi
             rel="${fp#prompts/}"
             dest_dir="$CUSTOM_PROMPTS/$(dirname "$rel")"
             mkdir -p "$dest_dir"
-            cp -p "$DIR/$fp" "$dest_dir/"
-        done
-        CUSTOM_COUNT=$(git -C "$DIR" ls-files --others --modified -- "prompts/" | wc -l)
+            if cp -p "$DIR/$fp" "$dest_dir/"; then
+                CUSTOM_COUNT=$((CUSTOM_COUNT + 1))
+            else
+                warn "Could not back up prompt file: $fp"
+            fi
+        done < <(git -C "$DIR" ls-files -z --others --modified -- "prompts/")
     fi
     ok "Backed up $CUSTOM_COUNT prompt file(s)"
 fi
