@@ -1076,6 +1076,79 @@ func TestConfigSaveOmitsUptimeKumaAPIKey(t *testing.T) {
 	}
 }
 
+func TestLoadAgentMailDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.AgentMail.Enabled {
+		t.Fatal("expected agentmail.enabled to default to false")
+	}
+	if cfg.AgentMail.BaseURL != "https://api.agentmail.to" {
+		t.Fatalf("base_url = %q", cfg.AgentMail.BaseURL)
+	}
+	if cfg.AgentMail.WebSocketURL != "wss://ws.agentmail.to/v0" {
+		t.Fatalf("websocket_url = %q", cfg.AgentMail.WebSocketURL)
+	}
+	if cfg.AgentMail.PollIntervalSeconds != 120 {
+		t.Fatalf("poll_interval_seconds = %d, want 120", cfg.AgentMail.PollIntervalSeconds)
+	}
+	if cfg.AgentMail.MaxAttachmentMB != 10 {
+		t.Fatalf("max_attachment_mb = %d, want 10", cfg.AgentMail.MaxAttachmentMB)
+	}
+	if !cfg.AgentMail.UseWebSocket {
+		t.Fatal("expected use_websocket to default to true")
+	}
+}
+
+func TestApplyVaultSecretsLoadsAgentMailAPIKey(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"agentmail_api_key": "am_secret_from_vault",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.AgentMail.APIKey != "am_secret_from_vault" {
+		t.Fatalf("APIKey = %q, want agentmail secret", cfg.AgentMail.APIKey)
+	}
+}
+
+func TestConfigSaveOmitsAgentMailAPIKey(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.AgentMail.Enabled = true
+	cfg.AgentMail.APIKey = "am_should_not_be_serialized"
+	cfg.AgentMail.InboxID = "inbox-1"
+	cfg.AgentMail.BaseURL = "https://api.agentmail.to"
+	cfg.AgentMail.WebSocketURL = "wss://ws.agentmail.to/v0"
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	got := string(raw)
+	if strings.Contains(got, "am_should_not_be_serialized") || strings.Contains(got, "api_key:") {
+		t.Fatalf("expected AgentMail API key to stay out of YAML, got:\n%s", got)
+	}
+	if !strings.Contains(got, "agentmail:") || !strings.Contains(got, "inbox_id: inbox-1") {
+		t.Fatalf("expected non-secret AgentMail settings to be serialized, got:\n%s", got)
+	}
+}
+
 func TestLoadGrafanaDefaults(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {

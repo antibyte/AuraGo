@@ -405,6 +405,13 @@ func Load(path string) (*Config, error) {
 	cfg.UptimeKuma.PollIntervalSeconds = 30
 	cfg.UptimeKuma.RelayInstruction = ""
 
+	// AgentMail defaults: disabled until explicitly configured.
+	cfg.AgentMail.BaseURL = "https://api.agentmail.to"
+	cfg.AgentMail.WebSocketURL = "wss://ws.agentmail.to/v0"
+	cfg.AgentMail.UseWebSocket = true
+	cfg.AgentMail.PollIntervalSeconds = 120
+	cfg.AgentMail.MaxAttachmentMB = 10
+
 	// Grafana defaults: read-only observability access when explicitly enabled.
 	cfg.Grafana.RequestTimeout = 15
 	cfg.Grafana.ReadOnly = true
@@ -1154,6 +1161,21 @@ func Load(path string) (*Config, error) {
 	if cfg.Email.FromAddress == "" {
 		cfg.Email.FromAddress = cfg.Email.Username
 	}
+	if strings.TrimSpace(cfg.AgentMail.BaseURL) == "" {
+		cfg.AgentMail.BaseURL = "https://api.agentmail.to"
+	}
+	if strings.TrimSpace(cfg.AgentMail.WebSocketURL) == "" {
+		cfg.AgentMail.WebSocketURL = "wss://ws.agentmail.to/v0"
+	}
+	if cfg.AgentMail.PollIntervalSeconds <= 0 {
+		cfg.AgentMail.PollIntervalSeconds = 120
+	}
+	if cfg.AgentMail.MaxAttachmentMB < 0 {
+		cfg.AgentMail.MaxAttachmentMB = 10
+	}
+	if cfg.AgentMail.MaxAttachmentMB == 0 {
+		cfg.AgentMail.MaxAttachmentMB = 10
+	}
 
 	// Migrate legacy single email config → EmailAccounts slice
 	cfg.MigrateEmailAccounts()
@@ -1512,6 +1534,19 @@ func (c *Config) Save(path string) error {
 		{[]string{"uptime_kuma", "poll_interval_seconds"}, c.UptimeKuma.PollIntervalSeconds},
 		{[]string{"uptime_kuma", "relay_to_agent"}, c.UptimeKuma.RelayToAgent},
 		{[]string{"uptime_kuma", "relay_instruction"}, c.UptimeKuma.RelayInstruction},
+		{[]string{"agentmail", "enabled"}, c.AgentMail.Enabled},
+		{[]string{"agentmail", "readonly"}, c.AgentMail.ReadOnly},
+		{[]string{"agentmail", "inbox_id"}, c.AgentMail.InboxID},
+		{[]string{"agentmail", "auto_create_inbox"}, c.AgentMail.AutoCreateInbox},
+		{[]string{"agentmail", "username"}, c.AgentMail.Username},
+		{[]string{"agentmail", "domain"}, c.AgentMail.Domain},
+		{[]string{"agentmail", "display_name"}, c.AgentMail.DisplayName},
+		{[]string{"agentmail", "use_websocket"}, c.AgentMail.UseWebSocket},
+		{[]string{"agentmail", "poll_interval_seconds"}, c.AgentMail.PollIntervalSeconds},
+		{[]string{"agentmail", "relay_to_agent"}, c.AgentMail.RelayToAgent},
+		{[]string{"agentmail", "max_attachment_mb"}, c.AgentMail.MaxAttachmentMB},
+		{[]string{"agentmail", "base_url"}, c.AgentMail.BaseURL},
+		{[]string{"agentmail", "websocket_url"}, c.AgentMail.WebSocketURL},
 		{[]string{"grafana", "enabled"}, c.Grafana.Enabled},
 		{[]string{"grafana", "base_url"}, c.Grafana.BaseURL},
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},

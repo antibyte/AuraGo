@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Δημιουργός Εγγράφων",
   "config.section.email.desc": "Διαχείριση λογαριασμών email IMAP/SMTP",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "Διαχείριση θυρίδων AgentMail API και προώθησης",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Διάνυσμα διαμόρφωσης ενσωμάτωσης",
   "config.section.embeddings.label": "Ενσωματώσεις",
   "config.section.fallback_llm.desc": "Αυτόματο LLM failover σε σφάλματα",

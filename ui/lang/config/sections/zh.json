@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "文档创建器",
   "config.section.email.desc": "管理 IMAP/SMTP 电子邮件账户",
   "config.section.email.label": "电子邮件",
+  "config.section.agentmail.desc": "管理 AgentMail API 收件箱和转发",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "向量嵌入配置",
   "config.section.embeddings.label": "嵌入",
   "config.section.fallback_llm.desc": "错误时自动故障转移到备用 LLM",

@@ -180,7 +180,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		JournalEnabled: true, GoogleWorkspaceEnabled: true, MissionsEnabled: true,
 		MediaRegistryEnabled: true, MeshCentralEnabled: true, NetlifyEnabled: true,
 		VercelEnabled: true,
-		EmailEnabled:  true, NotesEnabled: true, InvasionControlEnabled: true,
+		EmailEnabled:  true, AgentMailEnabled: true, NotesEnabled: true, InvasionControlEnabled: true,
 		AnsibleEnabled: true, MCPEnabled: true, HomepageRegistryEnabled: true,
 		RemoteControlEnabled: true, ImageGenerationEnabled: true, VideoGenerationEnabled: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,

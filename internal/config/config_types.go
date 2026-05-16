@@ -123,6 +123,24 @@ type EmailAccount struct {
 	ReadOnly      bool   `yaml:"readonly"       json:"-"` // if true, only fetch/read, block send
 }
 
+// AgentMailConfig configures the AgentMail API integration.
+type AgentMailConfig struct {
+	Enabled             bool   `yaml:"enabled" json:"enabled"`
+	ReadOnly            bool   `yaml:"readonly" json:"readonly"`   // true = list/read only; block create/update/delete/send/reply/forward
+	APIKey              string `yaml:"-" vault:"api_key" json:"-"` // vault-only: stored as agentmail_api_key
+	InboxID             string `yaml:"inbox_id" json:"inbox_id"`
+	AutoCreateInbox     bool   `yaml:"auto_create_inbox" json:"auto_create_inbox"`
+	Username            string `yaml:"username" json:"username"`
+	Domain              string `yaml:"domain" json:"domain"`
+	DisplayName         string `yaml:"display_name" json:"display_name"`
+	UseWebSocket        bool   `yaml:"use_websocket" json:"use_websocket"`
+	PollIntervalSeconds int    `yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
+	RelayToAgent        bool   `yaml:"relay_to_agent" json:"relay_to_agent"`
+	MaxAttachmentMB     int    `yaml:"max_attachment_mb" json:"max_attachment_mb"`
+	BaseURL             string `yaml:"base_url" json:"base_url"`
+	WebSocketURL        string `yaml:"websocket_url" json:"websocket_url"`
+}
+
 type WebhookParameter struct {
 	Name        string `yaml:"name" json:"name"`               // e.g. "message", "user_id"
 	Type        string `yaml:"type" json:"type"`               // "string", "number", "boolean"
@@ -752,6 +770,7 @@ type Config struct {
 		WatchInterval int    `yaml:"watch_interval_seconds"`
 		WatchFolder   string `yaml:"watch_folder"`
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
+	AgentMail     AgentMailConfig `yaml:"agentmail" json:"agentmail"`
 	HomeAssistant struct {
 		Enabled         bool     `yaml:"enabled"`
 		ReadOnly        bool     `yaml:"readonly"`               // true = only read states, block call_service

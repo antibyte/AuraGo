@@ -234,6 +234,21 @@ email:
     watch_enabled: false
     watch_folder: INBOX
     watch_interval_seconds: 120
+agentmail:
+    enabled: false
+    readonly: false
+    # API key is vault-only and stored as agentmail_api_key.
+    inbox_id: ""
+    auto_create_inbox: false
+    username: ""
+    domain: ""
+    display_name: ""
+    use_websocket: true
+    poll_interval_seconds: 120
+    relay_to_agent: false
+    max_attachment_mb: 10
+    base_url: https://api.agentmail.to
+    websocket_url: wss://ws.agentmail.to/v0
 embeddings:
     api_key: ""
     external_model: ""

@@ -66,7 +66,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
-		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true,
+		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
 		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
@@ -135,6 +135,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("vercel", ff.VercelEnabled)
 	appendToolFeatureKeyPart("firewall", ff.FirewallEnabled)
 	appendToolFeatureKeyPart("email", ff.EmailEnabled)
+	appendToolFeatureKeyPart("agentmail", ff.AgentMailEnabled)
 	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)
 	appendToolFeatureKeyPart("google_workspace", ff.GoogleWorkspaceEnabled)
 	appendToolFeatureKeyPart("onedrive", ff.OneDriveEnabled)

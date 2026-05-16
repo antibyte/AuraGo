@@ -356,6 +356,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VercelEnabled:                cfg.Vercel.Enabled,
 		FirewallEnabled:              cfg.Firewall.Enabled && (cfg.Runtime.FirewallAccessOK || (cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker)),
 		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
+		AgentMailEnabled:             cfg.AgentMail.Enabled,
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
 		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
 		OneDriveEnabled:              cfg.OneDrive.Enabled,

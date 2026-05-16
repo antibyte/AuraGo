@@ -112,6 +112,7 @@ type ToolFeatureFlags struct {
 	VercelEnabled           bool
 	FirewallEnabled         bool
 	EmailEnabled            bool
+	AgentMailEnabled        bool
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
 	OneDriveEnabled         bool

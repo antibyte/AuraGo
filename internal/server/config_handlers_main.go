@@ -423,6 +423,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		discordChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
+		restartAgentMailAfterUnlock := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -448,6 +449,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 			if oldCfg.Discord != newCfg.Discord {
 				discordChanged = true
+			}
+			if oldCfg.AgentMail != newCfg.AgentMail || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {
+				restartAgentMailAfterUnlock = true
 			}
 			if oldCfg.SQLite != newCfg.SQLite {
 				needsRestart = true
@@ -988,6 +992,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] File indexer stopped")
 			}
 		}
+		if loadErr == nil && restartAgentMailAfterUnlock && newCfg != nil {
+			s.configureAgentMailRelay(newCfg)
+			s.Logger.Info("[Config UI] AgentMail relay hot-reloaded", "enabled", newCfg.AgentMail.Enabled, "relay", newCfg.AgentMail.RelayToAgent)
+		}
 		if loadErr == nil && newCfg != nil && s.InventoryDB != nil {
 			created, updated, syncErr := services.SyncThreeDPrinterDevices(s.InventoryDB, newCfg.ThreeDPrinters)
 			if syncErr != nil {
@@ -1451,6 +1459,7 @@ var vaultKeyMap = map[string]string{
 	"brave_search.api_key":             "brave_search_api_key",
 	"tts.elevenlabs.api_key":           "tts_elevenlabs_api_key",
 	"tts.minimax.api_key":              "tts_minimax_api_key",
+	"agentmail.api_key":                "agentmail_api_key",
 	"notifications.ntfy.token":         "ntfy_token",
 	"auth.password_hash":               "auth_password_hash",
 	"auth.session_secret":              "auth_session_secret",

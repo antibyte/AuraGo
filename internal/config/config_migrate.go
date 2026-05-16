@@ -801,6 +801,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("tts_elevenlabs_api_key", &c.TTS.ElevenLabs.APIKey)
 	apply("tts_minimax_api_key", &c.TTS.MiniMax.APIKey)
 	apply("telnyx_api_key", &c.Telnyx.APIKey)
+	apply("agentmail_api_key", &c.AgentMail.APIKey)
 
 	// ── Notifications ──
 	apply("ntfy_token", &c.Notifications.Ntfy.Token)
@@ -1115,6 +1116,7 @@ var plaintextSecretVaultPaths = map[string]string{
 	"brave_search.api_key":             "brave_search_api_key",
 	"tts.elevenlabs.api_key":           "tts_elevenlabs_api_key",
 	"tts.minimax.api_key":              "tts_minimax_api_key",
+	"agentmail.api_key":                "agentmail_api_key",
 	"notifications.ntfy.token":         "ntfy_token",
 	"notifications.pushover.user_key":  "pushover_user_key",
 	"notifications.pushover.app_token": "pushover_app_token",

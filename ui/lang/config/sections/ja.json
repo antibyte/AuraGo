@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "ドキュメント作成",
   "config.section.email.desc": "IMAP/SMTP メールアカウントの管理",
   "config.section.email.label": "Eメール",
+  "config.section.agentmail.desc": "AgentMail API 受信箱とリレーを管理",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "ベクトル埋め込み設定",
   "config.section.embeddings.label": "埋め込み",
   "config.section.fallback_llm.desc": "エラー時の自動 LLM フェイルオーバー",

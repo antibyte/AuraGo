@@ -562,6 +562,57 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			),
 		)
 	}
+	if ff.AgentMailEnabled {
+		tools = append(tools, tool("agentmail",
+			"Access AgentMail as a separate API-backed email integration. Supports inboxes, messages, labels, sending, replies, forwards, threads, drafts, raw messages, and attachment metadata.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "AgentMail operation to perform",
+					"enum": []string{
+						"test_connection",
+						"list_inboxes", "get_inbox", "create_inbox", "update_inbox", "delete_inbox",
+						"list_messages", "get_message", "update_message_labels", "delete_message", "send_message", "reply_message", "reply_all_message", "forward_message", "get_raw_message", "get_attachment",
+						"list_threads", "get_thread",
+						"list_drafts", "get_draft", "create_draft", "update_draft", "delete_draft", "send_draft",
+					},
+				},
+				"inbox_id":      prop("string", "AgentMail inbox ID. Defaults to agentmail.inbox_id from config."),
+				"message_id":    prop("string", "AgentMail message ID for message, reply, forward, raw, label, or attachment operations."),
+				"thread_id":     prop("string", "AgentMail thread ID for get_thread or filtering messages."),
+				"draft_id":      prop("string", "AgentMail draft ID for draft operations."),
+				"attachment_id": prop("string", "AgentMail attachment ID for get_attachment."),
+				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of records to return."},
+				"cursor":        prop("string", "Pagination cursor returned by a previous list operation."),
+				"after":         prop("string", "Optional ISO timestamp filter for list_messages."),
+				"labels":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels for list_messages filtering."},
+				"add_labels":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels to add for update_message_labels."},
+				"remove_labels": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels to remove for update_message_labels."},
+				"to":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Recipient email addresses for send/forward."},
+				"cc":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "CC recipient addresses."},
+				"bcc":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "BCC recipient addresses."},
+				"subject":       prop("string", "Email subject for send/draft operations."),
+				"text":          prop("string", "Plain text body for send/reply/forward/draft operations."),
+				"html":          prop("string", "HTML body for send/reply/forward/draft operations."),
+				"attachments": map[string]interface{}{
+					"type":        "array",
+					"description": "Attachments as workspace paths or base64 objects: {path, filename, content_type} or {filename, content_type, base64}.",
+					"items": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"path":         prop("string", "Workspace-local file path."),
+							"filename":     prop("string", "Attachment filename."),
+							"content_type": prop("string", "MIME content type."),
+							"base64":       prop("string", "Base64-encoded attachment content."),
+						},
+					},
+				},
+				"username":     prop("string", "Inbox username for create_inbox."),
+				"domain":       prop("string", "Inbox domain for create_inbox."),
+				"display_name": prop("string", "Inbox display name for create/update inbox."),
+			}, "operation"),
+		))
+	}
 
 	if ff.TelegramEnabled {
 		tools = append(tools, tool("send_telegram",

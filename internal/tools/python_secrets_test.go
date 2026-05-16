@@ -63,6 +63,7 @@ func TestIsPythonAccessibleSecret_BlocksExactKeysCaseInsensitive(t *testing.T) {
 func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 	prefixed := []string{
 		"email_smtp_pass",
+		"agentmail_api_key",
 		"google_workspace_client_secret",
 		"provider_openrouter_key",
 		"s3_bucket_key",

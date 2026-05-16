@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Kreator Dokumentów",
   "config.section.email.desc": "Zarządzaj kontami e-mail IMAP/SMTP",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "Zarządzaj skrzynkami AgentMail API i przekazywaniem",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Konfiguracja embeddingów wektorowych",
   "config.section.embeddings.label": "Embeddingi",
   "config.section.fallback_llm.desc": "Automatyczny failover do zapasowego LLM przy błędach",

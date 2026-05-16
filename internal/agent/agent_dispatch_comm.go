@@ -1128,6 +1128,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			res, _ := dispatchEmailCases(ctx, tc, dc)
 			return res
 
+		case "agentmail":
+			res, _ := dispatchAgentMailCases(ctx, tc, dc)
+			return res
+
 		case "send_discord", "fetch_discord", "list_discord_channels":
 			res, _ := dispatchMessagingCases(ctx, tc, dc)
 			return res

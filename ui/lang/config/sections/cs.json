@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Tvůrce dokumentů",
   "config.section.email.desc": "Email nastaveni",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "Správa schránek AgentMail API a předávání",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Nastaveni embeddings",
   "config.section.embeddings.label": "Embeddingy",
   "config.section.fallback_llm.desc": "Zalozni LLM",

@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "दस्तावेज़ निर्माता",
   "config.section.email.desc": "IMAP/SMTP ईमेल खाते प्रबंधित करें",
   "config.section.email.label": "ईमेल",
+  "config.section.agentmail.desc": "AgentMail API इनबॉक्स और रिले प्रबंधित करें",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "वेक्टर एम्बेडिंग कॉन्फ़िगरेशन",
   "config.section.embeddings.label": "एंबेडिंग्स",
   "config.section.fallback_llm.desc": "त्रुटियों पर स्वचालित एलएलएम विफलता",

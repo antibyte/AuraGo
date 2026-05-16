@@ -239,6 +239,31 @@ IMAP inbox monitoring and SMTP sending.
 
 ---
 
+## `agentmail`
+
+AgentMail API inboxes, messages, labels, drafts, attachments, and optional inbound relay.
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Enable the AgentMail integration and expose the `agentmail` tool. |
+| `readonly` | `false` | When `true`, the agent can list/read AgentMail data but cannot create, update, delete, send, reply, or forward. |
+| `api_key` | vault-only | Store via the UI or vault key `agentmail_api_key`; it is not written to `config.yaml`. |
+| `inbox_id` | `""` | Primary AgentMail inbox ID used by the UI, relay service, and tool defaults. |
+| `auto_create_inbox` | `false` | Reserved for setup flows that create the configured inbox automatically. |
+| `username` | `""` | Inbox username to use when creating an inbox. |
+| `domain` | `""` | Optional AgentMail domain for inbox creation. |
+| `display_name` | `""` | Display name for the inbox. |
+| `use_websocket` | `true` | Prefer AgentMail WebSockets for inbound mail relay. |
+| `poll_interval_seconds` | `120` | Poll interval used as fallback or when WebSockets are disabled. |
+| `relay_to_agent` | `false` | Wake the agent when new messages arrive in `inbox_id`. Disabled in egg mode. |
+| `max_attachment_mb` | `10` | Maximum size for attachments sent through the `agentmail` tool. |
+| `base_url` | `"https://api.agentmail.to"` | AgentMail REST API base URL. |
+| `websocket_url` | `"wss://ws.agentmail.to/v0"` | AgentMail WebSocket endpoint. |
+
+AgentMail is separate from the legacy IMAP/SMTP `email` integration, so existing `fetch_email` and `send_email` tools keep their current behavior.
+
+---
+
 ## `home_assistant`
 
 Smart-home control via the Home Assistant REST API.

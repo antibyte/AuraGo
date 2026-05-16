@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Dokumentskaber",
   "config.section.email.desc": "Administrer IMAP/SMTP-e-mail-konti",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "Administrer AgentMail API-indbakker og relay",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Vektorindlejringskonfiguration",
   "config.section.embeddings.label": "Indlejringer",
   "config.section.fallback_llm.desc": "Automatisk LLM-failover ved fejl",

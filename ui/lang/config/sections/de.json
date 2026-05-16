@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Dokument-Ersteller",
   "config.section.email.desc": "IMAP/SMTP E-Mail-Konten verwalten",
   "config.section.email.label": "E-Mail",
+  "config.section.agentmail.desc": "AgentMail-API-Postfächer und Relay verwalten",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Vektor-Embedding-Konfiguration",
   "config.section.embeddings.label": "Embeddings",
   "config.section.fallback_llm.desc": "Automatischer LLM-Wechsel bei Fehlern",

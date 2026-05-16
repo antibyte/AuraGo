@@ -18,6 +18,7 @@ import (
 // system integrations and must NEVER be accessible to Python tools.
 var blockedSecretPrefixes = []string{
 	"email_",
+	"agentmail_",
 	"google_workspace_",
 	"vapid_",
 	"homepage_",

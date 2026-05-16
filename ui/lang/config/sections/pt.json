@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Criador de Documentos",
   "config.section.email.desc": "Configurações de email",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "Gerenciar caixas AgentMail API e retransmissão",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Configurações de embeddings",
   "config.section.embeddings.label": "Embeddings",
   "config.section.fallback_llm.desc": "LLM de contingência",

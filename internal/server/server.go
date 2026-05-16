@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/agentmail"
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -241,6 +242,8 @@ type Server struct {
 	FileIndexer        *services.FileIndexer
 	HeartbeatScheduler *heartbeat.Scheduler
 	UptimeKumaPoller   *tools.UptimeKumaPoller
+	AgentMailService   *agentmail.Service
+	AgentMailMu        sync.Mutex
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB
 	MediaRegistryDB    *sql.DB
@@ -1223,6 +1226,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		if s.UptimeKumaPoller != nil {
 			s.UptimeKumaPoller.Stop()
+		}
+		if s.AgentMailService != nil {
+			s.AgentMailService.Stop(context.Background())
 		}
 
 		// Shut down MCP servers

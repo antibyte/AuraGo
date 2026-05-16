@@ -174,6 +174,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"send_email", "Send emails via configured SMTP accounts"},
 		{"fetch_email", "Fetch and read emails from IMAP accounts"},
 		{"list_email_accounts", "List configured email accounts"},
+		{"agentmail", "Manage AgentMail inboxes, messages, threads, drafts, labels, and replies"},
 		{"send_discord", "Send messages to Discord channels"},
 		{"fetch_discord", "Read messages from Discord channels"},
 		{"list_discord_channels", "List available Discord channels"},

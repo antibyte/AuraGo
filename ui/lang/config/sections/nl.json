@@ -130,6 +130,8 @@
   "config.section.document_creator.label": "Document Creator",
   "config.section.email.desc": "Email instellingen",
   "config.section.email.label": "E-mail",
+  "config.section.agentmail.desc": "AgentMail API-postvakken en relay beheren",
+  "config.section.agentmail.label": "AgentMail",
   "config.section.embeddings.desc": "Embeddings instellingen",
   "config.section.embeddings.label": "Embeddings",
   "config.section.fallback_llm.desc": "Backup LLM",
