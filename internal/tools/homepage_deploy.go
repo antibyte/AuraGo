@@ -742,6 +742,51 @@ func HomepageWebServerStop(cfg HomepageConfig, logger *slog.Logger) string {
 	return DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
 }
 
+func homepageNetlifyStaticFallbackCandidate(cfg HomepageConfig, projectDir string, logger *slog.Logger) (string, homepageDeployCandidate, bool) {
+	projectDir = strings.TrimSpace(projectDir)
+	if projectDir == "" {
+		projectDir = "."
+	}
+	originalHasPackage := fileExists(filepath.Join(cfg.WorkspacePath, filepath.FromSlash(projectDir), "package.json"))
+	if candidate, err := homepageDetectDeployCandidate(cfg, projectDir, "", "static"); err == nil {
+		if candidate.BuildDir != "." || !originalHasPackage {
+			return projectDir, candidate, true
+		}
+		if logger != nil {
+			logger.Warn("[Homepage] Netlify: static fallback skipped project root for package project",
+				"project_dir", projectDir,
+				"reason", "root index.html may be an app shell, not deploy output")
+		}
+	}
+	if projectDir == "." {
+		return "", homepageDeployCandidate{}, false
+	}
+	clean := filepath.ToSlash(filepath.Clean(projectDir))
+	parent := filepath.ToSlash(filepath.Dir(clean))
+	base := filepath.Base(clean)
+	staticNames := []string{
+		base + "-static",
+		base + "_static",
+		base + "-html",
+		base + "-site",
+	}
+	for _, name := range staticNames {
+		candidateDir := name
+		if parent != "." {
+			candidateDir = filepath.ToSlash(filepath.Join(parent, name))
+		}
+		info, err := homepageResolveProject(cfg, candidateDir)
+		if err != nil || info.HasPackageJSON {
+			continue
+		}
+		candidate, err := homepageDetectDeployCandidate(cfg, candidateDir, ".", "static")
+		if err == nil {
+			return candidateDir, candidate, true
+		}
+	}
+	return "", homepageDeployCandidate{}, false
+}
+
 // HomepageWebServerStatus returns the status of the Caddy web server.
 func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	if !checkDockerAvailable(cfg.DockerHost) {
@@ -900,6 +945,8 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if projectDir == "" {
 		projectDir = "."
 	}
+	fallbackProjectDir := ""
+	var fallbackCandidate *homepageDeployCandidate
 
 	// Try to build first; ignore failure for plain-HTML projects that have no build script.
 	if buildDir == "" {
@@ -921,7 +968,18 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 				// Build succeeded — detect the output directory.
 				buildDir = detectBuildDir(cfg, projectDir)
 			} else {
-				return decorateHomepageBuildFailure(buildResult, projectDir)
+				if fallbackDir, candidate, ok := homepageNetlifyStaticFallbackCandidate(cfg, projectDir, logger); ok {
+					logger.Info("[Homepage] Netlify: build failed, deploying static fallback",
+						"original_project_dir", projectDir,
+						"fallback_project_dir", fallbackDir,
+						"fallback_build_dir", candidate.BuildDir)
+					projectDir = fallbackDir
+					buildDir = candidate.BuildDir
+					fallbackProjectDir = fallbackDir
+					fallbackCandidate = &candidate
+				} else {
+					return decorateHomepageBuildFailure(buildResult, projectDir)
+				}
 			}
 		}
 	}
@@ -946,9 +1004,15 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		}
 	}
 
-	candidate, candidateErr := homepageDetectDeployCandidate(cfg, projectDir, buildDir, "")
-	if candidateErr != nil {
-		return errJSON("No valid Netlify deploy output for %q: %v. Netlify ZIP deploys require a static directory with index.html.", projectDir, candidateErr)
+	var candidate homepageDeployCandidate
+	if fallbackCandidate != nil {
+		candidate = *fallbackCandidate
+	} else {
+		var candidateErr error
+		candidate, candidateErr = homepageDetectDeployCandidate(cfg, projectDir, buildDir, "")
+		if candidateErr != nil {
+			return errJSON("No valid Netlify deploy output for %q: %v. Netlify ZIP deploys require a static directory with index.html.", projectDir, candidateErr)
+		}
 	}
 	deployPath := candidate.Path
 
@@ -1158,6 +1222,10 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	}
 	if json.Unmarshal([]byte(deployResult), &dr) != nil || dr["status"] == "error" {
 		return deployResult
+	}
+	if fallbackProjectDir != "" {
+		dr["fallback_project_dir"] = fallbackProjectDir
+		dr["fallback_build_dir"] = candidate.BuildDir
 	}
 	deployID := strVal(dr, "id")
 	if deployID != "" {

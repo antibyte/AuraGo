@@ -1,6 +1,12 @@
 package tools
 
 import (
+	"archive/zip"
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +91,88 @@ func TestHomepageDetectDeployCandidateAcceptsDistWithIndex(t *testing.T) {
 	}
 	if candidate.BuildDir != "dist" || candidate.Kind != "spa" {
 		t.Fatalf("unexpected candidate: %+v", candidate)
+	}
+}
+
+func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testing.T) {
+	dir := t.TempDir()
+	appRoot := filepath.Join(dir, "ki-news")
+	staticRoot := filepath.Join(dir, "ki-news-static")
+	if err := os.MkdirAll(appRoot, 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	if err := os.MkdirAll(staticRoot, 0o755); err != nil {
+		t.Fatalf("mkdir static: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appRoot, "package.json"), []byte(`{"scripts":{"build":"vite --host 0.0.0.0"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte(`<main>Static KI News</main>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldExec }()
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"error","exit_code":1,"output":"Cannot find package '@vitejs/plugin-react'"}`
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+	}()
+	netlifyDeployPollAttempts = 0
+
+	var sawStaticIndex bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read deploy body: %v", err)
+		}
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			t.Fatalf("read deploy zip: %v", err)
+		}
+		for _, f := range zr.File {
+			if f.Name != "index.html" {
+				continue
+			}
+			rc, err := f.Open()
+			if err != nil {
+				t.Fatalf("open zipped index: %v", err)
+			}
+			data, _ := io.ReadAll(rc)
+			_ = rc.Close()
+			sawStaticIndex = strings.Contains(string(data), "Static KI News")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"ki-news", "", "", "", false, slogDiscard(),
+	)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("decode result %q: %v", result, err)
+	}
+	if parsed["status"] == "error" {
+		t.Fatalf("deploy should fall back to static sibling, got %s", result)
+	}
+	if !sawStaticIndex {
+		t.Fatalf("Netlify ZIP did not contain the static sibling index.html; result=%s", result)
+	}
+	if parsed["fallback_project_dir"] != "ki-news-static" {
+		t.Fatalf("fallback_project_dir = %v, want ki-news-static; result=%s", parsed["fallback_project_dir"], result)
 	}
 }
 

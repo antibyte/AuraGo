@@ -484,6 +484,8 @@ Simply embed the image in your HTML using the exact URL path from `media_registr
 
 The `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for `/files/generated_images/` and other generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL. After deploying, bundled generated assets are live at the same URL path on Netlify.
 
+If a framework build fails but a finished static sibling directory exists, such as `my-site-static/index.html`, `deploy_netlify` may fall back to that static project and returns `fallback_project_dir` in the result. For an explicitly static export, you can also call `deploy_netlify` with `project_dir: "my-site-static"` and `build_dir: "."`.
+
 ### Using Vercel Deployments
 
 Use `deploy_vercel` when the homepage project should be published to Vercel from AuraGo's managed workspace.

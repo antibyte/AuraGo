@@ -27,6 +27,8 @@ Before editing an existing project, inspect it with homepage `list_files` and `r
 
 For build and deploy work, use this sequence: inspect project, edit source, run homepage `build`, preview or publish locally when useful, verify the rendered page, then deploy through homepage `deploy_netlify`, `deploy_vercel`, or `deploy` as appropriate.
 
+For Netlify static exports, pass the directory that actually contains the deployable `index.html`. If a framework project cannot build but a sibling static export such as `my-site-static/` exists, deploy that static directory with `build_dir: "."` or rely on the Netlify fallback result when it reports `fallback_project_dir`.
+
 After meaningful homepage project changes, update the homepage registry with `homepage_registry` `log_edit`. If a problem blocks completion, record it with `homepage_registry` `log_problem`.
 
 ## Web Interface Quality Bar
