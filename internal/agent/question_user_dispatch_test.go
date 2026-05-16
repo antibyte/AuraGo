@@ -72,6 +72,60 @@ func TestDispatchQuestionUserCompletes(t *testing.T) {
 	}
 }
 
+func TestDispatchQuestionUserUsesInteractiveUIForVirtualDesktop(t *testing.T) {
+	sessionID := "dispatch-question-desktop"
+	broker := &questionCaptureBroker{}
+	done := make(chan string, 1)
+	go func() {
+		done <- dispatchQuestionUser(ToolCall{Params: map[string]interface{}{
+			"question": "Pick",
+			"options": []interface{}{
+				map[string]interface{}{"label": "A", "value": "a"},
+				map[string]interface{}{"label": "B", "value": "b"},
+			},
+		}}, &DispatchContext{SessionID: sessionID, MessageSource: "virtual_desktop_chat", Broker: broker})
+	}()
+
+	deadline := time.After(time.Second)
+	var pending *tools.PendingQuestion
+	for pending == nil {
+		pending = tools.GetPendingQuestion(sessionID)
+		select {
+		case <-deadline:
+			t.Fatal("desktop question was not registered")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if pending.TimeoutSecs != 120 {
+		t.Fatalf("desktop question timeout = %d, want 120", pending.TimeoutSecs)
+	}
+	jsonDeadline := time.After(time.Second)
+	for len(broker.jsonMessages) == 0 {
+		select {
+		case <-jsonDeadline:
+			t.Fatalf("expected desktop question to use interactive JSON payload, got %#v", broker.jsonMessages)
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if !strings.Contains(broker.jsonMessages[0], `"type":"question_user"`) {
+		t.Fatalf("expected desktop question JSON payload, got %#v", broker.jsonMessages)
+	}
+	if len(broker.events) != 0 {
+		t.Fatalf("did not expect text-channel question event for desktop, got %#v", broker.events)
+	}
+	tools.CompleteQuestion(sessionID, tools.QuestionResponse{Selected: "a"})
+	select {
+	case result := <-done:
+		if !strings.Contains(result, `"selected":"a"`) {
+			t.Fatalf("result = %q, want selected a", result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("desktop question dispatch did not complete")
+	}
+}
+
 func TestDispatchCommHandlesQuestionUser(t *testing.T) {
 	got, handled := dispatchComm(context.Background(), ToolCall{Action: "question_user"}, &DispatchContext{})
 	if !handled || !strings.Contains(got, "question is required") {

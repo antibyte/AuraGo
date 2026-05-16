@@ -1,10 +1,13 @@
 package server
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/memory"
 )
 
 func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing.T) {
@@ -169,6 +172,8 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 		"agent.LoopbackContext(ctx, runCfg, prompt, broker)",
 		"context.WithTimeout(ctx, 10*time.Minute)",
 		"lockSessionRequest(\"virtual-desktop\")",
+		"event == \"done\"",
+		"latestDesktopAssistantMessage(b.shortTermMem, b.sessionID)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop chat cancellation missing marker %q", marker)
@@ -176,6 +181,31 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	}
 	if strings.Contains(source, "context.WithTimeout(context.Background(), 10*time.Minute)") {
 		t.Fatal("desktop chat must not use context.Background for agent loopback timeout")
+	}
+}
+
+func TestLatestDesktopAssistantMessageReturnsLastAssistantReply(t *testing.T) {
+	t.Parallel()
+
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.Default())
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	sessionID := "virtual-desktop"
+	if _, err := stm.InsertMessage(sessionID, "assistant", "first", false, false); err != nil {
+		t.Fatalf("InsertMessage first: %v", err)
+	}
+	if _, err := stm.InsertMessage(sessionID, "user", "next", false, false); err != nil {
+		t.Fatalf("InsertMessage user: %v", err)
+	}
+	if _, err := stm.InsertMessage(sessionID, "assistant", "<think>hidden</think>final answer", false, false); err != nil {
+		t.Fatalf("InsertMessage final: %v", err)
+	}
+
+	if got := latestDesktopAssistantMessage(stm, sessionID); got != "final answer" {
+		t.Fatalf("latestDesktopAssistantMessage = %q, want final answer", got)
 	}
 }
 
@@ -196,6 +226,27 @@ func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop chat history UI missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopChatUIHandlesQuestionUserPrompts(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "agent-chat.js"))
+	if err != nil {
+		t.Fatalf("ReadFile desktop chat UI: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"event === 'question_user'",
+		"showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data))",
+		"fetch('/api/agent/question-response'",
+		"session_id: 'virtual-desktop'",
+		"desktop.chat_question_waiting",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat question UI missing marker %q", marker)
 		}
 	}
 }

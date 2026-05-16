@@ -3596,6 +3596,70 @@
     gap: 8px;
 }
 
+.vd-chat-question-panel {
+    max-width: min(520px, calc(100vw - 48px));
+}
+
+.vd-chat-question-select {
+    margin-top: 14px;
+    color: var(--vd-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.vd-chat-question-options {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.vd-chat-question-option {
+    justify-content: flex-start;
+    min-height: 44px;
+    text-align: left;
+}
+
+.vd-chat-question-option-desc {
+    display: block;
+    margin-top: 2px;
+    color: var(--vd-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.vd-chat-question-free-text {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.vd-chat-question-free-text input {
+    min-width: 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    padding: 0 12px;
+    color: var(--vd-text);
+    background: var(--vd-control-bg);
+}
+
+.vd-chat-question-timer {
+    height: 4px;
+    margin-top: 16px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.vd-chat-question-timer span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-origin: left center;
+    background: var(--vd-accent);
+    transition: transform 0.25s linear;
+}
+
 /* Quick Connect – Notify toast */
 .vd-qc-notify {
     position: absolute;

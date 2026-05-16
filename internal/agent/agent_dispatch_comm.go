@@ -163,15 +163,16 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 	if source == "" {
 		source = "web_chat"
 	}
+	interactiveQuestionUI := questionUserUsesInteractiveUI(source)
 	timeoutSecs := req.TimeoutSecs
 	if timeoutSecs <= 0 {
-		if source == "web_chat" {
+		if interactiveQuestionUI {
 			timeoutSecs = 120
 		} else {
 			timeoutSecs = 20
 		}
 	}
-	if source != "web_chat" && req.TimeoutSecs <= 0 {
+	if !interactiveQuestionUI && req.TimeoutSecs <= 0 {
 		timeoutSecs = 20
 	}
 	timeout := time.Duration(timeoutSecs) * time.Second
@@ -185,7 +186,7 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 	responseCh := tools.RegisterQuestion(sessionID, q)
 	defer tools.CancelQuestion(sessionID)
 
-	if source == "web_chat" {
+	if interactiveQuestionUI {
 		payload, _ := json.Marshal(struct {
 			Type    string                 `json:"type"`
 			Payload *tools.PendingQuestion `json:"payload"`
@@ -205,6 +206,15 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 		tools.CancelQuestion(sessionID)
 		b, _ := json.Marshal(tools.QuestionResponse{Status: "timeout"})
 		return "Tool Output: " + string(b)
+	}
+}
+
+func questionUserUsesInteractiveUI(source string) bool {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "web_chat", "virtual_desktop_chat":
+		return true
+	default:
+		return false
 	}
 }
 

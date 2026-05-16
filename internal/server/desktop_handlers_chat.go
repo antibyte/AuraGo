@@ -12,6 +12,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -138,8 +139,10 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			defer close(done)
 			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, sessionID)
 			combinedBroker := &desktopStreamCombinedBroker{
-				stream: broker,
-				sse:    sseBroker,
+				stream:       broker,
+				sse:          sseBroker,
+				shortTermMem: s.ShortTermMem,
+				sessionID:    sessionID,
 			}
 			agent.LoopbackContext(llmCtx, runCfg, prompt, combinedBroker)
 		}()
@@ -150,11 +153,14 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			<-done
 		}
 		broker.mu.Lock()
+		alreadyClosed := broker.closed
 		broker.closed = true
 		broker.mu.Unlock()
-		sseWriteDone(w)
-		if canFlush {
-			flusher.Flush()
+		if !alreadyClosed {
+			sseWriteDone(w)
+			if canFlush {
+				flusher.Flush()
+			}
 		}
 	}
 }
@@ -168,14 +174,28 @@ type desktopStreamBroker struct {
 }
 
 type desktopStreamCombinedBroker struct {
-	stream *desktopStreamBroker
-	sse    *SSEBrokerAdapter
+	stream       *desktopStreamBroker
+	sse          *SSEBrokerAdapter
+	shortTermMem *memory.SQLiteMemory
+	sessionID    string
 }
 
 func (b *desktopStreamCombinedBroker) Send(event, message string) {
 	b.sse.Send(event, message)
 	b.stream.mu.Lock()
 	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
+	if event == "done" {
+		if answer := latestDesktopAssistantMessage(b.shortTermMem, b.sessionID); answer != "" {
+			sseWriteData(b.stream.w, "final_response", answer)
+		}
+		sseWriteDone(b.stream.w)
+		b.stream.closed = true
+		if b.stream.canFlush {
+			b.stream.flusher.Flush()
+		}
 		b.stream.mu.Unlock()
 		return
 	}
@@ -269,6 +289,32 @@ func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state
 
 func (b *desktopStreamCombinedBroker) Scrub(s string) string {
 	return security.Scrub(s)
+}
+
+func latestDesktopAssistantMessage(shortTermMem *memory.SQLiteMemory, sessionID string) string {
+	if shortTermMem == nil {
+		return ""
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		sessionID = "virtual-desktop"
+	}
+	messages, err := shortTermMem.GetSessionMessages(sessionID)
+	if err != nil {
+		return ""
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		role := strings.ToLower(strings.TrimSpace(msg.Role))
+		if role != "assistant" && role != "agent" {
+			continue
+		}
+		content := strings.TrimSpace(msg.Content)
+		if content == "" {
+			continue
+		}
+		return security.StripThinkingTags(security.Scrub(content))
+	}
+	return ""
 }
 
 func sseWriteData(w http.ResponseWriter, event, data string) {

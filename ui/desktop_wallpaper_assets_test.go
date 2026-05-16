@@ -93,3 +93,53 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 		t.Fatal("desktop frontend defaults must use groupshoot as the default wallpaper")
 	}
 }
+
+func TestDesktopChatQuestionPromptAssets(t *testing.T) {
+	t.Parallel()
+
+	agentChat := readDesktopAssetText(t, "js/desktop/main.js")
+	cssText := readAllDesktopCSS(t)
+	for _, marker := range []string{
+		"event === 'question_user'",
+		"showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data))",
+		"fetch('/api/agent/question-response'",
+		"session_id: 'virtual-desktop'",
+	} {
+		if !strings.Contains(agentChat, marker) {
+			t.Fatalf("desktop chat question UI missing marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		".vd-chat-question-panel",
+		".vd-chat-question-options",
+		".vd-chat-question-free-text",
+		".vd-chat-question-timer",
+	} {
+		if !strings.Contains(cssText, marker) {
+			t.Fatalf("desktop chat question CSS missing marker %q", marker)
+		}
+	}
+
+	keys := []string{
+		"desktop.chat_question_waiting",
+		"desktop.chat_question_select",
+		"desktop.chat_question_free_text_placeholder",
+		"desktop.chat_question_timeout",
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.Join("lang", "desktop", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			}
+		}
+	}
+}

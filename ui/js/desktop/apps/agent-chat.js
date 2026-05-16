@@ -194,6 +194,107 @@
         });
     }
 
+    function normalizeDesktopQuestionPayload(data) {
+        if (!data) return null;
+        let payload = data.payload || data.question || data.detail || data.message || data;
+        if (typeof payload === 'string') {
+            try {
+                const parsed = JSON.parse(payload);
+                payload = parsed.payload || parsed.question || parsed;
+            } catch (_) {
+                payload = { question: payload, options: [] };
+            }
+        }
+        if (!payload || typeof payload !== 'object') return null;
+        return payload;
+    }
+
+    function showDesktopQuestionModal(host, payload) {
+        const container = host && host.querySelector('.vd-chat');
+        if (!container || !payload || !payload.question) return;
+        const existing = container.querySelector('[data-desktop-question-modal]');
+        if (existing) existing.remove();
+
+        const timeoutSeconds = Math.max(1, Number(payload.timeout_seconds || 120));
+        const startedAt = Date.now();
+        const overlay = document.createElement('div');
+        overlay.className = 'vd-qc-modal-overlay vd-chat-question-overlay';
+        overlay.setAttribute('data-desktop-question-modal', 'true');
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const optionButtons = options.map((opt, index) => {
+            const value = esc(opt.value || opt.label || String(index + 1));
+            const label = esc(opt.label || opt.value || String(index + 1));
+            const desc = opt.description ? `<span class="vd-chat-question-option-desc">${esc(opt.description)}</span>` : '';
+            return `<button class="vd-qc-btn vd-qc-btn-secondary vd-chat-question-option" type="button" data-value="${value}">
+                <span>${label}</span>${desc}
+            </button>`;
+        }).join('');
+        const freeText = payload.allow_free_text ? `<form class="vd-chat-question-free-text" data-question-free-text>
+                <input type="text" autocomplete="off" placeholder="${esc(desktopText('desktop.chat_question_free_text_placeholder', 'Type a custom answer...'))}">
+                <button class="vd-qc-btn vd-qc-btn-primary" type="submit">${iconMarkup('chat', 'S', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.send'))}</span></button>
+            </form>` : '';
+
+        overlay.innerHTML = `<div class="vd-qc-confirm vd-chat-question-panel">
+            <div class="vd-qc-confirm-title">${esc(desktopText('desktop.chat_question_waiting', 'The agent is waiting for your answer...'))}</div>
+            <div class="vd-qc-confirm-msg">${esc(payload.question)}</div>
+            ${options.length ? `<div class="vd-chat-question-select">${esc(desktopText('desktop.chat_question_select', 'Select an option'))}</div><div class="vd-chat-question-options">${optionButtons}</div>` : ''}
+            ${freeText}
+            <div class="vd-chat-question-timer" aria-hidden="true"><span></span></div>
+        </div>`;
+        container.appendChild(overlay);
+
+        const close = () => { if (overlay.parentNode) overlay.remove(); };
+        const submit = async (selectedValue, freeTextValue) => {
+            try {
+                await fetch('/api/agent/question-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: 'virtual-desktop',
+                        selected_value: selectedValue || '',
+                        free_text: freeTextValue || ''
+                    })
+                });
+            } catch (err) {
+                appendDesktopChatError(host, err);
+            }
+            close();
+        };
+
+        overlay.querySelectorAll('[data-value]').forEach(btn => {
+            btn.addEventListener('click', () => submit(btn.getAttribute('data-value') || '', ''));
+        });
+        const form = overlay.querySelector('[data-question-free-text]');
+        if (form) {
+            const input = form.querySelector('input');
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                const value = input ? input.value.trim() : '';
+                if (value) submit('', value);
+            });
+            setTimeout(() => { if (input) input.focus(); }, 50);
+        }
+        const timerFill = overlay.querySelector('.vd-chat-question-timer span');
+        const timer = window.setInterval(() => {
+            if (!overlay.parentNode) {
+                window.clearInterval(timer);
+                return;
+            }
+            const elapsed = (Date.now() - startedAt) / 1000;
+            const remaining = Math.max(0, 1 - elapsed / timeoutSeconds);
+            if (timerFill) timerFill.style.transform = 'scaleX(' + remaining + ')';
+            if (remaining <= 0) {
+                window.clearInterval(timer);
+                const title = overlay.querySelector('.vd-qc-confirm-title');
+                if (title) title.textContent = desktopText('desktop.chat_question_timeout', 'The question timed out.');
+                setTimeout(close, 900);
+            }
+        }, 250);
+    }
+
     function setDesktopChatBusy(host, busy) {
         if (!host) return;
         const input = host.querySelector('.vd-chat-input'), voiceBtn = host.querySelector('.vd-chat-voice'), sendBtn = host.querySelector('.vd-chat-send'), label = host.querySelector('[data-chat-send-label]'), clearBtn = host.querySelector('[data-chat-clear-history]');
@@ -561,6 +662,8 @@
                                 keepAgentStatusAtEnd();
                             }
                         } catch (_) {}
+                    } else if (event === 'question_user') {
+                        showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data));
                     } else if (event === 'final_response') {
                         if (data.detail || data.message) {
                             const text = data.detail || data.message || '';
