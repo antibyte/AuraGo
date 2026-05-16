@@ -811,7 +811,7 @@ const _modalCtl = (function () {
     ].join(',');
 
     const supportsInert = typeof HTMLElement !== 'undefined' && 'inert' in HTMLElement.prototype;
-    const stack = []; // entries: { modal, trigger, hidden: Element[] }
+    const stack = []; // entries: { modal, trigger, hidden: Element[], selfRestore?: Function }
 
     function focusables(root) {
         if (!root) return [];
@@ -846,6 +846,22 @@ const _modalCtl = (function () {
             }
         });
         return hidden;
+    }
+
+    function liftModalFromBackgroundInert(modal) {
+        if (!modal) return null;
+        if (supportsInert) {
+            const wasInert = !!modal.inert;
+            if (wasInert) modal.inert = false;
+            return () => { modal.inert = wasInert; };
+        }
+
+        const prevAriaHidden = modal.getAttribute('aria-hidden');
+        if (prevAriaHidden === 'true') modal.removeAttribute('aria-hidden');
+        return () => {
+            if (prevAriaHidden === null) modal.removeAttribute('aria-hidden');
+            else modal.setAttribute('aria-hidden', prevAriaHidden);
+        };
     }
 
     function ensureDialogAria(modal) {
@@ -915,8 +931,9 @@ const _modalCtl = (function () {
         options = options || {};
         ensureDialogAria(modal);
         const trigger = options.trigger || document.activeElement;
+        const selfRestore = liftModalFromBackgroundInert(modal);
         const hidden = setBackgroundInert(modal);
-        const entry = { modal, trigger, hidden };
+        const entry = { modal, trigger, hidden, selfRestore };
         stack.push(entry);
         if (stack.length === 1) {
             document.addEventListener('keydown', onKeydown, true);
@@ -941,6 +958,9 @@ const _modalCtl = (function () {
         if (idx < 0) return;
         const entry = stack.splice(idx, 1)[0];
         entry.hidden.forEach(h => { try { h.restore(); } catch (_) { /* noop */ } });
+        if (entry.selfRestore) {
+            try { entry.selfRestore(); } catch (_) { /* noop */ }
+        }
         if (!stack.length) {
             document.removeEventListener('keydown', onKeydown, true);
         }
