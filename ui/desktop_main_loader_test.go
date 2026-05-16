@@ -26,7 +26,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260516b"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260516c"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
@@ -88,8 +88,20 @@ func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
 	t.Parallel()
 
+	main := rawDesktopAssetText(t, "js/desktop/main.js")
 	router := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	agentChat := rawDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	agentChatIndex := strings.Index(main, "'/js/desktop/apps/agent-chat.js?v=' + assetV")
+	routingIndex := strings.Index(main, "'/js/desktop/core/menus-and-routing.js?v=' + assetV")
+	if agentChatIndex < 0 {
+		t.Fatal("desktop main loader must load the agent chat app fragment")
+	}
+	if routingIndex < 0 {
+		t.Fatal("desktop main loader must load the menus/routing fragment")
+	}
+	if !(agentChatIndex < routingIndex) {
+		t.Fatalf("agent chat must load before menus/routing so its window registration executes inside the desktop runtime closure: agent=%d routing=%d", agentChatIndex, routingIndex)
+	}
 	if strings.Contains(router, "return renderChat(") {
 		t.Fatal("desktop router must not call bare renderChat; split app modules should be referenced through stable window app registrations")
 	}
