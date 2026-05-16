@@ -977,7 +977,7 @@
         if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
             return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
         }
-        if (appId === 'agent-chat') return renderChat(id, context || {});
+        if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, context || {}) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
             return window.ViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc,

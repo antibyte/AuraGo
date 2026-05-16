@@ -14,6 +14,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 		"/js/desktop/apps/settings-calculator.js",
 		"/js/desktop/apps/planning-gallery-music.js",
 		"/js/desktop/apps/quickconnect-launchpad-chat.js",
+		"/js/desktop/apps/agent-chat.js",
 	} {
 		if strings.Contains(html, `src="`+part) {
 			t.Fatalf("desktop.html must not load bundle fragment %s directly", part)
@@ -25,7 +26,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260515a"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260516a"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
@@ -81,5 +82,32 @@ func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 	}
 	if !(calendarIndex < initIndex && initIndex < closeIndex) {
 		t.Fatalf("renderCalendar must be inside the runtime closure before init: calendar=%d init=%d close=%d", calendarIndex, initIndex, closeIndex)
+	}
+}
+
+func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
+	t.Parallel()
+
+	router := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	agentChat := rawDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	if strings.Contains(router, "return renderChat(") {
+		t.Fatal("desktop router must not call bare renderChat; split app modules should be referenced through stable window app registrations")
+	}
+	for _, want := range []string{
+		"window.AgentChatApp",
+		"typeof window.AgentChatApp.render === 'function'",
+		"window.AgentChatApp.render(id, context || {})",
+	} {
+		if !strings.Contains(router, want) {
+			t.Fatalf("desktop router missing agent chat renderer marker %q", want)
+		}
+	}
+	for _, want := range []string{
+		"window.AgentChatApp = window.AgentChatApp || {}",
+		"window.AgentChatApp.render = renderChat",
+	} {
+		if !strings.Contains(agentChat, want) {
+			t.Fatalf("agent chat module missing exported renderer marker %q", want)
+		}
 	}
 }

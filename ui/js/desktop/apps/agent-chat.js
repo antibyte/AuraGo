@@ -604,3 +604,5 @@
         return null;
     }
 
+    window.AgentChatApp = window.AgentChatApp || {};
+    window.AgentChatApp.render = renderChat;
