@@ -380,3 +380,15 @@ func shouldRecoverDesktopDoneWithoutToolAfterAnnouncement(s *agentLoopState, par
 	}
 	return strings.TrimSpace(parsedToolResp.SanitizedContent) != ""
 }
+
+func shouldAbortDesktopEmptyAfterTool(runCfg RunConfig, content string, lastResponseWasTool bool) bool {
+	if runCfg.MessageSource != "virtual_desktop_chat" || !lastResponseWasTool {
+		return false
+	}
+	stripped := strings.TrimSpace(security.StripThinkingTags(content))
+	if stripped == "" {
+		return true
+	}
+	lower := strings.ToLower(stripped)
+	return strings.HasPrefix(lower, "<think") && !strings.Contains(lower, "</think")
+}

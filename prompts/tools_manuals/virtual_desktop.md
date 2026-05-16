@@ -13,6 +13,7 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `list_files`: list a workspace directory. Use `path`, for example `Documents`.
 - `read_file`: read one text file. Use `path`.
 - `write_file`: write one text file. Use `path` and `content`. For simple generated HTML apps, prefer `install_app`; if you write non-empty HTML to `Apps/<app_id>.html`, AuraGo also registers/updates a runnable generated app at `Apps/<app_id>/index.html`.
+- `patch_file`: edit one desktop text/code file without rereading or replacing the whole file. Use `path` plus `replacements:[{find,replace}]`, `prepend_text`, or `append_text`. Prefer this for files larger than 8 KB or when you already know the exact text to change.
 - `delete` / `delete_file` / `delete_path`: delete a workspace file or directory. Use `path`. If `path` is `Apps/<app_id>.html`, AuraGo also removes the generated app registration for `<app_id>`.
 - `delete_app`: delete a generated desktop app. Use `app_id`. Built-in apps cannot be deleted.
 - `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, `delta`, and `office_version`.

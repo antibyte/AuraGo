@@ -24,6 +24,7 @@ type VirtualDesktopExecution struct {
 var virtualDesktopWidgetIDSanitizer = regexp.MustCompile(`[^a-z0-9_-]+`)
 
 const virtualDesktopCodeStudioWorkspaceRoot = "/workspace"
+const virtualDesktopLargeReadLimitBytes = 8 * 1024
 
 var (
 	toolDesktopMu  sync.Mutex
@@ -125,7 +126,11 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if err != nil {
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
-		return virtualDesktopJSON("ok", "desktop file read", map[string]interface{}{"entry": entry, "content": content}, nil)
+		payload := map[string]interface{}{"entry": entry, "content": content}
+		if len(content) > virtualDesktopLargeReadLimitBytes {
+			payload = virtualDesktopLargeReadPayload(entry, content)
+		}
+		return virtualDesktopJSON("ok", "desktop file read", payload, nil)
 	case "write_file":
 		path := virtualDesktopString(args, "path", "file_path")
 		content := virtualDesktopString(args, "content")
@@ -158,6 +163,37 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": path})
 		return virtualDesktopJSON("ok", "desktop file written", map[string]interface{}{"path": path}, event)
+	case "patch_file":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		content, entry, err := svc.ReadFile(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		nextContent, replacements, operations, err := virtualDesktopApplyTextPatch(content, args)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if operations == 0 {
+			return virtualDesktopJSON("error", "patch_file requires replacements, prepend_text, or append_text", nil, nil)
+		}
+		if err := svc.WriteFile(ctx, entry.Path, nextContent, desktop.SourceAgent); err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		if widget, ok := virtualDesktopStandaloneWidgetFromFile(entry.Path); ok && strings.TrimSpace(nextContent) != "" {
+			if err := svc.UpsertWidget(ctx, widget, desktop.SourceAgent); err != nil {
+				return virtualDesktopJSON("error", err.Error(), nil, nil)
+			}
+		}
+		event := virtualDesktopEvent("desktop_changed", map[string]interface{}{"operation": op, "path": entry.Path})
+		return virtualDesktopJSON("ok", "desktop file patched", map[string]interface{}{
+			"path":               entry.Path,
+			"replacements":       replacements,
+			"applied_operations": operations,
+			"size":               len(nextContent),
+		}, event)
 	case "delete", "delete_file", "delete_path", "delete_app":
 		appID := virtualDesktopString(args, "app_id", "id")
 		path := virtualDesktopString(args, "path", "file_path")
@@ -705,6 +741,72 @@ func cleanVirtualDesktopSlashPath(rawPath string) string {
 		return "."
 	}
 	return path.Clean(p)
+}
+
+func virtualDesktopLargeReadPayload(entry desktop.FileEntry, content string) map[string]interface{} {
+	head, tail := splitLargeVirtualDesktopContent(content)
+	return map[string]interface{}{
+		"entry":             entry,
+		"content":           head + "\n\n[... large desktop file truncated; use virtual_desktop.patch_file for exact edits instead of reading the whole file ...]\n\n" + tail,
+		"content_truncated": true,
+		"original_size":     len(content),
+		"shown_size":        len(head) + len(tail),
+		"suggested_tools": []string{
+			"virtual_desktop.patch_file",
+			"virtual_desktop.write_file",
+			"virtual_desktop.open_in_app",
+			"text_diff",
+		},
+		"editing_hint": "This desktop file is larger than 8 KB. Do not keep rereading it in full. For desktop workspace files, use virtual_desktop.patch_file with exact replacements, prepend_text, or append_text; use write_file only when replacing the whole file intentionally, then open_in_app to show the result.",
+	}
+}
+
+func splitLargeVirtualDesktopContent(content string) (string, string) {
+	const headLimit = 4096
+	const tailLimit = 2048
+	runes := []rune(content)
+	if len(runes) <= headLimit+tailLimit {
+		return content, ""
+	}
+	return string(runes[:headLimit]), string(runes[len(runes)-tailLimit:])
+}
+
+type virtualDesktopReplacement struct {
+	Find    string `json:"find"`
+	Replace string `json:"replace"`
+}
+
+func virtualDesktopApplyTextPatch(content string, args map[string]interface{}) (string, int, int, error) {
+	next := content
+	replacementCount := 0
+	appliedOperations := 0
+	var replacements []virtualDesktopReplacement
+	if raw, ok := args["replacements"]; ok {
+		if err := mapToStruct(raw, &replacements); err != nil {
+			return "", 0, 0, fmt.Errorf("invalid replacements: %w", err)
+		}
+	}
+	for _, repl := range replacements {
+		if repl.Find == "" {
+			return "", 0, 0, fmt.Errorf("replacement find text is required")
+		}
+		count := strings.Count(next, repl.Find)
+		if count == 0 {
+			return "", 0, 0, fmt.Errorf("replacement text not found")
+		}
+		next = strings.ReplaceAll(next, repl.Find, repl.Replace)
+		replacementCount += count
+		appliedOperations++
+	}
+	if prepend := virtualDesktopString(args, "prepend_text"); prepend != "" {
+		next = prepend + next
+		appliedOperations++
+	}
+	if appendText := virtualDesktopString(args, "append_text"); appendText != "" {
+		next += appendText
+		appliedOperations++
+	}
+	return next, replacementCount, appliedOperations, nil
 }
 
 func normalizeVirtualDesktopCodeStudioOpenPath(rawPath string) (string, bool) {

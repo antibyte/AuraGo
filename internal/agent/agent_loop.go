@@ -1452,6 +1452,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Final answer
+		if shouldAbortDesktopEmptyAfterTool(runCfg, content, lastResponseWasTool) {
+			s.currentLogger.Warn("[Sync] Desktop tool follow-up returned empty response; aborting completion")
+			broker.Send("error_recovery", "The desktop agent received an empty model response after a tool call. The task was not completed; please retry the action.")
+			return resp, fmt.Errorf("desktop tool follow-up returned empty response")
+		}
 		if content == "" {
 			content = "[Empty Response]"
 		}

@@ -955,3 +955,101 @@ func TestExecuteVirtualDesktopDeleteRootAppHTMLRemovesGeneratedApp(t *testing.T)
 		t.Fatalf("deleted generated app still registered: %s", status.Output)
 	}
 }
+
+func TestExecuteVirtualDesktopReadLargeFileTruncatesAndSuggestsPatchFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	largeContent := strings.Repeat("0123456789abcdef\n", 600)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+		"content":   largeContent,
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Apps/space-invaders/game.js",
+	})
+	var payload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+		Data    struct {
+			Content          string   `json:"content"`
+			ContentTruncated bool     `json:"content_truncated"`
+			OriginalSize     int      `json:"original_size"`
+			SuggestedTools    []string `json:"suggested_tools"`
+			EditingHint       string   `json:"editing_hint"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(read.Output), &payload); err != nil {
+		t.Fatalf("unmarshal read_file output: %v\n%s", err, read.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output=%s", payload.Status, read.Output)
+	}
+	if !payload.Data.ContentTruncated {
+		t.Fatalf("expected large read_file to be truncated: %+v", payload.Data)
+	}
+	if payload.Data.OriginalSize <= 8*1024 || payload.Data.OriginalSize > len(largeContent) {
+		t.Fatalf("original_size = %d, want large stored size up to %d", payload.Data.OriginalSize, len(largeContent))
+	}
+	if len(payload.Data.Content) >= len(largeContent) || len(read.Output) >= len(largeContent) {
+		t.Fatalf("large content was not capped: content_len=%d output_len=%d", len(payload.Data.Content), len(read.Output))
+	}
+	if !strings.Contains(payload.Data.EditingHint, "patch_file") || !strings.Contains(strings.Join(payload.Data.SuggestedTools, ","), "virtual_desktop.patch_file") {
+		t.Fatalf("expected patch_file guidance, data=%+v", payload.Data)
+	}
+}
+
+func TestExecuteVirtualDesktopPatchFileAppliesExactReplacements(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+		"content":   "const lives = 3;\nfunction explode() {}\n",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	patch := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "patch_file",
+		"path":      "Apps/space-invaders/game.js",
+		"replacements": []map[string]string{{
+			"find":    "const lives = 3;",
+			"replace": "const lives = 5;",
+		}},
+		"append_text": "\nfunction shakeCamera() {}\n",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Path              string `json:"path"`
+			Replacements      int    `json:"replacements"`
+			AppliedOperations int    `json:"applied_operations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(patch.Output), &payload); err != nil {
+		t.Fatalf("unmarshal patch_file output: %v\n%s", err, patch.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("patch status = %q, output=%s", payload.Status, patch.Output)
+	}
+	if payload.Data.Replacements != 1 || payload.Data.AppliedOperations != 2 {
+		t.Fatalf("patch data = %+v, want one replacement plus append", payload.Data)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Apps/space-invaders/game.js",
+	})
+	if !strings.Contains(read.Output, "const lives = 5;") || !strings.Contains(read.Output, "shakeCamera") {
+		t.Fatalf("patched content missing expected changes: %s", read.Output)
+	}
+}

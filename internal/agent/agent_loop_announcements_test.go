@@ -389,6 +389,26 @@ func TestDesktopAnnouncementRecoveryRejectsDoneWithoutToolAfterPromise(t *testin
 	}
 }
 
+func TestDesktopEmptyResponseAfterToolRequiresRecovery(t *testing.T) {
+	runCfg := RunConfig{MessageSource: "virtual_desktop_chat"}
+
+	if !shouldAbortDesktopEmptyAfterTool(runCfg, "", true) {
+		t.Fatal("expected empty desktop response after a tool call to require recovery")
+	}
+	if !shouldAbortDesktopEmptyAfterTool(runCfg, "<think>still thinking", true) {
+		t.Fatal("expected reasoning-only desktop response after a tool call to require recovery")
+	}
+	if shouldAbortDesktopEmptyAfterTool(runCfg, "done", true) {
+		t.Fatal("did not expect visible content to require empty-response recovery")
+	}
+	if shouldAbortDesktopEmptyAfterTool(runCfg, "", false) {
+		t.Fatal("did not expect pre-tool empty response to use the desktop post-tool guard")
+	}
+	if shouldAbortDesktopEmptyAfterTool(RunConfig{MessageSource: "web_chat"}, "", true) {
+		t.Fatal("did not expect non-desktop chat to use the desktop post-tool guard")
+	}
+}
+
 func TestAsksUserForInputDetectsMidTaskQuestions(t *testing.T) {
 	content := strings.Repeat("Die Webseite ist gebaut und der Deploy braucht eine Entscheidung. ", 8) +
 		"Soll ich die bestehende Netlify-Seite überschreiben?"
