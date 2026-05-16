@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Als uitgeschakeld, kan de agent alleen e-mails lezen, niet verzenden.",
   "config.email.edit_tooltip": "Bewerken",
   "config.email.delete_tooltip": "Verwijderen",
-  "config.email.from_label": "Van"
+  "config.email.from_label": "Van",
+  "config.email.loading": "Laden...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet met instructies",
+  "config.email.relay_cheatsheet_none": "Geen cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Geen actieve cheatsheets beschikbaar",
+  "config.email.relay_cheatsheet_error": "Kon cheatsheets niet laden",
+  "help.email.relay_cheatsheet_id": "Optioneel cheatsheet dat als instructies wordt toegevoegd wanneer de inbox-watcher nieuwe mail naar de agent doorstuurt."
 }

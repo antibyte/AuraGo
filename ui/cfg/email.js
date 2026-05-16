@@ -1,6 +1,7 @@
 let emailAccountsCache = null;
 
 async function renderEmailSection(section) {
+    const emailCfg = configData['email'] || {};
     if (emailAccountsCache === null) {
         try {
             const resp = await fetch('/api/email-accounts');
@@ -10,6 +11,8 @@ async function renderEmailSection(section) {
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
+
+    html += emailCheatsheetSelect(emailCfg.relay_cheatsheet_id || '');
 
     html += `<div class="em-action-row">
             <button class="btn-save cfg-save-btn-sm" onclick="emailAccountAdd()">
@@ -22,7 +25,49 @@ async function renderEmailSection(section) {
         </div>
     </div>`;
     document.getElementById('content').innerHTML = html;
+    emailLoadCheatsheets(emailCfg.relay_cheatsheet_id || '');
     emailAccountRenderCards();
+}
+
+function emailCheatsheetSelect(selectedID) {
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.email.relay_cheatsheet_label') + '</div>';
+    html += '<div class="field-help">' + t('help.email.relay_cheatsheet_id') + '</div>';
+    html += '<select class="field-input" id="email-relay-cheatsheet" data-path="email.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '" onchange="setNestedValue(configData,\'email.relay_cheatsheet_id\',this.value);setDirty(true)">';
+    html += '<option value="">' + escapeHtml(t('config.email.loading')) + '</option>';
+    html += '</select>';
+    html += '</div>';
+    return html;
+}
+
+function emailLoadCheatsheets(selectedID) {
+    const select = document.getElementById('email-relay-cheatsheet');
+    if (!select) return;
+    fetch('/api/cheatsheets')
+        .then(r => {
+            if (!r.ok) throw new Error(r.statusText || 'Failed to load cheat sheets');
+            return r.json();
+        })
+        .then(sheets => {
+            const list = Array.isArray(sheets) ? sheets.slice() : [];
+            list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            let html = '<option value="">' + escapeHtml(t('config.email.relay_cheatsheet_none')) + '</option>';
+            if (selectedID && !list.some(s => s.id === selectedID)) {
+                html += '<option value="' + escapeAttr(selectedID) + '">' + escapeHtml(selectedID) + '</option>';
+            }
+            list.forEach(sheet => {
+                html += '<option value="' + escapeAttr(sheet.id) + '">' + escapeHtml(sheet.name || sheet.id) + '</option>';
+            });
+            if (list.length === 0 && !selectedID) {
+                html += '<option value="" disabled>' + escapeHtml(t('config.email.relay_cheatsheet_empty')) + '</option>';
+            }
+            select.innerHTML = html;
+            select.value = selectedID || '';
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="' + escapeAttr(selectedID || '') + '">' + escapeHtml(t('config.email.relay_cheatsheet_error')) + '</option>';
+            select.value = selectedID || '';
+        });
 }
 
 function emailAccountRenderCards() {

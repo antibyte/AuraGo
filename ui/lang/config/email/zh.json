@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "如果禁用，代理只能读取邮件，不能发送。",
   "config.email.edit_tooltip": "编辑",
   "config.email.delete_tooltip": "删除",
-  "config.email.from_label": "发件人"
+  "config.email.from_label": "发件人",
+  "config.email.loading": "正在加载...",
+  "config.email.relay_cheatsheet_label": "带说明的备忘单",
+  "config.email.relay_cheatsheet_none": "无备忘单",
+  "config.email.relay_cheatsheet_empty": "没有可用的活动备忘单",
+  "config.email.relay_cheatsheet_error": "无法加载备忘单",
+  "help.email.relay_cheatsheet_id": "可选备忘单，当收件箱监视器将新邮件转发给代理时，其内容会作为说明附加。"
 }

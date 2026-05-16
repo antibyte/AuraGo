@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Se disabilitato, l'agente può solo leggere le email, non inviarle.",
   "config.email.edit_tooltip": "Modifica",
   "config.email.delete_tooltip": "Elimina",
-  "config.email.from_label": "Da"
+  "config.email.from_label": "Da",
+  "config.email.loading": "Caricamento...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet con istruzioni",
+  "config.email.relay_cheatsheet_none": "Nessun cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Nessun cheatsheet attivo disponibile",
+  "config.email.relay_cheatsheet_error": "Impossibile caricare i cheatsheet",
+  "help.email.relay_cheatsheet_id": "Cheatsheet opzionale aggiunto come istruzioni quando il watcher della posta in arrivo inoltra nuove email all'agente."
 }

@@ -1537,6 +1537,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"uptime_kuma", "poll_interval_seconds"}, c.UptimeKuma.PollIntervalSeconds},
 		{[]string{"uptime_kuma", "relay_to_agent"}, c.UptimeKuma.RelayToAgent},
 		{[]string{"uptime_kuma", "relay_instruction"}, c.UptimeKuma.RelayInstruction},
+		{[]string{"email", "relay_cheatsheet_id"}, c.Email.RelayCheatsheetID},
 		{[]string{"agentmail", "enabled"}, c.AgentMail.Enabled},
 		{[]string{"agentmail", "readonly"}, c.AgentMail.ReadOnly},
 		{[]string{"agentmail", "inbox_id"}, c.AgentMail.InboxID},

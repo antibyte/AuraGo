@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Si désactivé, l'agent peut seulement lire les e-mails, pas les envoyer.",
   "config.email.edit_tooltip": "Modifier",
   "config.email.delete_tooltip": "Supprimer",
-  "config.email.from_label": "De"
+  "config.email.from_label": "De",
+  "config.email.loading": "Chargement...",
+  "config.email.relay_cheatsheet_label": "Aide-mémoire avec instructions",
+  "config.email.relay_cheatsheet_none": "Aucun aide-mémoire",
+  "config.email.relay_cheatsheet_empty": "Aucun aide-mémoire actif disponible",
+  "config.email.relay_cheatsheet_error": "Impossible de charger les aide-mémoires",
+  "help.email.relay_cheatsheet_id": "Aide-mémoire facultatif ajouté comme instructions lorsque le surveillant de boîte de réception transmet un nouveau mail à l'agent."
 }

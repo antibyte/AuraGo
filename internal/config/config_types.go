@@ -758,18 +758,19 @@ type Config struct {
 		DefaultChannelID string `yaml:"default_channel_id"`
 	} `yaml:"discord"`
 	Email struct {
-		Enabled       bool   `yaml:"enabled"`
-		ReadOnly      bool   `yaml:"readonly"` // true = only fetch, block send
-		IMAPHost      string `yaml:"imap_host"`
-		IMAPPort      int    `yaml:"imap_port"`
-		SMTPHost      string `yaml:"smtp_host"`
-		SMTPPort      int    `yaml:"smtp_port"`
-		Username      string `yaml:"username"`
-		Password      string `yaml:"-" json:"-"`
-		FromAddress   string `yaml:"from_address"`
-		WatchEnabled  bool   `yaml:"watch_enabled"`
-		WatchInterval int    `yaml:"watch_interval_seconds"`
-		WatchFolder   string `yaml:"watch_folder"`
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"` // true = only fetch, block send
+		IMAPHost          string `yaml:"imap_host"`
+		IMAPPort          int    `yaml:"imap_port"`
+		SMTPHost          string `yaml:"smtp_host"`
+		SMTPPort          int    `yaml:"smtp_port"`
+		Username          string `yaml:"username"`
+		Password          string `yaml:"-" json:"-"`
+		FromAddress       string `yaml:"from_address"`
+		WatchEnabled      bool   `yaml:"watch_enabled"`
+		WatchInterval     int    `yaml:"watch_interval_seconds"`
+		WatchFolder       string `yaml:"watch_folder"`
+		RelayCheatsheetID string `yaml:"relay_cheatsheet_id" json:"relay_cheatsheet_id"`
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
 	Rules struct {
 		Enabled bool `yaml:"enabled" json:"enabled"`

@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Jeśli wyłączone, agent może tylko czytać e-maile, nie wysyłać.",
   "config.email.edit_tooltip": "Edytuj",
   "config.email.delete_tooltip": "Usuń",
-  "config.email.from_label": "Od"
+  "config.email.from_label": "Od",
+  "config.email.loading": "Ładowanie...",
+  "config.email.relay_cheatsheet_label": "Ściągawka z instrukcjami",
+  "config.email.relay_cheatsheet_none": "Brak ściągawki",
+  "config.email.relay_cheatsheet_empty": "Brak aktywnych ściągawek",
+  "config.email.relay_cheatsheet_error": "Nie udało się wczytać ściągawek",
+  "help.email.relay_cheatsheet_id": "Opcjonalna ściągawka dodawana jako instrukcje, gdy obserwator skrzynki przekazuje nową pocztę do agenta."
 }

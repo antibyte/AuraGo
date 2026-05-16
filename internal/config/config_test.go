@@ -1110,6 +1110,21 @@ func TestLoadAgentMailDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadEmailRelayCheatsheetDefault(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Email.RelayCheatsheetID != "" {
+		t.Fatalf("relay_cheatsheet_id = %q, want empty default", cfg.Email.RelayCheatsheetID)
+	}
+}
+
 func TestLoadRulesDefaultsEnabled(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
@@ -1122,6 +1137,27 @@ func TestLoadRulesDefaultsEnabled(t *testing.T) {
 	}
 	if !cfg.Rules.Enabled {
 		t.Fatal("expected rules.enabled to default to true")
+	}
+}
+
+func TestConfigSavePersistsEmailRelayCheatsheetID(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\nemail:\n  enabled: false\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.Email.RelayCheatsheetID = "cs-email"
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	if !strings.Contains(string(raw), "relay_cheatsheet_id: cs-email") {
+		t.Fatalf("expected email relay_cheatsheet_id to be serialized, got:\n%s", string(raw))
 	}
 }
 

@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Hvis deaktivert, kan agenten bare lese e-post, ikke sende.",
   "config.email.edit_tooltip": "Rediger",
   "config.email.delete_tooltip": "Slett",
-  "config.email.from_label": "Fra"
+  "config.email.from_label": "Fra",
+  "config.email.loading": "Laster...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet med instruksjoner",
+  "config.email.relay_cheatsheet_none": "Ingen cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Ingen aktive cheatsheets tilgjengelige",
+  "config.email.relay_cheatsheet_error": "Kunne ikke laste cheatsheets",
+  "help.email.relay_cheatsheet_id": "Valgfritt cheatsheet som legges ved som instruksjoner når innboks-overvåkeren videresender ny e-post til agenten."
 }

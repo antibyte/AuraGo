@@ -236,6 +236,7 @@ IMAP inbox monitoring and SMTP sending.
 | `watch_enabled` | `false` | Periodically poll inbox for new emails and wake the agent. |
 | `watch_interval_seconds` | `120` | Poll interval in seconds. |
 | `watch_folder` | `"INBOX"` | IMAP folder to watch. |
+| `relay_cheatsheet_id` | `""` | Optional cheatsheet appended as trusted instructions when the inbox watcher forwards new mail to the agent. |
 
 ---
 

@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "यदि निष्क्रिय है, तो एजेंट केवल ईमेल पढ़ सकता है, भेज नहीं सकता।",
   "config.email.edit_tooltip": "संपादन करना",
   "config.email.delete_tooltip": "मिटाना",
-  "config.email.from_label": "से"
+  "config.email.from_label": "से",
+  "config.email.loading": "लोड हो रहा है...",
+  "config.email.relay_cheatsheet_label": "निर्देशों वाला चीटशीट",
+  "config.email.relay_cheatsheet_none": "कोई चीटशीट नहीं",
+  "config.email.relay_cheatsheet_empty": "कोई सक्रिय चीटशीट उपलब्ध नहीं",
+  "config.email.relay_cheatsheet_error": "चीटशीट लोड नहीं हो सके",
+  "help.email.relay_cheatsheet_id": "वैकल्पिक चीटशीट जिसे इनबॉक्स वॉचर द्वारा नया मेल एजेंट को भेजते समय निर्देशों के रूप में जोड़ा जाता है."
 }

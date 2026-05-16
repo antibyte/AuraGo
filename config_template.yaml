@@ -234,6 +234,7 @@ email:
     watch_enabled: false
     watch_folder: INBOX
     watch_interval_seconds: 120
+    relay_cheatsheet_id: ""
 agentmail:
     enabled: false
     readonly: false

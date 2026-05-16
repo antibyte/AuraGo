@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Se desativado, o agente só pode ler e-mails, não enviá-los.",
   "config.email.edit_tooltip": "Editar",
   "config.email.delete_tooltip": "Excluir",
-  "config.email.from_label": "De"
+  "config.email.from_label": "De",
+  "config.email.loading": "Carregando...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet com instruções",
+  "config.email.relay_cheatsheet_none": "Sem cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Nenhum cheatsheet ativo disponível",
+  "config.email.relay_cheatsheet_error": "Não foi possível carregar os cheatsheets",
+  "help.email.relay_cheatsheet_id": "Cheatsheet opcional anexado como instruções quando o monitor da caixa de entrada encaminha novas mensagens ao agente."
 }

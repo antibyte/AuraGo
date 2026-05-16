@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Om inaktiverad kan agenten bara läsa e-post, inte skicka.",
   "config.email.edit_tooltip": "Redigera",
   "config.email.delete_tooltip": "Ta bort",
-  "config.email.from_label": "Från"
+  "config.email.from_label": "Från",
+  "config.email.loading": "Laddar...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet med instruktioner",
+  "config.email.relay_cheatsheet_none": "Inget cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Inga aktiva cheatsheets tillgängliga",
+  "config.email.relay_cheatsheet_error": "Kunde inte läsa in cheatsheets",
+  "help.email.relay_cheatsheet_id": "Valfritt cheatsheet som läggs till som instruktioner när inkorgsövervakaren vidarebefordrar ny e-post till agenten."
 }

@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "If disabled, the agent can only read emails, not send them.",
   "config.email.edit_tooltip": "Edit",
   "config.email.delete_tooltip": "Delete",
-  "config.email.from_label": "From"
+  "config.email.from_label": "From",
+  "config.email.loading": "Loading...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet with instructions",
+  "config.email.relay_cheatsheet_none": "No cheatsheet",
+  "config.email.relay_cheatsheet_empty": "No active cheatsheets available",
+  "config.email.relay_cheatsheet_error": "Could not load cheatsheets",
+  "help.email.relay_cheatsheet_id": "Optional cheatsheet appended as instructions when the inbox watcher forwards new mail to the agent."
 }

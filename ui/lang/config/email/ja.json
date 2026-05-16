@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "無効にすると、エージェントはメールを読むだけで、送信できません。",
   "config.email.edit_tooltip": "編集",
   "config.email.delete_tooltip": "消去",
-  "config.email.from_label": "送信元"
+  "config.email.from_label": "送信元",
+  "config.email.loading": "読み込み中...",
+  "config.email.relay_cheatsheet_label": "指示付きチートシート",
+  "config.email.relay_cheatsheet_none": "チートシートなし",
+  "config.email.relay_cheatsheet_empty": "利用可能な有効チートシートはありません",
+  "config.email.relay_cheatsheet_error": "チートシートを読み込めませんでした",
+  "help.email.relay_cheatsheet_id": "受信トレイ監視が新着メールをエージェントへ転送するときに、指示として追加する任意のチートシートです。"
 }

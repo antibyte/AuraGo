@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Pokud je deaktivováno, agent může pouze číst e-maily, nikoli odesílat.",
   "config.email.edit_tooltip": "Upravit",
   "config.email.delete_tooltip": "Smazat",
-  "config.email.from_label": "Od"
+  "config.email.from_label": "Od",
+  "config.email.loading": "Načítání...",
+  "config.email.relay_cheatsheet_label": "Tahák s pokyny",
+  "config.email.relay_cheatsheet_none": "Žádný tahák",
+  "config.email.relay_cheatsheet_empty": "Nejsou dostupné žádné aktivní taháky",
+  "config.email.relay_cheatsheet_error": "Taháky se nepodařilo načíst",
+  "help.email.relay_cheatsheet_id": "Volitelný tahák připojený jako pokyny, když hlídač schránky předává novou poštu agentovi."
 }

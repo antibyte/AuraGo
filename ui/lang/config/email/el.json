@@ -44,5 +44,11 @@
   "config.email.allow_sending_help": "Αν απενεργοποιηθεί, ο πράκτορας μπορεί μόνο να διαβάζει email, όχι να τα στέλνει.",
   "config.email.edit_tooltip": "Επεξεργασία",
   "config.email.delete_tooltip": "Διαγραφή",
-  "config.email.from_label": "Από"
+  "config.email.from_label": "Από",
+  "config.email.loading": "Φόρτωση...",
+  "config.email.relay_cheatsheet_label": "Cheatsheet με οδηγίες",
+  "config.email.relay_cheatsheet_none": "Κανένα cheatsheet",
+  "config.email.relay_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμα ενεργά cheatsheets",
+  "config.email.relay_cheatsheet_error": "Δεν ήταν δυνατή η φόρτωση των cheatsheets",
+  "help.email.relay_cheatsheet_id": "Προαιρετικό cheatsheet που προστίθεται ως οδηγίες όταν ο παρατηρητής εισερχομένων προωθεί νέα αλληλογραφία στον agent."
 }

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +25,7 @@ type EmailWatcher struct {
 	logger      *slog.Logger
 	guardian    *security.Guardian
 	llmGuardian *security.LLMGuardian
+	relaySheet  EmailRelayCheatsheet
 	stopCh      chan struct{}
 	mu          sync.Mutex
 	running     bool
@@ -37,6 +40,14 @@ type missionTriggerCallback struct {
 	subjectContains string
 	fromContains    string
 	callback        func(subject, from, body string)
+}
+
+// EmailRelayCheatsheet contains optional trusted instructions appended to
+// inbound email notifications after external email content has been isolated.
+type EmailRelayCheatsheet struct {
+	ID      string
+	Name    string
+	Content string
 }
 
 func NewEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian) *EmailWatcher {
@@ -231,15 +242,39 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 		ew.mu.Unlock()
 	}
 
-	ew.notifyAgent(buildEmailNotificationPrompt(acct, len(messages), summary))
+	ew.notifyAgent(buildEmailNotificationPrompt(acct, len(messages), summary, ew.relaySheet))
 }
 
-func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summary string) string {
+func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summary string, relaySheets ...EmailRelayCheatsheet) string {
 	summaryBlock := ""
 	if summary != "" {
 		summaryBlock = "\n\nEmail summary:\n" + security.IsolateExternalData(summary)
 	}
-	return fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s (%s) - %d new email(s) in %s.%s\n\nYou can use fetch_email with account \"%s\" for full content or send_email to reply.", acct.Name, acct.FromAddress, messageCount, acct.WatchFolder, summaryBlock, acct.ID)
+	prompt := fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s (%s) - %d new email(s) in %s.%s\n\nYou can use fetch_email with account \"%s\" for full content or send_email to reply.", acct.Name, acct.FromAddress, messageCount, acct.WatchFolder, summaryBlock, acct.ID)
+	if len(relaySheets) > 0 {
+		prompt += formatEmailRelayCheatsheet(relaySheets[0])
+	}
+	return prompt
+}
+
+func formatEmailRelayCheatsheet(sheet EmailRelayCheatsheet) string {
+	content := strings.TrimSpace(sheet.Content)
+	if content == "" {
+		return ""
+	}
+	if len(content) > 6000 {
+		content = content[:6000] + "\n[truncated]"
+	}
+	name := strings.TrimSpace(sheet.Name)
+	if name == "" {
+		name = strings.TrimSpace(sheet.ID)
+	}
+	if name == "" {
+		name = "configured email relay cheatsheet"
+	}
+	return "\n\n[EMAIL CHEATSHEET INSTRUCTIONS]\n" +
+		"Cheatsheet: " + name + "\n\n" +
+		content
 }
 
 // containsCI is a case-insensitive contains check.
@@ -321,7 +356,7 @@ func (ew *EmailWatcher) notifyAgent(prompt string) {
 
 // StartEmailWatcher creates and starts an email watcher if any account has
 // watch_enabled=true (or the legacy email.enabled + watch_enabled is set).
-func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian) *EmailWatcher {
+func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cheatsheetDBs ...*sql.DB) *EmailWatcher {
 	hasWatchAccount := false
 	for _, acct := range cfg.EmailAccounts {
 		if acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
@@ -337,6 +372,28 @@ func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *securi
 	}
 
 	watcher := NewEmailWatcher(cfg, logger, guardian, llmGuardian)
+	if len(cheatsheetDBs) > 0 {
+		watcher.relaySheet = loadEmailRelayCheatsheet(cheatsheetDBs[0], cfg.Email.RelayCheatsheetID, logger)
+	}
 	watcher.Start()
 	return watcher
+}
+
+func loadEmailRelayCheatsheet(db *sql.DB, id string, logger *slog.Logger) EmailRelayCheatsheet {
+	id = strings.TrimSpace(id)
+	if db == nil || id == "" {
+		return EmailRelayCheatsheet{}
+	}
+	sheet, err := CheatsheetGet(db, id)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[EmailWatcher] Failed to load relay cheatsheet", "id", id, "error", err)
+		}
+		return EmailRelayCheatsheet{}
+	}
+	return EmailRelayCheatsheet{
+		ID:      sheet.ID,
+		Name:    sheet.Name,
+		Content: sheet.Content,
+	}
 }
