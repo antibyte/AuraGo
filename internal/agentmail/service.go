@@ -47,6 +47,12 @@ type Service struct {
 	seen    map[string]struct{}
 }
 
+var (
+	agentMailWebSocketPingInterval = 45 * time.Second
+	agentMailWebSocketPongWait     = 2 * time.Minute
+	agentMailWebSocketWriteWait    = 10 * time.Second
+)
+
 type WebSocketMessageEvent struct {
 	Type    string  `json:"type,omitempty"`
 	InboxID string  `json:"inbox_id,omitempty"`
@@ -140,7 +146,7 @@ func (s *Service) run(ctx context.Context) {
 	if s.cfg.UseWebSocket {
 		for ctx.Err() == nil {
 			if err := s.runWebSocket(ctx); err != nil && ctx.Err() == nil {
-				s.logger.Warn("[AgentMail] WebSocket relay failed; falling back to poll cycle", "error", err)
+				s.logWebSocketFallback(err)
 				s.pollOnce(ctx)
 				wait := minDuration(s.pollInterval(), 30*time.Second)
 				if !sleepContext(ctx, wait) {
@@ -225,7 +231,18 @@ func (s *Service) runWebSocket(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	_ = conn.WriteJSON(map[string]string{"type": "subscribe", "inbox_id": s.cfg.InboxID})
+	_ = conn.SetReadDeadline(time.Now().Add(agentMailWebSocketPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(agentMailWebSocketPongWait))
+	})
+
+	if err := conn.WriteJSON(map[string]string{"type": "subscribe", "inbox_id": s.cfg.InboxID}); err != nil {
+		return fmt.Errorf("subscribe agentmail websocket: %w", err)
+	}
+	stopPing := make(chan struct{})
+	defer close(stopPing)
+	go s.keepWebSocketAlive(ctx, conn, stopPing)
+
 	for ctx.Err() == nil {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
@@ -245,6 +262,58 @@ func (s *Service) runWebSocket(ctx context.Context) error {
 		s.markSeen(event.Message.ID)
 	}
 	return ctx.Err()
+}
+
+func (s *Service) keepWebSocketAlive(ctx context.Context, conn *websocket.Conn, stop <-chan struct{}) {
+	interval := agentMailWebSocketPingInterval
+	if interval <= 0 {
+		return
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+			return
+		case <-stop:
+			return
+		case <-ticker.C:
+			deadline := time.Now().Add(agentMailWebSocketWriteWait)
+			if err := conn.WriteControl(websocket.PingMessage, []byte("agentmail"), deadline); err != nil {
+				s.logger.Debug("[AgentMail] WebSocket keepalive failed", "error", err)
+				_ = conn.Close()
+				return
+			}
+		}
+	}
+}
+
+func (s *Service) logWebSocketFallback(err error) {
+	msg := "[AgentMail] WebSocket relay failed; falling back to poll cycle"
+	if isTransientWebSocketClose(err) {
+		s.logger.Info("[AgentMail] WebSocket relay disconnected; falling back to poll cycle", "error", err)
+		return
+	}
+	s.logger.Warn(msg, "error", err)
+}
+
+func isTransientWebSocketClose(err error) bool {
+	if err == nil {
+		return false
+	}
+	if websocket.IsCloseError(err,
+		websocket.CloseNormalClosure,
+		websocket.CloseGoingAway,
+		websocket.CloseNoStatusReceived,
+		websocket.CloseAbnormalClosure,
+	) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unexpected EOF") ||
+		strings.Contains(msg, "use of closed network connection") ||
+		strings.Contains(msg, "i/o timeout")
 }
 
 func (s *Service) handleMessage(ctx context.Context, msg Message) error {

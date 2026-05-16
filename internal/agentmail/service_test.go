@@ -2,8 +2,14 @@ package agentmail
 
 import (
 	"context"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestBuildNotificationPromptIsolatesExternalData(t *testing.T) {
@@ -62,4 +68,101 @@ func TestServiceStartStopsWithoutRelayConfig(t *testing.T) {
 	if svc.Running() {
 		t.Fatal("service should not be running after failed start")
 	}
+}
+
+func TestRunWebSocketSendsKeepalivePing(t *testing.T) {
+	origInterval := agentMailWebSocketPingInterval
+	agentMailWebSocketPingInterval = 10 * time.Millisecond
+	t.Cleanup(func() { agentMailWebSocketPingInterval = origInterval })
+
+	pingCh := make(chan struct{}, 1)
+	subscribeCh := make(chan struct{}, 1)
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade websocket: %v", err)
+			return
+		}
+		defer conn.Close()
+		conn.SetPingHandler(func(appData string) error {
+			select {
+			case pingCh <- struct{}{}:
+			default:
+			}
+			return conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
+		})
+		_, _, err = conn.ReadMessage()
+		if err != nil {
+			t.Errorf("read subscribe message: %v", err)
+			return
+		}
+		subscribeCh <- struct{}{}
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	svc := NewService(ServiceConfig{
+		Config: Config{
+			Enabled:      true,
+			RelayToAgent: true,
+			APIKey:       "test-key",
+			InboxID:      "inbox-1",
+			WebSocketURL: wsURL,
+		},
+		Logger: slog.New(slog.NewTextHandler(testWriter{t: t}, &slog.HandlerOptions{Level: slog.LevelError})),
+		Notify: func(context.Context, string) error { return nil },
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() { errCh <- svc.runWebSocket(ctx) }()
+
+	select {
+	case <-subscribeCh:
+	case err := <-errCh:
+		t.Fatalf("runWebSocket returned before subscribe: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for websocket subscribe")
+	}
+
+	select {
+	case <-pingCh:
+	case err := <-errCh:
+		t.Fatalf("runWebSocket returned before keepalive ping: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for websocket keepalive ping")
+	}
+	cancel()
+	select {
+	case <-errCh:
+	case <-time.After(time.Second):
+		t.Fatal("runWebSocket did not stop after context cancellation")
+	}
+}
+
+func TestTransientWebSocketCloseClassification(t *testing.T) {
+	t.Parallel()
+
+	err := &websocket.CloseError{Code: websocket.CloseAbnormalClosure, Text: "unexpected EOF"}
+	if !isTransientWebSocketClose(err) {
+		t.Fatal("abnormal EOF websocket close should be treated as transient")
+	}
+	if isTransientWebSocketClose(context.Canceled) {
+		t.Fatal("unrelated errors should not be treated as transient websocket closes")
+	}
+}
+
+type testWriter struct {
+	t *testing.T
+}
+
+func (w testWriter) Write(p []byte) (int, error) {
+	w.t.Log(strings.TrimSpace(string(p)))
+	return len(p), nil
 }
