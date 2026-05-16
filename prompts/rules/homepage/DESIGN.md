@@ -212,6 +212,8 @@ Large weather displays utilize subtle text shadows to maintain legibility agains
 ## Homepage Usage Guidelines
 
 - Treat Atmospheric Glass as the default homepage visual system unless the user supplies a more specific brand or project `DESIGN.md`.
+- The final homepage must visibly read as Atmospheric Glass: translucent glass cards or panels, layered luminous gradients, blur/backdrop-filter depth, 1px light borders, soft shadows, white/silver/blue accents, and Inter-based hierarchy.
+- Avoid generic opaque dark cards, flat purple hero gradients, and solid pill filters as the primary visual language unless a project `DESIGN.md` explicitly asks for them.
 - Adapt weather-specific component examples to the current homepage domain while preserving the glass container physics, translucent surfaces, luminous gradients, and Inter-based hierarchy.
 - Keep accessibility and readability above decoration: glass blur, alpha surfaces, and gradient backgrounds must still produce clear text contrast on desktop and mobile.
 - Do not let this design system override AuraGo homepage workflow rules, security policy, deployment requirements, or tool permissions.

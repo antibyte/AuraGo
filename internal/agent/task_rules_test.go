@@ -54,6 +54,25 @@ func TestBuildTaskRulePromptContextHonorsDisabledConfig(t *testing.T) {
 	}
 }
 
+func TestBuildTaskRulePromptContextTreatsGermanPageRebuildAsHomepageWorkflow(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "lösche die ki news seite und erstelle sie komplett neu", nil, nil, "")
+	if !strings.Contains(ctx.TaskRules, "Homepage Workflow") {
+		t.Fatalf("TaskRules missing homepage rule for German page rebuild request:\n%s", ctx.TaskRules)
+	}
+	if !strings.Contains(ctx.HomepageDesignSystem, "Atmospheric Glass") {
+		t.Fatalf("HomepageDesignSystem missing Atmospheric Glass for German page rebuild request:\n%s", ctx.HomepageDesignSystem)
+	}
+	if !strings.Contains(ctx.TaskRules, "generic dark purple/blue card UI") {
+		t.Fatalf("homepage rule should include explicit Atmospheric Glass guardrail:\n%s", ctx.TaskRules)
+	}
+}
+
 func TestEnsureTaskRulesBeforeToolExecutionLoadsProjectDesignAfterInitialRule(t *testing.T) {
 	t.Parallel()
 

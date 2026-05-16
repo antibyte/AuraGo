@@ -36,7 +36,7 @@ func TestLoadCatalogIncludesEmbeddedHomepageRuleAndDesign(t *testing.T) {
 	if !strings.Contains(rule.Body, "Use the `homepage` tool") {
 		t.Fatalf("homepage rule body missing tool guidance:\n%s", rule.Body)
 	}
-	for _, marker := range []string{"Web Interface Quality Bar", "aria-label", "prefers-reduced-motion", "transition: all", "homepage_registry"} {
+	for _, marker := range []string{"Web Interface Quality Bar", "aria-label", "prefers-reduced-motion", "transition: all", "homepage_registry", "generic dark purple/blue card UI"} {
 		if !strings.Contains(rule.Body, marker) {
 			t.Fatalf("homepage rule body missing marker %q:\n%s", marker, rule.Body)
 		}
@@ -46,7 +46,7 @@ func TestLoadCatalogIncludesEmbeddedHomepageRuleAndDesign(t *testing.T) {
 	if !ok {
 		t.Fatal("expected embedded homepage DESIGN.md")
 	}
-	for _, marker := range []string{"name: Atmospheric Glass", "glass-card-standard", "## Brand & Style", "## Colors", "## Typography", "## Layout & Spacing", "## Elevation & Depth", "## Homepage Usage Guidelines"} {
+	for _, marker := range []string{"name: Atmospheric Glass", "glass-card-standard", "## Brand & Style", "## Colors", "## Typography", "## Layout & Spacing", "## Elevation & Depth", "## Homepage Usage Guidelines", "generic opaque dark cards"} {
 		if !strings.Contains(design.Content, marker) {
 			t.Fatalf("homepage design missing marker %q:\n%s", marker, design.Content)
 		}

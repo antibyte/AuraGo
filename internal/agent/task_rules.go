@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +19,12 @@ type taskRulePromptContext struct {
 	HomepageDesignSystem string
 	RuleIDs              []string
 }
+
+var (
+	homepageWorkflowIntentPattern = regexp.MustCompile(`(?i)\b(?:homepage|website|webseite|startseite|landing\s*page|landingpage|web\s*app|netlify|vercel)\b`)
+	genericPageIntentPattern      = regexp.MustCompile(`(?i)\b(?:seite|site|page)\b`)
+	homepageActionIntentPattern   = regexp.MustCompile(`(?i)\b(?:erstelle|erstellen|baue|bauen|lösche|loesche|neubauen|neu\s+aufsetzen|aufsetzen|redesign|deploy|veröffentliche|veroeffentliche|publish|create|build|rebuild|delete|recreate|redesign|deploy|publish)\b`)
+)
 
 func buildTaskRulePromptContext(cfg *config.Config, prompt string, tools, workflows []string, homepageProjectDir string) taskRulePromptContext {
 	if cfg == nil || !cfg.Rules.Enabled {
@@ -138,13 +145,8 @@ func inferRuleWorkflows(prompt string, tools []string) []string {
 			workflows = append(workflows, "homepage")
 		}
 	}
-	if strings.Contains(lower, "homepage") ||
-		strings.Contains(lower, "landing page") ||
-		strings.Contains(lower, "website") ||
-		strings.Contains(lower, "webseite") ||
-		strings.Contains(lower, "startseite") ||
-		strings.Contains(lower, "netlify") ||
-		strings.Contains(lower, "vercel") {
+	if homepageWorkflowIntentPattern.MatchString(lower) ||
+		(genericPageIntentPattern.MatchString(lower) && homepageActionIntentPattern.MatchString(lower)) {
 		workflows = append(workflows, "homepage")
 	}
 	return workflows

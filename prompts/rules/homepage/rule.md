@@ -10,6 +10,8 @@ keywords:
   - website
   - landing page
   - webseite
+  - seite
+  - site
   - startseite
   - netlify
   - vercel
@@ -20,6 +22,10 @@ This rule is the default operating guide for homepage, website, landing page, re
 ## AuraGo Homepage Workflow
 
 Use the `homepage` tool for homepage workspace projects. Do not inspect, create, edit, copy, move, delete, build, or deploy homepage project files with generic filesystem, file_editor, execute_shell, or execute_python tools.
+
+When the task is to create, recreate, delete, rebuild, redesign, publish, or deploy a website/page/site, treat it as a homepage workflow even if the user says only "Seite" or "site". Load and follow the `HOMEPAGE DESIGN SYSTEM` section before choosing colors, layout, cards, spacing, typography, or visual effects.
+
+The default visual target is Atmospheric Glass. Unless the user supplied a different brand or project `DESIGN.md`, the resulting page should visibly use the Atmospheric Glass system: translucent glass surfaces, luminous layered gradients, soft borders, blur/backdrop-filter depth, restrained white/silver/blue accents, Inter-based type hierarchy, and readable contrast. A generic dark purple/blue card UI without glass physics does not satisfy the default design system.
 
 Keep homepage paths relative to the homepage workspace. Use project-prefixed paths such as `my-site/src/App.tsx`, and use `project_dir` values such as `my-site`, never `/workspace/my-site`.
 
