@@ -78,19 +78,39 @@ func ensureTaskRulesBeforeToolExecution(s *agentLoopState, tc ToolCall, lastUser
 		projectDir = toolArgString(tc.Params, "project_dir")
 	}
 	ctx := buildTaskRulePromptContext(s.runCfg.Config, lastUserMsg, []string{tc.Action}, nil, projectDir)
-	if len(ctx.RuleIDs) == 0 || taskRuleIDsLoaded(s.flags.TaskRuleIDs, ctx.RuleIDs) {
+	if len(ctx.RuleIDs) == 0 {
 		return "", false
 	}
-	if projectDir != "" && (tc.Action == "homepage" || tc.Action == "homepage_tool") {
-		s.homepageRuleProjectDir = projectDir
-		ctx = buildTaskRulePromptContext(s.runCfg.Config, lastUserMsg, []string{tc.Action}, nil, projectDir)
+
+	projectDesignChanged := false
+	if projectDir != "" && isHomepageRuleTool(tc.Action) {
+		trimmedProjectDir := strings.TrimSpace(projectDir)
+		if trimmedProjectDir != "" &&
+			s.homepageRuleProjectDir != trimmedProjectDir &&
+			strings.TrimSpace(ctx.HomepageDesignSystem) != strings.TrimSpace(s.flags.HomepageDesignSystem) {
+			projectDesignChanged = true
+		}
+		s.homepageRuleProjectDir = trimmedProjectDir
 	}
+	if taskRuleIDsLoaded(s.flags.TaskRuleIDs, ctx.RuleIDs) && !projectDesignChanged {
+		return "", false
+	}
+
 	applyTaskRulePromptContext(&s.flags, ctx)
 	s.cachedSysPromptKey = ""
 	s.cachedSysPrompt = ""
 	s.cachedSysPromptTokens = 0
 	s.cachedSysPromptAt = time.Time{}
 	return fmt.Sprintf(`{"status":"blocked","message":"Required task rules have been loaded for %s. The tool was not executed yet. Re-read the TASK RULES section and retry only if the requested action still complies with those rules."}`, tc.Action), true
+}
+
+func isHomepageRuleTool(action string) bool {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "homepage", "homepage_tool":
+		return true
+	default:
+		return false
+	}
 }
 
 func taskRuleIDsLoaded(loaded, required []string) bool {
