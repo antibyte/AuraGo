@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Connecting...",
   "containers.terminal_connected": "Connected",
   "containers.terminal_closed": "Session closed",
-  "containers.terminal_error": "Terminal error"
+  "containers.terminal_error": "Terminal error",
+  "containers.terminal_opening": "Opening shell...",
+  "containers.terminal_unavailable": "Terminal is unavailable."
 }

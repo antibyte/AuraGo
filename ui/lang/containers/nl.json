@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Verbinden...",
   "containers.terminal_connected": "Verbonden",
   "containers.terminal_closed": "Sessie gesloten",
-  "containers.terminal_error": "Terminalfout"
+  "containers.terminal_error": "Terminalfout",
+  "containers.terminal_opening": "Shell wordt geopend...",
+  "containers.terminal_unavailable": "Terminal is niet beschikbaar."
 }

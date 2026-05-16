@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Ansluter...",
   "containers.terminal_connected": "Ansluten",
   "containers.terminal_closed": "Sessionen stängd",
-  "containers.terminal_error": "Terminalfel"
+  "containers.terminal_error": "Terminalfel",
+  "containers.terminal_opening": "Öppnar shell...",
+  "containers.terminal_unavailable": "Terminalen är inte tillgänglig."
 }

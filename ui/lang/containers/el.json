@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Σύνδεση...",
   "containers.terminal_connected": "Συνδέθηκε",
   "containers.terminal_closed": "Η συνεδρία έκλεισε",
-  "containers.terminal_error": "Σφάλμα τερματικού"
+  "containers.terminal_error": "Σφάλμα τερματικού",
+  "containers.terminal_opening": "Άνοιγμα κελύφους...",
+  "containers.terminal_unavailable": "Το τερματικό δεν είναι διαθέσιμο."
 }

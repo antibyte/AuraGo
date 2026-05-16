@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Łączenie...",
   "containers.terminal_connected": "Połączono",
   "containers.terminal_closed": "Sesja zamknięta",
-  "containers.terminal_error": "Błąd terminala"
+  "containers.terminal_error": "Błąd terminala",
+  "containers.terminal_opening": "Otwieranie powłoki...",
+  "containers.terminal_unavailable": "Terminal jest niedostępny."
 }

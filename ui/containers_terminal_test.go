@@ -50,6 +50,46 @@ func TestContainersScriptRendersRunningShellButtonAndCleansUpTerminal(t *testing
 	}
 }
 
+func TestContainersTerminalModalHasBoundedLayout(t *testing.T) {
+	t.Parallel()
+
+	css := rawDesktopAssetText(t, "css/containers.css")
+	for _, marker := range []string{
+		".ct-terminal-modal",
+		"max-height:",
+		"display: flex",
+		"flex-direction: column",
+		".ct-terminal-body",
+		"min-height: 0",
+		"overflow: hidden",
+		".ct-terminal-output",
+		"height: clamp(",
+		"min-height: 0",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("containers terminal CSS missing bounded layout marker %q", marker)
+		}
+	}
+}
+
+func TestContainersTerminalWritesVisibleSessionText(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"function writeTerminalNotice",
+		"terminal.writeln",
+		"containers.terminal_opening",
+		"containers.terminal_unavailable",
+		"output.textContent",
+		"requestAnimationFrame",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers terminal script missing visible text marker %q", marker)
+		}
+	}
+}
+
 func TestContainersTerminalTranslationsExist(t *testing.T) {
 	t.Parallel()
 
@@ -60,6 +100,8 @@ func TestContainersTerminalTranslationsExist(t *testing.T) {
 		"containers.terminal_connected",
 		"containers.terminal_closed",
 		"containers.terminal_error",
+		"containers.terminal_opening",
+		"containers.terminal_unavailable",
 	}
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	for _, lang := range langs {

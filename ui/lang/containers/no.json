@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Kobler til...",
   "containers.terminal_connected": "Tilkoblet",
   "containers.terminal_closed": "Økt lukket",
-  "containers.terminal_error": "Terminalfeil"
+  "containers.terminal_error": "Terminalfeil",
+  "containers.terminal_opening": "Åpner skall...",
+  "containers.terminal_unavailable": "Terminalen er ikke tilgjengelig."
 }

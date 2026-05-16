@@ -12,6 +12,7 @@ let terminalFitAddon = null;
 let terminalSocket = null;
 let terminalResizeObserver = null;
 let terminalSessionToken = 0;
+let terminalFitScheduled = false;
 
 // ── Initialization ──────────────────────────────────────────────────────────
 
@@ -264,6 +265,7 @@ function showTerminal(id, name) {
 
     if (!window.Terminal) {
         setTerminalStatus('containers.terminal_error');
+        output.textContent = t('containers.terminal_unavailable') || 'Terminal renderer unavailable.';
         return;
     }
 
@@ -284,7 +286,8 @@ function showTerminal(id, name) {
         terminal.loadAddon(terminalFitAddon);
     }
     terminal.open(output);
-    fitTerminal();
+    writeTerminalNotice('containers.terminal_opening');
+    scheduleTerminalFit();
     terminal.focus();
 
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -299,7 +302,8 @@ function showTerminal(id, name) {
     terminalSocket.onopen = () => {
         if (token !== terminalSessionToken) return;
         setTerminalStatus('containers.terminal_connected');
-        fitTerminal();
+        writeTerminalNotice('containers.terminal_connected');
+        scheduleTerminalFit();
     };
     terminalSocket.onmessage = event => {
         if (token !== terminalSessionToken || !terminal) return;
@@ -312,6 +316,7 @@ function showTerminal(id, name) {
     terminalSocket.onerror = () => {
         if (token !== terminalSessionToken) return;
         setTerminalStatus('containers.terminal_error');
+        writeTerminalNotice('containers.terminal_error');
     };
     terminalSocket.onclose = () => {
         if (token !== terminalSessionToken) return;
@@ -320,10 +325,10 @@ function showTerminal(id, name) {
     };
 
     if (window.ResizeObserver) {
-        terminalResizeObserver = new ResizeObserver(() => fitTerminal());
+        terminalResizeObserver = new ResizeObserver(() => scheduleTerminalFit());
         terminalResizeObserver.observe(output);
     }
-    window.addEventListener('resize', fitTerminal);
+    window.addEventListener('resize', scheduleTerminalFit);
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -334,7 +339,8 @@ function closeTerminalModal() {
 
 function closeTerminalSession() {
     terminalSessionToken += 1;
-    window.removeEventListener('resize', fitTerminal);
+    terminalFitScheduled = false;
+    window.removeEventListener('resize', scheduleTerminalFit);
     if (terminalResizeObserver) {
         terminalResizeObserver.disconnect();
         terminalResizeObserver = null;
@@ -368,6 +374,26 @@ function fitTerminal() {
     if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
         terminalSocket.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
     }
+}
+
+function scheduleTerminalFit() {
+    if (terminalFitScheduled) return;
+    terminalFitScheduled = true;
+    const run = () => {
+        terminalFitScheduled = false;
+        fitTerminal();
+    };
+    if (window.requestAnimationFrame) {
+        window.requestAnimationFrame(run);
+        return;
+    }
+    setTimeout(run, 0);
+}
+
+function writeTerminalNotice(key) {
+    if (!terminal) return;
+    const message = t(key) || key;
+    terminal.writeln(`\x1b[2m${message}\x1b[0m`);
 }
 
 function setTerminalStatus(key) {

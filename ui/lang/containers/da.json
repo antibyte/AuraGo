@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Opretter forbindelse...",
   "containers.terminal_connected": "Forbundet",
   "containers.terminal_closed": "Session lukket",
-  "containers.terminal_error": "Terminalfejl"
+  "containers.terminal_error": "Terminalfejl",
+  "containers.terminal_opening": "Åbner shell...",
+  "containers.terminal_unavailable": "Terminalen er ikke tilgængelig."
 }

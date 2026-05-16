@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "正在连接...",
   "containers.terminal_connected": "已连接",
   "containers.terminal_closed": "会话已关闭",
-  "containers.terminal_error": "终端错误"
+  "containers.terminal_error": "终端错误",
+  "containers.terminal_opening": "正在打开 shell...",
+  "containers.terminal_unavailable": "终端不可用。"
 }

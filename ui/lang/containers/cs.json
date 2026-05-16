@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Připojování...",
   "containers.terminal_connected": "Připojeno",
   "containers.terminal_closed": "Relace ukončena",
-  "containers.terminal_error": "Chyba terminálu"
+  "containers.terminal_error": "Chyba terminálu",
+  "containers.terminal_opening": "Otevírám shell...",
+  "containers.terminal_unavailable": "Terminál není k dispozici."
 }

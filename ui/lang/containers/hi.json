@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "कनेक्ट हो रहा है...",
   "containers.terminal_connected": "कनेक्टेड",
   "containers.terminal_closed": "सत्र बंद",
-  "containers.terminal_error": "टर्मिनल त्रुटि"
+  "containers.terminal_error": "टर्मिनल त्रुटि",
+  "containers.terminal_opening": "शेल खोला जा रहा है...",
+  "containers.terminal_unavailable": "टर्मिनल उपलब्ध नहीं है."
 }

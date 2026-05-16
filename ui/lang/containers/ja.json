@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "接続中...",
   "containers.terminal_connected": "接続済み",
   "containers.terminal_closed": "セッション終了",
-  "containers.terminal_error": "ターミナルエラー"
+  "containers.terminal_error": "ターミナルエラー",
+  "containers.terminal_opening": "シェルを開いています...",
+  "containers.terminal_unavailable": "ターミナルを利用できません。"
 }

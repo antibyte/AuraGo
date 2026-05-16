@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Connexion...",
   "containers.terminal_connected": "Connecté",
   "containers.terminal_closed": "Session fermée",
-  "containers.terminal_error": "Erreur du terminal"
+  "containers.terminal_error": "Erreur du terminal",
+  "containers.terminal_opening": "Ouverture du shell...",
+  "containers.terminal_unavailable": "Le terminal est indisponible."
 }

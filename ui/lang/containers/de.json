@@ -31,5 +31,7 @@
   "containers.terminal_connecting": "Verbinde...",
   "containers.terminal_connected": "Verbunden",
   "containers.terminal_closed": "Sitzung geschlossen",
-  "containers.terminal_error": "Terminalfehler"
+  "containers.terminal_error": "Terminalfehler",
+  "containers.terminal_opening": "Shell wird geöffnet...",
+  "containers.terminal_unavailable": "Terminal ist nicht verfügbar."
 }
