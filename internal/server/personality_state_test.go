@@ -97,3 +97,18 @@ func TestBuildPersonalityStatePayloadFallsBackWhenEmotionIsOnlyReasoning(t *test
 		t.Fatalf("fallback current_emotion still contains think tag: %q", got)
 	}
 }
+
+func TestBuildPersonalityStatePayloadKeepsEnabledWhenTraitsUnavailable(t *testing.T) {
+	s := newTestServerWithPersonalityState(t)
+	if err := s.ShortTermMem.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	payload := s.buildPersonalityStatePayload()
+	if enabled, _ := payload["enabled"].(bool); !enabled {
+		t.Fatalf("enabled personality engine should not be reported as disabled when traits are unavailable: %#v", payload)
+	}
+	if traits, ok := payload["traits"].(memory.PersonalityTraits); !ok || traits[memory.TraitCuriosity] == 0 {
+		t.Fatalf("expected fallback traits in payload, got %#v", payload["traits"])
+	}
+}

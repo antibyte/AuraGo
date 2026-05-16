@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"aurago/internal/memory"
 	"aurago/internal/security"
 )
 
@@ -42,6 +43,18 @@ func fallbackEmotionPreview(mood, cause, style string) string {
 	}
 }
 
+func fallbackPersonalityTraits() memory.PersonalityTraits {
+	return memory.PersonalityTraits{
+		memory.TraitCuriosity:    0.5,
+		memory.TraitThoroughness: 0.5,
+		memory.TraitCreativity:   0.5,
+		memory.TraitEmpathy:      0.5,
+		memory.TraitConfidence:   0.5,
+		memory.TraitAffinity:     0.5,
+		memory.TraitLoneliness:   0.0,
+	}
+}
+
 func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 	if !s.Cfg.Personality.Engine {
 		return map[string]interface{}{"enabled": false}
@@ -50,7 +63,7 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 	traits, err := s.ShortTermMem.GetTraits()
 	if err != nil {
 		s.Logger.Error("Failed to get personality traits", "error", err)
-		return map[string]interface{}{"enabled": false}
+		traits = fallbackPersonalityTraits()
 	}
 
 	mood := s.ShortTermMem.GetCurrentMood()
