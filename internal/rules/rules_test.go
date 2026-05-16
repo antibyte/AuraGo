@@ -41,7 +41,7 @@ func TestLoadCatalogIncludesEmbeddedHomepageRuleAndDesign(t *testing.T) {
 	if !ok {
 		t.Fatal("expected embedded homepage DESIGN.md")
 	}
-	for _, marker := range []string{"## Colors", "## Typography", "## Spacing", "## Components", "## Elevation", "## Guidelines"} {
+	for _, marker := range []string{"name: Atmospheric Glass", "glass-card-standard", "## Brand & Style", "## Colors", "## Typography", "## Layout & Spacing", "## Elevation & Depth", "## Homepage Usage Guidelines"} {
 		if !strings.Contains(design.Content, marker) {
 			t.Fatalf("homepage design missing marker %q:\n%s", marker, design.Content)
 		}

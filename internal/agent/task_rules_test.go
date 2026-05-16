@@ -32,7 +32,7 @@ func TestBuildTaskRulePromptContextSelectsHomepageRuleAndProjectDesign(t *testin
 	if !strings.Contains(ctx.TaskRules, "Homepage Workflow") {
 		t.Fatalf("TaskRules missing homepage rule:\n%s", ctx.TaskRules)
 	}
-	if !strings.Contains(ctx.HomepageDesignSystem, "AuraGo Homepage Design System") {
+	if !strings.Contains(ctx.HomepageDesignSystem, "Atmospheric Glass") {
 		t.Fatalf("HomepageDesignSystem missing global design:\n%s", ctx.HomepageDesignSystem)
 	}
 	if !strings.Contains(ctx.HomepageDesignSystem, "Project Design") {
