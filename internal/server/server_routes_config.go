@@ -359,6 +359,14 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dashboard/profile", handleDashboardProfile(s))
 	mux.HandleFunc("/api/dashboard/profile/entry", handleDashboardProfileEntry(s))
 	mux.HandleFunc("/api/dashboard/activity", handleDashboardActivity(s))
+	mux.HandleFunc("/api/dashboard/audit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			requireAdmin(s, handleDashboardAudit(s, sse)).ServeHTTP(w, r)
+			return
+		}
+		handleDashboardAudit(s, sse)(w, r)
+	})
+	mux.Handle("/api/dashboard/audit/", requireAdmin(s, handleDashboardAuditByID(s, sse)))
 	mux.HandleFunc("/api/cron", handleCronAPI(s))
 	mux.HandleFunc("/api/background-tasks", handleBackgroundTasks(s))
 	mux.HandleFunc("/api/background-tasks/", handleBackgroundTaskByID(s))

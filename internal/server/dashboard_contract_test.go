@@ -641,3 +641,72 @@ func TestHandleActivityOverviewContract(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleDashboardAuditContractAndDelete(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if _, err := stm.RecordAuditEvent(memory.AuditEvent{
+		Source:     memory.AuditSourceAgentTool,
+		EventType:  "tool_call",
+		TargetName: "execute_shell",
+		Status:     memory.AuditStatusSuccess,
+		Summary:    "execute_shell completed",
+		Detail:     "exit code 0",
+		DurationMS: 42,
+	}); err != nil {
+		t.Fatalf("RecordAuditEvent: %v", err)
+	}
+	if _, err := stm.RecordAuditEvent(memory.AuditEvent{
+		Source:     memory.AuditSourceHeartbeat,
+		EventType:  "heartbeat_run",
+		TargetName: "scheduler",
+		Status:     memory.AuditStatusError,
+		Summary:    "Heartbeat failed",
+		Detail:     "model unavailable",
+	}); err != nil {
+		t.Fatalf("RecordAuditEvent heartbeat: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm, Logger: logger}
+	handler := handleDashboardAudit(s, NewSSEBroadcaster())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/audit?source=agent_tool&status=success&q=shell&limit=10", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode audit response: %v", err)
+	}
+	for _, key := range []string{"entries", "total", "limit", "offset"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("audit payload missing key %q", key)
+		}
+	}
+	if got := int(body["total"].(float64)); got != 1 {
+		t.Fatalf("total = %d, want 1", got)
+	}
+
+	badBulk := httptest.NewRequest(http.MethodDelete, "/api/dashboard/audit", bytes.NewReader([]byte(`{"all":true}`)))
+	badBulk.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, badBulk)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("bulk delete without confirmation status = %d, want 400", rec.Code)
+	}
+
+	goodBulk := httptest.NewRequest(http.MethodDelete, "/api/dashboard/audit", bytes.NewReader([]byte(`{"source":"heartbeat","confirm":"DELETE_AUDIT_EVENTS"}`)))
+	goodBulk.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, goodBulk)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("bulk delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+}

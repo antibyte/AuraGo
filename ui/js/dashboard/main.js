@@ -94,7 +94,7 @@
 
         const TabState = { active: 'overview', loaded: {} };
         const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '', modalKind: '', modalNodeId: '', modalTriggerEl: null };
-        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'system'];
+        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'audit', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
             el.classList.toggle('is-hidden', hidden);
@@ -121,6 +121,9 @@
             if (tabId === 'filesync' && TabState.loaded[tabId]) {
                 loadFileSyncStatus();
             }
+            if (tabId === 'audit' && TabState.loaded[tabId]) {
+                loadTabAudit();
+            }
             if (!TabState.loaded[tabId]) {
                 loadTabContent(tabId);
             }
@@ -134,6 +137,7 @@
                 case 'user':     return loadTabUser();
                 case 'knowledge': return loadTabKnowledge();
                 case 'filesync':  return loadFileSyncStatus();
+                case 'audit':     return loadTabAudit();
                 case 'system':   return loadTabSystem();
             }
         }
@@ -397,6 +401,7 @@
             if (knowledgeGraphReset) {
                 knowledgeGraphReset.addEventListener('click', resetKnowledgeGraphFocus);
             }
+            setupAuditControls();
             document.addEventListener('click', (e) => {
                 const nodeLink = e.target.closest('[data-kg-open-node]');
                 if (nodeLink) {
@@ -433,6 +438,8 @@
                     case 'agent':    loadTabAgent();    break;
                     case 'user':     loadTabUser();     break;
                     case 'knowledge': loadTabKnowledge(); break;
+                    case 'filesync':  loadFileSyncStatus(); break;
+                    case 'audit':     loadTabAudit();    break;
                     case 'system':   loadTabSystem();   break;
                 }
             }

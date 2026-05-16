@@ -402,6 +402,9 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/dashboard/audit" || strings.HasPrefix(path, "/api/dashboard/audit/") {
+		return true
+	}
 	switch path {
 	case "/api/admin/stop",
 		"/api/backup/import",

@@ -3,11 +3,15 @@ package tools
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/memory"
 )
 
 type fakeRemoteMissionClient struct {
@@ -204,6 +208,13 @@ func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
 	}
 	defer historyDB.Close()
 	mgr.SetHistoryDB(historyDB)
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	mgr.SetAuditRecorder(stm.UpsertAuditEventByCorrelation)
 
 	if err := mgr.Create(&MissionV2{
 		ID:            "mission_no_callback",
@@ -249,6 +260,19 @@ func TestProcessNextWithoutCallbackCompletesMissionHistory(t *testing.T) {
 	}
 	if run.ErrorMsg != "no callback registered" {
 		t.Fatalf("error_msg = %q, want no callback registered", run.ErrorMsg)
+	}
+	auditPage, err := stm.SearchAuditEvents(memory.AuditFilter{Source: memory.AuditSourceMission, TargetID: "mission_no_callback", Limit: 5})
+	if err != nil {
+		t.Fatalf("SearchAuditEvents: %v", err)
+	}
+	if auditPage.Total != 1 {
+		t.Fatalf("audit total = %d, want one upserted mission event", auditPage.Total)
+	}
+	if auditPage.Entries[0].Status != memory.AuditStatusError {
+		t.Fatalf("audit status = %q, want error", auditPage.Entries[0].Status)
+	}
+	if auditPage.Entries[0].CorrelationID != run.ID {
+		t.Fatalf("audit correlation = %q, want run id %q", auditPage.Entries[0].CorrelationID, run.ID)
 	}
 	got, ok := mgr.Get("mission_no_callback")
 	if !ok {

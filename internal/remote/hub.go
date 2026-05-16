@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,18 @@ type RemoteConnection struct {
 	Version       string
 	SeqCounter    uint64
 	mu            sync.Mutex
+}
+
+// RemoteAuditEvent is a normalized remote-control event emitted to the supervisor audit sink.
+type RemoteAuditEvent struct {
+	DeviceID   string
+	DeviceName string
+	EventType  string
+	Status     string
+	Summary    string
+	Detail     string
+	DurationMS int64
+	Metadata   map[string]interface{}
 }
 
 // Send writes a signed message to the remote.  JSON serialization happens
@@ -72,6 +85,7 @@ type RemoteHub struct {
 	OnConnect    func(deviceID, name string)
 	OnDisconnect func(deviceID, name string)
 	OnHeartbeat  func(deviceID string, hb HeartbeatPayload)
+	OnAudit      func(event RemoteAuditEvent)
 }
 
 // NewRemoteHub creates a new hub for managing remote connections.
@@ -104,6 +118,13 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 	h.mu.Unlock()
 
 	h.logger.Info("Remote connected", "device_id", deviceID, "name", conn.Name)
+	h.emitAudit(RemoteAuditEvent{
+		DeviceID:   deviceID,
+		DeviceName: conn.Name,
+		EventType:  "remote_connect",
+		Status:     "success",
+		Summary:    "Remote device connected",
+	})
 	if h.OnConnect != nil {
 		h.OnConnect(deviceID, conn.Name)
 	}
@@ -125,6 +146,13 @@ func (h *RemoteHub) Unregister(deviceID string) {
 		if h.db != nil {
 			_ = UpdateDeviceStatus(h.db, deviceID, "offline")
 		}
+		h.emitAudit(RemoteAuditEvent{
+			DeviceID:   deviceID,
+			DeviceName: conn.Name,
+			EventType:  "remote_disconnect",
+			Status:     "warning",
+			Summary:    "Remote device disconnected",
+		})
 		if h.OnDisconnect != nil {
 			h.OnDisconnect(deviceID, conn.Name)
 		}
@@ -349,6 +377,20 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				if h.OnHeartbeat != nil {
 					h.OnHeartbeat(conn.DeviceID, hb)
 				}
+				h.emitAudit(RemoteAuditEvent{
+					DeviceID:   conn.DeviceID,
+					DeviceName: conn.Name,
+					EventType:  "remote_heartbeat",
+					Status:     "success",
+					Summary:    "Remote heartbeat received",
+					Detail:     fmt.Sprintf("CPU %.1f%%, memory %.1f%%, version %s", hb.CPUPercent, hb.MemPercent, hb.Version),
+					Metadata: map[string]interface{}{
+						"hostname": hb.Hostname,
+						"os":       hb.OS,
+						"arch":     hb.Arch,
+						"version":  hb.Version,
+					},
+				})
 			}
 		case MsgResult:
 			var result ResultPayload
@@ -363,6 +405,19 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				if h.db != nil && h.AuditLogEnabled {
 					_ = LogAudit(h.db, conn.DeviceID, "result", result.CommandID, result.Status, result.DurationMs)
 				}
+				h.emitAudit(RemoteAuditEvent{
+					DeviceID:   conn.DeviceID,
+					DeviceName: conn.Name,
+					EventType:  "remote_command",
+					Status:     remoteAuditStatus(result.Status),
+					Summary:    "Remote command result: " + result.Status,
+					Detail:     result.Error,
+					DurationMS: result.DurationMs,
+					Metadata: map[string]interface{}{
+						"command_id": result.CommandID,
+						"status":     result.Status,
+					},
+				})
 			}
 		case MsgAck:
 			h.logger.Debug("Ack received from remote", "device_id", conn.DeviceID, "msg_id", msg.MessageID)
@@ -374,6 +429,26 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		default:
 			h.logger.Warn("Unknown message type from remote", "device_id", conn.DeviceID, "type", msg.Type)
 		}
+	}
+}
+
+func (h *RemoteHub) emitAudit(event RemoteAuditEvent) {
+	if h == nil || h.OnAudit == nil {
+		return
+	}
+	h.OnAudit(event)
+}
+
+func remoteAuditStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "success", "ok", "completed", "done":
+		return "success"
+	case "denied", "timeout", "error", "failed", "failure":
+		return "error"
+	case "":
+		return "warning"
+	default:
+		return strings.ToLower(strings.TrimSpace(status))
 	}
 }
 

@@ -82,6 +82,9 @@
     <button class="dash-tab" data-tab="filesync">
       <span class="tab-icon">📡</span><span class="tab-label" data-i18n="dashboard.tab_filesync">Datei-Sync</span>
     </button>
+    <button class="dash-tab" data-tab="audit">
+      <span class="tab-icon">🧾</span><span class="tab-label" data-i18n="dashboard.tab_audit">Audit</span>
+    </button>
     <button class="dash-tab" data-tab="system">
       <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
     </button>
@@ -504,6 +507,78 @@
 
     </div><!-- .dash-grid tab-filesync -->
   </div><!-- #tab-filesync -->
+
+  <!-- ═══ Tab 4c: Audit ══════════════════════════════════════════════════════ -->
+  <div class="dash-tab-panel is-hidden" id="tab-audit">
+    <div class="dash-grid">
+      <div class="dash-card dash-full-width" id="card-audit-log">
+        <div class="dash-card-header">
+          <span class="card-icon">🧾</span>
+          <span data-i18n="dashboard.audit_title">Audit</span>
+          <span class="collapse-toggle" data-card="card-audit-log" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+        </div>
+        <div class="dash-card-body">
+          <div class="audit-controls">
+            <input type="search" id="audit-search" class="profile-search" data-i18n-placeholder="dashboard.audit_search_placeholder" placeholder="Audit durchsuchen...">
+            <select id="audit-source-filter" class="audit-select">
+              <option value="" data-i18n="dashboard.audit_filter_all_sources">Alle Quellen</option>
+              <option value="agent_tool" data-i18n="dashboard.audit_source_agent_tool">Agent-Tools</option>
+              <option value="mission" data-i18n="dashboard.audit_source_mission">Missions</option>
+              <option value="heartbeat" data-i18n="dashboard.audit_source_heartbeat">Heartbeat</option>
+              <option value="remote" data-i18n="dashboard.audit_source_remote">Remote</option>
+              <option value="system" data-i18n="dashboard.audit_source_system">System</option>
+            </select>
+            <select id="audit-status-filter" class="audit-select">
+              <option value="" data-i18n="dashboard.audit_filter_all_statuses">Alle Status</option>
+              <option value="running" data-i18n="dashboard.audit_status_running">Läuft</option>
+              <option value="success" data-i18n="dashboard.audit_status_success">Erfolgreich</option>
+              <option value="error" data-i18n="dashboard.audit_status_error">Fehler</option>
+              <option value="warning" data-i18n="dashboard.audit_status_warning">Warnung</option>
+              <option value="blocked" data-i18n="dashboard.audit_status_blocked">Blockiert</option>
+              <option value="sanitized" data-i18n="dashboard.audit_status_sanitized">Bereinigt</option>
+            </select>
+            <select id="audit-type-filter" class="audit-select">
+              <option value="" data-i18n="dashboard.audit_filter_all_types">Alle Typen</option>
+              <option value="tool_call" data-i18n="dashboard.audit_type_tool_call">Tool Call</option>
+              <option value="mission_run" data-i18n="dashboard.audit_type_mission_run">Mission Run</option>
+              <option value="heartbeat_run" data-i18n="dashboard.audit_type_heartbeat_run">Heartbeat Run</option>
+              <option value="remote_heartbeat" data-i18n="dashboard.audit_type_remote_heartbeat">Remote Heartbeat</option>
+              <option value="remote_command" data-i18n="dashboard.audit_type_remote_command">Remote Command</option>
+              <option value="remote_connect" data-i18n="dashboard.audit_type_remote_connect">Remote Connect</option>
+              <option value="remote_disconnect" data-i18n="dashboard.audit_type_remote_disconnect">Remote Disconnect</option>
+            </select>
+            <input type="datetime-local" id="audit-from-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_from" title="Von">
+            <input type="datetime-local" id="audit-to-filter" class="audit-date-input" data-i18n-title="dashboard.audit_filter_to" title="Bis">
+            <button type="button" id="audit-refresh" class="log-btn" data-i18n="dashboard.audit_refresh">Aktualisieren</button>
+            <button type="button" id="audit-clear-filtered" class="log-btn audit-danger-btn" data-i18n="dashboard.audit_clear_filtered">Gefilterte löschen</button>
+          </div>
+          <div id="audit-content" class="audit-table-wrap">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th data-i18n="dashboard.audit_col_time">Zeit</th>
+                  <th data-i18n="dashboard.audit_col_source">Quelle</th>
+                  <th data-i18n="dashboard.audit_col_type">Typ</th>
+                  <th data-i18n="dashboard.audit_col_target">Ziel</th>
+                  <th data-i18n="dashboard.audit_col_status">Status</th>
+                  <th data-i18n="dashboard.audit_col_summary">Zusammenfassung</th>
+                  <th data-i18n="dashboard.audit_col_duration">Dauer</th>
+                  <th data-i18n="dashboard.audit_col_actions">Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody"></tbody>
+            </table>
+            <div id="audit-empty" class="empty-state" data-i18n="dashboard.audit_empty">Noch keine Audit-Einträge.</div>
+            <div class="audit-pager">
+              <button type="button" id="audit-prev" class="mh-more-btn" data-i18n="dashboard.audit_prev">Zurück</button>
+              <span id="audit-page-meta" class="audit-page-meta"></span>
+              <button type="button" id="audit-next" class="mh-more-btn" data-i18n="dashboard.audit_next">Weiter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- #tab-audit -->
 
   <!-- ═══ Tab 5: System & Logs ════════════════════════════════════════════ -->
   <div class="dash-tab-panel" id="tab-system">

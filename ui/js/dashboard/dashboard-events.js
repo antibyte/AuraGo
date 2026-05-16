@@ -128,6 +128,11 @@
                     loadDaemonsCard();
                 }
             });
+            window.AuraSSE.on('audit_update', function () {
+                if (TabState.active === 'audit') {
+                    loadTabAudit();
+                }
+            });
             window.AuraSSE.onLegacy(function (event) {
                 try {
                     const data = JSON.parse(event.data);

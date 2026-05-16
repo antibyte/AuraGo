@@ -29,6 +29,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux := http.NewServeMux()
 	sse := NewSSEBroadcaster()
 	s.SSE = sse // expose broadcaster for use by handlers and callbacks
+	if s.ShortTermMem != nil {
+		s.ShortTermMem.SetAuditNotifier(func(update memory.AuditUpdate) {
+			sse.BroadcastType(EventAuditUpdate, update)
+		})
+	}
 
 	// Wire warnings registry to broadcast new warnings via SSE.
 	if s.WarningsRegistry != nil {

@@ -21,6 +21,7 @@ const (
 	EventBudgetUpdate      SSEEventType = "budget_update"
 	EventAgentStatus       SSEEventType = "agent_status"
 	EventMissionUpdate     SSEEventType = "mission_update"
+	EventAuditUpdate       SSEEventType = "audit_update"
 	EventContainerUpdate   SSEEventType = "container_update"
 	EventPersonalityUpdate SSEEventType = "personality_update"
 	EventTsnetStatus       SSEEventType = "tsnet_status"

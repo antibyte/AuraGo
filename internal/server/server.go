@@ -378,6 +378,9 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	if shortTermMem != nil && s.MissionManagerV2 != nil {
+		s.MissionManagerV2.SetAuditRecorder(shortTermMem.UpsertAuditEventByCorrelation)
+	}
 	// Retrieve the per-process loopback auth token from BackgroundTaskManager.
 	// It was generated in main() before server.Start() was called.
 	if backgroundTasks != nil {
@@ -424,11 +427,16 @@ func Start(opts StartOptions) error {
 		MessageSource:      "heartbeat",
 	}
 	s.HeartbeatScheduler = heartbeat.New(cfg, logger, func(prompt string) {
+		correlationID := fmt.Sprintf("heartbeat_%d", time.Now().UTC().UnixNano())
+		started := time.Now()
 		if sessionRequestActive("default") || sessionRequestActive("virtual-desktop") {
 			logger.Info("Heartbeat wake-up skipped because an interactive session is active")
+			recordHeartbeatAuditFinish(shortTermMem, correlationID, memory.AuditStatusWarning, "Heartbeat wake-up skipped", "Interactive session is active", time.Since(started))
 			return
 		}
+		recordHeartbeatAuditStart(shortTermMem, correlationID)
 		agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
+		recordHeartbeatAuditFinish(shortTermMem, correlationID, memory.AuditStatusSuccess, "Heartbeat wake-up completed", "", time.Since(started))
 	})
 	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()
@@ -466,6 +474,9 @@ func Start(opts StartOptions) error {
 		}
 		s.RemoteHub.OnDisconnect = func(deviceID, name string) {
 			s.MissionManagerV2.NotifyDeviceEvent("device_disconnected", deviceID, name)
+		}
+		s.RemoteHub.OnAudit = func(event remote.RemoteAuditEvent) {
+			recordRemoteAuditEvent(shortTermMem, event)
 		}
 		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
 		if err := remote.TrimAuditLog(remoteControlDB, 10000); err != nil {

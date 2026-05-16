@@ -77,6 +77,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
 	}
+	recordToolAuditEvent(shortTermMem, currentLogger, ptc, policyResult, sessionID, s.runCfg.MessageSource, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
 	broker.Send("tool_output", pResultContent)
@@ -258,6 +259,7 @@ func executeAgentToolTurn(
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
 	}
+	recordToolAuditEvent(shortTermMem, currentLogger, tc, policyResult, sessionID, s.runCfg.MessageSource, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
 
@@ -460,6 +462,7 @@ func executeAgentToolTurn(
 			if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
 			}
+			recordToolAuditEvent(shortTermMem, currentLogger, btc, policyResult, sessionID, s.runCfg.MessageSource, nativeDispatchCtx.ExecutionTimeMs)
 			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)
 			recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
 			broker.Send("tool_output", bResult)

@@ -16,6 +16,9 @@ type SQLiteMemory struct {
 	db     *sql.DB
 	logger *slog.Logger
 
+	auditNotifierMu sync.RWMutex
+	auditNotifier   func(AuditUpdate)
+
 	// personality hot-path cache (1-second TTL, invalidated on every write)
 	personalityCacheMu sync.RWMutex
 	traitsCache        PersonalityTraits
@@ -257,6 +260,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	}
 	if err := stm.InitActivityTables(); err != nil {
 		logger.Warn("Failed to initialize activity tables", "error", err)
+	}
+	if err := stm.InitAuditTables(); err != nil {
+		logger.Warn("Failed to initialize audit tables", "error", err)
 	}
 	if err := stm.InitPlanTables(); err != nil {
 		logger.Warn("Failed to initialize plan tables", "error", err)

@@ -32,6 +32,32 @@ Access the dashboard at `http://localhost:8088/dashboard` or through the radial 
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+## Audit Log
+
+The **Audit** tab is the central activity trail for actions AuraGo performs. It records new agent tool calls, mission runs, heartbeat scheduler wake-ups, and remote device events such as connects, disconnects, heartbeats, and command results.
+
+Each audit entry contains the time, source, event type, target, status, summary, duration, and scrubbed detail data. Sensitive values are cleaned before storage, and long details are shortened so the audit log is useful for diagnosis without exposing raw credentials or full tool output.
+
+### Filtering and Search
+
+Use the search field to find entries by summary, target, actor, event type, or cleaned details. The source, status, type, and date filters can be combined, and pagination keeps large logs responsive.
+
+### Deleting Audit Entries
+
+Administrators can delete a single audit row from the row action menu or delete all rows matching the current filters. Bulk deletion requires an explicit confirmation on the server side and should be used carefully because audit entries are not migrated back from older mission or remote history.
+
+### API Access
+
+The same data is available through:
+
+```bash
+GET /api/dashboard/audit?limit=25&offset=0&q=mission&source=mission&status=success
+DELETE /api/dashboard/audit/{id}
+DELETE /api/dashboard/audit
+```
+
+The DELETE endpoints require administrator access. Bulk deletion requires the confirmation value `DELETE_AUDIT_EVENTS`.
+
 ## System Metrics (CPU, RAM, Disk)
 
 Real-time monitoring of your AuraGo host's resource usage.

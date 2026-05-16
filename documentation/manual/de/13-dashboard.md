@@ -32,6 +32,32 @@ Das Dashboard ist dein zentrales Informationszentrum für alle AuraGo-Metriken. 
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Audit-Protokoll
+
+Der Tab **Audit** ist die zentrale Aktivitätsspur für Aktionen, die AuraGo ausführt. Er erfasst neue Agent-Tool-Aufrufe, Mission-Läufe, Heartbeat-Wake-ups und Remote-Geräteereignisse wie Verbindungen, Trennungen, Heartbeats und Remote-Befehlsergebnisse.
+
+Jeder Audit-Eintrag enthält Zeit, Quelle, Ereignistyp, Ziel, Status, Zusammenfassung, Dauer und bereinigte Detaildaten. Sensible Werte werden vor dem Speichern entfernt, lange Details werden gekürzt. So bleibt das Protokoll nützlich für Diagnose und Nachvollziehbarkeit, ohne rohe Zugangsdaten oder vollständige Tool-Ausgaben offenzulegen.
+
+### Filter und Suche
+
+Über das Suchfeld findest du Einträge nach Zusammenfassung, Ziel, Akteur, Ereignistyp oder bereinigten Details. Quellen-, Status-, Typ- und Zeitraumfilter lassen sich kombinieren; Pagination hält auch große Protokolle bedienbar.
+
+### Audit-Einträge löschen
+
+Admins können einzelne Audit-Zeilen über die Zeilenaktion löschen oder alle Einträge entfernen, die den aktuellen Filtern entsprechen. Das gefilterte Massenlöschen verlangt serverseitig die Bestätigung `DELETE_AUDIT_EVENTS` und sollte bewusst eingesetzt werden, weil ältere Mission- oder Remote-Historien nicht rückwirkend in den Audit-Bereich migriert werden.
+
+### API-Zugriff
+
+Die gleichen Daten sind über folgende Endpunkte verfügbar:
+
+```bash
+GET /api/dashboard/audit?limit=25&offset=0&q=mission&source=mission&status=success
+DELETE /api/dashboard/audit/{id}
+DELETE /api/dashboard/audit
+```
+
+Die DELETE-Endpunkte benötigen Admin-Zugriff. Für Massenlöschungen ist die Bestätigung `DELETE_AUDIT_EVENTS` erforderlich.
+
 ## System-Metriken
 
 ### CPU-Auslastung

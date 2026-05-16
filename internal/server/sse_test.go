@@ -254,6 +254,7 @@ func TestSSEEventTypeConstants(t *testing.T) {
 		evt      SSEEventType
 		expected string
 	}{
+		{EventAuditUpdate, "audit_update"},
 		{EventLLMStreamDelta, "llm_stream_delta"},
 		{EventLLMStreamDone, "llm_stream_done"},
 		{EventTokenUpdate, "token_update"},

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/memory"
 	"aurago/internal/security"
 )
 
@@ -352,6 +353,7 @@ type MissionManagerV2 struct {
 	cheatsheetDB       *sql.DB
 	preparedDB         *sql.DB                                  // prepared missions database
 	historyDB          *sql.DB                                  // mission execution history database
+	auditRecorder      func(memory.AuditEvent) error            // central dashboard audit sink
 	activeRunID        map[string]string                        // missionID → history run ID for in-progress tracking
 	onMissionComplete  func(completedID, result, output string) // callback for mission completion
 	missionGuards      map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
@@ -445,6 +447,13 @@ func (m *MissionManagerV2) SetHistoryDB(db *sql.DB) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.historyDB = db
+}
+
+// SetAuditRecorder wires mission execution events into the central dashboard audit log.
+func (m *MissionManagerV2) SetAuditRecorder(recorder func(memory.AuditEvent) error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.auditRecorder = recorder
 }
 
 // SetRemoteMissionClient sets the client used to synchronize missions to eggs.
@@ -922,6 +931,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	cheatsheetDB := m.cheatsheetDB
 	preparedDB := m.preparedDB
 	historyDB := m.historyDB
+	auditRecorder := m.auditRecorder
 	m.mu.Unlock()
 	muLocked = false
 
@@ -935,6 +945,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 			m.mu.Lock()
 			m.activeRunID[missionID] = runID
 			m.mu.Unlock()
+			recordMissionAuditStart(auditRecorder, runID, missionID, missionName, triggerType, item.TriggerData)
 		}
 	}
 
@@ -1005,6 +1016,67 @@ func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) strin
 	return fmt.Sprintf("%s\n\n[Trigger Context: %s]\n%s", prompt, triggerType, security.IsolateExternalData(triggerData))
 }
 
+func recordMissionAuditStart(recorder func(memory.AuditEvent) error, runID, missionID, missionName, triggerType, triggerData string) {
+	if recorder == nil || runID == "" {
+		return
+	}
+	if triggerType == "" {
+		triggerType = "manual"
+	}
+	summary := fmt.Sprintf("Mission %s started", missionDisplayName(missionID, missionName))
+	metadata, _ := json.Marshal(map[string]string{
+		"trigger_type": triggerType,
+		"trigger_data": triggerData,
+	})
+	if err := recorder(memory.AuditEvent{
+		Source:        memory.AuditSourceMission,
+		EventType:     "mission_run",
+		Actor:         "agent",
+		SessionID:     "mission",
+		TargetID:      missionID,
+		TargetName:    missionName,
+		Status:        memory.AuditStatusRunning,
+		Summary:       summary,
+		Detail:        "Trigger: " + triggerType,
+		CorrelationID: runID,
+		MetadataJSON:  string(metadata),
+	}); err != nil {
+		slog.Warn("[MissionV2] Failed to record mission audit start", "mission_id", missionID, "run_id", runID, "error", err)
+	}
+}
+
+func recordMissionAuditCompletion(recorder func(memory.AuditEvent) error, runID, missionID, missionName, result, output string) {
+	if recorder == nil || runID == "" {
+		return
+	}
+	status := memory.AuditStatusError
+	if result == MissionResultSuccess || result == "success" {
+		status = memory.AuditStatusSuccess
+	}
+	summary := fmt.Sprintf("Mission %s completed with status %s", missionDisplayName(missionID, missionName), status)
+	if err := recorder(memory.AuditEvent{
+		Source:        memory.AuditSourceMission,
+		EventType:     "mission_run",
+		Actor:         "agent",
+		SessionID:     "mission",
+		TargetID:      missionID,
+		TargetName:    missionName,
+		Status:        status,
+		Summary:       summary,
+		Detail:        output,
+		CorrelationID: runID,
+	}); err != nil {
+		slog.Warn("[MissionV2] Failed to record mission audit completion", "mission_id", missionID, "run_id", runID, "error", err)
+	}
+}
+
+func missionDisplayName(id, name string) string {
+	if strings.TrimSpace(name) != "" {
+		return name
+	}
+	return id
+}
+
 func triggerMinIntervalSeconds(cfg *TriggerConfig) int {
 	if cfg == nil || cfg.MinIntervalSeconds <= 0 {
 		return 0
@@ -1053,6 +1125,11 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	// Record mission completion in history
 	if runID, ok := m.activeRunID[missionID]; ok {
 		delete(m.activeRunID, missionID)
+		missionName := ""
+		if mission, ok := m.missions[missionID]; ok {
+			missionName = mission.Name
+		}
+		recordMissionAuditCompletion(m.auditRecorder, runID, missionID, missionName, result, output)
 		if m.historyDB != nil {
 			hdb := m.historyDB
 			// Write history outside the lock to avoid contention
