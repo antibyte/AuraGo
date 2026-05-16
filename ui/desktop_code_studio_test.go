@@ -39,6 +39,10 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"document.removeEventListener('mousedown'",
 		"cleanup('')",
 		"cleanup(false)",
+		"function normalizeCodeStudioPath(rawPath)",
+		"codeStudioParentPath(launchPath)",
+		"path = normalizeCodeStudioPath(path)",
+		"if (path === WORKSPACE_ROOT)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("Code Studio per-window lifecycle missing marker %q", marker)
@@ -58,6 +62,32 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	}
 	if !strings.Contains(source, "window.CodeStudio = window.CodeStudioApp") {
 		t.Fatalf("Code Studio compatibility export missing")
+	}
+}
+
+func TestDesktopCodeStudioOpenAppReusesWindowAndSanitizesLaunchPath(t *testing.T) {
+	t.Parallel()
+
+	runtime := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, marker := range []string{
+		"appId === 'code-studio' && context && context.path != null",
+		"window.CodeStudio.openFile(context.path, true, existing.id)",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Fatalf("desktop runtime missing Code Studio reuse marker %q", marker)
+		}
+	}
+
+	source := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
+	for _, marker := range []string{
+		"if (/^[a-zA-Z]:\\//.test(value) || value.startsWith('~')) return WORKSPACE_ROOT;",
+		"lower.startsWith('/home/')",
+		"if (value === 'workspace' || lower.startsWith('workspace/'))",
+		"return '/' + parts.join('/');",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Code Studio path sanitizer missing marker %q", marker)
+		}
 	}
 }
 

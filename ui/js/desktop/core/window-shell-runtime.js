@@ -687,8 +687,8 @@
                 else renderFiles(existing.id, context.path);
             }
             if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
-            if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
-            return;
+            if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
+            if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context); return;
         }
         const title = windowTitle(appId);
         const app = appById(appId);

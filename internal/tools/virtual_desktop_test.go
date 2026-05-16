@@ -837,6 +837,85 @@ func TestExecuteVirtualDesktopOpenAppRejectsBrokenGeneratedApp(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopOpenCodeStudioNormalizesWorkspacePath(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"app_id":    "code-studio",
+		"path":      "workspace/src/main.go",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			AppID string `json:"app_id"`
+			Path  string `json:"path"`
+		} `json:"data"`
+		Event struct {
+			Payload struct {
+				AppID string `json:"app_id"`
+				Path  string `json:"path"`
+			} `json:"payload"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open_in_app output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output=%s", payload.Status, exec.Output)
+	}
+	if payload.Data.AppID != "code-studio" || payload.Data.Path != "/workspace/src/main.go" {
+		t.Fatalf("data = %+v, want normalized Code Studio path", payload.Data)
+	}
+	if payload.Event.Payload.Path != "/workspace/src/main.go" {
+		t.Fatalf("event path = %q, want normalized Code Studio path", payload.Event.Payload.Path)
+	}
+}
+
+func TestExecuteVirtualDesktopOpenCodeStudioIgnoresHostPath(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"app_id":    "code-studio",
+		"path":      `C:\Users\Andi\Documents\repo\AuraGo\internal\agent\agent.go`,
+	})
+	var payload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+		Data    struct {
+			AppID       string `json:"app_id"`
+			Path        string `json:"path"`
+			PathIgnored bool   `json:"path_ignored"`
+			PathPolicy  string `json:"path_policy"`
+		} `json:"data"`
+		Event struct {
+			Payload struct {
+				AppID       string `json:"app_id"`
+				Path        string `json:"path"`
+				PathIgnored bool   `json:"path_ignored"`
+			} `json:"payload"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open_in_app output: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output=%s", payload.Status, exec.Output)
+	}
+	if payload.Data.AppID != "code-studio" || !payload.Data.PathIgnored || payload.Data.Path != "" {
+		t.Fatalf("data = %+v, want host path ignored", payload.Data)
+	}
+	if payload.Data.PathPolicy != "code_studio_paths_must_be_inside_workspace" || !payload.Event.Payload.PathIgnored || payload.Event.Payload.Path != "" {
+		t.Fatalf("policy/event = data:%+v event:%+v", payload.Data, payload.Event.Payload)
+	}
+	if strings.Contains(exec.Output, "Users") || strings.Contains(exec.Output, "AuraGo") {
+		t.Fatalf("ignored host path leaked into output: %s", exec.Output)
+	}
+}
+
 func TestExecuteVirtualDesktopDeleteRootAppHTMLRemovesGeneratedApp(t *testing.T) {
 	t.Parallel()
 

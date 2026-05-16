@@ -23,6 +23,8 @@ type VirtualDesktopExecution struct {
 
 var virtualDesktopWidgetIDSanitizer = regexp.MustCompile(`[^a-z0-9_-]+`)
 
+const virtualDesktopCodeStudioWorkspaceRoot = "/workspace"
+
 var (
 	toolDesktopMu  sync.Mutex
 	toolDesktopSvc *desktop.Service
@@ -250,6 +252,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 	case "open_app", "open_in_app":
 		appID := virtualDesktopString(args, "app_id", "id")
 		filePath := virtualDesktopString(args, "path", "file_path")
+		codeStudioPathIgnored := false
 		if filePath != "" {
 			widget, event, ok, err := virtualDesktopStandaloneWidgetOpenEvent(ctx, svc, filePath)
 			if err != nil {
@@ -274,6 +277,15 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
+		if strings.EqualFold(appID, "code-studio") && filePath != "" {
+			cleanCodePath, ok := normalizeVirtualDesktopCodeStudioOpenPath(filePath)
+			if !ok {
+				filePath = ""
+				codeStudioPathIgnored = true
+			} else {
+				filePath = cleanCodePath
+			}
+		}
 		app, ok := virtualDesktopFindApp(ctx, svc, appID)
 		if !ok {
 			return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q is not installed", appID), nil, nil)
@@ -295,8 +307,16 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		if filePath != "" {
 			payload["path"] = filePath
 		}
+		if codeStudioPathIgnored {
+			payload["path_ignored"] = true
+			payload["path_policy"] = "code_studio_paths_must_be_inside_workspace"
+		}
 		event := virtualDesktopEvent("open_app", payload)
-		return virtualDesktopJSON("ok", "desktop app open event emitted", payload, event)
+		message := "desktop app open event emitted"
+		if codeStudioPathIgnored {
+			message = "desktop app open event emitted; ignored path outside Code Studio workspace"
+		}
+		return virtualDesktopJSON("ok", message, payload, event)
 	case "show_notification":
 		title := virtualDesktopString(args, "title", "name")
 		message := virtualDesktopString(args, "message", "content")
@@ -685,6 +705,34 @@ func cleanVirtualDesktopSlashPath(rawPath string) string {
 		return "."
 	}
 	return path.Clean(p)
+}
+
+func normalizeVirtualDesktopCodeStudioOpenPath(rawPath string) (string, bool) {
+	p := strings.TrimSpace(strings.ReplaceAll(rawPath, "\\", "/"))
+	if p == "" {
+		return "", true
+	}
+	if strings.ContainsRune(p, 0) {
+		return "", false
+	}
+	p = strings.TrimPrefix(p, "file://")
+	lower := strings.ToLower(p)
+	if strings.HasPrefix(p, "~") || strings.HasPrefix(lower, "/home/") || strings.HasPrefix(lower, "/users/") || strings.HasPrefix(lower, "/var/") || strings.HasPrefix(lower, "/tmp/") {
+		return "", false
+	}
+	if len(p) >= 3 && p[1] == ':' && p[2] == '/' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')) {
+		return "", false
+	}
+	if strings.EqualFold(p, "workspace") || strings.HasPrefix(strings.ToLower(p), "workspace/") {
+		p = "/" + p
+	} else if !strings.HasPrefix(p, "/") {
+		p = path.Join(virtualDesktopCodeStudioWorkspaceRoot, strings.TrimPrefix(p, "./"))
+	}
+	cleaned := path.Clean(p)
+	if cleaned != virtualDesktopCodeStudioWorkspaceRoot && !strings.HasPrefix(cleaned, virtualDesktopCodeStudioWorkspaceRoot+"/") {
+		return "", false
+	}
+	return cleaned, true
 }
 
 func rewriteVirtualDesktopPrinterCameraURLsForPath(cfg *config.Config, rawPath, content string) string {

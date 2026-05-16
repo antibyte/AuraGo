@@ -167,6 +167,41 @@
         })[lang] || 'text';
     }
 
+    function normalizeCodeStudioPath(rawPath) {
+        let value = String(rawPath || '').replace(/\\/g, '/').replace(/\0/g, '').trim();
+        if (!value) return WORKSPACE_ROOT;
+        value = value.replace(/^file:\/+/i, '/').replace(/\/+/g, '/');
+        if (/^[a-zA-Z]:\//.test(value) || value.startsWith('~')) return WORKSPACE_ROOT;
+        const lower = value.toLowerCase();
+        if (lower.startsWith('/home/') || lower.startsWith('/users/') || lower.startsWith('/var/') || lower.startsWith('/tmp/')) return WORKSPACE_ROOT;
+        if (value === 'workspace' || lower.startsWith('workspace/')) {
+            value = '/' + value;
+        } else if (!value.startsWith('/')) {
+            value = WORKSPACE_ROOT + '/' + value.replace(/^\.\//, '');
+        }
+        if (value !== WORKSPACE_ROOT && !value.startsWith(WORKSPACE_ROOT + '/')) return WORKSPACE_ROOT;
+        const parts = [];
+        for (const part of value.split('/')) {
+            if (!part || part === '.') continue;
+            if (part === '..') {
+                if (parts.length <= 1) return WORKSPACE_ROOT;
+                parts.pop();
+                continue;
+            }
+            parts.push(part);
+        }
+        if (!parts.length || parts[0] !== 'workspace') return WORKSPACE_ROOT;
+        return '/' + parts.join('/');
+    }
+
+    function codeStudioParentPath(rawPath) {
+        const path = normalizeCodeStudioPath(rawPath);
+        if (path === WORKSPACE_ROOT) return WORKSPACE_ROOT;
+        const index = path.lastIndexOf('/');
+        if (index <= WORKSPACE_ROOT.length) return WORKSPACE_ROOT;
+        return path.slice(0, index) || WORKSPACE_ROOT;
+    }
+
     async function api(path, options) {
         const requestOptions = Object.assign({
             credentials: 'same-origin',
@@ -279,10 +314,23 @@
                 container.innerHTML = shellMarkup();
                 renderShell();
             });
-            await runAsyncStep(instance, () => refreshFiles(context && context.path ? context.path : state.currentPath));
+            const launchPath = normalizeCodeStudioPath(context && context.path);
+            const hasLaunchPath = !!(context && context.path) && launchPath !== WORKSPACE_ROOT;
+            await runAsyncStep(instance, () => refreshFiles(hasLaunchPath ? codeStudioParentPath(launchPath) : (context && context.path ? launchPath : state.currentPath)));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
             if (!isLiveInstance(instance)) return;
+            if (hasLaunchPath) {
+                await runAsyncStep(instance, async () => {
+                    try {
+                        await openFile(launchPath);
+                    } catch (err) {
+                        await refreshFiles(launchPath);
+                        renderStatus((err && err.message) || String(err));
+                    }
+                });
+                if (!isLiveInstance(instance)) return;
+            }
             runWithInstance(instance, connectTerminal);
         } catch (err) {
             if (isLiveInstance(instance)) runWithInstance(instance, () => renderError(err.message || String(err)));
@@ -758,7 +806,7 @@
     async function refreshFiles(path) {
         const target = state;
         if (!target) return;
-        const nextPath = path || WORKSPACE_ROOT;
+        const nextPath = normalizeCodeStudioPath(path || WORKSPACE_ROOT);
         state.currentPath = nextPath;
         try {
             const result = await apiClient.files(nextPath);
@@ -803,6 +851,11 @@
     async function openFile(path, persist) {
         const target = state;
         if (!target) return;
+        path = normalizeCodeStudioPath(path);
+        if (path === WORKSPACE_ROOT) {
+            await refreshFiles(WORKSPACE_ROOT);
+            return;
+        }
         const existing = state.openTabs.findIndex(tab => tab.path === path);
         if (existing >= 0) {
             activateTab(existing);
