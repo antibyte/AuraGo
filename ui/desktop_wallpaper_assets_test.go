@@ -14,6 +14,7 @@ import (
 )
 
 var desktopWallpaperOptions = []string{
+	"groupshoot",
 	"alpine_dawn",
 	"city_rain",
 	"ocean_cliff",
@@ -26,6 +27,7 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
+	foundationText := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	cssText := readAllDesktopCSS(t)
 
 	defs := desktop.DesktopSettingDefinitions()
@@ -60,8 +62,12 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decode wallpaper %q dimensions: %v", name, err)
 		}
-		if cfg.Width != 3840 || cfg.Height != 2160 {
-			t.Fatalf("wallpaper %q dimensions = %dx%d, want 3840x2160", name, cfg.Width, cfg.Height)
+		if cfg.Width < 1920 || cfg.Height < 1080 {
+			t.Fatalf("wallpaper %q dimensions = %dx%d, want at least 1920x1080", name, cfg.Width, cfg.Height)
+		}
+		aspect := float64(cfg.Width) / float64(cfg.Height)
+		if aspect < 1.73 || aspect > 1.82 {
+			t.Fatalf("wallpaper %q aspect ratio = %.3f, want desktop-friendly 16:9-ish", name, aspect)
 		}
 	}
 
@@ -81,5 +87,9 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 				t.Fatalf("%s missing non-empty translation for %s", path, key)
 			}
 		}
+	}
+
+	if !strings.Contains(foundationText, "'appearance.wallpaper': 'groupshoot'") {
+		t.Fatal("desktop frontend defaults must use groupshoot as the default wallpaper")
 	}
 }

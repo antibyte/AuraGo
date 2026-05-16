@@ -748,7 +748,7 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
-	if bootstrap.Settings["appearance.wallpaper"] != "aurora" {
+	if bootstrap.Settings["appearance.wallpaper"] != "groupshoot" {
 		t.Fatalf("default wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
 	}
 	if bootstrap.Settings["appearance.theme"] != "standard" {

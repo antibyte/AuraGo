@@ -183,7 +183,7 @@ type SettingDefinition struct {
 // DesktopSettingDefinitions returns all settings that may be persisted by the desktop UI.
 func DesktopSettingDefinitions() []SettingDefinition {
 	return []SettingDefinition{
-		{Key: "appearance.wallpaper", Default: "aurora", Values: []string{"aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}},
+		{Key: "appearance.wallpaper", Default: "groupshoot", Values: []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}},
 		{Key: "appearance.theme", Default: "standard", Values: []string{"standard", "fruity"}},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},

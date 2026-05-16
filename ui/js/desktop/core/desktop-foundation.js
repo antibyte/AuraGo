@@ -215,7 +215,7 @@
         workflows: 'workflow'
     };
     const desktopSettingDefaults = {
-        'appearance.wallpaper': 'aurora',
+        'appearance.wallpaper': 'groupshoot',
         'appearance.theme': 'standard',
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
