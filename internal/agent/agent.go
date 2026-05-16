@@ -671,7 +671,8 @@ type ToolCall struct {
 
 // coerceToolCallStringFields rewrites top-level fields of a ToolCall JSON
 // object that the schema expects as strings but some LLMs occasionally emit as
-// numbers or booleans (e.g. MiniMax sending "id": 5). The raw values remain
+// numbers, booleans, or arrays (e.g. MiniMax sending "id": 5, or a namespaced
+// email tool sending "to": ["user@example.com"]). The raw values remain
 // accessible through the flat Params map populated by UnmarshalJSON.
 var toolCallStringFields = map[string]struct{}{
 	"id":          {},
@@ -685,6 +686,8 @@ var toolCallStringFields = map[string]struct{}{
 	"skill_id":    {},
 	"thread_id":   {},
 	"contact_id":  {},
+	"to":          {},
+	"cc":          {},
 }
 
 func coerceToolCallStringFields(data []byte) []byte {
@@ -714,14 +717,26 @@ func coerceToolCallStringFields(data []byte) []byte {
 			continue
 		}
 		first := v[0]
-		if (first >= '0' && first <= '9') || first == '-' || first == 't' || first == 'f' {
-			coerced, err := json.Marshal(string(v))
-			if err != nil {
+		var coerced []byte
+		var err error
+		if first == '[' {
+			var arr []interface{}
+			if json.Unmarshal(v, &arr) != nil {
 				continue
 			}
-			raw[key] = coerced
-			changed = true
+			parts := make([]string, 0, len(arr))
+			for _, item := range arr {
+				parts = append(parts, fmt.Sprintf("%v", item))
+			}
+			coerced, err = json.Marshal(strings.Join(parts, ", "))
+		} else if (first >= '0' && first <= '9') || first == '-' || first == 't' || first == 'f' {
+			coerced, err = json.Marshal(string(v))
 		}
+		if err != nil || len(coerced) == 0 {
+			continue
+		}
+		raw[key] = coerced
+		changed = true
 	}
 	if !changed {
 		return data
@@ -737,6 +752,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	// Preserve existing field-based decoding but also build a robust flat args map
 	// so tool-specific decoders can read from `tc.Params` only.
 	type toolCallAlias ToolCall
+	originalData := data
 
 	// Some LLMs (e.g. MiniMax) occasionally emit numeric values for fields that the
 	// schema declares as strings (most notably "id"). Coerce common scalar-string
@@ -758,6 +774,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 		// If raw parsing fails, keep the typed decode and leave Params as-is.
 		return nil
 	}
+	restoreOriginalArrayToolArgs(raw, originalData, "to", "cc")
 
 	merged := make(map[string]interface{})
 	// Start with the explicit `params` object if present.
@@ -780,6 +797,27 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 
 	tc.Params = merged
 	return nil
+}
+
+func restoreOriginalArrayToolArgs(raw map[string]interface{}, originalData []byte, keys ...string) {
+	if len(raw) == 0 || len(keys) == 0 {
+		return
+	}
+	var original map[string]json.RawMessage
+	if err := json.Unmarshal(originalData, &original); err != nil {
+		return
+	}
+	for _, key := range keys {
+		value, ok := original[key]
+		if !ok || len(bytes.TrimSpace(value)) == 0 || bytes.TrimSpace(value)[0] != '[' {
+			continue
+		}
+		var decoded interface{}
+		if err := json.Unmarshal(value, &decoded); err != nil {
+			continue
+		}
+		raw[key] = decoded
+	}
 }
 
 // GetArgs returns Args as a string slice, handling various input types (slice of strings or interface).

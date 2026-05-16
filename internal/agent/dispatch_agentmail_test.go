@@ -55,6 +55,33 @@ func TestDispatchAgentMailReadOnlyBlocksMutatingOperation(t *testing.T) {
 	}
 }
 
+func TestDecodeAgentMailArgsAcceptsNativeArrayRecipients(t *testing.T) {
+	var tc ToolCall
+	raw := []byte(`{
+		"action":"agentmail",
+		"operation":"send_message",
+		"to":["user@example.com"],
+		"cc":["copy@example.com"],
+		"bcc":["hidden@example.com"],
+		"subject":"Test",
+		"text":"Hello"
+	}`)
+	if err := json.Unmarshal(raw, &tc); err != nil {
+		t.Fatalf("ToolCall should accept AgentMail recipient arrays: %v", err)
+	}
+
+	req := decodeAgentMailArgs(tc, "inbox-1")
+	if got := strings.Join(req.To, ","); got != "user@example.com" {
+		t.Fatalf("To = %q", got)
+	}
+	if got := strings.Join(req.CC, ","); got != "copy@example.com" {
+		t.Fatalf("CC = %q", got)
+	}
+	if got := strings.Join(req.BCC, ","); got != "hidden@example.com" {
+		t.Fatalf("BCC = %q", got)
+	}
+}
+
 func TestDispatchAgentMailListMessages(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes/inbox-1/messages" {
