@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/tools"
 )
@@ -97,6 +99,21 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				return
 			}
 			result := tools.DockerContainerAction(cfg, containerID, "restart", false)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(result))
+
+		case "update":
+			if r.Method != http.MethodPost {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			if readOnly {
+				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+			defer cancel()
+			result := tools.DockerUpdateContainerImage(ctx, cfg, containerID, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(result))
 

@@ -121,3 +121,67 @@ func TestContainersTerminalTranslationsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestContainersScriptIncludesUpdateActionWithConfirmation(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"onclick=\"showUpdateModal('${c.id}'",
+		"data-i18n=\"containers.btn_update\"",
+		"function showUpdateModal(id, name)",
+		"function confirmUpdate()",
+		"/update",
+		"containers.update_success",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing update marker %q", marker)
+		}
+	}
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{
+		`id="update-modal"`,
+		`data-i18n="containers.update_title"`,
+		`data-i18n="containers.update_confirm"`,
+		`data-i18n="containers.update_note"`,
+		`onclick="confirmUpdate()"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("containers page missing update modal marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "alert(") {
+		t.Fatal("containers script must not use alert() for update confirmation")
+	}
+}
+
+func TestContainersUpdateTranslationsExist(t *testing.T) {
+	t.Parallel()
+
+	required := []string{
+		"containers.btn_update",
+		"containers.update_title",
+		"containers.update_confirm",
+		"containers.update_note",
+		"containers.update_cancel",
+		"containers.update_confirm_btn",
+		"containers.update_success",
+	}
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	for _, lang := range langs {
+		path := filepath.Join("lang", "containers", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			}
+		}
+	}
+}

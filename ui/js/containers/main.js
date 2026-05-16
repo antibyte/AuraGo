@@ -107,6 +107,7 @@ function renderCard(c) {
     const deleteId = JSON.stringify(c.id || '').replace(/"/g, '&quot;');
     const deleteName = JSON.stringify(name).replace(/"/g, '&quot;');
     const terminalName = JSON.stringify(name).replace(/"/g, '&quot;');
+    const updateName = JSON.stringify(name).replace(/"/g, '&quot;');
 
     let actionBtns = '';
     if (isRunning) {
@@ -135,6 +136,7 @@ function renderCard(c) {
         </div>
         <div class="ct-card-actions">
             ${actionBtns}
+            <button class="btn btn-sm btn-secondary" onclick="showUpdateModal('${c.id}', ${updateName})" data-i18n="containers.btn_update">⬇ Update</button>
             <button class="btn btn-sm btn-secondary" onclick="showLogs('${c.id}')" data-i18n="containers.btn_logs">📄 Logs</button>
             <button class="btn btn-sm btn-secondary" onclick="showInspect('${c.id}')" data-i18n="containers.btn_inspect">🔍 Inspect</button>
             <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${deleteId}, ${deleteName})" data-i18n="containers.btn_remove">🗑 Remove</button>
@@ -191,6 +193,61 @@ async function containerAction(id, action) {
         }
     } catch (e) {
         showToast(t('common.error'), 'error');
+    }
+}
+
+// ── Update Modal ────────────────────────────────────────────────────────────
+
+let updateTarget = '';
+let updateInFlight = false;
+
+// eslint-disable-next-line no-unused-vars
+function showUpdateModal(id, name) {
+    updateTarget = id;
+    updateInFlight = false;
+    document.getElementById('update-container-name').textContent = name;
+    setUpdateConfirmBusy(false);
+    document.getElementById('update-modal').classList.add('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeUpdateModal() {
+    document.getElementById('update-modal').classList.remove('active');
+    updateTarget = '';
+    updateInFlight = false;
+    setUpdateConfirmBusy(false);
+}
+
+// eslint-disable-next-line no-unused-vars
+async function confirmUpdate() {
+    if (!updateTarget || updateInFlight) return;
+    updateInFlight = true;
+    setUpdateConfirmBusy(true);
+    try {
+        const resp = await fetch(`/api/containers/${encodeURIComponent(updateTarget)}/update`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            showToast(t('containers.update_success') || 'Container updated', 'success');
+            closeUpdateModal();
+            lastDataHash = '';
+            await loadContainers();
+        } else {
+            showToast(dockerErrMsg(data.message), 'error');
+        }
+    } catch (e) {
+        showToast(t('common.error'), 'error');
+    } finally {
+        if (updateTarget) {
+            updateInFlight = false;
+            setUpdateConfirmBusy(false);
+        }
+    }
+}
+
+function setUpdateConfirmBusy(busy) {
+    const confirmBtn = document.getElementById('update-confirm-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = busy;
     }
 }
 

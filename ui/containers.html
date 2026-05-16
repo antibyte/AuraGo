@@ -140,6 +140,25 @@
         </div>
     </div>
 
+    <!-- ═══════ CONFIRM UPDATE MODAL ═══════ -->
+    <div class="modal-overlay" id="update-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 data-i18n="containers.update_title">Update Container</h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUpdateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p data-i18n="containers.update_confirm">Pull the current image and recreate this container with the same settings?</p>
+                <p class="ct-delete-name" id="update-container-name"></p>
+                <p class="muted" data-i18n="containers.update_note">Running containers will be stopped briefly and started again after the replacement is ready.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUpdateModal()" data-i18n="containers.update_cancel">Cancel</button>
+                <button class="btn btn-primary" id="update-confirm-btn" onclick="confirmUpdate()" data-i18n="containers.update_confirm_btn">Update</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">

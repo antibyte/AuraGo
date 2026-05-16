@@ -46,6 +46,18 @@ func TestContainerTerminalRejectsDockerReadOnlyBeforeUpgrade(t *testing.T) {
 	}
 }
 
+func TestContainerUpdateRejectsDockerReadOnly(t *testing.T) {
+	s := testContainerServer(true, true)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/containers/demo/update", nil)
+
+	handleContainerAction(s)(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
 func TestContainerTerminalRejectsStoppedContainerBeforeUpgrade(t *testing.T) {
 	s := testContainerServer(true, false)
 	fake := &fakeContainerTerminalBackend{running: false}
