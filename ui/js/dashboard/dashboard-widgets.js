@@ -2521,14 +2521,14 @@
                 const status = event.status || 'warning';
                 const detail = [event.summary || '', event.detail || ''].filter(Boolean).join('\n\n');
                 tr.innerHTML = `
-                    <td data-label="${esc(t('dashboard.audit_col_time'))}">${esc(timeLabel)}</td>
-                    <td data-label="${esc(t('dashboard.audit_col_source'))}"><span class="audit-source audit-source-${esc(event.source || 'system')}">${esc(auditSourceLabel(event.source))}</span></td>
-                    <td data-label="${esc(t('dashboard.audit_col_type'))}">${esc(auditTypeLabel(event.event_type))}</td>
-                    <td data-label="${esc(t('dashboard.audit_col_target'))}" title="${esc(event.target_id || '')}">${esc(event.target_name || event.target_id || '—')}</td>
-                    <td data-label="${esc(t('dashboard.audit_col_status'))}"><span class="audit-status audit-status-${esc(status)}">${esc(auditStatusLabel(status))}</span></td>
-                    <td data-label="${esc(t('dashboard.audit_col_summary'))}" title="${esc(detail)}">${esc(event.summary || '—')}</td>
-                    <td data-label="${esc(t('dashboard.audit_col_duration'))}">${esc(duration)}</td>
-                    <td data-label="${esc(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${esc(t('dashboard.audit_delete'))}">🗑</button></td>`;
+                    <td class="audit-cell-time" data-label="${esc(t('dashboard.audit_col_time'))}">${esc(timeLabel)}</td>
+                    <td class="audit-cell-source" data-label="${esc(t('dashboard.audit_col_source'))}"><span class="audit-source audit-source-${esc(event.source || 'system')}">${esc(auditSourceLabel(event.source))}</span></td>
+                    <td class="audit-cell-type" data-label="${esc(t('dashboard.audit_col_type'))}">${esc(auditTypeLabel(event.event_type))}</td>
+                    <td class="audit-cell-target" data-label="${esc(t('dashboard.audit_col_target'))}" title="${esc(event.target_id || '')}">${esc(event.target_name || event.target_id || '—')}</td>
+                    <td class="audit-cell-status" data-label="${esc(t('dashboard.audit_col_status'))}"><span class="audit-status audit-status-${esc(status)}">${esc(auditStatusLabel(status))}</span></td>
+                    <td class="audit-cell-summary" data-label="${esc(t('dashboard.audit_col_summary'))}" title="${esc(detail)}"><span class="audit-summary-text">${esc(event.summary || '—')}</span></td>
+                    <td class="audit-cell-duration" data-label="${esc(t('dashboard.audit_col_duration'))}">${esc(duration)}</td>
+                    <td class="audit-cell-actions" data-label="${esc(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${esc(t('dashboard.audit_delete'))}">🗑</button></td>`;
                 tbody.appendChild(tr);
             });
             const end = Math.min(auditOffset + entries.length, auditTotal);
