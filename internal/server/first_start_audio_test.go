@@ -50,6 +50,18 @@ func TestFirstStartIntroAudioUsesBundledBrainInTheMachineSample(t *testing.T) {
 	}
 }
 
+func TestMediaSampleManifestIncludesBundledAuraGoVideo(t *testing.T) {
+	t.Parallel()
+
+	manifest, err := os.ReadFile(filepath.Join("..", "..", "assets", "media_samples", "metadata.json"))
+	if err != nil {
+		t.Fatalf("read media sample manifest: %v", err)
+	}
+	if !strings.Contains(string(manifest), `"filename": "aurago.mp4"`) {
+		t.Fatalf("media sample manifest must include the bundled AuraGo video")
+	}
+}
+
 func TestSendFirstStartIntroAudioPayload(t *testing.T) {
 	t.Parallel()
 

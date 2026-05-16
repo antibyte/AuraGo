@@ -93,6 +93,7 @@ $stagingDirs = @(
     "agent_workspace\skills",
     "agent_workspace\tools",
     "agent_workspace\workdir\attachments",
+    "assets\media_samples",
     "data\vectordb",
     "log",
     "prompts"
@@ -129,6 +130,11 @@ if (Test-Path "agent_workspace\tools") {
 # Copy agent_workspace/workdir/attachments
 if (Test-Path "agent_workspace\workdir\attachments") {
     Copy-Item -Path "agent_workspace\workdir\attachments" -Destination (Join-Path $tmpStage "agent_workspace\workdir\attachments") -Recurse -Force
+}
+
+# Copy bundled sample media
+if (Test-Path "assets\media_samples") {
+    Copy-Item -Path "assets\media_samples" -Destination (Join-Path $tmpStage "assets\media_samples") -Recurse -Force
 }
 
 # Copy data/vectordb and log (empty dirs already created)

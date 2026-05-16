@@ -97,6 +97,7 @@ set TMPSTAGE=%TEMP%\aurago-release-%RANDOM%
 mkdir "%TMPSTAGE%\agent_workspace\skills"
 mkdir "%TMPSTAGE%\agent_workspace\tools"
 mkdir "%TMPSTAGE%\agent_workspace\workdir\attachments"
+mkdir "%TMPSTAGE%\assets\media_samples"
 mkdir "%TMPSTAGE%\data\vectordb"
 mkdir "%TMPSTAGE%\log"
 
@@ -105,6 +106,9 @@ if exist "prompts" (
 )
 if exist "agent_workspace\skills" (
     xcopy /e /i /q "agent_workspace\skills" "%TMPSTAGE%\agent_workspace\skills" >nul
+)
+if exist "assets\media_samples" (
+    xcopy /e /i /q "assets\media_samples" "%TMPSTAGE%\assets\media_samples" >nul
 )
 del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secret.json"  2>nul
 del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secrets.json" 2>nul

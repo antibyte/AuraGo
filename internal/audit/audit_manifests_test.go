@@ -475,6 +475,27 @@ func TestWindowsReleaseUploadsAssetsIndividually(t *testing.T) {
 	}
 }
 
+func TestReleaseResourcePackagersIncludeMediaSamples(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "linux", path: "make_deploy.sh", want: "assets/media_samples"},
+		{name: "powershell", path: "make_release.ps1", want: "assets\\media_samples"},
+		{name: "batch", path: "make_release.bat", want: "assets\\media_samples"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := readRepoFile(t, tc.path)
+			if !strings.Contains(script, tc.want) {
+				t.Fatalf("%s must copy bundled media samples into resources.dat; missing %q", tc.path, tc.want)
+			}
+		})
+	}
+}
+
 func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	t.Parallel()
 

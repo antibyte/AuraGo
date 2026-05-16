@@ -23,5 +23,14 @@
     "description": "The official AuraGo Song created by Gemini and Suno AI",
     "format": "mp3",
     "tags": ["aurago", "official", "suno", "gemini"]
+  },
+  {
+    "filename": "aurago.mp4",
+    "media_type": "video",
+    "target_dir": "generated_videos",
+    "web_path_prefix": "/files/generated_videos/",
+    "description": "Bundled AuraGo intro video sample",
+    "format": "mp4",
+    "tags": ["aurago", "official", "video"]
   }
 ]
