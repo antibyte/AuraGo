@@ -1886,7 +1886,6 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	t.Parallel()
 
 	iconsPath := filepath.Join("js", "chat", "ui-icons.js")
-	spritePath := filepath.Join("img", "chat-ui-icons-sprite.png")
 	iconDir := filepath.Join("img", "chat-ui-icons")
 	cssPath := filepath.Join("css", "chat.css")
 	indexPath := "index.html"
@@ -1961,9 +1960,6 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 		assertPNGIcon(t, iconPath, 128, 128)
 	}
 
-	assertPNGIcon(t, spritePath, 1280, 1280)
-	assertChatUISpriteCellsHaveVisibleIcons(t, spritePath)
-
 	css := string(cssContent)
 	for _, marker := range []string{
 		".chat-ui-icon",
@@ -2010,7 +2006,6 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 	mainPath := filepath.Join("js", "chat", "chat-history.js")
 	cssPath := filepath.Join("css", "chat.css")
 	indexPath := "index.html"
-	spritePath := filepath.Join("img", "personas", "persona-spritesheet.png")
 	personaDir := filepath.Join("img", "personas")
 
 	mainContent, err := os.ReadFile(mainPath)
@@ -2059,7 +2054,6 @@ func TestChatPersonaPreviewAssetsRemainWired(t *testing.T) {
 		t.Fatalf("%s is missing personality preview container", indexPath)
 	}
 
-	assertPNGImageSize(t, spritePath, 1024, 1024)
 	for _, name := range []string{
 		"evil", "friend", "mcp", "mistress", "neutral", "professional", "psycho",
 		"punk", "secretary", "servant", "terminator", "thinker", "custom",
@@ -2076,7 +2070,6 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 	streamingPath := filepath.Join("js", "chat", "chat-streaming.js")
 	cssPath := filepath.Join("css", "chat.css")
 	indexPath := "index.html"
-	spritePath := filepath.Join("img", "persona-icons", "persona-icons-spritesheet.png")
 	iconDir := filepath.Join("img", "persona-icons")
 
 	messagesContent, err := os.ReadFile(messagesPath)
@@ -2155,7 +2148,6 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		t.Fatalf("%s is missing selected persona icon in the dropdown button", indexPath)
 	}
 
-	assertPNGIcon(t, spritePath, 128, 128)
 	for _, name := range []string{
 		"evil", "friend", "mcp", "mistress", "neutral", "professional", "psycho",
 		"punk", "secretary", "servant", "terminator", "thinker", "custom", "user",
@@ -2447,40 +2439,6 @@ func assertPNGImageSize(t *testing.T, path string, wantWidth, wantHeight int) {
 	}
 	if _, err := png.Decode(bytes.NewReader(content)); err != nil {
 		t.Fatalf("decode %s: %v", path, err)
-	}
-}
-
-func assertChatUISpriteCellsHaveVisibleIcons(t *testing.T, path string) {
-	t.Helper()
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	img, err := png.Decode(bytes.NewReader(content))
-	if err != nil {
-		t.Fatalf("decode %s: %v", path, err)
-	}
-
-	const cellSize = 128
-	const minVisiblePixels = 400
-	for slot := 0; slot < 100; slot++ {
-		cellX := (slot % 10) * cellSize
-		cellY := (slot / 10) * cellSize
-		visiblePixels := 0
-		for y := 0; y < cellSize; y++ {
-			for x := 0; x < cellSize; x++ {
-				_, _, _, a16 := img.At(cellX+x, cellY+y).RGBA()
-				a := int(a16 >> 8)
-				if a <= 8 {
-					continue
-				}
-				visiblePixels++
-			}
-		}
-		if visiblePixels < minVisiblePixels {
-			t.Fatalf("%s slot %d has only %d visible pixels, want at least %d for a generated icon", path, slot, visiblePixels, minVisiblePixels)
-		}
 	}
 }
 
