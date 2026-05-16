@@ -77,6 +77,24 @@ func TestIsAnnouncementOnlyResponseQuestionDoesNotTrigger(t *testing.T) {
 	}
 }
 
+func TestIsAnnouncementOnlyResponseConditionalApprovalDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	content := `Alles klar. Das ist ein System-/Tool-Aufruffehler, nicht dein Inhalt.
+
+Fehlerbericht für den Coding Agent:
+
+Betroffenes Tool: api_request
+Fehlermeldung: invalid function arguments JSON (Call wurde verworfen)
+
+Wenn du willst, mach ich direkt weiter mit deinem eigentlichen Auftrag ("KI-News komplett neu aufsetzen") ab dem letzten stabilen Punkt.`
+	if !asksUserForInput(content) {
+		t.Fatal("expected conditional German approval phrasing to be detected as user input")
+	}
+	if isAnnouncementOnlyResponse(content, tc, true, false, "KI-News komplett neu aufsetzen") {
+		t.Fatal("did not expect conditional approval prompt to trigger announcement recovery")
+	}
+}
+
 func TestIsAnnouncementOnlyResponseAfterToolCallWithPlanStructure(t *testing.T) {
 	tc := ToolCall{}
 	content := "1. Build production bundle\n2. Deploy to Netlify\n3. Verify homepage"
