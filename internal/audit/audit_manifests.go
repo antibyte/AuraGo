@@ -116,6 +116,8 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/debug/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "debug"},
 		{Pattern: "/api/dashboard/audit", Methods: []string{"GET", "DELETE"}, Auth: "session-admin-delete", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dashboard/audit/", Methods: []string{"DELETE"}, Auth: "session-admin-delete", Category: "dashboard", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/dashboard/cronjobs", Methods: []string{"GET", "PUT"}, Auth: "session-admin", Category: "dashboard", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/dashboard/cronjobs/", Methods: []string{"DELETE"}, Auth: "session-admin-delete", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dashboard/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "dashboard"},
 		{Pattern: "/api/indexing/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "knowledge"},
 		{Pattern: "/api/plans", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "planner", ContentTypes: []string{"application/json"}},

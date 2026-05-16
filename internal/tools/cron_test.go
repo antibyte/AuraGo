@@ -127,3 +127,30 @@ func TestCronManagerAcceptsSecondsFieldExpressions(t *testing.T) {
 		t.Fatalf("expected success response, got %s", result)
 	}
 }
+
+func TestCronManagerRemovesDisabledJobs(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	mgr := NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	if _, err := mgr.ManageSchedule("add", "disabled-job", "0 8 * * *", "run disabled job", "en"); err != nil {
+		t.Fatalf("ManageSchedule add: %v", err)
+	}
+	if _, err := mgr.ManageSchedule("disable", "disabled-job", "", "", "en"); err != nil {
+		t.Fatalf("ManageSchedule disable: %v", err)
+	}
+	result, err := mgr.ManageSchedule("remove", "disabled-job", "", "", "en")
+	if err != nil {
+		t.Fatalf("ManageSchedule remove disabled job: %v", err)
+	}
+	if !strings.Contains(result, `"status": "success"`) {
+		t.Fatalf("remove disabled job result = %s, want success", result)
+	}
+	if jobs := mgr.GetJobs(); len(jobs) != 0 {
+		t.Fatalf("jobs after disabled remove = %+v, want none", jobs)
+	}
+}

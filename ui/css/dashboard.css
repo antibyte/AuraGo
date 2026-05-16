@@ -3791,6 +3791,174 @@
 }
 #mission-history-empty { padding: 1rem 0; }
 
+/* ── Cronjobs Table ──────────────────────────────────────────────────── */
+.cronjobs-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+.cronjobs-summary-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+.cronjobs-summary-value {
+    color: var(--text-primary);
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+.cronjobs-controls {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.5fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.9rem;
+}
+.cronjobs-select {
+    min-width: 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.45rem;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: var(--text-sm);
+}
+.cronjobs-table-wrap {
+    overflow-x: auto;
+}
+.cronjobs-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    table-layout: fixed;
+}
+.cronjobs-table th {
+    text-align: left;
+    padding: 0.42rem 0.55rem;
+    border-bottom: 1px solid var(--border-color, #333);
+    color: var(--text-muted, #888);
+    font-weight: 500;
+    white-space: nowrap;
+}
+.cronjobs-table th:nth-child(1) { width: 14%; }
+.cronjobs-table th:nth-child(2) { width: 10%; }
+.cronjobs-table th:nth-child(3) { width: 14%; }
+.cronjobs-table th:nth-child(4) { width: 13%; }
+.cronjobs-table th:nth-child(5) { width: 10%; }
+.cronjobs-table th:nth-child(6) { width: 31%; }
+.cronjobs-table th:nth-child(7) { width: 8%; }
+.cronjobs-table td {
+    padding: 0.45rem 0.55rem;
+    border-bottom: 1px solid var(--border-color, #222);
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cronjobs-table tbody tr:hover {
+    background: var(--hover-bg, rgba(255,255,255,0.03));
+}
+.cronjobs-row-disabled {
+    opacity: 0.72;
+}
+.cronjobs-id,
+.cronjobs-expr {
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 0.78rem;
+}
+.cronjobs-source,
+.cronjobs-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    max-width: 100%;
+}
+.cronjobs-source {
+    background: rgba(148, 163, 184, 0.13);
+    color: var(--text-secondary);
+}
+.cronjobs-source-agent { color: var(--accent); background: rgba(45, 212, 191, 0.12); }
+.cronjobs-source-mission { color: #a78bfa; background: rgba(167, 139, 250, 0.12); }
+.cronjobs-source-system { color: #60a5fa; background: rgba(96, 165, 250, 0.12); }
+.cronjobs-status-enabled { background: rgba(34,197,94,0.15); color: #22c55e; }
+.cronjobs-status-disabled { background: rgba(148,163,184,0.16); color: var(--text-secondary); }
+.cronjobs-row-btn {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.45rem;
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    cursor: pointer;
+    margin-right: 0.25rem;
+}
+.cronjobs-row-btn:hover {
+    background: var(--hover-bg, rgba(255,255,255,0.06));
+}
+.cronjobs-row-btn.danger {
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+}
+#cronjobs-empty { padding: 1rem 0; }
+
+@media (max-width: 900px) {
+    .cronjobs-summary,
+    .cronjobs-controls {
+        grid-template-columns: 1fr;
+    }
+    .cronjobs-table {
+        min-width: 0;
+    }
+    .cronjobs-table thead {
+        display: none;
+    }
+    .cronjobs-table,
+    .cronjobs-table tbody,
+    .cronjobs-table tr,
+    .cronjobs-table td {
+        display: block;
+        width: 100%;
+    }
+    .cronjobs-table tr {
+        border: 1px solid var(--border-subtle);
+        border-radius: 0.5rem;
+        margin-bottom: 0.65rem;
+        overflow: hidden;
+    }
+    .cronjobs-table td {
+        display: grid;
+        grid-template-columns: 110px minmax(0, 1fr);
+        gap: 0.5rem;
+        white-space: normal;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    .cronjobs-table td::before {
+        content: attr(data-label);
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+    }
+    .cronjobs-table td:last-child {
+        border-bottom: none;
+    }
+}
+
 /* ── Audit Table ─────────────────────────────────────────────────────── */
 .audit-controls {
     display: grid;

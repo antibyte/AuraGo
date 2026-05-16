@@ -58,6 +58,22 @@ DELETE /api/dashboard/audit
 
 The DELETE endpoints require administrator access. Bulk deletion requires the confirmation value `DELETE_AUDIT_EVENTS`.
 
+## Cronjobs
+
+The **Cronjobs** tab lists the agent's internal scheduled jobs from the built-in CronManager. This includes jobs created through the scheduler tool and mission-backed schedules that are stored in the same internal scheduler.
+
+The table shows the job ID, source, cron expression, next calculated run, enabled/disabled status, prompt, and row actions. Use the search field to find jobs by ID, expression, prompt, source, or status. Source and status filters help separate agent-created jobs from mission schedules.
+
+Administrators can edit a job's cron expression, prompt, and enabled state from the row action. The job source is shown in the edit dialog but preserved automatically so mission and system-owned jobs stay traceable. Deleting a job removes it from the internal scheduler.
+
+```bash
+GET /api/dashboard/cronjobs?q=backup&source=agent&status=enabled
+PUT /api/dashboard/cronjobs
+DELETE /api/dashboard/cronjobs/{id}
+```
+
+The PUT and DELETE endpoints require administrator access.
+
 ## System Metrics (CPU, RAM, Disk)
 
 Real-time monitoring of your AuraGo host's resource usage.

@@ -94,7 +94,7 @@
 
         const TabState = { active: 'overview', loaded: {} };
         const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '', modalKind: '', modalNodeId: '', modalTriggerEl: null };
-        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'audit', 'system'];
+        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'audit', 'cronjobs', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
             el.classList.toggle('is-hidden', hidden);
@@ -124,6 +124,9 @@
             if (tabId === 'audit' && TabState.loaded[tabId]) {
                 loadTabAudit();
             }
+            if (tabId === 'cronjobs' && TabState.loaded[tabId]) {
+                loadTabCronjobs();
+            }
             if (!TabState.loaded[tabId]) {
                 loadTabContent(tabId);
             }
@@ -138,6 +141,7 @@
                 case 'knowledge': return loadTabKnowledge();
                 case 'filesync':  return loadFileSyncStatus();
                 case 'audit':     return loadTabAudit();
+                case 'cronjobs':  return loadTabCronjobs();
                 case 'system':   return loadTabSystem();
             }
         }
@@ -402,6 +406,7 @@
                 knowledgeGraphReset.addEventListener('click', resetKnowledgeGraphFocus);
             }
             setupAuditControls();
+            setupCronjobsControls();
             document.addEventListener('click', (e) => {
                 const nodeLink = e.target.closest('[data-kg-open-node]');
                 if (nodeLink) {
@@ -440,6 +445,7 @@
                     case 'knowledge': loadTabKnowledge(); break;
                     case 'filesync':  loadFileSyncStatus(); break;
                     case 'audit':     loadTabAudit();    break;
+                    case 'cronjobs':  loadTabCronjobs(); break;
                     case 'system':   loadTabSystem();   break;
                 }
             }

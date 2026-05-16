@@ -250,19 +250,24 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_remove_id_required")), nil
 		}
 
-		entryID, exists := m.cronEntryIDs[id]
-		if !exists {
-			return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
+		found := false
+		entryID, hasEntry := m.cronEntryIDs[id]
+		if hasEntry {
+			m.engine.Remove(entryID)
+			delete(m.cronEntryIDs, id)
+			found = true
 		}
-
-		m.engine.Remove(entryID)
-		delete(m.cronEntryIDs, id)
 
 		filtered := []CronJob{}
 		for _, j := range m.jobs {
-			if j.ID != id {
-				filtered = append(filtered, j)
+			if j.ID == id {
+				found = true
+				continue
 			}
+			filtered = append(filtered, j)
+		}
+		if !found {
+			return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 		}
 		m.jobs = filtered
 		if err := m.save(); err != nil {

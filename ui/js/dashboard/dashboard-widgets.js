@@ -1439,6 +1439,8 @@
                     const safeId     = esc(job.id || 'unknown');
                     const safeExpr   = esc(job.cron_expr || '');
                     const safePrompt = esc(job.task_prompt || '');
+                    const safeSource = esc(job.source || 'agent');
+                    const safeDisabled = job.disabled ? 'true' : 'false';
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${safeId}</span>
                 <div class="activity-item-row">
@@ -1448,6 +1450,8 @@
                             data-cron-id="${safeId}"
                             data-cron-expr="${safeExpr}"
                             data-cron-prompt="${safePrompt}"
+                            data-cron-source="${safeSource}"
+                            data-cron-disabled="${safeDisabled}"
                             onclick="openCronEditModal(this)"
                             title="${t('dashboard.cron_edit_title')}">✏️</button>
                         <button class="cf-fact-btn danger"
@@ -2287,6 +2291,132 @@
         // ══════════════════════════════════════════════════════════════════════════════
         // OPERATIONS & INTEGRATIONS
         // ══════════════════════════════════════════════════════════════════════════════
+
+        // ═══ Cronjobs ═══════════════════════════════════════════════════════════════
+        let cronjobsSearchTimer = null;
+
+        async function loadTabCronjobs() {
+            const params = cronjobsQueryParams();
+            try {
+                const resp = await fetch('/api/dashboard/cronjobs?' + params.toString(), { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('Cronjobs load failed');
+                const data = await resp.json();
+                renderCronjobs(data);
+            } catch (e) {
+                console.warn('Cronjobs load failed', e);
+                if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_error_load'), 'error', 5000);
+            }
+        }
+
+        function setupCronjobsControls() {
+            const search = document.getElementById('cronjobs-search');
+            const refresh = document.getElementById('cronjobs-refresh');
+            const filterIDs = ['cronjobs-source-filter', 'cronjobs-status-filter'];
+            if (search) {
+                search.addEventListener('input', () => {
+                    clearTimeout(cronjobsSearchTimer);
+                    cronjobsSearchTimer = setTimeout(loadTabCronjobs, 250);
+                });
+                search.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(cronjobsSearchTimer);
+                        loadTabCronjobs();
+                    }
+                });
+            }
+            filterIDs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', loadTabCronjobs);
+            });
+            if (refresh) refresh.addEventListener('click', loadTabCronjobs);
+        }
+
+        function cronjobsQueryParams() {
+            const params = new URLSearchParams();
+            const q = (document.getElementById('cronjobs-search')?.value || '').trim();
+            const source = document.getElementById('cronjobs-source-filter')?.value || '';
+            const status = document.getElementById('cronjobs-status-filter')?.value || '';
+            if (q) params.set('q', q);
+            if (source) params.set('source', source);
+            if (status) params.set('status', status);
+            return params;
+        }
+
+        function renderCronjobs(data) {
+            const tbody = document.getElementById('cronjobs-tbody');
+            const emptyEl = document.getElementById('cronjobs-empty');
+            const summaryEl = document.getElementById('cronjobs-summary');
+            if (!tbody) return;
+            const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+            if (summaryEl) {
+                const items = [
+                    { value: Number(data?.total || 0), label: t('dashboard.cronjobs_total') },
+                    { value: Number(data?.enabled || 0), label: t('dashboard.cronjobs_enabled') },
+                    { value: Number(data?.disabled || 0), label: t('dashboard.cronjobs_disabled') },
+                ];
+                summaryEl.innerHTML = items.map(item => `
+                    <div class="cronjobs-summary-item">
+                        <span class="cronjobs-summary-value">${Number(item.value).toLocaleString()}</span>
+                        <span>${esc(item.label)}</span>
+                    </div>
+                `).join('');
+            }
+
+            tbody.innerHTML = '';
+            if (jobs.length === 0) {
+                if (emptyEl) emptyEl.style.display = '';
+                return;
+            }
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            jobs.forEach(job => {
+                const disabled = !!job.disabled;
+                const status = disabled ? 'disabled' : 'enabled';
+                const tr = document.createElement('tr');
+                tr.className = disabled ? 'cronjobs-row cronjobs-row-disabled' : 'cronjobs-row';
+                const nextRun = cronjobFormatNextRun(job.next_run, disabled);
+                const promptTitle = job.task_prompt || '';
+                tr.innerHTML = `
+                    <td data-label="${esc(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${esc(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}">${esc(cronjobStatusLabel(status))}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
+                        <button type="button" class="cronjobs-row-btn"
+                            data-cron-id="${esc(job.id || '')}"
+                            data-cron-expr="${esc(job.cron_expr || '')}"
+                            data-cron-prompt="${esc(job.task_prompt || '')}"
+                            data-cron-source="${esc(job.source || 'agent')}"
+                            data-cron-disabled="${disabled ? 'true' : 'false'}"
+                            onclick="openCronEditModal(this)"
+                            title="${esc(t('dashboard.cron_edit_title'))}">✏️</button>
+                        <button type="button" class="cronjobs-row-btn danger"
+                            data-cron-id="${esc(job.id || '')}"
+                            onclick="deleteCronJob(this.dataset.cronId)"
+                            title="${esc(t('dashboard.cron_btn_delete'))}">🗑</button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function cronjobSourceLabel(source) {
+            return t('dashboard.cronjobs_source_' + (source || 'agent')) || source || 'agent';
+        }
+
+        function cronjobStatusLabel(status) {
+            return status === 'disabled' ? t('dashboard.cronjobs_status_disabled') : t('dashboard.cronjobs_status_enabled');
+        }
+
+        function cronjobFormatNextRun(value, disabled) {
+            if (disabled) return t('dashboard.cronjobs_next_run_disabled');
+            if (!value) return '—';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '—';
+            return date.toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
 
         // ═══ Audit Log ══════════════════════════════════════════════════════════════
         let auditOffset = 0;

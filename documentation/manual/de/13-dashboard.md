@@ -58,6 +58,22 @@ DELETE /api/dashboard/audit
 
 Die DELETE-Endpunkte benötigen Admin-Zugriff. Für Massenlöschungen ist die Bestätigung `DELETE_AUDIT_EVENTS` erforderlich.
 
+## Cronjobs
+
+Der Tab **Cronjobs** zeigt die internen geplanten Aufgaben aus Auras eingebautem CronManager. Dazu gehören Cronjobs, die über das Scheduler-Tool angelegt wurden, und zeitgesteuerte Missionen, die im gleichen internen Scheduler gespeichert werden.
+
+Die Tabelle zeigt Job-ID, Quelle, Cron-Ausdruck, nächsten berechneten Lauf, Aktiv-/Deaktiviert-Status, Prompt und Zeilenaktionen. Über das Suchfeld findest du Jobs nach ID, Ausdruck, Prompt, Quelle oder Status. Quellen- und Statusfilter helfen dabei, Agent-Jobs von Mission-Zeitplänen zu trennen.
+
+Admins können Cron-Ausdruck, Prompt und Aktivierung direkt über die Zeilenaktion bearbeiten. Die Quelle wird im Bearbeitungsdialog angezeigt, aber automatisch beibehalten, damit Mission- und System-Jobs nachvollziehbar bleiben. Löschen entfernt den Job aus dem internen Scheduler.
+
+```bash
+GET /api/dashboard/cronjobs?q=backup&source=agent&status=enabled
+PUT /api/dashboard/cronjobs
+DELETE /api/dashboard/cronjobs/{id}
+```
+
+Die PUT- und DELETE-Endpunkte benötigen Admin-Zugriff.
+
 ## System-Metriken
 
 ### CPU-Auslastung

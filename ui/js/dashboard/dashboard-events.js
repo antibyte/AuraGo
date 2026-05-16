@@ -166,6 +166,10 @@
             document.getElementById('cronEditId').value     = btn.dataset.cronId    || '';
             document.getElementById('cronEditExpr').value   = btn.dataset.cronExpr  || '';
             document.getElementById('cronEditPrompt').value = btn.dataset.cronPrompt || '';
+            const sourceEl = document.getElementById('cronEditSource');
+            const disabledEl = document.getElementById('cronEditDisabled');
+            if (sourceEl) sourceEl.value = btn.dataset.cronSource || 'agent';
+            if (disabledEl) disabledEl.value = btn.dataset.cronDisabled === 'true' ? 'disabled' : 'enabled';
             document.getElementById('cronEditOverlay').classList.add('open');
             document.getElementById('cronEditExpr').focus();
         }
@@ -174,22 +178,23 @@
             const id     = document.getElementById('cronEditId').value;
             const expr   = (document.getElementById('cronEditExpr').value || '').trim();
             const prompt = (document.getElementById('cronEditPrompt').value || '').trim();
+            const disabled = document.getElementById('cronEditDisabled')?.value === 'disabled';
             if (!id || !expr || !prompt) return;
             const saveBtn = document.getElementById('cronEditSaveBtn');
             if (saveBtn) saveBtn.disabled = true;
             try {
-                const resp = await fetch('/api/cron', {
+                const resp = await fetch('/api/dashboard/cronjobs', {
                     method: 'PUT',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, cron_expr: expr, task_prompt: prompt })
+                    body: JSON.stringify({ id, cron_expr: expr, task_prompt: prompt, disabled })
                 });
                 if (!resp.ok) throw new Error('Update failed');
                 closeCronEditModal();
-                const activity = await API.get('/api/dashboard/activity');
-                renderActivity(activity);
+                if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_updated'), 'success', 2500);
+                await refreshCronViews();
             } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
+                await showAlert('Error', t('dashboard.cronjobs_error_update'));
             } finally {
                 if (saveBtn) saveBtn.disabled = false;
             }
@@ -198,15 +203,25 @@
         async function deleteCronJob(id) {
             if (!await showConfirm(t('dashboard.cron_delete_confirm', { id }))) return;
             try {
-                const resp = await fetch('/api/cron?id=' + encodeURIComponent(id), {
+                const resp = await fetch('/api/dashboard/cronjobs/' + encodeURIComponent(id), {
                     method: 'DELETE',
                     credentials: 'same-origin'
                 });
                 if (!resp.ok) throw new Error('Delete failed');
+                if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_deleted'), 'success', 2500);
+                await refreshCronViews();
+            } catch (e) {
+                await showAlert('Error', t('dashboard.cronjobs_error_delete'));
+            }
+        }
+
+        async function refreshCronViews() {
+            if (typeof TabState !== 'undefined' && TabState.active === 'cronjobs') {
+                await loadTabCronjobs();
+            }
+            if (document.getElementById('activity-stats')) {
                 const activity = await API.get('/api/dashboard/activity');
                 renderActivity(activity);
-            } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
             }
         }
 

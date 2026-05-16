@@ -85,6 +85,9 @@
     <button class="dash-tab" data-tab="audit">
       <span class="tab-icon">🧾</span><span class="tab-label" data-i18n="dashboard.tab_audit">Audit</span>
     </button>
+    <button class="dash-tab" data-tab="cronjobs">
+      <span class="tab-icon">⏱️</span><span class="tab-label" data-i18n="dashboard.tab_cronjobs">Cronjobs</span>
+    </button>
     <button class="dash-tab" data-tab="system">
       <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
     </button>
@@ -580,6 +583,58 @@
     </div>
   </div><!-- #tab-audit -->
 
+  <!-- ═══ Tab 4d: Cronjobs ═══════════════════════════════════════════════════ -->
+  <div class="dash-tab-panel is-hidden" id="tab-cronjobs">
+    <div class="dash-grid">
+      <div class="dash-card dash-full-width" id="card-cronjobs">
+        <div class="dash-card-header">
+          <span class="card-icon">⏱️</span>
+          <span data-i18n="dashboard.cronjobs_title">Cronjobs</span>
+          <span class="collapse-toggle" data-card="card-cronjobs" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+        </div>
+        <div class="dash-card-body">
+          <div class="cronjobs-summary" id="cronjobs-summary">
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_total">Gesamt</span></div>
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_enabled">Aktiv</span></div>
+            <div class="cronjobs-summary-item"><span class="cronjobs-summary-value">—</span><span data-i18n="dashboard.cronjobs_disabled">Deaktiviert</span></div>
+          </div>
+          <div class="cronjobs-controls">
+            <input type="search" id="cronjobs-search" class="profile-search" data-i18n-placeholder="dashboard.cronjobs_search_placeholder" placeholder="Cronjobs durchsuchen...">
+            <select id="cronjobs-source-filter" class="cronjobs-select">
+              <option value="" data-i18n="dashboard.cronjobs_filter_all_sources">Alle Quellen</option>
+              <option value="agent" data-i18n="dashboard.cronjobs_source_agent">Agent</option>
+              <option value="mission" data-i18n="dashboard.cronjobs_source_mission">Missions</option>
+              <option value="system" data-i18n="dashboard.cronjobs_source_system">System</option>
+            </select>
+            <select id="cronjobs-status-filter" class="cronjobs-select">
+              <option value="" data-i18n="dashboard.cronjobs_filter_all_statuses">Alle Status</option>
+              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled">Aktiv</option>
+              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled">Deaktiviert</option>
+            </select>
+            <button type="button" id="cronjobs-refresh" class="log-btn" data-i18n="dashboard.cronjobs_refresh">Aktualisieren</button>
+          </div>
+          <div class="cronjobs-table-wrap">
+            <table class="cronjobs-table">
+              <thead>
+                <tr>
+                  <th data-i18n="dashboard.cronjobs_col_id">ID</th>
+                  <th data-i18n="dashboard.cronjobs_col_source">Quelle</th>
+                  <th data-i18n="dashboard.cronjobs_col_schedule">Zeitplan</th>
+                  <th data-i18n="dashboard.cronjobs_col_next_run">Nächster Lauf</th>
+                  <th data-i18n="dashboard.cronjobs_col_status">Status</th>
+                  <th data-i18n="dashboard.cronjobs_col_prompt">Prompt</th>
+                  <th data-i18n="dashboard.cronjobs_col_actions">Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="cronjobs-tbody"></tbody>
+            </table>
+            <div id="cronjobs-empty" class="empty-state" data-i18n="dashboard.cronjobs_empty">Keine Cronjobs vorhanden.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- #tab-cronjobs -->
+
   <!-- ═══ Tab 5: System & Logs ════════════════════════════════════════════ -->
   <div class="dash-tab-panel" id="tab-system">
     <div class="dash-grid">
@@ -795,8 +850,19 @@
             <input type="text" id="cronEditId" class="cf-add-input cron-edit-id" readonly>
           </div>
           <div class="cron-form-group">
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_source_label">Quelle</label>
+            <input type="text" id="cronEditSource" class="cf-add-input cron-edit-id" readonly>
+          </div>
+          <div class="cron-form-group">
             <label class="cron-form-label" data-i18n="dashboard.cron_edit_expr_label">Cron-Ausdruck</label>
             <input type="text" id="cronEditExpr" class="cf-add-input" placeholder="0 0 9 * * *">
+          </div>
+          <div class="cron-form-group">
+            <label class="cron-form-label" data-i18n="dashboard.cron_edit_status_label">Status</label>
+            <select id="cronEditDisabled" class="cf-add-input">
+              <option value="enabled" data-i18n="dashboard.cronjobs_status_enabled">Aktiv</option>
+              <option value="disabled" data-i18n="dashboard.cronjobs_status_disabled">Deaktiviert</option>
+            </select>
           </div>
           <div class="cron-form-group">
             <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label">Aufgaben-Prompt</label>

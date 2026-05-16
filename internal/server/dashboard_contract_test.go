@@ -419,6 +419,83 @@ func TestHandleDashboardActivityContract(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardCronjobsContractUpdateAndDelete(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	cronMgr := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronMgr.Close() })
+
+	if _, err := cronMgr.ManageScheduleWithSource("add", "mission_daily", "0 9 * * *", "Run mission", "en", "mission"); err != nil {
+		t.Fatalf("add cron job: %v", err)
+	}
+	if _, err := cronMgr.ManageSchedule("disable", "mission_daily", "", "", "en"); err != nil {
+		t.Fatalf("disable cron job: %v", err)
+	}
+
+	s := &Server{CronManager: cronMgr, Logger: logger}
+	handler := handleDashboardCronjobs(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/cronjobs?q=mission&source=mission&status=disabled", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode cronjobs response: %v", err)
+	}
+	for _, key := range []string{"jobs", "total", "enabled", "disabled"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("cronjobs payload missing key %q", key)
+		}
+	}
+	if got := int(body["total"].(float64)); got != 1 {
+		t.Fatalf("total = %d, want 1", got)
+	}
+	jobs := body["jobs"].([]interface{})
+	job := jobs[0].(map[string]interface{})
+	if job["source"] != "mission" || job["disabled"] != true {
+		t.Fatalf("job source/disabled = %#v/%#v, want mission/true", job["source"], job["disabled"])
+	}
+
+	update := bytes.NewReader([]byte(`{"id":"mission_daily","cron_expr":"0 10 * * *","task_prompt":"Run updated mission","disabled":false}`))
+	req = httptest.NewRequest(http.MethodPut, "/api/dashboard/cronjobs", update)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	updatedJobs := cronMgr.GetJobs()
+	if len(updatedJobs) != 1 {
+		t.Fatalf("cron job count after update = %d, want 1", len(updatedJobs))
+	}
+	updated := updatedJobs[0]
+	if updated.Source != "mission" {
+		t.Fatalf("source after update = %q, want mission", updated.Source)
+	}
+	if updated.Disabled {
+		t.Fatal("updated cron job should be enabled")
+	}
+	if updated.CronExpr != "0 10 * * *" || updated.TaskPrompt != "Run updated mission" {
+		t.Fatalf("updated job = %+v", updated)
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/dashboard/cronjobs/mission_daily", nil)
+	rec = httptest.NewRecorder()
+	handleDashboardCronjobByID(s).ServeHTTP(rec, deleteReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := len(cronMgr.GetJobs()); got != 0 {
+		t.Fatalf("cron job count after delete = %d, want 0", got)
+	}
+}
+
 func TestHandleDashboardGuardianContract(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLMGuardian.Enabled = true
