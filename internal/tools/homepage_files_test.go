@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -88,5 +90,28 @@ func TestHomepageWriteFileReportsDockerOutputOnFailure(t *testing.T) {
 	got := HomepageWriteFile(HomepageConfig{DockerHost: dockerHost}, "ki-news/src/main.ts", "console.log('ok')", slogDiscard())
 	if !strings.Contains(got, "Permission denied") {
 		t.Fatalf("expected write_file error to include Docker output, got: %s", got)
+	}
+}
+
+func TestHomepageWriteFileRejectsEmptyContentWithoutTruncating(t *testing.T) {
+	workspace := t.TempDir()
+	filePath := filepath.Join(workspace, "ki-news", "src", "App.tsx")
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filePath, []byte("export default function App() { return 'ok' }\n"), 0644); err != nil {
+		t.Fatalf("WriteFile seed: %v", err)
+	}
+
+	got := HomepageWriteFile(HomepageConfig{WorkspacePath: workspace}, "ki-news/src/App.tsx", "", slogDiscard())
+	if !strings.Contains(got, `"status":"error"`) || !strings.Contains(got, "content is empty") {
+		t.Fatalf("expected empty-content rejection, got: %s", got)
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "export default function App() { return 'ok' }\n" {
+		t.Fatalf("file was modified despite rejected empty write: %q", string(data))
 	}
 }

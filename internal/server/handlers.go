@@ -259,6 +259,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		if chatSessionID := r.Header.Get("X-Session-ID"); chatSessionID != "" {
 			sessionID = chatSessionID
 		}
+		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
+			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, s.Logger) {
+			return
+		}
 		unlockSession := lockSessionRequestWithLogger(sessionID, s.Logger)
 		defer unlockSession()
 

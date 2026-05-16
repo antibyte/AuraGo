@@ -195,6 +195,9 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	if len(content) > maxHomepageWriteFileSize {
 		return errJSON("content too large: %d bytes exceeds maximum of %d bytes", len(content), maxHomepageWriteFileSize)
 	}
+	if strings.TrimSpace(content) == "" {
+		return errJSON("content is empty; refusing to overwrite %s. Provide the full file content or use edit_file for a targeted change.", path)
+	}
 	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
 
 	if !checkDockerAvailable(cfg.DockerHost) {

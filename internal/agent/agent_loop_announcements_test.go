@@ -371,6 +371,21 @@ func TestDesktopAnnouncementRecoveryRejectsDoneWithoutToolAfterPromise(t *testin
 	}
 }
 
+func TestAsksUserForInputDetectsMidTaskQuestions(t *testing.T) {
+	content := strings.Repeat("Die Webseite ist gebaut und der Deploy braucht eine Entscheidung. ", 8) +
+		"Soll ich die bestehende Netlify-Seite überschreiben?"
+	if !asksUserForInput(content) {
+		t.Fatal("expected German mid-task question to be detected")
+	}
+}
+
+func TestAsksUserForInputIgnoresCompletionSummary(t *testing.T) {
+	content := "Build completed successfully. Netlify deploy failed with HTTP 500, so I kept the local dist output unchanged."
+	if asksUserForInput(content) {
+		t.Fatal("did not expect completion summary to be treated as a user question")
+	}
+}
+
 type testDiscardWriter struct{}
 
 func (testDiscardWriter) Write(p []byte) (int, error) {

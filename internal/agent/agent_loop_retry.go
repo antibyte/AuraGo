@@ -235,7 +235,12 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		!xmlFallbackPostToolChain
 	if midTaskTextOnly {
 		const midTaskSubstantiveThreshold = 300
-		if len(announcementContent) >= midTaskSubstantiveThreshold {
+		asksUser := asksUserForInput(announcementContent)
+		if asksUser {
+			currentLogger.Info("[Sync] Mid-task text-only response asks for user input — returning response and waiting for user", "content_len", len(announcementContent))
+			parsedToolResp.IsFinished = true
+			content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
+		} else if len(announcementContent) >= midTaskSubstantiveThreshold {
 			currentLogger.Info("[Sync] Mid-task text-only response without <done/> — treating as implicit completion (substantive content)", "content_len", len(announcementContent))
 			parsedToolResp.IsFinished = true
 			if !strings.Contains(content, "<done/>") {

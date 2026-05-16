@@ -74,6 +74,7 @@ var pathLikePattern = regexp.MustCompile(`(?i)(?:[A-Za-z]:\\|/|\.{1,2}/|[A-Za-z0
 var urlLikePattern = regexp.MustCompile(`(?i)\bhttps?://`)
 var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|sekunden|minuten|stunden|ms|kb|mb|gb)\b`)
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
+var userDirectedQuestionPattern = regexp.MustCompile(`(?i)(?:\?|soll ich|sollen wir|möchtest du|moechtest du|willst du|bitte bestätige|bitte bestaetige|warte auf|bestätig|bestaetig|freigeben|zustimmen|confirm|please confirm|should i|should we|do you want|would you like|shall i|shall we|approve|approval)`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
 	if tc.IsTool || tc.RawCodeDetected || len(content) > 1000 {
@@ -315,4 +316,15 @@ func containsCompletionEvidence(lc string) bool {
 		return true
 	}
 	return false
+}
+
+func asksUserForInput(content string) bool {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return false
+	}
+	if strings.HasSuffix(strings.TrimRight(trimmed, "\"'`*_ "), "?") {
+		return true
+	}
+	return userDirectedQuestionPattern.MatchString(trimmed)
 }
