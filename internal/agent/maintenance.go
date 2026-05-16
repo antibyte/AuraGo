@@ -949,6 +949,7 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 	if cfg.Consolidation.AutoOptimize && totalStored > 0 {
 		autoOptimizeMemory(cfg, logger, client, ltm, stm, kg)
 	}
+	autoCurateMemory(cfg, logger, stm)
 
 	// Create journal entry for the consolidation run
 	if cfg.Tools.Journal.Enabled && totalStored > 0 {
@@ -1159,7 +1160,11 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	// Remove low-priority documents
 	for _, docID := range lowDocs {
 		_ = ltm.DeleteDocument(docID)
-		_ = stm.DeleteMemoryMeta(docID)
+		_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+			DocID:  docID,
+			Action: memory.MemoryCurationActionArchive,
+			Reason: "auto-optimize low priority",
+		}, "system", false)
 	}
 
 	// Compress medium-priority documents
@@ -1222,7 +1227,11 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		newIDs, err2 := ltm.StoreDocument(item.concept, compressed)
 		if err2 == nil {
 			_ = ltm.DeleteDocument(item.docID)
-			_ = stm.DeleteMemoryMeta(item.docID)
+			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+				DocID:  item.docID,
+				Action: memory.MemoryCurationActionArchive,
+				Reason: "auto-optimize compressed into replacement memory",
+			}, "system", false)
 			for _, newID := range newIDs {
 				_ = stm.UpsertMemoryMeta(newID)
 			}
@@ -1298,6 +1307,55 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 			"low_removed", len(lowDocs),
 			"medium_compressed", len(mediumDocs),
 			"graph_nodes_removed", graphRemoved)
+	}
+}
+
+func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+	if cfg == nil || stm == nil {
+		return
+	}
+	metas, err := stm.GetAllMemoryMeta(50000, 0)
+	if err != nil {
+		logger.Warn("[MemoryCurator] Failed to fetch memory metadata", "error", err)
+		return
+	}
+	usage, err := stm.GetMemoryUsageStats(30, 500)
+	if err != nil {
+		logger.Warn("[MemoryCurator] Failed to fetch memory usage stats", "error", err)
+		usage = memory.MemoryUsageStats{WindowDays: 30}
+	}
+	threshold := cfg.MemoryAnalysis.AutoConfirm
+	if threshold <= 0 {
+		threshold = 0.92
+	}
+	plan := memory.BuildMemoryCurationPlan(metas, usage, memory.MemoryCurationOptions{
+		ConfirmThreshold: threshold,
+		MaxActions:       100,
+	})
+	appliedConfirm := 0
+	appliedArchive := 0
+	for _, action := range plan.AutoConfirm {
+		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+			logger.Warn("[MemoryCurator] Failed to confirm memory", "doc_id", action.DocID, "error", err)
+			continue
+		}
+		appliedConfirm++
+	}
+	for _, action := range plan.AutoArchive {
+		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+			logger.Warn("[MemoryCurator] Failed to archive memory", "doc_id", action.DocID, "error", err)
+			continue
+		}
+		appliedArchive++
+	}
+	if appliedConfirm > 0 || appliedArchive > 0 || plan.ReviewRequiredCount > 0 {
+		if appliedConfirm > 0 || appliedArchive > 0 {
+			InvalidateMemoryMetaCache()
+		}
+		logger.Info("[MemoryCurator] Curation run complete",
+			"confirmed", appliedConfirm,
+			"archived", appliedArchive,
+			"review_required", plan.ReviewRequiredCount)
 	}
 }
 

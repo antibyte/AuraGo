@@ -35,6 +35,7 @@ type MemoryConfidenceStats struct {
 	Confirmed        int `json:"confirmed"`
 	Unverified       int `json:"unverified"`
 	Contradicted     int `json:"contradicted"`
+	Archived         int `json:"archived"`
 	HighConfidence   int `json:"high_confidence"`
 	MediumConfidence int `json:"medium_confidence"`
 	LowConfidence    int `json:"low_confidence"`
@@ -150,6 +151,9 @@ func buildMemoryConfidenceStats(metas []MemoryMeta) MemoryConfidenceStats {
 			stats.Confirmed++
 		case "contradicted":
 			stats.Contradicted++
+		case "archived":
+			stats.Archived++
+			continue
 		default:
 			stats.Unverified++
 		}
@@ -174,6 +178,9 @@ func buildMemoryConfidenceStats(metas []MemoryMeta) MemoryConfidenceStats {
 func buildMemoryEffectivenessStats(metas []MemoryMeta) MemoryEffectivenessStats {
 	stats := MemoryEffectivenessStats{}
 	for _, meta := range metas {
+		if IsMemoryArchived(meta) {
+			continue
+		}
 		stats.TotalUseful += meta.UsefulCount
 		stats.TotalUseless += meta.UselessCount
 
@@ -203,6 +210,9 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 	underperforming := make([]staleEntry, 0)
 
 	for _, meta := range metas {
+		if IsMemoryArchived(meta) {
+			continue
+		}
 		status := strings.ToLower(strings.TrimSpace(meta.VerificationStatus))
 		confidence := meta.ExtractionConfidence
 		if confidence <= 0 {

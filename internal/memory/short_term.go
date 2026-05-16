@@ -618,6 +618,10 @@ type MemoryMeta struct {
 	LastEffectivenessAt  string
 	Protected            bool
 	KeepForever          bool
+	ArchivedAt           string
+	ArchivedReason       string
+	LastReviewedAt       string
+	ReviewNote           string
 }
 
 // MemoryMetaUpdate allows callers to enrich a memory_meta row with quality and provenance signals.
@@ -908,7 +912,7 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 	if offset < 0 {
 		offset = 0
 	}
-	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever FROM memory_meta ORDER BY doc_id ASC LIMIT ? OFFSET ?;`
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), COALESCE(review_note, '') FROM memory_meta ORDER BY doc_id ASC LIMIT ? OFFSET ?;`
 	rows, err := s.db.Query(query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -932,6 +936,10 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 			&m.LastEffectivenessAt,
 			&m.Protected,
 			&m.KeepForever,
+			&m.ArchivedAt,
+			&m.ArchivedReason,
+			&m.LastReviewedAt,
+			&m.ReviewNote,
 		); err != nil {
 			return nil, err
 		}
@@ -957,7 +965,8 @@ func (s *SQLiteMemory) GetMemoryMetaAfter(cursor string, limit int) ([]MemoryMet
 		rows, err = s.db.Query(`
 			SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence,
 			       verification_status, source_type, source_reliability, useful_count, useless_count,
-			       COALESCE(last_effectiveness_at, ''), protected, keep_forever
+			       COALESCE(last_effectiveness_at, ''), protected, keep_forever,
+			       COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), COALESCE(review_note, '')
 			FROM memory_meta
 			ORDER BY doc_id ASC
 			LIMIT ?`, limit)
@@ -965,7 +974,8 @@ func (s *SQLiteMemory) GetMemoryMetaAfter(cursor string, limit int) ([]MemoryMet
 		rows, err = s.db.Query(`
 			SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence,
 			       verification_status, source_type, source_reliability, useful_count, useless_count,
-			       COALESCE(last_effectiveness_at, ''), protected, keep_forever
+			       COALESCE(last_effectiveness_at, ''), protected, keep_forever,
+			       COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), COALESCE(review_note, '')
 			FROM memory_meta
 			WHERE doc_id > ?
 			ORDER BY doc_id ASC
@@ -993,6 +1003,10 @@ func (s *SQLiteMemory) GetMemoryMetaAfter(cursor string, limit int) ([]MemoryMet
 			&m.LastEffectivenessAt,
 			&m.Protected,
 			&m.KeepForever,
+			&m.ArchivedAt,
+			&m.ArchivedReason,
+			&m.LastReviewedAt,
+			&m.ReviewNote,
 		); err != nil {
 			return nil, err
 		}

@@ -824,6 +824,67 @@
             gap: 0.7rem;
         }
 
+        .memory-curator-actionbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+            margin: 0.45rem 0 0.7rem;
+        }
+
+        .memory-curator-apply-btn {
+            border-color: color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+            color: var(--accent);
+        }
+
+        .memory-curator-preview {
+            margin-bottom: 0.7rem;
+        }
+
+        .memory-curator-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.55rem;
+            margin-bottom: 0.55rem;
+        }
+
+        .memory-curator-preview-card {
+            padding: 0.65rem 0.75rem;
+            background: color-mix(in srgb, var(--bg-glass) 82%, transparent);
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.7rem;
+        }
+
+        .memory-curator-preview-value {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .memory-curator-preview-label {
+            margin-top: 0.18rem;
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .memory-curator-preview-samples {
+            display: grid;
+            gap: 0.35rem;
+            padding: 0.65rem;
+            background: var(--bg-glass);
+            border: 1px dashed var(--border-subtle);
+            border-radius: 0.7rem;
+        }
+
+        .memory-curator-preview-row {
+            display: grid;
+            grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1fr);
+            gap: 0.55rem;
+            align-items: center;
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
         .memory-curator-section {
             padding: 0.75rem;
         }

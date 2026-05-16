@@ -227,7 +227,11 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		// 1. Process VectorDB Low Priority
 		for _, docID := range lowDocs {
 			_ = longTermMem.DeleteDocument(docID)
-			_ = shortTermMem.DeleteMemoryMeta(docID)
+			_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+				DocID:  docID,
+				Action: memory.MemoryCurationActionArchive,
+				Reason: "memory maintenance low priority",
+			}, "agent", false)
 		}
 
 		// 2. Process VectorDB Medium Priority (Compression)
@@ -270,7 +274,11 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 				newIDs, err2 := longTermMem.StoreDocument(concept, compressed)
 				if err2 == nil {
 					_ = longTermMem.DeleteDocument(docID)
-					_ = shortTermMem.DeleteMemoryMeta(docID)
+					_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+						DocID:  docID,
+						Action: memory.MemoryCurationActionArchive,
+						Reason: "memory maintenance compressed into replacement memory",
+					}, "agent", false)
 					for _, newID := range newIDs {
 						_ = shortTermMem.UpsertMemoryMeta(newID)
 					}
@@ -280,6 +288,9 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 
 		// 3. Process Graph Low Priority
 		graphRemoved, _ = kg.OptimizeGraph(thresholdLow)
+		if len(lowDocs) > 0 || len(mediumDocs) > 0 {
+			InvalidateMemoryMetaCache()
+		}
 	}
 
 	return fmt.Sprintf(

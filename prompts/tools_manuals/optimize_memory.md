@@ -1,6 +1,6 @@
 ## Tool: Optimize Memory (`optimize_memory`)
 
-Triggers the Priority-Based Forgetting System on the Knowledge Graph. Sweeps the entire graph, calculates a composite priority score for every node, and removes low-priority entries to keep the KG lean and relevant.
+Triggers the Priority-Based Forgetting System for long-term memory and the Knowledge Graph. It scores tracked VectorDB memories via `memory_meta`, archives low-priority memories through the Memory Curator event log, compresses medium-priority memories when possible, and removes low-priority KG entries to keep retrieval lean and relevant.
 
 ### How it works
 
@@ -8,7 +8,7 @@ Each node receives a **composite priority score**:
 - `access_count` — how often this node has been retrieved or referenced
 - `connected edges` — how many relationships this node participates in
 
-Nodes below the configured threshold are **archived** (not deleted permanently) to `graph_archive.json`. Their relationships are also archived.
+Vector memories below the configured threshold are **archived** in `memory_meta` with a curation event so they stop being injected into prompts but remain reviewable in the dashboard. KG nodes below the threshold are archived to `graph_archive.json`; their relationships are also archived.
 
 **Protected nodes** (those with `properties["protected"] == "true"`) are never removed.
 
@@ -44,7 +44,8 @@ Protected nodes are skipped regardless of their access count or edge count.
 
 ### After optimization
 
-- Archived nodes are stored in `data/graph_archive.json`
+- Archived VectorDB memories appear in the Dashboard Memory Curator and are excluded from active prompt retrieval
+- Archived KG nodes are stored in `data/graph_archive.json`
 - Active graph is smaller and more relevant
 - Subsequent searches and KG context injections will be faster and less noisy
 - Run `memory_reflect` with `focus: "relationships"` afterwards to confirm the results

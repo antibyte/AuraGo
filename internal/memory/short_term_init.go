@@ -74,8 +74,25 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		useless_count INTEGER DEFAULT 0,
 		last_effectiveness_at DATETIME,
 		protected BOOLEAN DEFAULT 0,
-		keep_forever BOOLEAN DEFAULT 0
+		keep_forever BOOLEAN DEFAULT 0,
+		archived_at DATETIME,
+		archived_reason TEXT DEFAULT '',
+		last_reviewed_at DATETIME,
+		review_note TEXT DEFAULT ''
 	);
+
+	CREATE TABLE IF NOT EXISTS memory_curation_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+		doc_id TEXT NOT NULL,
+		action TEXT NOT NULL,
+		actor TEXT DEFAULT 'system',
+		previous_status TEXT DEFAULT '',
+		new_status TEXT DEFAULT '',
+		reason TEXT DEFAULT '',
+		dry_run BOOLEAN DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_memory_curation_events_doc ON memory_curation_events(doc_id, timestamp DESC);
 
 	CREATE TABLE IF NOT EXISTS interaction_patterns (
 		hour_of_day INTEGER,
@@ -384,6 +401,27 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "useful_count", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "useless_count", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_effectiveness_at", "DATETIME"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "archived_at", "DATETIME"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "archived_reason", "TEXT DEFAULT ''"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_reviewed_at", "DATETIME"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "review_note", "TEXT DEFAULT ''"))
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS memory_curation_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+			doc_id TEXT NOT NULL,
+			action TEXT NOT NULL,
+			actor TEXT DEFAULT 'system',
+			previous_status TEXT DEFAULT '',
+			new_status TEXT DEFAULT '',
+			reason TEXT DEFAULT '',
+			dry_run BOOLEAN DEFAULT 0
+		);
+		CREATE INDEX IF NOT EXISTS idx_memory_curation_events_doc ON memory_curation_events(doc_id, timestamp DESC);
+	`); err != nil {
+		logger.Warn("Failed to create memory curation events table", "error", err)
+		errs = append(errs, err)
+	}
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_status", "TEXT DEFAULT 'pending'"))
 	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
 		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
@@ -412,7 +450,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 
 	joinedErr := errors.Join(errs...)
 	if joinedErr == nil {
-		const shortTermSchemaVersion = 9
+		const shortTermSchemaVersion = 10
 		var currentVer int
 		if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
 			logger.Warn("Failed to read schema version", "error", err)

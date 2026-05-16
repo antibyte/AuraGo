@@ -1189,11 +1189,18 @@
                 const translatedMode = t(modeKey);
                 const modeLabel = translatedMode === modeKey ? String(strategy.mode || 'unavailable') : translatedMode;
                 const reason = strategy.reason || t('dashboard.memory_strategy_reason_empty');
+                const totalTracked = Number(confidence.total || 0);
+                const confirmedCount = Number(confidence.confirmed || 0);
+                const archivedCount = Number(confidence.archived || 0);
+                const confirmedPct = totalTracked > 0 ? Math.round((confirmedCount / totalTracked) * 100) + '%' : '0%';
                 const items = [
                     { value: Number(usage.retrieved_events || 0).toLocaleString(), label: t('dashboard.memory_health_retrieved') },
                     { value: Number(usage.predicted_events || 0).toLocaleString(), label: t('dashboard.memory_health_predicted') },
                     { value: Number(usage.distinct_memories || 0).toLocaleString(), label: t('dashboard.memory_health_distinct') },
+                    { value: totalTracked.toLocaleString(), label: t('dashboard.memory_health_total') },
+                    { value: confirmedPct, label: t('dashboard.memory_health_confirmed_rate') },
                     { value: Number(confidence.unverified || 0).toLocaleString(), label: t('dashboard.memory_health_unverified') },
+                    { value: archivedCount.toLocaleString(), label: t('dashboard.memory_curator_archived') },
                     { value: Number(curator.stale_candidates || 0).toLocaleString(), label: t('dashboard.memory_health_stale') },
                     { value: Number(episodic.recent_count || 0).toLocaleString(), label: t('dashboard.memory_health_recent_episodes') },
                     { value: Number(pendingActions.length || 0).toLocaleString(), label: t('dashboard.memory_pending_title') },
@@ -1229,8 +1236,14 @@
                     t('dashboard.memory_curator_fact_low_confidence', { count: Number(curator.low_confidence || 0) }),
                     t('dashboard.memory_curator_fact_contradictions', { count: Number(curator.contradictions || 0) }),
                     t('dashboard.memory_curator_fact_overused', { count: Number(curator.overused_memories || 0) }),
+                    t('dashboard.memory_curator_fact_archived', { count: Number(confidence.archived || 0) }),
                 ];
-                curatorEl.innerHTML = '<div class="memory-curator-grid">' +
+                curatorEl.innerHTML = '<div class="memory-curator-actionbar">' +
+                    '<button type="button" class="mh-more-btn" onclick="runMemoryCurationDryRun()">' + esc(t('dashboard.memory_curator_preview')) + '</button>' +
+                    '<button type="button" class="mh-more-btn memory-curator-apply-btn" onclick="applyMemoryCurationSafeActions()">' + esc(t('dashboard.memory_curator_apply')) + '</button>' +
+                    '<button type="button" class="mh-more-btn" onclick="runMemoryCurationDryRun(true)">' + esc(t('dashboard.memory_curator_show_archived')) + '</button>' +
+                    '</div><div id="memory-curator-preview" class="memory-curator-preview"></div>' +
+                    '<div class="memory-curator-grid">' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' + facts.map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') + '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
                     (suggestions.length ? renderCollapsibleList(suggestions, item => `<div class="memory-curator-row">${esc(item)}</div>`, 4) : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_empty')}</div>`) +
@@ -2305,6 +2318,100 @@
             } catch (e) {
                 console.warn('Cronjobs load failed', e);
                 if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_error_load'), 'error', 5000);
+            }
+        }
+
+        function renderMemoryCurationPreview(plan) {
+            const el = document.getElementById('memory-curator-preview');
+            if (!el) return;
+            if (!plan) {
+                el.innerHTML = '';
+                return;
+            }
+            const actions = [
+                { count: Number(plan.auto_confirm_count || 0), label: t('dashboard.memory_curator_auto_confirm') },
+                { count: Number(plan.auto_archive_count || 0), label: t('dashboard.memory_curator_auto_archive') },
+                { count: Number(plan.review_required_count || 0), label: t('dashboard.memory_curator_review_required') },
+            ];
+            const renderAction = action => `
+                <div class="memory-curator-preview-card">
+                    <div class="memory-curator-preview-value">${esc(String(action.count))}</div>
+                    <div class="memory-curator-preview-label">${esc(action.label)}</div>
+                </div>`;
+            const sampleActions = []
+                .concat(Array.isArray(plan.auto_confirm) ? plan.auto_confirm.slice(0, 3) : [])
+                .concat(Array.isArray(plan.auto_archive) ? plan.auto_archive.slice(0, 3) : [])
+                .concat(Array.isArray(plan.review_required) ? plan.review_required.slice(0, 3) : []);
+            const samples = sampleActions.length ? `
+                <div class="memory-curator-preview-samples">
+                    ${sampleActions.slice(0, 6).map(item => `
+                        <div class="memory-curator-preview-row">
+                            <span class="mono">${esc(item.doc_id || '')}</span>
+                            <span>${esc(item.reason || item.action || '')}</span>
+                        </div>`).join('')}
+                </div>` : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_empty')}</div>`;
+            el.innerHTML = `<div class="memory-curator-preview-grid">${actions.map(renderAction).join('')}</div>${samples}`;
+        }
+
+        async function runMemoryCurationDryRun(showArchived) {
+            try {
+                if (showArchived) {
+                    const archiveResp = await fetch('/api/dashboard/memory/curation', { credentials: 'same-origin' });
+                    if (!archiveResp.ok) throw new Error('memory curation archive load failed');
+                    const archiveData = await archiveResp.json();
+                    renderMemoryCurationArchive(archiveData.archived || []);
+                    return;
+                }
+                const resp = await fetch('/api/dashboard/memory/curation/dry-run', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: 100 })
+                });
+                if (!resp.ok) throw new Error('memory curation dry-run failed');
+                const data = await resp.json();
+                renderMemoryCurationPreview(data.plan);
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_preview_ready'), 'success', 2500);
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_error'), 'error', 5000);
+            }
+        }
+
+        function renderMemoryCurationArchive(items) {
+            const el = document.getElementById('memory-curator-preview');
+            if (!el) return;
+            const archived = Array.isArray(items) ? items : [];
+            if (!archived.length) {
+                el.innerHTML = `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_no_archived')}</div>`;
+                return;
+            }
+            el.innerHTML = `<div class="memory-curator-preview-samples">` + archived.slice(0, 12).map(item => `
+                <div class="memory-curator-preview-row">
+                    <span class="mono">${esc(item.doc_id || '')}</span>
+                    <span>${esc(item.archived_reason || item.review_note || item.verification_status || '')}</span>
+                </div>
+            `).join('') + `</div>`;
+        }
+
+        async function applyMemoryCurationSafeActions() {
+            const confirmed = await showConfirm(
+                t('dashboard.memory_curator_apply_title'),
+                t('dashboard.memory_curator_apply_confirm')
+            );
+            if (!confirmed) return;
+            try {
+                const resp = await fetch('/api/dashboard/memory/curation/apply', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: 100, confirm: 'APPLY_MEMORY_CURATION' })
+                });
+                if (!resp.ok) throw new Error('memory curation apply failed');
+                const data = await resp.json();
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_applied', { count: Number(data.applied || 0) }), 'success', 3500);
+                if (typeof loadTabAgent === 'function') await loadTabAgent();
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_curator_error'), 'error', 5000);
             }
         }
 

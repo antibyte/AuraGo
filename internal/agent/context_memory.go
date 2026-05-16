@@ -213,11 +213,14 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	}
 
 	if bundle.SourceMap["ltm"] && longTermMem != nil && hasSemanticQuery {
-		results, _, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
+		results, docIDs, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
 		if err != nil {
 			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 		} else if len(results) > 0 {
-			bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
+			results = filterArchivedMemoryResults(results, docIDs, shortTermMem)
+			if len(results) > 0 {
+				bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
+			}
 		}
 	}
 
@@ -578,4 +581,23 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		return "", fmt.Errorf("marshal context_memory response: %w", err)
 	}
 	return "Tool Output: " + string(raw), nil
+}
+
+func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.SQLiteMemory) []string {
+	if stm == nil || len(results) == 0 || len(docIDs) == 0 {
+		return results
+	}
+	metaMap := loadMemoryMetaMap(stm)
+	filtered := make([]string, 0, len(results))
+	for i, result := range results {
+		if i >= len(docIDs) {
+			filtered = append(filtered, result)
+			continue
+		}
+		if meta, ok := metaMap[docIDs[i]]; ok && memory.IsMemoryArchived(meta) {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	return filtered
 }

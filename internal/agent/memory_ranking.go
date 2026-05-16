@@ -36,7 +36,10 @@ func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLite
 			sim = 0.5
 		}
 
-		meta, _ := metaMap[docID]
+		meta, hasMeta := metaMap[docID]
+		if hasMeta && memory.IsMemoryArchived(meta) {
+			continue
+		}
 		finalScore := calculateMemoryRankingScore(sim, meta, usedDocIDs[docID], now)
 		results = append(results, rankedMemory{text: mem, docID: docID, score: finalScore})
 	}
@@ -83,6 +86,10 @@ func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {
 }
 
 func resetMemoryMetaCacheForTests() {
+	InvalidateMemoryMetaCache()
+}
+
+func InvalidateMemoryMetaCache() {
 	memoryMetaCache.mu.Lock()
 	defer memoryMetaCache.mu.Unlock()
 	memoryMetaCache.stm = nil
