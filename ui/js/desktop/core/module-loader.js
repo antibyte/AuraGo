@@ -5,7 +5,7 @@
     const modulePromises = new Map();
 
     function fetchScriptPart(part) {
-        return fetch(part, { credentials: 'same-origin' }).then(response => {
+        return fetch(part, { credentials: 'same-origin', cache: 'no-store' }).then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load desktop module part ' + part + ': HTTP ' + response.status);
             }

@@ -26,7 +26,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260516a"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260516b"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
@@ -105,9 +105,19 @@ func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
 	for _, want := range []string{
 		"window.AgentChatApp = window.AgentChatApp || {}",
 		"window.AgentChatApp.render = renderChat",
+		"window.renderChat = renderChat",
 	} {
 		if !strings.Contains(agentChat, want) {
 			t.Fatalf("agent chat module missing exported renderer marker %q", want)
 		}
+	}
+}
+
+func TestDesktopModuleLoaderBypassesBrowserCacheForScriptParts(t *testing.T) {
+	t.Parallel()
+
+	loader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	if !strings.Contains(loader, "fetch(part, { credentials: 'same-origin', cache: 'no-store' })") {
+		t.Fatal("desktop module loader must fetch script parts with cache no-store to avoid mixed stale fragments")
 	}
 }

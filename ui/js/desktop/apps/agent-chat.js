@@ -606,3 +606,4 @@
 
     window.AgentChatApp = window.AgentChatApp || {};
     window.AgentChatApp.render = renderChat;
+    window.renderChat = renderChat;
