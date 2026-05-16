@@ -78,6 +78,21 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "TaskRules changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.TaskRules = "# Rule\nUse homepage tool." },
+			wantNewKey: true,
+		},
+		{
+			name:       "TaskRuleIDs changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.TaskRuleIDs = []string{"homepage"} },
+			wantNewKey: true,
+		},
+		{
+			name:       "HomepageDesignSystem changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.HomepageDesignSystem = "## Colors\nUse tokens." },
+			wantNewKey: true,
+		},
+		{
 			name:       "SessionTodoItems changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.SessionTodoItems = "task1, task2" },
 			wantNewKey: true,
@@ -137,5 +152,28 @@ func TestBuildSystemPromptCacheKey_SkipIntegrationToolsOrderInsensitive(t *testi
 	}
 	if keyA != keyB {
 		t.Fatalf("expected SkipIntegrationTools order-insensitive cache key")
+	}
+}
+
+func TestBuildSystemPromptCacheKey_TaskRuleIDsOrderInsensitive(t *testing.T) {
+	flagsA := prompts.ContextFlags{
+		Tier:        "full",
+		TaskRuleIDs: []string{"homepage", "shell"},
+	}
+	flagsB := prompts.ContextFlags{
+		Tier:        "full",
+		TaskRuleIDs: []string{"shell", "homepage"},
+	}
+
+	keyA, err := buildSystemPromptCacheKey("/prompts", &flagsA, "", "")
+	if err != nil {
+		t.Fatalf("build key A: %v", err)
+	}
+	keyB, err := buildSystemPromptCacheKey("/prompts", &flagsB, "", "")
+	if err != nil {
+		t.Fatalf("build key B: %v", err)
+	}
+	if keyA != keyB {
+		t.Fatalf("expected TaskRuleIDs order-insensitive cache key")
 	}
 }

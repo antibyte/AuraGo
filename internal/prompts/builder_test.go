@@ -596,6 +596,36 @@ func TestBuildSystemPromptAddsChineseDriftGuardForNonChineseLanguage(t *testing.
 	}
 }
 
+func TestBuildSystemPromptInjectsTaskRulesAndHomepageDesignBeforeAdditionalPrompt(t *testing.T) {
+	flags := ContextFlags{
+		Tier:                 "full",
+		SystemLanguage:       "en",
+		TaskRules:            "## Homepage Workflow\nUse the homepage tool.",
+		HomepageDesignSystem: "## homepage DESIGN.md\n## Colors\n- Primary #14B8A6",
+		AdditionalPrompt:     "Always answer briefly.",
+	}
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	for _, marker := range []string{
+		"# TASK RULES",
+		"Use the homepage tool.",
+		"# HOMEPAGE DESIGN SYSTEM",
+		"## Colors",
+		"# ADDITIONAL INSTRUCTIONS",
+		"Always answer briefly.",
+	} {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("prompt missing %q:\n%s", marker, prompt)
+		}
+	}
+	if strings.Contains(prompt, "# TOOL GUIDES") && strings.Index(prompt, "# TASK RULES") > strings.Index(prompt, "# TOOL GUIDES") {
+		t.Fatalf("task rules should be injected before tool guides:\n%s", prompt)
+	}
+	if strings.Index(prompt, "# HOMEPAGE DESIGN SYSTEM") > strings.Index(prompt, "# ADDITIONAL INSTRUCTIONS") {
+		t.Fatalf("homepage design should be injected before additional instructions:\n%s", prompt)
+	}
+}
+
 func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T) {
 	for _, language := range []string{"zh", "zh-CN", "Chinese", "中文"} {
 		t.Run(language, func(t *testing.T) {

@@ -6,8 +6,8 @@ package promptsembed
 import "embed"
 
 // FS holds the embedded prompt files.
-// Sub-directories (personalities, templates, tools_manuals) are included
+// Sub-directories (personalities, rules, templates, tools_manuals) are included
 // automatically because embed.FS recurses into them.
 //
-//go:embed *.md personalities templates tools_manuals
+//go:embed *.md personalities rules templates tools_manuals
 var FS embed.FS

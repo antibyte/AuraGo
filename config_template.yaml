@@ -270,6 +270,8 @@ home_assistant:
     url: ""
     allowed_services: []                                  # optional call_service allowlist; empty allows all services
     blocked_services: []                                  # explicit denylist, evaluated before allowed_services
+rules:
+    enabled: true                                         # task-specific markdown guardrails under prompts/rules/
 homepage:
     enabled: false
     allow_deploy: false

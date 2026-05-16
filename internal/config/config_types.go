@@ -770,6 +770,9 @@ type Config struct {
 		WatchInterval int    `yaml:"watch_interval_seconds"`
 		WatchFolder   string `yaml:"watch_folder"`
 	} `yaml:"email"` // legacy single-account; migrated to EmailAccounts at startup
+	Rules struct {
+		Enabled bool `yaml:"enabled" json:"enabled"`
+	} `yaml:"rules" json:"rules"`
 	AgentMail     AgentMailConfig `yaml:"agentmail" json:"agentmail"`
 	HomeAssistant struct {
 		Enabled         bool     `yaml:"enabled"`

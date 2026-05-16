@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "3D 打印机",
   "config.section.three_d_printers.desc": "3D 打印机控制、状态和摄像头访问",
   "config.section.optimizations.group.tool_context": "🔧 工具上下文",
-  "config.section.optimizations.group.tool_visibility": "🔧 工具可见性"
+  "config.section.optimizations.group.tool_visibility": "🔧 工具可见性",
+  "config.section.rules.label": "规则",
+  "config.section.rules.desc": "管理按任务匹配的代理护栏"
 }

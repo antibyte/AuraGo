@@ -397,6 +397,9 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.PromptSec.Spotlight = true
 	cfg.Guardian.PromptSec.Canary = true
 
+	// Task rules are core prompt guardrails and are enabled by default.
+	cfg.Rules.Enabled = true
+
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 

@@ -1107,6 +1107,21 @@ func TestLoadAgentMailDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadRulesDefaultsEnabled(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.Rules.Enabled {
+		t.Fatal("expected rules.enabled to default to true")
+	}
+}
+
 func TestApplyVaultSecretsLoadsAgentMailAPIKey(t *testing.T) {
 	cfg := &Config{}
 	vault := &testSecretVault{data: map[string]string{

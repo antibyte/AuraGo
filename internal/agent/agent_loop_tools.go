@@ -59,7 +59,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 
 	pResultContent := ""
-	if precomputed, ok := s.pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
+	if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
+		pResultContent = preload
+	} else if precomputed, ok := s.pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
 		pResultContent = precomputed
 		delete(s.pendingSummaryBatch, pendingSummaryBatchKey(ptc))
 		if len(s.pendingSummaryBatch) == 0 {
@@ -211,6 +213,41 @@ func executeAgentToolTurn(
 
 	if tc.Action != "" {
 		s.sessionUsedTools[tc.Action] = true
+	}
+
+	preloadedRules, rulesBlocked := ensureTaskRulesBeforeToolExecution(s, tc, lastUserMsg)
+	if rulesBlocked {
+		resultContent := preloadedRules
+		if useNativePath && tc.NativeCallID != "" {
+			s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
+			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
+				Role:       openai.ChatMessageRoleTool,
+				Content:    resultContent,
+				ToolCallID: tc.NativeCallID,
+			})
+			resultID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, resultContent, false, true)
+			if sessionID == "default" {
+				historyManager.AddMessage(openai.ChatCompletionMessage{
+					Role:       openai.ChatMessageRoleTool,
+					Content:    resultContent,
+					ToolCallID: tc.NativeCallID,
+				}, resultID, false, true)
+			}
+		} else {
+			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, resultContent, false, true)
+			if resultErr != nil {
+				currentLogger.Error("Failed to persist task-rule preload message", "error", resultErr)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleUser, resultContent, resultID, false, true)
+			}
+			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: histContent})
+			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
+		}
+		broker.Send("tool_output", resultContent)
+		broker.Send("tool_end", tc.Action)
+		s.lastResponseWasTool = true
+		return resp, nil, true
 	}
 
 	if s.recoveryState.handleDuplicateToolCall(tc, &s.req, currentLogger, s.telemetryScope) {
@@ -446,7 +483,9 @@ func executeAgentToolTurn(
 			}
 
 			bResult := ""
-			if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
+			if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
+				bResult = preload
+			} else if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
 				bResult = precomputed
 				delete(nativePendingSummaryBatch, pendingSummaryBatchKey(btc))
 				if len(nativePendingSummaryBatch) == 0 {

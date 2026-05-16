@@ -41,6 +41,9 @@ type systemPromptCacheKey struct {
 	KnowledgeContext         string   `json:"knowledge_context"`
 	ErrorPatternContext      string   `json:"error_pattern_context"`
 	ReuseContext             string   `json:"reuse_context"`
+	TaskRulesHash            string   `json:"task_rules_hash"`
+	TaskRuleIDs              []string `json:"task_rule_ids"`
+	HomepageDesignSystemHash string   `json:"homepage_design_system_hash"`
 	EmotionDescription       string   `json:"emotion_description"`
 	UserProfileSummary       string   `json:"user_profile_summary"`
 	MessageSource            string   `json:"message_source"`
@@ -62,6 +65,8 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		}
 		predictedGuidesHash = hex.EncodeToString(h.Sum(nil))
 	}
+	taskRulesHash := hashStringForPromptCache(flags.TaskRules)
+	homepageDesignHash := hashStringForPromptCache(flags.HomepageDesignSystem)
 
 	key := systemPromptCacheKey{
 		PromptsDir:               promptsDir,
@@ -95,6 +100,9 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		KnowledgeContext:         flags.KnowledgeContext,
 		ErrorPatternContext:      flags.ErrorPatternContext,
 		ReuseContext:             flags.ReuseContext,
+		TaskRulesHash:            taskRulesHash,
+		TaskRuleIDs:              sortedStringCopy(flags.TaskRuleIDs),
+		HomepageDesignSystemHash: homepageDesignHash,
 		EmotionDescription:       flags.EmotionDescription,
 		UserProfileSummary:       flags.UserProfileSummary,
 		MessageSource:            flags.MessageSource,
@@ -108,6 +116,14 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func hashStringForPromptCache(value string) string {
+	if value == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 func sortedStringCopy(values []string) []string {

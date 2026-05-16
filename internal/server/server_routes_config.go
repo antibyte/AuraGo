@@ -63,6 +63,14 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 		}
 	})
 	mux.HandleFunc("/api/config/schema", handleGetConfigSchema(s))
+	mux.Handle("/api/config/rules", requireAdmin(s, handleConfigRules(s)))
+	mux.Handle("/api/config/rules/", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(strings.TrimSuffix(r.URL.Path, "/"), "/restore") {
+			handleConfigRuleRestore(s)(w, r)
+			return
+		}
+		handleConfigRuleByID(s)(w, r)
+	})))
 	mux.HandleFunc("/api/ui-language", handleUILanguage(s))
 	// Lists models available on the configured Ollama instance.
 	// Returns the model names as JSON so the UI can offer a model picker.

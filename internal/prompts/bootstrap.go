@@ -16,8 +16,9 @@ import (
 // Only user-created files land on disk:
 //   - prompts/*.md      — additional prompts created via the Config UI
 //   - prompts/personalities/*.md — user-defined personality profiles
+//   - prompts/rules/<id>/*.md — user-defined task rule overrides
 func EnsurePromptsDir(dir string, logger *slog.Logger) {
-	for _, sub := range []string{dir, filepath.Join(dir, "personalities")} {
+	for _, sub := range []string{dir, filepath.Join(dir, "personalities"), filepath.Join(dir, "rules")} {
 		if err := os.MkdirAll(sub, 0750); err != nil {
 			logger.Error("Cannot create prompts directory", "path", sub, "error", err)
 			return

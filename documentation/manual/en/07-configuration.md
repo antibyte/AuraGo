@@ -41,6 +41,7 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `agent` | Core agent behavior and limits |
 | `personality` | Personality engine and user profiling |
 | `tools` | Built-in tool permissions and timeouts |
+| `rules` | Task-specific Markdown guardrails for the agent |
 | `telegram` | Telegram bot integration |
 | `discord` | Discord bot integration |
 | `email` | IMAP/SMTP email settings |
@@ -88,6 +89,19 @@ For advanced use cases or headless setups, you can edit `config.yaml` directly:
 2. Make changes following YAML syntax
 3. Save the file
 4. Restart AuraGo
+
+---
+
+## Task Rules
+
+Task rules are Markdown guardrails that AuraGo loads before matching workflows or tools. They live under `prompts/rules/<id>/rule.md`, can be edited in **Config → Rules**, and are matched by tool name, workflow tag, or keyword. Built-in rules are embedded in the binary, disk files override them, and the UI can restore the embedded version.
+
+```yaml
+rules:
+  enabled: true
+```
+
+Homepage workflows include an additional global `prompts/rules/homepage/DESIGN.md`. If a homepage project contains its own `DESIGN.md`, AuraGo appends it as design-system context only; it does not override security policy or tool permissions.
 
 ---
 

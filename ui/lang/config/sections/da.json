@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "3D-printere",
   "config.section.three_d_printers.desc": "Styring, status og kameraadgang for 3D-printere",
   "config.section.optimizations.group.tool_context": "🔧 Vaerktoejskontekst",
-  "config.section.optimizations.group.tool_visibility": "🔧 Vaerktoejs synlighed"
+  "config.section.optimizations.group.tool_visibility": "🔧 Vaerktoejs synlighed",
+  "config.section.rules.label": "Regler",
+  "config.section.rules.desc": "Administrer opgavespecifikke agentregler"
 }

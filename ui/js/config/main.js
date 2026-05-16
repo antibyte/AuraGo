@@ -5,7 +5,7 @@
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const cfgMaskedSecretFallback = '••••••••';
-const CONFIG_ASSET_VERSION = '17';
+const CONFIG_ASSET_VERSION = '18';
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
@@ -53,6 +53,7 @@ const SECTIONS = [
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
             { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
             { key: 'prompts_editor', icon: '🎭', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
+            { key: 'rules', icon: '📏', label: t('config.section.rules.label'), desc: t('config.section.rules.desc') },
             { key: 'personality', icon: '🧬', label: t('config.section.personality.label'), desc: t('config.section.personality.desc') },
             { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
             { key: 'output_compression', icon: '🗜️', label: t('config.section.output_compression.label'), desc: t('config.section.output_compression.desc') }
@@ -1810,6 +1811,7 @@ const SECTION_MODULES = {
     video_download: { m: 'video_download', fn: 'renderVideoDownloadSection' },
     webhooks: { m: 'webhooks', fn: 'renderWebhooksSection' },
     prompts_editor: { m: 'prompts', fn: 'renderPromptsSection' },
+    rules: { m: 'rules', fn: 'renderRulesSection' },
     indexing: { m: 'indexing', fn: 'renderIndexingSection' },
     backup_restore: { m: 'backup', fn: 'renderBackupSection' },
     updates: { m: 'updates', fn: 'renderUpdatesSection' },

@@ -90,11 +90,12 @@ type agentLoopState struct {
 	stepsSinceLastFeedback  int
 	workflowPlanCount       int
 
-	emptyRetried        bool
-	homepageUsedInChain bool
-	lastResponseWasTool bool
-	coreMemDirty        bool
-	personalityEnabled  bool
+	emptyRetried           bool
+	homepageUsedInChain    bool
+	homepageRuleProjectDir string
+	lastResponseWasTool    bool
+	coreMemDirty           bool
+	personalityEnabled     bool
 
 	isMaintenance                     bool
 	currentLogger                     *slog.Logger
@@ -365,6 +366,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				recentTools = s.recentTools
 				lastResponseWasTool = s.lastResponseWasTool
 				req = s.req
+				flags = s.flags
 				continue
 			}
 		}
@@ -937,6 +939,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 		flags.SkipIntegrationTools = skipIntegrationTools
+		ruleTools := make([]string, 0, len(recentTools)+len(s.sessionUsedTools))
+		ruleTools = append(ruleTools, recentTools...)
+		for tool := range s.sessionUsedTools {
+			ruleTools = append(ruleTools, tool)
+		}
+		applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, ruleTools, nil, s.homepageRuleProjectDir))
 
 		budgetHint := ""
 		if budgetTracker != nil {

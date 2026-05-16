@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "3D εκτυπωτές",
   "config.section.three_d_printers.desc": "Έλεγχος, κατάσταση και κάμερα 3D εκτυπωτών",
   "config.section.optimizations.group.tool_context": "🔧 Πλαισιο εργαλειων",
-  "config.section.optimizations.group.tool_visibility": "🔧 Ορατοτητα εργαλειων"
+  "config.section.optimizations.group.tool_visibility": "🔧 Ορατοτητα εργαλειων",
+  "config.section.rules.label": "Κανόνες",
+  "config.section.rules.desc": "Διαχείριση κανόνων πράκτορα ανά εργασία"
 }

@@ -26,6 +26,7 @@ Die einfachste und sicherste Methode, AuraGo zu konfigurieren:
    - **Agent** – Sprache, Verhalten, Danger-Zone-Toggles
    - **Integrations** – Telegram, Discord, Home Assistant, Docker, etc.
    - **Tools** – Einzelne Tools aktivieren/deaktivieren
+   - **Regeln** – aufgabenbezogene Agent-Leitplanken bearbeiten
    - **Server** – Host, Port, HTTPS
    - **Memory / Tasks / Sandbox** – weitere Systemeinstellungen
 5. **Aktiviere Toggles, fülle Felder aus** und klicke unten auf **"Save"**
@@ -58,6 +59,7 @@ embeddings:       # Embedding-Modell für RAG
 agent:            # Agent-Verhalten
 server:           # Web-Server Einstellungen
 tools:            # Tool-Berechtigungen
+rules:            # Aufgabenbezogene Agent-Leitplanken
 
 # Integrationen (Auswahl)
 telegram:         # Telegram Bot
@@ -85,6 +87,19 @@ egg_mode:         # Cluster-Worker-Mode
 firewall:         # Firewall-Integration
 journal:          # Auto-Journaleinträge
 ```
+
+---
+
+## Aufgabenbezogene Regeln
+
+Rules sind Markdown-Leitplanken, die AuraGo vor passenden Workflows oder Tool-Aufrufen lädt. Sie liegen unter `prompts/rules/<id>/rule.md`, werden in der Web-UI unter **Config → Regeln** bearbeitet und über Toolnamen, Workflow-Tags oder Keywords gematcht. Eingebaute Regeln sind im Binary enthalten, Dateien auf Disk überschreiben sie, und die UI kann die eingebaute Version wiederherstellen.
+
+```yaml
+rules:
+  enabled: true
+```
+
+Homepage-Workflows erhalten zusätzlich das globale `prompts/rules/homepage/DESIGN.md`. Wenn im Homepage-Projektroot eine eigene `DESIGN.md` liegt, wird sie nur als Designsystem-Kontext angehängt; sie überschreibt keine Security-Policy und keine Tool-Berechtigungen.
 
 ---
 

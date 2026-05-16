@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "3D Printers",
   "config.section.three_d_printers.desc": "3D printer control, status, and camera access",
   "config.section.optimizations.group.tool_context": "🔧 Tool Context",
-  "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility"
+  "config.section.optimizations.group.tool_visibility": "🔧 Tool Visibility",
+  "config.section.rules.label": "Rules",
+  "config.section.rules.desc": "Manage task-specific agent guardrails"
 }

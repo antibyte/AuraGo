@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "3D tiskarny",
   "config.section.three_d_printers.desc": "Ovládání, stav a kamera 3D tiskáren",
   "config.section.optimizations.group.tool_context": "🔧 Kontext nastroju",
-  "config.section.optimizations.group.tool_visibility": "🔧 Viditelnost nastroju"
+  "config.section.optimizations.group.tool_visibility": "🔧 Viditelnost nastroju",
+  "config.section.rules.label": "Pravidla",
+  "config.section.rules.desc": "Spravovat úkolová pravidla agenta"
 }

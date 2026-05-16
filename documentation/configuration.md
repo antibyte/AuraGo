@@ -345,6 +345,18 @@ Override default runtime directory paths. All paths are relative to the working 
 
 ---
 
+## `rules`
+
+Task rules are Markdown guardrails loaded before matching agent workflows. Built-in defaults live in the binary; user overrides are stored under `prompts/rules/<id>/rule.md`, with optional `prompts/rules/homepage/DESIGN.md` for homepage design guidance. Disk files override embedded defaults and can be restored from the Config UI.
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Enable automatic task-rule injection based on tool, workflow, and keyword matching. |
+
+Manage rules in **Config → Rules**. Homepage tasks also receive the global homepage `DESIGN.md`; if a homepage project contains its own `DESIGN.md`, AuraGo reads it as design context only.
+
+---
+
 ## `sqlite`
 
 Paths for the three SQLite databases.

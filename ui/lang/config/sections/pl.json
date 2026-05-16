@@ -467,5 +467,7 @@
   "config.section.three_d_printers.label": "Drukarki 3D",
   "config.section.three_d_printers.desc": "Sterowanie, stan i kamera drukarek 3D",
   "config.section.optimizations.group.tool_context": "🔧 Kontekst narzedzi",
-  "config.section.optimizations.group.tool_visibility": "🔧 Widocznosc narzedzi"
+  "config.section.optimizations.group.tool_visibility": "🔧 Widocznosc narzedzi",
+  "config.section.rules.label": "Reguły",
+  "config.section.rules.desc": "Zarządzaj zasadami agenta dla zadań"
 }

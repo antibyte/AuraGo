@@ -224,6 +224,9 @@ type ContextFlags struct {
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
+	TaskRules                string // Task-scoped markdown rules selected for the current request/tools
+	TaskRuleIDs              []string
+	HomepageDesignSystem     string // Homepage DESIGN.md guidance selected for homepage workflows
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 	InnerVoice               string // Inner voice thought (1-3 sentences, first person, from Inner Voice System)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
@@ -663,6 +666,19 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	}
 	if spaceAgentContext := buildSpaceAgentRuntimeContext(flags); spaceAgentContext != "" {
 		finalPrompt.WriteString(spaceAgentContext)
+		finalPrompt.WriteString("\n\n")
+	}
+
+	// Task Rules — selected workflow guardrails. These sit before tool guides so the
+	// model reads task-specific constraints before detailed tool examples.
+	if strings.TrimSpace(flags.TaskRules) != "" {
+		finalPrompt.WriteString("# TASK RULES\n")
+		finalPrompt.WriteString(strings.TrimSpace(flags.TaskRules))
+		finalPrompt.WriteString("\n\n")
+	}
+	if strings.TrimSpace(flags.HomepageDesignSystem) != "" {
+		finalPrompt.WriteString("# HOMEPAGE DESIGN SYSTEM\n")
+		finalPrompt.WriteString(strings.TrimSpace(flags.HomepageDesignSystem))
 		finalPrompt.WriteString("\n\n")
 	}
 
