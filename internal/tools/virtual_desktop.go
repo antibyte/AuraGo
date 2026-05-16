@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -131,6 +132,45 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			payload = virtualDesktopLargeReadPayload(entry, content)
 		}
 		return virtualDesktopJSON("ok", "desktop file read", payload, nil)
+	case "search_file":
+		path := virtualDesktopString(args, "path", "file_path")
+		query := virtualDesktopString(args, "query", "pattern", "search")
+		if strings.TrimSpace(path) == "" || strings.TrimSpace(query) == "" {
+			return virtualDesktopJSON("error", "path and query are required", nil, nil)
+		}
+		content, entry, err := svc.ReadFile(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		matches := virtualDesktopSearchText(content, query, virtualDesktopBool(args, "case_sensitive"), virtualDesktopInt(args, 8, "max_matches"), virtualDesktopInt(args, 2, "context_lines"))
+		return virtualDesktopJSON("ok", "desktop file searched", map[string]interface{}{
+			"path":         entry.Path,
+			"query":        query,
+			"match_count":  len(matches),
+			"matches":      matches,
+			"editing_hint": "Use search_file/read_file_excerpt to locate anchors yourself, then use virtual_desktop.patch_file with exact replacements. Do not ask the user for block anchors when the desktop file was truncated.",
+		}, nil)
+	case "read_file_excerpt":
+		path := virtualDesktopString(args, "path", "file_path")
+		if strings.TrimSpace(path) == "" {
+			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		content, entry, err := svc.ReadFile(ctx, path)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		lineStart := virtualDesktopInt(args, 1, "line_start", "start_line")
+		lineCount := virtualDesktopInt(args, 80, "line_count", "lines")
+		excerpt, lineEnd, totalLines := virtualDesktopLineExcerpt(content, lineStart, lineCount)
+		return virtualDesktopJSON("ok", "desktop file excerpt read", map[string]interface{}{
+			"path":         entry.Path,
+			"line_start":   lineStart,
+			"line_end":     lineEnd,
+			"line_count":   lineCount,
+			"total_lines":  totalLines,
+			"excerpt":      excerpt,
+			"editing_hint": "Use this excerpt to construct exact virtual_desktop.patch_file replacements; do not request anchors from the user.",
+		}, nil)
 	case "write_file":
 		path := virtualDesktopString(args, "path", "file_path")
 		content := virtualDesktopString(args, "content")
@@ -411,6 +451,48 @@ func virtualDesktopString(args map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func virtualDesktopInt(args map[string]interface{}, fallback int, keys ...string) int {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch v := raw.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case json.Number:
+			if i, err := v.Int64(); err == nil {
+				return int(i)
+			}
+		case string:
+			if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				return i
+			}
+		}
+	}
+	return fallback
+}
+
+func virtualDesktopBool(args map[string]interface{}, keys ...string) bool {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch v := raw.(type) {
+		case bool:
+			return v
+		case string:
+			return strings.EqualFold(strings.TrimSpace(v), "true") || strings.EqualFold(strings.TrimSpace(v), "yes") || strings.TrimSpace(v) == "1"
+		}
+	}
+	return false
 }
 
 func virtualDesktopManifest(args map[string]interface{}) (desktop.AppManifest, error) {
@@ -752,12 +834,14 @@ func virtualDesktopLargeReadPayload(entry desktop.FileEntry, content string) map
 		"original_size":     len(content),
 		"shown_size":        len(head) + len(tail),
 		"suggested_tools": []string{
+			"virtual_desktop.search_file",
+			"virtual_desktop.read_file_excerpt",
 			"virtual_desktop.patch_file",
 			"virtual_desktop.write_file",
 			"virtual_desktop.open_in_app",
 			"text_diff",
 		},
-		"editing_hint": "This desktop file is larger than 8 KB. Do not keep rereading it in full. For desktop workspace files, use virtual_desktop.patch_file with exact replacements, prepend_text, or append_text; use write_file only when replacing the whole file intentionally, then open_in_app to show the result.",
+		"editing_hint": "This desktop file is larger than 8 KB. Do not ask the user for anchors. Use virtual_desktop.search_file and read_file_excerpt to locate the relevant block yourself, then use virtual_desktop.patch_file with exact replacements, prepend_text, or append_text; use write_file only when replacing the whole file intentionally, then open_in_app to show the result.",
 	}
 }
 
@@ -769,6 +853,86 @@ func splitLargeVirtualDesktopContent(content string) (string, string) {
 		return content, ""
 	}
 	return string(runes[:headLimit]), string(runes[len(runes)-tailLimit:])
+}
+
+type virtualDesktopSearchMatch struct {
+	Line       int    `json:"line"`
+	Column     int    `json:"column"`
+	ByteOffset int    `json:"byte_offset"`
+	Preview    string `json:"preview"`
+	Context    string `json:"context"`
+}
+
+func virtualDesktopSearchText(content, query string, caseSensitive bool, maxMatches, contextLines int) []virtualDesktopSearchMatch {
+	if maxMatches <= 0 || maxMatches > 20 {
+		maxMatches = 8
+	}
+	if contextLines < 0 {
+		contextLines = 0
+	}
+	if contextLines > 10 {
+		contextLines = 10
+	}
+	haystack := content
+	needle := query
+	if !caseSensitive {
+		haystack = strings.ToLower(haystack)
+		needle = strings.ToLower(needle)
+	}
+	lines := strings.Split(content, "\n")
+	searchLines := strings.Split(haystack, "\n")
+	matches := make([]virtualDesktopSearchMatch, 0, maxMatches)
+	byteOffset := 0
+	for i, line := range searchLines {
+		column := strings.Index(line, needle)
+		if column >= 0 {
+			contextStart := virtualDesktopMaxInt(0, i-contextLines)
+			contextEnd := virtualDesktopMinInt(len(lines), i+contextLines+1)
+			matches = append(matches, virtualDesktopSearchMatch{
+				Line:       i + 1,
+				Column:     column + 1,
+				ByteOffset: byteOffset + column,
+				Preview:    strings.TrimSpace(lines[i]),
+				Context:    strings.Join(lines[contextStart:contextEnd], "\n"),
+			})
+			if len(matches) >= maxMatches {
+				break
+			}
+		}
+		byteOffset += len(lines[i]) + 1
+	}
+	return matches
+}
+
+func virtualDesktopLineExcerpt(content string, lineStart, lineCount int) (string, int, int) {
+	lines := strings.Split(content, "\n")
+	totalLines := len(lines)
+	if lineStart < 1 {
+		lineStart = 1
+	}
+	if lineStart > totalLines {
+		return "", totalLines, totalLines
+	}
+	if lineCount <= 0 || lineCount > 240 {
+		lineCount = 80
+	}
+	startIdx := lineStart - 1
+	endIdx := virtualDesktopMinInt(totalLines, startIdx+lineCount)
+	return strings.Join(lines[startIdx:endIdx], "\n"), endIdx, totalLines
+}
+
+func virtualDesktopMinInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func virtualDesktopMaxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 type virtualDesktopReplacement struct {

@@ -1053,3 +1053,96 @@ func TestExecuteVirtualDesktopPatchFileAppliesExactReplacements(t *testing.T) {
 		t.Fatalf("patched content missing expected changes: %s", read.Output)
 	}
 }
+
+func TestExecuteVirtualDesktopSearchFileReturnsContextForLargeFiles(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	largeContent := strings.Repeat("filler line\n", 500) +
+		"function destroyAlien(alien) {\n  alien.destroy();\n}\n" +
+		strings.Repeat("tail line\n", 500)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+		"content":   largeContent,
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	search := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":     "search_file",
+		"path":          "Apps/space-invaders/game.js",
+		"query":         "destroyAlien",
+		"context_lines": 1,
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Path        string `json:"path"`
+			Query       string `json:"query"`
+			MatchCount  int    `json:"match_count"`
+			EditingHint string `json:"editing_hint"`
+			Matches     []struct {
+				Line    int    `json:"line"`
+				Column  int    `json:"column"`
+				Context string `json:"context"`
+			} `json:"matches"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(search.Output), &payload); err != nil {
+		t.Fatalf("unmarshal search_file output: %v\n%s", err, search.Output)
+	}
+	if payload.Status != "ok" || payload.Data.MatchCount != 1 || len(payload.Data.Matches) != 1 {
+		t.Fatalf("search result = %+v, output=%s", payload, search.Output)
+	}
+	if !strings.Contains(payload.Data.Matches[0].Context, "function destroyAlien") || !strings.Contains(payload.Data.EditingHint, "patch_file") {
+		t.Fatalf("search context/hint missing expected guidance: %+v", payload.Data)
+	}
+	if len(search.Output) >= len(largeContent) {
+		t.Fatalf("search_file returned too much content: output_len=%d file_len=%d", len(search.Output), len(largeContent))
+	}
+}
+
+func TestExecuteVirtualDesktopReadFileExcerptReturnsLineWindow(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	content := "one\nanchor\nthree\nfour\nfive\n"
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+		"content":   content,
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	excerpt := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":  "read_file_excerpt",
+		"path":       "Apps/space-invaders/game.js",
+		"line_start": 2,
+		"line_count": 2,
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			LineStart   int    `json:"line_start"`
+			LineEnd     int    `json:"line_end"`
+			Excerpt     string `json:"excerpt"`
+			EditingHint string `json:"editing_hint"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(excerpt.Output), &payload); err != nil {
+		t.Fatalf("unmarshal read_file_excerpt output: %v\n%s", err, excerpt.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("excerpt status = %q, output=%s", payload.Status, excerpt.Output)
+	}
+	if payload.Data.LineStart != 2 || payload.Data.LineEnd != 3 || payload.Data.Excerpt != "anchor\nthree" {
+		t.Fatalf("excerpt data = %+v", payload.Data)
+	}
+	if !strings.Contains(payload.Data.EditingHint, "patch_file") {
+		t.Fatalf("excerpt should guide patch_file usage: %+v", payload.Data)
+	}
+}

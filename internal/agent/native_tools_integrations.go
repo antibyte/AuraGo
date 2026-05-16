@@ -1207,11 +1207,32 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Virtual desktop operation to perform",
-					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "write_file", "patch_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
+					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
 				},
 				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'. For app_id 'code-studio', path is not a host/repo path; only use '/workspace/...' or a path relative to the Code Studio container workspace."),
 				"file_path": prop("string", "Alias for path."),
 				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html or Widgets/<widget_id>/index.html this must be complete, non-empty HTML."),
+				"query":     prop("string", "Search text for search_file. When read_file returns content_truncated, use search_file and read_file_excerpt to locate anchors yourself; do not ask the user for block anchors."),
+				"line_start": map[string]interface{}{
+					"type":        "integer",
+					"description": "1-based start line for read_file_excerpt.",
+				},
+				"line_count": map[string]interface{}{
+					"type":        "integer",
+					"description": "Number of lines for read_file_excerpt. Defaults to 80 and is capped.",
+				},
+				"max_matches": map[string]interface{}{
+					"type":        "integer",
+					"description": "Maximum matches for search_file. Defaults to 8.",
+				},
+				"context_lines": map[string]interface{}{
+					"type":        "integer",
+					"description": "Number of lines around each search_file match. Defaults to 2.",
+				},
+				"case_sensitive": map[string]interface{}{
+					"type":        "boolean",
+					"description": "When true, search_file uses case-sensitive matching.",
+				},
 				"title":     prop("string", "Notification title or widget title."),
 				"html":      prop("string", "Optional HTML representation for write_document/export flows."),
 				"document": map[string]interface{}{
@@ -1238,7 +1259,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"append_text":  prop("string", "Text to append for patch_document."),
 				"replacements": map[string]interface{}{
 					"type":        "array",
-					"description": "Replacement list for patch_document or patch_file, each item {find, replace}. For large desktop text/code files, prefer patch_file with exact replacements instead of read_file on the full file.",
+					"description": "Replacement list for patch_document or patch_file, each item {find, replace}. For large desktop text/code files, prefer search_file/read_file_excerpt plus patch_file with exact replacements instead of read_file on the full file.",
 					"items":       map[string]interface{}{"type": "object", "additionalProperties": true},
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
