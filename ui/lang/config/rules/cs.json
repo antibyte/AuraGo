@@ -32,5 +32,13 @@
   "config.rules.restored": "Pravidlo obnoveno",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "Povoleno",
-  "config.rules.rule_title": "Název"
+  "config.rules.rule_title": "Název",
+  "config.rules.inactive": "Neaktivní",
+  "config.rules.markdown_editor": "Markdown editor",
+  "config.rules.active": "Aktivní",
+  "config.rules.total": "Celkem",
+  "config.rules.rule_list": "Knihovna pravidel",
+  "config.rules.disabled": "Vypnuto",
+  "config.rules.targeting": "Cíle shody",
+  "config.rules.system_status": "Systém pravidel"
 }

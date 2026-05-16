@@ -32,5 +32,13 @@
   "config.rules.restored": "ルールを復元しました",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "有効",
-  "config.rules.rule_title": "タイトル"
+  "config.rules.rule_title": "タイトル",
+  "config.rules.inactive": "無効",
+  "config.rules.markdown_editor": "Markdown エディター",
+  "config.rules.active": "有効",
+  "config.rules.total": "合計",
+  "config.rules.rule_list": "ルールライブラリ",
+  "config.rules.disabled": "無効",
+  "config.rules.targeting": "一致ターゲット",
+  "config.rules.system_status": "ルールシステム"
 }

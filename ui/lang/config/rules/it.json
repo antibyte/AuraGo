@@ -32,5 +32,13 @@
   "config.rules.restored": "Regola ripristinata",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "Attivo",
-  "config.rules.rule_title": "Titolo"
+  "config.rules.rule_title": "Titolo",
+  "config.rules.inactive": "Inattivo",
+  "config.rules.markdown_editor": "Editor Markdown",
+  "config.rules.active": "Attivo",
+  "config.rules.total": "Totale",
+  "config.rules.rule_list": "Libreria regole",
+  "config.rules.disabled": "Disattivato",
+  "config.rules.targeting": "Destinazioni di matching",
+  "config.rules.system_status": "Sistema regole"
 }

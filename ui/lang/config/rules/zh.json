@@ -32,5 +32,13 @@
   "config.rules.restored": "规则已恢复",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "已启用",
-  "config.rules.rule_title": "标题"
+  "config.rules.rule_title": "标题",
+  "config.rules.inactive": "停用",
+  "config.rules.markdown_editor": "Markdown 编辑器",
+  "config.rules.active": "启用",
+  "config.rules.total": "总计",
+  "config.rules.rule_list": "规则库",
+  "config.rules.disabled": "已禁用",
+  "config.rules.targeting": "匹配目标",
+  "config.rules.system_status": "规则系统"
 }

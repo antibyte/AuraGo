@@ -32,5 +32,13 @@
   "config.rules.restored": "Regel hersteld",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "Ingeschakeld",
-  "config.rules.rule_title": "Titel"
+  "config.rules.rule_title": "Titel",
+  "config.rules.inactive": "Inactief",
+  "config.rules.markdown_editor": "Markdown-editor",
+  "config.rules.active": "Actief",
+  "config.rules.total": "Totaal",
+  "config.rules.rule_list": "Regelbibliotheek",
+  "config.rules.disabled": "Uitgeschakeld",
+  "config.rules.targeting": "Matchdoelen",
+  "config.rules.system_status": "Regelsysteem"
 }

@@ -32,5 +32,13 @@
   "config.rules.restored": "नियम पुनर्स्थापित हुआ",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "सक्रिय",
-  "config.rules.rule_title": "शीर्षक"
+  "config.rules.rule_title": "शीर्षक",
+  "config.rules.inactive": "निष्क्रिय",
+  "config.rules.markdown_editor": "Markdown संपादक",
+  "config.rules.active": "सक्रिय",
+  "config.rules.total": "कुल",
+  "config.rules.rule_list": "नियम लाइब्रेरी",
+  "config.rules.disabled": "अक्षम",
+  "config.rules.targeting": "मिलान लक्ष्य",
+  "config.rules.system_status": "नियम प्रणाली"
 }

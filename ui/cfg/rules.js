@@ -68,19 +68,27 @@ async function rulesLoad(selectID) {
 function rulesRenderBody(enabled) {
     const body = document.getElementById('rules-body');
     if (!body) return;
+    const totalRules = rulesState.rules.length;
+    const activeRules = rulesState.rules.filter(rule => rule.enabled !== false).length;
+    const customRules = rulesState.rules.filter(rule => !rule.built_in).length;
+    const systemStateLabel = enabled ? rulesText('config.rules.enabled', 'Enabled') : rulesText('config.rules.disabled', 'Disabled');
+    const systemStateClass = enabled ? 'rules-pill-ok' : 'rules-pill-warning';
     const ruleCards = rulesState.rules.map(rule => {
         const selected = rule.id === rulesState.selected ? ' rules-card-selected' : '';
-        const disabled = rule.enabled ? '' : ' rules-card-disabled';
+        const disabled = rule.enabled !== false ? '' : ' rules-card-disabled';
         const origin = rule.built_in ? rulesText('config.rules.built_in', 'Built-in') : rulesText('config.rules.custom', 'Custom');
+        const enabledLabel = rule.enabled !== false ? rulesText('config.rules.active', 'Active') : rulesText('config.rules.inactive', 'Inactive');
+        const enabledClass = rule.enabled !== false ? 'rules-card-status-on' : 'rules-card-status-off';
         const tags = []
             .concat((rule.tools || []).map(v => `tool:${v}`))
             .concat((rule.workflows || []).map(v => `flow:${v}`))
             .concat((rule.keywords || []).slice(0, 4).map(v => `key:${v}`));
         return `
-            <button type="button" class="rules-card${selected}${disabled}" onclick="rulesSelect('${escapeAttr(rule.id)}')">
+            <button type="button" class="rules-card${selected}${disabled}" data-rule-id="${rulesEscape(rule.id)}" onclick="rulesSelect('${escapeAttr(rule.id)}')">
+                <span class="rules-card-status ${enabledClass}">${rulesEscape(enabledLabel)}</span>
                 <span class="rules-card-main">
                     <span class="rules-card-title">${rulesEscape(rule.title || rule.id)}</span>
-                    <span class="rules-card-id">${rulesEscape(rule.id)} · ${origin} · ${rule.enabled ? 'on' : 'off'}</span>
+                    <span class="rules-card-id">${rulesEscape(rule.id)} · ${origin}</span>
                 </span>
                 <span class="rules-card-tags">${tags.map(v => `<span>${rulesEscape(v)}</span>`).join('')}</span>
             </button>`;
@@ -88,15 +96,32 @@ function rulesRenderBody(enabled) {
 
     body.innerHTML = `
     <div class="rules-shell">
-        <div class="rules-toolbar">
-            <div>
-                <div class="field-label">${rulesText('config.rules.enabled', 'Rules system')}</div>
-                <div class="field-help">${enabled ? rulesText('config.rules.enabled_hint', 'Automatic task-rule injection is enabled.') : rulesText('config.rules.disabled_hint', 'Automatic task-rule injection is disabled in config.yaml.')}</div>
+        <div class="rules-summary-card">
+            <div class="rules-summary-copy">
+                <div class="rules-summary-title">
+                    <span class="rules-status-dot ${enabled ? 'rules-status-dot-on' : 'rules-status-dot-off'}"></span>
+                    ${rulesText('config.rules.system_status', 'Rules system')}
+                    <span class="rules-pill ${systemStateClass}">${rulesEscape(systemStateLabel)}</span>
+                </div>
+                <div class="rules-summary-desc">${enabled ? rulesText('config.rules.enabled_hint', 'Automatic task-rule injection is enabled.') : rulesText('config.rules.disabled_hint', 'Automatic task-rule injection is disabled in config.yaml.')}</div>
             </div>
-            <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" onclick="rulesNew()">+ ${rulesText('config.rules.new_rule', 'New rule')}</button>
+            <div class="rules-summary-actions">
+                <div class="rules-summary-metrics">
+                    <span class="rules-pill">${rulesText('config.rules.total', 'Total')}: ${totalRules}</span>
+                    <span class="rules-pill">${rulesText('config.rules.active', 'Active')}: ${activeRules}</span>
+                    <span class="rules-pill">${rulesText('config.rules.custom', 'Custom')}: ${customRules}</span>
+                </div>
+                <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" onclick="rulesNew()">+ ${rulesText('config.rules.new_rule', 'New rule')}</button>
+            </div>
         </div>
         <div class="rules-layout">
-            <div class="rules-list">${ruleCards || `<div class="field-help">${rulesText('config.rules.empty', 'No rules yet.')}</div>`}</div>
+            <div class="rules-list-panel">
+                <div class="rules-list-header">
+                    <span>${rulesText('config.rules.rule_list', 'Rule library')}</span>
+                    <span class="rules-pill">${totalRules}</span>
+                </div>
+                <div class="rules-list">${ruleCards || `<div class="rules-empty">${rulesText('config.rules.empty', 'No rules yet.')}</div>`}</div>
+            </div>
             <div class="rules-editor" id="rules-editor">
                 <div class="field-help">${rulesText('config.rules.select_hint', 'Select a rule or create a new one.')}</div>
             </div>
@@ -149,9 +174,12 @@ function rulesRenderEditor(isNew) {
     if (!editor || !rulesState.current) return;
     const rule = rulesState.current.rule || {};
     const designOpen = rule.id === 'homepage' || isNew || rulesState.current.design;
+    const origin = rule.built_in ? rulesText('config.rules.built_in', 'Built-in') : rulesText('config.rules.custom', 'Custom');
+    const state = rule.enabled !== false ? rulesText('config.rules.active', 'Active') : rulesText('config.rules.inactive', 'Inactive');
     editor.innerHTML = `
     <div class="rules-editor-head">
         <div>
+            <div class="rules-editor-kicker">${isNew ? rulesText('config.rules.custom', 'Custom') : rulesEscape(origin)} · ${rulesEscape(state)}</div>
             <div class="rules-editor-title">${isNew ? rulesText('config.rules.new_rule', 'New rule') : rulesEscape(rule.title || rule.id)}</div>
             <div class="field-help">${rulesText('config.rules.editor_hint', 'Rules are Markdown guardrails injected before matching tasks begin.')}</div>
         </div>
@@ -161,42 +189,48 @@ function rulesRenderEditor(isNew) {
             ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm wh-btn-danger" onclick="rulesDelete()">${rulesText('config.rules.delete', 'Delete')}</button>` : ''}
         </div>
     </div>
-    <div class="rules-grid">
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.rule_id', 'Rule ID')}</div>
-            <input id="rules-id-input" class="field-input" value="${rulesEscape(rule.id || '')}" ${isNew ? '' : 'disabled'} placeholder="homepage">
-        </div>
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.rule_title', 'Title')}</div>
-            <input id="rules-title-input" class="field-input" value="${rulesEscape(rule.title || '')}">
-        </div>
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.priority', 'Priority')}</div>
-            <input id="rules-priority-input" class="field-input" type="number" step="1" value="${Number.isFinite(rule.priority) ? rule.priority : 50}">
-        </div>
-        <div class="field-group rules-toggle-field">
-            <div class="field-label">${rulesText('config.rules.enabled', 'Enabled')}</div>
-            <label class="rules-checkbox"><input id="rules-enabled-input" type="checkbox" ${rule.enabled !== false ? 'checked' : ''}> ${rulesText('config.rules.enabled', 'Enabled')}</label>
-        </div>
-    </div>
-    <div class="rules-grid">
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.tools', 'Tools')}</div>
-            <input id="rules-tools-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.tools))}" placeholder="homepage, shell">
-        </div>
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.workflows', 'Workflows')}</div>
-            <input id="rules-workflows-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.workflows))}" placeholder="homepage, website">
-        </div>
-        <div class="field-group">
-            <div class="field-label">${rulesText('config.rules.keywords', 'Keywords')}</div>
-            <input id="rules-keywords-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.keywords))}" placeholder="homepage, redesign">
+    <div class="rules-field-panel">
+        <div class="rules-grid rules-grid-meta">
+            <label class="field-group">
+                <span class="field-label">${rulesText('config.rules.rule_id', 'Rule ID')}</span>
+                <input id="rules-id-input" class="field-input" value="${rulesEscape(rule.id || '')}" ${isNew ? '' : 'disabled'} placeholder="homepage">
+            </label>
+            <label class="field-group">
+                <span class="field-label">${rulesText('config.rules.rule_title', 'Title')}</span>
+                <input id="rules-title-input" class="field-input" value="${rulesEscape(rule.title || '')}">
+            </label>
+            <label class="field-group rules-priority-field">
+                <span class="field-label">${rulesText('config.rules.priority', 'Priority')}</span>
+                <input id="rules-priority-input" class="field-input" type="number" step="1" value="${Number.isFinite(rule.priority) ? rule.priority : 50}">
+            </label>
+            <div class="field-group rules-toggle-field">
+                <span class="field-label">${rulesText('config.rules.enabled', 'Enabled')}</span>
+                <label class="rules-checkbox"><input id="rules-enabled-input" type="checkbox" ${rule.enabled !== false ? 'checked' : ''}> ${rulesText('config.rules.enabled', 'Enabled')}</label>
+            </div>
         </div>
     </div>
-    <div class="field-group">
-        <div class="field-label">${rulesText('config.rules.body_title', 'Rule Markdown')}</div>
+    <div class="rules-field-panel">
+        <div class="rules-panel-title">${rulesText('config.rules.targeting', 'Matching targets')}</div>
+        <div class="rules-grid rules-grid-targeting">
+            <label class="field-group">
+                <span class="field-label">${rulesText('config.rules.tools', 'Tools')}</span>
+                <input id="rules-tools-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.tools))}" placeholder="homepage, shell">
+            </label>
+            <label class="field-group">
+                <span class="field-label">${rulesText('config.rules.workflows', 'Workflows')}</span>
+                <input id="rules-workflows-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.workflows))}" placeholder="homepage, website">
+            </label>
+            <label class="field-group">
+                <span class="field-label">${rulesText('config.rules.keywords', 'Keywords')}</span>
+                <input id="rules-keywords-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.keywords))}" placeholder="homepage, redesign">
+            </label>
+        </div>
+    </div>
+    <label class="rules-field-panel rules-markdown-panel">
+        <span class="rules-panel-title">${rulesText('config.rules.markdown_editor', 'Markdown editor')}</span>
+        <span class="field-label">${rulesText('config.rules.body_title', 'Rule Markdown')}</span>
         <textarea id="rules-rule-input" class="field-input rules-textarea" rows="14">${rulesEscape(rule.body || '')}</textarea>
-    </div>
+    </label>
     <details class="rules-design-panel" ${designOpen ? 'open' : ''}>
         <summary>${rulesText('config.rules.design_title', 'Homepage DESIGN.md')}</summary>
         <div class="field-help">${rulesText('config.rules.design_hint', 'For homepage rules, this design system is injected after task rules. Project DESIGN.md files may add local design context.')}</div>
@@ -285,5 +319,7 @@ async function rulesRestore() {
 }
 
 function rulesRefreshSelectedCard() {
-    document.querySelectorAll('.rules-card').forEach(card => card.classList.remove('rules-card-selected'));
+    document.querySelectorAll('.rules-card').forEach(card => {
+        card.classList.toggle('rules-card-selected', card.dataset.ruleId === rulesState.selected);
+    });
 }

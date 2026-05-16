@@ -32,5 +32,13 @@
   "config.rules.restored": "Ο κανόνας επαναφέρθηκε",
   "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "Ενεργό",
-  "config.rules.rule_title": "Τίτλος"
+  "config.rules.rule_title": "Τίτλος",
+  "config.rules.inactive": "Ανενεργό",
+  "config.rules.markdown_editor": "Επεξεργαστής Markdown",
+  "config.rules.active": "Ενεργό",
+  "config.rules.total": "Σύνολο",
+  "config.rules.rule_list": "Βιβλιοθήκη κανόνων",
+  "config.rules.disabled": "Ανενεργό",
+  "config.rules.targeting": "Στόχοι αντιστοίχισης",
+  "config.rules.system_status": "Σύστημα κανόνων"
 }
