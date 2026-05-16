@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Pollningsintervall (sekunder)",
   "config.agentmail.readonly_label": "Endast läsning",
   "config.agentmail.relay_label": "Reläa ny e-post till agenten",
+  "config.agentmail.relay_cheatsheet_empty": "Inga cheatsheets tillgängliga",
+  "config.agentmail.relay_cheatsheet_error": "Kunde inte läsa in cheatsheets",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet med instruktioner",
+  "config.agentmail.relay_cheatsheet_none": "Bifoga inget cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Spara i Vault",
   "config.agentmail.status_disabled": "AgentMail-integrationen är avstängd",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Fallback-intervall för pollning. Värden under 30 sekunder höjs vid körning.",
   "help.agentmail.readonly": "Blockerar sändning, svar, vidarebefordran, skapande, uppdatering och radering.",
   "help.agentmail.relay_to_agent": "Väcker agenten när nya meddelanden kommer till primär inkorg. Stängs av automatiskt i egg-läge.",
+  "help.agentmail.relay_cheatsheet_id": "Valfritt cheatsheet vars innehåll bifogas som instruktioner till varje vidarebefordrad ny-e-postprompt.",
   "help.agentmail.use_websocket": "Föredrar utgående WebSockets för nya e-postaviseringar; pollning är fallback.",
   "help.agentmail.username": "Inkorgens användarnamn för automatisk eller manuell skapning.",
   "help.agentmail.websocket_url": "WebSocket-endpoint för inkommande meddelandeaviseringar."

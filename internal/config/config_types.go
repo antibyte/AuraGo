@@ -136,6 +136,7 @@ type AgentMailConfig struct {
 	UseWebSocket        bool   `yaml:"use_websocket" json:"use_websocket"`
 	PollIntervalSeconds int    `yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
 	RelayToAgent        bool   `yaml:"relay_to_agent" json:"relay_to_agent"`
+	RelayCheatsheetID   string `yaml:"relay_cheatsheet_id" json:"relay_cheatsheet_id"`
 	MaxAttachmentMB     int    `yaml:"max_attachment_mb" json:"max_attachment_mb"`
 	BaseURL             string `yaml:"base_url" json:"base_url"`
 	WebSocketURL        string `yaml:"websocket_url" json:"websocket_url"`

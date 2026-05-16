@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Intervalo de polling (segundos)",
   "config.agentmail.readonly_label": "Somente leitura",
   "config.agentmail.relay_label": "Repassar novo e-mail ao agente",
+  "config.agentmail.relay_cheatsheet_empty": "Nenhum cheatsheet disponível",
+  "config.agentmail.relay_cheatsheet_error": "Não foi possível carregar os cheatsheets",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet com instruções",
+  "config.agentmail.relay_cheatsheet_none": "Não anexar cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Salvar no Vault",
   "config.agentmail.status_disabled": "A integração AgentMail está desativada",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Intervalo de polling de fallback. Valores abaixo de 30 segundos são elevados em runtime.",
   "help.agentmail.readonly": "Bloqueia envio, resposta, encaminhamento, criação, atualização e exclusão.",
   "help.agentmail.relay_to_agent": "Acorda o agente quando novas mensagens chegam à caixa principal. Desativado automaticamente no modo egg.",
+  "help.agentmail.relay_cheatsheet_id": "Cheatsheet opcional cujo conteúdo é anexado como instruções a cada prompt de novo e-mail retransmitido.",
   "help.agentmail.use_websocket": "Prefere WebSockets de saída para notificações de novos e-mails; polling continua como fallback.",
   "help.agentmail.username": "Nome de usuário da caixa para criação automática ou manual.",
   "help.agentmail.websocket_url": "Endpoint WebSocket usado para notificações de mensagens recebidas."

@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Intervalle de sondage (secondes)",
   "config.agentmail.readonly_label": "Lecture seule",
   "config.agentmail.relay_label": "Relayer les nouveaux mails vers l'agent",
+  "config.agentmail.relay_cheatsheet_empty": "Aucun cheatsheet disponible",
+  "config.agentmail.relay_cheatsheet_error": "Impossible de charger les cheatsheets",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet avec instructions",
+  "config.agentmail.relay_cheatsheet_none": "Ne pas joindre de cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Enregistrer dans le Vault",
   "config.agentmail.status_disabled": "L'intégration AgentMail est désactivée",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Intervalle de sondage de secours. Les valeurs sous 30 secondes sont relevées à l'exécution.",
   "help.agentmail.readonly": "Bloque l'envoi, les réponses, le transfert, la création, la modification et la suppression.",
   "help.agentmail.relay_to_agent": "Réveille l'agent quand de nouveaux messages arrivent dans la boîte principale. Désactivé automatiquement en mode egg.",
+  "help.agentmail.relay_cheatsheet_id": "Cheatsheet facultatif dont le contenu est ajouté comme instructions à chaque prompt de nouveau mail relayé.",
   "help.agentmail.use_websocket": "Privilégie les WebSockets sortants pour les notifications de nouveaux mails; le sondage reste le secours.",
   "help.agentmail.username": "Nom d'utilisateur de boîte pour la création automatique ou manuelle.",
   "help.agentmail.websocket_url": "Endpoint WebSocket utilisé pour les notifications de messages entrants."

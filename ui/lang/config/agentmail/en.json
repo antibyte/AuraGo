@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Poll Interval (seconds)",
   "config.agentmail.readonly_label": "Read-Only",
   "config.agentmail.relay_label": "Relay New Mail to Agent",
+  "config.agentmail.relay_cheatsheet_empty": "No cheatsheets available",
+  "config.agentmail.relay_cheatsheet_error": "Could not load cheatsheets",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet with instructions",
+  "config.agentmail.relay_cheatsheet_none": "Do not attach a cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Save to Vault",
   "config.agentmail.status_disabled": "AgentMail integration is disabled",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Polling fallback interval. Values below 30 seconds are raised at runtime.",
   "help.agentmail.readonly": "Blocks sending, replying, forwarding, create, update, and delete operations.",
   "help.agentmail.relay_to_agent": "Wake the agent when new messages arrive in the primary inbox. Disabled automatically in egg mode.",
+  "help.agentmail.relay_cheatsheet_id": "Optional cheatsheet whose content is appended as instructions to every relayed new-mail prompt.",
   "help.agentmail.use_websocket": "Prefer outbound WebSockets for new mail notifications; polling remains the fallback.",
   "help.agentmail.username": "Inbox username used when auto-creating or creating inboxes.",
   "help.agentmail.websocket_url": "WebSocket endpoint used for inbound message notifications."

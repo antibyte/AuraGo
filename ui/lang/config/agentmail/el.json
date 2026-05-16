@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Διάστημα polling (δευτερόλεπτα)",
   "config.agentmail.readonly_label": "Μόνο ανάγνωση",
   "config.agentmail.relay_label": "Προώθηση νέας αλληλογραφίας στον agent",
+  "config.agentmail.relay_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμα cheatsheets",
+  "config.agentmail.relay_cheatsheet_error": "Αδυναμία φόρτωσης cheatsheets",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet με οδηγίες",
+  "config.agentmail.relay_cheatsheet_none": "Να μη γίνει επισύναψη cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Αποθήκευση στο Vault",
   "config.agentmail.status_disabled": "Η ενσωμάτωση AgentMail είναι απενεργοποιημένη",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Εφεδρικό διάστημα polling. Τιμές κάτω από 30 δευτερόλεπτα αυξάνονται κατά την εκτέλεση.",
   "help.agentmail.readonly": "Μπλοκάρει αποστολή, απάντηση, προώθηση, δημιουργία, ενημέρωση και διαγραφή.",
   "help.agentmail.relay_to_agent": "Ξυπνά τον agent όταν φτάνουν νέα μηνύματα στην κύρια θυρίδα. Απενεργοποιείται αυτόματα σε egg mode.",
+  "help.agentmail.relay_cheatsheet_id": "Προαιρετικό cheatsheet του οποίου το περιεχόμενο προστίθεται ως οδηγίες σε κάθε προωθημένη ειδοποίηση νέου email.",
   "help.agentmail.use_websocket": "Προτιμά εξερχόμενα WebSockets για ειδοποιήσεις νέας αλληλογραφίας· το polling παραμένει εφεδρικό.",
   "help.agentmail.username": "Όνομα χρήστη θυρίδας για αυτόματη ή χειροκίνητη δημιουργία.",
   "help.agentmail.websocket_url": "WebSocket endpoint για ειδοποιήσεις εισερχόμενων μηνυμάτων."

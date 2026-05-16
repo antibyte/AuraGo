@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Interwał odpytywania (sekundy)",
   "config.agentmail.readonly_label": "Tylko odczyt",
   "config.agentmail.relay_label": "Przekazuj nową pocztę do agenta",
+  "config.agentmail.relay_cheatsheet_empty": "Brak dostępnych cheatsheetów",
+  "config.agentmail.relay_cheatsheet_error": "Nie udało się wczytać cheatsheetów",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet z instrukcjami",
+  "config.agentmail.relay_cheatsheet_none": "Nie dołączaj cheatsheetu",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Zapisz w Vault",
   "config.agentmail.status_disabled": "Integracja AgentMail jest wyłączona",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Zapasowy interwał odpytywania. Wartości poniżej 30 sekund są podnoszone w czasie działania.",
   "help.agentmail.readonly": "Blokuje wysyłanie, odpowiadanie, przekazywanie, tworzenie, aktualizację i usuwanie.",
   "help.agentmail.relay_to_agent": "Budzi agenta, gdy nowe wiadomości trafiają do głównej skrzynki. Automatycznie wyłączone w trybie egg.",
+  "help.agentmail.relay_cheatsheet_id": "Opcjonalny cheatsheet, którego treść jest dołączana jako instrukcje do każdego przekazanego promptu nowej poczty.",
   "help.agentmail.use_websocket": "Preferuje wychodzące WebSockety dla powiadomień o nowej poczcie; polling pozostaje zapasowy.",
   "help.agentmail.username": "Nazwa użytkownika skrzynki do tworzenia automatycznego lub ręcznego.",
   "help.agentmail.websocket_url": "Endpoint WebSocket używany do powiadomień o przychodzących wiadomościach."

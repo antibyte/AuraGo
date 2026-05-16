@@ -246,6 +246,7 @@ agentmail:
     use_websocket: true
     poll_interval_seconds: 120
     relay_to_agent: false
+    relay_cheatsheet_id: "" # optional cheatsheet appended as instructions to relayed new-mail prompts
     max_attachment_mb: 10
     base_url: https://api.agentmail.to
     websocket_url: wss://ws.agentmail.to/v0

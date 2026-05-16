@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "पोल अंतराल (सेकंड)",
   "config.agentmail.readonly_label": "केवल पढ़ें",
   "config.agentmail.relay_label": "नई मेल एजेंट को भेजें",
+  "config.agentmail.relay_cheatsheet_empty": "कोई चीटशीट उपलब्ध नहीं",
+  "config.agentmail.relay_cheatsheet_error": "चीटशीट लोड नहीं हो सके",
+  "config.agentmail.relay_cheatsheet_label": "निर्देशों वाला चीटशीट",
+  "config.agentmail.relay_cheatsheet_none": "कोई चीटशीट न जोड़ें",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Vault में सहेजें",
   "config.agentmail.status_disabled": "AgentMail एकीकरण निष्क्रिय है",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "बैकअप पोलिंग अंतराल। 30 सेकंड से कम मान runtime पर बढ़ाए जाते हैं।",
   "help.agentmail.readonly": "भेजना, उत्तर देना, फॉरवर्ड करना, बनाना, अपडेट करना और हटाना रोकता है।",
   "help.agentmail.relay_to_agent": "मुख्य इनबॉक्स में नए संदेश आने पर एजेंट को जगाता है। egg mode में स्वतः निष्क्रिय।",
+  "help.agentmail.relay_cheatsheet_id": "वैकल्पिक चीटशीट जिसकी सामग्री हर रिले किए गए नए-मेल प्रॉम्प्ट में निर्देशों के रूप में जोड़ी जाती है।",
   "help.agentmail.use_websocket": "नई मेल सूचनाओं के लिए आउटबाउंड WebSockets को प्राथमिकता देता है; polling fallback रहता है।",
   "help.agentmail.username": "स्वचालित या मैनुअल निर्माण के लिए इनबॉक्स उपयोगकर्ता नाम।",
   "help.agentmail.websocket_url": "आने वाले संदेशों की सूचना के लिए WebSocket endpoint।"

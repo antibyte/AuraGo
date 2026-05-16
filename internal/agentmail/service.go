@@ -23,13 +23,20 @@ type contentEvaluator interface {
 type NotifyFunc func(context.Context, string) error
 
 type ServiceConfig struct {
-	Config      Config
-	Client      *Client
-	Logger      *slog.Logger
-	Guardian    *security.Guardian
-	LLMGuardian contentEvaluator
-	ScanEmails  bool
-	Notify      NotifyFunc
+	Config          Config
+	Client          *Client
+	Logger          *slog.Logger
+	Guardian        *security.Guardian
+	LLMGuardian     contentEvaluator
+	ScanEmails      bool
+	RelayCheatsheet RelayCheatsheet
+	Notify          NotifyFunc
+}
+
+type RelayCheatsheet struct {
+	ID      string
+	Name    string
+	Content string
 }
 
 type Service struct {
@@ -39,6 +46,7 @@ type Service struct {
 	guardian    *security.Guardian
 	llmGuardian contentEvaluator
 	scanEmails  bool
+	relaySheet  RelayCheatsheet
 	notify      NotifyFunc
 
 	mu      sync.Mutex
@@ -71,6 +79,7 @@ func NewService(cfg ServiceConfig) *Service {
 		guardian:    cfg.Guardian,
 		llmGuardian: cfg.LLMGuardian,
 		scanEmails:  cfg.ScanEmails,
+		relaySheet:  cfg.RelayCheatsheet,
 		notify:      cfg.Notify,
 		seen:        make(map[string]struct{}),
 	}
@@ -318,7 +327,7 @@ func isTransientWebSocketClose(err error) bool {
 
 func (s *Service) handleMessage(ctx context.Context, msg Message) error {
 	msg = s.sanitizeMessage(ctx, msg)
-	if err := s.notify(ctx, BuildNotificationPrompt(s.cfg.InboxID, msg)); err != nil {
+	if err := s.notify(ctx, BuildNotificationPrompt(s.cfg.InboxID, msg, s.relaySheet)); err != nil {
 		return err
 	}
 	_, err := s.client.UpdateMessage(ctx, s.cfg.InboxID, msg.ID, UpdateMessageRequest{
@@ -369,7 +378,7 @@ func (s *Service) markSeen(id string) {
 	s.seen[id] = struct{}{}
 }
 
-func BuildNotificationPrompt(inboxID string, msg Message) string {
+func BuildNotificationPrompt(inboxID string, msg Message, relaySheets ...RelayCheatsheet) string {
 	body := msg.Text
 	if body == "" {
 		body = msg.Snippet
@@ -387,9 +396,33 @@ func BuildNotificationPrompt(inboxID string, msg Message) string {
 		strings.Join(msg.Labels, ", "),
 		body,
 	)
-	return "[AGENTMAIL NOTIFICATION] A new AgentMail message arrived.\n\n" +
+	prompt := "[AGENTMAIL NOTIFICATION] A new AgentMail message arrived.\n\n" +
 		security.IsolateExternalData(summary) +
 		"\n\nUse the agentmail tool with operation \"get_message\" for full content, \"reply_message\" to answer, or \"update_message_labels\" to mark it."
+	if len(relaySheets) > 0 {
+		prompt += formatRelayCheatsheet(relaySheets[0])
+	}
+	return prompt
+}
+
+func formatRelayCheatsheet(sheet RelayCheatsheet) string {
+	content := strings.TrimSpace(sheet.Content)
+	if content == "" {
+		return ""
+	}
+	if len(content) > 6000 {
+		content = content[:6000] + "\n[truncated]"
+	}
+	name := strings.TrimSpace(sheet.Name)
+	if name == "" {
+		name = strings.TrimSpace(sheet.ID)
+	}
+	if name == "" {
+		name = "configured AgentMail relay cheatsheet"
+	}
+	return "\n\n[AGENTMAIL CHEATSHEET INSTRUCTIONS]\n" +
+		"Cheatsheet: " + name + "\n\n" +
+		content
 }
 
 func ParseWebSocketMessageEvent(raw []byte) (WebSocketMessageEvent, bool) {

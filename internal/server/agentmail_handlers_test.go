@@ -5,9 +5,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/tools"
 )
 
 func TestHandleAgentMailStatusReportsDisabled(t *testing.T) {
@@ -79,5 +81,24 @@ func TestAgentMailRelaySuppressedInEggMode(t *testing.T) {
 	s.configureAgentMailRelay(cfg)
 	if s.AgentMailService != nil {
 		t.Fatal("AgentMailService should not start in egg mode")
+	}
+}
+
+func TestLoadAgentMailRelayCheatsheet(t *testing.T) {
+	db, err := tools.InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("InitCheatsheetDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	sheet, err := tools.CheatsheetCreate(db, "Mail policy", "Triage and summarize first.", "user")
+	if err != nil {
+		t.Fatalf("CheatsheetCreate: %v", err)
+	}
+
+	s := &Server{CheatsheetDB: db, Logger: slog.Default()}
+	got := s.loadAgentMailRelayCheatsheet(sheet.ID)
+	if got.ID != sheet.ID || got.Name != "Mail policy" || got.Content != "Triage and summarize first." {
+		t.Fatalf("relay cheatsheet = %+v", got)
 	}
 }

@@ -35,6 +35,36 @@ func TestBuildNotificationPromptIsolatesExternalData(t *testing.T) {
 	}
 }
 
+func TestBuildNotificationPromptAppendsCheatsheetInstructions(t *testing.T) {
+	t.Parallel()
+
+	msg := Message{
+		ID:      "msg-2",
+		From:    Address{Name: "Alex", Email: "alex@example.com"},
+		Subject: "Deploy question",
+		Text:    "Can you handle this?",
+	}
+
+	prompt := BuildNotificationPrompt("inbox-1", msg, RelayCheatsheet{
+		ID:      "cs-1",
+		Name:    "Mail triage",
+		Content: "Always summarize risk before replying.",
+	})
+
+	for _, marker := range []string{
+		"[AGENTMAIL CHEATSHEET INSTRUCTIONS]",
+		"Cheatsheet: Mail triage",
+		"Always summarize risk before replying.",
+	} {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("prompt missing cheatsheet marker %q:\n%s", marker, prompt)
+		}
+	}
+	if strings.Index(prompt, "[AGENTMAIL CHEATSHEET INSTRUCTIONS]") < strings.Index(prompt, "<external_data") {
+		t.Fatalf("cheatsheet instructions should be appended after isolated email content:\n%s", prompt)
+	}
+}
+
 func TestParseWebSocketMessageEvent(t *testing.T) {
 	t.Parallel()
 

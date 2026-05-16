@@ -27,6 +27,7 @@ type Config struct {
 	UseWebSocket        bool
 	PollIntervalSeconds int
 	RelayToAgent        bool
+	RelayCheatsheetID   string
 	MaxAttachmentMB     int
 	BaseURL             string
 	WebSocketURL        string
@@ -48,6 +49,7 @@ func ConfigFromAppConfig(src config.AgentMailConfig) Config {
 		UseWebSocket:        src.UseWebSocket,
 		PollIntervalSeconds: src.PollIntervalSeconds,
 		RelayToAgent:        src.RelayToAgent,
+		RelayCheatsheetID:   strings.TrimSpace(src.RelayCheatsheetID),
 		MaxAttachmentMB:     src.MaxAttachmentMB,
 		BaseURL:             strings.TrimSpace(src.BaseURL),
 		WebSocketURL:        strings.TrimSpace(src.WebSocketURL),

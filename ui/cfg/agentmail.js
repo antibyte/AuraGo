@@ -34,6 +34,7 @@ function renderAgentMailSection(section) {
     html += agentMailInput('agentmail.display_name', data.display_name || '', t('config.agentmail.display_name_label'), t('help.agentmail.display_name'), 'text', 'AuraGo');
 
     html += agentMailToggle('agentmail.relay_to_agent', relayOn, t('config.agentmail.relay_label'), t('help.agentmail.relay_to_agent'));
+    html += agentMailCheatsheetSelect(data.relay_cheatsheet_id || '');
     html += agentMailToggle('agentmail.use_websocket', wsOn, t('config.agentmail.websocket_label'), t('help.agentmail.use_websocket'));
     html += agentMailInput('agentmail.poll_interval_seconds', String(data.poll_interval_seconds || 120), t('config.agentmail.poll_interval_label'), t('help.agentmail.poll_interval_seconds'), 'number', '120', '30', '1');
     html += agentMailInput('agentmail.max_attachment_mb', String(data.max_attachment_mb || 10), t('config.agentmail.max_attachment_label'), t('help.agentmail.max_attachment_mb'), 'number', '10', '0', '1');
@@ -52,6 +53,7 @@ function renderAgentMailSection(section) {
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
+    agentMailLoadCheatsheets(data.relay_cheatsheet_id || '');
     agentMailCheckStatus();
 }
 
@@ -76,6 +78,47 @@ function agentMailInput(path, value, label, help, type, placeholder, min, step) 
     html += '>';
     html += '</div>';
     return html;
+}
+
+function agentMailCheatsheetSelect(selectedID) {
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.agentmail.relay_cheatsheet_label') + '</div>';
+    html += '<div class="field-help">' + t('help.agentmail.relay_cheatsheet_id') + '</div>';
+    html += '<select class="field-input" id="agentmail-relay-cheatsheet" data-path="agentmail.relay_cheatsheet_id" data-selected="' + escapeAttr(selectedID || '') + '" onchange="setNestedValue(configData,\'agentmail.relay_cheatsheet_id\',this.value);setDirty(true)">';
+    html += '<option value="">' + escapeHtml(t('config.agentmail.loading')) + '</option>';
+    html += '</select>';
+    html += '</div>';
+    return html;
+}
+
+function agentMailLoadCheatsheets(selectedID) {
+    const select = document.getElementById('agentmail-relay-cheatsheet');
+    if (!select) return;
+    fetch('/api/cheatsheets')
+        .then(r => {
+            if (!r.ok) throw new Error(r.statusText || 'Failed to load cheat sheets');
+            return r.json();
+        })
+        .then(sheets => {
+            const list = Array.isArray(sheets) ? sheets.slice() : [];
+            list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            let html = '<option value="">' + escapeHtml(t('config.agentmail.relay_cheatsheet_none')) + '</option>';
+            if (selectedID && !list.some(s => s.id === selectedID)) {
+                html += '<option value="' + escapeAttr(selectedID) + '">' + escapeHtml(selectedID) + '</option>';
+            }
+            list.forEach(sheet => {
+                html += '<option value="' + escapeAttr(sheet.id) + '">' + escapeHtml(sheet.name || sheet.id) + '</option>';
+            });
+            if (list.length === 0 && !selectedID) {
+                html += '<option value="" disabled>' + escapeHtml(t('config.agentmail.relay_cheatsheet_empty')) + '</option>';
+            }
+            select.innerHTML = html;
+            select.value = selectedID || '';
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="' + escapeAttr(selectedID || '') + '">' + escapeHtml(t('config.agentmail.relay_cheatsheet_error')) + '</option>';
+            select.value = selectedID || '';
+        });
 }
 
 function agentMailSetBanner(state, text) {

@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Abfrageintervall (Sekunden)",
   "config.agentmail.readonly_label": "Nur Lesen",
   "config.agentmail.relay_label": "Neue Mail an Agent weiterleiten",
+  "config.agentmail.relay_cheatsheet_empty": "Keine Cheatsheets vorhanden",
+  "config.agentmail.relay_cheatsheet_error": "Cheatsheets konnten nicht geladen werden",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet mit Anweisungen",
+  "config.agentmail.relay_cheatsheet_none": "Kein Cheatsheet anhängen",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Im Vault speichern",
   "config.agentmail.status_disabled": "AgentMail-Integration ist deaktiviert",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Polling-Fallback-Intervall. Werte unter 30 Sekunden werden zur Laufzeit angehoben.",
   "help.agentmail.readonly": "Blockiert Senden, Antworten, Weiterleiten sowie Erstellen, Ändern und Löschen.",
   "help.agentmail.relay_to_agent": "Weckt den Agenten, wenn neue Nachrichten im primären Postfach eintreffen. Im Egg-Modus automatisch deaktiviert.",
+  "help.agentmail.relay_cheatsheet_id": "Optionales Cheatsheet, dessen Inhalt als Anweisungen an jede weitergeleitete Neue-Mail-Aufforderung angehängt wird.",
   "help.agentmail.use_websocket": "Bevorzugt ausgehende WebSockets für neue Mail-Benachrichtigungen; Polling bleibt Fallback.",
   "help.agentmail.username": "Postfach-Benutzername für automatische oder manuelle Erstellung.",
   "help.agentmail.websocket_url": "WebSocket-Endpunkt für eingehende Nachrichtenbenachrichtigungen."

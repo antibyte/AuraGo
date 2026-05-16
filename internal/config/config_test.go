@@ -1105,6 +1105,9 @@ func TestLoadAgentMailDefaults(t *testing.T) {
 	if !cfg.AgentMail.UseWebSocket {
 		t.Fatal("expected use_websocket to default to true")
 	}
+	if cfg.AgentMail.RelayCheatsheetID != "" {
+		t.Fatalf("relay_cheatsheet_id = %q, want empty default", cfg.AgentMail.RelayCheatsheetID)
+	}
 }
 
 func TestLoadRulesDefaultsEnabled(t *testing.T) {
@@ -1144,6 +1147,7 @@ func TestConfigSaveOmitsAgentMailAPIKey(t *testing.T) {
 	cfg.AgentMail.Enabled = true
 	cfg.AgentMail.APIKey = "am_should_not_be_serialized"
 	cfg.AgentMail.InboxID = "inbox-1"
+	cfg.AgentMail.RelayCheatsheetID = "cs-mail"
 	cfg.AgentMail.BaseURL = "https://api.agentmail.to"
 	cfg.AgentMail.WebSocketURL = "wss://ws.agentmail.to/v0"
 
@@ -1159,7 +1163,7 @@ func TestConfigSaveOmitsAgentMailAPIKey(t *testing.T) {
 	if strings.Contains(got, "am_should_not_be_serialized") || strings.Contains(got, "api_key:") {
 		t.Fatalf("expected AgentMail API key to stay out of YAML, got:\n%s", got)
 	}
-	if !strings.Contains(got, "agentmail:") || !strings.Contains(got, "inbox_id: inbox-1") {
+	if !strings.Contains(got, "agentmail:") || !strings.Contains(got, "inbox_id: inbox-1") || !strings.Contains(got, "relay_cheatsheet_id: cs-mail") {
 		t.Fatalf("expected non-secret AgentMail settings to be serialized, got:\n%s", got)
 	}
 }

@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "ポーリング間隔 (秒)",
   "config.agentmail.readonly_label": "読み取り専用",
   "config.agentmail.relay_label": "新着メールをエージェントへ中継",
+  "config.agentmail.relay_cheatsheet_empty": "利用可能なチートシートがありません",
+  "config.agentmail.relay_cheatsheet_error": "チートシートを読み込めませんでした",
+  "config.agentmail.relay_cheatsheet_label": "指示付きチートシート",
+  "config.agentmail.relay_cheatsheet_none": "チートシートを添付しない",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Vault に保存",
   "config.agentmail.status_disabled": "AgentMail 連携は無効です",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "フォールバックのポーリング間隔。30 秒未満は実行時に引き上げられます。",
   "help.agentmail.readonly": "送信、返信、転送、作成、更新、削除をブロックします。",
   "help.agentmail.relay_to_agent": "主要受信箱に新着メッセージが届くとエージェントを起動します。egg モードでは自動的に無効です。",
+  "help.agentmail.relay_cheatsheet_id": "各転送済み新着メールプロンプトに指示として内容を追加する任意のチートシートです。",
   "help.agentmail.use_websocket": "新着メール通知にアウトバウンド WebSocket を優先します。ポーリングはフォールバックです。",
   "help.agentmail.username": "自動または手動作成に使う受信箱ユーザー名。",
   "help.agentmail.websocket_url": "受信メッセージ通知に使う WebSocket エンドポイント。"

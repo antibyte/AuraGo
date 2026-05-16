@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/agentmail"
 	"aurago/internal/config"
+	"aurago/internal/tools"
 )
 
 func handleAgentMailStatus(s *Server) http.HandlerFunc {
@@ -45,14 +46,15 @@ func handleAgentMailStatus(s *Server) http.HandlerFunc {
 			status = "no_inbox"
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":         status,
-			"enabled":        cfg.Enabled,
-			"readonly":       cfg.ReadOnly,
-			"inbox_id":       cfg.InboxID,
-			"relay_to_agent": cfg.RelayToAgent,
-			"use_websocket":  cfg.UseWebSocket,
-			"running":        running,
-			"base_url":       cfg.BaseURL,
+			"status":              status,
+			"enabled":             cfg.Enabled,
+			"readonly":            cfg.ReadOnly,
+			"inbox_id":            cfg.InboxID,
+			"relay_to_agent":      cfg.RelayToAgent,
+			"relay_cheatsheet_id": cfg.RelayCheatsheetID,
+			"use_websocket":       cfg.UseWebSocket,
+			"running":             running,
+			"base_url":            cfg.BaseURL,
 		})
 	}
 }
@@ -110,12 +112,13 @@ func (s *Server) configureAgentMailRelay(cfg *config.Config) {
 		return
 	}
 	svc := agentmail.NewService(agentmail.ServiceConfig{
-		Config:      agentmail.ConfigFromAppConfig(cfg.AgentMail),
-		Logger:      s.Logger,
-		Guardian:    s.Guardian,
-		LLMGuardian: s.LLMGuardian,
-		ScanEmails:  cfg.LLMGuardian.ScanEmails,
-		Notify:      s.notifyAgentMailLoopback,
+		Config:          agentmail.ConfigFromAppConfig(cfg.AgentMail),
+		Logger:          s.Logger,
+		Guardian:        s.Guardian,
+		LLMGuardian:     s.LLMGuardian,
+		ScanEmails:      cfg.LLMGuardian.ScanEmails,
+		RelayCheatsheet: s.loadAgentMailRelayCheatsheet(cfg.AgentMail.RelayCheatsheetID),
+		Notify:          s.notifyAgentMailLoopback,
 	})
 	if err := svc.Start(context.Background()); err != nil {
 		s.Logger.Warn("[AgentMail] Relay not started", "error", err)
@@ -123,6 +126,24 @@ func (s *Server) configureAgentMailRelay(cfg *config.Config) {
 	}
 	s.AgentMailService = svc
 	s.Logger.Info("[AgentMail] Relay started", "inbox_id", cfg.AgentMail.InboxID, "websocket", cfg.AgentMail.UseWebSocket)
+}
+
+func (s *Server) loadAgentMailRelayCheatsheet(id string) agentmail.RelayCheatsheet {
+	if s == nil || s.CheatsheetDB == nil || id == "" {
+		return agentmail.RelayCheatsheet{}
+	}
+	sheet, err := tools.CheatsheetGet(s.CheatsheetDB, id)
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("[AgentMail] Relay cheatsheet could not be loaded", "cheatsheet_id", id, "error", err)
+		}
+		return agentmail.RelayCheatsheet{}
+	}
+	return agentmail.RelayCheatsheet{
+		ID:      sheet.ID,
+		Name:    sheet.Name,
+		Content: sheet.Content,
+	}
 }
 
 func (s *Server) notifyAgentMailLoopback(ctx context.Context, prompt string) error {

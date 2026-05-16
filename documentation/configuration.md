@@ -256,6 +256,7 @@ AgentMail API inboxes, messages, labels, drafts, attachments, and optional inbou
 | `use_websocket` | `true` | Prefer AgentMail WebSockets for inbound mail relay. |
 | `poll_interval_seconds` | `120` | Poll interval used as fallback or when WebSockets are disabled. |
 | `relay_to_agent` | `false` | Wake the agent when new messages arrive in `inbox_id`. Disabled in egg mode. |
+| `relay_cheatsheet_id` | `""` | Optional cheat sheet whose content is appended as instructions to each relayed new-mail prompt. |
 | `max_attachment_mb` | `10` | Maximum size for attachments sent through the `agentmail` tool. |
 | `base_url` | `"https://api.agentmail.to"` | AgentMail REST API base URL. |
 | `websocket_url` | `"wss://ws.agentmail.to/v0"` | AgentMail WebSocket endpoint. |

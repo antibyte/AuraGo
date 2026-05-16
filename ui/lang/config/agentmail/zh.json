@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "轮询间隔（秒）",
   "config.agentmail.readonly_label": "只读",
   "config.agentmail.relay_label": "将新邮件转发给代理",
+  "config.agentmail.relay_cheatsheet_empty": "没有可用的速查表",
+  "config.agentmail.relay_cheatsheet_error": "无法加载速查表",
+  "config.agentmail.relay_cheatsheet_label": "带说明的速查表",
+  "config.agentmail.relay_cheatsheet_none": "不附加速查表",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "保存到 Vault",
   "config.agentmail.status_disabled": "AgentMail 集成已禁用",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "备用轮询间隔。低于 30 秒的值会在运行时提高。",
   "help.agentmail.readonly": "阻止发送、回复、转发、创建、更新和删除操作。",
   "help.agentmail.relay_to_agent": "主收件箱有新消息时唤醒代理。在 egg 模式下自动禁用。",
+  "help.agentmail.relay_cheatsheet_id": "可选速查表，其内容会作为说明附加到每个转发的新邮件提示中。",
   "help.agentmail.use_websocket": "优先使用出站 WebSocket 接收新邮件通知；轮询作为备用。",
   "help.agentmail.username": "用于自动或手动创建的收件箱用户名。",
   "help.agentmail.websocket_url": "用于传入消息通知的 WebSocket 端点。"

@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Interval dotazování (sekundy)",
   "config.agentmail.readonly_label": "Pouze čtení",
   "config.agentmail.relay_label": "Předat novou poštu agentovi",
+  "config.agentmail.relay_cheatsheet_empty": "Nejsou k dispozici žádné cheatsheety",
+  "config.agentmail.relay_cheatsheet_error": "Cheatsheety nelze načíst",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet s pokyny",
+  "config.agentmail.relay_cheatsheet_none": "Nepřipojovat žádný cheatsheet",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Uložit do Vaultu",
   "config.agentmail.status_disabled": "Integrace AgentMail je vypnutá",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Záložní interval dotazování. Hodnoty pod 30 sekund se za běhu zvýší.",
   "help.agentmail.readonly": "Blokuje odesílání, odpovědi, přeposílání, vytváření, úpravy a mazání.",
   "help.agentmail.relay_to_agent": "Probudí agenta, když do primární schránky dorazí nové zprávy. V režimu egg se automaticky vypne.",
+  "help.agentmail.relay_cheatsheet_id": "Volitelný cheatsheet, jehož obsah se připojí jako pokyny ke každému předanému upozornění na novou poštu.",
   "help.agentmail.use_websocket": "Preferuje odchozí WebSockety pro oznámení nové pošty; polling zůstává zálohou.",
   "help.agentmail.username": "Uživatelské jméno schránky pro automatické nebo ruční vytvoření.",
   "help.agentmail.websocket_url": "WebSocket endpoint pro oznámení příchozích zpráv."

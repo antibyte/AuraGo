@@ -1547,6 +1547,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"agentmail", "use_websocket"}, c.AgentMail.UseWebSocket},
 		{[]string{"agentmail", "poll_interval_seconds"}, c.AgentMail.PollIntervalSeconds},
 		{[]string{"agentmail", "relay_to_agent"}, c.AgentMail.RelayToAgent},
+		{[]string{"agentmail", "relay_cheatsheet_id"}, c.AgentMail.RelayCheatsheetID},
 		{[]string{"agentmail", "max_attachment_mb"}, c.AgentMail.MaxAttachmentMB},
 		{[]string{"agentmail", "base_url"}, c.AgentMail.BaseURL},
 		{[]string{"agentmail", "websocket_url"}, c.AgentMail.WebSocketURL},

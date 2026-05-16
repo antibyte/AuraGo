@@ -20,6 +20,10 @@
   "config.agentmail.poll_interval_label": "Poll-interval (seconden)",
   "config.agentmail.readonly_label": "Alleen-lezen",
   "config.agentmail.relay_label": "Nieuwe mail naar agent doorgeven",
+  "config.agentmail.relay_cheatsheet_empty": "Geen cheatsheets beschikbaar",
+  "config.agentmail.relay_cheatsheet_error": "Kon cheatsheets niet laden",
+  "config.agentmail.relay_cheatsheet_label": "Cheatsheet met instructies",
+  "config.agentmail.relay_cheatsheet_none": "Geen cheatsheet toevoegen",
   "config.agentmail.save_icon": "💾",
   "config.agentmail.save_vault": "Opslaan in Vault",
   "config.agentmail.status_disabled": "AgentMail-integratie is uitgeschakeld",
@@ -49,6 +53,7 @@
   "help.agentmail.poll_interval_seconds": "Polling-fallbackinterval. Waarden onder 30 seconden worden tijdens runtime verhoogd.",
   "help.agentmail.readonly": "Blokkeert verzenden, antwoorden, doorsturen, maken, bijwerken en verwijderen.",
   "help.agentmail.relay_to_agent": "Wekt de agent wanneer nieuwe berichten in de primaire inbox aankomen. Automatisch uit in egg-modus.",
+  "help.agentmail.relay_cheatsheet_id": "Optionele cheatsheet waarvan de inhoud als instructies aan elke doorgestuurde nieuwe-mailprompt wordt toegevoegd.",
   "help.agentmail.use_websocket": "Geeft de voorkeur aan uitgaande WebSockets voor nieuwe mailmeldingen; polling blijft fallback.",
   "help.agentmail.username": "Inbox-gebruikersnaam voor automatisch of handmatig maken.",
   "help.agentmail.websocket_url": "WebSocket-endpoint voor meldingen van inkomende berichten."
