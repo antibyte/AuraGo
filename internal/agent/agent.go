@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -690,6 +691,38 @@ var toolCallStringFields = map[string]struct{}{
 	"cc":          {},
 }
 
+var toolCallBoolFields struct {
+	once sync.Once
+	set  map[string]struct{}
+}
+
+func getToolCallBoolFields() map[string]struct{} {
+	toolCallBoolFields.once.Do(func() {
+		fields := make(map[string]struct{})
+		typ := reflect.TypeOf(ToolCall{})
+		for i := 0; i < typ.NumField(); i++ {
+			field := typ.Field(i)
+			if !isToolCallBoolType(field.Type) {
+				continue
+			}
+			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if name == "" || name == "-" {
+				continue
+			}
+			fields[name] = struct{}{}
+		}
+		toolCallBoolFields.set = fields
+	})
+	return toolCallBoolFields.set
+}
+
+func isToolCallBoolType(typ reflect.Type) bool {
+	if typ.Kind() == reflect.Bool {
+		return true
+	}
+	return typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Bool
+}
+
 func coerceToolCallStringFields(data []byte) []byte {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 || trimmed[0] != '{' {
@@ -748,6 +781,85 @@ func coerceToolCallStringFields(data []byte) []byte {
 	return out
 }
 
+func coerceToolCallBoolFields(data []byte) []byte {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return data
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return data
+	}
+
+	changed := false
+	boolFields := getToolCallBoolFields()
+	for key, val := range raw {
+		if _, ok := boolFields[key]; !ok {
+			continue
+		}
+		v := bytes.TrimSpace(val)
+		if len(v) == 0 || bytes.Equal(v, []byte("null")) {
+			continue
+		}
+
+		coerced, ok := coerceJSONBool(v)
+		if !ok {
+			continue
+		}
+		raw[key] = coerced
+		changed = true
+	}
+	if !changed {
+		return data
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return data
+	}
+	return out
+}
+
+func coerceJSONBool(raw []byte) (json.RawMessage, bool) {
+	switch raw[0] {
+	case '"':
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, false
+		}
+		parsed, ok := parseLooseBool(value)
+		if !ok {
+			return nil, false
+		}
+		if parsed {
+			return json.RawMessage(`true`), true
+		}
+		return json.RawMessage(`false`), true
+	case '0', '1':
+		var value float64
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, false
+		}
+		switch value {
+		case 0:
+			return json.RawMessage(`false`), true
+		case 1:
+			return json.RawMessage(`true`), true
+		}
+	}
+	return nil, false
+}
+
+func parseLooseBool(value string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "t", "yes", "y", "1", "on":
+		return true, true
+	case "false", "f", "no", "n", "0", "off":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
 func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	// Preserve existing field-based decoding but also build a robust flat args map
 	// so tool-specific decoders can read from `tc.Params` only.
@@ -760,6 +872,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	// reject the entire tool call. The flat Params map below preserves the raw
 	// values for any tool-specific decoder that cares about the original type.
 	data = coerceToolCallStringFields(data)
+	data = coerceToolCallBoolFields(data)
 
 	// Start from the current state so absent JSON fields do not zero-out values that
 	// were set programmatically (e.g. native-tool shortcut prefill).

@@ -608,6 +608,36 @@ func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *test
 	}
 }
 
+func TestNativeToolCallToToolCallHomepageStringBoolDraft(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_homepage_deploy",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "homepage",
+			Arguments: `{"operation":"deploy_netlify","project_dir":"ki-news","build_dir":"dist","draft":"false"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.NativeArgsMalformed {
+		t.Fatalf("did not expect malformed args: %s", tc.NativeArgsError)
+	}
+	if tc.Action != "homepage" {
+		t.Fatalf("Action = %q, want homepage", tc.Action)
+	}
+	if tc.Operation != "deploy_netlify" {
+		t.Fatalf("Operation = %q, want deploy_netlify", tc.Operation)
+	}
+	if tc.Draft {
+		t.Fatal("Draft = true, want false")
+	}
+	if got, ok := tc.Params["draft"].(bool); !ok || got {
+		t.Fatalf("Params[draft] = %#v, want boolean false", tc.Params["draft"])
+	}
+}
+
 func TestNativeToolCallToToolCallMarksMalformedArguments(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
