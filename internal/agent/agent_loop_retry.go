@@ -223,6 +223,25 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		return content, tc, true, false
 	}
 
+	if shouldRecoverDesktopApprovalWithoutTool(s, parsedToolResp, tc) &&
+		s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+		s.announcementCount++
+		currentLogger.Warn("[Sync] Desktop approval response without tool detected, requesting desktop tool call",
+			"attempt", s.announcementCount,
+			"last_user_msg", Truncate(s.lastUserMsg, 120),
+			"content_preview", Truncate(parsedToolResp.SanitizedContent, 120))
+		feedbackMsg := applyEmotionRecoveryNudge(FormatDesktopApprovalNeedsToolFeedback(s.useNativeFunctions), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:        sessionID,
+			AssistantContent: content,
+			FeedbackMsg:      feedbackMsg,
+			BrokerEventType:  "error_recovery",
+			I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
+
 	// Language-agnostic recovery: if the PREVIOUS iteration was a tool call (mid-task)
 	// and the model now outputs only text without <done/> and without a new tool call,
 	// it is stuck.
@@ -379,6 +398,23 @@ func shouldRecoverDesktopDoneWithoutToolAfterAnnouncement(s *agentLoopState, par
 		return false
 	}
 	return strings.TrimSpace(parsedToolResp.SanitizedContent) != ""
+}
+
+func shouldRecoverDesktopApprovalWithoutTool(s *agentLoopState, parsedToolResp ParsedToolResponse, tc ToolCall) bool {
+	if s == nil || tc.IsTool || s.runCfg.MessageSource != "virtual_desktop_chat" {
+		return false
+	}
+	if s.lastResponseWasTool || len(s.recentTools) > 0 {
+		return false
+	}
+	content := strings.TrimSpace(parsedToolResp.SanitizedContent)
+	if content == "" || !isDesktopAffirmativeContinuationRequest(s.lastUserMsg) {
+		return false
+	}
+	if asksForDesktopReconfirmation(content) {
+		return true
+	}
+	return isAnnouncementOnlyResponse(content, tc, s.useNativeFunctions, false, s.lastUserMsg)
 }
 
 func shouldAbortDesktopEmptyAfterTool(runCfg RunConfig, content string, lastResponseWasTool bool) bool {

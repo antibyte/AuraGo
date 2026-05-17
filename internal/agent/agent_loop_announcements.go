@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"html"
 	"regexp"
 	"strings"
 )
@@ -8,10 +9,11 @@ import (
 var announcementPhrases = []string{
 	"lass mich", "ich starte", "ich werde", "ich führe", "ich teste",
 	"ich versuche", "versuche ich", "ich probiere", "probiere ich",
-	"erneut",
+	"ich mache", "ich mach", "ich splitte", "ich teile", "ich modularisiere",
+	"ich öffne", "ich oeffne", "ich ziehe", "erneut",
 	"let me", "i will", "i'll", "i am going to", "i'm going to",
 	"let's start", "starting", "launching", "i'll start", "i'll run",
-	"i try", "i'll try", "trying", "retrying",
+	"i'll split", "i will split", "i'll open", "i will open", "i try", "i'll try", "trying", "retrying",
 	"alles klar", "okay, let", "sure, let", "sure, i",
 	"ich suche nach", "ich schaue nach", "ich prüfe", "ich überprüfe",
 	"ich sehe mir", "lass mich sehen", "ich werde nachschauen",
@@ -30,7 +32,8 @@ var postToolForwardCues = []string{
 var postToolActionCues = []string{
 	"ich baue", "ich bau", "baue ich", "ich deploye", "deploye ich", "ich starte", "starte ich",
 	"ich prüfe", "prüfe ich", "ich installiere", "installiere ich", "ich führe", "führe ich",
-	"ich werde", "werde ich", "i will", "i'll", "let me", "starting", "launching",
+	"ich splitte", "splitte ich", "ich öffne", "öffne ich", "ich oeffne", "oeffne ich",
+	"ich mache", "ich mach", "ich werde", "werde ich", "i will", "i'll", "let me", "starting", "launching",
 }
 
 var genericForwardCues = []string{
@@ -41,11 +44,12 @@ var genericForwardCues = []string{
 
 var operationalTerms = []string{
 	"build", "deploy", "test", "run", "restart", "install", "search", "write",
-	"edit", "update", "modify", "inspect", "create",
+	"edit", "update", "modify", "inspect", "create", "split", "module", "modules",
 	"lint", "screenshot", "publish", "commit", "push", "pull", "grep",
 	"open", "browse", "render", "compile", "generate", "homepage", "netlify",
 	"docker", "git", "play", "playing", "abspielen", "abgespielt", "spiele", "song", "musik", "hintergrundmusik", "music", "background music", "audio",
 	"google home", "chromecast", "cast",
+	"splitte", "aufteilen", "aufteile", "modularisieren", "modularisiere", "modul", "module", "app", "spiel",
 }
 
 var completionEvidenceTerms = []string{
@@ -330,4 +334,78 @@ func asksUserForInput(content string) bool {
 		return true
 	}
 	return userDirectedQuestionPattern.MatchString(trimmed)
+}
+
+func isDesktopAffirmativeContinuationRequest(lastUserMsg string) bool {
+	request := desktopUserRequestFromPrompt(lastUserMsg)
+	if request == "" {
+		request = lastUserMsg
+	}
+	normalized := normalizeDesktopBriefRequest(request)
+	if normalized == "" || strings.Contains(normalized, "?") || len(normalized) > 120 {
+		return false
+	}
+
+	exact := map[string]bool{
+		"ja": true, "ja bitte": true, "jep": true, "yes": true, "yep": true,
+		"ok": true, "okay": true, "gut": true, "top": true, "passt": true,
+		"mach": true, "mach das": true, "mach es": true, "dann mach": true,
+		"dann mach das": true, "dann mach es": true, "mach weiter": true,
+		"weiter": true, "los": true, "go": true, "do it": true,
+		"continue": true, "proceed": true, "go ahead": true,
+	}
+	if exact[normalized] {
+		return true
+	}
+
+	approvalPhrases := []string{
+		"dann mach", "mach jetzt", "mach bitte", "zieh es durch", "zieh's durch",
+		"ziehe es durch", "leg los", "ja mach", "ja bitte mach", "ok mach",
+		"bitte fortfahren", "go ahead", "please do", "do that", "do it",
+		"continue", "proceed",
+	}
+	return containsAnySubstring(normalized, approvalPhrases)
+}
+
+func desktopUserRequestFromPrompt(lastUserMsg string) string {
+	text := html.UnescapeString(strings.TrimSpace(lastUserMsg))
+	if text == "" {
+		return ""
+	}
+	const marker = `<external_data type="desktop_user_request">`
+	idx := strings.Index(text, marker)
+	if idx < 0 {
+		return ""
+	}
+	rest := text[idx+len(marker):]
+	if end := strings.Index(rest, "</external_data>"); end >= 0 {
+		rest = rest[:end]
+	}
+	return strings.TrimSpace(rest)
+}
+
+func normalizeDesktopBriefRequest(request string) string {
+	normalized := strings.ToLower(strings.TrimSpace(html.UnescapeString(request)))
+	normalized = strings.ReplaceAll(normalized, "’", "'")
+	normalized = strings.ReplaceAll(normalized, "´", "'")
+	normalized = strings.ReplaceAll(normalized, "`", "'")
+	normalized = strings.Join(strings.Fields(normalized), " ")
+	return strings.Trim(normalized, " \t\r\n.!,:;\"'*_")
+}
+
+func asksForDesktopReconfirmation(content string) bool {
+	lower := strings.ToLower(strings.TrimSpace(content))
+	if lower == "" {
+		return false
+	}
+	reconfirmationPhrases := []string{
+		"wenn du willst", "wenn du möchtest", "wenn du moechtest",
+		"falls du willst", "falls du möchtest", "falls du moechtest",
+		"schick mir", "schicke mir", "sag bescheid", "gib bescheid",
+		"bestätige", "bestaetige", "bitte bestätige", "bitte bestaetige",
+		"warte auf", "freigeben", "zustimmen",
+		"if you want", "if you'd like", "if you would like", "let me know",
+		"send me", "confirm", "please confirm", "approval", "approve",
+	}
+	return containsAnySubstring(lower, reconfirmationPhrases)
 }

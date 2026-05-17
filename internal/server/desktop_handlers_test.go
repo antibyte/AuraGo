@@ -155,6 +155,23 @@ func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testin
 	}
 }
 
+func TestBuildDesktopAgentPromptTurnsShortApprovalsIntoAction(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("ja", desktopChatContext{})
+
+	for _, want := range []string{
+		`short approval`,
+		`continue the previous Virtual Desktop task`,
+		`Do not ask for confirmation again`,
+		`start with the appropriate tool call`,
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("desktop prompt missing approval execution guard %q in:\n%s", want, prompt)
+		}
+	}
+}
+
 func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	t.Parallel()
 

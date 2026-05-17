@@ -329,6 +329,73 @@ func TestAnnouncementDetector_CatchesGermanBuildPromiseWithDoneSignal(t *testing
 	}
 }
 
+func TestAnnouncementDetector_CatchesDesktopSplitPromiseAfterApproval(t *testing.T) {
+	tc := ToolCall{}
+	content := "Perfekt. Ich splitte es jetzt sauber in Module und lasse das Spiel danach direkt laufen, damit du sofort siehst, dass nichts kaputt ist."
+	lastUserMsg := `<external_data>
+The user is chatting from AuraGo Virtual Desktop.
+
+User request:
+&lt;external_data type=&#34;desktop_user_request&#34;&gt;
+dann mach
+&lt;/external_data&gt;
+</external_data>`
+
+	if !isAnnouncementOnlyResponse(content, tc, true, false, lastUserMsg) {
+		t.Fatal("expected desktop split/run promise after approval to trigger announcement recovery")
+	}
+}
+
+func TestDesktopApprovalPromptRequiresToolCallInsteadOfReconfirmation(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	s := &agentLoopState{
+		ctx:                context.Background(),
+		broker:             NoopBroker{},
+		currentLogger:      logger,
+		useNativeFunctions: true,
+		lastUserMsg: `<external_data>
+The user is chatting from AuraGo Virtual Desktop.
+
+User request:
+&lt;external_data type=&#34;desktop_user_request&#34;&gt;
+ja
+&lt;/external_data&gt;
+</external_data>`,
+		recoverySession: NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:        cfg,
+			SessionID:     "virtual-desktop",
+			MessageSource: "virtual_desktop_chat",
+			ShortTermMem:  stm,
+		},
+	}
+
+	content := "Wenn du willst, ziehe ich's jetzt 1:1 durch im nächsten Rutsch."
+	parsed := ParsedToolResponse{
+		Content:          content,
+		SanitizedContent: content,
+	}
+
+	_, _, shouldContinue, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+	if !shouldContinue {
+		t.Fatal("expected desktop approval recovery to reject asking for confirmation again")
+	}
+	if len(s.req.Messages) == 0 {
+		t.Fatal("expected recovery feedback to be appended")
+	}
+	feedback := s.req.Messages[len(s.req.Messages)-1].Content
+	if !strings.Contains(feedback, "already approved") || !strings.Contains(feedback, "virtual_desktop") {
+		t.Fatalf("expected desktop approval feedback to require a desktop tool call, got %q", feedback)
+	}
+}
+
 func TestAnnouncementDetector_CatchesFabricatedOperationalSuccessBeforeToolCall(t *testing.T) {
 	tc := ToolCall{}
 	content := "**Test-Ergebnis: POSITIV** ✅\n\nMiniMax TTS funktioniert einwandfrei."

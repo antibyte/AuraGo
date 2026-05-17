@@ -426,6 +426,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
 			lastUserMsg = messageText(req.Messages[len(req.Messages)-1])
 		}
+		s.lastUserMsg = lastUserMsg
 
 		// Get the mood trigger context from the message history
 		triggerValue := getMoodTrigger(req.Messages, lastUserMsg)
