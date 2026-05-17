@@ -51,6 +51,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault
+	imageGalleryDB := dc.ImageGalleryDB
 	mediaRegistryDB := dc.MediaRegistryDB
 	homepageRegistryDB := dc.HomepageRegistryDB
 	sessionID := dc.SessionID
@@ -872,7 +873,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				op = "list"
 			}
 			logger.Info("LLM requested media_registry", "operation", op, "media_type", req.MediaType)
-			return "Tool Output: " + tools.DispatchMediaRegistry(mediaRegistryDB, cfg.Directories.WorkspaceDir, op, req.Query, req.MediaType, req.Description, req.Tags, req.TagMode, req.ID, req.Limit, req.Offset, req.Filename, req.FilePath, req.WebPath)
+			return "Tool Output: " + tools.DispatchMediaRegistryWithGallery(mediaRegistryDB, imageGalleryDB, cfg.Directories.WorkspaceDir, op, req.Query, req.MediaType, req.Description, req.Tags, req.TagMode, req.ID, req.Limit, req.Offset, req.Filename, req.FilePath, req.WebPath)
 
 		case "homepage_registry":
 			if homepageRegistryDB == nil {

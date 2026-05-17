@@ -7,4 +7,4 @@ conditions: ["media_registry_enabled"]
 ### Media Registry
 | Tool | Purpose |
 |---|---|
-| `media_registry` | Track and search all generated media (images, TTS audio, transcriptions). Register, tag, describe, and query media assets. |
+| `media_registry` | Track and search all generated media (images, TTS audio, transcriptions). Image searches include legacy ImageGallery records and return usable `web_path` values. Register, tag, describe, and query media assets. |

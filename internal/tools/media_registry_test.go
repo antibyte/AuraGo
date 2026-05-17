@@ -159,6 +159,44 @@ func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
 	}
 }
 
+func TestDispatchMediaRegistryWithGalleryFindsGalleryImages(t *testing.T) {
+	mediaDB, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("init media db: %v", err)
+	}
+	defer mediaDB.Close()
+
+	galleryDB, err := InitImageGalleryDB(filepath.Join(t.TempDir(), "gallery.db"))
+	if err != nil {
+		t.Fatalf("init gallery db: %v", err)
+	}
+	defer galleryDB.Close()
+
+	if _, err := SaveGeneratedImage(galleryDB, &ImageGenResult{
+		Prompt:   "ki news neural network newsroom",
+		Provider: "openai",
+		Model:    "image-model",
+		Filename: "ki-news-hero.png",
+		Size:     "1024x1024",
+	}); err != nil {
+		t.Fatalf("save gallery image: %v", err)
+	}
+
+	resp := DispatchMediaRegistryWithGallery(mediaDB, galleryDB, t.TempDir(), "search", "ki news", "image", "", nil, "", 0, 10, 0, "", "", "")
+	if !strings.Contains(resp, `"total":1`) {
+		t.Fatalf("expected gallery image in media_registry search response, got %s", resp)
+	}
+	if !strings.Contains(resp, `"filename":"ki-news-hero.png"`) {
+		t.Fatalf("expected gallery filename in response, got %s", resp)
+	}
+	if !strings.Contains(resp, `"source_db":"image_gallery"`) {
+		t.Fatalf("expected source_db image_gallery in response, got %s", resp)
+	}
+	if !strings.Contains(resp, `"web_path":"/files/generated_images/ki-news-hero.png"`) {
+		t.Fatalf("expected usable web_path in response, got %s", resp)
+	}
+}
+
 func TestInferMediaType(t *testing.T) {
 	tests := []struct {
 		name     string

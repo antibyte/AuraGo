@@ -27,6 +27,7 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 {"action": "media_registry", "operation": "search", "query": "sunset", "limit": 10}
 {"action": "media_registry", "operation": "search", "query": "tts greeting", "media_type": "tts"}
 ```
+For `media_type: "image"`, results include both MediaRegistry entries and legacy ImageGallery entries. Use the returned `web_path` directly when placing images in pages. The `source_db` field tells whether the item came from `media_registry` or `image_gallery`.
 
 ### get — Get a single media item by ID
 ```json
@@ -77,6 +78,7 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 
 ## Notes
 - Items are auto-registered when created via `generate_image`, `generate_video`, `send_video`, `tts`, or `document_creator`
+- Image searches are unified with the older ImageGallery database, so images visible in the Media View can also be discovered by the agent.
 - Use `update` to add descriptions and better tags after auto-registration
 - `delete` is a soft-delete; items are hidden but not removed from the DB
 - Tags are stored as JSON arrays; use `tag` operation with modes `add`, `remove`, or `set`

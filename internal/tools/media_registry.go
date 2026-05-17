@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -39,6 +40,7 @@ type MediaItem struct {
 	Language         string   `json:"language,omitempty"`
 	VoiceID          string   `json:"voice_id,omitempty"`
 	Hash             string   `json:"hash,omitempty"`
+	SourceDB         string   `json:"source_db,omitempty"`
 	Deleted          bool     `json:"deleted"`
 }
 
@@ -351,6 +353,93 @@ func ListMedia(db *sql.DB, mediaType string, limit, offset int) ([]MediaItem, in
 	return SearchMedia(db, "", mediaType, nil, limit, offset)
 }
 
+func SearchMediaWithGallery(mediaDB, imageGalleryDB *sql.DB, query, mediaType string, tags []string, limit, offset int) ([]MediaItem, int, error) {
+	if imageGalleryDB == nil || (mediaType != "" && mediaType != "image") || len(tags) > 0 {
+		return SearchMedia(mediaDB, query, mediaType, tags, limit, offset)
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	registryItems, _, err := SearchMedia(mediaDB, query, mediaType, tags, 5000, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	seen := make(map[string]bool)
+	combined := make([]MediaItem, 0, len(registryItems))
+	for _, item := range registryItems {
+		item.SourceDB = "media_registry"
+		if item.WebPath == "" && item.Filename != "" && item.MediaType == "image" {
+			item.WebPath = "/files/generated_images/" + item.Filename
+		}
+		key := item.Filename
+		if key == "" {
+			key = item.WebPath
+		}
+		if key != "" {
+			seen[key] = true
+		}
+		combined = append(combined, item)
+	}
+
+	galleryItems, _, err := ListGeneratedImages(imageGalleryDB, "", query, 5000, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, img := range galleryItems {
+		if img.Filename != "" && seen[img.Filename] {
+			continue
+		}
+		if img.Filename != "" {
+			seen[img.Filename] = true
+		}
+		combined = append(combined, MediaItem{
+			ID:               img.ID,
+			CreatedAt:        img.CreatedAt,
+			UpdatedAt:        img.CreatedAt,
+			MediaType:        "image",
+			SourceTool:       "image_gallery",
+			Filename:         img.Filename,
+			WebPath:          "/files/generated_images/" + img.Filename,
+			FileSize:         img.FileSize,
+			Format:           strings.TrimPrefix(strings.ToLower(filepath.Ext(img.Filename)), "."),
+			Provider:         img.Provider,
+			Model:            img.Model,
+			Prompt:           img.Prompt,
+			Description:      img.EnhancedPrompt,
+			Tags:             []string{},
+			GenerationTimeMs: img.GenerationTimeMs,
+			CostEstimate:     img.CostEstimate,
+			SourceImage:      img.SourceImage,
+			Quality:          img.Quality,
+			Style:            img.Style,
+			Size:             img.Size,
+			SourceDB:         "image_gallery",
+		})
+	}
+
+	sort.SliceStable(combined, func(i, j int) bool {
+		return combined[i].CreatedAt > combined[j].CreatedAt
+	})
+	total := len(combined)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return combined[offset:end], total, nil
+}
+
+func ListMediaWithGallery(mediaDB, imageGalleryDB *sql.DB, mediaType string, limit, offset int) ([]MediaItem, int, error) {
+	return SearchMediaWithGallery(mediaDB, imageGalleryDB, "", mediaType, nil, limit, offset)
+}
+
 // UpdateMedia updates description and/or tags for a media item.
 func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error {
 	if db == nil {
@@ -488,6 +577,10 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 // DispatchMediaRegistry handles tool calls for the media_registry action.
 // workspaceDir is used to validate that file_path stays inside the workspace.
 func DispatchMediaRegistry(db *sql.DB, workspaceDir, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
+	return DispatchMediaRegistryWithGallery(db, nil, workspaceDir, operation, query, mediaType, description, tags, tagMode, id, limit, offset, filename, filePath, webPath)
+}
+
+func DispatchMediaRegistryWithGallery(db, imageGalleryDB *sql.DB, workspaceDir, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
 	switch operation {
 	case "register":
 		if strings.TrimSpace(filename) == "" && strings.TrimSpace(filePath) == "" && strings.TrimSpace(webPath) == "" {
@@ -525,7 +618,7 @@ func DispatchMediaRegistry(db *sql.DB, workspaceDir, operation, query, mediaType
 		return fmt.Sprintf(`{"status":"success","id":%d,"message":"Media item registered."}`, newID)
 
 	case "search":
-		items, total, err := SearchMedia(db, query, mediaType, tags, limit, offset)
+		items, total, err := SearchMediaWithGallery(db, imageGalleryDB, query, mediaType, tags, limit, offset)
 		if err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 		}
@@ -544,7 +637,7 @@ func DispatchMediaRegistry(db *sql.DB, workspaceDir, operation, query, mediaType
 		return fmt.Sprintf(`{"status":"success","item":%s}`, string(b))
 
 	case "list":
-		items, total, err := ListMedia(db, mediaType, limit, offset)
+		items, total, err := ListMediaWithGallery(db, imageGalleryDB, mediaType, limit, offset)
 		if err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 		}
