@@ -18,7 +18,7 @@ func TestIsAutonomousAgentRunRecognizesHeartbeat(t *testing.T) {
 		{name: "planner notification source", runCfg: RunConfig{MessageSource: "planner_notification"}, sessionID: "default", want: true},
 		{name: "uptime kuma source", runCfg: RunConfig{MessageSource: "uptime_kuma"}, sessionID: "default", want: true},
 		{name: "web chat default", runCfg: RunConfig{MessageSource: "web_chat"}, sessionID: "default", want: false},
-		{name: "mission is handled separately", runCfg: RunConfig{MessageSource: "mission", IsMission: true}, sessionID: "mission-1", want: false},
+		{name: "mission is autonomous", runCfg: RunConfig{MessageSource: "mission", IsMission: true}, sessionID: "mission-1", want: true},
 	}
 
 	for _, tt := range tests {

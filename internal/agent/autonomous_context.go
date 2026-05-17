@@ -16,6 +16,9 @@ func isAutonomousMessageSource(source string) bool {
 }
 
 func isAutonomousAgentRun(runCfg RunConfig, sessionID string) bool {
+	if runCfg.IsMission || strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "mission") {
+		return true
+	}
 	return isAutonomousMessageSource(runCfg.MessageSource) || sessionID == "heartbeat"
 }
 

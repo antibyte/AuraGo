@@ -779,6 +779,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			label = "Mission (automated)"
 		}
 		finalPrompt.WriteString("> **Channel:** " + label + "\n")
+		if flags.IsMission || flags.MessageSource == "mission" {
+			finalPrompt.WriteString("> **Autonomous Mission Mode:** This run was started by AuraGo, not by the live chat user. Do not ask the live user for confirmation in chat. If a required approval, credential, or safety policy blocks the requested action, stop and report the mission as blocked with a clear reason instead of continuing the chat.\n")
+		}
 	}
 
 	// (Voice Output Active hint moved to VOICE MODE ACTIVE section at the bottom)

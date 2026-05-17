@@ -736,6 +736,49 @@ func TestTriggeredMissionIsolatesTriggerDataInPrompt(t *testing.T) {
 	}
 }
 
+func TestTriggeredMissionIncludesTriggerContextWithoutData(t *testing.T) {
+	tmpDir := t.TempDir()
+	mm := NewMissionManagerV2(tmpDir, nil)
+
+	promptCh := make(chan string, 1)
+	mm.SetCallback(func(prompt string, missionID string) {
+		promptCh <- prompt
+	})
+
+	mission := &MissionV2{
+		ID:            "scheduled",
+		Name:          "Scheduled",
+		Prompt:        "run scheduled work",
+		ExecutionType: ExecutionManual,
+		Priority:      "high",
+		Enabled:       true,
+	}
+	if err := mm.Create(mission); err != nil {
+		t.Fatalf("failed to create mission: %v", err)
+	}
+
+	if err := mm.TriggerMission(mission.ID, "cron", ""); err != nil {
+		t.Fatalf("failed to trigger mission: %v", err)
+	}
+
+	mm.processNext()
+
+	var prompt string
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for mission callback")
+	}
+	mm.OnMissionComplete(mission.ID, MissionResultSuccess, "ok")
+
+	if !strings.Contains(prompt, "[Trigger Context: cron]") {
+		t.Fatalf("missing cron trigger context in prompt: %q", prompt)
+	}
+	if !strings.Contains(prompt, "automatically started by an AuraGo cron trigger") {
+		t.Fatalf("missing autonomous cron guidance in prompt: %q", prompt)
+	}
+}
+
 type fakeWebhookTriggerManager struct {
 	callbacks map[string][]func([]byte)
 }

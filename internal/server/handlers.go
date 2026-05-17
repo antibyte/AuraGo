@@ -123,6 +123,17 @@ func recentMessagesForRequest(sessionID, missionID string, requestMessages, defa
 	return recentMessages
 }
 
+func requestMessageIsInternal(isFollowUp bool, missionID string) bool {
+	return isFollowUp || strings.TrimSpace(missionID) != ""
+}
+
+func feedbackBrokerForRequest(sse *SSEBroadcaster, sessionID, missionID string) agent.FeedbackBroker {
+	if strings.TrimSpace(missionID) != "" {
+		return agent.NoopBroker{}
+	}
+	return NewSSEBrokerAdapterWithSession(sse, sessionID)
+}
+
 // sanitizeFilename sanitizes a filename to prevent path traversal and ensure safe names.
 func sanitizeFilename(filename string) string {
 	// Get base name only
@@ -323,12 +334,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if lastUserMsg.Role == openai.ChatMessageRoleUser {
-			id, err := s.ShortTermMem.InsertMessage(sessionID, lastUserMsg.Role, lastUserMsg.Content, false, false)
+			isInternalRequestMessage := requestMessageIsInternal(isFollowUp, missionID)
+			id, err := s.ShortTermMem.InsertMessage(sessionID, lastUserMsg.Role, lastUserMsg.Content, false, isInternalRequestMessage)
 			if err != nil {
 				s.Logger.Error("Failed to insert user message", "error", err)
 			}
 			agent.NoteInnerVoiceUserTurn(sessionID)
-			if sessionID == "default" {
+			if sessionID == "default" && !isInternalRequestMessage {
 				// Persist the raw text message (including attachment paths) so we
 				// don't bloat history.json with base64-encoded images. Multimodal
 				// promotion happens only when building the outgoing LLM request.
@@ -596,7 +608,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Initial flush to establish SSE connection
 			flusher.Flush()
 
-			broker := NewSSEBrokerAdapterWithSession(sse, sessionID)
+			broker := feedbackBrokerForRequest(sse, sessionID, missionID)
 			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
@@ -617,7 +629,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// the agent already started hatching an egg or running a command).
 			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer syncCancel()
-			broker := NewSSEBrokerAdapterWithSession(sse, sessionID)
+			broker := feedbackBrokerForRequest(sse, sessionID, missionID)
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)

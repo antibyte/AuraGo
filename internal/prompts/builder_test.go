@@ -344,6 +344,28 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptMissionWarnsNotToAskInChat(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		NativeToolsEnabled: true,
+		IsMission:          true,
+		MessageSource:      "mission",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	required := []string{
+		"Mission (automated)",
+		"Do not ask the live user for confirmation in chat",
+		"report the mission as blocked",
+	}
+	for _, marker := range required {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("mission prompt missing marker %q", marker)
+		}
+	}
+}
+
 func TestBuildSystemPromptNativeModeOmitsLegacyToolSyntaxExamples(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",

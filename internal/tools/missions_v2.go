@@ -1007,11 +1007,11 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 }
 
 func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) string {
-	if triggerData == "" {
-		return prompt
-	}
 	if triggerType == "" {
 		triggerType = "event"
+	}
+	if strings.TrimSpace(triggerData) == "" {
+		return fmt.Sprintf("%s\n\n[Trigger Context: %s]\nThis mission was automatically started by an AuraGo %s trigger. Treat it as an autonomous mission run: execute the mission instructions without asking the live chat user for confirmation. If policy or missing credentials require approval, stop and report the mission as blocked instead of asking in chat.", prompt, triggerType, triggerType)
 	}
 	return fmt.Sprintf("%s\n\n[Trigger Context: %s]\n%s", prompt, triggerType, security.IsolateExternalData(triggerData))
 }
