@@ -237,15 +237,15 @@ func TestHistoryManager_GetForLLM_FiltersDanglingToolMessages(t *testing.T) {
 	msgs := hm.GetForLLM()
 
 	// Expected sequence:
-	// system, assistant(tool_calls), tool(call_1), assistant("next"), assistant(broken tool_calls but cleared), user
-	if len(msgs) != 6 {
-		t.Fatalf("expected 6 messages, got %d", len(msgs))
+	// system, assistant(tool_calls filtered to call_1), tool(call_1), assistant("next"), user
+	if len(msgs) != 5 {
+		t.Fatalf("expected 5 messages, got %d", len(msgs))
 	}
 	if msgs[0].Role != openai.ChatMessageRoleSystem {
 		t.Fatalf("msgs[0].Role = %q, want system", msgs[0].Role)
 	}
-	if msgs[1].Role != openai.ChatMessageRoleAssistant || len(msgs[1].ToolCalls) != 2 {
-		t.Fatalf("msgs[1] should be assistant with 2 tool calls, got role=%q tool_calls=%d", msgs[1].Role, len(msgs[1].ToolCalls))
+	if msgs[1].Role != openai.ChatMessageRoleAssistant || len(msgs[1].ToolCalls) != 1 || msgs[1].ToolCalls[0].ID != "call_1" {
+		t.Fatalf("msgs[1] should be assistant with only call_1, got role=%q tool_calls=%d", msgs[1].Role, len(msgs[1].ToolCalls))
 	}
 	if msgs[2].Role != openai.ChatMessageRoleTool || msgs[2].ToolCallID != "call_1" {
 		t.Fatalf("msgs[2] should be tool result for call_1, got role=%q tool_call_id=%q", msgs[2].Role, msgs[2].ToolCallID)
@@ -253,11 +253,48 @@ func TestHistoryManager_GetForLLM_FiltersDanglingToolMessages(t *testing.T) {
 	if msgs[3].Role != openai.ChatMessageRoleAssistant || msgs[3].Content != "next" {
 		t.Fatalf("msgs[3] should be assistant 'next', got role=%q content=%q", msgs[3].Role, msgs[3].Content)
 	}
-	if msgs[4].Role != openai.ChatMessageRoleAssistant || len(msgs[4].ToolCalls) != 0 {
-		t.Fatalf("msgs[4] should be assistant with cleared tool_calls, got role=%q tool_calls=%d", msgs[4].Role, len(msgs[4].ToolCalls))
+	if msgs[4].Role != openai.ChatMessageRoleUser || msgs[4].Content != "user" {
+		t.Fatalf("msgs[4] should be user, got role=%q content=%q", msgs[4].Role, msgs[4].Content)
 	}
-	if msgs[5].Role != openai.ChatMessageRoleUser || msgs[5].Content != "user" {
-		t.Fatalf("msgs[5] should be user, got role=%q content=%q", msgs[5].Role, msgs[5].Content)
+}
+
+func TestHistoryManager_GetForLLM_StripsToolCallInterruptedByUserOutput(t *testing.T) {
+	hm := &HistoryManager{
+		Messages: []HistoryMessage{
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: "sys"}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "deploy"}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleAssistant,
+				ToolCalls: []openai.ToolCall{
+					{ID: "call_abc", Function: openai.FunctionCall{Name: "homepage", Arguments: `{}`}},
+				},
+			}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "[Tool Output]\nTool Output: {\"status\":\"success\"}"}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, ToolCallID: "call_abc", Content: "late native result"}},
+			{ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "done"}},
+		},
+		saveChan: make(chan struct{}, 1),
+		doneChan: make(chan struct{}),
+	}
+
+	msgs := hm.GetForLLM()
+
+	if len(msgs) != 4 {
+		t.Fatalf("expected 4 messages, got %d", len(msgs))
+	}
+	for _, msg := range msgs {
+		if msg.Role == openai.ChatMessageRoleTool {
+			t.Fatal("non-adjacent tool result should have been dropped")
+		}
+		if len(msg.ToolCalls) != 0 {
+			t.Fatal("assistant tool calls interrupted by a user message should have been removed")
+		}
+	}
+	if msgs[2].Role != openai.ChatMessageRoleUser || msgs[2].Content == "" {
+		t.Fatalf("tool-output text should remain as user content, got role=%q content=%q", msgs[2].Role, msgs[2].Content)
+	}
+	if msgs[3].Role != openai.ChatMessageRoleAssistant || msgs[3].Content != "done" {
+		t.Fatalf("last message should be assistant completion, got role=%q content=%q", msgs[3].Role, msgs[3].Content)
 	}
 }
 

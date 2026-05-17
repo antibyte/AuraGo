@@ -248,3 +248,36 @@ func TestSanitizeToolMessages_PartialMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitizeToolMessages_DropsNonAdjacentToolResult(t *testing.T) {
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "system"},
+		{Role: openai.ChatMessageRoleUser, Content: "deploy"},
+		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{
+			{ID: "call_abc", Function: openai.FunctionCall{Name: "homepage", Arguments: `{}`}},
+		}},
+		{Role: openai.ChatMessageRoleUser, Content: "[Tool Output]\nTool Output: {\"status\":\"success\"}"},
+		{Role: openai.ChatMessageRoleTool, ToolCallID: "call_abc", Content: "late native result"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "done"},
+	}
+
+	out, dropped := SanitizeToolMessages(msgs)
+
+	if dropped != 2 {
+		t.Fatalf("expected 2 dropped messages (broken assistant call and late tool result), got %d", dropped)
+	}
+	if len(out) != 4 {
+		t.Fatalf("expected 4 messages, got %d", len(out))
+	}
+	for _, m := range out {
+		if m.Role == openai.ChatMessageRoleTool {
+			t.Fatal("non-adjacent role=tool message should have been removed")
+		}
+		if len(m.ToolCalls) != 0 {
+			t.Fatal("assistant tool calls interrupted by a user message should have been removed")
+		}
+	}
+	if out[2].Role != openai.ChatMessageRoleUser || out[2].Content == "" {
+		t.Fatalf("tool-output text should remain as a normal user message, got role=%q content=%q", out[2].Role, out[2].Content)
+	}
+}

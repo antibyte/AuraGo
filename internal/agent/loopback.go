@@ -197,12 +197,13 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 			finalMessages = append(finalMessages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage})
 		} else {
 			finalMessages = buildLoopbackSessionConversationMessages(finalMessages, sessionMessages, safeMessage)
-			if sanitized, dropped := SanitizeToolMessages(finalMessages); dropped > 0 {
+			sanitizedMessages, droppedToolMessages := SanitizeToolMessages(finalMessages)
+			if droppedToolMessages > 0 {
 				if logger != nil {
-					logger.Warn("[Loopback] Sanitized orphaned tool messages in session history", "session", sessionID, "dropped", dropped, "before", len(finalMessages), "after", len(sanitized))
+					logger.Warn("[Loopback] Sanitized orphaned tool messages in session history", "session", sessionID, "dropped", droppedToolMessages, "before", len(finalMessages), "after", len(sanitizedMessages))
 				}
-				finalMessages = sanitized
 			}
+			finalMessages = sanitizedMessages
 		}
 	}
 

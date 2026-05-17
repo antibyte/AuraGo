@@ -367,18 +367,7 @@ func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
-	var repaired []openai.ChatCompletionMessage
-	droppedCount := 0
-
-	outstanding := make(map[string]struct{})
-	inToolRound := false
-
-	closeToolRound := func() {
-		if inToolRound {
-			inToolRound = false
-			clear(outstanding)
-		}
-	}
+	copied := make([]openai.ChatCompletionMessage, 0, len(hm.Messages))
 
 	for _, stored := range hm.Messages {
 		msg := stored.ChatCompletionMessage
@@ -390,80 +379,94 @@ func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
 			msg.ToolCalls = append([]openai.ToolCall(nil), msg.ToolCalls...)
 		}
 
-		switch msg.Role {
-		case openai.ChatMessageRoleTool:
-			if !inToolRound {
-				droppedCount++
-				continue
-			}
-			id := strings.TrimSpace(msg.ToolCallID)
-			if id == "" {
-				droppedCount++
-				continue
-			}
-			if _, ok := outstanding[id]; !ok {
-				droppedCount++
-				continue
-			}
-			delete(outstanding, id)
-			repaired = append(repaired, msg)
-		case openai.ChatMessageRoleAssistant:
-			closeToolRound()
-
-			if len(msg.ToolCalls) > 0 {
-				valid := true
-				for _, tc := range msg.ToolCalls {
-					if strings.TrimSpace(tc.ID) == "" {
-						valid = false
-						break
-					}
-				}
-				if !valid {
-					msg.ToolCalls = nil
-				}
-			}
-
-			repaired = append(repaired, msg)
-			if len(msg.ToolCalls) > 0 {
-				inToolRound = true
-				for _, tc := range msg.ToolCalls {
-					outstanding[strings.TrimSpace(tc.ID)] = struct{}{}
-				}
-			}
-		default:
-			closeToolRound()
-			repaired = append(repaired, msg)
-		}
+		copied = append(copied, msg)
 	}
 
-	// Safety net: if there are still outstanding (unmatched) tool-call IDs after the
-	// loop, filter out only the unmatched tool calls from the last assistant message.
-	// Only drop the entire assistant message if all of its tool calls are unmatched
-	// and it has no content.
-	if len(outstanding) > 0 {
-		for i := len(repaired) - 1; i >= 0; i-- {
-			if repaired[i].Role == openai.ChatMessageRoleAssistant && len(repaired[i].ToolCalls) > 0 {
-				matched := make([]openai.ToolCall, 0, len(repaired[i].ToolCalls))
-				for _, tc := range repaired[i].ToolCalls {
-					if _, ok := outstanding[strings.TrimSpace(tc.ID)]; !ok {
-						matched = append(matched, tc)
-					}
-				}
-				repaired[i].ToolCalls = matched
-				if len(repaired[i].ToolCalls) == 0 && strings.TrimSpace(repaired[i].Content) == "" {
-					repaired = append(repaired[:i], repaired[i+1:]...)
-					droppedCount++
-				}
-				break
-			}
-		}
-	}
-
+	repaired, droppedCount := sanitizeToolMessagesForLLM(copied)
 	if droppedCount > 0 {
 		slog.Debug("GetForLLM: repaired message history", "dropped", droppedCount, "total_input", len(hm.Messages), "total_output", len(repaired))
 	}
 
 	return repaired
+}
+
+func sanitizeToolMessagesForLLM(msgs []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, int) {
+	if len(msgs) == 0 {
+		return msgs, 0
+	}
+
+	dropped := 0
+	repaired := make([]openai.ChatCompletionMessage, 0, len(msgs))
+
+	for i := 0; i < len(msgs); i++ {
+		msg := msgs[i]
+		switch {
+		case msg.Role == openai.ChatMessageRoleTool:
+			dropped++
+			continue
+		case msg.Role != openai.ChatMessageRoleAssistant || len(msg.ToolCalls) == 0:
+			repaired = append(repaired, msg)
+			continue
+		}
+
+		expectedIDs := make(map[string]bool, len(msg.ToolCalls))
+		for _, tc := range msg.ToolCalls {
+			id := strings.TrimSpace(tc.ID)
+			if id != "" {
+				expectedIDs[id] = true
+			}
+		}
+		if len(expectedIDs) == 0 {
+			msg.ToolCalls = nil
+			if strings.TrimSpace(msg.Content) == "" {
+				dropped++
+				continue
+			}
+			repaired = append(repaired, msg)
+			continue
+		}
+
+		consumedIDs := make(map[string]bool, len(expectedIDs))
+		toolResults := make([]openai.ChatCompletionMessage, 0, len(expectedIDs))
+		j := i + 1
+		for j < len(msgs) && msgs[j].Role == openai.ChatMessageRoleTool {
+			toolMsg := msgs[j]
+			id := strings.TrimSpace(toolMsg.ToolCallID)
+			if id == "" || !expectedIDs[id] || consumedIDs[id] {
+				dropped++
+				j++
+				continue
+			}
+			consumedIDs[id] = true
+			toolResults = append(toolResults, toolMsg)
+			j++
+		}
+
+		matched := make([]openai.ToolCall, 0, len(msg.ToolCalls))
+		for _, tc := range msg.ToolCalls {
+			id := strings.TrimSpace(tc.ID)
+			if id != "" && consumedIDs[id] {
+				matched = append(matched, tc)
+			}
+		}
+		if len(matched) == 0 {
+			if strings.TrimSpace(msg.Content) == "" {
+				dropped++
+			} else {
+				msg.ToolCalls = nil
+				repaired = append(repaired, msg)
+			}
+			i = j - 1
+			continue
+		}
+
+		msg.ToolCalls = matched
+		repaired = append(repaired, msg)
+		repaired = append(repaired, toolResults...)
+		i = j - 1
+	}
+
+	return repaired, dropped
 }
 
 func (hm *HistoryManager) GetAll() []HistoryMessage {

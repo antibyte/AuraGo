@@ -1116,10 +1116,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Pre-send validation: ensure tool-call integrity before sending to the
 		// provider. This catches orphaned tool results that slipped through
 		// GetForLLM() or were introduced by context compression / trimming.
-		if sanitized, dropped := SanitizeToolMessages(req.Messages); dropped > 0 {
+		sanitizedMessages, droppedToolMessages := SanitizeToolMessages(req.Messages)
+		beforeSanitizeMessages := len(req.Messages)
+		req.Messages = sanitizedMessages
+		if droppedToolMessages > 0 {
 			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
-				"dropped", dropped, "before", len(req.Messages), "after", len(sanitized))
-			req.Messages = sanitized
+				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
 		}
 
 		// Prompt log: append full request JSON to prompts.log when enabled.
