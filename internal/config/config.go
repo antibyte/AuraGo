@@ -469,6 +469,7 @@ func Load(path string) (*Config, error) {
 
 	// Remote control defaults: disabled by default, mutable operations allowed
 	// unless readonly is explicitly enabled, and audit logging stays on.
+	cfg.RemoteControl.ConnectionMode = "auto"
 	cfg.RemoteControl.DiscoveryPort = 8092
 	cfg.RemoteControl.MaxFileSizeMB = 50
 	cfg.RemoteControl.AuditLog = true

@@ -356,6 +356,15 @@ func TestLoadRemoteControlDefaults(t *testing.T) {
 	if cfg.RemoteControl.DiscoveryPort != 8092 {
 		t.Fatalf("discovery_port = %d, want 8092", cfg.RemoteControl.DiscoveryPort)
 	}
+	if cfg.RemoteControl.ConnectionMode != "auto" {
+		t.Fatalf("connection_mode = %q, want auto", cfg.RemoteControl.ConnectionMode)
+	}
+	if cfg.RemoteControl.TailscaleAddress != "" {
+		t.Fatalf("tailscale_address = %q, want empty", cfg.RemoteControl.TailscaleAddress)
+	}
+	if cfg.RemoteControl.SupervisorURL != "" {
+		t.Fatalf("supervisor_url = %q, want empty", cfg.RemoteControl.SupervisorURL)
+	}
 	if cfg.RemoteControl.MaxFileSizeMB != 50 {
 		t.Fatalf("max_file_size_mb = %d, want 50", cfg.RemoteControl.MaxFileSizeMB)
 	}
@@ -385,6 +394,35 @@ remote_control:
 
 	if cfg.RemoteControl.AuditLog {
 		t.Fatal("expected explicit remote_control.audit_log=false to be preserved")
+	}
+}
+
+func TestLoadRemoteControlConnectionSettings(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+remote_control:
+  connection_mode: tailscale
+  tailscale_address: aurago.tailnet.ts.net
+  supervisor_url: wss://manual.example.com/api/remote/ws
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.RemoteControl.ConnectionMode != "tailscale" {
+		t.Fatalf("connection_mode = %q, want tailscale", cfg.RemoteControl.ConnectionMode)
+	}
+	if cfg.RemoteControl.TailscaleAddress != "aurago.tailnet.ts.net" {
+		t.Fatalf("tailscale_address = %q", cfg.RemoteControl.TailscaleAddress)
+	}
+	if cfg.RemoteControl.SupervisorURL != "wss://manual.example.com/api/remote/ws" {
+		t.Fatalf("supervisor_url = %q", cfg.RemoteControl.SupervisorURL)
 	}
 }
 

@@ -277,4 +277,17 @@ func TestHandlerNotifySendsValidJSON(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for SSE detail")
 	}
+	waitForWebhookLogEntry(t, manager)
+}
+
+func waitForWebhookLogEntry(t *testing.T, manager *Manager) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(manager.GetLog().Recent(1)) > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for webhook delivery log entry")
 }

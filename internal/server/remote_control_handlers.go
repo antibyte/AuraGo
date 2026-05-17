@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -401,32 +402,11 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Determine supervisor URL.
-		// Priority: explicit bridge_address (non-localhost) > Host header > localhost fallback.
-		// We skip bridge_address when it points to localhost/127.0.0.1 because that value
-		// is used for the lifeboat IPC TCP bridge — it is meaningless for remote clients.
-		var supervisorURL string
-		bridgeAddr := s.Cfg.Server.BridgeAddress
-		bridgeIsLocal := bridgeAddr == "" ||
-			strings.HasPrefix(bridgeAddr, "localhost:") ||
-			strings.HasPrefix(bridgeAddr, "127.0.0.1:")
-		if !bridgeIsLocal {
-			supervisorURL = fmt.Sprintf("ws://%s/api/remote/ws", bridgeAddr)
-		} else if host := r.Host; host != "" {
-			// r.Host contains the hostname (and port) the client used to reach this server.
-			// Strip any existing port and re-attach the configured server port so the
-			// WebSocket URL is always correct regardless of proxies or port forwarding.
-			scheme := "ws"
-			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-				scheme = "wss"
-			}
-			hostname := host
-			if h, _, err := net.SplitHostPort(host); err == nil {
-				hostname = h
-			}
-			supervisorURL = fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, s.Cfg.Server.Port)
-		} else {
-			supervisorURL = fmt.Sprintf("ws://localhost:%d/api/remote/ws", s.Cfg.Server.Port)
+		supervisorURL, err := remoteDownloadSupervisorURL(s, r)
+		if err != nil {
+			recordDownloadFailure()
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		// Build personalized binary with trailer
@@ -530,4 +510,97 @@ func generateRemoteToken() (string, error) {
 func hashSHA256(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])
+}
+
+func remoteDownloadSupervisorURL(s *Server, r *http.Request) (string, error) {
+	mode := strings.ToLower(strings.TrimSpace(s.Cfg.RemoteControl.ConnectionMode))
+	if mode == "" {
+		mode = "auto"
+	}
+	switch mode {
+	case "manual":
+		return normalizeRemoteSupervisorURL(s.Cfg.RemoteControl.SupervisorURL, false, s.Cfg.Server.Port)
+	case "tailscale":
+		return normalizeRemoteSupervisorURL(s.Cfg.RemoteControl.TailscaleAddress, true, s.Cfg.Server.Port)
+	case "auto":
+		return autoRemoteDownloadSupervisorURL(s, r), nil
+	default:
+		return "", fmt.Errorf("remote_control.connection_mode must be auto, tailscale, or manual")
+	}
+}
+
+func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
+	// Priority: explicit bridge_address (non-localhost) > Host header > localhost fallback.
+	// We skip bridge_address when it points to localhost/127.0.0.1 because that value
+	// is used for the lifeboat IPC TCP bridge — it is meaningless for remote clients.
+	bridgeAddr := s.Cfg.Server.BridgeAddress
+	bridgeIsLocal := bridgeAddr == "" ||
+		strings.HasPrefix(bridgeAddr, "localhost:") ||
+		strings.HasPrefix(bridgeAddr, "127.0.0.1:")
+	if !bridgeIsLocal {
+		return fmt.Sprintf("ws://%s/api/remote/ws", bridgeAddr)
+	}
+	if host := r.Host; host != "" {
+		// r.Host contains the hostname (and port) the client used to reach this server.
+		// Strip any existing port and re-attach the configured server port so the
+		// WebSocket URL is always correct regardless of proxies or port forwarding.
+		scheme := "ws"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "wss"
+		}
+		hostname := host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			hostname = h
+		}
+		return fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, s.Cfg.Server.Port)
+	}
+	return fmt.Sprintf("ws://localhost:%d/api/remote/ws", s.Cfg.Server.Port)
+}
+
+func normalizeRemoteSupervisorURL(raw string, preferTailscale bool, serverPort int) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		if preferTailscale {
+			return "", fmt.Errorf("remote_control.tailscale_address is required when connection_mode is tailscale")
+		}
+		return "", fmt.Errorf("remote_control.supervisor_url is required when connection_mode is manual")
+	}
+
+	if strings.Contains(raw, "://") {
+		u, err := url.Parse(raw)
+		if err != nil || u.Host == "" {
+			return "", fmt.Errorf("invalid remote_control supervisor URL")
+		}
+		switch u.Scheme {
+		case "http":
+			u.Scheme = "ws"
+		case "https":
+			u.Scheme = "wss"
+		case "ws", "wss":
+		default:
+			return "", fmt.Errorf("remote_control supervisor URL must use ws, wss, http, or https")
+		}
+		if u.Path == "" || u.Path == "/" {
+			u.Path = "/api/remote/ws"
+		}
+		return u.String(), nil
+	}
+
+	address := strings.TrimRight(raw, "/")
+	lower := strings.ToLower(address)
+	scheme := "ws"
+	if preferTailscale && strings.Contains(lower, ".ts.net") {
+		scheme = "wss"
+	} else if serverPort > 0 && !remoteAddressHasExplicitPort(address) {
+		address = fmt.Sprintf("%s:%d", address, serverPort)
+	}
+	return fmt.Sprintf("%s://%s/api/remote/ws", scheme, address), nil
+}
+
+func remoteAddressHasExplicitPort(address string) bool {
+	if strings.Contains(address, "/") {
+		address = strings.SplitN(address, "/", 2)[0]
+	}
+	_, port, err := net.SplitHostPort(address)
+	return err == nil && port != ""
 }

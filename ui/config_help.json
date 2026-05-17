@@ -404,6 +404,18 @@
       "title": "Read-Only Mode",
       "description": "When enabled, file writes, deletions, and shell commands are blocked on all remote devices."
     },
+    "connection_mode": {
+      "title": "Remote Client Connection Route",
+      "description": "Choose which supervisor WebSocket URL is embedded in personalized remote-agent downloads: auto, Tailscale, or manual."
+    },
+    "tailscale_address": {
+      "title": "Tailscale Address",
+      "description": "MagicDNS name or Tailscale IP that remote clients can reach when connection mode is set to Tailscale."
+    },
+    "supervisor_url": {
+      "title": "Supervisor WebSocket URL",
+      "description": "Explicit ws:// or wss:// URL embedded in remote-agent downloads when connection mode is set to manual."
+    },
     "discovery_port": {
       "title": "Discovery Port",
       "description": "UDP port for automatic network discovery. Remote clients broadcast on this port to find the supervisor. Default: 8092"

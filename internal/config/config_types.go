@@ -1231,6 +1231,9 @@ type Config struct {
 	RemoteControl struct {
 		Enabled            bool     `yaml:"enabled"`
 		ReadOnly           bool     `yaml:"readonly"`              // global read-only override for all remote devices
+		ConnectionMode     string   `yaml:"connection_mode"`       // "auto", "tailscale", or "manual" supervisor URL selection for personalized remote downloads
+		TailscaleAddress   string   `yaml:"tailscale_address"`     // tailnet hostname/IP used when connection_mode=tailscale
+		SupervisorURL      string   `yaml:"supervisor_url"`        // explicit ws(s):// URL used when connection_mode=manual
 		DiscoveryPort      int      `yaml:"discovery_port"`        // UDP broadcast discovery port (default: 8092)
 		MaxFileSizeMB      int      `yaml:"max_file_size_mb"`      // max file read/write size in MB (default: 50)
 		AutoApprove        bool     `yaml:"auto_approve"`          // auto-approve new devices (NOT recommended)

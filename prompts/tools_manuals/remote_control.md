@@ -67,3 +67,4 @@ Manage remote machines running the AuraGo Remote agent. Provides shell execution
 - **Read-only mode**: execute_command, write_file, and revoke_device are blocked when read-only mode is enabled
 - **Path restrictions**: File operations only access paths within the device's configured `allowed_paths`
 - **Platform support**: Uses `sh -c` on Linux/macOS, `cmd /C` on Windows
+- **Connection route**: Personalized `aurago-remote` downloads can embed an automatic, Tailscale, or manual supervisor WebSocket URL via `remote_control.connection_mode`.

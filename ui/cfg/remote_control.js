@@ -43,6 +43,36 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-title">${t('config.remote_control.network_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.network_desc')}</div>`;
 
+    const connectionMode = cfg.connection_mode || 'auto';
+    html += `<label class="rc-label-block">
+        <span class="rc-label-text">${t('config.remote_control.connection_mode_label')}</span>
+        <select class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.connection_mode"
+            onchange="setNestedValue(configData,'remote_control.connection_mode',this.value);setDirty(true);renderRemoteControlSection(null)">
+            <option value="auto" ${connectionMode === 'auto' ? 'selected' : ''}>${t('config.remote_control.connection_mode_auto')}</option>
+            <option value="tailscale" ${connectionMode === 'tailscale' ? 'selected' : ''}>${t('config.remote_control.connection_mode_tailscale')}</option>
+            <option value="manual" ${connectionMode === 'manual' ? 'selected' : ''}>${t('config.remote_control.connection_mode_manual')}</option>
+        </select>
+        <small class="cfg-help">${t('config.remote_control.connection_mode_hint')}</small>
+    </label>`;
+
+    if (connectionMode === 'tailscale') {
+        html += `<label class="rc-label-block">
+            <span class="rc-label-text">${t('config.remote_control.tailscale_address_label')}</span>
+            <input type="text" class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.tailscale_address"
+                value="${escapeAttr(cfg.tailscale_address || '')}" placeholder="aurago.tailnet.ts.net">
+            <small class="cfg-help">${t('config.remote_control.tailscale_address_hint')}</small>
+        </label>`;
+    }
+
+    if (connectionMode === 'manual') {
+        html += `<label class="rc-label-block">
+            <span class="rc-label-text">${t('config.remote_control.supervisor_url_label')}</span>
+            <input type="text" class="cfg-input cfg-input-full rc-input-spaced" data-path="remote_control.supervisor_url"
+                value="${escapeAttr(cfg.supervisor_url || '')}" placeholder="wss://aurago.example.com/api/remote/ws">
+            <small class="cfg-help">${t('config.remote_control.supervisor_url_hint')}</small>
+        </label>`;
+    }
+
     // Discovery Port
     const curPort = cfg.discovery_port || 8092;
     html += `<label class="rc-label-block">

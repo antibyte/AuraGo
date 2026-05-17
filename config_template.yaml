@@ -615,6 +615,9 @@ invasion_control:
 remote_control:
     enabled: false
     readonly: false
+    connection_mode: auto                                # "auto", "tailscale", or "manual" for personalized remote-agent download URLs
+    tailscale_address: ""                                # host/IP for Tailscale mode, e.g. aurago.tailnet.ts.net or 100.x.y.z:8090
+    supervisor_url: ""                                   # explicit ws(s):// URL for manual mode, e.g. wss://aurago.example.com/api/remote/ws
     discovery_port: 8092
     max_file_size_mb: 50
     auto_approve: false

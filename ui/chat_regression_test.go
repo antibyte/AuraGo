@@ -1418,6 +1418,63 @@ func TestConfigFrontendTailscaleSpaceAgentKeysExist(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendRemoteControlConnectionModeKeysExist(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "remote_control.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"remote_control.connection_mode",
+		"remote_control.tailscale_address",
+		"remote_control.supervisor_url",
+		"config.remote_control.connection_mode_label",
+		"config.remote_control.tailscale_address_label",
+		"config.remote_control.supervisor_url_label",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing Remote Control connection marker %q", modulePath, marker)
+		}
+	}
+
+	keys := []string{
+		"config.remote_control.connection_mode_label",
+		"config.remote_control.connection_mode_auto",
+		"config.remote_control.connection_mode_tailscale",
+		"config.remote_control.connection_mode_manual",
+		"config.remote_control.connection_mode_hint",
+		"config.remote_control.tailscale_address_label",
+		"config.remote_control.tailscale_address_hint",
+		"config.remote_control.supervisor_url_label",
+		"config.remote_control.supervisor_url_hint",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "remote_control", "*.json"))
+	if err != nil {
+		t.Fatalf("glob remote_control lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all remote_control language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+		}
+	}
+}
+
 func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	t.Parallel()
 
