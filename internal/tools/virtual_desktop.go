@@ -350,6 +350,11 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 				return virtualDesktopJSON("ok", "desktop widget open event emitted", payload, event)
 			}
 		}
+		if appID == "" && filePath != "" {
+			if app, ok := virtualDesktopFindGeneratedAppByEntryPath(ctx, svc, filePath); ok {
+				appID = app.ID
+			}
+		}
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
@@ -648,6 +653,30 @@ func virtualDesktopFindApp(ctx context.Context, svc *desktop.Service, appID stri
 	}
 	for _, app := range append(append([]desktop.AppManifest{}, bootstrap.BuiltinApps...), bootstrap.InstalledApps...) {
 		if app.ID == appID {
+			return app, true
+		}
+	}
+	return desktop.AppManifest{}, false
+}
+
+func virtualDesktopFindGeneratedAppByEntryPath(ctx context.Context, svc *desktop.Service, rawPath string) (desktop.AppManifest, bool) {
+	if svc == nil {
+		return desktop.AppManifest{}, false
+	}
+	cleanPath := cleanVirtualDesktopSlashPath(rawPath)
+	if cleanPath == "" {
+		return desktop.AppManifest{}, false
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		return desktop.AppManifest{}, false
+	}
+	for _, app := range bootstrap.InstalledApps {
+		entryPath := app.EntryPath
+		if entryPath == "" {
+			entryPath = path.Join("Apps", app.ID, app.Entry)
+		}
+		if cleanVirtualDesktopSlashPath(entryPath) == cleanPath {
 			return app, true
 		}
 	}

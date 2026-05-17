@@ -26,6 +26,7 @@ const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
 var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'<>\\\s)]+/camera/stream(?:\?[^"'<>\\\s)]*)?`)
+var desktopAppResourceAttrPattern = regexp.MustCompile(`\b(src|href)=(["'])([^"']+)(["'])`)
 
 // uiBuildVersion is set once at server start and used as a cache-busting
 // query parameter for all embedded static assets.  Formatted as a compact
@@ -288,9 +289,51 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		return true
 	}
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, r.URL.Query().Get(desktopEmbedTokenParam))
+	content = cacheBustDesktopAppResourceURLs(content, info.ModTime())
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSP)
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
+	return true
+}
+
+func cacheBustDesktopAppResourceURLs(content []byte, modTime time.Time) []byte {
+	if len(content) == 0 {
+		return content
+	}
+	version := fmt.Sprintf("%d", modTime.UnixNano())
+	rewritten := desktopAppResourceAttrPattern.ReplaceAllStringFunc(string(content), func(match string) string {
+		parts := desktopAppResourceAttrPattern.FindStringSubmatch(match)
+		if len(parts) != 5 {
+			return match
+		}
+		value := strings.TrimSpace(parts[3])
+		if !shouldCacheBustDesktopAppResource(value) {
+			return match
+		}
+		separator := "?"
+		if strings.Contains(value, "?") {
+			separator = "&"
+		}
+		return parts[1] + "=" + parts[2] + value + separator + "desktop_v=" + url.QueryEscape(version) + parts[4]
+	})
+	return []byte(rewritten)
+}
+
+func shouldCacheBustDesktopAppResource(value string) bool {
+	if value == "" {
+		return false
+	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(value, "#") || strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		return false
+	}
+	for _, prefix := range []string{"http://", "https://", "data:", "blob:", "mailto:", "tel:", "javascript:", "about:"} {
+		if strings.HasPrefix(lower, prefix) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -774,6 +817,8 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Content-Security-Policy", desktopWorkspaceCSPForPath(r.URL.Path))
 		if serveDesktopWidgetAutoResizeHTML(w, r, desktopDir, s.Cfg) {
 			return

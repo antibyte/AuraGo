@@ -400,6 +400,7 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 		"id":     full["Id"],
 		"name":   full["Name"],
 		"state":  full["State"],
+		"mounts": full["Mounts"],
 		"config": nil,
 	}
 	if cfg, ok := full["Config"].(map[string]interface{}); ok {

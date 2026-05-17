@@ -22,7 +22,7 @@ func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing
 	})
 
 	for _, want := range []string{
-		"Code Studio files live inside the dedicated Code Studio container workspace",
+		"Code Studio files live inside the virtual desktop workspace mounted at /workspace",
 		"not the homepage workspace",
 		"Do not use the homepage tool for Code Studio file questions",
 		"Current file:\n<external_data type=\"desktop_current_file\">\n/workspace/hello.go",
@@ -147,6 +147,7 @@ func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testin
 		"Apps/",
 		"Widgets/",
 		"virtual_desktop",
+		"run it with open_app using the generated app id",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("desktop prompt missing routing guard %q in:\n%s", want, prompt)

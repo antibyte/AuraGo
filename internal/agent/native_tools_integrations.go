@@ -1209,7 +1209,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Virtual desktop operation to perform",
 					"enum":        []string{"status", "bootstrap", "list_files", "read_file", "search_file", "read_file_excerpt", "write_file", "patch_file", "delete", "delete_file", "delete_path", "delete_app", "read_document", "write_document", "patch_document", "read_workbook", "write_workbook", "set_cell", "set_range", "evaluate_formula", "export_file", "install_app", "upsert_widget", "open_app", "open_in_app", "show_notification"},
 				},
-				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'. For app_id 'code-studio', path is not a host/repo path; only use '/workspace/...' or a path relative to the Code Studio container workspace."),
+				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'. Code Studio mounts the virtual desktop workspace at /workspace, so 'Apps/<app_id>/game.js' can be opened as '/workspace/Apps/<app_id>/game.js'. To run a generated app after editing it, open_app with app_id '<app_id>' or open_in_app with path 'Apps/<app_id>/<entry>' so AuraGo can infer the app."),
 				"file_path": prop("string", "Alias for path."),
 				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html or Widgets/<widget_id>/index.html this must be complete, non-empty HTML."),
 				"query":     prop("string", "Search text for search_file. When read_file returns content_truncated, use search_file and read_file_excerpt to locate anchors yourself; do not ask the user for block anchors."),
@@ -1233,8 +1233,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"type":        "boolean",
 					"description": "When true, search_file uses case-sensitive matching.",
 				},
-				"title":     prop("string", "Notification title or widget title."),
-				"html":      prop("string", "Optional HTML representation for write_document/export flows."),
+				"title": prop("string", "Notification title or widget title."),
+				"html":  prop("string", "Optional HTML representation for write_document/export flows."),
 				"document": map[string]interface{}{
 					"type":                 "object",
 					"description":          "Document payload for write_document: title, text, html, delta. AuraGo stores .docx/.html/.md/.txt through the Office backend so the agent can read it later.",
@@ -1264,7 +1264,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"format":      prop("string", "Export format for export_file, e.g. docx, html, md, txt, xlsx, csv."),
 				"output_path": prop("string", "Workspace-relative target path for export_file."),
-				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, and code-studio for code work."),
+				"app_id":      prop("string", "Desktop app ID for open_app, open_in_app, or widget ownership. Built-in open targets include editor for plain text workspace files, writer for word-processing documents, sheets for spreadsheets, and code-studio for code work. For generated apps, use the generated app id itself (for example space-invaders) when you want to run it."),
 				"manifest": map[string]interface{}{
 					"type":                 "object",
 					"description":          "App manifest for install_app: id, name, version, icon, entry, runtime, description, permissions, metadata. icon is optional but should come from icon_catalog.categories, icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>; when omitted AuraGo infers one from id/name/entry/description. runtime defaults to aura-desktop-sdk@1.",

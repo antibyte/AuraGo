@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -66,9 +67,15 @@ type CodeDockerState struct {
 
 // CodeDockerInspect is the subset of Docker inspect data Code Studio needs.
 type CodeDockerInspect struct {
-	ID    string          `json:"id"`
-	Name  string          `json:"name"`
-	State CodeDockerState `json:"state"`
+	ID     string            `json:"id"`
+	Name   string            `json:"name"`
+	State  CodeDockerState   `json:"state"`
+	Mounts []CodeDockerMount `json:"mounts,omitempty"`
+}
+
+type CodeDockerMount struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
 }
 
 // CodeDockerExecResult is the subset of Docker exec output Code Studio needs.
@@ -181,6 +188,21 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 		return err
 	}
 	if containerID != "" {
+		currentMount, err := s.usesCurrentWorkspaceMountLocked(ctx, containerID, codeWorkspaceDir)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		if !currentMount {
+			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
+				s.state = StateError
+				return fmt.Errorf("replace legacy code studio container: %w", err)
+			}
+			containerID = ""
+			running = false
+		}
+	}
+	if containerID != "" {
 		if !running {
 			if err := s.docker.ContainerAction(ctx, containerID, "start"); err != nil {
 				s.state = StateError
@@ -248,7 +270,7 @@ func (s *CodeContainerService) ensureWorkspaceLocked() (string, error) {
 	if strings.TrimSpace(workspaceDir) == "" {
 		return "", fmt.Errorf("desktop workspace directory is required")
 	}
-	codeWorkspaceDir := filepath.Join(workspaceDir, codeWorkspaceDirName)
+	codeWorkspaceDir := workspaceDir
 	if err := os.MkdirAll(codeWorkspaceDir, 0o755); err != nil {
 		return "", fmt.Errorf("create code studio workspace: %w", err)
 	}
@@ -371,7 +393,7 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 		State:                  s.state.String(),
 		Running:                s.state == StateRunning,
 		Image:                  codeStudioImage(s.cfg.CodeStudio),
-		WorkspaceHostPath:      filepath.Join(s.cfg.WorkspaceDir, codeWorkspaceDirName),
+		WorkspaceHostPath:      s.cfg.WorkspaceDir,
 		WorkspaceContainerPath: codeWorkspaceInContainer,
 		AutoStopMinutes:        s.cfg.CodeStudio.AutoStopMinutes,
 		LastActivity:           s.lastActivity,
@@ -396,6 +418,49 @@ func (s *CodeContainerService) findContainer(ctx context.Context) (string, bool,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.findContainerLocked(ctx)
+}
+
+func (s *CodeContainerService) usesCurrentWorkspaceMountLocked(ctx context.Context, containerID, expectedWorkspaceDir string) (bool, error) {
+	inspect, err := s.docker.InspectContainer(ctx, containerID)
+	if err != nil {
+		return false, fmt.Errorf("inspect code studio container mounts: %w", err)
+	}
+	if len(inspect.Mounts) == 0 {
+		return true, nil
+	}
+	for _, mount := range inspect.Mounts {
+		if path.Clean(strings.TrimSpace(mount.Destination)) != codeWorkspaceInContainer {
+			continue
+		}
+		source := strings.TrimSpace(mount.Source)
+		if codeStudioHostPathMatches(source, expectedWorkspaceDir) {
+			return true, nil
+		}
+		if codeStudioHostPathLooksLegacy(source) {
+			return false, nil
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func codeStudioHostPathMatches(source, expected string) bool {
+	source = filepath.Clean(strings.TrimSpace(source))
+	expected = filepath.Clean(strings.TrimSpace(expected))
+	if source == "" || expected == "" {
+		return false
+	}
+	if strings.EqualFold(source, expected) {
+		return true
+	}
+	sourceAbs, sourceErr := filepath.Abs(source)
+	expectedAbs, expectedErr := filepath.Abs(expected)
+	return sourceErr == nil && expectedErr == nil && strings.EqualFold(filepath.Clean(sourceAbs), filepath.Clean(expectedAbs))
+}
+
+func codeStudioHostPathLooksLegacy(source string) bool {
+	source = filepath.ToSlash(filepath.Clean(strings.TrimSpace(source)))
+	return path.Base(source) == codeWorkspaceDirName || strings.HasSuffix(source, "/"+codeWorkspaceDirName)
 }
 
 func (s ContainerState) String() string {

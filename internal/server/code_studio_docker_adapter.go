@@ -65,6 +65,10 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 		ID      string                  `json:"id"`
 		Name    string                  `json:"name"`
 		State   desktop.CodeDockerState `json:"state"`
+		Mounts  []struct {
+			Source      string `json:"Source"`
+			Destination string `json:"Destination"`
+		} `json:"mounts"`
 	}
 	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
 		return desktop.CodeDockerInspect{}, fmt.Errorf("parse docker inspect response: %w", err)
@@ -72,7 +76,14 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 	if resp.Status != "ok" {
 		return desktop.CodeDockerInspect{}, dockerAdapterError(resp.Message)
 	}
-	return desktop.CodeDockerInspect{ID: resp.ID, Name: resp.Name, State: resp.State}, nil
+	mounts := make([]desktop.CodeDockerMount, 0, len(resp.Mounts))
+	for _, mount := range resp.Mounts {
+		mounts = append(mounts, desktop.CodeDockerMount{
+			Source:      mount.Source,
+			Destination: mount.Destination,
+		})
+	}
+	return desktop.CodeDockerInspect{ID: resp.ID, Name: resp.Name, State: resp.State, Mounts: mounts}, nil
 }
 
 func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) error {
@@ -171,7 +182,7 @@ func (a codeStudioDockerAdapter) CreateContainer(ctx context.Context, req deskto
 }
 
 func (a codeStudioDockerAdapter) ContainerAction(ctx context.Context, container, action string) error {
-	raw := tools.DockerContainerAction(a.cfg, container, action, false)
+	raw := tools.DockerContainerAction(a.cfg, container, action, action == "remove" || action == "rm")
 	var resp struct {
 		Status  string `json:"status"`
 		Message string `json:"message"`

@@ -837,6 +837,59 @@ func TestExecuteVirtualDesktopOpenAppRejectsBrokenGeneratedApp(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopOpenInAppInfersGeneratedAppFromEntryPath(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "space-invaders",
+			"name":    "Space Invaders",
+			"entry":   "index.html",
+			"runtime": "aura-desktop-sdk@1",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Space Invaders</main><script src=\"game.js\"></script>",
+			"game.js":    "window.spaceInvaders = true;",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	open := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "open_in_app",
+		"path":      "Apps/space-invaders/index.html",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			AppID string `json:"app_id"`
+			Path  string `json:"path"`
+		} `json:"data"`
+		Event struct {
+			Type    string `json:"type"`
+			Payload struct {
+				AppID string `json:"app_id"`
+				Path  string `json:"path"`
+			} `json:"payload"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(open.Output), &payload); err != nil {
+		t.Fatalf("unmarshal open_in_app output: %v\n%s", err, open.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output=%s", payload.Status, open.Output)
+	}
+	if payload.Data.AppID != "space-invaders" || payload.Data.Path != "Apps/space-invaders/index.html" {
+		t.Fatalf("data = %+v, want generated app open payload", payload.Data)
+	}
+	if payload.Event.Type != "open_app" || payload.Event.Payload.AppID != "space-invaders" {
+		t.Fatalf("event = %+v, want open_app for generated app", payload.Event)
+	}
+}
+
 func TestExecuteVirtualDesktopOpenCodeStudioNormalizesWorkspacePath(t *testing.T) {
 	t.Parallel()
 
@@ -981,8 +1034,8 @@ func TestExecuteVirtualDesktopReadLargeFileTruncatesAndSuggestsPatchFile(t *test
 			Content          string   `json:"content"`
 			ContentTruncated bool     `json:"content_truncated"`
 			OriginalSize     int      `json:"original_size"`
-			SuggestedTools    []string `json:"suggested_tools"`
-			EditingHint       string   `json:"editing_hint"`
+			SuggestedTools   []string `json:"suggested_tools"`
+			EditingHint      string   `json:"editing_hint"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(read.Output), &payload); err != nil {

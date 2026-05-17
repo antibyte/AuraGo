@@ -37,11 +37,11 @@ func TestCodeContainerEnsureStartedSeedsDefaultWorkspace(t *testing.T) {
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	readme := filepath.Join(workspace, codeWorkspaceDirName, "README.md")
+	readme := filepath.Join(workspace, "README.md")
 	if _, err := os.Stat(readme); err != nil {
 		t.Fatalf("default README was not created: %v", err)
 	}
-	mainGo := filepath.Join(workspace, codeWorkspaceDirName, "hello.go")
+	mainGo := filepath.Join(workspace, "hello.go")
 	if _, err := os.Stat(mainGo); err != nil {
 		t.Fatalf("default Go example was not created: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestCodeContainerEnsureStartedSeedsWorkspaceWhenAlreadyRunning(t *testing.T
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(workspace, codeWorkspaceDirName, "README.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(workspace, "README.md")); err != nil {
 		t.Fatalf("default README was not created for already-running service: %v", err)
 	}
 }
@@ -89,7 +89,14 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 	if f.inspectByName == nil {
 		f.inspectByName = map[string]CodeDockerInspect{}
 	}
-	f.inspectByName["created-1"] = CodeDockerInspect{ID: "created-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}}
+	var mounts []CodeDockerMount
+	for _, volume := range req.Volumes {
+		parts := strings.SplitN(volume, ":", 2)
+		if len(parts) == 2 {
+			mounts = append(mounts, CodeDockerMount{Source: parts[0], Destination: parts[1]})
+		}
+	}
+	f.inspectByName["created-1"] = CodeDockerInspect{ID: "created-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, Mounts: mounts}
 	return "created-1", nil
 }
 
@@ -106,6 +113,15 @@ func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container
 func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
 	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...)})
 	return CodeDockerExecResult{ExitCode: 0}, nil
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing.T) {
@@ -184,9 +200,49 @@ func TestCodeContainerEnsureStartedCreatesContainerWithNoPortsAndLimits(t *testi
 	if req.Resources == nil || req.Resources.MemoryMB != 2048 || req.Resources.CPUCores != 1 || req.Resources.PidsLimit != defaultCodeContainerPidsLimit {
 		t.Fatalf("resources = %#v, want configured memory/cpu and default pids", req.Resources)
 	}
-	wantBind := filepath.Join(workspace, codeWorkspaceDirName) + ":" + codeWorkspaceInContainer
+	wantBind := workspace + ":" + codeWorkspaceInContainer
 	if len(req.Volumes) != 1 || req.Volumes[0] != wantBind {
 		t.Fatalf("volumes = %#v, want %q", req.Volumes, wantBind)
+	}
+}
+
+func TestCodeContainerEnsureStartedReplacesLegacyWorkspaceMount(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	legacyWorkspace := filepath.Join(workspace, codeWorkspaceDirName)
+	fake := &fakeCodeContainerDocker{
+		containers: []CodeDockerContainer{{ID: "legacy-1", Names: []string{"/" + codeContainerName}}},
+		inspectByName: map[string]CodeDockerInspect{
+			"legacy-1": {
+				ID:    "legacy-1",
+				Name:  "/" + codeContainerName,
+				State: CodeDockerState{Running: true},
+				Mounts: []CodeDockerMount{{
+					Source:      legacyWorkspace,
+					Destination: codeWorkspaceInContainer,
+				}},
+			},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if len(fake.creates) != 1 {
+		t.Fatalf("create count = %d, want replacement container", len(fake.creates))
+	}
+	if !containsString(fake.actions, "legacy-1:remove") {
+		t.Fatalf("actions = %#v, want legacy container removal", fake.actions)
+	}
+	wantBind := workspace + ":" + codeWorkspaceInContainer
+	if len(fake.creates[0].Volumes) != 1 || fake.creates[0].Volumes[0] != wantBind {
+		t.Fatalf("replacement volumes = %#v, want %q", fake.creates[0].Volumes, wantBind)
 	}
 }
 
@@ -270,7 +326,7 @@ func TestCodeContainerStatusUsesDefaultsWithoutStartingContainer(t *testing.T) {
 	if status.Image != "ghcr.io/antibyte/aurago-code-studio:latest" {
 		t.Fatalf("default code studio image = %q, want published image", status.Image)
 	}
-	if status.WorkspaceHostPath != filepath.Join(workspace, codeWorkspaceDirName) {
+	if status.WorkspaceHostPath != workspace {
 		t.Fatalf("workspace host path = %q", status.WorkspaceHostPath)
 	}
 	if status.WorkspaceContainerPath != codeWorkspaceInContainer {

@@ -41,6 +41,12 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "<title>Space</title>") {
 		t.Fatalf("body did not contain app index HTML: %q", rec.Body.String())
 	}
+	if cacheControl := rec.Header().Get("Cache-Control"); !strings.Contains(cacheControl, "no-store") {
+		t.Fatalf("Cache-Control = %q, want no-store for generated app HTML", cacheControl)
+	}
+	if !strings.Contains(rec.Body.String(), `src="game.js?desktop_v=`) {
+		t.Fatalf("app resource URL was not cache-busted: %q", rec.Body.String())
+	}
 	for _, want := range []string{
 		desktopAppKeyBridgeMarker,
 		"aurago.desktop.key-event",
@@ -61,7 +67,7 @@ func TestServeDesktopExactIndexFileAvoidsFileServerRedirect(t *testing.T) {
 	}
 	if bridgeIndex := strings.Index(rec.Body.String(), desktopAppKeyBridgeMarker); bridgeIndex < 0 {
 		t.Fatalf("body did not contain app key bridge marker: %q", rec.Body.String())
-	} else if gameIndex := strings.Index(rec.Body.String(), `src="game.js"`); gameIndex < 0 || bridgeIndex > gameIndex {
+	} else if gameIndex := strings.Index(rec.Body.String(), `src="game.js?desktop_v=`); gameIndex < 0 || bridgeIndex > gameIndex {
 		t.Fatalf("app key bridge must be injected before game scripts: bridge=%d game=%d body=%q", bridgeIndex, gameIndex, rec.Body.String())
 	}
 }
