@@ -83,6 +83,19 @@ func (c *perAttemptTimeoutClient) CreateChatCompletionStream(ctx context.Context
 	return nil, nil
 }
 
+type capturingStreamContextClient struct {
+	captured context.Context
+}
+
+func (c *capturingStreamContextClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	return openai.ChatCompletionResponse{}, nil
+}
+
+func (c *capturingStreamContextClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	c.captured = ctx
+	return nil, nil
+}
+
 func shortIntervals() []time.Duration {
 	return []time.Duration{1 * time.Millisecond, 1 * time.Millisecond}
 }
@@ -374,9 +387,29 @@ func TestExecuteWithRetryReportsNonRetryableProviderProblemImmediately(t *testin
 
 func TestExecuteStreamWithRetry_Success(t *testing.T) {
 	client := &mockRetryClient{}
-	_, err := ExecuteStreamWithRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil)
+	_, cancel, err := ExecuteStreamWithRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil)
+	defer cancel()
 	if err != nil {
 		t.Errorf("ExecuteStreamWithRetry returned error on success: %v", err)
+	}
+}
+
+func TestExecuteStreamWithRetryKeepsSuccessfulStreamContextAlive(t *testing.T) {
+	client := &capturingStreamContextClient{}
+	_, cancel, err := ExecuteStreamWithRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil)
+	if err != nil {
+		t.Fatalf("ExecuteStreamWithRetry returned error: %v", err)
+	}
+	defer cancel()
+	if client.captured == nil {
+		t.Fatal("CreateChatCompletionStream was not called")
+	}
+	if err := client.captured.Err(); err != nil {
+		t.Fatalf("successful stream context was canceled before caller could read it: %v", err)
+	}
+	cancel()
+	if err := client.captured.Err(); err == nil {
+		t.Fatal("stream cleanup did not cancel successful stream context")
 	}
 }
 
@@ -387,7 +420,8 @@ func TestExecuteStreamWithRetry_TransientRetries(t *testing.T) {
 			nil,
 		},
 	}
-	_, err := ExecuteStreamWithCustomRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	_, cancel, err := ExecuteStreamWithCustomRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	defer cancel()
 	if err != nil {
 		t.Errorf("ExecuteStreamWithRetry returned error after retries: %v", err)
 	}
@@ -402,7 +436,8 @@ func TestExecuteStreamWithRetry_RetriesPerAttemptDeadlineWhenParentContextActive
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err := ExecuteStreamWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	_, cancelStream, err := ExecuteStreamWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 1*time.Millisecond)
+	defer cancelStream()
 	if err != nil {
 		t.Fatalf("ExecuteStreamWithRetry returned error after retryable per-attempt deadline: %v", err)
 	}
@@ -415,7 +450,7 @@ func TestExecuteStreamWithRetry_NonRetryableError(t *testing.T) {
 	client := &mockRetryClient{
 		shouldRetry: []error{errors.New("model not found")},
 	}
-	_, err := ExecuteStreamWithRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil)
+	_, _, err := ExecuteStreamWithRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil)
 	if err == nil {
 		t.Error("ExecuteStreamWithRetry should return error for non-retryable error")
 	}

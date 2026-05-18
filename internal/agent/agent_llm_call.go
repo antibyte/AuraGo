@@ -107,12 +107,13 @@ func handleStreamingResponse(
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
 	var stm *openai.ChatCompletionStream
+	streamCancel := func() {}
 	var streamErr error
 	var midStreamError error
 	if emptyRetried {
-		stm, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, recoveryPolicy.emptyRetryIntervals(), recoveryPolicy.emptyRetryBaseDelay())
+		stm, streamCancel, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, recoveryPolicy.emptyRetryIntervals(), recoveryPolicy.emptyRetryBaseDelay())
 	} else {
-		stm, streamErr = llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
+		stm, streamCancel, streamErr = llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
 	}
 	if streamErr != nil {
 		cancelResp()
@@ -124,6 +125,7 @@ func handleStreamingResponse(
 		}
 		return streamingResponseResult{err: streamErr}
 	}
+	defer streamCancel()
 	defer stm.Close()
 
 	var assembledResponse strings.Builder

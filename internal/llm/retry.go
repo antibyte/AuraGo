@@ -256,12 +256,13 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 	}
 }
 
-func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (*openai.ChatCompletionStream, error) {
+func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (*openai.ChatCompletionStream, context.CancelFunc, error) {
 	return ExecuteStreamWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval)
 }
 
-func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (*openai.ChatCompletionStream, error) {
+func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (*openai.ChatCompletionStream, context.CancelFunc, error) {
 	attempt := 0
+	noCancel := func() {}
 
 	for {
 		timeout := perAttemptTimeout()
@@ -281,7 +282,6 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := ctx.Err()
-		attemptCancel()
 
 		if err == nil {
 			reportProviderSuccess(client, req, "chat_completion_stream")
@@ -292,8 +292,9 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"model", req.Model,
 				)
 			}
-			return stream, nil
+			return stream, attemptCancel, nil
 		}
+		attemptCancel()
 
 		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
 		if IsContextError(err) && !perAttemptContextError {
@@ -306,7 +307,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"tools", len(req.Tools),
 				)
 			}
-			return nil, err
+			return nil, noCancel, err
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
@@ -320,7 +321,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"tools", len(req.Tools),
 				)
 			}
-			return nil, err
+			return nil, noCancel, err
 		}
 
 		attempt++
@@ -336,7 +337,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"tools", len(req.Tools),
 				)
 			}
-			return nil, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
+			return nil, noCancel, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
 		}
 
 		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
@@ -375,7 +376,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		if !waitForRetry(ctx, waitTime) {
-			return nil, ctx.Err()
+			return nil, noCancel, ctx.Err()
 		}
 	}
 }
