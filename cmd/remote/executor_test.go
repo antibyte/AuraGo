@@ -239,6 +239,71 @@ func TestExecutorTrimCommandResultCacheSkipsCurrentAndRemovesCompletedEntries(t 
 	}
 }
 
+func TestExecutorTrimCommandResultCacheForcesRemovalWhenAllRunning(t *testing.T) {
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	executor.commandResults = make(map[string]*commandExecutionRecord)
+
+	// Fill cache with only running (not done) entries
+	for i := 0; i < maxCachedCommandResults+10; i++ {
+		id := "running-" + strconv.Itoa(i)
+		executor.commandOrder = append(executor.commandOrder, id)
+		executor.commandResults[id] = runningCommandRecord()
+	}
+
+	currentID := "running-5"
+	executor.trimCommandResultCacheLocked(currentID)
+
+	if len(executor.commandOrder) > maxCachedCommandResults {
+		t.Fatalf("commandOrder length = %d, want <= %d", len(executor.commandOrder), maxCachedCommandResults)
+	}
+	if executor.commandResults[currentID] == nil {
+		t.Fatal("current command record was evicted")
+	}
+
+	// Verify that force-removed entries have their done channel closed
+	removedID := "running-0"
+	if executor.commandResults[removedID] != nil {
+		t.Fatalf("oldest running entry %q should have been force-removed", removedID)
+	}
+}
+
+func TestCommandExecutionRecordCloseDoneIsIdempotent(t *testing.T) {
+	record := runningCommandRecord()
+	record.closeDone()
+	select {
+	case <-record.done:
+	default:
+		t.Fatal("closeDone did not close the channel")
+	}
+	// Second close must not panic
+	record.closeDone()
+}
+
+func TestExecutorFileReadAdvRejectsOversizedFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	target := filepath.Join(root, "big.txt")
+	if err := os.WriteFile(target, make([]byte, 2*1024*1024), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	executor := NewExecutor(slog.Default(), 1)
+	result := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-readadv",
+		Operation: remote.OpFileReadAdv,
+		Args: map[string]interface{}{
+			"path":       target,
+			"operation":  "tail",
+			"line_count": 10.0,
+		},
+	}, false, []string{root})
+
+	if result.Status != "error" || !strings.Contains(result.Error, "max_file_size_mb") {
+		t.Fatalf("status=%q error=%q, want max_file_size_mb error", result.Status, result.Error)
+	}
+}
+
 func TestExecutorShellExecTimeoutReturnsPromptly(t *testing.T) {
 	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
 	start := time.Now()

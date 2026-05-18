@@ -32,8 +32,13 @@ type Executor struct {
 const maxCachedCommandResults = 1024
 
 type commandExecutionRecord struct {
-	done   chan struct{}
-	result remote.ResultPayload
+	done      chan struct{}
+	closeOnce sync.Once
+	result    remote.ResultPayload
+}
+
+func (r *commandExecutionRecord) closeDone() {
+	r.closeOnce.Do(func() { close(r.done) })
 }
 
 // NewExecutor creates a new command executor.
@@ -83,7 +88,7 @@ func (e *Executor) claimCommandExecution(commandID string) (*commandExecutionRec
 func (e *Executor) finishCommandExecution(commandID string, record *commandExecutionRecord, result remote.ResultPayload) {
 	e.mu.Lock()
 	record.result = result
-	close(record.done)
+	record.closeDone()
 	e.trimCommandResultCacheLocked(commandID)
 	e.mu.Unlock()
 }
@@ -118,6 +123,31 @@ func (e *Executor) trimCommandResultCacheLocked(currentID string) {
 			kept = append(kept, commandID)
 		}
 	}
+
+	// Hard limit: if cache still exceeds max after skipping running entries,
+	// forcibly trim the oldest non-current entries to prevent unbounded growth.
+	if len(kept) > maxCachedCommandResults {
+		forcedRemovals := len(kept) - maxCachedCommandResults
+		newKept := kept[:0]
+		for _, commandID := range kept {
+			if forcedRemovals <= 0 {
+				newKept = append(newKept, commandID)
+				continue
+			}
+			if commandID == currentID {
+				newKept = append(newKept, commandID)
+				continue
+			}
+			record := e.commandResults[commandID]
+			if record != nil {
+				record.closeDone()
+				delete(e.commandResults, commandID)
+			}
+			forcedRemovals--
+		}
+		kept = newKept
+	}
+
 	e.commandOrder = kept
 }
 
@@ -365,6 +395,11 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
 		if err != nil {
 			result.Status = "denied"
+			result.Error = err.Error()
+			return result
+		}
+		if err := e.validateFileReadSize(resolvedPath); err != nil {
+			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
@@ -903,6 +938,9 @@ func grepFileRemote(absPath string, re *regexp.Regexp, displayPath string) ([]re
 			matches = append(matches, remoteGrepMatch{File: displayPath, Line: lineNum, Content: line})
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return matches, err
+	}
 	return matches, nil
 }
 
@@ -933,6 +971,9 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 				break
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			return "", err
+		}
 		out, _ := json.Marshal(map[string]interface{}{
 			"start_line": startLine,
 			"end_line":   startLine + len(lines) - 1,
@@ -953,6 +994,9 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() && len(lines) < lineCount {
 			lines = append(lines, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			return "", err
 		}
 		out, _ := json.Marshal(map[string]interface{}{"content": strings.Join(lines, "\n"), "lines": len(lines)})
 		return string(out), nil
@@ -984,6 +1028,9 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			count++
+		}
+		if err := scanner.Err(); err != nil {
+			return "", err
 		}
 		info, _ := os.Stat(path)
 		var size int64

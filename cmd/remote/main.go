@@ -467,6 +467,13 @@ func (c *Client) connect() error {
 	}
 
 	c.connMu.Lock()
+	select {
+	case <-c.done:
+		c.connMu.Unlock()
+		_ = conn.Close()
+		return fmt.Errorf("client stopped during connect")
+	default:
+	}
 	if c.conn != nil && c.conn != conn {
 		_ = c.conn.Close()
 	}
