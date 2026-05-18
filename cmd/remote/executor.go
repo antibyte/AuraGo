@@ -17,12 +17,7 @@ import (
 	"time"
 
 	"aurago/internal/remote"
-	"aurago/internal/tools"
-
-	"github.com/beevik/etree"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-	"gopkg.in/yaml.v3"
+	"aurago/internal/shellpolicy"
 )
 
 // Executor handles command execution on the remote device.
@@ -147,17 +142,18 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileRead:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		if err := e.validateFileReadSize(path); err != nil {
+		if err := e.validateFileReadSize(resolvedPath); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(resolvedPath)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -173,7 +169,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		if modeRaw > 0 {
 			mode = os.FileMode(int(modeRaw))
 		}
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -195,27 +192,28 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			return result
 		}
 		// Ensure parent directory exists
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0755); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		if err := os.WriteFile(path, decoded, mode); err != nil {
+		if err := os.WriteFile(resolvedPath, decoded, mode); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		result.Output = fmt.Sprintf("wrote %d bytes to %s", len(decoded), path)
+		result.Output = fmt.Sprintf("wrote %d bytes to %s", len(decoded), resolvedPath)
 
 	case remote.OpFileList:
 		path, _ := cmd.Args["path"].(string)
 		recursive, _ := cmd.Args["recursive"].(bool)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		entries, err := e.listDir(path, recursive)
+		entries, err := e.listDir(resolvedPath, recursive)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -226,17 +224,18 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileDelete:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		if err := os.Remove(path); err != nil {
+		if err := os.Remove(resolvedPath); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			return result
 		}
-		result.Output = fmt.Sprintf("deleted %s", path)
+		result.Output = fmt.Sprintf("deleted %s", resolvedPath)
 
 	case remote.OpShellExec:
 		command, _ := cmd.Args["command"].(string)
@@ -246,11 +245,13 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			timeout = 60 * time.Second
 		}
 		if strings.TrimSpace(workDir) != "" {
-			if err := e.validatePath(workDir, allowedPaths); err != nil {
+			resolvedWorkDir, err := e.resolveAllowedPath(workDir, allowedPaths)
+			if err != nil {
 				result.Status = "denied"
 				result.Error = err.Error()
 				return result
 			}
+			workDir = resolvedWorkDir
 		}
 		output, err := e.shellExec(command, workDir, timeout)
 		if err != nil {
@@ -261,7 +262,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileEdit:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -273,7 +275,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		content, _ := cmd.Args["content"].(string)
 		startLine, _ := cmd.Args["start_line"].(float64)
 		endLine, _ := cmd.Args["end_line"].(float64)
-		output, err := e.fileEdit(path, op, old, new_, marker, content, int(startLine), int(endLine))
+		output, err := e.fileEdit(resolvedPath, op, old, new_, marker, content, int(startLine), int(endLine))
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -282,7 +284,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpJsonEdit:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -290,7 +293,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		op, _ := cmd.Args["operation"].(string)
 		jsonPath, _ := cmd.Args["json_path"].(string)
 		setValue := cmd.Args["set_value"]
-		output, err := e.jsonEdit(path, op, jsonPath, setValue)
+		output, err := e.jsonEdit(resolvedPath, op, jsonPath, setValue)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -299,7 +302,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpYamlEdit:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -307,7 +311,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		op, _ := cmd.Args["operation"].(string)
 		jsonPath, _ := cmd.Args["json_path"].(string)
 		setValue := cmd.Args["set_value"]
-		output, err := e.yamlEdit(path, op, jsonPath, setValue)
+		output, err := e.yamlEdit(resolvedPath, op, jsonPath, setValue)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -316,7 +320,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpXmlEdit:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -324,7 +329,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		op, _ := cmd.Args["operation"].(string)
 		xpath, _ := cmd.Args["xpath"].(string)
 		setValue := cmd.Args["set_value"]
-		output, err := e.xmlEdit(path, op, xpath, setValue)
+		output, err := e.xmlEdit(resolvedPath, op, xpath, setValue)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -342,12 +347,13 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 			result.Error = "path is required for file_search operations"
 			return result
 		}
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
 		}
-		output, err := e.fileSearch(op, pattern, path, globPattern, outputMode, path)
+		output, err := e.fileSearch(op, pattern, resolvedPath, globPattern, outputMode, resolvedPath)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -356,7 +362,8 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 
 	case remote.OpFileReadAdv:
 		path, _ := cmd.Args["path"].(string)
-		if err := e.validatePath(path, allowedPaths); err != nil {
+		resolvedPath, err := e.resolveAllowedPath(path, allowedPaths)
+		if err != nil {
 			result.Status = "denied"
 			result.Error = err.Error()
 			return result
@@ -366,7 +373,7 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		startLine, _ := cmd.Args["start_line"].(float64)
 		endLine, _ := cmd.Args["end_line"].(float64)
 		lineCount, _ := cmd.Args["line_count"].(float64)
-		output, err := e.fileReadAdvanced(path, op, pattern, int(startLine), int(endLine), int(lineCount))
+		output, err := e.fileReadAdvanced(resolvedPath, op, pattern, int(startLine), int(endLine), int(lineCount))
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -440,31 +447,30 @@ func (e *Executor) CollectSysinfo() remote.HeartbeatPayload {
 
 // validatePath checks that a path is within the allowed paths.
 func (e *Executor) validatePath(path string, allowedPaths []string) error {
+	_, err := e.resolveAllowedPath(path, allowedPaths)
+	return err
+}
+
+// resolveAllowedPath returns the canonical path that should be used for the
+// subsequent file operation. This avoids validating a symlink path and then
+// operating on a different target if an existing symlink prefix is involved.
+func (e *Executor) resolveAllowedPath(path string, allowedPaths []string) (string, error) {
 	if path == "" {
-		return fmt.Errorf("path is required")
+		return "", fmt.Errorf("path is required")
 	}
 
-	// Resolve to absolute path
+	if len(allowedPaths) == 0 {
+		return "", fmt.Errorf("path operations are disabled until allowed_paths is configured")
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("invalid path: %w", err)
+		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Resolve symlinks to prevent traversal
-	resolved, err := filepath.EvalSymlinks(absPath)
+	resolved, err := resolveExistingPrefix(absPath)
 	if err != nil {
-		// If file doesn't exist yet (for writes), resolve parent
-		resolved, err = filepath.EvalSymlinks(filepath.Dir(absPath))
-		if err != nil {
-			resolved = absPath
-		} else {
-			resolved = filepath.Join(resolved, filepath.Base(absPath))
-		}
-	}
-
-	// Check against allowed paths
-	if len(allowedPaths) == 0 {
-		return fmt.Errorf("path operations are disabled until allowed_paths is configured")
+		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
 	for _, allowed := range allowedPaths {
@@ -472,13 +478,61 @@ func (e *Executor) validatePath(path string, allowedPaths []string) error {
 		if err != nil {
 			continue
 		}
-		// Normalize separators
-		if strings.HasPrefix(resolved+string(filepath.Separator), allowedAbs+string(filepath.Separator)) || resolved == allowedAbs {
-			return nil
+		allowedResolved, err := resolveExistingPrefix(allowedAbs)
+		if err != nil {
+			continue
+		}
+		if pathWithinDir(resolved, allowedResolved) {
+			return resolved, nil
 		}
 	}
 
-	return fmt.Errorf("path %q is outside allowed directories", path)
+	return "", fmt.Errorf("path %q is outside allowed directories", path)
+}
+
+func resolveExistingPrefix(absPath string) (string, error) {
+	cleanPath := filepath.Clean(absPath)
+	if resolved, err := filepath.EvalSymlinks(cleanPath); err == nil {
+		return filepath.Clean(resolved), nil
+	}
+
+	existing := cleanPath
+	var suffix []string
+	for {
+		if _, err := os.Lstat(existing); err == nil {
+			break
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return "", fmt.Errorf("no existing path prefix for %q", absPath)
+		}
+		suffix = append([]string{filepath.Base(existing)}, suffix...)
+		existing = parent
+	}
+
+	resolvedExisting, err := filepath.EvalSymlinks(existing)
+	if err != nil {
+		return "", err
+	}
+	parts := append([]string{resolvedExisting}, suffix...)
+	return filepath.Clean(filepath.Join(parts...)), nil
+}
+
+func pathWithinDir(path, allowedDir string) bool {
+	cleanPath := filepath.Clean(path)
+	cleanAllowed := filepath.Clean(allowedDir)
+	if runtime.GOOS == "windows" {
+		cleanPath = strings.ToLower(cleanPath)
+		cleanAllowed = strings.ToLower(cleanAllowed)
+	}
+	if cleanPath == cleanAllowed {
+		return true
+	}
+	rel, err := filepath.Rel(cleanAllowed, cleanPath)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 type fileEntry struct {
@@ -536,7 +590,7 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 	}
 
 	// Security: Check for dangerous commands before execution
-	if err := tools.ValidateShellCommandPolicy(command); err != nil {
+	if err := shellpolicy.ValidateCommand(command); err != nil {
 		e.logger.Warn("[shellExec] blocked shell command", "reason", err.Error(), "command", command)
 		return "", err
 	}
@@ -721,328 +775,6 @@ func (e *Executor) fileDeleteLines(path string, startLine, endLine int) (string,
 		return "", err
 	}
 	return fmt.Sprintf("deleted %d line(s)", endLine-startLine+1), nil
-}
-
-// jsonEdit performs JSON file operations on the remote device.
-func (e *Executor) jsonEdit(path, op, jsonPath string, setValue interface{}) (string, error) {
-	switch op {
-	case "get":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if !gjson.ValidBytes(data) {
-			return "", fmt.Errorf("file is not valid JSON")
-		}
-		if jsonPath == "" {
-			return string(data), nil
-		}
-		result := gjson.GetBytes(data, jsonPath)
-		if !result.Exists() {
-			return "", fmt.Errorf("path '%s' not found", jsonPath)
-		}
-		return result.Raw, nil
-
-	case "set":
-		if jsonPath == "" {
-			return "", fmt.Errorf("json_path is required for set")
-		}
-		var data []byte
-		if _, err := os.Stat(path); err == nil {
-			data, err = os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			if !gjson.ValidBytes(data) {
-				return "", fmt.Errorf("file is not valid JSON")
-			}
-		} else {
-			data = []byte("{}")
-		}
-		updated, err := sjson.SetBytes(data, jsonPath, setValue)
-		if err != nil {
-			return "", fmt.Errorf("set failed: %w", err)
-		}
-		var pretty json.RawMessage = updated
-		formatted, err := json.MarshalIndent(pretty, "", "  ")
-		if err != nil {
-			formatted = updated
-		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0644); err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("set '%s' successfully", jsonPath), nil
-
-	case "delete":
-		if jsonPath == "" {
-			return "", fmt.Errorf("json_path is required for delete")
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if !gjson.ValidBytes(data) {
-			return "", fmt.Errorf("file is not valid JSON")
-		}
-		updated, err := sjson.DeleteBytes(data, jsonPath)
-		if err != nil {
-			return "", fmt.Errorf("delete failed: %w", err)
-		}
-		var pretty json.RawMessage = updated
-		formatted, err := json.MarshalIndent(pretty, "", "  ")
-		if err != nil {
-			formatted = updated
-		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0644); err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("deleted '%s' successfully", jsonPath), nil
-
-	case "keys":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if !gjson.ValidBytes(data) {
-			return "", fmt.Errorf("file is not valid JSON")
-		}
-		target := string(data)
-		if jsonPath != "" {
-			r := gjson.Get(target, jsonPath)
-			if !r.Exists() {
-				return "", fmt.Errorf("path '%s' not found", jsonPath)
-			}
-			target = r.Raw
-		}
-		var keys []string
-		gjson.Parse(target).ForEach(func(key, _ gjson.Result) bool {
-			keys = append(keys, key.String())
-			return true
-		})
-		out, _ := json.Marshal(keys)
-		return string(out), nil
-
-	case "validate":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if gjson.ValidBytes(data) {
-			return `{"valid":true}`, nil
-		}
-		return `{"valid":false}`, nil
-
-	case "format":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if !gjson.ValidBytes(data) {
-			return "", fmt.Errorf("file is not valid JSON")
-		}
-		var raw json.RawMessage = data
-		formatted, err := json.MarshalIndent(raw, "", "  ")
-		if err != nil {
-			return "", fmt.Errorf("format failed: %w", err)
-		}
-		if err := os.WriteFile(path, append(formatted, '\n'), 0644); err != nil {
-			return "", err
-		}
-		return "formatted successfully", nil
-
-	default:
-		return "", fmt.Errorf("unknown json_edit operation: %s", op)
-	}
-}
-
-// yamlEdit performs YAML file operations on the remote device.
-func (e *Executor) yamlEdit(path, op, dotPath string, setValue interface{}) (string, error) {
-	switch op {
-	case "get":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		var doc interface{}
-		if err := yaml.Unmarshal(data, &doc); err != nil {
-			return "", fmt.Errorf("invalid YAML: %w", err)
-		}
-		if dotPath == "" {
-			return string(data), nil
-		}
-		val, err := yamlNavigateRemote(doc, dotPath)
-		if err != nil {
-			return "", err
-		}
-		out, _ := json.Marshal(val)
-		return string(out), nil
-
-	case "set":
-		if dotPath == "" {
-			return "", fmt.Errorf("json_path is required for set")
-		}
-		var root yaml.Node
-		data, _ := os.ReadFile(path)
-		if len(data) > 0 {
-			if err := yaml.Unmarshal(data, &root); err != nil {
-				return "", fmt.Errorf("invalid YAML: %w", err)
-			}
-		} else {
-			root.Kind = yaml.DocumentNode
-			root.Content = []*yaml.Node{{Kind: yaml.MappingNode}}
-		}
-		parts := strings.Split(dotPath, ".")
-		if err := yamlNodeSetRemote(root.Content[0], parts, setValue); err != nil {
-			return "", err
-		}
-		out, err := yaml.Marshal(&root)
-		if err != nil {
-			return "", fmt.Errorf("marshal failed: %w", err)
-		}
-		if err := os.WriteFile(path, out, 0644); err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("set '%s' successfully", dotPath), nil
-
-	case "delete":
-		if dotPath == "" {
-			return "", fmt.Errorf("json_path is required for delete")
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		var root yaml.Node
-		if err := yaml.Unmarshal(data, &root); err != nil {
-			return "", fmt.Errorf("invalid YAML: %w", err)
-		}
-		parts := strings.Split(dotPath, ".")
-		if err := yamlNodeDeleteRemote(root.Content[0], parts); err != nil {
-			return "", err
-		}
-		out, err := yaml.Marshal(&root)
-		if err != nil {
-			return "", fmt.Errorf("marshal failed: %w", err)
-		}
-		if err := os.WriteFile(path, out, 0644); err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("deleted '%s' successfully", dotPath), nil
-
-	case "keys":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		var doc interface{}
-		if err := yaml.Unmarshal(data, &doc); err != nil {
-			return "", fmt.Errorf("invalid YAML: %w", err)
-		}
-		target := doc
-		if dotPath != "" {
-			val, err := yamlNavigateRemote(doc, dotPath)
-			if err != nil {
-				return "", err
-			}
-			target = val
-		}
-		m, ok := target.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("value at path is not a mapping")
-		}
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
-		}
-		out, _ := json.Marshal(keys)
-		return string(out), nil
-
-	case "validate":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		var doc interface{}
-		if err := yaml.Unmarshal(data, &doc); err != nil {
-			return `{"valid":false,"error":"` + err.Error() + `"}`, nil
-		}
-		return `{"valid":true}`, nil
-
-	default:
-		return "", fmt.Errorf("unknown yaml_edit operation: %s", op)
-	}
-}
-
-// yamlNavigateRemote traverses a decoded YAML value by dot-path.
-func yamlNavigateRemote(doc interface{}, dotPath string) (interface{}, error) {
-	parts := strings.Split(dotPath, ".")
-	current := doc
-	for _, part := range parts {
-		switch v := current.(type) {
-		case map[string]interface{}:
-			val, ok := v[part]
-			if !ok {
-				return nil, fmt.Errorf("path '%s' not found", dotPath)
-			}
-			current = val
-		default:
-			return nil, fmt.Errorf("path '%s' not found (not a mapping)", dotPath)
-		}
-	}
-	return current, nil
-}
-
-// yamlNodeSetRemote sets a value in a YAML node tree.
-func yamlNodeSetRemote(node *yaml.Node, parts []string, value interface{}) error {
-	if len(parts) == 0 {
-		return fmt.Errorf("empty path")
-	}
-	key := parts[0]
-	if node.Kind != yaml.MappingNode {
-		return fmt.Errorf("expected mapping node")
-	}
-	// Find existing key
-	for i := 0; i < len(node.Content)-1; i += 2 {
-		if node.Content[i].Value == key {
-			if len(parts) == 1 {
-				var valNode yaml.Node
-				valNode.Encode(value)
-				*node.Content[i+1] = valNode
-				return nil
-			}
-			return yamlNodeSetRemote(node.Content[i+1], parts[1:], value)
-		}
-	}
-	// Key not found — create intermediate mappings
-	if len(parts) == 1 {
-		keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key, Tag: "!!str"}
-		var valNode yaml.Node
-		valNode.Encode(value)
-		node.Content = append(node.Content, keyNode, &valNode)
-		return nil
-	}
-	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key, Tag: "!!str"}
-	newMapping := &yaml.Node{Kind: yaml.MappingNode}
-	node.Content = append(node.Content, keyNode, newMapping)
-	return yamlNodeSetRemote(newMapping, parts[1:], value)
-}
-
-// yamlNodeDeleteRemote deletes a key from a YAML node tree.
-func yamlNodeDeleteRemote(node *yaml.Node, parts []string) error {
-	if len(parts) == 0 || node.Kind != yaml.MappingNode {
-		return fmt.Errorf("cannot delete: invalid path or node type")
-	}
-	key := parts[0]
-	for i := 0; i < len(node.Content)-1; i += 2 {
-		if node.Content[i].Value == key {
-			if len(parts) == 1 {
-				node.Content = append(node.Content[:i], node.Content[i+2:]...)
-				return nil
-			}
-			return yamlNodeDeleteRemote(node.Content[i+1], parts[1:])
-		}
-	}
-	return fmt.Errorf("key '%s' not found", key)
 }
 
 // fileSearch performs file search operations on the remote device.
@@ -1303,193 +1035,5 @@ func (e *Executor) fileReadAdvanced(path, op, pattern string, startLine, endLine
 
 	default:
 		return "", fmt.Errorf("unknown file_reader_advanced operation: %s", op)
-	}
-}
-
-// xmlEdit performs XML editing operations on the remote host.
-func (e *Executor) xmlEdit(path, op, xpath string, setValue interface{}) (string, error) {
-	switch op {
-	case "get":
-		if xpath == "" {
-			return "", fmt.Errorf("xpath is required for get")
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", fmt.Errorf("no elements found for path '%s'", xpath)
-		}
-		var results []map[string]interface{}
-		for _, el := range elements {
-			entry := map[string]interface{}{"tag": el.Tag, "text": strings.TrimSpace(el.Text())}
-			if len(el.Attr) > 0 {
-				attrs := make(map[string]string)
-				for _, a := range el.Attr {
-					key := a.Key
-					if a.Space != "" {
-						key = a.Space + ":" + key
-					}
-					attrs[key] = a.Value
-				}
-				entry["attributes"] = attrs
-			}
-			results = append(results, entry)
-		}
-		if len(results) == 1 {
-			out, _ := json.Marshal(results[0])
-			return string(out), nil
-		}
-		out, _ := json.Marshal(results)
-		return string(out), nil
-
-	case "set_text":
-		if xpath == "" {
-			return "", fmt.Errorf("xpath is required for set_text")
-		}
-		text := fmt.Sprintf("%v", setValue)
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", fmt.Errorf("no elements found for path '%s'", xpath)
-		}
-		for _, el := range elements {
-			el.SetText(text)
-		}
-		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"updated": len(elements)})
-		return string(out), nil
-
-	case "set_attribute":
-		if xpath == "" {
-			return "", fmt.Errorf("xpath is required for set_attribute")
-		}
-		attrs, ok := setValue.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("set_value must be {name, value} for set_attribute")
-		}
-		attrName, _ := attrs["name"].(string)
-		if attrName == "" {
-			return "", fmt.Errorf("set_value.name is required for set_attribute")
-		}
-		attrValue := fmt.Sprintf("%v", attrs["value"])
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", fmt.Errorf("no elements found for path '%s'", xpath)
-		}
-		for _, el := range elements {
-			el.CreateAttr(attrName, attrValue)
-		}
-		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"updated": len(elements)})
-		return string(out), nil
-
-	case "add_element":
-		if xpath == "" {
-			return "", fmt.Errorf("xpath is required for add_element (selects parent)")
-		}
-		spec, ok := setValue.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("set_value must be {tag, text?, attributes?} for add_element")
-		}
-		tag, _ := spec["tag"].(string)
-		if tag == "" {
-			return "", fmt.Errorf("set_value.tag is required for add_element")
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		parents := doc.FindElements(xpath)
-		if len(parents) == 0 {
-			return "", fmt.Errorf("no parent elements found for path '%s'", xpath)
-		}
-		for _, parent := range parents {
-			child := parent.CreateElement(tag)
-			if text, ok := spec["text"].(string); ok {
-				child.SetText(text)
-			}
-			if childAttrs, ok := spec["attributes"].(map[string]interface{}); ok {
-				for k, v := range childAttrs {
-					child.CreateAttr(k, fmt.Sprintf("%v", v))
-				}
-			}
-		}
-		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"added_to": len(parents)})
-		return string(out), nil
-
-	case "delete":
-		if xpath == "" {
-			return "", fmt.Errorf("xpath is required for delete")
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", fmt.Errorf("no elements found for path '%s'", xpath)
-		}
-		count := 0
-		for _, el := range elements {
-			if p := el.Parent(); p != nil {
-				p.RemoveChild(el)
-				count++
-			}
-		}
-		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"deleted": count})
-		return string(out), nil
-
-	case "validate":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromBytes(data); err != nil {
-			return "", fmt.Errorf("invalid XML: %w", err)
-		}
-		root := doc.Root()
-		if root == nil {
-			return "", fmt.Errorf("XML document has no root element")
-		}
-		out, _ := json.Marshal(map[string]interface{}{"valid": true, "root_tag": root.Tag})
-		return string(out), nil
-
-	case "format":
-		doc := etree.NewDocument()
-		if err := doc.ReadFromFile(path); err != nil {
-			return "", fmt.Errorf("failed to parse XML: %w", err)
-		}
-		doc.Indent(2)
-		if err := doc.WriteToFile(path); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		return `{"formatted":true}`, nil
-
-	default:
-		return "", fmt.Errorf("unknown xml_editor operation: %s", op)
 	}
 }

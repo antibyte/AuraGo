@@ -37,6 +37,8 @@ func main() {
 	nameFlag := flag.String("name", "", "Device name")
 	foregroundFlag := flag.Bool("foreground", false, "Run in foreground")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
+	logFileFlag := flag.String("log-file", "", "Write logs to a rotating file instead of stderr")
+	logMaxMBFlag := flag.Int("log-max-mb", 5, "Maximum remote log file size in MiB before rotation")
 	flag.Parse()
 
 	if *versionFlag {
@@ -98,7 +100,17 @@ func main() {
 		log.Fatal("No supervisor URL configured. Use --supervisor or download a personalized binary.")
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logWriter := io.Writer(os.Stderr)
+	if strings.TrimSpace(*logFileFlag) != "" {
+		maxBytes := int64(*logMaxMBFlag) * 1024 * 1024
+		writer, err := newRotatingFileWriter(*logFileFlag, maxBytes, defaultRemoteLogBackups)
+		if err != nil {
+			log.Fatalf("Failed to open log file: %v", err)
+		}
+		defer writer.Close()
+		logWriter = writer
+	}
+	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	if !*foregroundFlag && !isRunningAsService() {
 		fmt.Println("Running in foreground. Use --install to install as a service, or --foreground to suppress this message.")

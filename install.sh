@@ -390,11 +390,12 @@ latest_release_tag() {
     latest_release_tag_via_redirect
 }
 
-# ── Optional system dependencies ─────────────────────────────────────────
-info "Checking system dependencies..."
+ensure_ffmpeg() {
+    if command -v ffmpeg >/dev/null 2>&1; then
+        ok "ffmpeg found."
+        return 0
+    fi
 
-# ffmpeg (needed for Telegram voice conversion)
-if ! command -v ffmpeg >/dev/null 2>&1; then
     warn "ffmpeg not found."
     read -r -p "Install ffmpeg? [Y/n]: " FF_REPLY < /dev/tty || true
     if [[ "${FF_REPLY:-y}" =~ ^[Yy]$ ]]; then
@@ -406,12 +407,14 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
     else
         warn "Skipping ffmpeg. Telegram voice messages will not work."
     fi
-else
-    ok "ffmpeg found."
-fi
+}
 
-# ImageMagick (needed for image format conversion)
-if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+ensure_imagemagick() {
+    if command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; then
+        ok "ImageMagick found."
+        return 0
+    fi
+
     warn "ImageMagick not found."
     read -r -p "Install ImageMagick for image conversion? [Y/n]: " IM_REPLY < /dev/tty || true
     if [[ "${IM_REPLY:-y}" =~ ^[Yy]$ ]]; then
@@ -423,13 +426,15 @@ if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; 
     else
         warn "Skipping ImageMagick. Image format conversion will not work."
     fi
-else
-    ok "ImageMagick found."
-fi
+}
 
-# Python 3 + pip (needed for Python skills)
-PYTHON_MISSING=false
-if ! command -v python3 >/dev/null 2>&1 || ! python3 -m pip --version >/dev/null 2>&1; then
+ensure_python_runtime() {
+    PYTHON_MISSING=false
+    if command -v python3 >/dev/null 2>&1 && python3 -m pip --version >/dev/null 2>&1; then
+        ok "Python 3 + pip found."
+        return 0
+    fi
+
     warn "Python 3 / pip not found."
     read -r -p "Install Python 3, pip and venv? [Y/n]: " PY_REPLY < /dev/tty || true
     if [[ "${PY_REPLY:-y}" =~ ^[Yy]$ ]]; then
@@ -445,12 +450,14 @@ if ! command -v python3 >/dev/null 2>&1 || ! python3 -m pip --version >/dev/null
         warn "Skipping Python. Python-based skills will not work."
         PYTHON_MISSING=true
     fi
-else
-    ok "Python 3 + pip found."
-fi
+}
 
-# Docker (needed for many useful features)
-if ! command -v docker >/dev/null 2>&1; then
+ensure_docker_engine() {
+    if command -v docker >/dev/null 2>&1; then
+        ok "Docker found."
+        return 0
+    fi
+
     echo ""
     echo -e " ${G1}+--------------------------------------------------------------+${NC}"
     echo -e " ${G2}|${NC}  ${BOLD}Docker not found${NC}                                            ${G2}|${NC}"
@@ -479,9 +486,15 @@ if ! command -v docker >/dev/null 2>&1; then
     else
         warn "Skipping Docker installation."
     fi
-else
-    ok "Docker found."
-fi
+}
+
+# ── Optional system dependencies ─────────────────────────────────────────
+info "Checking system dependencies..."
+
+ensure_ffmpeg
+ensure_imagemagick
+ensure_python_runtime
+ensure_docker_engine
 
 # ══════════════════════════════════════════════════════════════════════════
 #  Decide installation mode: SOURCE BUILD vs BINARY INSTALL

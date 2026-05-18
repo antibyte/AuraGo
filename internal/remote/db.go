@@ -1,3 +1,5 @@
+//go:build !remote_minimal
+
 package remote
 
 import (

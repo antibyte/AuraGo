@@ -44,6 +44,58 @@ func TestExecutorValidatePathRejectsSymlinkEscape(t *testing.T) {
 	}
 }
 
+func TestExecutorResolveAllowedPathReturnsResolvedSymlinkTarget(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	target := filepath.Join(root, "target.txt")
+	if err := os.WriteFile(target, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	link := filepath.Join(root, "link.txt")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink setup not supported: %v", err)
+	}
+
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	resolved, err := executor.resolveAllowedPath(link, []string{root})
+	if err != nil {
+		t.Fatalf("resolveAllowedPath() error = %v", err)
+	}
+	if filepath.Clean(resolved) != filepath.Clean(target) {
+		t.Fatalf("resolveAllowedPath() = %q, want resolved target %q", resolved, target)
+	}
+}
+
+func TestExecutorFileWriteRejectsSymlinkPrefixEscape(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(root, "escape")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink setup not supported: %v", err)
+	}
+	target := filepath.Join(link, "nested", "created.txt")
+
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	result := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-symlink-prefix",
+		Operation: remote.OpFileWrite,
+		Args: map[string]interface{}{
+			"path":    target,
+			"content": base64.StdEncoding.EncodeToString([]byte("secret")),
+		},
+	}, false, []string{root})
+
+	if result.Status != "denied" || !strings.Contains(result.Error, "outside allowed directories") {
+		t.Fatalf("status=%q error=%q, want denied symlink escape", result.Status, result.Error)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "nested", "created.txt")); !os.IsNotExist(err) {
+		t.Fatalf("symlink escape created outside file, stat error = %v", err)
+	}
+}
+
 func TestExecutorFileReadDeniedWithoutAllowedPaths(t *testing.T) {
 	t.Parallel()
 
