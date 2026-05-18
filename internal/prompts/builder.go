@@ -238,6 +238,12 @@ type ContextFlags struct {
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
 	// overview line (because they already have native OpenAI function schemas).
 	SkipIntegrationTools []string
+	// ActiveNativeTools lists native tool schemas currently sent to the provider.
+	ActiveNativeTools []string
+	// EnabledNativeTools lists enabled native tool schemas before adaptive filtering.
+	EnabledNativeTools []string
+	// AdaptiveFilteredTools lists enabled native tools hidden from this turn.
+	AdaptiveFilteredTools []string
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -503,9 +509,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			"your response must START with the tool call directly. Do NOT announce " +
 			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
 			"If you want to explain something, do it AFTER the tool result comes back. " +
-			"For explicitly multi-step user-requested work, one brief natural acknowledgment may precede " +
-			"the first tool call when the behavioral rules require it. In text-JSON tool mode, never place " +
-			"prose before the JSON tool call.\n\n")
+			"Do not mix prose with tool_calls in the same assistant message. " +
+			"If a behavioral rule asks for an acknowledgment but this response needs a tool call, skip the acknowledgment and call the tool. " +
+			"In text-JSON tool mode, never place prose before the JSON tool call.\n\n")
 	} else if flags.IsTextModeModel {
 		// Text-mode models (MiniMax, GLM, etc.) emit tool calls as text content.
 		// They need explicit JSON format instructions since they cannot use the

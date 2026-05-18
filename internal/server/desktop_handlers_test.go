@@ -257,6 +257,66 @@ func TestPrepareDesktopAgentTurnKeepsFullVisibleDesktopHistory(t *testing.T) {
 	}
 }
 
+func TestPrepareDesktopAgentTurnPersistsRawUserMessageOnly(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	message := "füge dem Space-Invaders-Spiel Glow hinzu"
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, message, desktopChatContext{
+		Source:         "code-studio",
+		CurrentFile:    "/workspace/Apps/space-invaders/game.js",
+		CurrentContent: "console.log('desktop context');",
+	}, true)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+
+	history, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("history length = %d, want 1", len(history))
+	}
+	if history[0].Content != message {
+		t.Fatalf("desktop history persisted %q, want raw user message %q", history[0].Content, message)
+	}
+	for _, forbidden := range []string{"AuraGo Virtual Desktop", "desktop_user_request", "<external_data"} {
+		if strings.Contains(history[0].Content, forbidden) {
+			t.Fatalf("desktop history leaked prompt/context marker %q in %q", forbidden, history[0].Content)
+		}
+	}
+	if turn.runCfg.Config == nil || !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, "AuraGo Virtual Desktop") {
+		t.Fatalf("desktop routing context must be injected as trusted prompt context, got %q", turn.runCfg.Config.Agent.AdditionalPrompt)
+	}
+	if !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, `type="desktop_current_content"`) {
+		t.Fatalf("desktop file context should remain external_data in trusted prompt context: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
+	}
+}
+
+func TestPrepareDesktopAgentTurnKeepsRawIntentInCurrentLLMRequest(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	message := "starte die App"
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, message, desktopChatContext{}, false)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	if len(turn.req.Messages) == 0 {
+		t.Fatal("prepared request has no messages")
+	}
+	last := turn.req.Messages[len(turn.req.Messages)-1]
+	if last.Role != openai.ChatMessageRoleUser || last.Content != message {
+		t.Fatalf("last prepared message = role %q content %q, want raw user message %q", last.Role, last.Content, message)
+	}
+	if strings.Contains(last.Content, "desktop_user_request") || strings.Contains(last.Content, "The user is chatting from AuraGo Virtual Desktop") {
+		t.Fatalf("desktop request content still contains prompt wrapper: %q", last.Content)
+	}
+}
+
 func TestPrepareDesktopAgentTurnSanitizesOrphanedToolMessages(t *testing.T) {
 	t.Parallel()
 

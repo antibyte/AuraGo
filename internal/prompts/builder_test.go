@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -392,6 +394,34 @@ func TestBuildSystemPromptNativeModeOmitsLegacyToolSyntaxExamples(t *testing.T) 
 	}
 }
 
+func TestBuildSystemPromptNativeModeDoesNotInjectRootToolManuals(t *testing.T) {
+	flags := ContextFlags{
+		Tier:                   "full",
+		SystemLanguage:         "en",
+		NativeToolsEnabled:     true,
+		HomepageEnabled:        true,
+		NetlifyEnabled:         true,
+		SandboxEnabled:         true,
+		DocumentCreatorEnabled: true,
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	forbidden := []string{
+		"### Homepage — Web Development & Deployment",
+		"### Document Creator",
+		"### Sandbox Code Execution",
+		"### Netlify Integration",
+		"# TOOL EXECUTION PROTOCOL",
+		"| Operation |",
+		"| Parameter |",
+	}
+	for _, needle := range forbidden {
+		if strings.Contains(prompt, needle) {
+			t.Fatalf("native prompt must not inject root-level tool manual fragment %q", needle)
+		}
+	}
+}
+
 func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",
@@ -443,6 +473,32 @@ func TestBuildSystemPromptNativeModeSanitizesDynamicToolGuides(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Use tool_name and arguments from the schema.") {
 		t.Fatalf("sanitizer removed non-example guide prose")
+	}
+}
+
+func TestPrepareDynamicGuidesWithStrategySkipsToolsOutsideAllowedSet(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tools_manuals")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "homepage.md"), []byte("# homepage\nmanual"), 0o644); err != nil {
+		t.Fatalf("WriteFile homepage manual: %v", err)
+	}
+
+	guides := PrepareDynamicGuidesWithStrategy(
+		nil,
+		nil,
+		"",
+		"",
+		dir,
+		nil,
+		[]string{"homepage"},
+		5,
+		DynamicGuideStrategy{AllowedTools: []string{"document_creator"}},
+		slog.Default(),
+	)
+	if len(guides) != 0 {
+		t.Fatalf("expected disabled/not-allowed guide to be skipped, got %d guides: %q", len(guides), guides)
 	}
 }
 

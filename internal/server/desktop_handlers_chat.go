@@ -150,6 +150,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 				sessionID:    desktopChatSessionID,
 			}
 			if _, err := agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker); err != nil {
+				if llm.IsContextError(err) && llmCtx.Err() != nil {
+					return
+				}
 				combinedBroker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
 				combinedBroker.SendLLMStreamDone("error")
 				combinedBroker.Send("done", "done")
@@ -440,13 +443,16 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 
 	persistContext := chatContext
 	persistContext.ImageBase64 = ""
-	persistedPrompt := buildDesktopAgentPrompt(message, persistContext)
-	requestPrompt := persistedPrompt
+	desktopPromptContext := buildDesktopAgentContext(persistContext)
+	cfg.Agent.AdditionalPrompt = appendDesktopAdditionalPrompt(cfg.Agent.AdditionalPrompt, desktopPromptContext)
+
+	persistedPrompt := message
+	requestPrompt := message
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
-		requestPrompt = buildDesktopAgentPrompt(message, chatContext)
-		persistedPrompt += "\n\nThe user attached a Camera app photo for this turn. The raw image data is intentionally not stored in chat history."
 		if mainProviderSupportsImageMultimodal(&cfg) {
-			requestPrompt = persistedPrompt
+			requestPrompt = message
+		} else {
+			requestPrompt = message + "\n\nThe user attached a Camera app photo for this turn, but the selected provider is not configured for multimodal image input. The raw image data is intentionally not stored in chat history."
 		}
 	}
 
@@ -516,6 +522,18 @@ func replaceDesktopCurrentRequestMessage(messages []openai.ChatCompletionMessage
 		}
 	}
 	return append(cloneChatCompletionMessages(messages), requestMessage)
+}
+
+func appendDesktopAdditionalPrompt(base, desktopContext string) string {
+	base = strings.TrimSpace(base)
+	desktopContext = strings.TrimSpace(desktopContext)
+	if desktopContext == "" {
+		return base
+	}
+	if base == "" {
+		return desktopContext
+	}
+	return base + "\n\n" + desktopContext
 }
 
 func buildDesktopRunConfig(s *Server, cfg *config.Config, llmClient llm.ChatClient) agent.RunConfig {
@@ -622,6 +640,14 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 }
 
 func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) string {
+	context := buildDesktopAgentContext(chatContext)
+	if strings.TrimSpace(message) == "" {
+		return context
+	}
+	return strings.TrimSpace(context + "\n\nUser request:\n" + strings.TrimSpace(message))
+}
+
+func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	var b strings.Builder
 	b.WriteString("The user is chatting from AuraGo Virtual Desktop. If they ask for desktop apps, widgets, or files, use the virtual_desktop tool and keep the browser desktop updated.")
 	b.WriteString("\n\nNever use file_editor, filesystem, smart_file_read, or other agent_workspace file tools for Virtual Desktop paths. Paths beginning with Apps/ or Widgets/ live in the Virtual Desktop workspace, not agent_workspace/workdir; use virtual_desktop read_file, write_file, install_app, or open_in_app with the same path.")
@@ -672,11 +698,8 @@ func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) str
 			b.WriteString(desktopExternalData("desktop_open_files", strings.Join(chatContext.OpenFiles, "\n"), 8192))
 		}
 	}
-	b.WriteString("\n\nUser request:\n")
-	b.WriteString(desktopExternalData("desktop_user_request", message, 12000))
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
-		b.WriteString("\n\nThe user has attached a photo taken with the Camera app. The image is provided as base64-encoded JPEG data below. Describe and analyze what you see in the image.\n")
-		b.WriteString(desktopExternalData("desktop_camera_image_base64", chatContext.ImageBase64, 614400))
+		b.WriteString("\n\nThe user attached a photo taken with the Camera app for this turn. If the provider supports multimodal input, the image is supplied separately as an image_url data URI. Do not store or request the raw image bytes.")
 	}
 	return b.String()
 }

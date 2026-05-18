@@ -217,8 +217,13 @@ func handleStreamingResponse(
 		chunk, rErr := rr.chunk, rr.err
 		if rErr != nil {
 			if rErr.Error() != "EOF" {
-				currentLogger.Error("Stream error", "error", rErr)
-				midStreamError = fmt.Errorf("stream error before done: %w", rErr)
+				if llmCtx.Err() == context.Canceled || llm.IsContextError(rErr) {
+					currentLogger.Debug("Stream canceled", "error", rErr)
+					contextCancelled = true
+				} else {
+					currentLogger.Error("Stream error", "error", rErr)
+					midStreamError = fmt.Errorf("stream error before done: %w", rErr)
+				}
 			}
 			if llmCtx.Err() == context.Canceled {
 				contextCancelled = true

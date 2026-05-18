@@ -60,7 +60,10 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 
 	// --- Slow path: embedded FS is the immutable system base; disk overlays user customizations ---
 	//
-	// System prompts (rules.md, tools_*.md, etc.) live only in the binary embed.
+	// System prompts (identity.md, rules.md, etc.) live only in the binary embed.
+	// Root-level tools_*.md files are legacy/manual material and are intentionally
+	// kept out of the global prompt; detailed manuals are loaded via discover_tools
+	// or targeted dynamic guide injection.
 	// Users may add or override any prompt by placing a same-named .md file in
 	// the on-disk promptsDir.  The disk copy always wins over the embedded copy.
 	moduleMap := make(map[string]PromptModule)
@@ -73,6 +76,9 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		// Only root-level .md files belong to the module system; sub-directories
 		// (personalities/, templates/, tools_manuals/) are handled separately.
 		if strings.Contains(path, "/") || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		if isRootToolPromptModule(path) {
 			return nil
 		}
 		data, err := fs.ReadFile(promptsembed.FS, path)
@@ -88,6 +94,9 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	if files, err := os.ReadDir(dir); err == nil {
 		for _, file := range files {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+				continue
+			}
+			if isRootToolPromptModule(file.Name()) {
 				continue
 			}
 			path := filepath.Join(dir, file.Name())
@@ -132,6 +141,11 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	return modules
 }
 
+func isRootToolPromptModule(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return strings.HasPrefix(base, "tools_") && strings.HasSuffix(base, ".md")
+}
+
 // promptCacheStale returns true if any tracked file has a newer ModTime,
 // or if the directory now has different files than when the cache was built.
 func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
@@ -142,6 +156,9 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 	newCount := 0
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+			continue
+		}
+		if isRootToolPromptModule(file.Name()) {
 			continue
 		}
 		newCount++
@@ -794,6 +811,9 @@ type DynamicGuideStrategy struct {
 	DisableRecentHeuristics      bool
 	DisableStatisticalHeuristics bool
 	DisableFrequencyHeuristics   bool
+	// AllowedTools limits guide loading to currently enabled tool names.
+	// Empty means "no allowlist" for non-native/text-only sessions.
+	AllowedTools []string
 	// SkipTools is a list of tool names whose guides should be skipped
 	// (typically tools that already have native OpenAI function schemas).
 	SkipTools []string
@@ -812,10 +832,39 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	var guides []string
 	guideMap := make(map[string]bool)
 
+	// Build sets before any source contributes guides. Native sessions pass an
+	// allowlist of enabled tools; this prevents disabled manuals from entering
+	// the prompt via stale semantic indexes or explicit guide names.
+	skipSet := make(map[string]bool)
+	for _, t := range strategy.SkipTools {
+		if name := normalizeToolGuideOverrideName(t); name != "" {
+			skipSet[name] = true
+		}
+	}
+	allowedSet := make(map[string]bool, len(strategy.AllowedTools))
+	for _, t := range strategy.AllowedTools {
+		if name := normalizeToolGuideOverrideName(t); name != "" {
+			allowedSet[name] = true
+		}
+	}
+	isAllowed := func(tool string) bool {
+		if len(allowedSet) == 0 {
+			return true
+		}
+		return allowedSet[normalizeToolGuideOverrideName(tool)]
+	}
+	isSkipped := func(tool string) bool {
+		tool = normalizeToolGuideOverrideName(tool)
+		return tool == "" || !isAllowed(tool) || skipSet[tool]
+	}
+
 	// Phase Z: EXPLICIT requested tools (highest priority, injected via <workflow_plan> tag)
 	for _, tool := range explicitTools {
 		if len(guides) >= maxTotalGuides {
 			break
+		}
+		if isSkipped(tool) {
+			continue
 		}
 		cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
 		if !isToolPathSafe(cleanPath, toolsDir) {
@@ -832,18 +881,10 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		}
 	}
 
-	// Build a set of tool names to skip (already have native schemas)
-	skipSet := make(map[string]bool)
-	for _, t := range strategy.SkipTools {
-		skipSet[t] = true
-	}
-
-	isSkipped := func(tool string) bool { return skipSet[tool] }
-
 	// Helper to extract tool name from a guide path (e.g. "tools_manuals/docker.md" → "docker")
 	extractToolName := func(path string) string {
 		base := filepath.Base(path)
-		return strings.TrimSuffix(base, ".md")
+		return normalizeToolGuideOverrideName(strings.TrimSuffix(base, ".md"))
 	}
 
 	addRecentGuides := func(limit int) {

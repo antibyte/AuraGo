@@ -16,6 +16,9 @@ type systemPromptCacheKey struct {
 	EnabledTools             []string `json:"enabled_tools"`
 	FeatureToggles           []string `json:"feature_toggles"`
 	SkipIntegrationTools     []string `json:"skip_integration_tools"`
+	ActiveNativeTools        []string `json:"active_native_tools"`
+	EnabledNativeTools       []string `json:"enabled_native_tools"`
+	AdaptiveFilteredTools    []string `json:"adaptive_filtered_tools"`
 	Tier                     string   `json:"tier"`
 	TokenBudget              int      `json:"token_budget"`
 	IsMission                bool     `json:"is_mission"`
@@ -75,6 +78,9 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		EnabledTools:             enabledTools,
 		FeatureToggles:           featureToggles,
 		SkipIntegrationTools:     sortedStringCopy(flags.SkipIntegrationTools),
+		ActiveNativeTools:        sortedStringCopy(flags.ActiveNativeTools),
+		EnabledNativeTools:       sortedStringCopy(flags.EnabledNativeTools),
+		AdaptiveFilteredTools:    sortedStringCopy(flags.AdaptiveFilteredTools),
 		Tier:                     flags.Tier,
 		TokenBudget:              flags.TokenBudget,
 		IsMission:                flags.IsMission,

@@ -976,6 +976,23 @@ func stringSet(values []string) map[string]bool {
 	return set
 }
 
+func toolSchemaNames(schemas []openai.Tool) []string {
+	names := make([]string, 0, len(schemas))
+	seen := make(map[string]bool, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function == nil {
+			continue
+		}
+		name := strings.TrimSpace(schema.Function.Name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	return names
+}
+
 func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, turns int) []string {
 	if turns <= 0 {
 		turns = len(messages)

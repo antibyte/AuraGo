@@ -296,6 +296,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
 		allSchemas := make([]openai.Tool, len(ntSchemas))
 		copy(allSchemas, ntSchemas)
+		enabledNativeTools := toolSchemaNames(allSchemas)
 
 		// Adaptive tool filtering: remove rarely-used tools to save tokens
 		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
@@ -361,6 +362,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				}
 			}
 		}
+		activeNativeTools := toolSchemaNames(ntSchemas)
+		flags.EnabledNativeTools = enabledNativeTools
+		flags.ActiveNativeTools = activeNativeTools
+		flags.AdaptiveFilteredTools = append([]string(nil), adaptiveFilteredTools...)
 		// Update discover_tools state so the agent can browse hidden tools
 		SetDiscoverToolsState(sessionID, allSchemas, ntSchemas, cfg.Directories.PromptsDir)
 
