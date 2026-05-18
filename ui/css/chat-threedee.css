@@ -518,9 +518,10 @@
    ROBOT MASCOT
    ═══════════════════════════════════════════════════════════════════ */
 [data-theme="threedee"] #chat-robot-mascot {
-    transform-style: preserve-3d;
-    filter: drop-shadow(0 0 22px rgba(129, 140, 248, 0.45));
-    animation: threedeeRobotMorph 8s ease-in-out infinite;
+    opacity: 0;
+    visibility: hidden;
+    animation: none;
+    filter: none;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -63,6 +63,25 @@
     let mousePlane;
     let mouseGlow;
 
+    let robotGroup;
+    let robotModel;
+    let robotModelBaseY = 0;
+    let robotLoading = false;
+    let robotLoaded = false;
+    let robotLoadWarned = false;
+    let robotDracoLoader;
+    let robotTargetPosition;
+    let robotSurfaceNormal;
+    let targetQuaternion;
+    let composedRobotQuaternion;
+    let robotHeadingQuaternion;
+    let robotSwayQuaternion;
+    let robotForward;
+    let robotUp;
+    let robotState;
+    let robotVelocity;
+    let robotBounds;
+
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
@@ -732,6 +751,214 @@
         return geometry;
     }
 
+    function ensureRobotPhysicsState() {
+        if (!robotVelocity) robotVelocity = new THREE.Vector2(0.82, 0.58);
+        if (!robotBounds) {
+            robotBounds = {
+                x: GRID.width * 0.5 - 1.7,
+                z: GRID.depth * 0.5 - 1.35
+            };
+        }
+        if (!robotState) {
+            robotState = {
+                x: -4.4,
+                z: -1.2,
+                y: 0,
+                waterY: 0,
+                yaw: 0,
+                seed: Math.random() * Math.PI * 2,
+                lastBounce: 0
+            };
+        }
+        if (!robotTargetPosition) robotTargetPosition = new THREE.Vector3();
+        if (!robotSurfaceNormal) robotSurfaceNormal = new THREE.Vector3(0, 1, 0);
+        if (!targetQuaternion) targetQuaternion = new THREE.Quaternion();
+        if (!composedRobotQuaternion) composedRobotQuaternion = new THREE.Quaternion();
+        if (!robotHeadingQuaternion) robotHeadingQuaternion = new THREE.Quaternion();
+        if (!robotSwayQuaternion) robotSwayQuaternion = new THREE.Quaternion();
+        if (!robotForward) robotForward = new THREE.Vector3(0, 0, 1);
+        if (!robotUp) robotUp = new THREE.Vector3(0, 1, 0);
+    }
+
+    function normalizeFloatingRobot(root) {
+        const box = new THREE.Box3().setFromObject(root);
+        const size = box.getSize(new THREE.Vector3());
+        const maxAxis = Math.max(size.x, size.y, size.z);
+        if (!Number.isFinite(maxAxis) || maxAxis <= 0) return;
+
+        const targetSize = 1.45;
+        const scale = targetSize / maxAxis;
+        root.scale.setScalar(scale);
+        root.updateMatrixWorld(true);
+
+        const scaledBox = new THREE.Box3().setFromObject(root);
+        const center = scaledBox.getCenter(new THREE.Vector3());
+        root.position.set(-center.x, -scaledBox.min.y, -center.z);
+        robotModelBaseY = root.position.y;
+        root.rotation.y = Math.PI;
+
+        root.traverse(function (node) {
+            if (!node.isMesh) return;
+            node.frustumCulled = false;
+            node.castShadow = false;
+            node.receiveShadow = false;
+            if (!node.material) return;
+            node.material = Array.isArray(node.material)
+                ? node.material.map(function (material) { return material.clone(); })
+                : node.material.clone();
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(function (material) {
+                if ('roughness' in material) material.roughness = Math.min(0.7, material.roughness == null ? 0.5 : material.roughness);
+                if ('metalness' in material) material.metalness = Math.max(0.18, material.metalness == null ? 0.18 : material.metalness);
+                if ('emissive' in material) {
+                    material.emissive = material.emissive || new THREE.Color(0x000000);
+                    material.emissive.lerp(new THREE.Color(0x59d5ff), 0.16);
+                }
+                if ('emissiveIntensity' in material) {
+                    material.emissiveIntensity = Math.max(0.18, material.emissiveIntensity || 0);
+                }
+                material.needsUpdate = true;
+            });
+        });
+    }
+
+    function loadFloatingRobot() {
+        if (robotLoaded || robotLoading || !scene) return;
+        if (!THREE.GLTFLoader || !THREE.DRACOLoader) {
+            if (!robotLoadWarned) {
+                console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for robot.glb');
+                robotLoadWarned = true;
+            }
+            return;
+        }
+
+        ensureRobotPhysicsState();
+        robotLoading = true;
+        robotGroup = new THREE.Group();
+        robotGroup.name = 'threedee-floating-robot';
+        robotGroup.visible = false;
+        robotGroup.position.set(robotState.x, surface.position.y + 0.7, robotState.z + surface.position.z);
+        scene.add(robotGroup);
+
+        const loader = new THREE.GLTFLoader();
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('/js/vendor/draco/');
+        if (typeof dracoLoader.setDecoderConfig === 'function') {
+            dracoLoader.setDecoderConfig({ type: 'wasm' });
+        }
+        loader.setDRACOLoader(dracoLoader);
+        robotDracoLoader = dracoLoader;
+
+        loader.load('/3d/robot.glb', function (gltf) {
+            robotModel = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!robotModel) {
+                robotLoading = false;
+                console.warn('[ThreeDeeShader] robot.glb contained no scene');
+                return;
+            }
+            normalizeFloatingRobot(robotModel);
+            robotGroup.add(robotModel);
+            robotGroup.visible = true;
+            robotLoaded = true;
+            robotLoading = false;
+        }, undefined, function (err) {
+            robotLoading = false;
+            console.warn('[ThreeDeeShader] Could not load floating robot:', err);
+        });
+    }
+
+    function sampleSurfaceNormal(x, z, t) {
+        ensureRobotPhysicsState();
+        const eps = 0.22;
+        const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t);
+        const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t);
+        const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t);
+        const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t);
+        robotSurfaceNormal.set(left - right, eps * 2, back - front).normalize();
+        return robotSurfaceNormal;
+    }
+
+    function bounceFloatingRobotWithinBounds(t) {
+        let bounced = false;
+        if (robotState.x > robotBounds.x) {
+            robotState.x = robotBounds.x;
+            robotVelocity.x = -Math.abs(robotVelocity.x) * 0.88;
+            bounced = true;
+        } else if (robotState.x < -robotBounds.x) {
+            robotState.x = -robotBounds.x;
+            robotVelocity.x = Math.abs(robotVelocity.x) * 0.88;
+            bounced = true;
+        }
+
+        if (robotState.z > robotBounds.z) {
+            robotState.z = robotBounds.z;
+            robotVelocity.y = -Math.abs(robotVelocity.y) * 0.88;
+            bounced = true;
+        } else if (robotState.z < -robotBounds.z) {
+            robotState.z = -robotBounds.z;
+            robotVelocity.y = Math.abs(robotVelocity.y) * 0.88;
+            bounced = true;
+        }
+
+        if (bounced && t - robotState.lastBounce > 0.16) {
+            robotState.lastBounce = t;
+            addImpulse(robotState.x, robotState.z, 0.32);
+            cameraShake = Math.max(cameraShake, 0.035);
+        }
+    }
+
+    function updateFloatingRobot(dt, t) {
+        ensureRobotPhysicsState();
+        if (!robotGroup) loadFloatingRobot();
+        if (!robotGroup) return;
+
+        const driftX = Math.sin(t * 0.54 + robotState.z * 0.72) * 0.16;
+        const driftZ = Math.cos(t * 0.49 + robotState.x * 0.61) * 0.14;
+        robotVelocity.x += driftX * dt;
+        robotVelocity.y += driftZ * dt;
+
+        const speed = robotVelocity.length();
+        if (speed > 1.28) robotVelocity.multiplyScalar(1.28 / speed);
+        if (speed < 0.42) {
+            robotVelocity.x += Math.sin(t + robotState.seed) * dt * 0.22;
+            robotVelocity.y += Math.cos(t * 0.8 + robotState.seed) * dt * 0.22;
+        }
+
+        robotState.x += robotVelocity.x * dt;
+        robotState.z += robotVelocity.y * dt;
+        bounceFloatingRobotWithinBounds(t);
+
+        const waterY = heightAt(robotState.x, robotState.z, t);
+        robotState.waterY = waterY;
+        robotState.y = surface.position.y + waterY + 0.62 + Math.sin(t * 1.9 + robotState.seed) * 0.06;
+        robotTargetPosition.set(robotState.x, robotState.y, robotState.z + surface.position.z);
+        robotGroup.position.lerp(robotTargetPosition, clamp(dt * 4.6, 0, 1));
+
+        const normal = sampleSurfaceNormal(robotState.x, robotState.z, t);
+        robotForward.set(robotVelocity.x, 0, robotVelocity.y);
+        if (robotForward.lengthSq() < 0.0001) robotForward.set(0, 0, 1);
+        robotForward.normalize();
+
+        const heading = Math.atan2(robotForward.x, robotForward.z);
+        robotHeadingQuaternion.setFromAxisAngle(robotUp, heading);
+        targetQuaternion.setFromUnitVectors(robotUp, normal);
+        targetQuaternion.multiply(robotHeadingQuaternion);
+
+        robotSwayQuaternion.setFromEuler(new THREE.Euler(
+            Math.sin(t * 2.1 + robotState.seed) * 0.075 + normal.z * 0.22,
+            0,
+            -normal.x * 0.28 + Math.sin(t * 1.6 + robotState.seed) * 0.055,
+            'XYZ'
+        ));
+        composedRobotQuaternion.copy(targetQuaternion).multiply(robotSwayQuaternion);
+        targetQuaternion.slerp(composedRobotQuaternion, clamp(dt * 2.8, 0, 1));
+        robotGroup.quaternion.slerp(targetQuaternion, clamp(dt * 3.8, 0, 1));
+
+        if (robotModel) {
+            robotModel.position.y = robotModelBaseY + Math.sin(t * 3.2 + robotState.seed) * 0.035;
+        }
+    }
+
     function createHeightfield() {
         surfaceGeometry = new THREE.PlaneGeometry(GRID.width, GRID.depth, GRID.cols, GRID.rows);
         surfaceGeometry.rotateX(-Math.PI / 2);
@@ -810,6 +1037,8 @@
         scene.add(rim);
 
         createHeightfield();
+        ensureRobotPhysicsState();
+        loadFloatingRobot();
 
         if (!smokeTexture) smokeTexture = createSmokeTexture();
 
@@ -914,6 +1143,7 @@
         pruneImpulses(t);
         updateParticles(dt, t);
         updateSurface(t);
+        updateFloatingRobot(dt, t);
 
         if (camera) {
             const sway = Math.sin(t * 0.2) * 0.18;
