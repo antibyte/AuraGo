@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -93,25 +94,36 @@ func (e *Executor) finishCommandExecution(commandID string, record *commandExecu
 }
 
 func (e *Executor) trimCommandResultCacheLocked(currentID string) {
-	for len(e.commandOrder) > maxCachedCommandResults {
-		oldest := e.commandOrder[0]
-		e.commandOrder = e.commandOrder[1:]
-		if oldest == currentID {
-			e.commandOrder = append(e.commandOrder, oldest)
-			return
+	if len(e.commandOrder) <= maxCachedCommandResults {
+		return
+	}
+
+	targetRemovals := len(e.commandOrder) - maxCachedCommandResults
+	removed := 0
+	kept := e.commandOrder[:0]
+	for _, commandID := range e.commandOrder {
+		if removed >= targetRemovals {
+			kept = append(kept, commandID)
+			continue
 		}
-		record := e.commandResults[oldest]
+		if commandID == currentID {
+			kept = append(kept, commandID)
+			continue
+		}
+		record := e.commandResults[commandID]
 		if record == nil {
+			removed++
 			continue
 		}
 		select {
 		case <-record.done:
-			delete(e.commandResults, oldest)
+			delete(e.commandResults, commandID)
+			removed++
 		default:
-			e.commandOrder = append(e.commandOrder, oldest)
-			return
+			kept = append(kept, commandID)
 		}
 	}
+	e.commandOrder = kept
 }
 
 func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
@@ -532,36 +544,26 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 	// Log every command execution for audit trail
 	e.logger.Info("[shellExec] executing remote command", "command", command, "workDir", workDir, "timeout", timeout)
 
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/C", command)
+		cmd = exec.CommandContext(ctx, "cmd", "/C", command)
 	} else {
-		cmd = exec.Command("sh", "-c", command)
+		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
+	cmd.WaitDelay = 250 * time.Millisecond
 
 	if workDir != "" {
 		cmd.Dir = workDir
 	}
 
-	// Use a channel to enforce timeout
-	done := make(chan struct{})
-	var output []byte
-	var cmdErr error
-
-	go func() {
-		output, cmdErr = cmd.CombinedOutput()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return string(output), cmdErr
-	case <-time.After(timeout):
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
 		return "", fmt.Errorf("command timed out after %v", timeout)
 	}
+	return string(output), err
 }
 
 // fileEdit performs a file editing operation on the remote device.

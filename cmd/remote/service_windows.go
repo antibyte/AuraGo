@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"golang.org/x/sys/windows/svc"
 )
 
 func getInstallPath() (string, error) {
@@ -21,7 +23,7 @@ func installService(exePath string) error {
 
 	// Use sc.exe to create a Windows service
 	err := exec.Command("sc", "create", "AuraGoRemote",
-		"binpath=", fmt.Sprintf(`"%s" --foreground`, exePath),
+		"binpath=", windowsServiceBinPath(exePath),
 		"start=", "auto",
 		"DisplayName=", "AuraGo Remote Agent",
 	).Run()
@@ -39,4 +41,17 @@ func uninstallService() error {
 	_ = exec.Command("sc", "stop", "AuraGoRemote").Run()
 	_ = exec.Command("sc", "delete", "AuraGoRemote").Run()
 	return nil
+}
+
+func windowsServiceBinPath(exePath string) string {
+	return fmt.Sprintf(`""%s" --foreground"`, exePath)
+}
+
+func isRunningAsService() bool {
+	return isRunningAsWindowsService(svc.IsWindowsService)
+}
+
+func isRunningAsWindowsService(probe func() (bool, error)) bool {
+	running, err := probe()
+	return err == nil && running
 }

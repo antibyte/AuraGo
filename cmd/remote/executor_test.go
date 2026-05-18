@@ -5,8 +5,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/remote"
 )
@@ -160,4 +163,58 @@ func TestExecutorDoesNotReplayDuplicateCommandID(t *testing.T) {
 	if string(got) != "first" {
 		t.Fatalf("duplicate command replay changed file to %q, want first", got)
 	}
+}
+
+func TestExecutorTrimCommandResultCacheSkipsCurrentAndRemovesCompletedEntries(t *testing.T) {
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	executor.commandResults = make(map[string]*commandExecutionRecord)
+	executor.commandOrder = append(executor.commandOrder, "current")
+	executor.commandResults["current"] = runningCommandRecord()
+
+	for i := 0; i < maxCachedCommandResults+5; i++ {
+		id := "done-" + strconv.Itoa(i)
+		executor.commandOrder = append(executor.commandOrder, id)
+		executor.commandResults[id] = finishedCommandRecord(id)
+	}
+
+	executor.trimCommandResultCacheLocked("current")
+
+	if len(executor.commandOrder) > maxCachedCommandResults {
+		t.Fatalf("commandOrder length = %d, want <= %d", len(executor.commandOrder), maxCachedCommandResults)
+	}
+	if executor.commandResults["current"] == nil {
+		t.Fatal("current command record was evicted")
+	}
+}
+
+func TestExecutorShellExecTimeoutReturnsPromptly(t *testing.T) {
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	start := time.Now()
+	_, err := executor.shellExec(slowShellCommand(), "", 50*time.Millisecond)
+	if err == nil || !strings.Contains(err.Error(), "command timed out after") {
+		t.Fatalf("shellExec timeout error = %v, want timeout error", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("shellExec timeout returned after %v, want prompt return", elapsed)
+	}
+}
+
+func finishedCommandRecord(commandID string) *commandExecutionRecord {
+	done := make(chan struct{})
+	close(done)
+	return &commandExecutionRecord{
+		done:   done,
+		result: remote.ResultPayload{CommandID: commandID, Status: "ok"},
+	}
+}
+
+func runningCommandRecord() *commandExecutionRecord {
+	return &commandExecutionRecord{done: make(chan struct{})}
+}
+
+func slowShellCommand() string {
+	if runtime.GOOS == "windows" {
+		return "ping 127.0.0.1 -n 6 >NUL"
+	}
+	return "sleep 5"
 }

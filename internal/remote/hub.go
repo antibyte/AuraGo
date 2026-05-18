@@ -67,6 +67,7 @@ func (rc *RemoteConnection) NextSeq() uint64 {
 type RemoteHub struct {
 	mu          sync.RWMutex
 	connections map[string]*RemoteConnection   // device_id → conn
+	connIndex   map[*websocket.Conn]string     // websocket conn → device_id
 	pending     map[string]chan *RemoteMessage // cmd_id → result channel
 	pendingMu   sync.Mutex
 	db          *sql.DB
@@ -92,6 +93,7 @@ type RemoteHub struct {
 func NewRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger) *RemoteHub {
 	return &RemoteHub{
 		connections:     make(map[string]*RemoteConnection),
+		connIndex:       make(map[*websocket.Conn]string),
 		pending:         make(map[string]chan *RemoteMessage),
 		db:              db,
 		vault:           vault,
@@ -109,13 +111,30 @@ func (h *RemoteHub) DB() *sql.DB {
 
 // Register adds an authenticated remote connection to the hub.
 func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
+	var old *RemoteConnection
 	h.mu.Lock()
-	if old, ok := h.connections[deviceID]; ok {
+	if h.connections == nil {
+		h.connections = make(map[string]*RemoteConnection)
+	}
+	if h.connIndex == nil {
+		h.connIndex = make(map[*websocket.Conn]string)
+	}
+	if existing, ok := h.connections[deviceID]; ok && existing != conn {
+		old = existing
 		h.logger.Warn("Replacing existing remote connection", "device_id", deviceID)
-		_ = old.Conn.Close()
+		if old.Conn != nil {
+			delete(h.connIndex, old.Conn)
+		}
 	}
 	h.connections[deviceID] = conn
+	if conn != nil && conn.Conn != nil {
+		h.connIndex[conn.Conn] = deviceID
+	}
 	h.mu.Unlock()
+
+	if old != nil && old.Conn != nil && (conn == nil || old.Conn != conn.Conn) {
+		_ = old.Conn.Close()
+	}
 
 	h.logger.Info("Remote connected", "device_id", deviceID, "name", conn.Name)
 	h.emitAudit(RemoteAuditEvent{
@@ -132,10 +151,21 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 
 // Unregister removes a remote connection from the hub.
 func (h *RemoteHub) Unregister(deviceID string) {
+	h.unregisterConnection(deviceID, nil)
+}
+
+func (h *RemoteHub) unregisterConnection(deviceID string, expected *RemoteConnection) {
 	h.mu.Lock()
 	conn, ok := h.connections[deviceID]
 	if ok {
+		if expected != nil && conn != expected {
+			h.mu.Unlock()
+			return
+		}
 		delete(h.connections, deviceID)
+		if conn.Conn != nil {
+			delete(h.connIndex, conn.Conn)
+		}
 	}
 	h.mu.Unlock()
 
@@ -190,12 +220,15 @@ func (h *RemoteHub) ConnectedDevices() []string {
 func (h *RemoteHub) FindByConn(wsConn *websocket.Conn) (string, *RemoteConnection) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for id, conn := range h.connections {
-		if conn.Conn == wsConn {
-			return id, conn
-		}
+	id, ok := h.connIndex[wsConn]
+	if !ok {
+		return "", nil
 	}
-	return "", nil
+	conn := h.connections[id]
+	if conn == nil || conn.Conn != wsConn {
+		return "", nil
+	}
+	return id, conn
 }
 
 // ConnectionCount returns the number of connected remotes.
@@ -312,7 +345,7 @@ func (h *RemoteHub) SendRevoke(deviceID string) error {
 // HandleMessages reads messages from a remote connection and dispatches them.
 // Blocks until the connection closes or an error occurs.
 func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
-	defer h.Unregister(conn.DeviceID)
+	defer h.unregisterConnection(conn.DeviceID, conn)
 
 	for {
 		_, data, err := conn.Conn.ReadMessage()

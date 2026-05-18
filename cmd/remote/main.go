@@ -268,14 +268,15 @@ func saveConfig(cfg clientConfig) error {
 
 // Client manages the WebSocket connection to the supervisor.
 type Client struct {
-	cfg     clientConfig
-	logger  *slog.Logger
-	version string
-	conn    *websocket.Conn
-	connMu  sync.Mutex
-	seq     uint64
-	seqMu   sync.Mutex
-	done    chan struct{}
+	cfg      clientConfig
+	logger   *slog.Logger
+	version  string
+	conn     *websocket.Conn
+	connMu   sync.Mutex
+	stopOnce sync.Once
+	seq      uint64
+	seqMu    sync.Mutex
+	done     chan struct{}
 
 	// executor handles command execution
 	executor *Executor
@@ -294,6 +295,8 @@ func (c *Client) nextSeq() uint64 {
 }
 
 func (c *Client) send(msg *remote.RemoteMessage) error {
+	// connMu serializes all writes and connection replacement/close. gorilla/websocket
+	// allows one reader and one writer, but concurrent writers are not safe.
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	if c.conn == nil {
@@ -335,11 +338,9 @@ func (c *Client) Run() {
 
 // Stop gracefully disconnects.
 func (c *Client) Stop() {
-	select {
-	case <-c.done:
-	default:
+	c.stopOnce.Do(func() {
 		close(c.done)
-	}
+	})
 	c.connMu.Lock()
 	if c.conn != nil {
 		_ = c.conn.WriteMessage(websocket.CloseMessage,
@@ -365,10 +366,6 @@ func (c *Client) connect() error {
 	if err != nil {
 		return fmt.Errorf("WebSocket dial failed: %w", err)
 	}
-
-	c.connMu.Lock()
-	c.conn = conn
-	c.connMu.Unlock()
 
 	// Send auth
 	hostname, _ := os.Hostname()
@@ -450,6 +447,20 @@ func (c *Client) connect() error {
 		return fmt.Errorf("unknown auth status: %s", authResp.Status)
 	}
 
+	select {
+	case <-c.done:
+		conn.Close()
+		return fmt.Errorf("client stopped")
+	default:
+	}
+
+	c.connMu.Lock()
+	if c.conn != nil && c.conn != conn {
+		_ = c.conn.Close()
+	}
+	c.conn = conn
+	c.connMu.Unlock()
+
 	// Start heartbeat
 	go c.heartbeatLoop()
 
@@ -458,6 +469,12 @@ func (c *Client) connect() error {
 }
 
 func (c *Client) readMessages() {
+	conn := c.currentConn()
+	if conn == nil {
+		return
+	}
+	defer c.clearConnection(conn)
+
 	for {
 		select {
 		case <-c.done:
@@ -465,7 +482,7 @@ func (c *Client) readMessages() {
 		default:
 		}
 
-		_, data, err := c.conn.ReadMessage()
+		_, data, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				c.logger.Warn("Connection error", "error", err)
@@ -490,6 +507,21 @@ func (c *Client) readMessages() {
 
 		c.handleMessage(msg)
 	}
+}
+
+func (c *Client) currentConn() *websocket.Conn {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn
+}
+
+func (c *Client) clearConnection(conn *websocket.Conn) {
+	c.connMu.Lock()
+	if c.conn == conn {
+		c.conn = nil
+	}
+	c.connMu.Unlock()
+	_ = conn.Close()
 }
 
 func (c *Client) handleMessage(msg remote.RemoteMessage) {
@@ -632,12 +664,24 @@ func (c *Client) handleRevoke() {
 }
 
 func (c *Client) heartbeatLoop() {
-	ticker := time.NewTicker(30 * time.Second)
+	c.heartbeatLoopWithInterval(30 * time.Second)
+}
+
+func (c *Client) heartbeatLoopWithInterval(interval time.Duration) {
+	trackedConn := c.currentConn()
+	c.heartbeatLoopForConn(interval, trackedConn)
+}
+
+func (c *Client) heartbeatLoopForConn(interval time.Duration, trackedConn *websocket.Conn) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
+			if trackedConn != nil && c.currentConn() != trackedConn {
+				return
+			}
 			hb := c.executor.CollectSysinfo()
 			hb.Version = c.version
 			msg, err := remote.NewMessage(remote.MsgHeartbeat, c.cfg.DeviceID, c.cfg.SharedKey, c.nextSeq(), hb)
@@ -646,7 +690,10 @@ func (c *Client) heartbeatLoop() {
 			}
 			if err := c.send(msg); err != nil {
 				c.logger.Debug("Heartbeat send failed", "error", err)
-				return
+				if trackedConn != nil && c.currentConn() != trackedConn {
+					return
+				}
+				continue
 			}
 		case <-c.done:
 			return
@@ -668,15 +715,6 @@ func printStatus() {
 	} else {
 		fmt.Println("Status:         Not yet enrolled")
 	}
-}
-
-func isRunningAsService() bool {
-	// Heuristic: if stdin is not a terminal, likely running as service
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice == 0
 }
 
 func isTerminal() bool {

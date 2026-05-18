@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -80,4 +81,23 @@ func uninstallService() error {
 	_ = os.Remove("/etc/systemd/system/aurago-remote.service")
 	_ = exec.Command("systemctl", "daemon-reload").Run()
 	return nil
+}
+
+func isRunningAsService() bool {
+	return isRunningAsLinuxService(os.Getenv("INVOCATION_ID"), os.Getenv("NOTIFY_SOCKET"), parentProcessName, os.Getppid())
+}
+
+func isRunningAsLinuxService(invocationID, notifySocket string, parentName func(int) string, ppid int) bool {
+	if invocationID != "" || notifySocket != "" {
+		return true
+	}
+	return parentName(ppid) == "systemd"
+}
+
+func parentProcessName(pid int) string {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }

@@ -92,3 +92,11 @@ func uninstallService() error {
 	_ = os.Remove(plistPath)
 	return nil
 }
+
+func isRunningAsService() bool {
+	return isRunningAsDarwinService(os.Getppid())
+}
+
+func isRunningAsDarwinService(ppid int) bool {
+	return ppid == 1
+}
