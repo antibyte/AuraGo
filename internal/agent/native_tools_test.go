@@ -1500,6 +1500,25 @@ func TestFileEditorSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
 	}
 }
 
+func TestExecuteShellSchemaWarnsAgainstVirtualDesktopPaths(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{AllowShell: true}, nil)
+	var description string
+	for _, toolSchema := range schemas {
+		if toolSchema.Function != nil && toolSchema.Function.Name == "execute_shell" {
+			description = toolSchema.Function.Description
+			break
+		}
+	}
+	if description == "" {
+		t.Fatal("execute_shell schema not found")
+	}
+	for _, want := range []string{"Virtual Desktop", "Apps/", "Widgets/", "agent_workspace/virtual_desktop", "homepage"} {
+		if !strings.Contains(description, want) {
+			t.Fatalf("execute_shell description missing %q: %s", want, description)
+		}
+	}
+}
+
 // TestBuildToolFlagsFromConfigProducesConsistentResults verifies that
 // buildToolFlagsFromConfig returns consistent values for all config-only flags.
 func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {

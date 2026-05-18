@@ -133,7 +133,7 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 
 	if ff.AllowShell {
 		tools = append(tools, tool("execute_shell",
-			"Run a shell command on the local system. Use for file operations, system info, running programs, etc.",
+			"Run a shell command on the local system. Use for system info and commands that truly need a shell. Do not use for Virtual Desktop paths such as Apps/, Widgets/, agent_workspace/virtual_desktop, or Code Studio /workspace paths; use virtual_desktop instead. Do not use for homepage project files; use homepage instead.",
 			schema(map[string]interface{}{
 				"command":    prop("string", "The shell command to execute"),
 				"background": prop("boolean", "Run as background process (default false)"),

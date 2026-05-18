@@ -92,6 +92,17 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			return formatToolPermissionDenied("execute_shell", "runtime_permissions", "agent.allow_shell", "execute_shell is disabled in Danger Zone settings")
 		}
 		req := decodeShellExecutionArgs(tc)
+		if isDesktopChatSource(dc.MessageSource) {
+			if isVirtualDesktopWorkspaceShellCommand(req.Command) || isRelativeVirtualDesktopWorkspaceShellCommand(req.Command) || isCodeStudioWorkspaceShellCommand(req.Command) {
+				return "Tool Output: [PERMISSION DENIED] This command targets the virtual desktop workspace. Use the virtual_desktop tool instead, for example operation read_file, search_file, read_file_excerpt, patch_file, write_file, open_app, or open_in_app with the same Apps/ or Widgets/ path."
+			}
+			if isHomepageDataShellCommand(req.Command) {
+				return "Tool Output: [PERMISSION DENIED] This command targets the homepage workspace, not a Virtual Desktop file. Use the homepage tool for homepage projects, or use virtual_desktop with an Apps/ or Widgets/ path for desktop apps."
+			}
+		}
+		if isVirtualDesktopWorkspaceShellCommand(req.Command) {
+			return "Tool Output: [PERMISSION DENIED] This command targets the virtual desktop workspace. Use the virtual_desktop tool instead with operation read_file, search_file, read_file_excerpt, patch_file, write_file, open_app, or open_in_app."
+		}
 		if isHomepageWorkspaceShellCommand(req.Command) {
 			return "Tool Output: [PERMISSION DENIED] This command targets the homepage container workspace (/workspace). Use the homepage tool instead, for example homepage exec with a concrete command and project_dir/list_files/read_file/build for homepage projects. execute_shell runs in agent_workspace/workdir, not inside the homepage container."
 		}
@@ -214,4 +225,39 @@ func isHomepageWorkspaceShellCommand(command string) bool {
 		return false
 	}
 	return strings.Contains(command, "/workspace") || strings.Contains(command, `\workspace`)
+}
+
+func isDesktopChatSource(source string) bool {
+	return strings.EqualFold(strings.TrimSpace(source), "virtual_desktop_chat")
+}
+
+func isVirtualDesktopWorkspaceShellCommand(command string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(command), "\\", "/"))
+	if normalized == "" {
+		return false
+	}
+	return strings.Contains(normalized, "agent_workspace/virtual_desktop/") ||
+		strings.Contains(normalized, "/virtual_desktop/apps/") ||
+		strings.Contains(normalized, "/virtual_desktop/widgets/") ||
+		strings.Contains(normalized, "virtual_desktop/apps/") ||
+		strings.Contains(normalized, "virtual_desktop/widgets/")
+}
+
+func isRelativeVirtualDesktopWorkspaceShellCommand(command string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(command), "\\", "/"))
+	return strings.Contains(normalized, "apps/") || strings.Contains(normalized, "widgets/")
+}
+
+func isCodeStudioWorkspaceShellCommand(command string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(command), "\\", "/"))
+	return strings.Contains(normalized, "/workspace/apps/") ||
+		strings.Contains(normalized, "/workspace/widgets/") ||
+		strings.Contains(normalized, " /workspace ") ||
+		strings.HasSuffix(normalized, " /workspace")
+}
+
+func isHomepageDataShellCommand(command string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(command), "\\", "/"))
+	return strings.Contains(normalized, "/data/homepage/") ||
+		strings.Contains(normalized, "data/homepage/")
 }

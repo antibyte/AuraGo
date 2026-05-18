@@ -660,6 +660,32 @@ func TestExpandAdaptiveAlwaysIncludeSkipsMCPCallWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testing.T) {
+	got := channelAdaptiveAlwaysInclude(
+		RunConfig{MessageSource: "virtual_desktop_chat"},
+		[]string{"filesystem"},
+		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
+	)
+	for _, want := range []string{"virtual_desktop", "office_document", "office_workbook"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected desktop chat always-include to contain %q, got %v", want, got)
+		}
+	}
+}
+
+func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *testing.T) {
+	got := channelAdaptiveAlwaysInclude(
+		RunConfig{MessageSource: "virtual_desktop_chat"},
+		nil,
+		ToolFeatureFlags{},
+	)
+	for _, notWant := range []string{"virtual_desktop", "office_document", "office_workbook"} {
+		if containsName(got, notWant) {
+			t.Fatalf("did not expect disabled desktop tool %q in always-include set, got %v", notWant, got)
+		}
+	}
+}
+
 func TestCollectRecentUserIntentTextKeepsRecentUserContext(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: "erste frage"},

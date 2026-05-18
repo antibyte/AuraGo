@@ -1211,8 +1211,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"path":      prop("string", "Workspace-relative file or directory path. Required for file operations and Office operations such as read_document, write_document, patch_document, read_workbook, write_workbook, set_cell, set_range, evaluate_formula, and export_file. For standalone widgets, write non-empty HTML to 'Widgets/<widget_id>.html' or 'Widgets/<widget_id>/index.html'. For a simple generated HTML app, prefer install_app; write_file to 'Apps/<app_id>.html' is accepted and automatically registers 'Apps/<app_id>/index.html'. Code Studio mounts the virtual desktop workspace at /workspace, so 'Apps/<app_id>/game.js' can be opened as '/workspace/Apps/<app_id>/game.js'. To run a generated app after editing it, open_app with app_id '<app_id>' or open_in_app with path 'Apps/<app_id>/<entry>' so AuraGo can infer the app."),
 				"file_path": prop("string", "Alias for path."),
-				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Widgets/<widget_id>.html or Widgets/<widget_id>/index.html this must be complete, non-empty HTML."),
-				"query":     prop("string", "Search text for search_file. When read_file returns content_truncated, use search_file and read_file_excerpt to locate anchors yourself; do not ask the user for block anchors."),
+				"content":   prop("string", "Required text file content for write_file, document text for write_document, cell value for set_cell, or notification message for show_notification. For Apps/ and Widgets/ paths this must be non-empty to avoid breaking runnable desktop apps/widgets. For Widgets/<widget_id>.html or Widgets/<widget_id>/index.html this must be complete, non-empty HTML."),
+				"allow_empty": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set true only when intentionally writing an empty non-app/non-widget desktop file. Ignored for Apps/ and Widgets/ paths, which require non-empty content.",
+				},
+				"query": prop("string", "Search text for search_file. When read_file returns content_truncated, use search_file and read_file_excerpt to locate anchors yourself; do not ask the user for block anchors."),
 				"line_start": map[string]interface{}{
 					"type":        "integer",
 					"description": "1-based start line for read_file_excerpt.",

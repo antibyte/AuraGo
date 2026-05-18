@@ -650,6 +650,24 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	return out
 }
 
+func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff ToolFeatureFlags) []string {
+	out := make([]string, 0, len(alwaysInclude)+3)
+	out = append(out, alwaysInclude...)
+	if !strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "virtual_desktop_chat") {
+		return out
+	}
+	if ff.VirtualDesktopEnabled {
+		out = append(out, "virtual_desktop")
+	}
+	if ff.OfficeDocumentEnabled {
+		out = append(out, "office_document")
+	}
+	if ff.OfficeWorkbookEnabled {
+		out = append(out, "office_workbook")
+	}
+	return out
+}
+
 func adaptiveHardAlwaysInclude(cfg *config.Config) []string {
 	return hardAlwaysToolNames(cfg)
 }

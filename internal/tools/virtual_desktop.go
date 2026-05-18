@@ -173,9 +173,18 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}, nil)
 	case "write_file":
 		path := virtualDesktopString(args, "path", "file_path")
-		content := virtualDesktopString(args, "content")
+		content, hasContent := virtualDesktopRawString(args, "content")
 		if strings.TrimSpace(path) == "" {
 			return virtualDesktopJSON("error", "path is required", nil, nil)
+		}
+		cleanPath := cleanVirtualDesktopSlashPath(path)
+		if !hasContent || strings.TrimSpace(content) == "" {
+			if isVirtualDesktopGeneratedRuntimePath(cleanPath) {
+				return virtualDesktopJSON("error", "content is required for write_file on Apps/ or Widgets/ paths; refusing to overwrite a runnable desktop file with empty content. Use patch_file for edits or delete for intentional removal.", nil, nil)
+			}
+			if !virtualDesktopBool(args, "allow_empty", "allow_empty_content") {
+				return virtualDesktopJSON("error", "content is required for write_file; refusing to overwrite the desktop file with empty content. Set allow_empty=true only when intentionally creating an empty non-app file.", nil, nil)
+			}
 		}
 		if isVirtualDesktopStandaloneWidgetHTML(path) && strings.TrimSpace(content) == "" {
 			return virtualDesktopJSON("error", "desktop widget HTML file must not be empty", nil, nil)
@@ -456,6 +465,26 @@ func virtualDesktopString(args map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func virtualDesktopRawString(args map[string]interface{}, keys ...string) (string, bool) {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok {
+			continue
+		}
+		switch v := raw.(type) {
+		case string:
+			return v, true
+		case fmt.Stringer:
+			return v.String(), true
+		case nil:
+			return "", true
+		default:
+			return fmt.Sprint(raw), true
+		}
+	}
+	return "", false
 }
 
 func virtualDesktopInt(args map[string]interface{}, fallback int, keys ...string) int {
@@ -852,6 +881,10 @@ func cleanVirtualDesktopSlashPath(rawPath string) string {
 		return "."
 	}
 	return path.Clean(p)
+}
+
+func isVirtualDesktopGeneratedRuntimePath(cleanPath string) bool {
+	return strings.HasPrefix(cleanPath, "Apps/") || strings.HasPrefix(cleanPath, "Widgets/")
 }
 
 func virtualDesktopLargeReadPayload(entry desktop.FileEntry, content string) map[string]interface{} {

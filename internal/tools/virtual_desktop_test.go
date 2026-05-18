@@ -158,6 +158,78 @@ func TestExecuteVirtualDesktopWriteFileRejectsEmptyStandaloneWidgetHTML(t *testi
 	}
 }
 
+func TestExecuteVirtualDesktopWriteFileRejectsEmptyContentWithoutDestroyingExistingFile(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	initial := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+		"content":   "window.spaceInvaders = true;\n",
+	})
+	if !strings.Contains(initial.Output, `"status":"ok"`) {
+		t.Fatalf("initial write failed: %s", initial.Output)
+	}
+
+	empty := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Apps/space-invaders/game.js",
+	})
+	var payload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(empty.Output), &payload); err != nil {
+		t.Fatalf("unmarshal empty write output: %v\n%s", err, empty.Output)
+	}
+	if payload.Status != "error" {
+		t.Fatalf("empty write status = %q, want error: %s", payload.Status, empty.Output)
+	}
+	if !strings.Contains(payload.Message, "content") {
+		t.Fatalf("empty write error should mention content, got %q", payload.Message)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Apps/space-invaders/game.js",
+	})
+	if !strings.Contains(read.Output, "window.spaceInvaders = true;") {
+		t.Fatalf("empty write destroyed existing desktop file: %s", read.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopWriteFileAllowsExplicitEmptyContent(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	initial := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Notes/empty.txt",
+		"content":   "temporary",
+	})
+	if !strings.Contains(initial.Output, `"status":"ok"`) {
+		t.Fatalf("initial write failed: %s", initial.Output)
+	}
+
+	empty := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":   "write_file",
+		"path":        "Notes/empty.txt",
+		"content":     "",
+		"allow_empty": true,
+	})
+	if !strings.Contains(empty.Output, `"status":"ok"`) {
+		t.Fatalf("explicit empty write failed: %s", empty.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Notes/empty.txt",
+	})
+	if !strings.Contains(read.Output, `"content":""`) {
+		t.Fatalf("explicit empty file content not persisted as empty: %s", read.Output)
+	}
+}
+
 func TestExecuteVirtualDesktopUpsertWidgetNormalizesExistingStandaloneWidgetIndexFile(t *testing.T) {
 	t.Parallel()
 
