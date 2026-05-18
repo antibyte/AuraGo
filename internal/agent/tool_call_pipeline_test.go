@@ -148,7 +148,7 @@ func TestParseToolResponseNoTagIsNotFinished(t *testing.T) {
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
 			Message: openai.ChatCompletionMessage{
-				Content: "Ich prüfe jetzt die Konfiguration.",
+				Content: "Checking configuration.",
 			},
 		}},
 	}
@@ -761,11 +761,11 @@ func TestParseToolResponseBareToolCallTag(t *testing.T) {
 	}{
 		{
 			name:    "bare <tool_call> after think block",
-			content: "<think>\nI should check system status.\n</think>\n\nEinen Moment, ich check den Systemstatus...\n<tool_call>",
+			content: "<think>\nI should check system status.\n</think>\n\nPreparing status check...\n<tool_call>",
 		},
 		{
 			name:    "bare <tool_call> alone",
-			content: "Let me check that.\n<tool_call>",
+			content: "Checking status.\n<tool_call>",
 		},
 		{
 			name:    "bare </tool_call> closing tag",

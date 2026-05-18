@@ -1,84 +1,15 @@
 package agent
 
 import (
-	"html"
 	"regexp"
 	"strings"
 )
 
-var announcementPhrases = []string{
-	"lass mich", "ich starte", "ich werde", "ich führe", "ich teste",
-	"ich versuche", "versuche ich", "ich probiere", "probiere ich",
-	"ich mache", "ich mach", "ich splitte", "ich teile", "ich modularisiere",
-	"ich öffne", "ich oeffne", "ich ziehe", "erneut",
-	"let me", "i will", "i'll", "i am going to", "i'm going to",
-	"let's start", "starting", "launching", "i'll start", "i'll run",
-	"i'll split", "i will split", "i'll open", "i will open", "i try", "i'll try", "trying", "retrying",
-	"alles klar", "okay, let", "sure, let", "sure, i",
-	"ich suche nach", "ich schaue nach", "ich prüfe", "ich überprüfe",
-	"ich sehe mir", "lass mich sehen", "ich werde nachschauen",
-	"i'll check", "let me check", "checking", "searching", "looking",
-	"i am looking", "i will look", "i'll search", "i will search",
-	"ich frage ab", "ich lade", "i'll load", "i am loading",
-}
-
-var postToolForwardCues = []string{
-	"jetzt", "als nächstes", "danach", "anschließend", "nun",
-	"now", "next", "next,", "then", "after that",
-	// De-escalated from announcementPhrases — only supporting signals, not standalone triggers.
-	"nochmal", "noch einmal", "wieder",
-}
-
-var postToolActionCues = []string{
-	"ich baue", "ich bau", "baue ich", "ich deploye", "deploye ich", "ich starte", "starte ich",
-	"ich prüfe", "prüfe ich", "ich installiere", "installiere ich", "ich führe", "führe ich",
-	"ich splitte", "splitte ich", "ich öffne", "öffne ich", "ich oeffne", "oeffne ich",
-	"ich mache", "ich mach", "ich werde", "werde ich", "i will", "i'll", "let me", "starting", "launching",
-}
-
-var genericForwardCues = []string{
-	" next ", " now ", " then ", " after ", " continue ", " continuing ",
-	" weiter ", " danach ", " anschließend ", " nun ", " luego ", " despues ", " después ",
-	" ensuite ", " puis ", " maintenant ", " ora ", " poi ", " adesso ",
-}
-
-var operationalTerms = []string{
-	"build", "deploy", "test", "run", "restart", "install", "search", "write",
-	"edit", "update", "modify", "inspect", "create", "split", "module", "modules",
-	"lint", "screenshot", "publish", "commit", "push", "pull", "grep",
-	"open", "browse", "render", "compile", "generate", "homepage", "netlify",
-	"docker", "git", "play", "playing", "abspielen", "abgespielt", "spiele", "song", "musik", "hintergrundmusik", "music", "background music", "audio",
-	"google home", "chromecast", "cast",
-	"splitte", "aufteilen", "aufteile", "modularisieren", "modularisiere", "modul", "module", "app", "spiel",
-}
-
-var completionEvidenceTerms = []string{
-	"completed", "finished", "done", "successful", "successfully", "succeeded", "failed", "error",
-	"updated", "written", "wrote", "saved", "created", "deleted", "modified", "changed", "built",
-	"deployed", "installed", "rendered", "generated", "found", "listed", "read", "loaded", "analyzed",
-	"analysed", "verified", "published", "committed", "pushed", "pulled", "restarted",
-	"added", "removed", "enabled", "disabled", "activated", "configured", "inserted", "appended",
-	"abgeschlossen", "fertig", "erfolgreich", "fehlgeschlagen", "aktualisiert", "geschrieben",
-	"gespeichert", "erstellt", "geändert", "gebaut", "deployt", "installiert", "gefunden",
-	"gelesen", "geladen", "analysiert", "verifiziert", "veröffentlicht", "neu gestartet",
-	"generiert", "erzeugt", "konvertiert", "übertragen", "heruntergeladen", "hochgeladen",
-	// German past participles for creative/functional work
-	"hinzugefügt", "eingebaut", "ergänzt", "aktiviert", "deaktiviert", "konfiguriert",
-	"eingefügt", "entfernt", "angepasst", "integriert", "implementiert", "ausgeführt",
-	// German result/presentation verbs
-	"präsentiert", "gesendet", "gespielt", "abgespielt", "vorgeführt", "demonstriert",
-	"hier ist", "hier sind", "hier hast du", "hier haben wir", "schau mal", "siehe oben",
-	"tipp gelernt", "problem erkannt", "lösung gefunden",
-	// Unicode success indicators — must be checked in the original content (before lowercasing)
-	"✅", "✓", "☑", "✔",
-}
-
 var planLinePattern = regexp.MustCompile(`(?m)^\s*(?:[-*]|\d+[.)])\s+\S`)
 var pathLikePattern = regexp.MustCompile(`(?i)(?:[A-Za-z]:\\|/|\.{1,2}/|[A-Za-z0-9_-]+\.(?:go|ts|tsx|js|jsx|css|html|json|yaml|yml|md|log|txt|png|jpg|jpeg|webp|svg))`)
 var urlLikePattern = regexp.MustCompile(`(?i)\bhttps?://`)
-var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|sekunden|minuten|stunden|ms|kb|mb|gb)\b`)
+var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|ms|kb|mb|gb)\b`)
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
-var userDirectedQuestionPattern = regexp.MustCompile(`(?i)(?:\?|soll ich|sollen wir|möchtest du|moechtest du|willst du|wenn du willst|wenn du möchtest|wenn du moechtest|falls du willst|falls du möchtest|falls du moechtest|sag bescheid|gib bescheid|bitte bestätige|bitte bestaetige|warte auf|bestätig|bestaetig|freigeben|zustimmen|confirm|please confirm|if you want|if you'd like|if you would like|let me know|should i|should we|do you want|would you like|shall i|shall we|approve|approval)`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
 	if tc.IsTool || tc.RawCodeDetected || len(content) > 1000 {
@@ -86,85 +17,20 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	trimmedContent := strings.TrimSpace(content)
-	if trimmedContent == "" {
-		return false
-	}
-	if strings.HasSuffix(strings.TrimRight(trimmedContent, "\"'"), "?") {
-		return false
-	}
-	if asksUserForInput(trimmedContent) {
+	if trimmedContent == "" || asksUserForInput(trimmedContent) {
 		return false
 	}
 
-	lc := strings.ToLower(trimmedContent)
-	leadIn := lc
+	leadIn := strings.ToLower(trimmedContent)
 	if len(leadIn) > 250 {
 		leadIn = leadIn[:250]
 	}
 
-	containsAnnouncementPhrase := containsAnySubstring(leadIn, announcementPhrases)
-	containsForwardCue := containsAnyWordPhrase(leadIn, postToolForwardCues) || containsAnySubstring(leadIn, genericForwardCues)
-	containsActionCue := containsAnyWordPhrase(leadIn, postToolActionCues)
-	hasPlanStructure := looksLikePlanStructure(trimmedContent, leadIn)
-	hasActionIntent := containsActionIntent(leadIn)
-	hasCompletionEvidence := containsCompletionEvidence(lc)
-	requestLooksOperational := isOperationalExecutionRequest(lastUserMsg)
-
-	// When the user asked a question, only skip announcement detection if the
-	// response looks like a genuine answer (contains completion evidence) and
-	// does NOT simultaneously announce a next action.
-	userAskedQuestion := lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?")
-	if userAskedQuestion && hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue)) {
+	if containsCompletionEvidence(trimmedContent) {
 		return false
 	}
 
-	if !lastResponseWasTool {
-		// Guard against fabricated success/completion claims before any tool ran in
-		// this turn. This catches cases like "Test-Ergebnis: POSITIV" after the user
-		// asked the agent to execute or retry an operation, but no tool call happened.
-		if requestLooksOperational && hasCompletionEvidence && hasActionIntent {
-			return true
-		}
-		// Also exempt completion summaries in the pre-tool path to avoid false
-		// positives when the agent responds to a stall-guard or follow-up prompt
-		// after finishing all work (lastResponseWasTool is false because the stall
-		// guard injected a fake user message). Only an explicit forward cue AND an
-		// action cue together can override this (mixed completion+next-action case).
-		// A URL or "jetzt" (current state) alone must NOT suppress completion evidence.
-		// Exception: strong forward signal (action cue + plan structure like ":") always
-		// wins — e.g. "Todo erstellt! Jetzt baue ich X:" is an announcement even though
-		// "erstellt" looks like completion evidence.
-		strongForwardSignal := containsActionCue && hasPlanStructure
-		if hasCompletionEvidence && !strongForwardSignal && !(hasActionIntent && containsForwardCue && containsActionCue) {
-			return false
-		}
-		return containsAnnouncementPhrase || strongForwardSignal || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
-	}
-
-	// Post-tool path: if completion evidence is present, only override it when
-	// there are BOTH an explicit forward cue ("next", "als nächstes") AND an
-	// action cue ("let me", "ich werde"). Requiring both prevents false positives
-	// where a completion URL + "jetzt" (current state) suppresses the exemption:
-	//   "Fertig! läuft jetzt lokal auf http://..."  ← must NOT trigger
-	//   "Done! Now I will deploy to Netlify."        ← must still trigger
-	// Exception: strong forward signal (action cue + plan structure like trailing ":")
-	// overrides completion evidence — e.g. "Todo erstellt! Jetzt baue ich X ein:" must
-	// trigger even though "erstellt" is a completion term.
-	strongForwardSignal := containsActionCue && hasPlanStructure
-	if hasCompletionEvidence && !strongForwardSignal && !(hasActionIntent && containsForwardCue && containsActionCue) {
-		return false
-	}
-
-	// A clear announcement phrase (e.g. "lass mich", "ich werde", "let me") without
-	// any completion evidence is a sufficient trigger in the post-tool path.
-	// This catches responses like "Ich mach das selbst! Lass mich zuerst die
-	// Code-Struktur anschauen." where hasActionIntent is false (no file paths or
-	// operational terms) but the intent to act is unambiguous.
-	if containsAnnouncementPhrase && !hasCompletionEvidence {
-		return true
-	}
-
-	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
+	return looksLikePlanStructure(trimmedContent, leadIn)
 }
 
 func shouldRecoverAnnouncementOnlyResponse(parsedToolResp ParsedToolResponse, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
@@ -178,112 +44,6 @@ func shouldRecoverAnnouncementOnlyResponse(parsedToolResp ParsedToolResponse, tc
 	return true
 }
 
-func claimsToolUnavailableWithoutDiscovery(content string) bool {
-	lc := strings.ToLower(strings.TrimSpace(content))
-	if lc == "" {
-		return false
-	}
-	if !strings.Contains(lc, "tool") && !strings.Contains(lc, "werkzeug") {
-		return false
-	}
-	if strings.Contains(lc, "discover_tools") {
-		return false
-	}
-
-	availabilityClaims := []string{
-		"tool '", "tool `", "tool \"",
-		"not found", "not available", "not in my active tool list",
-		"disabled in config", "disabled in the config",
-		"nicht gefunden", "nicht verfügbar", "nicht in meiner aktiven tool-liste",
-		"nicht in meiner aktiven toolliste", "nicht in der aktiven tool-liste",
-	}
-	if containsAnySubstring(lc, availabilityClaims) &&
-		(strings.Contains(lc, "not found") ||
-			strings.Contains(lc, "not available") ||
-			strings.Contains(lc, "disabled in config") ||
-			strings.Contains(lc, "disabled in the config") ||
-			strings.Contains(lc, "nicht gefunden") ||
-			strings.Contains(lc, "nicht verfügbar") ||
-			strings.Contains(lc, "nicht in meiner aktiven") ||
-			strings.Contains(lc, "nicht in der aktiven")) {
-		return true
-	}
-
-	return strings.Contains(lc, "sehe") && strings.Contains(lc, "nicht")
-}
-
-func isOperationalExecutionRequest(msg string) bool {
-	lower := strings.ToLower(strings.TrimSpace(msg))
-	if lower == "" {
-		return false
-	}
-	if strings.Contains(lower, "status") &&
-		!strings.Contains(lower, "test") &&
-		!strings.Contains(lower, "retry") &&
-		!strings.Contains(lower, "erneut") &&
-		!strings.Contains(lower, "abspiel") &&
-		!strings.Contains(lower, "play") &&
-		!strings.Contains(lower, "execute") &&
-		!strings.Contains(lower, "führe") {
-		return false
-	}
-	if strings.Contains(lower, "erfolgreich") && !strings.Contains(lower, "teste") && !strings.Contains(lower, "test ") {
-		return false
-	}
-	phrases := []string{
-		"teste", "test ", "teste erneut", "try again", "retry", "prüfe", "check",
-		"spiel", "abspielen", "play", "run", "führe", "execute", "rufe", "call",
-		"starte", "start", "mach", "kannst du", "can you", "versuche", "probe",
-	}
-	for _, phrase := range phrases {
-		if strings.Contains(lower, phrase) {
-			return true
-		}
-	}
-	return false
-}
-
-func containsAnySubstring(s string, needles []string) bool {
-	for _, needle := range needles {
-		if needle != "" && strings.Contains(s, needle) {
-			return true
-		}
-	}
-	return false
-}
-
-// containsAnyWordPhrase checks whether any of the needles appears in s with
-// word boundaries: the characters immediately before and after the match must
-// not be ASCII letters.  This prevents cross-word false positives like
-// "read" matching inside "already" or "i will" matching inside "i willing".
-func containsAnyWordPhrase(s string, needles []string) bool {
-	for _, needle := range needles {
-		if needle == "" {
-			continue
-		}
-		idx := strings.Index(s, needle)
-		if idx < 0 {
-			continue
-		}
-		// Require that the byte before the match is not an ASCII letter.
-		if idx > 0 {
-			b := s[idx-1]
-			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') {
-				continue
-			}
-		}
-		// Require that the byte after the match is not an ASCII letter.
-		if endIdx := idx + len(needle); endIdx < len(s) {
-			b := s[endIdx]
-			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') {
-				continue
-			}
-		}
-		return true
-	}
-	return false
-}
-
 func looksLikePlanStructure(trimmedContent, leadIn string) bool {
 	if strings.HasSuffix(strings.TrimSpace(trimmedContent), ":") {
 		return true
@@ -294,35 +54,15 @@ func looksLikePlanStructure(trimmedContent, leadIn string) bool {
 	return planLinePattern.MatchString(trimmedContent)
 }
 
-func containsActionIntent(leadIn string) bool {
-	if containsAnyWordPhrase(leadIn, operationalTerms) {
-		return true
-	}
-	if pathLikePattern.MatchString(leadIn) || urlLikePattern.MatchString(leadIn) {
-		return true
-	}
-	return false
+func containsStructuralReference(content string) bool {
+	return pathLikePattern.MatchString(content) || urlLikePattern.MatchString(content)
 }
 
-func containsCompletionEvidence(lc string) bool {
-	// Check Unicode checkmark symbols in the original downcased (but not ASCII-only) string first.
-	// These are multi-byte UTF-8 runes that survive ToLower unchanged.
-	if strings.ContainsAny(lc, "✅✓☑✔") {
+func containsCompletionEvidence(content string) bool {
+	if strings.ContainsAny(content, "✅✓☑✔") {
 		return true
 	}
-	if containsAnyWordPhrase(lc, completionEvidenceTerms) {
-		return true
-	}
-	if resultMetricPattern.MatchString(lc) {
-		return true
-	}
-	if statusEvidencePattern.MatchString(lc) {
-		return true
-	}
-	if strings.Contains(lc, "saved to ") || strings.Contains(lc, "written to ") || strings.Contains(lc, "live at ") {
-		return true
-	}
-	return false
+	return resultMetricPattern.MatchString(content) || statusEvidencePattern.MatchString(content)
 }
 
 func asksUserForInput(content string) bool {
@@ -330,82 +70,5 @@ func asksUserForInput(content string) bool {
 	if trimmed == "" {
 		return false
 	}
-	if strings.HasSuffix(strings.TrimRight(trimmed, "\"'`*_ "), "?") {
-		return true
-	}
-	return userDirectedQuestionPattern.MatchString(trimmed)
-}
-
-func isDesktopAffirmativeContinuationRequest(lastUserMsg string) bool {
-	request := desktopUserRequestFromPrompt(lastUserMsg)
-	if request == "" {
-		request = lastUserMsg
-	}
-	normalized := normalizeDesktopBriefRequest(request)
-	if normalized == "" || strings.Contains(normalized, "?") || len(normalized) > 120 {
-		return false
-	}
-
-	exact := map[string]bool{
-		"ja": true, "ja bitte": true, "jep": true, "yes": true, "yep": true,
-		"ok": true, "okay": true, "gut": true, "top": true, "passt": true,
-		"mach": true, "mach das": true, "mach es": true, "dann mach": true,
-		"dann mach das": true, "dann mach es": true, "mach weiter": true,
-		"weiter": true, "los": true, "go": true, "do it": true,
-		"continue": true, "proceed": true, "go ahead": true,
-	}
-	if exact[normalized] {
-		return true
-	}
-
-	approvalPhrases := []string{
-		"dann mach", "mach jetzt", "mach bitte", "zieh es durch", "zieh's durch",
-		"ziehe es durch", "leg los", "ja mach", "ja bitte mach", "ok mach",
-		"bitte fortfahren", "go ahead", "please do", "do that", "do it",
-		"continue", "proceed",
-	}
-	return containsAnySubstring(normalized, approvalPhrases)
-}
-
-func desktopUserRequestFromPrompt(lastUserMsg string) string {
-	text := html.UnescapeString(strings.TrimSpace(lastUserMsg))
-	if text == "" {
-		return ""
-	}
-	const marker = `<external_data type="desktop_user_request">`
-	idx := strings.Index(text, marker)
-	if idx < 0 {
-		return ""
-	}
-	rest := text[idx+len(marker):]
-	if end := strings.Index(rest, "</external_data>"); end >= 0 {
-		rest = rest[:end]
-	}
-	return strings.TrimSpace(rest)
-}
-
-func normalizeDesktopBriefRequest(request string) string {
-	normalized := strings.ToLower(strings.TrimSpace(html.UnescapeString(request)))
-	normalized = strings.ReplaceAll(normalized, "’", "'")
-	normalized = strings.ReplaceAll(normalized, "´", "'")
-	normalized = strings.ReplaceAll(normalized, "`", "'")
-	normalized = strings.Join(strings.Fields(normalized), " ")
-	return strings.Trim(normalized, " \t\r\n.!,:;\"'*_")
-}
-
-func asksForDesktopReconfirmation(content string) bool {
-	lower := strings.ToLower(strings.TrimSpace(content))
-	if lower == "" {
-		return false
-	}
-	reconfirmationPhrases := []string{
-		"wenn du willst", "wenn du möchtest", "wenn du moechtest",
-		"falls du willst", "falls du möchtest", "falls du moechtest",
-		"schick mir", "schicke mir", "sag bescheid", "gib bescheid",
-		"bestätige", "bestaetige", "bitte bestätige", "bitte bestaetige",
-		"warte auf", "freigeben", "zustimmen",
-		"if you want", "if you'd like", "if you would like", "let me know",
-		"send me", "confirm", "please confirm", "approval", "approve",
-	}
-	return containsAnySubstring(lower, reconfirmationPhrases)
+	return strings.Contains(trimmed, "?")
 }

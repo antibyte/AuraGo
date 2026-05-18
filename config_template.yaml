@@ -74,7 +74,7 @@ agent:
         wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
     # ── Announcement detector ──
     announcement_detector:
-        enabled: false                                              # detect and suppress "I will now do X" announcements without action
+        enabled: false                                              # recover structurally incomplete text-only continuations without tool calls
     # ── Reuse-First materialisation ──
     # Controls when the agent automatically creates cheatsheets / skills from successful runs.
     # Without these gates, runs that ended in errors but happened to use words like "fixed" or

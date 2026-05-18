@@ -158,10 +158,11 @@ func TestBuildDesktopAgentPromptForbidsGenericFileToolsForDesktopPaths(t *testin
 func TestBuildDesktopAgentPromptTurnsShortApprovalsIntoAction(t *testing.T) {
 	t.Parallel()
 
-	prompt := buildDesktopAgentPrompt("ja", desktopChatContext{})
+	prompt := buildDesktopAgentPrompt("continue", desktopChatContext{})
 
 	for _, want := range []string{
-		`short approval`,
+		`short approval or continuation`,
+		`infer the referenced task from the visible chat history`,
 		`continue the previous Virtual Desktop task`,
 		`Do not ask for confirmation again`,
 		`start with the appropriate tool call`,
@@ -169,6 +170,9 @@ func TestBuildDesktopAgentPromptTurnsShortApprovalsIntoAction(t *testing.T) {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("desktop prompt missing approval execution guard %q in:\n%s", want, prompt)
 		}
+	}
+	if strings.Contains(prompt, `"ja"`) || strings.Contains(prompt, `"ok"`) || strings.Contains(prompt, `"go ahead"`) {
+		t.Fatalf("desktop prompt should not list language-specific approval examples:\n%s", prompt)
 	}
 }
 

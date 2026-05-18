@@ -572,7 +572,7 @@ type Config struct {
 		} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {
-			Enabled    bool `yaml:"enabled"`     // enable announcement-only response detection (default: true)
+			Enabled    bool `yaml:"enabled"`     // enable structural text-only continuation recovery (default: true)
 			MaxRetries int  `yaml:"max_retries"` // max corrective retries per user turn (default: 2)
 		} `yaml:"announcement_detector"`
 

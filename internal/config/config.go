@@ -195,7 +195,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
 
-	// Announcement detector: enabled by default; YAML can override with 'enabled: false'.
+	// Structural text-only continuation recovery: enabled by default; YAML can override with 'enabled: false'.
 	cfg.Agent.AnnouncementDetector.Enabled = true
 
 	// FritzBox defaults: disabled by default; system group enabled + readonly when fritzbox.enabled is set.
@@ -948,7 +948,7 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.MaxToolGuides <= 0 {
 		cfg.Agent.MaxToolGuides = 5
 	}
-	// AnnouncementDetector defaults — enabled by default.
+	// AnnouncementDetector defaults: structural text-only continuation recovery.
 	if cfg.Agent.AnnouncementDetector.MaxRetries <= 0 {
 		cfg.Agent.AnnouncementDetector.MaxRetries = 2
 	}
