@@ -1333,8 +1333,9 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob: https:; " +
 			"font-src 'self' https://fonts.gstatic.com; " +
-			"connect-src 'self' ws: wss: https://de1.api.radio-browser.info; " +
+			"connect-src 'self' blob: ws: wss: https://de1.api.radio-browser.info; " +
 			"media-src 'self' data: blob: http: https:; " +
+			"worker-src 'self' blob:; " +
 			"object-src 'none'; " +
 			"form-action 'self'; " +
 			"frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; " +
