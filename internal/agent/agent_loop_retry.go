@@ -366,10 +366,5 @@ func shouldAbortDesktopEmptyAfterTool(runCfg RunConfig, content string, lastResp
 	if runCfg.MessageSource != "virtual_desktop_chat" || !lastResponseWasTool {
 		return false
 	}
-	stripped := strings.TrimSpace(security.StripThinkingTags(content))
-	if stripped == "" {
-		return true
-	}
-	lower := strings.ToLower(stripped)
-	return strings.HasPrefix(lower, "<think") && !strings.Contains(lower, "</think")
+	return false
 }

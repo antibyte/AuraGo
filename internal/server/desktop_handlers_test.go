@@ -1,13 +1,23 @@
 package server
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing.T) {
@@ -176,7 +186,7 @@ func TestBuildDesktopAgentPromptTurnsShortApprovalsIntoAction(t *testing.T) {
 	}
 }
 
-func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
+func TestDesktopChatHandlersUseDirectAgentLoopForStreaming(t *testing.T) {
 	t.Parallel()
 
 	files := []string{"desktop_handlers.go", "desktop_handlers_chat.go"}
@@ -190,10 +200,13 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"runDesktopAgentChat(r.Context(), s, body.Message, body.Context)",
-		"agent.LoopbackContext(llmCtx, runCfg, prompt, combinedBroker)",
-		"agent.LoopbackContext(ctx, runCfg, prompt, broker)",
+		"prepareDesktopAgentTurn(r.Context(), s, body.Message, body.Context, true)",
+		"agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker)",
+		"agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker)",
 		"context.WithTimeout(ctx, 10*time.Minute)",
-		"lockSessionRequest(\"virtual-desktop\")",
+		"lockSessionRequest(desktopChatSessionID)",
+		"const desktopChatSessionID = \"virtual-desktop\"",
+		"const desktopChatMessageSource = \"virtual_desktop_chat\"",
 		"event == \"done\"",
 		"latestDesktopAssistantMessage(b.shortTermMem, b.sessionID)",
 	} {
@@ -201,8 +214,159 @@ func TestDesktopChatHandlersUseRequestContextForLoopback(t *testing.T) {
 			t.Fatalf("desktop chat cancellation missing marker %q", marker)
 		}
 	}
+	if strings.Contains(source, "agent.LoopbackContext") {
+		t.Fatal("desktop chat paths must not use LoopbackContext; streaming needs the primary agent loop")
+	}
 	if strings.Contains(source, "context.WithTimeout(context.Background(), 10*time.Minute)") {
 		t.Fatal("desktop chat must not use context.Background for agent loopback timeout")
+	}
+}
+
+func TestPrepareDesktopAgentTurnKeepsFullVisibleDesktopHistory(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	for i := 0; i < 30; i++ {
+		role := openai.ChatMessageRoleUser
+		if i%2 == 1 {
+			role = openai.ChatMessageRoleAssistant
+		}
+		if _, err := s.ShortTermMem.InsertMessage(desktopChatSessionID, role, "visible-history-message-"+string(rune('a'+i%26)), false, false); err != nil {
+			t.Fatalf("InsertMessage %d: %v", i, err)
+		}
+	}
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, "new request", desktopChatContext{}, true)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	if !turn.req.Stream {
+		t.Fatal("prepared desktop stream request must enable streaming")
+	}
+	if turn.req.Model != s.Cfg.LLM.Model {
+		t.Fatalf("prepared model = %q, want %q", turn.req.Model, s.Cfg.LLM.Model)
+	}
+	if turn.runCfg.SessionID != desktopChatSessionID {
+		t.Fatalf("runCfg.SessionID = %q, want %q", turn.runCfg.SessionID, desktopChatSessionID)
+	}
+	if turn.runCfg.MessageSource != desktopChatMessageSource {
+		t.Fatalf("runCfg.MessageSource = %q, want %q", turn.runCfg.MessageSource, desktopChatMessageSource)
+	}
+	if len(turn.req.Messages) < 31 {
+		t.Fatalf("prepared request kept %d messages, want at least all 30 visible history messages plus current request", len(turn.req.Messages))
+	}
+}
+
+func TestPrepareDesktopAgentTurnSanitizesOrphanedToolMessages(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	if _, err := s.ShortTermMem.InsertMessage(desktopChatSessionID, openai.ChatMessageRoleUser, "please run a tool", false, false); err != nil {
+		t.Fatalf("InsertMessage user: %v", err)
+	}
+	if _, err := s.ShortTermMem.InsertMessage(desktopChatSessionID, openai.ChatMessageRoleTool, `{"status":"orphaned"}`, false, false); err != nil {
+		t.Fatalf("InsertMessage tool: %v", err)
+	}
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, "continue", desktopChatContext{}, false)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	for _, msg := range turn.req.Messages {
+		if msg.Role == openai.ChatMessageRoleTool {
+			t.Fatalf("prepared request still contains orphaned tool message: %#v", msg)
+		}
+	}
+}
+
+func TestPrepareDesktopAgentTurnDoesNotPersistCameraBase64(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.Multimodal = true
+	s.Cfg.LLM.ProviderType = "openai"
+	imagePayload := "abc123desktopcamera"
+
+	turn, err := prepareDesktopAgentTurn(context.Background(), s, "what is in the image?", desktopChatContext{
+		ImageBase64: imagePayload,
+	}, true)
+	if err != nil {
+		t.Fatalf("prepareDesktopAgentTurn: %v", err)
+	}
+	var sawMultimodalImage bool
+	for _, msg := range turn.req.Messages {
+		if strings.Contains(msg.Content, imagePayload) {
+			t.Fatalf("prepared multimodal request should not duplicate camera base64 in text content: %#v", msg)
+		}
+		for _, part := range msg.MultiContent {
+			if part.ImageURL != nil && strings.Contains(part.ImageURL.URL, imagePayload) {
+				sawMultimodalImage = true
+			}
+		}
+	}
+	if !sawMultimodalImage {
+		t.Fatal("prepared multimodal request should carry camera image as image_url data URI")
+	}
+
+	history, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if err != nil {
+		t.Fatalf("GetSessionMessages: %v", err)
+	}
+	for _, msg := range history {
+		if strings.Contains(msg.Content, imagePayload) {
+			t.Fatalf("camera base64 leaked into SQLite history message: %q", msg.Content)
+		}
+	}
+}
+
+func TestDesktopChatStreamEmitsLLMDeltaBeforeDone(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Fatalf("unexpected upstream path: %s", r.URL.Path)
+		}
+		var req openai.ChatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode upstream request: %v", err)
+		}
+		if !req.Stream {
+			t.Fatal("desktop stream handler must call the LLM with stream=true")
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"test-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Desktop stream works.\"},\"finish_reason\":null}]}\n\n")
+		fmt.Fprint(w, "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"test-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(upstream.Close)
+
+	s := newTestDesktopChatServer(t)
+	s.Cfg.Directories.PromptsDir = testPromptsDir(t)
+	s.Cfg.Directories.SkillsDir = t.TempDir()
+	s.Cfg.Agent.SystemLanguage = "English"
+	s.Cfg.Agent.ContextWindow = 32768
+	s.Cfg.CircuitBreaker.LLMTimeoutSeconds = 30
+	s.Cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 10
+	s.Registry = tools.NewProcessRegistry(s.Logger)
+
+	openaiCfg := openai.DefaultConfig("test-key")
+	openaiCfg.BaseURL = upstream.URL + "/v1"
+	s.LLMClient = openai.NewClientWithConfig(openaiCfg)
+
+	body := bytes.NewBufferString(`{"message":"hello desktop"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/chat/stream", body)
+	handleDesktopChatStream(s).ServeHTTP(rec, req)
+
+	streamBody := rec.Body.String()
+	deltaIdx := strings.Index(streamBody, `"event":"llm_stream_delta"`)
+	doneIdx := strings.Index(streamBody, "[DONE]")
+	if deltaIdx == -1 {
+		t.Fatalf("desktop stream did not emit llm_stream_delta before completion:\n%s", streamBody)
+	}
+	if doneIdx == -1 {
+		t.Fatalf("desktop stream did not emit [DONE]:\n%s", streamBody)
+	}
+	if deltaIdx > doneIdx {
+		t.Fatalf("desktop stream emitted [DONE] before llm_stream_delta:\n%s", streamBody)
 	}
 }
 
@@ -229,6 +393,43 @@ func TestLatestDesktopAssistantMessageReturnsLastAssistantReply(t *testing.T) {
 	if got := latestDesktopAssistantMessage(stm, sessionID); got != "final answer" {
 		t.Fatalf("latestDesktopAssistantMessage = %q, want final answer", got)
 	}
+}
+
+func newTestDesktopChatServer(t *testing.T) *Server {
+	t.Helper()
+	logger := slog.Default()
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	cfg.LLM.ProviderType = "openai"
+	cfg.LLM.Multimodal = false
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	cfg.Server.UILanguage = "en"
+	cfg.CircuitBreaker.MaxToolCalls = 10
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 30
+	cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 10
+
+	return &Server{
+		Cfg:          cfg,
+		Logger:       logger,
+		SSE:          NewSSEBroadcaster(),
+		ShortTermMem: stm,
+	}
+}
+
+func testPromptsDir(t *testing.T) string {
+	t.Helper()
+	promptsDir, err := filepath.Abs(filepath.Join("..", "..", "prompts"))
+	if err != nil {
+		t.Fatalf("resolve prompts dir: %v", err)
+	}
+	return promptsDir
 }
 
 func TestDesktopChatUIRestoresAndClearsVirtualDesktopHistory(t *testing.T) {
@@ -269,6 +470,27 @@ func TestDesktopChatUIHandlesQuestionUserPrompts(t *testing.T) {
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop chat question UI missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopChatUIHandlesStreamingFallbackAndDone(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "js", "desktop", "apps", "agent-chat.js"))
+	if err != nil {
+		t.Fatalf("ReadFile desktop chat UI: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"event === 'final_response'",
+		"flushStreamingBubble();",
+		"event === 'done'",
+		"doFinalize();",
+		"event === 'token_update'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop streaming UI missing marker %q", marker)
 		}
 	}
 }

@@ -27,6 +27,7 @@ type Context struct {
 	PromptsDir       string
 	WarningsRegistry *warnings.Registry
 	Lang             string // UI language for i18n
+	SessionID        string // chat session targeted by session-scoped commands; empty means "default"
 }
 
 // Command defines the interface for a slash command.
@@ -71,15 +72,29 @@ func Handle(input string, ctx Context) (string, bool, error) {
 type ResetCommand struct{}
 
 func (c *ResetCommand) Execute(args []string, ctx Context) (string, error) {
-	sessionID := "default"
-	if err := ctx.STM.Clear(sessionID); err != nil {
-		return "", err
+	sessionID := commandSessionID(ctx)
+	if ctx.STM != nil {
+		if err := ctx.STM.Clear(sessionID); err != nil {
+			return "", err
+		}
 	}
-	if err := ctx.HM.Clear(); err != nil {
-		return "", err
+	if sessionID == "default" && ctx.HM != nil {
+		if err := ctx.HM.Clear(); err != nil {
+			return "", err
+		}
 	}
-	agent.ResetInnerVoiceState()
+	if sessionID == "default" {
+		agent.ResetInnerVoiceState()
+	}
 	return i18n.T(ctx.Lang, "backend.cmd_reset_success"), nil
+}
+
+func commandSessionID(ctx Context) string {
+	sessionID := strings.TrimSpace(ctx.SessionID)
+	if sessionID == "" {
+		return "default"
+	}
+	return sessionID
 }
 
 func (c *ResetCommand) Help() string {
@@ -106,7 +121,7 @@ func (c *HelpCommand) Help() string {
 type StopCommand struct{}
 
 func (c *StopCommand) Execute(args []string, ctx Context) (string, error) {
-	agent.InterruptSession("default")
+	agent.InterruptSession(commandSessionID(ctx))
 	return i18n.T(ctx.Lang, "backend.cmd_stop_success"), nil
 }
 

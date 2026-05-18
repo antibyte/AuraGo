@@ -10,12 +10,18 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
+
+const desktopChatSessionID = "virtual-desktop"
+const desktopChatMessageSource = "virtual_desktop_chat"
 
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +45,24 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "Message is required", http.StatusBadRequest)
 			return
 		}
-		unlockSession := lockSessionRequest("virtual-desktop")
+		if s == nil || s.Cfg == nil {
+			jsonError(w, "server not configured", http.StatusInternalServerError)
+			return
+		}
+		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
+		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
+			if err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Desktop command execution failed", "error", err)
+				}
+				jsonError(w, chatCompletionErrorMessage(desktopUILanguage(s), err), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
+			return
+		}
 		answer := runDesktopAgentChat(r.Context(), s, body.Message, body.Context)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
@@ -85,48 +107,31 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		unlockSession := lockSessionRequest("virtual-desktop")
+		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
-
-		s.CfgMu.RLock()
-		cfg := *s.Cfg
-		s.CfgMu.RUnlock()
-		llmClient := applyDesktopAgentProvider(r.Context(), s, &cfg)
-		sessionID := "virtual-desktop"
-		runCfg := agent.RunConfig{
-			Config:             &cfg,
-			Logger:             s.Logger,
-			LLMClient:          llmClient,
-			ShortTermMem:       s.ShortTermMem,
-			HistoryManager:     s.HistoryManager,
-			LongTermMem:        s.LongTermMem,
-			KG:                 s.KG,
-			InventoryDB:        s.InventoryDB,
-			InvasionDB:         s.InvasionDB,
-			CheatsheetDB:       s.CheatsheetDB,
-			ImageGalleryDB:     s.ImageGalleryDB,
-			MediaRegistryDB:    s.MediaRegistryDB,
-			HomepageRegistryDB: s.HomepageRegistryDB,
-			ContactsDB:         s.ContactsDB,
-			PlannerDB:          s.PlannerDB,
-			SQLConnectionsDB:   s.SQLConnectionsDB,
-			SQLConnectionPool:  s.SQLConnectionPool,
-			RemoteHub:          s.RemoteHub,
-			Vault:              s.Vault,
-			Registry:           s.Registry,
-			Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
-			CronManager:        s.CronManager,
-			MissionManagerV2:   s.MissionManagerV2,
-			CoAgentRegistry:    s.CoAgentRegistry,
-			BudgetTracker:      s.BudgetTracker,
-			DaemonSupervisor:   s.DaemonSupervisor,
-			LLMGuardian:        s.LLMGuardian,
-			PreparationService: s.PreparationService,
-			SessionID:          sessionID,
-			MessageSource:      "virtual_desktop_chat",
-			VoiceOutputActive:  GetSpeakerMode(),
+		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
+			if err != nil {
+				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+			} else {
+				sseWriteData(w, "final_response", answer)
+			}
+			sseWriteData(w, "done", "done")
+			sseWriteDone(w)
+			if canFlush {
+				flusher.Flush()
+			}
+			return
 		}
-		prompt := buildDesktopAgentPrompt(body.Message, body.Context)
+		turn, err := prepareDesktopAgentTurn(r.Context(), s, body.Message, body.Context, true)
+		if err != nil {
+			sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+			sseWriteData(w, "done", "done")
+			sseWriteDone(w)
+			if canFlush {
+				flusher.Flush()
+			}
+			return
+		}
 		broker := &desktopStreamBroker{
 			w:        w,
 			flusher:  flusher,
@@ -137,14 +142,18 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, sessionID)
+			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)
 			combinedBroker := &desktopStreamCombinedBroker{
 				stream:       broker,
 				sse:          sseBroker,
 				shortTermMem: s.ShortTermMem,
-				sessionID:    sessionID,
+				sessionID:    desktopChatSessionID,
 			}
-			agent.LoopbackContext(llmCtx, runCfg, prompt, combinedBroker)
+			if _, err := agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker); err != nil {
+				combinedBroker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+				combinedBroker.SendLLMStreamDone("error")
+				combinedBroker.Send("done", "done")
+			}
 		}()
 		select {
 		case <-done:
@@ -264,6 +273,28 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 
 func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
 	b.sse.SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal, isEstimated, isFinal, source)
+	b.stream.mu.Lock()
+	if b.stream.closed {
+		b.stream.mu.Unlock()
+		return
+	}
+	payload := TokenUpdatePayload{
+		SessionID:        b.sse.sessionID,
+		PromptTokens:     prompt,
+		CompletionTokens: completion,
+		TotalTokens:      total,
+		SessionTotal:     sessionTotal,
+		GlobalTotal:      globalTotal,
+		IsEstimated:      isEstimated,
+		IsFinal:          isFinal,
+		Source:           source,
+	}
+	data, _ := json.Marshal(payload)
+	sseWriteJSON(b.stream.w, "token_update", data)
+	if b.stream.canFlush {
+		b.stream.flusher.Flush()
+	}
+	b.stream.mu.Unlock()
 }
 
 func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state string) {
@@ -388,17 +419,111 @@ func desktopAgentProviderID(ctx context.Context, s *Server) string {
 	return strings.TrimSpace(payload.Settings["agent.provider"])
 }
 
-func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatContext desktopChatContext) string {
+type preparedDesktopAgentTurn struct {
+	req    openai.ChatCompletionRequest
+	runCfg agent.RunConfig
+}
+
+func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
+	var turn preparedDesktopAgentTurn
 	if s == nil || s.Cfg == nil {
-		return ""
+		return turn, fmt.Errorf("server not configured")
 	}
+	if s.ShortTermMem == nil {
+		return turn, fmt.Errorf("short-term memory not configured")
+	}
+
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
 	llmClient := applyDesktopAgentProvider(ctx, s, &cfg)
-	sessionID := "virtual-desktop"
-	runCfg := agent.RunConfig{
-		Config:             &cfg,
+
+	persistContext := chatContext
+	persistContext.ImageBase64 = ""
+	persistedPrompt := buildDesktopAgentPrompt(message, persistContext)
+	requestPrompt := persistedPrompt
+	if strings.TrimSpace(chatContext.ImageBase64) != "" {
+		requestPrompt = buildDesktopAgentPrompt(message, chatContext)
+		persistedPrompt += "\n\nThe user attached a Camera app photo for this turn. The raw image data is intentionally not stored in chat history."
+		if mainProviderSupportsImageMultimodal(&cfg) {
+			requestPrompt = persistedPrompt
+		}
+	}
+
+	if s.Guardian != nil {
+		s.Guardian.ScanUserInput(message)
+	}
+	if _, err := s.ShortTermMem.InsertMessage(desktopChatSessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false); err != nil {
+		return turn, fmt.Errorf("insert desktop user message: %w", err)
+	}
+	agent.NoteInnerVoiceUserTurn(desktopChatSessionID)
+
+	sessionMessages, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if err != nil {
+		return turn, fmt.Errorf("load desktop session messages: %w", err)
+	}
+
+	currentRequestMessage := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: requestPrompt,
+	}
+	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderSupportsImageMultimodal(&cfg) {
+		currentRequestMessage = openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleUser,
+			MultiContent: []openai.ChatMessagePart{
+				{Type: openai.ChatMessagePartTypeText, Text: requestPrompt},
+				{
+					Type: openai.ChatMessagePartTypeImageURL,
+					ImageURL: &openai.ChatMessageImageURL{
+						URL: "data:image/jpeg;base64," + strings.TrimSpace(chatContext.ImageBase64),
+					},
+				},
+			},
+		}
+	}
+
+	recentMessages := recentMessagesForRequest(desktopChatSessionID, "", []openai.ChatCompletionMessage{currentRequestMessage}, nil, sessionMessages)
+	recentMessages = replaceDesktopCurrentRequestMessage(recentMessages, persistedPrompt, currentRequestMessage)
+	if strings.TrimSpace(chatContext.ImageBase64) == "" {
+		for i, msg := range recentMessages {
+			recentMessages[i] = promoteUploadedImagesToMultiContent(&cfg, msg, cfg.Directories.WorkspaceDir, s.Logger)
+		}
+	}
+	sanitizedMessages, droppedToolMessages := agent.SanitizeToolMessages(recentMessages)
+	if droppedToolMessages > 0 && s.Logger != nil {
+		s.Logger.Warn("Sanitized orphaned desktop chat tool messages",
+			"session_id", desktopChatSessionID,
+			"dropped", droppedToolMessages,
+			"before", len(recentMessages),
+			"after", len(sanitizedMessages))
+	}
+
+	turn.req = openai.ChatCompletionRequest{
+		Model:    cfg.LLM.Model,
+		Messages: sanitizedMessages,
+		Stream:   stream,
+	}
+	turn.runCfg = buildDesktopRunConfig(s, &cfg, llmClient)
+	return turn, nil
+}
+
+func replaceDesktopCurrentRequestMessage(messages []openai.ChatCompletionMessage, persistedPrompt string, requestMessage openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == openai.ChatMessageRoleUser && messages[i].Content == persistedPrompt {
+			out := cloneChatCompletionMessages(messages)
+			out[i] = requestMessage
+			return out
+		}
+	}
+	return append(cloneChatCompletionMessages(messages), requestMessage)
+}
+
+func buildDesktopRunConfig(s *Server, cfg *config.Config, llmClient llm.ChatClient) agent.RunConfig {
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+	return agent.RunConfig{
+		Config:             cfg,
 		Logger:             s.Logger,
 		LLMClient:          llmClient,
 		ShortTermMem:       s.ShortTermMem,
@@ -426,25 +551,74 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 		DaemonSupervisor:   s.DaemonSupervisor,
 		LLMGuardian:        s.LLMGuardian,
 		PreparationService: s.PreparationService,
-		SessionID:          sessionID,
-		MessageSource:      "virtual_desktop_chat",
+		SessionID:          desktopChatSessionID,
+		MessageSource:      desktopChatMessageSource,
 		VoiceOutputActive:  GetSpeakerMode(),
 	}
-	prompt := buildDesktopAgentPrompt(message, chatContext)
-	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, sessionID)}
+}
+
+func handleDesktopSlashCommand(s *Server, message string) (string, bool, error) {
+	if !strings.HasPrefix(strings.TrimSpace(message), "/") {
+		return "", false, nil
+	}
+	if s == nil {
+		return "", true, fmt.Errorf("server not configured")
+	}
+	var promptsDir string
+	if s != nil && s.Cfg != nil {
+		promptsDir = s.Cfg.Directories.PromptsDir
+	}
+	cmdCtx := commands.Context{
+		STM:              s.ShortTermMem,
+		HM:               s.HistoryManager,
+		Vault:            s.Vault,
+		InventoryDB:      s.InventoryDB,
+		BudgetTracker:    s.BudgetTracker,
+		Cfg:              s.Cfg,
+		PromptsDir:       promptsDir,
+		WarningsRegistry: s.WarningsRegistry,
+		Lang:             desktopUILanguage(s),
+		SessionID:        desktopChatSessionID,
+	}
+	return commands.Handle(message, cmdCtx)
+}
+
+func desktopUILanguage(s *Server) string {
+	if s == nil || s.Cfg == nil {
+		return "de"
+	}
+	lang := strings.TrimSpace(s.Cfg.Server.UILanguage)
+	if lang == "" {
+		return "de"
+	}
+	return lang
+}
+
+func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatContext desktopChatContext) string {
+	turn, err := prepareDesktopAgentTurn(ctx, s, message, chatContext, false)
+	if err != nil {
+		return ""
+	}
+	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		agent.LoopbackContext(ctx, runCfg, prompt, broker)
+		if _, err := agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker); err != nil {
+			broker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+		}
 	}()
 	select {
 	case <-done:
 	case <-ctx.Done():
 		return "The desktop agent request timed out."
 	}
-	return strings.TrimSpace(broker.finalResponse)
+	answer := strings.TrimSpace(broker.finalResponse)
+	if answer == "" {
+		answer = latestDesktopAssistantMessage(s.ShortTermMem, desktopChatSessionID)
+	}
+	return strings.TrimSpace(answer)
 }
 
 func buildDesktopAgentPrompt(message string, chatContext desktopChatContext) string {

@@ -118,14 +118,14 @@ func TestDesktopAnnouncementRecoveryRejectsDoneWithoutToolAfterPromise(t *testin
 	}
 }
 
-func TestDesktopEmptyResponseAfterToolRequiresRecovery(t *testing.T) {
+func TestDesktopEmptyResponseAfterToolUsesNormalEmptyResponseHandling(t *testing.T) {
 	runCfg := RunConfig{MessageSource: "virtual_desktop_chat"}
 
-	if !shouldAbortDesktopEmptyAfterTool(runCfg, "", true) {
-		t.Fatal("expected empty desktop response after a tool call to require recovery")
+	if shouldAbortDesktopEmptyAfterTool(runCfg, "", true) {
+		t.Fatal("expected empty desktop response after a tool call to fall through to normal empty-response handling")
 	}
-	if !shouldAbortDesktopEmptyAfterTool(runCfg, "<think>still thinking", true) {
-		t.Fatal("expected reasoning-only desktop response after a tool call to require recovery")
+	if shouldAbortDesktopEmptyAfterTool(runCfg, "<think>still thinking", true) {
+		t.Fatal("expected reasoning-only desktop response after a tool call to fall through to normal response handling")
 	}
 	if shouldAbortDesktopEmptyAfterTool(runCfg, "done", true) {
 		t.Fatal("did not expect visible content to require empty-response recovery")

@@ -676,9 +676,13 @@
                                 }
                             } else if (streamingBubble && !streamingContent.trim() && text.trim()) {
                                 streamingContent = text;
+                                flushStreamingBubble();
                             }
                         }
                     } else if (event === 'done') {
+                        doFinalize();
+                        return;
+                    } else if (event === 'token_update') {
                         return;
                     }
                 }
