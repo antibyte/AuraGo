@@ -252,6 +252,61 @@ func TestShouldGenerateInnerVoice_RecoveryTriggerRequiresToolSuccess(t *testing.
 	}
 }
 
+func TestShouldGenerateInnerVoice_DesktopSuppressesPeriodicTrigger(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EngineV2 = true
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.MinIntervalSecs = 0
+	cfg.Personality.InnerVoice.DecayTurns = 1
+
+	ResetInnerVoiceState()
+
+	if shouldGenerateInnerVoice("virtual-desktop", cfg, 0, 0, 0, false, false, false) {
+		t.Fatal("desktop chat should not generate periodic inner voice thoughts")
+	}
+}
+
+func TestShouldGenerateInnerVoice_DesktopRecoveryIsStronglyRateLimited(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EngineV2 = true
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.MinIntervalSecs = 0
+	cfg.Personality.InnerVoice.DecayTurns = 1
+
+	ResetInnerVoiceState()
+	NoteInnerVoiceUserTurn("virtual-desktop")
+
+	if !shouldGenerateInnerVoice("virtual-desktop", cfg, 0, 3, 1, true, false, false) {
+		t.Fatal("desktop chat may generate one inner voice after a real recovery")
+	}
+	if shouldGenerateInnerVoice("virtual-desktop", cfg, 0, 3, 1, true, false, false) {
+		t.Fatal("desktop chat recovery inner voice should be rate-limited after first request")
+	}
+}
+
+func TestShouldGenerateInnerVoice_DesktopSessionCapIsLow(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EngineV2 = true
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.MinIntervalSecs = 0
+	cfg.Personality.InnerVoice.DecayTurns = 1
+
+	ResetInnerVoiceState()
+	NoteInnerVoiceUserTurn("virtual-desktop")
+	applyInnerVoiceResult("virtual-desktop", "first", "focus", 0.8)
+	applyInnerVoiceResult("virtual-desktop", "second", "focus", 0.8)
+
+	if shouldGenerateInnerVoice("virtual-desktop", cfg, 0, 3, 1, true, false, false) {
+		t.Fatal("desktop chat should cap inner voice to a very small number per session")
+	}
+}
+
 func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true

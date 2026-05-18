@@ -15,6 +15,7 @@ import (
 // innerVoiceState tracks runtime state for the inner voice system within a session.
 type innerVoiceState struct {
 	lastGenerated      time.Time
+	lastRequested      time.Time
 	generationCount    int
 	userTurnsSinceLast int
 	currentThought     string
@@ -33,12 +34,23 @@ var globalInnerVoiceStore = &innerVoiceStore{
 
 var innerVoiceWhitespaceRx = regexp.MustCompile(`\s+`)
 
+const (
+	desktopInnerVoiceSessionID     = "virtual-desktop"
+	desktopInnerVoiceMinInterval   = 15 * time.Minute
+	desktopInnerVoiceMaxPerSession = 2
+	desktopInnerVoiceRecoveryTurns = 1
+)
+
 func normalizeInnerVoiceSessionID(sessionID string) string {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return "default"
 	}
 	return sessionID
+}
+
+func isDesktopInnerVoiceSession(sessionID string) bool {
+	return normalizeInnerVoiceSessionID(sessionID) == desktopInnerVoiceSessionID
 }
 
 func getInnerVoiceStateLocked(sessionID string) *innerVoiceState {
@@ -79,6 +91,25 @@ func applyInnerVoiceResult(sessionID, thought, category string, confidence float
 	state.userTurnsSinceLast = 0
 	state.lastGenerated = time.Now()
 	state.generationCount++
+}
+
+func reserveInnerVoiceGeneration(sessionID string, maxPerSession int, minInterval time.Duration, now time.Time) bool {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	state := getInnerVoiceStateLocked(sessionID)
+	if maxPerSession > 0 && state.generationCount >= maxPerSession {
+		return false
+	}
+	if minInterval > 0 {
+		if !state.lastGenerated.IsZero() && now.Sub(state.lastGenerated) < minInterval {
+			return false
+		}
+		if !state.lastRequested.IsZero() && now.Sub(state.lastRequested) < minInterval {
+			return false
+		}
+	}
+	state.lastRequested = now
+	return true
 }
 
 // getInnerVoiceForPrompt returns the current inner voice text and its nudge category
@@ -150,21 +181,25 @@ func shouldGenerateInnerVoice(
 		return false
 	}
 
+	desktopSession := isDesktopInnerVoiceSession(sessionID)
+	now := time.Now()
+	maxPerSession := cfg.Personality.InnerVoice.MaxPerSession
+	if desktopSession && (maxPerSession <= 0 || maxPerSession > desktopInnerVoiceMaxPerSession) {
+		maxPerSession = desktopInnerVoiceMaxPerSession
+	}
+	minInterval := time.Duration(cfg.Personality.InnerVoice.MinIntervalSecs) * time.Second
+	if desktopSession && minInterval < desktopInnerVoiceMinInterval {
+		minInterval = desktopInnerVoiceMinInterval
+	}
+
 	globalInnerVoiceStore.mu.Lock()
 	state := getInnerVoiceStateLocked(sessionID)
-	elapsed := time.Since(state.lastGenerated)
 	genCount := state.generationCount
 	userTurnsSinceLast := state.userTurnsSinceLast
 	globalInnerVoiceStore.mu.Unlock()
 
 	// Session cap
-	if genCount >= cfg.Personality.InnerVoice.MaxPerSession {
-		return false
-	}
-
-	// Rate limiting
-	minInterval := time.Duration(cfg.Personality.InnerVoice.MinIntervalSecs) * time.Second
-	if elapsed < minInterval {
+	if maxPerSession > 0 && genCount >= maxPerSession {
 		return false
 	}
 
@@ -178,7 +213,16 @@ func shouldGenerateInnerVoice(
 	// Trigger: task completed after errors (recovery) — consecutiveErrors is 0 when recovered,
 	// so use totalErrors to check whether any errors occurred this session.
 	if taskCompleted && totalErrors > 0 && successCount > 0 {
-		return true
+		if desktopSession && userTurnsSinceLast < desktopInnerVoiceRecoveryTurns {
+			return false
+		}
+		return reserveInnerVoiceGeneration(sessionID, maxPerSession, minInterval, now)
+	}
+
+	// Desktop chat is a high-frequency tool surface. Keep inner voice out of normal
+	// Desktop turns and allow it only for rare post-error recovery summaries.
+	if desktopSession {
+		return false
 	}
 
 	// Trigger: periodic — generate inner voice during normal conversation (no errors required).
@@ -189,7 +233,7 @@ func shouldGenerateInnerVoice(
 		periodicThreshold = 3
 	}
 	if genCount == 0 || userTurnsSinceLast >= periodicThreshold {
-		return true
+		return reserveInnerVoiceGeneration(sessionID, maxPerSession, minInterval, now)
 	}
 
 	return false
