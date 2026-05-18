@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/llm"
 
@@ -66,6 +67,37 @@ func shouldHoldPotentialStreamedToolCallJSON(content string) bool {
 		}
 	}
 	return false
+}
+
+// utf8SafePrefixSplit keeps the byte-sized stream hold buffer from cutting a
+// multibyte rune into two invalid chunks before SSE/JSON encoding.
+func utf8SafePrefixSplit(s string, maxPrefixBytes int) (string, string) {
+	if maxPrefixBytes <= 0 {
+		return "", s
+	}
+	if maxPrefixBytes >= len(s) {
+		return s, ""
+	}
+	split := maxPrefixBytes
+	for split > 0 && split < len(s) && !utf8.RuneStart(s[split]) {
+		split--
+	}
+	return s[:split], s[split:]
+}
+
+// utf8SafeSuffix returns at least minSuffixBytes without starting inside a rune.
+func utf8SafeSuffix(s string, minSuffixBytes int) string {
+	if minSuffixBytes <= 0 {
+		return ""
+	}
+	if minSuffixBytes >= len(s) {
+		return s
+	}
+	start := len(s) - minSuffixBytes
+	for start > 0 && start < len(s) && !utf8.RuneStart(s[start]) {
+		start--
+	}
+	return s[start:]
 }
 
 func streamedToolCallTextPrefixes() []string {
@@ -254,7 +286,7 @@ func handleStreamingResponse(
 				}
 				if !suppressToolCallJSON && !xmlToolCallSuppressed {
 					if len(doneTagStreamBuf)+len(delta.Content) > doneTagStreamBufMaxLen {
-						doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
+						doneTagStreamBuf = utf8SafeSuffix(doneTagStreamBuf, doneTagHoldLen)
 					}
 					doneTagStreamBuf += delta.Content
 					if shouldSuppressStreamedToolCallJSON(doneTagStreamBuf) {
@@ -267,8 +299,7 @@ func handleStreamingResponse(
 					}
 					var toSend string
 					if len(doneTagStreamBuf) > doneTagHoldLen {
-						toSend = doneTagStreamBuf[:len(doneTagStreamBuf)-doneTagHoldLen]
-						doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
+						toSend, doneTagStreamBuf = utf8SafePrefixSplit(doneTagStreamBuf, len(doneTagStreamBuf)-doneTagHoldLen)
 					}
 					toSend = strings.ReplaceAll(toSend, doneTagStr, "")
 					// Check combined toSend+holdBuffer for prefixes so that a prefix

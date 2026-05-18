@@ -1,6 +1,10 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"unicode/utf8"
+)
 
 func TestShouldSuppressStreamedToolCallJSONRecognizesToolParametersWrapper(t *testing.T) {
 	input := `{"tool": "invasion_control", "parameters": {"operation": "egg_status", "nest_id": "7680f451-bad4-4908-92da-e286eb5f7c2a"}}`
@@ -35,5 +39,37 @@ func TestShouldSuppressStreamedToolCallTextRecognizesKimiFunctionWrapper(t *test
 	}
 	if got := input[:idx]; got != "Lass mich schnell das Wetter checken.\n\n" {
 		t.Fatalf("prefix before tool wrapper = %q", got)
+	}
+}
+
+func TestUTF8SafePrefixSplitDoesNotCutMultibyteRune(t *testing.T) {
+	input := "aaaaaü" + strings.Repeat("b", 16)
+
+	prefix, suffix := utf8SafePrefixSplit(input, len(input)-17)
+
+	if !utf8.ValidString(prefix) || !utf8.ValidString(suffix) {
+		t.Fatalf("split produced invalid UTF-8: prefix=%q suffix=%q", prefix, suffix)
+	}
+	if prefix != "aaaaa" {
+		t.Fatalf("prefix = %q, want %q", prefix, "aaaaa")
+	}
+	if suffix != "ü"+strings.Repeat("b", 16) {
+		t.Fatalf("suffix = %q", suffix)
+	}
+	if prefix+suffix != input {
+		t.Fatalf("split did not preserve input: %q + %q", prefix, suffix)
+	}
+}
+
+func TestUTF8SafeSuffixDoesNotCutMultibyteRune(t *testing.T) {
+	input := "aaaaaü" + strings.Repeat("b", 16)
+
+	suffix := utf8SafeSuffix(input, 17)
+
+	if !utf8.ValidString(suffix) {
+		t.Fatalf("suffix is invalid UTF-8: %q", suffix)
+	}
+	if suffix != "ü"+strings.Repeat("b", 16) {
+		t.Fatalf("suffix = %q", suffix)
 	}
 }

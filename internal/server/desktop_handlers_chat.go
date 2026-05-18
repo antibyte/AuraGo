@@ -59,12 +59,12 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 				jsonError(w, chatCompletionErrorMessage(desktopUILanguage(s), err), http.StatusInternalServerError)
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
 			return
 		}
 		answer := runDesktopAgentChat(r.Context(), s, body.Message, body.Context)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "answer": answer})
 	}
 }
@@ -97,7 +97,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			jsonError(w, "streaming not supported", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("X-Accel-Buffering", "no")

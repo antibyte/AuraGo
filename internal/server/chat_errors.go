@@ -65,7 +65,7 @@ func writeChatCompletionJSONResponse(w http.ResponseWriter, id, content string) 
 }
 
 func writeChatCompletionStreamTextResponse(w http.ResponseWriter, sessionID, content string) {
-	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	id := "msg-" + sessionID

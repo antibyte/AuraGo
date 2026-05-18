@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -427,6 +428,90 @@ func TestDesktopChatStreamEmitsLLMDeltaBeforeDone(t *testing.T) {
 	}
 	if deltaIdx > doneIdx {
 		t.Fatalf("desktop stream emitted [DONE] before llm_stream_delta:\n%s", streamBody)
+	}
+}
+
+func TestDesktopChatStreamPreservesUTF8AcrossHoldBoundary(t *testing.T) {
+	content := "aaaaaü" + strings.Repeat("b", 16)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Fatalf("unexpected upstream path: %s", r.URL.Path)
+		}
+		var req openai.ChatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode upstream request: %v", err)
+		}
+		if !req.Stream {
+			t.Fatal("desktop stream handler must call the LLM with stream=true")
+		}
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+		chunk, err := json.Marshal(map[string]interface{}{
+			"id":      "chatcmpl-test",
+			"object":  "chat.completion.chunk",
+			"created": 1,
+			"model":   "test-model",
+			"choices": []map[string]interface{}{
+				{
+					"index":         0,
+					"delta":         map[string]string{"content": content},
+					"finish_reason": nil,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("marshal stream chunk: %v", err)
+		}
+		fmt.Fprintf(w, "data: %s\n\n", chunk)
+		fmt.Fprint(w, "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"test-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(upstream.Close)
+
+	s := newTestDesktopChatServer(t)
+	s.Cfg.Directories.PromptsDir = testPromptsDir(t)
+	s.Cfg.Directories.SkillsDir = t.TempDir()
+	s.Cfg.Agent.SystemLanguage = "English"
+	s.Cfg.Agent.ContextWindow = 32768
+	s.Cfg.CircuitBreaker.LLMTimeoutSeconds = 30
+	s.Cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 10
+	s.Registry = tools.NewProcessRegistry(s.Logger)
+
+	openaiCfg := openai.DefaultConfig("test-key")
+	openaiCfg.BaseURL = upstream.URL + "/v1"
+	s.LLMClient = openai.NewClientWithConfig(openaiCfg)
+
+	body := bytes.NewBufferString(`{"message":"hello desktop"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/chat/stream", body)
+	handleDesktopChatStream(s).ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Content-Type"); got != "text/event-stream; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want text/event-stream; charset=utf-8", got)
+	}
+
+	var joined strings.Builder
+	for _, line := range strings.Split(rec.Body.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data: ") || line == "data: [DONE]" {
+			continue
+		}
+		var payload struct {
+			Event   string `json:"event"`
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &payload); err == nil && payload.Event == "llm_stream_delta" {
+			joined.WriteString(payload.Content)
+		}
+	}
+	got := joined.String()
+	if !utf8.ValidString(got) {
+		t.Fatalf("joined stream content is invalid UTF-8: %q", got)
+	}
+	if strings.ContainsRune(got, '\uFFFD') {
+		t.Fatalf("joined stream content contains replacement characters: %q", got)
+	}
+	if got != content {
+		t.Fatalf("joined stream content = %q, want %q", got, content)
 	}
 }
 

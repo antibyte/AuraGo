@@ -597,7 +597,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// runCfg is already built above for prompt context flags.
 
 		if req.Stream {
-			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
