@@ -71,7 +71,7 @@ func toolCallForExecutionTracking(tc ToolCall) ToolCall {
 	if tc.Action != "invoke_tool" {
 		return tc
 	}
-	toolName := stringValueFromMap(tc.Params, "tool_name", "name")
+	toolName := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
 	if toolName == "" {
 		return tc
 	}

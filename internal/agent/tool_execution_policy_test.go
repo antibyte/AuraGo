@@ -115,6 +115,20 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 		t.Fatalf("expected success, got %+v", result)
 	}
 
+	result2 := finalizeToolExecution(ToolCall{
+		Action: "invoke_tool",
+		Params: map[string]interface{}{
+			"tool": "yepapi_instagram",
+			"arguments": map[string]interface{}{
+				"operation": "user",
+				"username":  "jopliness",
+			},
+		},
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100)
+	if result2.Failed {
+		t.Fatalf("expected success, got %+v", result2)
+	}
+
 	invokeCount, err := stm.GetToolUsageCount("invoke_tool")
 	if err != nil {
 		t.Fatalf("GetToolUsageCount invoke_tool: %v", err)
@@ -126,8 +140,8 @@ func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetToolUsageCount yepapi_instagram: %v", err)
 	}
-	if instagramCount != 1 {
-		t.Fatalf("yepapi_instagram usage count = %d, want 1", instagramCount)
+	if instagramCount != 2 {
+		t.Fatalf("yepapi_instagram usage count = %d, want 2", instagramCount)
 	}
 }
 

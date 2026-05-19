@@ -39,7 +39,7 @@ type DiscoverToolResult struct {
 
 // handleDiscoverTools dispatches discover_tools operations (list_categories, search, get_tool_info).
 func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, sessionID string) string {
-	op := strings.TrimSpace(stringValueFromMap(tc.Params, "operation"))
+	op := strings.TrimSpace(stringValueFromMap(tc.Params, "operation", "op"))
 	if op == "" {
 		return "Tool Output: ERROR 'operation' is required. Use list_categories, search, or get_tool_info."
 	}
@@ -55,7 +55,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 
 	switch op {
 	case "list_categories":
-		category := strings.TrimSpace(stringValueFromMap(tc.Params, "category"))
+		category := strings.TrimSpace(stringValueFromMap(tc.Params, "category", "category_name", "cat"))
 		discoverToolsLogInfo(logger, "[DiscoverTools] list_categories", "category", category)
 		return discoverToolsJSON(DiscoverToolsResponse{
 			Status:   "success",
@@ -65,7 +65,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		})
 
 	case "search":
-		query := strings.TrimSpace(stringValueFromMap(tc.Params, "query"))
+		query := strings.TrimSpace(stringValueFromMap(tc.Params, "query", "q", "search_query", "keyword"))
 		if query == "" {
 			return "Tool Output: ERROR 'query' is required for search."
 		}
@@ -85,7 +85,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		})
 
 	case "get_tool_info":
-		toolName := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name"))
+		toolName := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
 		if toolName == "" {
 			return "Tool Output: ERROR 'tool_name' is required for get_tool_info."
 		}

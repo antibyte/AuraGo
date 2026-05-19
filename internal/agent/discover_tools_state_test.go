@@ -378,3 +378,80 @@ func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
 		t.Fatalf("second consume = %v, want empty", second)
 	}
 }
+
+func TestHandleDiscoverToolsAliasFallbacks(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	allSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "chromecast",
+				Description: "Control Chromecast devices",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-fallback", allSchemas, nil, "")
+
+	cfg := &config.Config{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Test 1: Fallback for 'operation' and 'category'
+	out1 := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"op":  "list_categories",
+			"cat": "system",
+		},
+	}, cfg, logger, "sess-fallback")
+	var payload1 DiscoverToolsResponse
+	decodeToolOutputJSON(t, out1, &payload1)
+	if payload1.Status != "success" || payload1.Category != "system" {
+		t.Fatalf("list_categories fallback failed: status=%s, category=%s, raw=%s", payload1.Status, payload1.Category, out1)
+	}
+
+	// Test 2: Fallback for 'query'
+	out2 := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"op": "search",
+			"q":  "chromecast",
+		},
+	}, cfg, logger, "sess-fallback")
+	var payload2 DiscoverToolsResponse
+	decodeToolOutputJSON(t, out2, &payload2)
+	if payload2.Status != "success" || len(payload2.Results) != 1 {
+		t.Fatalf("search fallback failed: status=%s, results=%d, raw=%s", payload2.Status, len(payload2.Results), out2)
+	}
+
+	// Test 3: Fallback for 'tool_name' using 'name'
+	out3 := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"op":   "get_tool_info",
+			"name": "chromecast",
+		},
+	}, cfg, logger, "sess-fallback")
+	var payload3 DiscoverToolsResponse
+	decodeToolOutputJSON(t, out3, &payload3)
+	if payload3.Status != "success" || payload3.Tool == nil || payload3.Tool.Name != "chromecast" {
+		t.Fatalf("get_tool_info fallback name failed: status=%s, raw=%s", payload3.Status, out3)
+	}
+
+	// Test 4: Fallback for 'tool_name' using 'tool'
+	out4 := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"op":   "get_tool_info",
+			"tool": "chromecast",
+		},
+	}, cfg, logger, "sess-fallback")
+	var payload4 DiscoverToolsResponse
+	decodeToolOutputJSON(t, out4, &payload4)
+	if payload4.Status != "success" || payload4.Tool == nil || payload4.Tool.Name != "chromecast" {
+		t.Fatalf("get_tool_info fallback tool failed: status=%s, raw=%s", payload4.Status, out4)
+	}
+}
+

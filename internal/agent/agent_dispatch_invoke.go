@@ -8,7 +8,7 @@ import (
 )
 
 func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
-	toolName := stringValueFromMap(tc.Params, "tool_name", "name")
+	toolName := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
 	if toolName == "" {
 		logInvalidToolCommand(dc.Logger, "invoke_tool", "", "missing_tool_name", tc.Params)
 		return `Tool Output: {"status":"error","message":"invoke_tool requires tool_name"}`
