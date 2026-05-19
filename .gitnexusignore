@@ -15,6 +15,7 @@
 .playwright-mcp/
 .superpowers/
 .worktrees/
+.gitnexus/
 disposable/
 
 # Local environments and dependency caches
@@ -38,6 +39,7 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 **/Cargo.lock
+/tools/aurago-tui/zig/
 
 # Build outputs, release bundles, and binaries
 /bin/
@@ -69,6 +71,8 @@ yarn.lock
 *.cover
 coverage.*
 *.zip
+*.glb
+*.gltf
 /resources.dat
 /SHA256SUMS
 /build.log
