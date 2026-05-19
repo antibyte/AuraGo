@@ -66,6 +66,22 @@ func knownReasoningExtractedActionSet(currentTools []openai.Tool, manifest *tool
 
 func normalizeParsedToolShortcut(tc ToolCall) ToolCall {
 	action := strings.TrimSpace(tc.Action)
+	if strings.HasPrefix(action, "tool__") {
+		customName := strings.TrimSpace(strings.TrimPrefix(action, "tool__"))
+		if customName == "" {
+			return tc
+		}
+		tc.Action = "run_tool"
+		if tc.Name == "" {
+			tc.Name = customName
+		}
+		if tc.Params == nil {
+			tc.Params = map[string]interface{}{"name": customName}
+		} else {
+			tc.Params = normalizeCustomToolShortcutArgs(customName, tc.Params)
+		}
+		return tc
+	}
 	if !strings.HasPrefix(action, "skill__") {
 		return tc
 	}

@@ -12,6 +12,25 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(execSkillProps, "skill"),
 		),
+		tool("run_tool",
+			"Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
+			schema(map[string]interface{}{
+				"name":       prop("string", "Custom tool filename or registered manifest name to run"),
+				"args":       map[string]interface{}{"type": "array", "description": "Optional positional command-line arguments for the tool", "items": map[string]interface{}{"type": "string"}},
+				"params":     map[string]interface{}{"type": "object", "description": "Optional structured parameters; forwarded to the tool as one JSON argument"},
+				"background": prop("boolean", "Run as background process (default false)"),
+				"vault_keys": map[string]interface{}{
+					"type":        "array",
+					"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"credential_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+			}, "name"),
+		),
 		tool("wikipedia_search",
 			"Search Wikipedia and return the best matching article summary. "+
 				"Use this for encyclopedic facts, biographies, places, historical topics, and definitions. "+

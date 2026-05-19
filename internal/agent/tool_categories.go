@@ -48,6 +48,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"invoke_tool", "Invoke enabled native tools that are hidden by adaptive filtering"},
 		{"list_skills", "List registered Python skills"},
 		{"execute_skill", "Execute a registered Python skill"},
+		{"run_tool", "Run a saved custom Python tool"},
 		{"save_tool", "Save a custom executable tool"},
 		{"list_skill_templates", "List templates for creating reusable skills"},
 		{"create_skill_from_template", "Create a reusable skill from a managed template"},

@@ -1,6 +1,9 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDecodeCallWebhookArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
@@ -68,6 +71,27 @@ func TestDecodeRunToolArgsUsesParamsFallback(t *testing.T) {
 	}
 	if len(req.CredentialIDs) != 1 || req.CredentialIDs[0] != "cred-1" {
 		t.Fatalf("CredentialIDs = %v, want [cred-1]", req.CredentialIDs)
+	}
+}
+
+func TestDecodeRunToolArgsSerializesStructuredParams(t *testing.T) {
+	tc := ToolCall{
+		Action: "run_tool",
+		Params: map[string]interface{}{
+			"name": "worker.py",
+			"params": map[string]interface{}{
+				"city":  "Berlin",
+				"limit": float64(3),
+			},
+		},
+	}
+
+	req := decodeRunToolArgs(tc)
+	if req.Name != "worker.py" {
+		t.Fatalf("Name = %q, want worker.py", req.Name)
+	}
+	if len(req.Args) != 1 || !strings.Contains(req.Args[0], `"city":"Berlin"`) || !strings.Contains(req.Args[0], `"limit":3`) {
+		t.Fatalf("Args = %#v, want one JSON argument", req.Args)
 	}
 }
 

@@ -434,6 +434,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	// Convert skill__name shortcut to execute_skill so the skill dispatcher handles it correctly.
 	name := strings.TrimSpace(native.Function.Name)
 	skillFromShortcut := ""
+	customFromShortcut := ""
 	if strings.HasPrefix(name, "skill__") {
 		skillFromShortcut = strings.TrimPrefix(name, "skill__")
 		if _, err := tools.ValidateSkillShortcutName(skillFromShortcut); err != nil {
@@ -449,11 +450,16 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		}
 		name = "execute_skill"
 	}
+	if strings.HasPrefix(name, "tool__") {
+		customFromShortcut = strings.TrimSpace(strings.TrimPrefix(name, "tool__"))
+		name = "run_tool"
+	}
 
 	tc := ToolCall{
 		IsTool:       true,
 		Action:       name,
 		Skill:        skillFromShortcut,
+		Name:         customFromShortcut,
 		NativeCallID: native.ID,
 	}
 
@@ -475,6 +481,9 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	rawMapOK := json.Unmarshal([]byte(normalizedArgs), &rawMap) == nil
 	if rawMapOK {
 		decodeNativeJSONStringObjectArgs(rawMap)
+		if customFromShortcut != "" {
+			rawMap = normalizeCustomToolShortcutArgs(customFromShortcut, rawMap)
+		}
 		if normalizedBytes, err := json.Marshal(rawMap); err == nil {
 			normalizedArgs = string(normalizedBytes)
 		}
@@ -543,6 +552,39 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	}
 
 	return tc
+}
+
+func normalizeCustomToolShortcutArgs(customName string, raw map[string]interface{}) map[string]interface{} {
+	out := map[string]interface{}{"name": customName}
+	if len(raw) == 0 {
+		return out
+	}
+	for _, key := range []string{"background", "vault_keys", "credential_ids", "_todo"} {
+		if value, ok := raw[key]; ok {
+			out[key] = value
+		}
+	}
+	if args, ok := raw["args"]; ok {
+		out["args"] = args
+		return out
+	}
+	if params, ok := raw["params"]; ok {
+		out["args"] = params
+		return out
+	}
+	params := make(map[string]interface{})
+	for key, value := range raw {
+		switch key {
+		case "action", "name", "tool", "tool_name", "args", "params", "background", "vault_keys", "credential_ids", "_todo":
+			continue
+		default:
+			params[key] = value
+		}
+	}
+	if len(params) > 0 {
+		out["args"] = params
+	}
+	return out
 }
 
 func decodeNativeJSONStringObjectArgs(m map[string]interface{}) {

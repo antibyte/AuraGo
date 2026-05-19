@@ -163,6 +163,32 @@ func TestNativeToolCallToToolCall_AllowsValidSkillShortcut(t *testing.T) {
 	}
 }
 
+func TestNativeToolCallToToolCall_ConvertsCustomToolShortcut(t *testing.T) {
+	native := openai.ToolCall{
+		ID:   "call_custom_shortcut",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "tool__hello_custom.py",
+			Arguments: `{"params":{"city":"Berlin","units":"metric"}}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, nil)
+	if tc.NativeArgsMalformed {
+		t.Fatalf("unexpected malformed flag: %q", tc.NativeArgsError)
+	}
+	if tc.Action != "run_tool" {
+		t.Fatalf("Action = %q, want run_tool", tc.Action)
+	}
+	if tc.Name != "hello_custom.py" {
+		t.Fatalf("Name = %q, want hello_custom.py", tc.Name)
+	}
+	args := decodeRunToolArgs(tc).Args
+	if len(args) != 1 || !strings.Contains(args[0], `"city":"Berlin"`) || !strings.Contains(args[0], `"units":"metric"`) {
+		t.Fatalf("Args = %#v, want one JSON argument with params", args)
+	}
+}
+
 // TestToolSchemaManualSync verifies that every built-in tool has a corresponding
 // manual in the embedded prompts/tools_manuals/ directory.
 // Tools listed in knownNoManual are exempt (simple tools that don't need guides).

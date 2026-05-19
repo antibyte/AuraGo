@@ -198,6 +198,22 @@ func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 	}
 }
 
+func TestMarkDiscoverRequestedToolUsesDefaultSessionForEmptyID(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	MarkDiscoverRequestedTool("", "chromecast")
+
+	got := ConsumeDiscoverRequestedTools("")
+	if len(got) != 1 || got[0] != "chromecast" {
+		t.Fatalf("default-session requested tools = %v, want [chromecast]", got)
+	}
+}
+
 func TestDiscoverToolsCatalogIsSessionScoped(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()

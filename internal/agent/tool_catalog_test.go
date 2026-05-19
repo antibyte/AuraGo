@@ -152,6 +152,32 @@ func TestDiscoverToolsReturnsSkillCallMethod(t *testing.T) {
 	}
 }
 
+func TestDiscoverToolsReturnsCustomToolCallMethod(t *testing.T) {
+	resetToolCatalogForTest(t)
+	schemas := []openai.Tool{
+		testToolSchema("run_tool", "Run custom tool"),
+		testToolSchema("tool__weather_helper.py", "(Custom tool) Weather helper"),
+	}
+	SetDiscoverToolsState("sess-custom", schemas, []openai.Tool{schemas[0]}, "")
+
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "search",
+			"query":     "weather_helper",
+		},
+	}, &config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-custom")
+
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if len(payload.Results) != 1 {
+		t.Fatalf("results = %d, want 1: %s", len(payload.Results), out)
+	}
+	got := payload.Results[0]
+	if got.Name != "weather_helper.py" || got.Kind != string(ToolKindCustom) || got.CallMethod != "run_tool" || !got.CallableNow {
+		t.Fatalf("custom result = %+v, want run_tool callable", got)
+	}
+}
+
 func TestInvokeToolRoutesHiddenNativeTool(t *testing.T) {
 	resetToolCatalogForTest(t)
 	cfg := &config.Config{}

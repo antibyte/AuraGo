@@ -91,7 +91,7 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 // via discover_tools for the given session, so the next loop iteration can re-add
 // it to the active native tool list.
 func MarkDiscoverRequestedTool(sessionID, toolName string) {
-	if sessionID == "" || toolName == "" {
+	if toolName == "" {
 		return
 	}
 	sessionID = normalizeDiscoverSessionID(sessionID)
@@ -109,9 +109,6 @@ func MarkDiscoverRequestedTool(sessionID, toolName string) {
 // GetDiscoverRequestedTools returns session-scoped hidden tools that should be
 // temporarily re-included after discover_tools surfaced them.
 func GetDiscoverRequestedTools(sessionID string) []string {
-	if sessionID == "" {
-		return nil
-	}
 	sessionID = normalizeDiscoverSessionID(sessionID)
 	discoverToolsState.mu.RLock()
 	defer discoverToolsState.mu.RUnlock()
@@ -129,9 +126,6 @@ func GetDiscoverRequestedTools(sessionID string) []string {
 // ConsumeDiscoverRequestedTools returns session-scoped requested tools once and
 // clears them so discovery does not permanently bypass adaptive filtering.
 func ConsumeDiscoverRequestedTools(sessionID string) []string {
-	if sessionID == "" {
-		return nil
-	}
 	sessionID = normalizeDiscoverSessionID(sessionID)
 	discoverToolsState.mu.Lock()
 	defer discoverToolsState.mu.Unlock()

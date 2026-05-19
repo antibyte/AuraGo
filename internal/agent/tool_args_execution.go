@@ -1,5 +1,7 @@
 package agent
 
+import "encoding/json"
+
 type callWebhookArgs struct {
 	WebhookName string
 	Parameters  map[string]interface{}
@@ -426,6 +428,12 @@ func toolArgStringsFromRaw(raw interface{}) []string {
 		if values != "" {
 			return []string{values}
 		}
+	case map[string]interface{}:
+		if len(values) > 0 {
+			if b, err := json.Marshal(values); err == nil {
+				return []string{string(b)}
+			}
+		}
 	}
 	return nil
 }
@@ -463,6 +471,9 @@ func decodeRunToolArgs(tc ToolCall) runToolArgs {
 	}
 	if len(req.Args) == 0 {
 		req.Args = toolArgStringsFromRaw(tc.Params["args"])
+	}
+	if len(req.Args) == 0 {
+		req.Args = toolArgStringsFromRaw(tc.Params["params"])
 	}
 	if tc.Background {
 		req.Background = true
