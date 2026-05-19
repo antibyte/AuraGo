@@ -437,6 +437,10 @@ func GetFrequentToolsWeighted(topN int, halfLifeDays float64, weightSuccess bool
 		return ranked[i].score > ranked[j].score
 	})
 
+	if topN <= 0 {
+		topN = len(ranked)
+	}
+
 	result := make([]string, 0, topN)
 	for i := 0; i < topN && i < len(ranked); i++ {
 		result = append(result, ranked[i].tool)

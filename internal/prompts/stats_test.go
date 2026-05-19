@@ -175,6 +175,15 @@ func TestGetFrequentToolsWeighted(t *testing.T) {
 	if result[1] != "docker" {
 		t.Errorf("Second tool should be docker, got %q", result[1])
 	}
+
+	// Test topN = 0 (should return all scored tools with score >= 0.5)
+	resultAll := GetFrequentToolsWeighted(0, 7, false)
+	if len(resultAll) != 3 {
+		t.Fatalf("GetFrequentToolsWeighted(0, 7) returned %d tools, want 3", len(resultAll))
+	}
+	if resultAll[0] != "shell" || resultAll[1] != "docker" || resultAll[2] != "ansible" {
+		t.Errorf("GetFrequentToolsWeighted(0, 7) returned incorrect tools order: %#v", resultAll)
+	}
 }
 
 func TestGetFrequentToolsWeightedEmpty(t *testing.T) {
