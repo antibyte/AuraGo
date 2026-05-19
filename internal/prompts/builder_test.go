@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -499,6 +500,17 @@ func TestPrepareDynamicGuidesWithStrategySkipsToolsOutsideAllowedSet(t *testing.
 	)
 	if len(guides) != 0 {
 		t.Fatalf("expected disabled/not-allowed guide to be skipped, got %d guides: %q", len(guides), guides)
+	}
+}
+
+func TestIsToolPathSafeAllowsWindowsCaseVariant(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path comparison is case-insensitive")
+	}
+	base := filepath.Clean(`C:\Users\Andi\Prompts\tools_manuals`)
+	path := filepath.Clean(`c:\users\andi\prompts\tools_manuals\homepage.md`)
+	if !isToolPathSafe(path, base) {
+		t.Fatalf("expected case-only Windows path variant to remain inside base: path=%q base=%q", path, base)
 	}
 }
 

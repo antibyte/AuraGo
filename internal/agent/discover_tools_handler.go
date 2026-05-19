@@ -44,11 +44,11 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		return "Tool Output: ERROR 'operation' is required. Use list_categories, search, or get_tool_info."
 	}
 
-	allSchemas, activeNames, enabledNames, _ := GetDiscoverToolsState()
+	allSchemas, activeNames, enabledNames, _ := GetDiscoverToolsState(sessionID)
 	if len(allSchemas) == 0 {
 		return "Tool Output: Tool state not available yet. Try again after the first agent turn."
 	}
-	catalog := GetToolCatalogState()
+	catalog := GetToolCatalogState(sessionID)
 	if catalog == nil {
 		catalog = BuildToolCatalog(allSchemas, schemasFromActiveNames(allSchemas, activeNames), cfg.Directories.PromptsDir)
 	}
@@ -81,7 +81,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		return discoverToolsJSON(DiscoverToolsResponse{
 			Status:  "success",
 			Summary: fmt.Sprintf("%d tools matching '%s'", len(results), query),
-			Results: discoverResultsFromEntries(results, sessionID, true),
+			Results: discoverResultsFromEntries(results, sessionID, false),
 		})
 
 	case "get_tool_info":
@@ -112,7 +112,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 			return discoverToolsJSON(DiscoverToolsResponse{
 				Status:  "success",
 				Summary: fmt.Sprintf("Tool family '%s' has %d enabled tools", resolvedToolName, len(enabledGroupResults)),
-				Results: discoverResultsFromEntries(enabledGroupResults, sessionID, true),
+				Results: discoverResultsFromEntries(enabledGroupResults, sessionID, false),
 			})
 		}
 
@@ -123,7 +123,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 
 		info := FormatToolInfo(resolvedToolName, allSchemas, guide)
 		if !toolSchemaExists(resolvedToolName, allSchemas) {
-			if groupInfo := formatDiscoverToolGroupInfo(resolvedToolName, activeNames, enabledNames, sessionID); groupInfo != "" {
+			if groupInfo := formatDiscoverToolGroupInfo(resolvedToolName, activeNames, enabledNames); groupInfo != "" {
 				return groupInfo
 			}
 		}
@@ -133,7 +133,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 			hint = "\n\n[STATUS] This tool is currently active in your tool list. You can call it directly."
 		} else if enabledNames[resolvedToolName] {
 			MarkDiscoverRequestedTool(sessionID, resolvedToolName)
-			hint = "\n\n[STATUS] This tool is currently hidden by adaptive filtering but enabled. You can call it directly by name using the parameters shown above."
+			hint = "\n\n[STATUS] This tool is currently hidden by adaptive filtering but enabled. Use invoke_tool with the parameters shown above, or call it directly after it is re-included on the next turn."
 		} else {
 			hint = "\n\n[STATUS] This tool is disabled in config. It cannot be used until enabled by the user."
 		}
@@ -231,7 +231,7 @@ func toolSchemaExists(toolName string, schemas []openai.Tool) bool {
 	return false
 }
 
-func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[string]bool, sessionID string) string {
+func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[string]bool) string {
 	results := SearchToolsInCategories(query)
 	if len(results) == 0 {
 		return ""
@@ -256,13 +256,10 @@ func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[str
 		status := "○"
 		if activeNames[r.Entry.Name] {
 			status = "●"
-		} else {
-			MarkDiscoverRequestedTool(sessionID, r.Entry.Name)
 		}
 		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, r.Entry.ShortDesc))
 	}
 	sb.WriteString("\n● = active   ○ = enabled but hidden by adaptive filtering")
 	sb.WriteString("\nUse get_tool_info with one exact tool name above, then call that exact tool.")
-	sb.WriteString("\n[STATUS] These enabled tools were requested and will be re-included on the next agent turn.")
 	return sb.String()
 }

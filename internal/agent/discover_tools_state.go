@@ -6,20 +6,25 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-// discoverToolsState stores the tool schemas and active names needed by the
-// discover_tools dispatch handler. Updated once per agent loop iteration.
-var discoverToolsState struct {
-	mu           sync.RWMutex
-	allSchemas   []openai.Tool // full unfiltered schemas (all enabled tools)
+type discoverToolsSnapshot struct {
+	allSchemas   []openai.Tool
 	activeNames  map[string]bool
 	enabledNames map[string]bool
-	requested    map[string]map[string]bool
 	promptsDir   string
 	catalog      *ToolCatalog
 }
 
+// discoverToolsState stores the tool schemas and active names needed by the
+// discover_tools dispatch handler. Updated once per agent loop iteration.
+var discoverToolsState struct {
+	mu        sync.RWMutex
+	snapshots map[string]discoverToolsSnapshot
+	requested map[string]map[string]int
+}
+
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
 func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSchemas []openai.Tool, promptsDir string) {
+	sessionID = normalizeDiscoverSessionID(sessionID)
 	active := make(map[string]bool, len(activeSchemas))
 	for _, s := range activeSchemas {
 		if s.Function != nil {
@@ -33,19 +38,22 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 		}
 	}
 	discoverToolsState.mu.Lock()
-	discoverToolsState.allSchemas = allSchemas
-	discoverToolsState.activeNames = active
-	discoverToolsState.enabledNames = enabled
-	discoverToolsState.catalog = BuildToolCatalog(allSchemas, activeSchemas, promptsDir)
+	if discoverToolsState.snapshots == nil {
+		discoverToolsState.snapshots = make(map[string]discoverToolsSnapshot)
+	}
+	discoverToolsState.snapshots[sessionID] = discoverToolsSnapshot{
+		allSchemas:   allSchemas,
+		activeNames:  active,
+		enabledNames: enabled,
+		promptsDir:   promptsDir,
+		catalog:      BuildToolCatalog(allSchemas, activeSchemas, promptsDir),
+	}
 	if discoverToolsState.requested == nil {
-		discoverToolsState.requested = make(map[string]map[string]bool)
+		discoverToolsState.requested = make(map[string]map[string]int)
 	}
-	if sessionID != "" {
-		if _, ok := discoverToolsState.requested[sessionID]; !ok {
-			discoverToolsState.requested[sessionID] = make(map[string]bool)
-		}
+	if _, ok := discoverToolsState.requested[sessionID]; !ok {
+		discoverToolsState.requested[sessionID] = make(map[string]int)
 	}
-	discoverToolsState.promptsDir = promptsDir
 	discoverToolsState.mu.Unlock()
 }
 
@@ -56,15 +64,16 @@ func MarkDiscoverRequestedTool(sessionID, toolName string) {
 	if sessionID == "" || toolName == "" {
 		return
 	}
+	sessionID = normalizeDiscoverSessionID(sessionID)
 	discoverToolsState.mu.Lock()
 	defer discoverToolsState.mu.Unlock()
 	if discoverToolsState.requested == nil {
-		discoverToolsState.requested = make(map[string]map[string]bool)
+		discoverToolsState.requested = make(map[string]map[string]int)
 	}
 	if _, ok := discoverToolsState.requested[sessionID]; !ok {
-		discoverToolsState.requested[sessionID] = make(map[string]bool)
+		discoverToolsState.requested[sessionID] = make(map[string]int)
 	}
-	discoverToolsState.requested[sessionID][toolName] = true
+	discoverToolsState.requested[sessionID][toolName] = 1
 }
 
 // GetDiscoverRequestedTools returns session-scoped hidden tools that should be
@@ -73,6 +82,7 @@ func GetDiscoverRequestedTools(sessionID string) []string {
 	if sessionID == "" {
 		return nil
 	}
+	sessionID = normalizeDiscoverSessionID(sessionID)
 	discoverToolsState.mu.RLock()
 	defer discoverToolsState.mu.RUnlock()
 	set := discoverToolsState.requested[sessionID]
@@ -86,15 +96,60 @@ func GetDiscoverRequestedTools(sessionID string) []string {
 	return out
 }
 
-// GetDiscoverToolsState returns a snapshot of the current tool state.
-func GetDiscoverToolsState() (allSchemas []openai.Tool, activeNames map[string]bool, enabledNames map[string]bool, promptsDir string) {
-	discoverToolsState.mu.RLock()
-	defer discoverToolsState.mu.RUnlock()
-	return discoverToolsState.allSchemas, discoverToolsState.activeNames, discoverToolsState.enabledNames, discoverToolsState.promptsDir
+// ConsumeDiscoverRequestedTools returns session-scoped requested tools once and
+// clears them so discovery does not permanently bypass adaptive filtering.
+func ConsumeDiscoverRequestedTools(sessionID string) []string {
+	if sessionID == "" {
+		return nil
+	}
+	sessionID = normalizeDiscoverSessionID(sessionID)
+	discoverToolsState.mu.Lock()
+	defer discoverToolsState.mu.Unlock()
+	set := discoverToolsState.requested[sessionID]
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, name)
+	}
+	delete(discoverToolsState.requested, sessionID)
+	return out
 }
 
-func GetToolCatalogState() *ToolCatalog {
+// GetDiscoverToolsState returns a snapshot of the current tool state.
+func GetDiscoverToolsState(sessionIDs ...string) (allSchemas []openai.Tool, activeNames map[string]bool, enabledNames map[string]bool, promptsDir string) {
 	discoverToolsState.mu.RLock()
 	defer discoverToolsState.mu.RUnlock()
-	return discoverToolsState.catalog
+	sessionID := discoverSessionIDFromArgs(sessionIDs...)
+	if snapshot, ok := discoverToolsState.snapshots[sessionID]; ok {
+		return snapshot.allSchemas, snapshot.activeNames, snapshot.enabledNames, snapshot.promptsDir
+	}
+	return nil, nil, nil, ""
+}
+
+func GetToolCatalogState(sessionIDs ...string) *ToolCatalog {
+	discoverToolsState.mu.RLock()
+	defer discoverToolsState.mu.RUnlock()
+	sessionID := discoverSessionIDFromArgs(sessionIDs...)
+	if snapshot, ok := discoverToolsState.snapshots[sessionID]; ok {
+		return snapshot.catalog
+	}
+	return nil
+}
+
+const discoverDefaultSessionID = "__default__"
+
+func normalizeDiscoverSessionID(sessionID string) string {
+	if sessionID == "" {
+		return discoverDefaultSessionID
+	}
+	return sessionID
+}
+
+func discoverSessionIDFromArgs(sessionIDs ...string) string {
+	if len(sessionIDs) == 0 {
+		return discoverDefaultSessionID
+	}
+	return normalizeDiscoverSessionID(sessionIDs[0])
 }

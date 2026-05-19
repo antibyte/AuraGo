@@ -90,8 +90,9 @@ func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
 			"username":  "jopliness",
 		},
 	}, &DispatchContext{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Cfg:       cfg,
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		SessionID: "sess-execute-skill-native",
 	})
 	if !ok {
 		t.Fatal("expected dispatchComm to handle execute_skill")

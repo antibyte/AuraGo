@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -801,7 +802,30 @@ func isToolPathSafe(path, baseDir string) bool {
 	if baseDir == "" {
 		return false
 	}
-	return strings.HasPrefix(path, filepath.Clean(baseDir)+string(filepath.Separator))
+	cleanPath, err := normalizeToolGuidePathForContainment(path)
+	if err != nil {
+		return false
+	}
+	cleanBase, err := normalizeToolGuidePathForContainment(baseDir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(cleanBase, cleanPath)
+	if err != nil || rel == "." || rel == "" {
+		return false
+	}
+	return !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".." && !filepath.IsAbs(rel)
+}
+
+func normalizeToolGuidePathForContainment(path string) (string, error) {
+	abs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return "", err
+	}
+	if runtime.GOOS == "windows" {
+		abs = strings.ToLower(abs)
+	}
+	return filepath.Clean(abs), nil
 }
 
 // PrepareDynamicGuides orchestrates explicit, semantic, statistical, and recency-based prediction to find relevant tool documents.

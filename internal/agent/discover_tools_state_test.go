@@ -13,12 +13,8 @@ import (
 func TestHandleDiscoverToolsMarksHiddenToolForSession(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
-		discoverToolsState.allSchemas = nil
-		discoverToolsState.activeNames = nil
-		discoverToolsState.enabledNames = nil
+		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.promptsDir = ""
-		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -57,12 +53,8 @@ func TestHandleDiscoverToolsMarksHiddenToolForSession(t *testing.T) {
 func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
-		discoverToolsState.allSchemas = nil
-		discoverToolsState.activeNames = nil
-		discoverToolsState.enabledNames = nil
+		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.promptsDir = ""
-		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -101,26 +93,16 @@ func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 		t.Fatalf("expected YepAPI family tools in output, got: %+v raw=%s", payload, out)
 	}
 	requested := GetDiscoverRequestedTools("sess-yepapi")
-	requestedSet := make(map[string]bool, len(requested))
-	for _, name := range requested {
-		requestedSet[name] = true
-	}
-	for _, want := range []string{"yepapi_instagram", "yepapi_youtube"} {
-		if !requestedSet[want] {
-			t.Fatalf("requested tools = %v, missing %s", requested, want)
-		}
+	if len(requested) != 0 {
+		t.Fatalf("family discovery should not permanently request every family tool, got %v", requested)
 	}
 }
 
 func TestHandleDiscoverToolsSearchMarksHiddenToolForSession(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
-		discoverToolsState.allSchemas = nil
-		discoverToolsState.activeNames = nil
-		discoverToolsState.enabledNames = nil
+		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.promptsDir = ""
-		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -155,20 +137,16 @@ func TestHandleDiscoverToolsSearchMarksHiddenToolForSession(t *testing.T) {
 		t.Fatalf("expected hidden enabled result, got: %+v raw=%s", got, out)
 	}
 	requested := GetDiscoverRequestedTools("sess-search")
-	if len(requested) != 1 || requested[0] != "yepapi_instagram" {
-		t.Fatalf("requested tools = %v, want [yepapi_instagram]", requested)
+	if len(requested) != 0 {
+		t.Fatalf("search should not request hidden tools until exact get_tool_info or invoke_tool, got %v", requested)
 	}
 }
 
 func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
-		discoverToolsState.allSchemas = nil
-		discoverToolsState.activeNames = nil
-		discoverToolsState.enabledNames = nil
+		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.promptsDir = ""
-		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -182,5 +160,72 @@ func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 	}
 	if len(gotB) != 1 || gotB[0] != "proxmox" {
 		t.Fatalf("sess-b requested tools = %v, want [proxmox]", gotB)
+	}
+}
+
+func TestDiscoverToolsCatalogIsSessionScoped(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	chromecastSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "chromecast",
+				Description: "Control Chromecast devices",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	proxmoxSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "proxmox",
+				Description: "Manage Proxmox hosts",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-a", chromecastSchemas, chromecastSchemas, "")
+	SetDiscoverToolsState("sess-b", proxmoxSchemas, proxmoxSchemas, "")
+
+	cfg := &config.Config{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "get_tool_info",
+			"tool_name": "chromecast",
+		},
+	}, cfg, logger, "sess-a")
+
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Tool == nil || payload.Tool.Name != "chromecast" || payload.Tool.ToolStatus != string(ToolStatusActive) {
+		t.Fatalf("session A discovery used the wrong catalog: %+v raw=%s", payload, out)
+	}
+}
+
+func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	MarkDiscoverRequestedTool("sess-once", "chromecast")
+
+	first := ConsumeDiscoverRequestedTools("sess-once")
+	if len(first) != 1 || first[0] != "chromecast" {
+		t.Fatalf("first consume = %v, want [chromecast]", first)
+	}
+	second := ConsumeDiscoverRequestedTools("sess-once")
+	if len(second) != 0 {
+		t.Fatalf("second consume = %v, want empty", second)
 	}
 }

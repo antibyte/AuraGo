@@ -119,8 +119,8 @@ func TestDiscoverToolsReturnsStructuredHiddenNativeResult(t *testing.T) {
 		t.Fatalf("call fields = %+v, want invoke_tool callable", got)
 	}
 	requested := GetDiscoverRequestedTools("sess-catalog")
-	if len(requested) != 1 || requested[0] != "yepapi_instagram" {
-		t.Fatalf("requested = %v, want [yepapi_instagram]", requested)
+	if len(requested) != 0 {
+		t.Fatalf("search should not request hidden tools until exact get_tool_info or invoke_tool, got %v", requested)
 	}
 }
 
@@ -201,6 +201,32 @@ func TestInvokeToolAcceptsFlattenedArguments(t *testing.T) {
 	}
 }
 
+func TestInvokeToolRejectsActiveNativeTool(t *testing.T) {
+	resetToolCatalogForTest(t)
+	schemas := []openai.Tool{testToolSchema("discover_tools", "Browse tools")}
+	SetDiscoverToolsState("sess-active-invoke", schemas, schemas, "")
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "invoke_tool",
+		Params: map[string]interface{}{
+			"tool_name": "discover_tools",
+			"arguments": map[string]interface{}{
+				"operation": "list_categories",
+			},
+		},
+	}, &DispatchContext{
+		Cfg:       &config.Config{},
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		SessionID: "sess-active-invoke",
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle invoke_tool")
+	}
+	if !strings.Contains(out, "is active; call it directly") {
+		t.Fatalf("expected active-tool rejection, got %s", out)
+	}
+}
+
 func TestInvokeToolLogsFlattenedArgumentsAndMissingOperation(t *testing.T) {
 	resetToolCatalogForTest(t)
 	var logs strings.Builder
@@ -264,8 +290,9 @@ func TestInvokeToolRejectsDisabledTool(t *testing.T) {
 			},
 		},
 	}, &DispatchContext{
-		Cfg:    &config.Config{},
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Cfg:       &config.Config{},
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		SessionID: "sess-disabled",
 	})
 	if !ok {
 		t.Fatal("expected dispatchComm to handle invoke_tool")
@@ -569,12 +596,8 @@ func resetToolCatalogForTest(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
-		discoverToolsState.allSchemas = nil
-		discoverToolsState.activeNames = nil
-		discoverToolsState.enabledNames = nil
+		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.promptsDir = ""
-		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 }
