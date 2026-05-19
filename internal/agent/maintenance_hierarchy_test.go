@@ -52,6 +52,7 @@ func (v *hierarchyVectorDB) StoreDocumentWithEmbeddingInCollection(concept, cont
 }
 func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
 func (v *hierarchyVectorDB) DeleteCheatsheet(id string) error               { return nil }
+func (v *hierarchyVectorDB) RegisterCollections(collections []string)       {}
 
 func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

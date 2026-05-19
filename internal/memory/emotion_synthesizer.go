@@ -471,7 +471,14 @@ func sanitizeEmotionDescription(s string, maxLen int) string {
 
 func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState, error) {
 	content := strings.TrimSpace(raw)
-	content = strings.Trim(content, "`")
+	// Strip markdown JSON code block formatting if present
+	if strings.HasPrefix(strings.ToLower(content), "```json") {
+		content = content[7:]
+	} else if strings.HasPrefix(content, "```") {
+		content = content[3:]
+	}
+	content = strings.TrimSuffix(content, "```")
+	content = strings.TrimSpace(content)
 
 	var parsed emotionSynthesisResult
 	if err := json.Unmarshal([]byte(content), &parsed); err == nil {

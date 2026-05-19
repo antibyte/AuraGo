@@ -312,3 +312,4 @@ func (d *disabledVectorDB) Count() int                                        { 
 func (d *disabledVectorDB) Close() error                                      { return nil }
 func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string, _ ...string) error   { return nil }
 func (d *disabledVectorDB) DeleteCheatsheet(_ string) error                   { return nil }
+func (d *disabledVectorDB) RegisterCollections(_ []string)                    {}

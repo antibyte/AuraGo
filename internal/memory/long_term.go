@@ -55,6 +55,8 @@ type VectorDB interface {
 	// DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
 	// by using the cs_id metadata filter.
 	DeleteCheatsheet(id string) error
+	// RegisterCollections registers multiple collections.
+	RegisterCollections(collections []string)
 }
 
 // queryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
@@ -69,8 +71,8 @@ type ChromemVectorDB struct {
 	dataDir                string // persistent directory for the vector DB (used for version files)
 	collection             *chromem.Collection
 	logger                 *slog.Logger
-	mu                     sync.RWMutex // Protects indexing operations; reads use RLock
-	storeDocMu             sync.Mutex   // Serialises the dedup-check+store sequence in StoreDocumentWithDomain
+	mu                     sync.RWMutex   // Protects indexing operations; reads use RLock
+	conceptLocks           [64]sync.Mutex // Striped locks to serialise checks/stores per concept bucket
 	embeddingFunc          chromem.EmbeddingFunc
 	embeddingFingerprint   string
 	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
@@ -367,6 +369,16 @@ func (cv *ChromemVectorDB) StoreDocument(concept, content string) ([]string, err
 	return cv.StoreDocumentWithDomain(concept, content, "")
 }
 
+// getConceptMutex returns the Mutex for a given concept based on its hash value.
+func (cv *ChromemVectorDB) getConceptMutex(concept string) *sync.Mutex {
+	var hash uint32 = 5381
+	for i := 0; i < len(concept); i++ {
+		hash = ((hash << 5) + hash) + uint32(concept[i])
+	}
+	idx := hash % 64
+	return &cv.conceptLocks[idx]
+}
+
 // StoreDocumentWithDomain stores a concept/content pair with an optional domain tag
 // for cross-domain learning (Phase C). The domain helps categorize knowledge.
 // Deduplication: skips storage if a very similar document already exists (similarity > 0.95).
@@ -375,20 +387,21 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
 	}
 
-	// Deduplication: serialise check+store so two concurrent calls for the
-	// same concept cannot both pass the similarity gate before either is stored.
-	cv.storeDocMu.Lock()
+	// Deduplication: serialise check+store per concept bucket so concurrent
+	// calls for the same concept cannot both pass the similarity gate.
+	mu := cv.getConceptMutex(concept)
+	mu.Lock()
 	if sim := cv.searchTopSimilarityScore(concept); sim > 0.95 {
-		cv.storeDocMu.Unlock()
+		mu.Unlock()
 		cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
 		return nil, nil
 	}
-	defer cv.storeDocMu.Unlock()
+	defer mu.Unlock()
 	return cv.storeDocumentLocked(concept, content, domain)
 }
 
 // storeDocumentLocked stores a document in aurago_memories.
-// The caller must hold cv.storeDocMu.
+// The caller must hold the concept's striped mutex.
 func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) ([]string, error) {
 	const maxContentBytes = 500 * 1024 // 500 KB per document
 	if len(content) > maxContentBytes {
@@ -784,8 +797,9 @@ func chunkText(text string, chunkSize, overlap int) []string {
 	if text == "" {
 		return nil
 	}
+	runes := []rune(text)
 	if chunkSize <= 0 {
-		chunkSize = len(text)
+		chunkSize = len(runes)
 		if chunkSize == 0 {
 			return nil
 		}
@@ -796,44 +810,48 @@ func chunkText(text string, chunkSize, overlap int) []string {
 	if overlap >= chunkSize {
 		overlap = chunkSize / 4
 	}
-	if len(text) <= chunkSize {
+	if len(runes) <= chunkSize {
 		return []string{text}
 	}
 
 	var chunks []string
 	start := 0
 
-	for start < len(text) {
+	for start < len(runes) {
 		end := start + chunkSize
-		if end >= len(text) {
-			if chunk := strings.TrimSpace(text[start:]); chunk != "" {
+		if end >= len(runes) {
+			if chunk := strings.TrimSpace(string(runes[start:])); chunk != "" {
 				chunks = append(chunks, chunk)
 			}
 			break
 		}
 
-		// Try to split at paragraph boundary (\n\n)
-		splitAt := strings.LastIndex(text[start:end], "\n\n")
-		if splitAt > chunkSize/2 {
-			end = start + splitAt + 2 // include the double newline
+		// Try to split at paragraph boundary (\n\n) or sentence boundary (. )
+		chunkRunes := runes[start:end]
+		chunkStr := string(chunkRunes)
+
+		splitAt := strings.LastIndex(chunkStr, "\n\n")
+		if splitAt > len(chunkStr)/2 {
+			runeSplitAt := len([]rune(chunkStr[:splitAt]))
+			end = start + runeSplitAt + 2 // include the double newline
 		} else {
-			// Fall back to sentence boundary (.  or .\n)
-			splitAt = strings.LastIndex(text[start:end], ". ")
-			if splitAt > chunkSize/2 {
-				end = start + splitAt + 2
+			splitAt = strings.LastIndex(chunkStr, ". ")
+			if splitAt > len(chunkStr)/2 {
+				runeSplitAt := len([]rune(chunkStr[:splitAt]))
+				end = start + runeSplitAt + 2 // include the dot and space
 			}
-			// else: hard cut at chunkSize
 		}
 
-		if chunk := strings.TrimSpace(text[start:end]); chunk != "" {
+		if chunk := strings.TrimSpace(string(runes[start:end])); chunk != "" {
 			chunks = append(chunks, chunk)
 		}
 
-		// Move forward with overlap
-		start = end - overlap
-		if start < 0 {
-			start = 0
+		// Move forward with overlap, ensuring we always progress
+		nextStart := end - overlap
+		if nextStart <= start {
+			nextStart = end
 		}
+		start = nextStart
 	}
 
 	return chunks
@@ -878,8 +896,10 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 			cv.dedupSem <- struct{}{}
 			defer func() { <-cv.dedupSem }()
 
-			cv.storeDocMu.Lock()
-			defer cv.storeDocMu.Unlock()
+			mu := cv.getConceptMutex(item.Concept)
+			mu.Lock()
+			defer mu.Unlock()
+
 			keep := true
 			if sim := cv.searchTopSimilarityScore(item.Concept); sim > 0.95 {
 				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
@@ -1197,6 +1217,17 @@ func (cv *ChromemVectorDB) registerFileIndexerCollection(collection string) {
 	cv.fileIndexerCollections[collection] = struct{}{}
 }
 
+// RegisterCollections registers multiple collections under fileIndexerCollections on startup.
+func (cv *ChromemVectorDB) RegisterCollections(collections []string) {
+	cv.fiColMu.Lock()
+	defer cv.fiColMu.Unlock()
+	for _, col := range collections {
+		if col != "" {
+			cv.fileIndexerCollections[col] = struct{}{}
+		}
+	}
+}
+
 // GetByIDFromCollection retrieves a document from a specific collection by its ID.
 func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
 	if cv.disabled.Load() {
@@ -1222,7 +1253,7 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 // document in the aurago_memories collection for the given concept, or 0 if no match.
 // It is used internally for dedup checks and does NOT format results with a prefix string,
 // unlike SearchSimilar/SearchMemoriesOnly. This method holds cv.mu.RLock for the duration
-// of its operation, so callers must not hold storeDocMu to avoid lock inversion.
+// of its operation, so callers must not hold striped concept locks to avoid lock inversion.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 	if cv.disabled.Load() {
 		return 0

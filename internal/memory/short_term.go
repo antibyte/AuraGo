@@ -343,16 +343,15 @@ func (s *SQLiteMemory) ClaimConsolidationCandidates(limit int, maxRetries int) (
 	if err != nil {
 		return nil, fmt.Errorf("query eligible ids: %w", err)
 	}
+	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
 			return nil, fmt.Errorf("scan eligible id: %w", err)
 		}
 		ids = append(ids, id)
 	}
-	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate eligible ids: %w", err)
 	}
@@ -1364,16 +1363,15 @@ func (s *SQLiteMemory) GetFileEmbeddingDocIDs(path, collection string) ([]string
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var docIDs []string
 	for rows.Next() {
 		var docID string
 		if err := rows.Scan(&docID); err != nil {
-			rows.Close()
 			return nil, err
 		}
 		docIDs = append(docIDs, docID)
 	}
-	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -1474,6 +1472,19 @@ func (s *SQLiteMemory) ClearMemoryMeta() error {
 	return err
 }
 
-// Core Memory (SQLite)
-
-// GetMessageCount returns the total number of chat messages.
+// GetIndexedCollections queries unique collections stored in SQLite.
+func (s *SQLiteMemory) GetIndexedCollections() ([]string, error) {
+	rows, err := s.db.Query("SELECT DISTINCT collection FROM file_indices WHERE collection != '' AND collection IS NOT NULL")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cols []string
+	for rows.Next() {
+		var col string
+		if err := rows.Scan(&col); err == nil {
+			cols = append(cols, col)
+		}
+	}
+	return cols, rows.Err()
+}

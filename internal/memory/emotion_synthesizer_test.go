@@ -380,6 +380,19 @@ func TestParseEmotionSynthesisResponseStructuredJSON(t *testing.T) {
 	}
 }
 
+func TestParseEmotionSynthesisResponseMarkdownJSON(t *testing.T) {
+	state, err := parseEmotionSynthesisResponse("```json\n" + `{"description":"I feel calm and precise.","primary_mood":"analytical","secondary_mood":"steady","valence":0.1,"arousal":0.2,"confidence":0.9,"cause":"the request is clear","recommended_response_style":"crisp_and_focused"}` + "\n```", MoodFocused)
+	if err != nil {
+		t.Fatalf("parseEmotionSynthesisResponse with markdown: %v", err)
+	}
+	if state.PrimaryMood != MoodAnalytical {
+		t.Fatalf("expected analytical mood, got %s", state.PrimaryMood)
+	}
+	if state.Description != "I feel calm and precise." {
+		t.Fatalf("expected description to be parsed, got %q", state.Description)
+	}
+}
+
 func TestParseEmotionSynthesisResponseFallsBackToText(t *testing.T) {
 	state, err := parseEmotionSynthesisResponse("I feel a little uncertain, but still ready to help.", MoodCautious)
 	if err != nil {

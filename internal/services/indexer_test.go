@@ -100,6 +100,8 @@ func (f *fakeIndexerVectorDB) DeleteCheatsheet(id string) error {
 	return nil
 }
 
+func (f *fakeIndexerVectorDB) RegisterCollections(collections []string) {}
+
 func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

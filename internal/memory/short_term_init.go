@@ -349,15 +349,13 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 
 	if _, err := tx.Exec(`
 		INSERT INTO file_indices_new (file_path, collection, last_modified, content_hash, index_fingerprint)
-		SELECT file_path, COALESCE(collection, ''), last_modified, '', '' FROM file_indices`); err != nil {
+		SELECT file_path, '', last_modified, '', '' FROM file_indices`); err != nil {
 		return fmt.Errorf("copy file_indices data: %w", err)
 	}
 
 	if _, err := tx.Exec(`
 		INSERT INTO file_embedding_docs_new (file_path, collection, doc_id, created_at)
-		SELECT fed.file_path, COALESCE(fi.collection, ''), fed.doc_id, fed.created_at
-		FROM file_embedding_docs fed
-		LEFT JOIN file_indices fi ON fed.file_path = fi.file_path`); err != nil {
+		SELECT file_path, '', doc_id, created_at FROM file_embedding_docs`); err != nil {
 		return fmt.Errorf("copy file_embedding_docs data: %w", err)
 	}
 

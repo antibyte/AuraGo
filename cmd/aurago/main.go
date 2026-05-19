@@ -617,6 +617,14 @@ func main() {
 		}
 	}()
 
+	// Load existing vector DB collections from SQLite and register them
+	if cols, colsErr := shortTermMem.GetIndexedCollections(); colsErr == nil {
+		longTermMem.RegisterCollections(cols)
+		appLog.Info("Loaded existing vector DB collections from SQLite", "collections", cols)
+	} else {
+		appLog.Warn("Failed to load existing vector DB collections from SQLite", "error", colsErr)
+	}
+
 	// Tool guide indexing (async at startup for faster boot)
 	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
 	longTermMem.IndexToolGuidesAsync(toolGuidesDir, false)

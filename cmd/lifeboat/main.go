@@ -173,6 +173,14 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 		}
 	}()
 
+	// Load existing vector DB collections from SQLite and register them
+	if cols, colsErr := shortTermMem.GetIndexedCollections(); colsErr == nil {
+		longTermMem.RegisterCollections(cols)
+		l.Info("Loaded existing vector DB collections from SQLite", "collections", cols)
+	} else {
+		l.Warn("Failed to load existing vector DB collections from SQLite", "error", colsErr)
+	}
+
 	masterKey := os.Getenv("AURAGO_MASTER_KEY")
 	if masterKey == "" || len(masterKey) != 64 {
 		return fmt.Errorf("AURAGO_MASTER_KEY is missing or not exactly 64 hex characters (32 bytes)")
@@ -190,6 +198,7 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	registry := tools.NewProcessRegistry(l)
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
+	defer historyManager.Close()
 	kg, err := memory.NewKnowledgeGraph(
 		cfg.SQLite.KnowledgeGraphPath,
 		filepath.Join(cfg.Directories.DataDir, "graph.json"),

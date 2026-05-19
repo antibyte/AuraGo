@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // ── splitFrontmatter ──────────────────────────────────────────────────────────
@@ -301,5 +302,26 @@ func TestLoadToolGuideFilesFallsBackToEmbeddedGuides(t *testing.T) {
 	}
 	if !foundDocker {
 		t.Fatal("expected embedded docker.md guide to be available")
+	}
+}
+
+func TestChunkText_UTF8Safety(t *testing.T) {
+	// Text containing German umlauts and emojis
+	text := "Ein schöner Tag mit Sonnenschein und Freude 😊. " +
+		"Es gibt viele deutsche Umlaute: Ä, Ö, Ü, ä, ö, ü, ß. " +
+		"Lange Sätze werden zerlegt, ohne Zeichen zu zerreißen."
+
+	chunks := chunkText(text, 30, 5)
+	if len(chunks) == 0 {
+		t.Fatalf("expected chunks, got 0")
+	}
+
+	for i, chunk := range chunks {
+		if !utf8.ValidString(chunk) {
+			t.Errorf("chunk %d contains invalid UTF-8: %q", i, chunk)
+		}
+		if strings.ContainsRune(chunk, utf8.RuneError) {
+			t.Errorf("chunk %d contains RuneError: %q", i, chunk)
+		}
 	}
 }

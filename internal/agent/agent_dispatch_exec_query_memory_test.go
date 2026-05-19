@@ -62,6 +62,7 @@ func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...
 	return nil
 }
 func (f *fakeVectorDB) DeleteCheatsheet(id string) error { return nil }
+func (f *fakeVectorDB) RegisterCollections(collections []string) {}
 
 func TestDispatchExecQueryMemorySearchesKnowledgeFilesForVectorDB(t *testing.T) {
 	cfg := &config.Config{}

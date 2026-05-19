@@ -349,6 +349,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 						s.Logger.Warn("[Setup] Failed to close previous disabled VectorDB during re-initialization", "error", closeErr)
 					}
 					s.LongTermMem = newVDB
+					if cols, colsErr := s.ShortTermMem.GetIndexedCollections(); colsErr == nil {
+						s.LongTermMem.RegisterCollections(cols)
+					}
 					s.Logger.Info("[Setup] VectorDB re-initialized with embedding provider",
 						"provider", newCfg.Embeddings.Provider)
 				} else {

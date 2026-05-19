@@ -65,6 +65,7 @@ func (panicVectorDB) StoreCheatsheet(id, name, content string, attachments ...st
 func (panicVectorDB) DeleteCheatsheet(id string) error {
 	return errors.New("not implemented")
 }
+func (panicVectorDB) RegisterCollections(collections []string) {}
 
 func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
 	t.Parallel()

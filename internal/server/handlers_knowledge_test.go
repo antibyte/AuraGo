@@ -65,6 +65,7 @@ func (v *knowledgeUploadVectorDB) StoreCheatsheet(id, name, content string, atta
 	return nil
 }
 func (v *knowledgeUploadVectorDB) DeleteCheatsheet(id string) error { return nil }
+func (v *knowledgeUploadVectorDB) RegisterCollections(collections []string) {}
 
 func TestHandleKnowledgeUploadRejectsDisallowedExtension(t *testing.T) {
 	t.Parallel()

@@ -333,3 +333,4 @@ func (v *lifecycleVectorDB) StoreCheatsheet(string, string, string, ...string) e
 	return nil
 }
 func (v *lifecycleVectorDB) DeleteCheatsheet(string) error { return nil }
+func (v *lifecycleVectorDB) RegisterCollections([]string)   {}

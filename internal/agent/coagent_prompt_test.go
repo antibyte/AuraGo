@@ -59,6 +59,7 @@ func (f *coAgentContextVectorDB) StoreDocumentWithEmbeddingInCollection(concept,
 }
 func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
 func (f *coAgentContextVectorDB) DeleteCheatsheet(id string) error               { return nil }
+func (f *coAgentContextVectorDB) RegisterCollections(collections []string)       {}
 
 func TestBuildContextSnapshotUsesMemoriesOnly(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
