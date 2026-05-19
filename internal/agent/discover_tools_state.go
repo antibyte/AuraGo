@@ -71,6 +71,11 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 	cutoff := now.Add(-discoverToolsSnapshotTTL)
 	for sessionID, snapshot := range discoverToolsState.snapshots {
 		if snapshot.updatedAt.IsZero() {
+			// Zero time means the snapshot was never properly initialised; treat as expired.
+			delete(discoverToolsState.snapshots, sessionID)
+			if discoverToolsState.requested != nil {
+				delete(discoverToolsState.requested, sessionID)
+			}
 			continue
 		}
 		if snapshot.updatedAt.Before(cutoff) {

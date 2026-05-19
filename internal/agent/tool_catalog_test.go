@@ -330,6 +330,30 @@ func TestDiscoverToolsReportsDisabledToolAsUnavailable(t *testing.T) {
 	}
 }
 
+func TestDiscoverToolsReportsDisabledDaemonAndPaperlessTools(t *testing.T) {
+	resetToolCatalogForTest(t)
+	schemas := []openai.Tool{testToolSchema("yepapi_instagram", "Instagram data via YepAPI")}
+	SetDiscoverToolsState("sess-disabled-known-tools", schemas, nil, "")
+
+	for _, toolName := range []string{"manage_daemon", "paperless_ngx"} {
+		out := handleDiscoverTools(ToolCall{
+			Params: map[string]interface{}{
+				"operation": "get_tool_info",
+				"tool_name": toolName,
+			},
+		}, &config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-disabled-known-tools")
+
+		var payload DiscoverToolsResponse
+		decodeToolOutputJSON(t, out, &payload)
+		if payload.Status != "success" || payload.Tool == nil {
+			t.Fatalf("expected disabled %s tool info, got %+v raw=%s", toolName, payload, out)
+		}
+		if payload.Tool.Name != toolName || payload.Tool.ToolStatus != string(ToolStatusDisabled) || payload.Tool.CallMethod != "disabled" || payload.Tool.CallableNow {
+			t.Fatalf("disabled %s tool call fields = %+v, want disabled and not callable", toolName, payload.Tool)
+		}
+	}
+}
+
 func TestBuildNativeToolSchemasUsesSkillManifestParameters(t *testing.T) {
 	skillsDir := t.TempDir()
 	manifest := `{

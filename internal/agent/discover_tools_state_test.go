@@ -295,6 +295,54 @@ func TestSetDiscoverToolsStateExpiresOldSnapshots(t *testing.T) {
 	}
 }
 
+func TestSetDiscoverToolsStateExpiresUninitializedSnapshots(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	discoverToolsState.mu.Lock()
+	discoverToolsState.snapshots = map[string]discoverToolsSnapshot{
+		"uninitialized-session": {
+			catalog: BuildToolCatalog([]openai.Tool{
+				{
+					Type: openai.ToolTypeFunction,
+					Function: &openai.FunctionDefinition{
+						Name:        "chromecast",
+						Description: "Control Chromecast devices",
+						Parameters:  map[string]any{"type": "object"},
+					},
+				},
+			}, nil, ""),
+		},
+	}
+	discoverToolsState.requested = map[string]map[string]int{
+		"uninitialized-session": {"chromecast": 1},
+	}
+	discoverToolsState.mu.Unlock()
+
+	freshSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "proxmox",
+				Description: "Manage Proxmox hosts",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("fresh-after-zero", freshSchemas, freshSchemas, "")
+
+	if catalog := GetToolCatalogState("uninitialized-session"); catalog != nil {
+		t.Fatalf("uninitialized-session catalog should have expired, got %+v", catalog)
+	}
+	if requested := GetDiscoverRequestedTools("uninitialized-session"); len(requested) != 0 {
+		t.Fatalf("uninitialized-session requested tools should have expired, got %v", requested)
+	}
+}
+
 func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()

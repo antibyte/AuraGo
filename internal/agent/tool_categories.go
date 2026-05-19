@@ -44,6 +44,15 @@ type ToolCategoryEntry struct {
 // toolCategoryDef maps each category to its member tools with short descriptions.
 var toolCategoryDef = map[string][]ToolCategoryEntry{
 	"system": {
+		{"discover_tools", "Browse active, hidden, and disabled tools with schemas and manuals"},
+		{"invoke_tool", "Invoke enabled native tools that are hidden by adaptive filtering"},
+		{"list_skills", "List registered Python skills"},
+		{"execute_skill", "Execute a registered Python skill"},
+		{"save_tool", "Save a custom executable tool"},
+		{"list_skill_templates", "List templates for creating reusable skills"},
+		{"create_skill_from_template", "Create a reusable skill from a managed template"},
+		{"get_skill_documentation", "Read documentation for an agent-owned skill"},
+		{"set_skill_documentation", "Update documentation for an agent-owned skill"},
 		{"system_metrics", "CPU, memory, disk, network usage and host info"},
 		{"process_analyzer", "Find top CPU/memory consumers, search and inspect OS processes"},
 		{"process_management", "List, kill, or inspect AuraGo background processes"},
@@ -62,6 +71,20 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"follow_up", "Schedule autonomous background tasks"},
 		{"question_user", "Ask the user a question with predefined options"},
 		{"wait_for_event", "Wait for a process, HTTP endpoint, or file event"},
+		{"manage_daemon", "Manage long-running daemon skills"},
+	},
+	"memory": {
+		{"manage_memory", "Read and update long-term memory stores"},
+		{"query_memory", "Search memory and knowledge snippets"},
+		{"context_memory", "Retrieve contextual memory for the current task"},
+		{"context_manager", "Manage compressed context and session state"},
+		{"remember", "Store durable facts, events, and learnings in the right memory layer"},
+		{"memory_reflect", "Reflect on recent memory and extract useful learnings"},
+		{"cheatsheet", "Create, update, search, and use reusable procedure notes"},
+		{"knowledge_graph", "Query and update structured entity relationships"},
+		{"secrets_vault", "Store and retrieve secret references through the vault"},
+		{"manage_notes", "Create and manage short-term notes"},
+		{"manage_journal", "Search and manage journal entries"},
 	},
 	"files": {
 		{"filesystem", "Read, write, move, copy, delete files and directories"},
@@ -80,6 +103,10 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"detect_file_type", "Identify file type by content (magic bytes)"},
 		{"document_creator", "Create PDF, DOCX, XLSX, PPTX documents from structured data"},
 		{"koofr", "Access Koofr cloud storage: list, read, download, upload, move, and copy files"},
+		{"obsidian", "Search and manage Obsidian notes"},
+		{"google_workspace", "Work with Google Drive, Docs, Sheets, and related workspace files"},
+		{"onedrive", "Work with OneDrive files and folders"},
+		{"paperless_ngx", "Manage documents in Paperless-ngx"},
 	},
 	"network": {
 		{"api_request", "Make HTTP requests (GET, POST, PUT, DELETE, etc.)"},
@@ -150,18 +177,26 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"s3_storage", "Manage AWS S3 buckets and objects"},
 		{"sql_query", "Execute SQL queries on external databases"},
 		{"manage_sql_connections", "Manage external SQL database connections"},
+		{"query_inventory", "Search registered devices and inventory records"},
+		{"register_device", "Register discovered network devices in inventory"},
 		{"ollama", "Manage local Ollama LLM models (list, pull, run, delete)"},
 		{"truenas", "Manage TrueNAS storage (pools, datasets, snapshots, shares)"},
 		{"netlify", "Deploy and manage sites on Netlify"},
+		{"vercel", "Deploy and manage sites on Vercel"},
 		{"homepage", "Manage homepage web projects (create, edit, deploy, preview)"},
+		{"homepage_registry", "Track homepage projects, deployments, edits, and problems"},
 		{"virtual_desktop", "Control the browser desktop workspace, apps, files, and widgets"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"meshcentral", "Remote desktop via MeshCentral (screenshot, command, file transfer)"},
+		{"remote_control", "Remote control system integration and desktop automation"},
 		{"invasion_control", "Manage distributed egg/nest compute nodes"},
+		{"space_agent", "Delegate workspace tasks to the managed Space Agent sidecar"},
+		{"ldap", "Query and manage LDAP directory data"},
 		{"mcp_call", "Call tools on connected MCP (Model Context Protocol) servers"},
 	},
 	"data_apis": {
+		{"virustotal_scan", "Scan URLs, files, domains, and hashes with VirusTotal"},
 		{"yepapi_seo", "SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks"},
 		{"yepapi_serp", "Search engine results via YepAPI: Google, Google Maps, News, Images, and autocomplete"},
 		{"yepapi_scrape", "Scrape and extract web page content through YepAPI"},
@@ -172,6 +207,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"communication": {
 		{"send_email", "Send emails via configured SMTP accounts"},
+		{"send_telegram", "Send messages through Telegram"},
 		{"fetch_email", "Fetch and read emails from IMAP accounts"},
 		{"list_email_accounts", "List configured email accounts"},
 		{"agentmail", "Manage AgentMail inboxes, messages, threads, drafts, labels, and replies"},
@@ -191,12 +227,13 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 
 // toolCategoryOrder defines the display order of categories.
 var toolCategoryOrder = []string{
-	"system", "files", "network", "media", "smart_home", "infrastructure", "data_apis", "communication",
+	"system", "memory", "files", "network", "media", "smart_home", "infrastructure", "data_apis", "communication",
 }
 
 // toolCategoryLabels provides human-readable labels for categories.
 var toolCategoryLabels = map[string]string{
 	"system":         "System & Automation",
+	"memory":         "Memory & Knowledge",
 	"files":          "Files & Documents",
 	"network":        "Network & Web",
 	"media":          "Media & Content",

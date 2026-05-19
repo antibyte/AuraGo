@@ -152,9 +152,13 @@ func TestMergeStreamToolCallChunkAppendsFragments(t *testing.T) {
 type fakeGuideSearcher struct {
 	paths []string
 	err   error
+	delay time.Duration
 }
 
 func (f fakeGuideSearcher) SearchToolGuides(query string, topK int) ([]string, error) {
+	if f.delay > 0 {
+		time.Sleep(f.delay)
+	}
 	return f.paths, f.err
 }
 
@@ -609,6 +613,27 @@ func TestBuildAdaptiveToolPriorityUsesSemanticAndFamilySignals(t *testing.T) {
 	}
 	if !containsName(got, "pdf_operations") {
 		t.Fatalf("expected family priority to include pdf_operations, got %v", got)
+	}
+}
+
+func TestSearchToolGuidesWithTimeoutFallsBackQuickly(t *testing.T) {
+	start := time.Now()
+	got := searchToolGuidesWithTimeout(
+		fakeGuideSearcher{
+			paths: []string{filepath.Join("tools_manuals", "document_creator.md")},
+			delay: 100 * time.Millisecond,
+		},
+		"create a document",
+		4,
+		10*time.Millisecond,
+		nil,
+	)
+
+	if len(got) != 0 {
+		t.Fatalf("expected timeout fallback to return no semantic paths, got %v", got)
+	}
+	if elapsed := time.Since(start); elapsed > 80*time.Millisecond {
+		t.Fatalf("semantic guide timeout waited too long: %s", elapsed)
 	}
 }
 

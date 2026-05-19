@@ -88,6 +88,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
 		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
 		YepAPIAmazonEnabled: true,
+		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true,
 	}
 }
 

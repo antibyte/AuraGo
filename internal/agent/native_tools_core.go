@@ -282,7 +282,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 					"description": "Operation to perform",
 					"enum":        []string{"list_categories", "search", "get_tool_info"},
 				},
-				"category":  prop("string", "Category to filter (for list_categories): system, files, network, media, smart_home, infrastructure, communication"),
+				"category":  prop("string", "Category to filter (for list_categories): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication"),
 				"query":     prop("string", "Search keyword (for search operation)"),
 				"tool_name": prop("string", "Tool name to get full info for (for get_tool_info)"),
 			}, "operation"),

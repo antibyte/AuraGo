@@ -30,7 +30,7 @@ Browse tools organized by category. Shows active, hidden, and disabled catalog e
 {"action": "discover_tools", "operation": "list_categories", "category": "network"}
 ```
 
-Categories: `system`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `communication`
+Categories: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`
 
 ### search
 Find tools by keyword across all categories. Matches tool names and descriptions.

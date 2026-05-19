@@ -31,8 +31,8 @@ func TestToolCategoryOrderMatchesDefs(t *testing.T) {
 }
 
 func TestToolCategoryCount(t *testing.T) {
-	if len(toolCategoryOrder) != 8 {
-		t.Errorf("expected 8 categories, got %d", len(toolCategoryOrder))
+	if len(toolCategoryOrder) != 9 {
+		t.Errorf("expected 9 categories, got %d", len(toolCategoryOrder))
 	}
 }
 
@@ -285,6 +285,21 @@ func TestNoDuplicateToolsAcrossCategories(t *testing.T) {
 				t.Errorf("tool %q appears in both %q and %q", entry.Name, prevCat, cat)
 			}
 			seen[entry.Name] = cat
+		}
+	}
+}
+
+func TestAllBuiltinNativeToolsAreDiscoverableByCategory(t *testing.T) {
+	intentionallyUncategorized := map[string]bool{
+		"get_user_info":   true, // Internal/user-profile helper.
+		"get_tool_manual": true, // Legacy manual accessor; discover_tools is the catalog entry point.
+	}
+	for _, name := range builtinToolNames(allBuiltinToolFeatureFlags()) {
+		if intentionallyUncategorized[name] {
+			continue
+		}
+		if category := ToolCategoryForName(name); category == "" {
+			t.Errorf("builtin tool %q is missing from toolCategoryDef; discover_tools cannot synthesize a disabled catalog entry for it", name)
 		}
 	}
 }

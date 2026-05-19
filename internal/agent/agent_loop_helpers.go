@@ -687,6 +687,37 @@ func expandAdaptiveAlwaysIncludeAlias(name string) []string {
 	}
 }
 
+// searchToolGuidesWithTimeout calls SearchToolGuides with a hard outer timeout.
+// SearchToolGuides has a 30-second internal timeout, which can block the first
+// agent turn during cold-start embedding computation. This wrapper limits the
+// wait and falls back to intent/usage-based ordering on timeout.
+func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, timeout time.Duration, logger *slog.Logger) []string {
+	type result struct {
+		paths []string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		paths, err := gs.SearchToolGuides(query, limit)
+		ch <- result{paths, err}
+	}()
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			if logger != nil {
+				logger.Debug("[AdaptiveTools] Semantic tool search unavailable", "error", r.err)
+			}
+			return nil
+		}
+		return r.paths
+	case <-time.After(timeout):
+		if logger != nil {
+			logger.Debug("[AdaptiveTools] Semantic tool search timed out, falling back to intent/usage ordering")
+		}
+		return nil
+	}
+}
+
 func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
 	available := make([]string, 0, len(schemas))
 	availableSet := make(map[string]bool, len(schemas))
@@ -712,16 +743,10 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 	}
 
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		paths, err := guideSearcher.SearchToolGuides(userQuery, 4)
-		if err != nil {
-			if logger != nil {
-				logger.Debug("[AdaptiveTools] Semantic tool search unavailable", "error", err)
-			}
-		} else {
-			for _, path := range paths {
-				name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
-				add(name)
-			}
+		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, 4, 5*time.Second, logger)
+		for _, path := range paths {
+			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
+			add(name)
 		}
 	}
 
