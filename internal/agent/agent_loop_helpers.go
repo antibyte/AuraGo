@@ -691,6 +691,11 @@ func expandAdaptiveAlwaysIncludeAlias(name string) []string {
 // SearchToolGuides has a 30-second internal timeout, which can block the first
 // agent turn during cold-start embedding computation. This wrapper limits the
 // wait and falls back to intent/usage-based ordering on timeout.
+//
+// NOTE: On timeout the background goroutine continues until SearchToolGuides
+// returns. Under repeated cold-starts several goroutines may stack briefly.
+// A future improvement is to make toolGuideSearcher context-aware so the
+// underlying search can be cancelled.
 func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, timeout time.Duration, logger *slog.Logger) []string {
 	type result struct {
 		paths []string

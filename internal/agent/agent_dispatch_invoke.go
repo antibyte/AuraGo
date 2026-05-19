@@ -91,8 +91,13 @@ func flattenedInvokeArgs(params map[string]interface{}) map[string]interface{} {
 	args := make(map[string]interface{})
 	for key, value := range params {
 		switch key {
-		case "tool_name", "name", "action", "tool", "arguments", "params", "skill_args":
+		// invoke_tool's own metadata keys (and their aliases)
+		case "tool_name", "name", "tool", "arguments", "params", "skill_args":
 			continue
+		// Note: "action" is intentionally NOT filtered here because many
+		// target tools (e.g. filesystem, docker, proxmox) use "action" as a
+		// legitimate parameter. Only keys that belong to invoke_tool itself
+		// should be stripped.
 		default:
 			args[key] = value
 		}

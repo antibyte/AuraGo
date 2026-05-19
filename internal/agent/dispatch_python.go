@@ -170,6 +170,9 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 		if fi.Mode()&os.ModeSymlink != 0 {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"symlinks are not allowed in tools directory"}`)
 		}
+		if fileHasMultipleHardlinks(fi) {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"hard links are not allowed in tools directory"}`)
+		}
 
 		if req.Background {
 			logger.Info("LLM requested background tool execution", "name", req.Name)

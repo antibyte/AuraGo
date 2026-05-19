@@ -171,6 +171,18 @@ func normalizeDiscoverSessionID(sessionID string) string {
 	return sessionID
 }
 
+// ClearDiscoverToolsState removes the discovery snapshot and requested-tool state
+// for a session. Should be called when the session is reset or deleted.
+func ClearDiscoverToolsState(sessionID string) {
+	sessionID = normalizeDiscoverSessionID(sessionID)
+	discoverToolsState.mu.Lock()
+	defer discoverToolsState.mu.Unlock()
+	delete(discoverToolsState.snapshots, sessionID)
+	if discoverToolsState.requested != nil {
+		delete(discoverToolsState.requested, sessionID)
+	}
+}
+
 func discoverSessionIDFromArgs(sessionIDs ...string) string {
 	if len(sessionIDs) == 0 {
 		return discoverDefaultSessionID

@@ -281,6 +281,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
 				s.Logger.Warn("Failed to clear stale mission session context", "session_id", sessionID, "mission_id", missionID, "error", err)
 			}
+			agent.ClearDiscoverToolsState(sessionID)
 		}
 
 		// Guardian: Scan user input for injection patterns (log only, never block)

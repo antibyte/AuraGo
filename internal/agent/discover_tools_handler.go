@@ -148,7 +148,10 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 }
 
 func discoverToolsJSON(resp DiscoverToolsResponse) string {
-	b, _ := json.Marshal(resp)
+	b, err := json.Marshal(resp)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to encode response: %s"}`, err)
+	}
 	return "Tool Output: " + string(b)
 }
 
@@ -211,13 +214,21 @@ func callInstructionForEntry(entry *ToolCatalogEntry, method string) string {
 }
 
 func schemaParameters(schema openai.Tool) map[string]interface{} {
-	if schema.Function == nil {
+	if schema.Function == nil || schema.Function.Parameters == nil {
 		return nil
 	}
 	if params, ok := schema.Function.Parameters.(map[string]interface{}); ok {
 		return params
 	}
-	return nil
+	raw, err := json.Marshal(schema.Function.Parameters)
+	if err != nil {
+		return nil
+	}
+	var params map[string]interface{}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil
+	}
+	return params
 }
 
 func schemasFromActiveNames(allSchemas []openai.Tool, activeNames map[string]bool) []openai.Tool {

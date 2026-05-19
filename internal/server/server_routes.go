@@ -726,8 +726,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
-			return
+			agent.ClearDiscoverToolsState(sessionID)
 		}
 		if err := s.HistoryManager.Clear(); err != nil {
 			s.Logger.Error("Failed to clear chat history", "error", err)
