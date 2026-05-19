@@ -188,7 +188,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "task_prompt"),
 		),
 		tool("question_user",
-			"Ask the user a question with predefined answer options. The agent blocks until the user selects an option, types a free-text answer, or the timeout expires. Use this when you need the user to make a choice from a set of options. In webchat this shows as a modal popup with buttons and optional text input; in text channels this shows as a numbered list.",
+			"Ask the user a question with predefined answer options. The agent blocks until the user selects an option, types a free-text answer, or the timeout expires. Use this when you need the user to make a choice from a set of options. In webchat and desktop chat this shows as a modal popup with buttons and optional text input; in text channels this shows as a numbered list.",
 			schema(map[string]interface{}{
 				"question": prop("string", "The question to ask the user"),
 				"options": map[string]interface{}{

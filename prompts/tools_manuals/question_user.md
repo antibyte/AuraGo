@@ -33,6 +33,6 @@ Timeout:
 
 ## Channel Behavior
 
-In webchat, the user sees a modal with option buttons, a timer, and a text input when free text is enabled.
+In webchat and desktop chat, the user sees a modal with option buttons, a timer, and a text input when free text is enabled.
 
 In Telegram, Discord, and SMS, the user sees a numbered list. They can reply with a number or, when free text is enabled, type an answer freely.

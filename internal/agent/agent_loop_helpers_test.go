@@ -666,7 +666,7 @@ func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testin
 		[]string{"filesystem"},
 		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
 	)
-	for _, want := range []string{"virtual_desktop", "office_document", "office_workbook"} {
+	for _, want := range []string{"virtual_desktop", "office_document", "office_workbook", "question_user"} {
 		if !containsName(got, want) {
 			t.Fatalf("expected desktop chat always-include to contain %q, got %v", want, got)
 		}
@@ -683,6 +683,9 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 		if containsName(got, notWant) {
 			t.Fatalf("did not expect disabled desktop tool %q in always-include set, got %v", notWant, got)
 		}
+	}
+	if !containsName(got, "question_user") {
+		t.Fatalf("expected desktop chat to keep question_user even when optional desktop tools are disabled, got %v", got)
 	}
 }
 

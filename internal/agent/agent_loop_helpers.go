@@ -651,11 +651,12 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 }
 
 func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff ToolFeatureFlags) []string {
-	out := make([]string, 0, len(alwaysInclude)+3)
+	out := make([]string, 0, len(alwaysInclude)+4)
 	out = append(out, alwaysInclude...)
 	if !strings.EqualFold(strings.TrimSpace(runCfg.MessageSource), "virtual_desktop_chat") {
 		return out
 	}
+	out = append(out, "question_user")
 	if ff.VirtualDesktopEnabled {
 		out = append(out, "virtual_desktop")
 	}
