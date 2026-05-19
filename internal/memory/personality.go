@@ -304,10 +304,16 @@ func (s *SQLiteMemory) GetTraits() (PersonalityTraits, error) {
 	return PersonalityTraits(copy), nil
 }
 
-// UpdateTrait adjusts a trait by delta, clamped to [0.0, 1.0].
+// UpdateTrait adjusts a trait by delta, clamped to [0.0, 1.0] and respecting trait bounds.
 func (s *SQLiteMemory) UpdateTrait(trait string, delta float64) error {
 	stmt := `UPDATE personality_traits 
-	         SET value = MIN(1.0, MAX(0.0, value + ?)), updated_at = CURRENT_TIMESTAMP
+	         SET value = MIN(
+	             COALESCE((SELECT ceiling FROM personality_trait_bounds WHERE trait = personality_traits.trait), 1.0),
+	             MAX(
+	                 COALESCE((SELECT floor FROM personality_trait_bounds WHERE trait = personality_traits.trait), 0.0),
+	                 value + ?
+	             )
+	         ), updated_at = CURRENT_TIMESTAMP
 	         WHERE trait = ?`
 	_, err := s.db.Exec(stmt, delta, trait)
 	if err == nil {
@@ -318,10 +324,16 @@ func (s *SQLiteMemory) UpdateTrait(trait string, delta float64) error {
 	return err
 }
 
-// SetTrait strictly sets a trait's value, clamped to [0.0, 1.0].
+// SetTrait strictly sets a trait's value, clamped to [0.0, 1.0] and respecting trait bounds.
 func (s *SQLiteMemory) SetTrait(trait string, value float64) error {
 	stmt := `UPDATE personality_traits 
-	         SET value = MIN(1.0, MAX(0.0, ?)), updated_at = CURRENT_TIMESTAMP
+	         SET value = MIN(
+	             COALESCE((SELECT ceiling FROM personality_trait_bounds WHERE trait = personality_traits.trait), 1.0),
+	             MAX(
+	                 COALESCE((SELECT floor FROM personality_trait_bounds WHERE trait = personality_traits.trait), 0.0),
+	                 ?
+	             )
+	         ), updated_at = CURRENT_TIMESTAMP
 	         WHERE trait = ?`
 	_, err := s.db.Exec(stmt, value, trait)
 	if err == nil {

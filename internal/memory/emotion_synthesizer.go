@@ -233,31 +233,35 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		})
 		if err != nil {
 			es.logger.Warn("[EmotionSynthesizer] LLM call failed, using fallback", "error", err)
-			es.mu.RLock()
+			es.mu.Lock()
+			es.lastCall = time.Now()
 			last := es.lastState
-			es.mu.RUnlock()
+			es.mu.Unlock()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis LLM call failed: %w", err)}, nil
 		}
 
 		if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
-			es.mu.RLock()
+			es.mu.Lock()
+			es.lastCall = time.Now()
 			last := es.lastState
-			es.mu.RUnlock()
+			es.mu.Unlock()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis returned empty response")}, nil
 		}
 
 		state, parseErr := parseEmotionSynthesisResponse(resp.Choices[0].Message.Content, input.CurrentMood)
 		if parseErr != nil {
-			es.mu.RLock()
+			es.mu.Lock()
+			es.lastCall = time.Now()
 			last := es.lastState
-			es.mu.RUnlock()
+			es.mu.Unlock()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis validation failed: %w", parseErr)}, nil
 		}
 		if err := es.ApplyExternalState(stm, state, input.UserMessage); err != nil {
 			es.logger.Warn("[EmotionSynthesizer] Failed to apply emotion state", "error", err)
-			es.mu.RLock()
+			es.mu.Lock()
+			es.lastCall = time.Now()
 			last := es.lastState
-			es.mu.RUnlock()
+			es.mu.Unlock()
 			return &sfEmotionResult{state: last, err: err}, nil
 		}
 		state = es.GetLastEmotion()

@@ -287,7 +287,7 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 	}
 
 	if len(resp.Choices) == 0 {
-		return MoodFocused, 0, nil, nil, nil
+		return MoodFocused, 0, nil, nil, fmt.Errorf("empty chat completion choices")
 	}
 
 	content := resp.Choices[0].Message.Content
@@ -296,14 +296,14 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 
 	jsonStr := extractStrictJSONObject(content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil
+		return MoodFocused, 0, nil, nil, fmt.Errorf("malformed JSON in response: %q", content)
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil
+		return MoodFocused, 0, nil, nil, fmt.Errorf("json unmarshal failed: %w (raw response: %q)", err, content)
 	}
 	if !validateMoodAnalysisResult(&result) {
-		return MoodFocused, 0, nil, nil, nil
+		return MoodFocused, 0, nil, nil, fmt.Errorf("validation of mood analysis result failed: %+v", result)
 	}
 
 	mood := Mood(strings.ToLower(result.AgentMood))
@@ -698,22 +698,22 @@ User Statements:
 		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("llm analyze mood+emotion: %w", err)
 	}
 	if len(resp.Choices) == 0 {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("empty chat completion choices")
 	}
 
 	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("malformed JSON in response: %q", resp.Choices[0].Message.Content)
 	}
 
 	var result moodEmotionAnalysisResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("json unmarshal failed: %w (raw response: %q)", err, resp.Choices[0].Message.Content)
 	}
 
 	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
 	if !ok {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("normalize mood analysis result failed: %+v", result.MoodAnalysis)
 	}
 
 	emotionJSON, err := json.Marshal(result.EmotionState)

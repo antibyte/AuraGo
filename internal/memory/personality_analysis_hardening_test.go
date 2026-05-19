@@ -71,12 +71,9 @@ func TestAnalyzeMoodV2RejectsChattyWrappedJSON(t *testing.T) {
 	mock := &mockPersonalityAnalysisClient{
 		response: `Sure, here is the result: {"user_sentiment":"curious","agent_appropriate_response_mood":"focused","relationship_delta":0.02,"trait_deltas":{"curiosity":0.05}}`,
 	}
-	mood, delta, deltas, updates, err := stm.AnalyzeMoodV2(context.Background(), mock, "test-model", "history", "", PersonalityMeta{}, false)
-	if err != nil {
-		t.Fatalf("AnalyzeMoodV2: %v", err)
-	}
-	if mood != MoodFocused || delta != 0 || deltas != nil || updates != nil {
-		t.Fatalf("expected strict parser fallback on chatty response, got mood=%s delta=%f deltas=%v updates=%v", mood, delta, deltas, updates)
+	_, _, _, _, err := stm.AnalyzeMoodV2(context.Background(), mock, "test-model", "history", "", PersonalityMeta{}, false)
+	if err == nil {
+		t.Fatal("expected error on chatty response due to strict json extraction, got nil")
 	}
 }
 

@@ -601,3 +601,42 @@ func TestApplyEmotionBias_NeutralState_NoChange(t *testing.T) {
 		t.Errorf("expected analytical unchanged with neutral emotion, got %s", got)
 	}
 }
+
+func TestUpdateTraitRespectsBounds(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTrait(TraitCuriosity, 0.7)
+	_ = stm.SetTraitBound(TraitCuriosity, 0.6, 0.9, 1.0)
+	
+	// Test floor bound on UpdateTrait
+	_ = stm.UpdateTrait(TraitCuriosity, -0.2) // would go to 0.5
+	traits, _ := stm.GetTraits()
+	if v := traits[TraitCuriosity]; v != 0.6 {
+		t.Errorf("expected curiosity to clamp to bound floor 0.6, got %.2f", v)
+	}
+
+	// Test ceiling bound on UpdateTrait
+	_ = stm.UpdateTrait(TraitCuriosity, +0.4) // would go to 1.0
+	traits, _ = stm.GetTraits()
+	if v := traits[TraitCuriosity]; v != 0.9 {
+		t.Errorf("expected curiosity to clamp to bound ceiling 0.9, got %.2f", v)
+	}
+}
+
+func TestSetTraitRespectsBounds(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	_ = stm.SetTraitBound(TraitCuriosity, 0.6, 0.9, 1.0)
+	
+	// Test floor bound on SetTrait
+	_ = stm.SetTrait(TraitCuriosity, 0.5)
+	traits, _ := stm.GetTraits()
+	if v := traits[TraitCuriosity]; v != 0.6 {
+		t.Errorf("expected curiosity to clamp to bound floor 0.6 on SetTrait, got %.2f", v)
+	}
+
+	// Test ceiling bound on SetTrait
+	_ = stm.SetTrait(TraitCuriosity, 0.95)
+	traits, _ = stm.GetTraits()
+	if v := traits[TraitCuriosity]; v != 0.9 {
+		t.Errorf("expected curiosity to clamp to bound ceiling 0.9 on SetTrait, got %.2f", v)
+	}
+}
