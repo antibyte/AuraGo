@@ -2,9 +2,12 @@ package agent
 
 import (
 	"sync"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+const discoverToolsSnapshotTTL = 24 * time.Hour
 
 type discoverToolsSnapshot struct {
 	allSchemas   []openai.Tool
@@ -12,6 +15,7 @@ type discoverToolsSnapshot struct {
 	enabledNames map[string]bool
 	promptsDir   string
 	catalog      *ToolCatalog
+	updatedAt    time.Time
 }
 
 // discoverToolsState stores the tool schemas and active names needed by the
@@ -25,6 +29,7 @@ var discoverToolsState struct {
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
 func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSchemas []openai.Tool, promptsDir string) {
 	sessionID = normalizeDiscoverSessionID(sessionID)
+	now := time.Now()
 	active := make(map[string]bool, len(activeSchemas))
 	for _, s := range activeSchemas {
 		if s.Function != nil {
@@ -41,12 +46,14 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 	if discoverToolsState.snapshots == nil {
 		discoverToolsState.snapshots = make(map[string]discoverToolsSnapshot)
 	}
+	pruneDiscoverToolsSnapshotsLocked(now)
 	discoverToolsState.snapshots[sessionID] = discoverToolsSnapshot{
 		allSchemas:   allSchemas,
 		activeNames:  active,
 		enabledNames: enabled,
 		promptsDir:   promptsDir,
 		catalog:      BuildToolCatalog(allSchemas, activeSchemas, promptsDir),
+		updatedAt:    now,
 	}
 	if discoverToolsState.requested == nil {
 		discoverToolsState.requested = make(map[string]map[string]int)
@@ -55,6 +62,24 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 		discoverToolsState.requested[sessionID] = make(map[string]int)
 	}
 	discoverToolsState.mu.Unlock()
+}
+
+func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
+	if discoverToolsSnapshotTTL <= 0 || len(discoverToolsState.snapshots) == 0 {
+		return
+	}
+	cutoff := now.Add(-discoverToolsSnapshotTTL)
+	for sessionID, snapshot := range discoverToolsState.snapshots {
+		if snapshot.updatedAt.IsZero() {
+			continue
+		}
+		if snapshot.updatedAt.Before(cutoff) {
+			delete(discoverToolsState.snapshots, sessionID)
+			if discoverToolsState.requested != nil {
+				delete(discoverToolsState.requested, sessionID)
+			}
+		}
+	}
 }
 
 // MarkDiscoverRequestedTool remembers that a hidden tool was explicitly requested

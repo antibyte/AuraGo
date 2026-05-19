@@ -56,7 +56,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 	switch op {
 	case "list_categories":
 		category := strings.TrimSpace(stringValueFromMap(tc.Params, "category"))
-		logger.Info("[DiscoverTools] list_categories", "category", category)
+		discoverToolsLogInfo(logger, "[DiscoverTools] list_categories", "category", category)
 		return discoverToolsJSON(DiscoverToolsResponse{
 			Status:   "success",
 			Category: category,
@@ -70,7 +70,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 			return "Tool Output: ERROR 'query' is required for search."
 		}
 		resolvedQuery := resolveDiscoverToolName(query)
-		logger.Info("[DiscoverTools] search", "query", query)
+		discoverToolsLogInfo(logger, "[DiscoverTools] search", "query", query)
 		results := catalog.Search(resolvedQuery)
 		if len(results) == 0 {
 			return discoverToolsJSON(DiscoverToolsResponse{
@@ -90,7 +90,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 			return "Tool Output: ERROR 'tool_name' is required for get_tool_info."
 		}
 		resolvedToolName := resolveDiscoverToolName(toolName)
-		logger.Info("[DiscoverTools] get_tool_info", "tool", toolName)
+		discoverToolsLogInfo(logger, "[DiscoverTools] get_tool_info", "tool", toolName)
 		if entry, ok := catalog.Get(resolvedToolName); ok {
 			guidePath := entry.ManualPath
 			guide, _ := prompts.ReadToolGuide(guidePath)
@@ -152,6 +152,12 @@ func discoverToolsJSON(resp DiscoverToolsResponse) string {
 	return "Tool Output: " + string(b)
 }
 
+func discoverToolsLogInfo(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Info(msg, args...)
+	}
+}
+
 func discoverResultsFromEntries(entries []*ToolCatalogEntry, sessionID string, markHidden bool) []DiscoverToolResult {
 	results := make([]DiscoverToolResult, 0, len(entries))
 	for _, entry := range entries {
@@ -197,6 +203,8 @@ func callInstructionForEntry(entry *ToolCatalogEntry, method string) string {
 		return fmt.Sprintf("Use run_tool with name=%q and params matching the parameters shown here.", entry.Routing.CustomName)
 	case "direct":
 		return fmt.Sprintf("Call the native tool %q directly.", entry.Name)
+	case "disabled":
+		return "Tool is disabled in config and cannot be called until the user enables it."
 	default:
 		return "Tool is not callable."
 	}

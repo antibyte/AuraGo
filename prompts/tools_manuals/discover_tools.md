@@ -15,7 +15,7 @@ Browse and search the full tool catalog, including active, hidden, and disabled 
 - `results[]` or `tool`: catalog entries
 - `kind`: `native`, `skill`, `custom`, or `mcp`
 - `status`: `active`, `hidden`, or `disabled`
-- `call_method`: `direct`, `invoke_tool`, `execute_skill`, or `run_tool`
+- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, or `disabled`
 - `callable_now`: whether the tool can be used immediately
 - `schema_available`: whether a parameter schema is included
 - `instruction`: concise call guidance
@@ -55,6 +55,7 @@ Get the full parameter schema, usage guide, status, and call method for a specif
    - `invoke_tool`: call `invoke_tool` with `tool_name` and `arguments`; the system will re-inject the real native schema for follow-up calls
    - `execute_skill`: use `execute_skill` with `skill` and `skill_args`
    - `run_tool`: use `run_tool`
+   - `disabled`: stop and tell the user the tool must be enabled first
 
 ## Important
 - Hidden native tools are enabled but absent from your current schema due to adaptive filtering. Use `invoke_tool` only as the recovery path after `discover_tools` tells you to.

@@ -234,6 +234,9 @@ func callMethodForEntry(entry *ToolCatalogEntry) string {
 	if entry == nil {
 		return ""
 	}
+	if entry.Status == ToolStatusDisabled || !entry.Enabled {
+		return "disabled"
+	}
 	switch entry.Kind {
 	case ToolKindSkill:
 		return "execute_skill"
