@@ -162,5 +162,7 @@
   "config.providers.cap_detecting": "Modell-Fähigkeiten werden erkannt...",
   "config.providers.cap_tool_short": "Tools",
   "config.providers.cap_structured_short": "JSON",
-  "config.providers.cap_multimodal_short": "Vision"
+  "config.providers.cap_multimodal_short": "Vision",
+  "config.providers.empty_key_confirm_title": "Leerer API-Schlüssel",
+  "config.providers.empty_key_confirm": "Warnung: Das Feld für den API-Schlüssel ist leer. Möchten Sie diesen Provider trotzdem speichern?"
 }

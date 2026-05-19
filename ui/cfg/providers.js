@@ -1483,7 +1483,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             }
 
             // ── Save handler ──
-            document.getElementById('prov-save-btn').onclick = () => {
+            document.getElementById('prov-save-btn').onclick = async () => {
                 const id = document.getElementById('prov-id').value.trim();
                 const name = document.getElementById('prov-name').value.trim();
                 const type = document.getElementById('prov-type').value;
@@ -1528,6 +1528,19 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         api_key = document.getElementById('prov-key').value.trim();
                         if (!api_key && data.api_key === '••••••••') api_key = '••••••••';
                     }
+
+                    if (!api_key) {
+                        // Warn only for types that usually require keys
+                        const noKeyTypes = ['ollama', 'llamacpp', 'lmstudio', 'manifest', 'copilot'];
+                        if (!noKeyTypes.includes(type)) {
+                            const confirmed = await showConfirm(
+                                t('config.providers.empty_key_confirm_title'),
+                                t('config.providers.empty_key_confirm')
+                            );
+                            if (!confirmed) return;
+                        }
+                    }
+
                     entry.api_key = api_key;
                     // Clear OAuth fields
                     entry.oauth_auth_url = '';

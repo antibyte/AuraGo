@@ -83,6 +83,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/meshcentral/test", handleMeshCentralTest(s))
 	mux.HandleFunc("/api/restart", handleRestart(s))
 	mux.HandleFunc("/api/embeddings/reset", handleEmbeddingsReset(s))
+	mux.HandleFunc("/api/embeddings/test", handleEmbeddingsTest(s))
 	mux.HandleFunc("/api/updates/check", handleUpdateCheck(s))
 	mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 	mux.HandleFunc("/api/vault/status", handleVaultStatus(s))

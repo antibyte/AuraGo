@@ -162,5 +162,7 @@
   "config.providers.cap_detecting": "Detectando capacidades do modelo...",
   "config.providers.cap_tool_short": "Tools",
   "config.providers.cap_structured_short": "JSON",
-  "config.providers.cap_multimodal_short": "Vision"
+  "config.providers.cap_multimodal_short": "Vision",
+  "config.providers.empty_key_confirm_title": "Chave API vazia",
+  "config.providers.empty_key_confirm": "Aviso: O campo da chave API está vazio. Deseja salvar este provedor mesmo assim?"
 }
