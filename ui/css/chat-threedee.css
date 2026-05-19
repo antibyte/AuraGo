@@ -169,70 +169,69 @@
     background-clip: padding-box;
     box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 16px rgba(129, 140, 248, 0.12);
+    animation: threedeeBotBubblePulse 4s ease-in-out infinite alternate;
 }
 
 [data-theme="threedee"] .bubble.bot::before {
     content: '';
     display: block;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     box-sizing: border-box;
     padding: 2px; /* This defines the border thickness */
     border-radius: inherit;
     background: linear-gradient(
         90deg,
-        rgba(129, 140, 248, 1),
-        rgba(34, 211, 238, 1),
-        rgba(192, 132, 252, 1),
-        rgba(129, 140, 248, 1)
+        rgba(129, 140, 248, 0.7),
+        rgba(34, 211, 238, 0.7),
+        rgba(192, 132, 252, 0.7),
+        rgba(129, 140, 248, 0.7)
     ) border-box;
     background-size: 200% 200%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: destination-out;
+    -webkit-mask-composite: xor;
     mask-composite: exclude;
     z-index: 10; /* Draw on top so shadows don't cover it */
     pointer-events: none;
-    animation: threedeeBorderRotate 3s linear infinite, threedeePulse 2s ease-in-out infinite alternate;
+    animation: threedeeBorderRotate 4s linear infinite;
 }
 
 [data-theme="threedee"] .bubble.user {
     border: 2px solid transparent;
     background-clip: padding-box;
     box-shadow:
-        0 16px 36px rgba(79, 70, 229, 0.36),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        0 16px 36px rgba(79, 70, 229, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 0 16px rgba(45, 212, 191, 0.12);
+    animation: threedeeUserBubblePulse 4s ease-in-out infinite alternate;
 }
 
 [data-theme="threedee"] .bubble.user::before {
     content: '';
     display: block;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     box-sizing: border-box;
     padding: 2px;
     border-radius: inherit;
     background: linear-gradient(
         90deg,
-        rgba(79, 70, 229, 1),
-        rgba(45, 212, 191, 1),
-        rgba(251, 146, 60, 1),
-        rgba(79, 70, 229, 1)
+        rgba(79, 70, 229, 0.7),
+        rgba(45, 212, 191, 0.7),
+        rgba(251, 146, 60, 0.7),
+        rgba(79, 70, 229, 0.7)
     ) border-box;
     background-size: 200% 200%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: destination-out;
+    -webkit-mask-composite: xor;
     mask-composite: exclude;
     z-index: 10;
     pointer-events: none;
-    animation: threedeeBorderRotate 3s linear infinite reverse, threedeePulseUser 2s ease-in-out infinite alternate;
+    animation: threedeeBorderRotate 4s linear infinite reverse;
 }
+
 
 [data-theme="threedee"] .avatar {
     transform: translateZ(18px);
@@ -689,14 +688,34 @@
     100% { filter: hue-rotate(360deg); background-position: 200% 50%; }
 }
 
-@keyframes threedeePulse {
-    0% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.5)); }
-    100% { opacity: 1; transform: scale(1.015); filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.9)); }
+@keyframes threedeeBotBubblePulse {
+    0% {
+        box-shadow:
+            0 14px 34px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 0 12px rgba(129, 140, 248, 0.12);
+    }
+    100% {
+        box-shadow:
+            0 14px 34px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 0 24px rgba(34, 211, 238, 0.22);
+    }
 }
 
-@keyframes threedeePulseUser {
-    0% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 6px rgba(45, 212, 191, 0.5)); }
-    100% { opacity: 1; transform: scale(1.015); filter: drop-shadow(0 0 14px rgba(251, 146, 60, 0.9)); }
+@keyframes threedeeUserBubblePulse {
+    0% {
+        box-shadow:
+            0 16px 36px rgba(79, 70, 229, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 0 12px rgba(79, 70, 229, 0.12);
+    }
+    100% {
+        box-shadow:
+            0 16px 36px rgba(79, 70, 229, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 0 24px rgba(45, 212, 191, 0.22);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

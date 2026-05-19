@@ -255,6 +255,31 @@
     }
 
     function spawnImpactBurst(x, y, z, strength) {
+        // Calculate the local coordinates on the heightfield
+        const worldPos = new THREE.Vector3(x, y, z);
+        const localPos = worldPos.clone();
+        if (surface) {
+            surface.worldToLocal(localPos);
+        }
+
+        // Compute local surface normal
+        const localNormal = new THREE.Vector3(0, 1, 0);
+        if (surface) {
+            const eps = 0.22;
+            const t = performance.now() / 1000;
+            const left = heightAt(clamp(localPos.x - eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const right = heightAt(clamp(localPos.x + eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const back = heightAt(localPos.x, clamp(localPos.z - eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            const front = heightAt(localPos.x, clamp(localPos.z + eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            localNormal.set(left - right, eps * 2, back - front).normalize();
+        }
+
+        // Transform local normal to world space
+        const worldNormal = new THREE.Vector3(0, 1, 0);
+        if (surface) {
+            worldNormal.copy(localNormal).transformDirection(surface.matrixWorld);
+        }
+
         for (let j = 0; j < 10; j++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 0.55 + Math.random() * 1.4;
@@ -283,14 +308,24 @@
         }
 
         const flash = new THREE.PointLight(0xffb347, 13 * strength, 20);
-        flash.position.set(x, y + 0.12, z);
+        // Position it offset along the normal
+        const lightPos = new THREE.Vector3(x, y, z).addScaledVector(worldNormal, 0.12);
+        flash.position.copy(lightPos);
         scene.add(flash);
         impactLights.push({ light: flash, life: 0.72, maxLife: 0.72, baseIntensity: 13 * strength });
 
         for (let ring = 0; ring < 3; ring++) {
             const shock = new THREE.Mesh(window.shockwaveGeom, window.shockwaveMat.clone());
-            shock.position.set(x, y + 0.04 + ring * 0.018, z);
-            shock.rotation.x = -Math.PI / 2;
+            
+            // Position it offset along the normal to prevent z-fighting
+            const offsetPos = new THREE.Vector3(x, y, z).addScaledVector(worldNormal, 0.04 + ring * 0.018);
+            shock.position.copy(offsetPos);
+
+            // Align the ring's geometry normal (0, 0, 1) to the worldNormal
+            const normalAlign = new THREE.Quaternion();
+            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
+            shock.quaternion.copy(normalAlign);
+
             scene.add(shock);
             shockwaves.push({
                 mesh: shock,
@@ -388,13 +423,31 @@
                 createTrailParticle(s, 'debrisSpark');
             }
 
-            const gridZ = s.zScene + 5.3;
-            if (s.y <= heightAt(s.x, gridZ, t) - 2.55) {
-                addImpulse(s.x, gridZ, s.strength * 1.38);
-                spawnImpactBurst(s.x, s.y, s.zScene, s.strength);
+            if (surface) {
+                const worldPos = new THREE.Vector3(s.x, s.y, s.zScene);
+                const localPos = worldPos.clone();
+                surface.worldToLocal(localPos);
                 
-                scene.remove(s.mesh);
-                spheres.splice(i, 1);
+                const localHeight = heightAt(localPos.x, localPos.z, t);
+                if (localPos.y <= localHeight) {
+                    const localCollision = new THREE.Vector3(localPos.x, localHeight, localPos.z);
+                    const worldCollision = surface.localToWorld(localCollision);
+                    
+                    addImpulse(localPos.x, localPos.z, s.strength * 1.38);
+                    spawnImpactBurst(worldCollision.x, worldCollision.y, worldCollision.z, s.strength);
+                    
+                    scene.remove(s.mesh);
+                    spheres.splice(i, 1);
+                }
+            } else {
+                const gridZ = s.zScene + 5.3;
+                if (s.y <= heightAt(s.x, gridZ, t) - 2.55) {
+                    addImpulse(s.x, gridZ, s.strength * 1.38);
+                    spawnImpactBurst(s.x, s.y, s.zScene, s.strength);
+                    
+                    scene.remove(s.mesh);
+                    spheres.splice(i, 1);
+                }
             }
         }
         
