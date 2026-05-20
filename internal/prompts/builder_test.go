@@ -149,6 +149,26 @@ func TestRulesPromptCompletionSignalOnlyAfterCompletion(t *testing.T) {
 	}
 }
 
+func TestRulesPromptRequiresAnnouncedActionsToBeExecuted(t *testing.T) {
+	raw, err := promptsembed.FS.ReadFile("rules.md")
+	if err != nil {
+		t.Fatalf("read rules prompt: %v", err)
+	}
+	rules := string(raw)
+
+	for _, want := range []string{
+		"Action-execution integrity",
+		"Never announce, promise, imply, or describe an action as future work unless you will actually perform it",
+		"your next assistant action must be the corresponding tool call",
+		"Do not say you will inspect, edit, run, test, create, save, register, deploy, open, send, or document anything and then stop with text only",
+		"If a tool is unavailable, blocked, unsafe, or needs user confirmation, state that constraint plainly",
+	} {
+		if !strings.Contains(rules, want) {
+			t.Fatalf("rules prompt missing action-execution integrity wording %q", want)
+		}
+	}
+}
+
 func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
 	prompt := strings.Repeat("word ", 5000)
 
