@@ -5721,6 +5721,18 @@ select.cfg-input option {
 
 .prov-btn-xs { padding: 0.32rem 0.9rem; font-size: 0.77rem; }
 .prov-btn-sm { padding: 0.4rem 1.1rem; font-size: 0.78rem; }
+.prov-section-actions .btn-save.prov-btn-sm {
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    color: #f0fdfa;
+    border: 1px solid rgba(94, 234, 212, 0.42);
+    text-shadow: none;
+    box-shadow: 0 10px 24px rgba(13, 148, 136, 0.24);
+}
+.prov-section-actions .btn-save.prov-btn-sm:hover {
+    background: linear-gradient(135deg, #14b8a6, #0f766e);
+    color: #ffffff;
+    border-color: rgba(153, 246, 228, 0.58);
+}
 .prov-btn-md { padding: 0.45rem 1.4rem; font-size: 0.82rem; }
 .prov-btn-muted { background: var(--bg-tertiary); color: var(--text-primary); }
 
@@ -5778,10 +5790,16 @@ select.cfg-input option {
 .prov-section-actions { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
 .prov-empty-state { text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem; }
 .prov-provider-pill {
-    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;
-    background: var(--accent); color: #fff; margin-left: 0.4rem;
+    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+    background: linear-gradient(135deg, #ccfbf1, #5eead4); color: #08312d; margin-left: 0.4rem;
+    border: 1px solid rgba(20, 184, 166, 0.42);
+    text-shadow: none;
 }
-.prov-provider-pill-oauth { background: #8e44ad; }
+.prov-provider-pill-oauth {
+    background: linear-gradient(135deg, #f3e8ff, #c084fc);
+    color: #2e1065;
+    border-color: rgba(147, 51, 234, 0.38);
+}
 .prov-provider-card {
     border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 0.75rem;
     background: var(--bg-secondary); transition: border-color 0.15s;
