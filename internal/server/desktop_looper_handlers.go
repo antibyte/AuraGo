@@ -185,16 +185,19 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			return
 		}
 		var req struct {
-			Prepare     string `json:"prepare"`
-			Plan        string `json:"plan"`
-			Action      string `json:"action"`
-			Test        string `json:"test"`
-			ExitCond    string `json:"exit_cond"`
-			Finish      string `json:"finish"`
-			ProviderID  string `json:"provider_id"`
-			Model       string `json:"model"`
-			MaxIter     int    `json:"max_iter"`
-			ContextMode string `json:"context_mode"`
+			Prepare           string `json:"prepare"`
+			Plan              string `json:"plan"`
+			Action            string `json:"action"`
+			Test              string `json:"test"`
+			ExitCond          string `json:"exit_cond"`
+			Finish            string `json:"finish"`
+			FinishContext       string `json:"finish_context"`
+			PrepareTruncation   int    `json:"prepare_truncation"`
+			SummarizeIterations bool   `json:"summarize_iterations"`
+			ProviderID          string `json:"provider_id"`
+			Model             string `json:"model"`
+			MaxIter           int    `json:"max_iter"`
+			ContextMode       string `json:"context_mode"`
 		}
 		if err := decodeDesktopJSON(w, r, &req, desktopMediumJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
@@ -290,16 +293,19 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		go func() {
 			defer loopCancel()
 			if err := runner.executeStarted(loopCtx, desktop.LooperRunConfig{
-				Prepare:     req.Prepare,
-				Plan:        req.Plan,
-				Action:      req.Action,
-				Test:        req.Test,
-				ExitCond:    req.ExitCond,
-				Finish:      req.Finish,
-				ProviderID:  req.ProviderID,
-				Model:       model,
-				MaxIter:     req.MaxIter,
-				ContextMode: desktop.NormalizeContextMode(req.ContextMode),
+				Prepare:           req.Prepare,
+				Plan:              req.Plan,
+				Action:            req.Action,
+				Test:              req.Test,
+				ExitCond:          req.ExitCond,
+				Finish:            req.Finish,
+				FinishContext:       req.FinishContext,
+				PrepareTruncation:   req.PrepareTruncation,
+				SummarizeIterations: req.SummarizeIterations,
+				ProviderID:          req.ProviderID,
+				Model:             model,
+				MaxIter:           req.MaxIter,
+				ContextMode:       desktop.NormalizeContextMode(req.ContextMode),
 			}, cfg, client, toolSchemas, dispatchCtx); err != nil {
 				s.Logger.Error("looper execution failed", "error", err)
 			}

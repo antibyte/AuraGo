@@ -55,8 +55,11 @@ func DefaultLooperPresets() []LooperPreset {
 			Action:    "Execute the plan: generate or refine the artifact (music, lyrics, arrangement, or code). Use available creative tools when appropriate. Make the change bold but coherent with the reference.",
 			Test:      "Evaluate the result on four axes: (1) Emotional impact, (2) Originality vs reference, (3) Technical polish, (4) 'Would Ralph be proud?'. Give a 1-10 score per axis and an overall verdict with specific praise and criticism.",
 			ExitCond:  "Are all four axes >= 8 and the overall verdict 'production ready / signature Ralph'? Answer only true or false.",
-			Finish:    "Export the final artifact to the desktop (Writer, Music player, Gallery, or Radio) and write a short artist note explaining the journey and the key decision that made it special.",
-			MaxIter:   18,
+			Finish:            "Export the final artifact to the desktop (Writer, Music player, Gallery, or Radio) and write a short artist note explaining the journey and the key decision that made it special. Use the final iteration result provided below.",
+			FinishContext:     "last_action_test",
+			PrepareTruncation:   6000, // higher budget for creative references (style, mood, previous work)
+			SummarizeIterations: true, // explicit reflection after each round → much better coherence
+			MaxIter:             18,
 		},
 	}
 }

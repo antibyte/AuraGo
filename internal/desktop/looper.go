@@ -20,6 +20,24 @@ type LooperPreset struct {
 	Test       string    `json:"test"`
 	ExitCond   string    `json:"exit_cond"`
 	Finish     string    `json:"finish"`
+
+	// FinishContext controls how much of the final iteration result
+	// is made available to the Finish prompt.
+	// Valid values: "none", "last_test", "last_action_test", "full"
+	// Default / empty = "last_test" (good balance for most creative loops)
+	FinishContext string    `json:"finish_context"`
+
+	// PrepareTruncation controls how many characters of the Prepare step result
+	// are kept for the iteration seed (iterSeed). Higher values are useful for
+	// creative loops (style references, music descriptions, long briefs).
+	// 0 = use default (2000 characters).
+	PrepareTruncation int `json:"prepare_truncation"`
+
+	// SummarizeIterations, when true, adds an explicit "Summarize this iteration"
+	// step after Test. The resulting summary is fed into the next iteration.
+	// This greatly improves coherence for long creative loops (e.g. Ralph Loop).
+	SummarizeIterations bool `json:"summarize_iterations"`
+
 	ProviderID string    `json:"provider_id"`
 	Model      string    `json:"model"`
 	MaxIter      int       `json:"max_iter"`
@@ -56,6 +74,17 @@ type LooperRunConfig struct {
 	Test       string
 	ExitCond   string
 	Finish     string
+
+	// FinishContext is passed through from the preset.
+	// See LooperPreset.FinishContext for possible values.
+	FinishContext string
+
+	// PrepareTruncation comes from the preset (0 = default 2000 chars).
+	PrepareTruncation int
+
+	// SummarizeIterations comes from the preset.
+	SummarizeIterations bool
+
 	ProviderID   string
 	Model        string
 	MaxIter      int
@@ -104,6 +133,8 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 		return fmt.Errorf("migrate looper table: %w", err)
 	}
 	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN context_mode TEXT DEFAULT ''`)
+	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN finish_context TEXT DEFAULT ''`)
+	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN prepare_truncation INTEGER DEFAULT 0`)
 	return ps.seedBuiltinPresets(ctx)
 }
 
@@ -126,9 +157,9 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 
 	for _, p := range DefaultLooperPresets() {
 		_, err := tx.ExecContext(ctx,
-			`INSERT OR IGNORE INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			`INSERT OR IGNORE INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
+			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
 		if err != nil {
 			return fmt.Errorf("seed looper preset %s: %w", p.Name, err)
 		}
@@ -145,7 +176,7 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 // ListPresets returns all presets (builtin + user-saved).
 func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, error) {
 	rows, err := ps.db.QueryContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, provider_id, model, max_iter, context_mode, created_at, updated_at
+		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
 		FROM desktop_looper_presets ORDER BY is_builtin DESC, name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list looper presets: %w", err)
@@ -156,7 +187,7 @@ func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, e
 	for rows.Next() {
 		var p LooperPreset
 		var isBuiltin int
-		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan looper preset: %w", err)
 		}
 		p.IsBuiltin = isBuiltin == 1
@@ -168,7 +199,7 @@ func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, e
 // ListExamples returns only builtin presets.
 func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, error) {
 	rows, err := ps.db.QueryContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, provider_id, model, max_iter, context_mode, created_at, updated_at
+		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
 		FROM desktop_looper_presets WHERE is_builtin = 1 ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list looper examples: %w", err)
@@ -179,7 +210,7 @@ func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, 
 	for rows.Next() {
 		var p LooperPreset
 		var isBuiltin int
-		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan looper example: %w", err)
 		}
 		p.IsBuiltin = isBuiltin == 1
@@ -193,9 +224,9 @@ func (ps *LooperPresetStore) GetPreset(ctx context.Context, id int64) (LooperPre
 	var p LooperPreset
 	var isBuiltin int
 	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, provider_id, model, max_iter, context_mode, created_at, updated_at
+		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
 		FROM desktop_looper_presets WHERE id = ?`, id,
-	).Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt)
+	).Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return p, fmt.Errorf("get looper preset: %w", err)
 	}
@@ -211,18 +242,18 @@ func (ps *LooperPresetStore) SavePreset(ctx context.Context, p LooperPreset) (in
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if p.ID == 0 {
 		res, err := ps.db.ExecContext(ctx,
-			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
+			VALUES(?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
 		if err != nil {
 			return 0, fmt.Errorf("insert looper preset: %w", err)
 		}
 		return res.LastInsertId()
 	}
 	_, err := ps.db.ExecContext(ctx,
-		`UPDATE desktop_looper_presets SET name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?, finish=?, provider_id=?, model=?, max_iter=?, context_mode=?, updated_at=?
+		`UPDATE desktop_looper_presets SET name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?, finish=?, finish_context=?, prepare_truncation=?, provider_id=?, model=?, max_iter=?, context_mode=?, updated_at=?
 		WHERE id=? AND is_builtin=0`,
-		p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, p.ID)
+		p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, p.ID)
 	if err != nil {
 		return 0, fmt.Errorf("update looper preset: %w", err)
 	}

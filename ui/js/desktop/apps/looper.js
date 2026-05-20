@@ -70,6 +70,7 @@
                                 <option value="never">${esc(t('desktop.looper_context_never'))}</option>
                                 <option value="every_step">${esc(t('desktop.looper_context_every_step'))}</option>
                             </select>
+                            <div id="looper-context-warning-${windowId}" class="vd-looper-context-warning" style="display:none; font-size:11px; color:#f59e0b; margin-top:4px;"></div>
                         </div>
                     </div>
                 </div>
@@ -224,6 +225,9 @@
         }
         loadPresets();
 
+        // Initial warning state
+        setTimeout(updateContextWarning, 50);
+
         function fillForm(p) {
             state.stepValues = {
                 prepare: p.prepare || '',
@@ -241,6 +245,37 @@
             $(`looper-model-${windowId}`).value = p.model || '';
             $(`looper-max-iter-${windowId}`).value = p.max_iter || 20;
             $(`looper-context-mode-${windowId}`).value = p.context_mode || 'every_iteration';
+            updateContextWarning();
+        }
+
+        // Dynamic warning for context mode selection
+        const contextSelect = $(`looper-context-mode-${windowId}`);
+        const contextWarning = $(`looper-context-warning-${windowId}`);
+
+        function updateContextWarning() {
+            if (!contextSelect || !contextWarning) return;
+
+            const mode = contextSelect.value;
+            const maxIter = parseInt($(`looper-max-iter-${windowId}`).value, 10) || 10;
+            let warning = '';
+
+            if (mode === 'every_step') {
+                warning = '⚠️ every_step is very isolated. Not recommended for long creative loops (context is reset after every step).';
+            } else if (mode === 'never' && maxIter > 8) {
+                warning = 'ℹ️ "never" starts each round relatively fresh. Good for some tasks, but "every_iteration" + summarization is usually better for coherent creative work.';
+            }
+
+            if (warning) {
+                contextWarning.textContent = warning;
+                contextWarning.style.display = 'block';
+            } else {
+                contextWarning.style.display = 'none';
+            }
+        }
+
+        if (contextSelect) {
+            contextSelect.addEventListener('change', updateContextWarning);
+            $(`looper-max-iter-${windowId}`).addEventListener('input', updateContextWarning);
         }
 
         function readForm() {

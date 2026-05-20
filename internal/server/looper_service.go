@@ -132,10 +132,15 @@ func (r *LooperRunner) executeStarted(
 
 	// Build iteration seed: system prompt + prepare result summary so each
 	// iteration starts fresh but retains the preparation context.
+	truncLen := cfg.PrepareTruncation
+	if truncLen <= 0 {
+		truncLen = 2000 // conservative default
+	}
+
 	iterSeed := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 		{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
-		{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, 2000)},
+		{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, truncLen)},
 	}
 
 	ctxMode := cfg.ContextMode
@@ -146,6 +151,7 @@ func (r *LooperRunner) executeStarted(
 	var fullHistory []openai.ChatCompletionMessage
 	var lastTestResult string
 	var previousIterationSummary string // used primarily by "never" mode
+	var lastIterationSummary string     // result of the optional "summarize" step
 
 	// ─────────────────────────────────────────────────────────────────────
 	// ITERATION LOOP + CONTEXT MODE SEMANTICS
@@ -199,6 +205,15 @@ func (r *LooperRunner) executeStarted(
 			})
 		}
 
+		// Inject the explicit iteration summary (from the "summarize" step) if available.
+		// This is especially powerful in "every_iteration" and "never" modes.
+		if i > 1 && lastIterationSummary != "" {
+			history = append(history, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "Reflection / Summary of the previous iteration:\n" + truncateResponse(lastIterationSummary, 2500),
+			})
+		}
+
 		// PLAN
 		r.holder.SetStep("plan")
 		planRes, history, err := stepExec("plan", cfg.Plan, "", tools, optsWithTools, history)
@@ -207,14 +222,7 @@ func (r *LooperRunner) executeStarted(
 		}
 		r.holder.AppendLog(i, "plan", cfg.Plan, planRes.Response, planRes.Duration)
 
-		if ctxMode == "every_step" {
-			history = resetHistoryAfterStep(sysPrompt, planRes.Response)
-		} else {
-			history = append(history, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: "Plan result:\n" + truncateResponse(planRes.Response, 3000),
-			})
-		}
+		history = appendStepResult(history, "plan", planRes.Response, ctxMode, sysPrompt)
 
 		// ACTION
 		r.holder.SetStep("action")
@@ -224,9 +232,7 @@ func (r *LooperRunner) executeStarted(
 		}
 		r.holder.AppendLog(i, "action", cfg.Action, actionRes.Response, actionRes.Duration)
 
-		if ctxMode == "every_step" {
-			history = resetHistoryAfterStep(sysPrompt, actionRes.Response)
-		}
+		history = appendStepResult(history, "action", actionRes.Response, ctxMode, sysPrompt)
 
 		// TEST
 		r.holder.SetStep("test")
@@ -238,9 +244,20 @@ func (r *LooperRunner) executeStarted(
 		r.holder.SetLastResult(testRes.Response)
 		lastTestResult = testRes.Response
 
-		if ctxMode == "every_step" {
-			history = resetHistoryAfterStep(sysPrompt, testRes.Response)
+		// Optional explicit summarization step (greatly helps long creative loops)
+		if cfg.SummarizeIterations {
+			r.holder.SetStep("summarize")
+			summaryPrompt := "Provide a concise but insightful summary (max ~600 words) of the key decisions, changes, and outcome of this iteration. Focus on what improved, what the main insights were, and what still needs attention for the next round."
+			summaryRes, _, err := stepExec("summarize", summaryPrompt, sysPrompt, tools, optsWithTools, history)
+			if err == nil {
+				r.holder.AppendLog(i, "summarize", summaryPrompt, summaryRes.Response, summaryRes.Duration)
+				lastIterationSummary = summaryRes.Response // will be injected in next iteration
+			} else {
+				r.logger.Warn("[Looper] iteration summarization failed", "iteration", i, "err", err)
+			}
 		}
+
+		history = appendStepResult(history, "test", testRes.Response, ctxMode, sysPrompt)
 
 		// EXIT CONDITION — no tools needed, just a boolean evaluation.
 		// When the model gives an ambiguous answer we do one cheap clarification
@@ -287,7 +304,35 @@ func (r *LooperRunner) executeStarted(
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, iterSeed)
+
+		// Build the context for Finish depending on FinishContext setting
+		finishHistory := iterSeed
+
+		finishCtxMode := cfg.FinishContext
+		if finishCtxMode == "" {
+			finishCtxMode = "last_test" // sensible default
+		}
+
+		if finishCtxMode != "none" && len(fullHistory) > 0 {
+			var finalPart string
+
+			switch finishCtxMode {
+			case "last_action_test", "full":
+				// Try to extract the last meaningful Action + Test result from fullHistory
+				finalPart = "Result of the last iteration:\n" + truncateResponse(lastTestResult, 3000)
+			default: // "last_test"
+				finalPart = "Final test result of the loop:\n" + truncateResponse(lastTestResult, 3000)
+			}
+
+			if finalPart != "" {
+				finishHistory = append(finishHistory, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleUser,
+					Content: finalPart,
+				})
+			}
+		}
+
+		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, finishHistory)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
@@ -357,6 +402,44 @@ func resetHistoryAfterStep(sysPrompt, stepResult string) []openai.ChatCompletion
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
 		{Role: openai.ChatMessageRoleUser, Content: truncateResponse(stepResult, 2000)},
 	}
+}
+
+// appendStepResult encapsulates the logic of how to extend the conversation
+// history after receiving the result of a step (Plan, Action, Test, Summarize...),
+// depending on the chosen context mode.
+//
+// This makes the main loop much easier to read and reason about.
+func appendStepResult(
+	history []openai.ChatCompletionMessage,
+	stepName string,
+	result string,
+	ctxMode string,
+	sysPrompt string,
+) []openai.ChatCompletionMessage {
+
+	if ctxMode == "every_step" {
+		return resetHistoryAfterStep(sysPrompt, result)
+	}
+
+	// For "every_iteration" and "never" we keep accumulating
+	label := ""
+	switch stepName {
+	case "plan":
+		label = "Plan result:"
+	case "action":
+		label = "Action result:"
+	case "test":
+		label = "Test result:"
+	case "summarize":
+		label = "Iteration reflection:"
+	default:
+		label = stepName + " result:"
+	}
+
+	return append(history, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: label + "\n" + truncateResponse(result, 3000),
+	})
 }
 
 // Server-side singleton management for looper.
