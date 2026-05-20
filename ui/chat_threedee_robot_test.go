@@ -192,6 +192,7 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"const ROBOT_FOOT_JET_UNDERSIDE_Y =",
 		"const ROBOT_THRUSTER_RIPPLE_LIFETIME =",
 		"const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT =",
+		"const ROBOT_THRUSTER_RIPPLE_WIDTH =",
 		"const MAX_ROBOT_THRUSTER_RIPPLES =",
 		"const robotThrusterRipples = [];",
 		"function addRobotThrusterRipple",
@@ -200,11 +201,13 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"lastThrusterRippleAt: -999",
 		"thrusterRipplePrimed: false",
 		"flightWasActive: false",
+		"const ignoreRobotOwner = options && options.ignoreRobotOwner;",
 		"const hoverDepression = -0.2 * Math.exp",
 		"height += hoverDepression * flightWaveInfluence;",
-		"height += robotThrusterRippleHeightAt(x, z, t, options && options.ignoreRobotRippleOwner);",
+		"if (ignoreRobotOwner && botOwner === ignoreRobotOwner) return;",
+		"height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);",
 		"if (ignoreOwner && ripple.owner === ignoreOwner) continue;",
-		"const sampleOptions = bot && bot.id ? { ignoreRobotRippleOwner: bot.id } : null;",
+		"const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id } : null;",
 		"updateRobotThrusterRipples(t);",
 		"new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)",
 		"const owner = bot.id || 'robot';",
@@ -212,10 +215,11 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"activeForRobot >= ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT",
 		"const rippleScale = strengthScale == null ? 1 : clamp(strengthScale, 0.35, 1.35);",
 		"addRobotThrusterRipple(bot, t, pendingThrusterRipple);",
+		"const ridge = Math.exp(-(delta * delta) / ROBOT_THRUSTER_RIPPLE_WIDTH);",
+		"const trailingWake = Math.exp(-(wakeDelta * wakeDelta) / (ROBOT_THRUSTER_RIPPLE_WIDTH * 1.8));",
 		"const rippleAttack = smoothstep",
 		"const rippleRelease = 1 - smoothstep",
 		"const rippleFade = rippleAttack * rippleRelease * rippleRelease",
-		"Math.exp(-(delta * delta) / 0.42)",
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing thruster underside/ripple marker %q", marker)
@@ -227,19 +231,23 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 	if strings.Contains(shader, "nextThrusterRippleAt") {
 		t.Fatal("thruster ripples must be event-driven, not periodically rescheduled")
 	}
+	if strings.Contains(shader, "Math.cos(delta") {
+		t.Fatal("thruster ripple must not use a cosine carrier that aliases on the matrix grid")
+	}
 }
 
 func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
 	t.Parallel()
 
 	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
-	if minGap := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MIN_GAP"); minGap < 0.8 {
+	lifetime := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_LIFETIME")
+	if minGap := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MIN_GAP"); minGap < lifetime {
 		t.Fatalf("thruster ripple minimum gap should avoid dense ripple stacks, got %.2f", minGap)
 	}
-	if maxActive := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT"); maxActive > 2 {
+	if maxActive := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT"); maxActive > 1 {
 		t.Fatalf("thruster ripples should stay sparse per robot, got max %.0f", maxActive)
 	}
-	if maxRipples := extractJSConstFloat(t, shader, "MAX_ROBOT_THRUSTER_RIPPLES"); maxRipples > 12 {
+	if maxRipples := extractJSConstFloat(t, shader, "MAX_ROBOT_THRUSTER_RIPPLES"); maxRipples > 6 {
 		t.Fatalf("global thruster ripple pool should stay small enough to avoid jitter, got %.0f", maxRipples)
 	}
 	for _, marker := range []string{
@@ -256,6 +264,9 @@ func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
 	}
 	if strings.Contains(shader, "ROBOT_THRUSTER_RIPPLE_INTERVAL") {
 		t.Fatal("thruster ripple interval scheduler should not exist")
+	}
+	if strings.Contains(shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 2") {
+		t.Fatal("two active thruster ripples per robot can visually jump between overlapping fronts")
 	}
 }
 

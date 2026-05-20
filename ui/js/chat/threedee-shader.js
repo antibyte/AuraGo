@@ -94,9 +94,10 @@
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
-    const ROBOT_THRUSTER_RIPPLE_MIN_GAP = 0.9;
-    const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 2;
-    const MAX_ROBOT_THRUSTER_RIPPLES = 10;
+    const ROBOT_THRUSTER_RIPPLE_MIN_GAP = 3.05;
+    const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 1;
+    const ROBOT_THRUSTER_RIPPLE_WIDTH = 0.72;
+    const MAX_ROBOT_THRUSTER_RIPPLES = 6;
     const RED_ROBOT_FOOT_JET_OFFSETS = [
         [0, ROBOT_FOOT_JET_UNDERSIDE_Y, -0.25],
         [0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0.25]
@@ -819,6 +820,7 @@
         const crossWave = Math.sin(z * 0.68 - t * 0.58) * 0.18;
         const diagonalWave = Math.sin((x + z) * 0.32 + t * 0.42) * 0.12;
         let height = slowWave + crossWave + diagonalWave;
+        const ignoreRobotOwner = options && options.ignoreRobotOwner;
 
         for (const impulse of impulses) {
             const age = t - impulse.start;
@@ -839,9 +841,11 @@
 
         // Robot thruster downdraft and ripples under the robot
         if (robotState) {
-            const activeRobots = robotFleet.length ? robotFleet : [{ state: robotState }];
+            const activeRobots = robotFleet.length ? robotFleet : [{ id: 'blue', state: robotState }];
             activeRobots.forEach(function (bot) {
                 if (!bot || !bot.state) return;
+                const botOwner = bot.id || 'robot';
+                if (ignoreRobotOwner && botOwner === ignoreRobotOwner) return;
                 const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
                 const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
                 const hoverDepression = -0.2 * Math.exp(-(distToRobot * distToRobot) / 0.72);
@@ -849,7 +853,7 @@
             });
         }
 
-        height += robotThrusterRippleHeightAt(x, z, t, options && options.ignoreRobotRippleOwner);
+        height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);
 
         return height;
     }
@@ -867,16 +871,17 @@
 
             const dist = Math.hypot(x - ripple.x, z - ripple.z);
             const progress = age / ROBOT_THRUSTER_RIPPLE_LIFETIME;
-            const radius = 0.16 + age * 1.42;
+            const radius = 0.18 + age * 1.25;
             const delta = dist - radius;
-            const crest = Math.cos(delta * 4.1);
-            const envelope = Math.exp(-(delta * delta) / 0.42);
+            const ridge = Math.exp(-(delta * delta) / ROBOT_THRUSTER_RIPPLE_WIDTH);
+            const wakeDelta = delta + 0.66;
+            const trailingWake = Math.exp(-(wakeDelta * wakeDelta) / (ROBOT_THRUSTER_RIPPLE_WIDTH * 1.8));
             const rippleAttack = smoothstep(0, 0.18, age);
             const rippleRelease = 1 - smoothstep(0.58, 1, progress);
             const rippleFade = rippleAttack * rippleRelease * rippleRelease;
-            height += crest * envelope * rippleFade * ripple.strength;
+            height += (ridge - trailingWake * 0.32) * rippleFade * ripple.strength;
         }
-        return softClip(height, 0.22);
+        return softClip(height, 0.18);
     }
 
     function colorForHeight(height, target) {
@@ -1170,7 +1175,7 @@
         ensureRobotPhysicsState();
         const targetNormal = bot && bot.surfaceNormal ? bot.surfaceNormal : robotSurfaceNormal;
         const eps = 0.22;
-        const sampleOptions = bot && bot.id ? { ignoreRobotRippleOwner: bot.id } : null;
+        const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id } : null;
         const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
         const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
         const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
@@ -1394,7 +1399,7 @@
         bot.state.z += bot.velocity.y * dt;
         bounceFloatingRobotWithinBounds(t, bot);
 
-        const sampleOptions = bot.id ? { ignoreRobotRippleOwner: bot.id } : null;
+        const sampleOptions = bot.id ? { ignoreRobotOwner: bot.id } : null;
         const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         bot.state.waterY = waterY;
