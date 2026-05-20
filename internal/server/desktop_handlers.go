@@ -69,6 +69,10 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		}
 		_ = s.DesktopService.Close()
 		s.DesktopService = nil
+		if s.DesktopStore != nil {
+			_ = s.DesktopStore.Close()
+			s.DesktopStore = nil
+		}
 		s.DesktopHub = nil
 		// Intentionally do not call CloseToolDesktopService() here — the next
 		// creation block will overwrite the cache with the fresh service via Set.

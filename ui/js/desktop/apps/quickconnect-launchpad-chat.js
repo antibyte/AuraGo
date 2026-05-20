@@ -345,7 +345,8 @@
             if (filtered.length === 0) { grid.innerHTML = ''; empty.hidden = false; return; }
             empty.hidden = true;
             grid.innerHTML = filtered.map(link => {
-                const icon = link.icon_path ? '<img class="vd-launchpad-tile-icon" src="/files/' + esc(link.icon_path) + '" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '';
+                const iconSrc = link.icon_path && /^https?:\/\//i.test(link.icon_path) ? link.icon_path : (link.icon_path ? '/files/' + link.icon_path : '');
+                const icon = iconSrc ? '<img class="vd-launchpad-tile-icon" src="' + esc(iconSrc) + '" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '';
                 const fallback = '<div class="vd-launchpad-tile-fallback"' + (link.icon_path ? ' hidden' : '') + '>' + iconMarkup(launchpadCategoryIconKey(link.category), 'G', 'vd-launchpad-fallback-icon', 34) + '</div>';
                 return '<div class="vd-launchpad-tile" data-id="' + esc(link.id) + '">' + icon + fallback +
                     '<div class="vd-launchpad-tile-title">' + esc(link.title) + '</div>' +
@@ -372,7 +373,13 @@
 
         function openTileLink(linkId) {
             const link = links.find(l => l.id === linkId);
-            if (link && link.url) window.open(link.url, '_blank', 'noopener,noreferrer');
+            if (!link || !link.url) return;
+            if (String(link.url).startsWith('aurago-store://')) {
+                const appId = String(link.url).slice('aurago-store://'.length).replace(/[^a-z0-9-]/g, '');
+                if (appId) openApp('store-' + appId);
+                return;
+            }
+            window.open(link.url, '_blank', 'noopener,noreferrer');
         }
 
         async function deleteLink(linkId) {
@@ -533,6 +540,10 @@
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
             return;
         }
+        if (app.runtime === 'container-web-app' || (app.metadata && app.metadata.store_app_id)) {
+            renderContainerWebApp(id, app);
+            return;
+        }
         const path = 'Apps/' + app.id + '/' + app.entry;
         host.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
         desktopEmbedURL(path)
@@ -545,6 +556,42 @@
                 if (!contentEl(id)) return;
                 host.innerHTML = `<div class="vd-empty">${esc(err.message)}</div>`;
             });
+    }
+
+    async function renderContainerWebApp(id, app) {
+        const host = contentEl(id);
+        if (!host) return;
+        const storeAppId = app && app.metadata && app.metadata.store_app_id;
+        if (!storeAppId) {
+            host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
+            return;
+        }
+        host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
+        try {
+            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            if (!contentEl(id)) return;
+            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app));
+            frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-downloads allow-same-origin');
+            host.replaceChildren(frame);
+        } catch (err) {
+            if (!contentEl(id)) return;
+            host.innerHTML = `<div class="vd-store-frame-error">
+                <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
+                <div class="vd-store-frame-error-msg">${esc(err.message)}</div>
+                <button type="button" class="vd-store-btn vd-store-primary" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>
+            </div>`;
+            const start = host.querySelector('[data-action="start"]');
+            if (start) {
+                start.addEventListener('click', async () => {
+                    try {
+                        await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/start', { method: 'POST' });
+                        setTimeout(() => renderContainerWebApp(id, app), 1200);
+                    } catch (startErr) {
+                        showDesktopNotification({ title: appName(app), message: startErr.message });
+                    }
+                });
+            }
+        }
     }
 
     function makeSandboxedFrame(src, appId, widgetId, windowId, className, title) {

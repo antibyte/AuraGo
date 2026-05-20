@@ -28,6 +28,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/desktopstore"
 	"aurago/internal/discord"
 	"aurago/internal/fritzbox"
 	"aurago/internal/heartbeat"
@@ -264,6 +265,7 @@ type Server struct {
 	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor   *tools.DaemonSupervisor
 	DesktopService     *desktop.Service
+	DesktopStore       *desktopstore.Service
 	DesktopHub         *desktop.Hub
 	DesktopMu          sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
@@ -1338,7 +1340,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			"worker-src 'self' blob:; " +
 			"object-src 'none'; " +
 			"form-action 'self'; " +
-			"frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; " +
+			"frame-src 'self' http: https:; " +
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
 		w.Header().Set("Content-Security-Policy", csp)

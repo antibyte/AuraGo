@@ -64,6 +64,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			_ = s.DesktopService.Close()
 			s.DesktopService = nil
 		}
+		if s.DesktopStore != nil {
+			_ = s.DesktopStore.Close()
+			s.DesktopStore = nil
+		}
 		s.DesktopMu.Unlock()
 		// Note: we intentionally do NOT call CloseToolDesktopService() here.
 		// Many tests create short-lived servers; a global close would tear down
@@ -465,6 +469,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
 	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
+	registerDesktopStoreRoutes(mux, s)
 	desktopSSHHandler := desktop.HandleSSHProxy(s.InventoryDB, s.Vault, s.Logger)
 	mux.HandleFunc("/api/desktop/ssh", func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
@@ -834,6 +839,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			go func() {
 				if err := s.TsNetManager.Start(tsHandler); err != nil {
 					s.Logger.Error("Failed to start tsnet node", "error", err)
+				} else if err := s.reconcileDesktopStoreTailscale(context.Background()); err != nil {
+					s.Logger.Warn("Failed to reconcile desktop store Tailscale proxies", "error", err)
 				}
 			}()
 		}

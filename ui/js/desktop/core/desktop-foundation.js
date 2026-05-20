@@ -120,6 +120,7 @@
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
+        'software-store': 'package',
         looper: 'looper',
         'system-info': 'monitor'
     };
@@ -212,7 +213,9 @@
         player: 'audio-player',
         radio: 'radio',
         workflow: 'workflow',
-        workflows: 'workflow'
+        workflows: 'workflow',
+        'software-store': 'package',
+        software_store: 'package'
     };
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
@@ -265,6 +268,7 @@
             'quick-connect': 'QC',
             'code-studio': 'CS',
             launchpad: 'LP',
+            'software-store': 'SS',
             looper: 'Lp'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();

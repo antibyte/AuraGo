@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -147,6 +148,8 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 			go func() {
 				if err := s.TsNetManager.ReconfigureExposure(handler); err != nil {
 					s.Logger.Error("[tsnet] exposure reconfigure failed", "error", err)
+				} else if err := s.reconcileDesktopStoreTailscale(context.Background()); err != nil {
+					s.Logger.Warn("[tsnet] desktop store proxy reconcile failed", "error", err)
 				}
 			}()
 			w.Header().Set("Content-Type", "application/json")
@@ -158,6 +161,8 @@ func handleTsNetStart(s *Server) http.HandlerFunc {
 		go func() {
 			if err := s.TsNetManager.Start(handler); err != nil {
 				s.Logger.Error("[tsnet] Start via API failed", "error", err)
+			} else if err := s.reconcileDesktopStoreTailscale(context.Background()); err != nil {
+				s.Logger.Warn("[tsnet] desktop store proxy reconcile failed", "error", err)
 			}
 		}()
 

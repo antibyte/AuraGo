@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSecurityHeadersAllowYouTubeEmbeds(t *testing.T) {
+func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}), false, false)
@@ -25,7 +25,7 @@ func TestSecurityHeadersAllowYouTubeEmbeds(t *testing.T) {
 		"worker-src 'self' blob:",
 		"object-src 'none'",
 		"form-action 'self'",
-		"frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
+		"frame-src 'self' http: https:",
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 	} {

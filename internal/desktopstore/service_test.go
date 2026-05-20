@@ -1,0 +1,478 @@
+package desktopstore
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"aurago/internal/desktop"
+)
+
+func TestDefaultCatalogContainsInitialApps(t *testing.T) {
+	catalog := DefaultCatalog()
+	if len(catalog) != 7 {
+		t.Fatalf("expected 7 catalog apps, got %d", len(catalog))
+	}
+
+	expected := map[string]struct {
+		image string
+		port  int
+		icon  string
+	}{
+		"homarr":       {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home"},
+		"n8n":          {image: "docker.n8n.io/n8nio/n8n", port: 5678, icon: "workflow"},
+		"node-red":     {image: "nodered/node-red", port: 1880, icon: "workflow"},
+		"open-webui":   {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
+		"adguard-home": {image: "adguard/adguardhome", port: 3000, icon: "network"},
+		"excalidraw":   {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
+		"uptime-kuma":  {image: "louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
+	}
+
+	for _, entry := range catalog {
+		want, ok := expected[entry.ID]
+		if !ok {
+			t.Fatalf("unexpected catalog entry %q", entry.ID)
+		}
+		if entry.Image != want.image {
+			t.Fatalf("%s image = %q, want %q", entry.ID, entry.Image, want.image)
+		}
+		if entry.PrimaryPort.ContainerPort != want.port {
+			t.Fatalf("%s port = %d, want %d", entry.ID, entry.PrimaryPort.ContainerPort, want.port)
+		}
+		if entry.Icon != want.icon {
+			t.Fatalf("%s icon = %q, want %q", entry.ID, entry.Icon, want.icon)
+		}
+		if entry.Name == "" || entry.Description == "" || entry.LogoSlug == "" {
+			t.Fatalf("%s must have name, description and logo slug", entry.ID)
+		}
+		delete(expected, entry.ID)
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing catalog entries: %#v", expected)
+	}
+}
+
+func TestInstallOperationCreatesContainerDesktopShortcutAndLaunchpadLink(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	launchpad := &fakeLaunchpadAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, launchpad, fixedPorts(19180))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{
+		AppID:            "n8n",
+		BindMode:         BindModeLocal,
+		TailscaleEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if op.Status != OperationPending {
+		t.Fatalf("new operation status = %s, want %s", op.Status, OperationPending)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	stored, ok, err := svc.GetInstalled(ctx, "n8n")
+	if err != nil {
+		t.Fatalf("get installed: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected n8n install record")
+	}
+	if stored.Status != AppStatusRunning {
+		t.Fatalf("status = %s, want %s", stored.Status, AppStatusRunning)
+	}
+	if stored.HostIP != "127.0.0.1" {
+		t.Fatalf("host ip = %q, want 127.0.0.1", stored.HostIP)
+	}
+	if stored.HostPort != 19180 {
+		t.Fatalf("host port = %d, want 19180", stored.HostPort)
+	}
+	if !stored.TailscaleEnabled || stored.TailscaleStatus != TailscaleStatusPending {
+		t.Fatalf("tailscale state = %v/%s, want pending enabled", stored.TailscaleEnabled, stored.TailscaleStatus)
+	}
+
+	if len(docker.created) != 1 {
+		t.Fatalf("created containers = %d, want 1", len(docker.created))
+	}
+	spec := docker.created[0]
+	if spec.Name != "aurago-store-n8n" {
+		t.Fatalf("container name = %q", spec.Name)
+	}
+	if spec.PortBindings[0].HostIP != "127.0.0.1" {
+		t.Fatalf("binding host ip = %q", spec.PortBindings[0].HostIP)
+	}
+	if spec.PortBindings[0].HostPort != 19180 {
+		t.Fatalf("binding host port = %d", spec.PortBindings[0].HostPort)
+	}
+	if len(spec.Volumes) != 1 || spec.Volumes[0].Name == "" || spec.Volumes[0].ContainerPath != "/home/node/.n8n" {
+		t.Fatalf("unexpected volumes: %#v", spec.Volumes)
+	}
+
+	if desktopAdapter.installed.ID != "store-n8n" {
+		t.Fatalf("desktop app id = %q, want store-n8n", desktopAdapter.installed.ID)
+	}
+	if desktopAdapter.installed.Runtime != RuntimeContainerWebApp {
+		t.Fatalf("desktop runtime = %q", desktopAdapter.installed.Runtime)
+	}
+	if desktopAdapter.installed.Metadata["store_app_id"] != "n8n" {
+		t.Fatalf("metadata store_app_id missing: %#v", desktopAdapter.installed.Metadata)
+	}
+	if desktopAdapter.shortcutAppID != "store-n8n" {
+		t.Fatalf("shortcut app id = %q", desktopAdapter.shortcutAppID)
+	}
+	if desktopAdapter.dockVisible == nil || *desktopAdapter.dockVisible {
+		t.Fatalf("dock visibility should be false")
+	}
+	if desktopAdapter.startVisible == nil || !*desktopAdapter.startVisible {
+		t.Fatalf("start visibility should be true")
+	}
+	if launchpad.upserted.URL != "aurago-store://n8n" {
+		t.Fatalf("launchpad URL = %q", launchpad.upserted.URL)
+	}
+}
+
+func TestInstalledAppJSONDoesNotExposeRuntimeEnv(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19181))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "homarr")
+	if err != nil || !ok {
+		t.Fatalf("get installed: ok=%v err=%v", ok, err)
+	}
+	if len(stored.Env) == 0 {
+		t.Fatal("expected internal env to be retained for lifecycle operations")
+	}
+	data, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatalf("marshal installed app: %v", err)
+	}
+	if strings.Contains(string(data), "SECRET_ENCRYPTION_KEY") || strings.Contains(string(data), `"env"`) {
+		t.Fatalf("installed app JSON leaked env data: %s", data)
+	}
+}
+
+func TestInstallLanModeBindsAllInterfaces(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19222))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLAN})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	if got := docker.created[0].PortBindings[0].HostIP; got != "0.0.0.0" {
+		t.Fatalf("host ip = %q, want 0.0.0.0", got)
+	}
+}
+
+func TestOpenURLChoosesLocalLanOrTailnetSurface(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19666))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLAN, TailscaleEnabled: true})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	localURL, _, err := svc.OpenURL(ctx, "node-red", "127.0.0.1:8080", false, "")
+	if err != nil {
+		t.Fatalf("open local url: %v", err)
+	}
+	if localURL != "http://127.0.0.1:19666/" {
+		t.Fatalf("local url = %q", localURL)
+	}
+	lanURL, _, err := svc.OpenURL(ctx, "node-red", "192.168.1.50:8080", false, "")
+	if err != nil {
+		t.Fatalf("open lan url: %v", err)
+	}
+	if lanURL != "http://192.168.1.50:19666/" {
+		t.Fatalf("lan url = %q", lanURL)
+	}
+	if err := svc.SetTailscaleStatus(ctx, "node-red", TailscaleStatusActive); err != nil {
+		t.Fatalf("activate tailnet: %v", err)
+	}
+	tailnetURL, _, err := svc.OpenURL(ctx, "node-red", "aurago.example.ts.net", true, "aurago.example.ts.net")
+	if err != nil {
+		t.Fatalf("open tailnet url: %v", err)
+	}
+	if tailnetURL != "https://aurago.example.ts.net:19666/" {
+		t.Fatalf("tailnet url = %q", tailnetURL)
+	}
+}
+
+func TestUpdateOperationRecreatesContainerAndKeepsVolumesPorts(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19333))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	updateOp, err := svc.StartAppOperation(ctx, "uptime-kuma", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+
+	if len(docker.pulled) != 2 {
+		t.Fatalf("pull count = %d, want 2", len(docker.pulled))
+	}
+	if docker.removedContainers["aurago-store-uptime-kuma"] != 1 {
+		t.Fatalf("expected old container to be removed once, got %#v", docker.removedContainers)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want 2", len(docker.created))
+	}
+	before, after := docker.created[0], docker.created[1]
+	if before.PortBindings[0] != after.PortBindings[0] {
+		t.Fatalf("port binding changed on update: before %#v after %#v", before.PortBindings[0], after.PortBindings[0])
+	}
+	if before.Volumes[0] != after.Volumes[0] {
+		t.Fatalf("volume changed on update: before %#v after %#v", before.Volumes[0], after.Volumes[0])
+	}
+}
+
+func TestUninstallRemovesVolumesOnlyWhenRequested(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	launchpad := &fakeLaunchpadAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, launchpad, fixedPorts(19444))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	uninstallOp, err := svc.StartAppOperation(ctx, "homarr", OperationUninstall, OperationRequest{DeleteData: false})
+	if err != nil {
+		t.Fatalf("start uninstall: %v", err)
+	}
+	if err := svc.RunOperation(ctx, uninstallOp.ID); err != nil {
+		t.Fatalf("run uninstall: %v", err)
+	}
+	if len(docker.removedVolumes) != 0 {
+		t.Fatalf("volumes were deleted without delete_data=true: %#v", docker.removedVolumes)
+	}
+
+	installOp, err = svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start reinstall: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run reinstall: %v", err)
+	}
+	uninstallOp, err = svc.StartAppOperation(ctx, "homarr", OperationUninstall, OperationRequest{DeleteData: true})
+	if err != nil {
+		t.Fatalf("start uninstall with data delete: %v", err)
+	}
+	if err := svc.RunOperation(ctx, uninstallOp.ID); err != nil {
+		t.Fatalf("run uninstall with data delete: %v", err)
+	}
+	if len(docker.removedVolumes) == 0 {
+		t.Fatal("expected named volume deletion with delete_data=true")
+	}
+	if desktopAdapter.deletedAppID != "store-homarr" {
+		t.Fatalf("deleted desktop app = %q", desktopAdapter.deletedAppID)
+	}
+	if launchpad.deletedID != ManagedLaunchpadLinkID("homarr") {
+		t.Fatalf("deleted launchpad id = %q", launchpad.deletedID)
+	}
+}
+
+func TestUpdateFailureRestoresPreviousRecord(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19555))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "excalidraw", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	before, ok, err := svc.GetInstalled(ctx, "excalidraw")
+	if err != nil || !ok {
+		t.Fatalf("get install before update: ok=%v err=%v", ok, err)
+	}
+	docker.createErr = errors.New("create failed")
+
+	updateOp, err := svc.StartAppOperation(ctx, "excalidraw", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err == nil {
+		t.Fatal("expected update failure")
+	}
+	after, ok, err := svc.GetInstalled(ctx, "excalidraw")
+	if err != nil || !ok {
+		t.Fatalf("get install after update: ok=%v err=%v", ok, err)
+	}
+	if after.ContainerName != before.ContainerName || after.HostPort != before.HostPort || after.Status != AppStatusRunning {
+		t.Fatalf("record was not restored: before %#v after %#v", before, after)
+	}
+}
+
+func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
+	t.Helper()
+	svc, err := NewService(Config{
+		DBPath:        filepath.Join(t.TempDir(), "desktop_store.db"),
+		Docker:        docker,
+		Desktop:       desktopAdapter,
+		Launchpad:     launchpad,
+		PortAllocator: ports,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := svc.Init(context.Background()); err != nil {
+		t.Fatalf("init service: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = svc.Close()
+	})
+	return svc
+}
+
+func fixedPorts(values ...int) PortAllocator {
+	index := 0
+	return func(context.Context, int) (int, error) {
+		if index >= len(values) {
+			return values[len(values)-1], nil
+		}
+		value := values[index]
+		index++
+		return value, nil
+	}
+}
+
+type fakeDockerAdapter struct {
+	pulled            []string
+	created           []ContainerSpec
+	started           []string
+	stopped           []string
+	restarted         []string
+	removedContainers map[string]int
+	removedVolumes    []string
+	createErr         error
+}
+
+func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
+	f.pulled = append(f.pulled, image)
+	return nil
+}
+
+func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpec) (string, error) {
+	if f.createErr != nil {
+		return "", f.createErr
+	}
+	f.created = append(f.created, spec)
+	return "container-" + spec.Name, nil
+}
+
+func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error {
+	f.started = append(f.started, name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) StopContainer(_ context.Context, name string) error {
+	f.stopped = append(f.stopped, name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) RestartContainer(_ context.Context, name string) error {
+	f.restarted = append(f.restarted, name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bool) error {
+	if f.removedContainers == nil {
+		f.removedContainers = map[string]int{}
+	}
+	f.removedContainers[name]++
+	return nil
+}
+
+func (f *fakeDockerAdapter) RemoveVolume(_ context.Context, name string, _ bool) error {
+	f.removedVolumes = append(f.removedVolumes, name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (ContainerState, error) {
+	return ContainerState{Name: name, Running: true, Status: "running"}, nil
+}
+
+type fakeDesktopAdapter struct {
+	installed     desktop.AppManifest
+	files         map[string]string
+	dockVisible   *bool
+	startVisible  *bool
+	shortcutAppID string
+	deletedAppID  string
+}
+
+func (f *fakeDesktopAdapter) InstallApp(_ context.Context, manifest desktop.AppManifest, files map[string]string, _ string) error {
+	f.installed = manifest
+	f.files = files
+	return nil
+}
+
+func (f *fakeDesktopAdapter) SetAppVisibility(_ context.Context, _ string, dockVisible, startVisible *bool, _ string) error {
+	f.dockVisible = dockVisible
+	f.startVisible = startVisible
+	return nil
+}
+
+func (f *fakeDesktopAdapter) AddDesktopAppShortcut(_ context.Context, appID, _ string) error {
+	f.shortcutAppID = appID
+	return nil
+}
+
+func (f *fakeDesktopAdapter) DeleteApp(_ context.Context, appID, _ string) error {
+	f.deletedAppID = appID
+	return nil
+}
+
+type fakeLaunchpadAdapter struct {
+	upserted  LaunchpadLink
+	deletedID string
+}
+
+func (f *fakeLaunchpadAdapter) UpsertStoreLink(_ context.Context, link LaunchpadLink) (string, error) {
+	f.upserted = link
+	return link.ID, nil
+}
+
+func (f *fakeLaunchpadAdapter) DeleteStoreLink(_ context.Context, id string) error {
+	f.deletedID = id
+	return nil
+}

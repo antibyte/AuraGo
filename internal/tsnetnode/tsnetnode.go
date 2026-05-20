@@ -32,22 +32,38 @@ var homepageExposureRetryDelay = 5 * time.Second
 
 // Status represents the current state of the tsnet node.
 type Status struct {
-	Running           bool     `json:"running"`
-	Starting          bool     `json:"starting,omitempty"`            // waiting for interactive auth / cert issuance
-	ServingHTTP       bool     `json:"serving_http"`                  // true when AuraGo itself is exposed on 443/80
-	HomepageServing   bool     `json:"homepage_serving,omitempty"`    // true when Homepage/Caddy is exposed on 8443
-	SpaceAgentServing bool     `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
-	SpaceAgentDNS     string   `json:"space_agent_dns,omitempty"`     // MagicDNS name of the dedicated Space Agent node
-	ManifestServing   bool     `json:"manifest_serving,omitempty"`    // true when Manifest is exposed over HTTPS
-	ManifestDNS       string   `json:"manifest_dns,omitempty"`        // MagicDNS name of the dedicated Manifest node
-	HTTPFallback      bool     `json:"http_fallback,omitempty"`       // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
-	FunnelActive      bool     `json:"funnel_active,omitempty"`       // true when the AuraGo listener is exposed via Funnel
-	Hostname          string   `json:"hostname,omitempty"`
-	DNS               string   `json:"dns,omitempty"`
-	IPs               []string `json:"ips,omitempty"`
-	CertDNS           []string `json:"cert_dns,omitempty"`
-	Error             string   `json:"error,omitempty"`
-	LoginURL          string   `json:"login_url,omitempty"`
+	Running           bool                  `json:"running"`
+	Starting          bool                  `json:"starting,omitempty"`            // waiting for interactive auth / cert issuance
+	ServingHTTP       bool                  `json:"serving_http"`                  // true when AuraGo itself is exposed on 443/80
+	HomepageServing   bool                  `json:"homepage_serving,omitempty"`    // true when Homepage/Caddy is exposed on 8443
+	SpaceAgentServing bool                  `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
+	SpaceAgentDNS     string                `json:"space_agent_dns,omitempty"`     // MagicDNS name of the dedicated Space Agent node
+	ManifestServing   bool                  `json:"manifest_serving,omitempty"`    // true when Manifest is exposed over HTTPS
+	ManifestDNS       string                `json:"manifest_dns,omitempty"`        // MagicDNS name of the dedicated Manifest node
+	HTTPFallback      bool                  `json:"http_fallback,omitempty"`       // true when AuraGo runs HTTP (no TLS) because HTTPS certs not enabled
+	FunnelActive      bool                  `json:"funnel_active,omitempty"`       // true when the AuraGo listener is exposed via Funnel
+	Hostname          string                `json:"hostname,omitempty"`
+	DNS               string                `json:"dns,omitempty"`
+	IPs               []string              `json:"ips,omitempty"`
+	CertDNS           []string              `json:"cert_dns,omitempty"`
+	Error             string                `json:"error,omitempty"`
+	LoginURL          string                `json:"login_url,omitempty"`
+	StoreAppProxies   []StoreAppProxyStatus `json:"store_app_proxies,omitempty"`
+}
+
+// StoreAppProxySpec describes one managed HTTPS proxy for a desktop store app.
+type StoreAppProxySpec struct {
+	ID        string `json:"id"`
+	Port      int    `json:"port"`
+	TargetURL string `json:"target_url"`
+	Enabled   bool   `json:"enabled"`
+}
+
+// StoreAppProxyStatus is the public status for one active store app proxy.
+type StoreAppProxyStatus struct {
+	ID        string `json:"id"`
+	Port      int    `json:"port"`
+	TargetURL string `json:"target_url"`
 }
 
 // Manager manages a tsnet embedded Tailscale node.
@@ -80,6 +96,9 @@ type Manager struct {
 	httpFallback     bool // true when serving HTTP (no TLS) instead of HTTPS
 	funnelActive     bool // true when the AuraGo listener is exposed via Tailscale Funnel
 	lastErr          string
+	storeProxyLns    map[string]net.Listener
+	storeProxySrvs   map[string]*http.Server
+	storeProxySpecs  map[string]StoreAppProxySpec
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -344,6 +363,16 @@ func (m *Manager) Stop() error {
 	if m.spaceAgentNode != nil {
 		m.spaceAgentNode.Close()
 	}
+	for _, srv := range m.storeProxySrvs {
+		if srv != nil {
+			srv.Shutdown(ctx)
+		}
+	}
+	for _, ln := range m.storeProxyLns {
+		if ln != nil {
+			ln.Close()
+		}
+	}
 	if m.server != nil {
 		m.server.Close()
 	}
@@ -363,6 +392,9 @@ func (m *Manager) Stop() error {
 	m.spaceAgentLn = nil
 	m.spaceAgentSrv = nil
 	m.spaceAgentHost = ""
+	m.storeProxyLns = nil
+	m.storeProxySrvs = nil
+	m.storeProxySpecs = nil
 	m.servingHTTP = false
 	m.homepageUp = false
 	m.manifestUp = false
@@ -392,6 +424,13 @@ func (m *Manager) GetStatus() Status {
 
 	if m.lastErr != "" {
 		st.Error = m.lastErr
+	}
+	for _, spec := range m.storeProxySpecs {
+		st.StoreAppProxies = append(st.StoreAppProxies, StoreAppProxyStatus{
+			ID:        spec.ID,
+			Port:      spec.Port,
+			TargetURL: spec.TargetURL,
+		})
 	}
 
 	// Query the local Tailscale client whenever we have a server reference,
@@ -550,6 +589,148 @@ func (m *Manager) ReconfigureExposure(handler http.Handler) error {
 	}
 	m.mu.Unlock()
 
+	return nil
+}
+
+// ReconcileStoreAppProxies reconciles per-app HTTPS proxies for desktop store
+// containers on the existing AuraGo tsnet node. These proxies never use Funnel.
+func (m *Manager) ReconcileStoreAppProxies(specs []StoreAppProxySpec) error {
+	m.mu.Lock()
+	if !m.running {
+		m.mu.Unlock()
+		return fmt.Errorf("tsnet node is not running")
+	}
+	srv := m.server
+	if srv == nil {
+		m.mu.Unlock()
+		return fmt.Errorf("tsnet server reference is nil")
+	}
+	if m.storeProxyLns == nil {
+		m.storeProxyLns = map[string]net.Listener{}
+	}
+	if m.storeProxySrvs == nil {
+		m.storeProxySrvs = map[string]*http.Server{}
+	}
+	if m.storeProxySpecs == nil {
+		m.storeProxySpecs = map[string]StoreAppProxySpec{}
+	}
+	want := map[string]StoreAppProxySpec{}
+	for _, spec := range specs {
+		normalized, ok := normalizeStoreProxySpec(spec)
+		if ok {
+			want[normalized.ID] = normalized
+		}
+	}
+	var toStop []StoreAppProxyStatus
+	for id, active := range m.storeProxySpecs {
+		desired, ok := want[id]
+		if ok && desired.Port == active.Port && desired.TargetURL == active.TargetURL {
+			continue
+		}
+		toStop = append(toStop, StoreAppProxyStatus{ID: id, Port: active.Port, TargetURL: active.TargetURL})
+	}
+	m.mu.Unlock()
+
+	for _, status := range toStop {
+		if err := m.stopStoreAppProxy(status.ID); err != nil {
+			return err
+		}
+	}
+
+	for _, desired := range want {
+		m.mu.Lock()
+		_, active := m.storeProxySpecs[desired.ID]
+		m.mu.Unlock()
+		if active {
+			continue
+		}
+		if err := m.startStoreAppProxy(srv, desired); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeStoreProxySpec(spec StoreAppProxySpec) (StoreAppProxySpec, bool) {
+	spec.ID = strings.ToLower(strings.TrimSpace(spec.ID))
+	spec.TargetURL = strings.TrimSpace(spec.TargetURL)
+	if !spec.Enabled || spec.ID == "" || spec.Port <= 0 || spec.TargetURL == "" {
+		return StoreAppProxySpec{}, false
+	}
+	if _, err := url.ParseRequestURI(spec.TargetURL); err != nil {
+		return StoreAppProxySpec{}, false
+	}
+	return spec, true
+}
+
+func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) error {
+	target, err := url.Parse(spec.TargetURL)
+	if err != nil {
+		return fmt.Errorf("parse store app proxy target: %w", err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		forwardedHost := req.Host
+		originalDirector(req)
+		req.Host = target.Host
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", forwardedHost)
+	}
+	ln, err := listenTLSWithTimeoutFn(srv, ":"+strconv.Itoa(spec.Port), tsnetTLSFallbackTimeout)
+	if err != nil {
+		return fmt.Errorf("start store app proxy %s: %w", spec.ID, err)
+	}
+	httpSrv := &http.Server{
+		Handler:      proxy,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
+	}
+	go func() {
+		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Warn("[tsnet] store app proxy stopped", "app_id", spec.ID, "error", err)
+		}
+	}()
+	m.mu.Lock()
+	if m.storeProxyLns == nil {
+		m.storeProxyLns = map[string]net.Listener{}
+	}
+	if m.storeProxySrvs == nil {
+		m.storeProxySrvs = map[string]*http.Server{}
+	}
+	if m.storeProxySpecs == nil {
+		m.storeProxySpecs = map[string]StoreAppProxySpec{}
+	}
+	m.storeProxyLns[spec.ID] = ln
+	m.storeProxySrvs[spec.ID] = httpSrv
+	m.storeProxySpecs[spec.ID] = spec
+	m.mu.Unlock()
+	m.logger.Info("[tsnet] store app proxy started", "app_id", spec.ID, "port", spec.Port, "target", spec.TargetURL)
+	return nil
+}
+
+func (m *Manager) stopStoreAppProxy(id string) error {
+	m.mu.Lock()
+	httpSrv := m.storeProxySrvs[id]
+	ln := m.storeProxyLns[id]
+	delete(m.storeProxySrvs, id)
+	delete(m.storeProxyLns, id)
+	delete(m.storeProxySpecs, id)
+	m.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if httpSrv != nil {
+		if err := httpSrv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown store app proxy %s: %w", id, err)
+		}
+	}
+	if ln != nil {
+		if err := ln.Close(); err != nil && !strings.Contains(strings.ToLower(err.Error()), "closed") {
+			return fmt.Errorf("close store app proxy %s: %w", id, err)
+		}
+	}
 	return nil
 }
 

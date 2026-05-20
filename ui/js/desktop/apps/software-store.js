@@ -1,0 +1,224 @@
+(function () {
+    'use strict';
+
+    function render(host, windowId, deps) {
+        deps = deps || {};
+        const esc = deps.esc || (value => String(value == null ? '' : value));
+        const t = deps.t || ((key, fallback) => fallback || key);
+        const api = deps.api;
+        const iconMarkup = deps.iconMarkup || ((key, fallback) => '<span>' + esc(fallback || key || '') + '</span>');
+        const notify = deps.notify || function () {};
+        const openApp = deps.openApp || function () {};
+        const loadBootstrap = deps.loadBootstrap || function () {};
+        if (!host || !api) return;
+
+        let catalog = [];
+        let installed = [];
+        let busy = new Map();
+
+        host.innerHTML = `
+            <div class="vd-store">
+                <div class="vd-store-toolbar">
+                    <div class="vd-store-heading">
+                        <div class="vd-store-title">${esc(t('desktop.store.title', 'Software Store'))}</div>
+                        <div class="vd-store-subtitle">${esc(t('desktop.store.subtitle', 'Install allowlisted Docker web apps.'))}</div>
+                    </div>
+                    <button type="button" class="vd-store-btn" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.context_refresh', 'Refresh'))}</span></button>
+                </div>
+                <div class="vd-store-grid"></div>
+            </div>`;
+
+        const grid = host.querySelector('.vd-store-grid');
+        host.querySelector('[data-action="refresh"]').addEventListener('click', load);
+
+        async function load() {
+            grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
+            try {
+                const body = await api('/api/desktop/store/catalog');
+                catalog = body.catalog || [];
+                installed = body.installed || [];
+                renderCards();
+            } catch (err) {
+                grid.innerHTML = `<div class="vd-store-empty">${esc(err.message)}</div>`;
+            }
+        }
+
+        function installedFor(appId) {
+            return installed.find(app => app.app_id === appId);
+        }
+
+        function renderCards() {
+            if (!catalog.length) {
+                grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
+                return;
+            }
+            grid.innerHTML = catalog.map(entry => {
+                const app = installedFor(entry.id);
+                const status = app ? (app.status || 'installed') : 'available';
+                const running = app && app.status === 'running';
+                const stopped = app && app.status === 'stopped';
+                const operation = busy.get(entry.id);
+                const logo = entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
+                const fallback = `<div class="vd-store-logo-fallback"${entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
+                const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
+                return `<article class="vd-store-card" data-app-id="${esc(entry.id)}">
+                    <div class="vd-store-card-head">
+                        <div class="vd-store-logo-wrap">${logo}${fallback}</div>
+                        <div class="vd-store-card-title-wrap">
+                            <div class="vd-store-card-title">${esc(entry.name)}</div>
+                            <div class="vd-store-card-image">${esc(entry.image)}</div>
+                        </div>
+                    </div>
+                    <div class="vd-store-card-desc">${esc(entry.description)}</div>
+                    <div class="vd-store-meta">
+                        <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>
+                        <span>${esc(access)}</span>
+                    </div>
+                    ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
+                    <div class="vd-store-actions">
+                        ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>` : ''}
+                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
+                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop">${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
+                        ${app ? `<button type="button" class="vd-store-btn" data-action="update">${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
+                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall">${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install">${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
+                    </div>
+                </article>`;
+            }).join('');
+
+            grid.querySelectorAll('.vd-store-card').forEach(card => {
+                const appId = card.dataset.appId;
+                card.querySelectorAll('[data-action]').forEach(button => {
+                    button.addEventListener('click', () => handleAction(appId, button.dataset.action));
+                });
+            });
+        }
+
+        function statusLabel(status, operation) {
+            if (operation && operation.status && operation.status !== 'succeeded') {
+                return t('desktop.store.operation_' + operation.status, operation.status);
+            }
+            return t('desktop.store.status_' + status, status);
+        }
+
+        function accessLabel(app) {
+            const parts = [];
+            parts.push(app.bind_mode === 'lan' ? t('desktop.store.access_lan', 'LAN') : t('desktop.store.access_local', 'Local'));
+            if (app.tailscale_enabled) parts.push(app.tailscale_status === 'active' ? t('desktop.store.access_tailnet', 'Tailnet') : t('desktop.store.access_tailnet_pending', 'Tailnet pending'));
+            return parts.join(' · ');
+        }
+
+        function handleAction(appId, action) {
+            if (busy.has(appId)) return;
+            if (action === 'install') return openInstallModal(appId);
+            if (action === 'open') return openApp('store-' + appId);
+            if (action === 'uninstall') return openUninstallModal(appId);
+            return startOperation(appId, action, '/api/desktop/store/apps/' + encodeURIComponent(appId) + '/' + encodeURIComponent(action), 'POST');
+        }
+
+        function openInstallModal(appId) {
+            const entry = catalog.find(item => item.id === appId);
+            if (!entry) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-modal-backdrop';
+            overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
+                <div class="vd-modal-title">${esc(t('desktop.store.install_title', 'Install'))}: ${esc(entry.name)}</div>
+                <div class="vd-store-modal-copy">${esc(t('desktop.store.install_copy', 'Choose how the container web UI should be reachable.'))}</div>
+                <label class="vd-store-choice"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local', 'Local only'))}</b><small>127.0.0.1</small></span></label>
+                <label class="vd-store-choice"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan', 'LAN'))}</b><small>0.0.0.0</small></span></label>
+                <label class="vd-store-choice"><input type="checkbox" name="tailscale"><span><b>${esc(t('desktop.store.tailscale', 'Tailscale'))}</b><small>${esc(t('desktop.store.tailscale_hint', 'Pending until the tsnet node is available.'))}</small></span></label>
+                <div class="vd-modal-actions">
+                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel', 'Cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.store.install', 'Install'))}</button>
+                </div>
+            </form>`;
+            document.body.appendChild(overlay);
+            const form = overlay.querySelector('form');
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                const bind = form.querySelector('input[name="bind"]:checked').value;
+                const tailscale = form.querySelector('input[name="tailscale"]').checked;
+                overlay.remove();
+                startOperation(appId, 'install', '/api/desktop/store/install', 'POST', {
+                    app_id: appId,
+                    bind_mode: bind,
+                    tailscale_enabled: tailscale
+                });
+            });
+        }
+
+        function openUninstallModal(appId) {
+            const app = installedFor(appId);
+            if (!app) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-modal-backdrop';
+            overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
+                <div class="vd-modal-title">${esc(t('desktop.store.uninstall', 'Uninstall'))}</div>
+                <div class="vd-store-modal-copy">${esc(t('desktop.store.uninstall_copy', 'Remove the container and desktop entries.'))}</div>
+                <label class="vd-store-choice"><input type="checkbox" name="delete-data"><span><b>${esc(t('desktop.store.delete_data', 'Delete data volumes'))}</b><small>${esc(t('desktop.store.delete_data_hint', 'This removes the app data volumes.'))}</small></span></label>
+                <div class="vd-modal-actions">
+                    <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel', 'Cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-danger">${esc(t('desktop.store.uninstall', 'Uninstall'))}</button>
+                </div>
+            </form>`;
+            document.body.appendChild(overlay);
+            const form = overlay.querySelector('form');
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                const deleteData = form.querySelector('input[name="delete-data"]').checked;
+                overlay.remove();
+                startOperation(appId, 'uninstall', '/api/desktop/store/apps/' + encodeURIComponent(appId) + '?delete_data=' + encodeURIComponent(deleteData), 'DELETE');
+            });
+        }
+
+        async function startOperation(appId, action, url, method, payload) {
+            try {
+                const body = await api(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload ? JSON.stringify(payload) : undefined
+                });
+                if (body.operation) {
+                    busy.set(appId, body.operation);
+                    renderCards();
+                    pollOperation(appId, body.operation.id);
+                }
+            } catch (err) {
+                notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
+            }
+        }
+
+        async function pollOperation(appId, operationId) {
+            try {
+                for (;;) {
+                    await delay(1000);
+                    const body = await api('/api/desktop/store/operations/' + encodeURIComponent(operationId));
+                    const op = body.operation;
+                    busy.set(appId, op);
+                    renderCards();
+                    if (!op || op.status === 'succeeded' || op.status === 'failed') {
+                        busy.delete(appId);
+                        await load();
+                        await loadBootstrap();
+                        if (op && op.status === 'failed') notify({ title: t('desktop.store.title', 'Software Store'), message: op.error || t('desktop.store.operation_failed', 'Operation failed') });
+                        return;
+                    }
+                }
+            } catch (err) {
+                busy.delete(appId);
+                await load();
+            }
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        load();
+    }
+
+    window.SoftwareStoreApp = { render };
+})();
