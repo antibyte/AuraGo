@@ -365,6 +365,38 @@
     min-height: 0;
 }
 
+.vd-window-content,
+.vd-window-content * {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(148, 163, 184, 0.52) rgba(15, 23, 42, 0.18);
+}
+
+.vd-window-content ::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+    cursor: default;
+}
+
+.vd-window-content ::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.18);
+    cursor: default;
+}
+
+.vd-window-content ::-webkit-scrollbar-thumb {
+    min-height: 36px;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.56);
+    background-clip: padding-box;
+    cursor: default;
+}
+
+.vd-window-content ::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.72);
+    background-clip: padding-box;
+}
+
 .vd-resize-handle {
     position: absolute;
     z-index: 3;
