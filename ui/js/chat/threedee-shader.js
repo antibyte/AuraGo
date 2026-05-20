@@ -82,6 +82,12 @@
     let robotState;
     let robotVelocity;
     let robotBounds;
+    const ROBOT_DUEL_DISTANCE = 5.6;
+    const ROBOT_DUEL_COOLDOWN = 1.05;
+    const ROBOT_PROJECTILE_SPEED = 7.4;
+    const MAX_ENERGY_PROJECTILES = 18;
+    const energyProjectiles = [];
+    const robotFleet = [];
 
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -176,6 +182,9 @@
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
+        }
+        if (!window.energyProjectileGeom) {
+            window.energyProjectileGeom = new THREE.SphereGeometry(0.12, 24, 24);
         }
     }
 
@@ -813,10 +822,14 @@
 
         // Robot thruster downdraft and ripples under the robot
         if (robotState) {
-            const distToRobot = Math.hypot(x - robotState.x, z - robotState.z);
-            const hoverDepression = -0.28 * Math.exp(-(distToRobot * distToRobot) / 0.75);
-            const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5) * Math.exp(-distToRobot * 1.6) * 0.14;
-            height += hoverDepression + hoverRipple;
+            const activeRobots = robotFleet.length ? robotFleet : [{ state: robotState }];
+            activeRobots.forEach(function (bot) {
+                if (!bot || !bot.state) return;
+                const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
+                const hoverDepression = -0.28 * Math.exp(-(distToRobot * distToRobot) / 0.75);
+                const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5) * Math.exp(-distToRobot * 1.6) * 0.14;
+                height += hoverDepression + hoverRipple;
+            });
         }
 
         return height;
@@ -881,42 +894,111 @@
         return geometry;
     }
 
+    function createRobotConfig(options) {
+        return {
+            id: options.id,
+            url: options.url,
+            group: null,
+            model: null,
+            thrusterLight: null,
+            modelBaseY: 0,
+            loading: false,
+            loaded: false,
+            loadWarned: false,
+            state: {
+                x: options.x,
+                z: options.z,
+                y: 0,
+                waterY: 0,
+                yaw: 0,
+                seed: options.seed == null ? Math.random() * Math.PI * 2 : options.seed,
+                lastBounce: 0,
+                lastShot: -999,
+                recoil: 0
+            },
+            velocity: new THREE.Vector2(options.vx, options.vz),
+            targetPosition: new THREE.Vector3(),
+            surfaceNormal: new THREE.Vector3(0, 1, 0),
+            targetQuaternion: new THREE.Quaternion(),
+            composedQuaternion: new THREE.Quaternion(),
+            headingQuaternion: new THREE.Quaternion(),
+            swayQuaternion: new THREE.Quaternion(),
+            forward: new THREE.Vector3(0, 0, 1),
+            up: new THREE.Vector3(0, 1, 0),
+            accentHex: options.accentHex,
+            projectileHex: options.projectileHex,
+            accentColor: new THREE.Color(options.accentHex),
+            headingOffset: options.headingOffset || 0,
+            opponent: null
+        };
+    }
+
+    function aliasPrimaryRobot(bot) {
+        if (!bot) return;
+        robotGroup = bot.group;
+        robotModel = bot.model;
+        robotThrusterLight = bot.thrusterLight;
+        robotModelBaseY = bot.modelBaseY;
+        robotLoading = bot.loading;
+        robotLoaded = bot.loaded;
+        robotLoadWarned = bot.loadWarned;
+        robotTargetPosition = bot.targetPosition;
+        robotSurfaceNormal = bot.surfaceNormal;
+        targetQuaternion = bot.targetQuaternion;
+        composedRobotQuaternion = bot.composedQuaternion;
+        robotHeadingQuaternion = bot.headingQuaternion;
+        robotSwayQuaternion = bot.swayQuaternion;
+        robotForward = bot.forward;
+        robotUp = bot.up;
+        robotState = bot.state;
+        robotVelocity = bot.velocity;
+    }
+
     function ensureRobotPhysicsState() {
-        if (!robotVelocity) robotVelocity = new THREE.Vector2(0.82, 0.58);
         if (!robotBounds) {
             robotBounds = {
                 x: GRID.width * 0.5 - 1.7,
                 z: GRID.depth * 0.5 - 1.35
             };
         }
-        if (!robotState) {
-            robotState = {
-                x: -4.4,
-                z: -1.2,
-                y: 0,
-                waterY: 0,
-                yaw: 0,
-                seed: Math.random() * Math.PI * 2,
-                lastBounce: 0
-            };
+        if (robotFleet.length === 0) {
+            const blueRobot = createRobotConfig({
+                id: 'blue',
+                url: '/3d/robot.glb',
+                x: -2.55,
+                z: -0.9,
+                vx: 0.72,
+                vz: 0.46,
+                accentHex: 0x22d3ee,
+                projectileHex: 0x5cf6ff,
+                headingOffset: Math.PI
+            });
+            const redRobot = createRobotConfig({
+                id: 'red',
+                url: '/3d/redrobot.glb',
+                x: 2.35,
+                z: 0.9,
+                vx: -0.68,
+                vz: -0.42,
+                accentHex: 0xff3b6d,
+                projectileHex: 0xff4f8a,
+                headingOffset: 0
+            });
+            blueRobot.opponent = redRobot;
+            redRobot.opponent = blueRobot;
+            robotFleet.push(blueRobot, redRobot);
         }
-        if (!robotTargetPosition) robotTargetPosition = new THREE.Vector3();
-        if (!robotSurfaceNormal) robotSurfaceNormal = new THREE.Vector3(0, 1, 0);
-        if (!targetQuaternion) targetQuaternion = new THREE.Quaternion();
-        if (!composedRobotQuaternion) composedRobotQuaternion = new THREE.Quaternion();
-        if (!robotHeadingQuaternion) robotHeadingQuaternion = new THREE.Quaternion();
-        if (!robotSwayQuaternion) robotSwayQuaternion = new THREE.Quaternion();
-        if (!robotForward) robotForward = new THREE.Vector3(0, 0, 1);
-        if (!robotUp) robotUp = new THREE.Vector3(0, 1, 0);
+        aliasPrimaryRobot(robotFleet[0]);
     }
 
-    function normalizeFloatingRobot(root) {
+    function normalizeFloatingRobot(root, bot) {
+        const config = bot || robotFleet[0] || null;
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const maxAxis = Math.max(size.x, size.y, size.z);
         if (!Number.isFinite(maxAxis) || maxAxis <= 0) return;
 
-        const targetSize = 1.45;
+        const targetSize = config && config.id === 'red' ? 1.42 : 1.45;
         const scale = targetSize / maxAxis;
         root.scale.setScalar(scale);
         root.updateMatrixWorld(true);
@@ -924,8 +1006,9 @@
         const scaledBox = new THREE.Box3().setFromObject(root);
         const center = scaledBox.getCenter(new THREE.Vector3());
         root.position.set(-center.x, -scaledBox.min.y, -center.z);
-        robotModelBaseY = root.position.y;
-        root.rotation.y = Math.PI;
+        if (config) config.modelBaseY = root.position.y;
+        if (!config || config.id === 'blue') robotModelBaseY = root.position.y;
+        root.rotation.y = config ? config.headingOffset : Math.PI;
 
         root.traverse(function (node) {
             if (!node.isMesh) return;
@@ -942,10 +1025,10 @@
                 if ('metalness' in material) material.metalness = Math.max(0.18, material.metalness == null ? 0.18 : material.metalness);
                 if ('emissive' in material) {
                     material.emissive = material.emissive || new THREE.Color(0x000000);
-                    material.emissive.lerp(new THREE.Color(0x59d5ff), 0.16);
+                    material.emissive.lerp(config ? config.accentColor : new THREE.Color(0x59d5ff), config && config.id === 'red' ? 0.28 : 0.16);
                 }
                 if ('emissiveIntensity' in material) {
-                    material.emissiveIntensity = Math.max(0.18, material.emissiveIntensity || 0);
+                    material.emissiveIntensity = Math.max(config && config.id === 'red' ? 0.24 : 0.18, material.emissiveIntensity || 0);
                 }
                 material.needsUpdate = true;
             });
@@ -953,22 +1036,30 @@
     }
 
     function loadFloatingRobot() {
-        if (robotLoaded || robotLoading || !scene) return;
+        if (!scene) return;
+        ensureRobotPhysicsState();
+        robotFleet.forEach(loadRobotAsset);
+        aliasPrimaryRobot(robotFleet[0]);
+    }
+
+    function loadRobotAsset(bot) {
+        if (!bot || bot.loaded || bot.loading || !scene) return;
         if (!THREE.GLTFLoader || !THREE.DRACOLoader) {
-            if (!robotLoadWarned) {
-                console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for robot.glb');
-                robotLoadWarned = true;
+            if (!bot.loadWarned) {
+                console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for ' + bot.url);
+                bot.loadWarned = true;
+                if (bot.id === 'blue') robotLoadWarned = true;
             }
             return;
         }
 
-        ensureRobotPhysicsState();
-        robotLoading = true;
-        robotGroup = new THREE.Group();
-        robotGroup.name = 'threedee-floating-robot';
-        robotGroup.visible = false;
-        robotGroup.position.set(robotState.x, surface.position.y + 0.7, robotState.z + surface.position.z);
-        scene.add(robotGroup);
+        bot.loading = true;
+        const group = new THREE.Group();
+        group.name = 'threedee-floating-robot-' + bot.id;
+        group.visible = false;
+        group.position.set(bot.state.x, surface.position.y + 0.7, bot.state.z + surface.position.z);
+        scene.add(group);
+        bot.group = group;
 
         const loader = new THREE.GLTFLoader();
         const dracoLoader = new THREE.DRACOLoader();
@@ -977,147 +1068,410 @@
             dracoLoader.setDecoderConfig({ type: 'wasm' });
         }
         loader.setDRACOLoader(dracoLoader);
-        robotDracoLoader = dracoLoader;
 
-        loader.load('/3d/robot.glb', function (gltf) {
-            robotModel = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-            if (!robotModel) {
-                robotLoading = false;
-                console.warn('[ThreeDeeShader] robot.glb contained no scene');
+        if (bot.id === 'blue') {
+            robotGroup = group;
+            robotLoading = true;
+            robotDracoLoader = dracoLoader;
+        }
+
+        const onLoad = function (gltf) {
+            const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!model) {
+                bot.loading = false;
+                if (bot.id === 'blue') robotLoading = false;
+                scene.remove(group);
+                bot.group = null;
+                console.warn('[ThreeDeeShader] ' + bot.url + ' contained no scene');
                 return;
             }
-            normalizeFloatingRobot(robotModel);
-            robotGroup.add(robotModel);
-            robotGroup.visible = true;
-            robotLoaded = true;
-            robotLoading = false;
-        }, undefined, function (err) {
-            robotLoading = false;
-            console.warn('[ThreeDeeShader] Could not load floating robot:', err);
-        });
+            bot.model = model;
+            normalizeFloatingRobot(model, bot);
+            group.add(model);
+            group.visible = true;
+            bot.loaded = true;
+            bot.loading = false;
+            if (bot.id === 'blue') {
+                robotModel = model;
+                robotLoaded = true;
+                robotLoading = false;
+            }
+        };
+        const onError = function (err) {
+            bot.loading = false;
+            if (bot.id === 'blue') robotLoading = false;
+            scene.remove(group);
+            bot.group = null;
+            console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
+        };
+
+        if (bot.id === 'blue') {
+            loader.load('/3d/robot.glb', onLoad, undefined, onError);
+        } else {
+            loader.load('/3d/redrobot.glb', onLoad, undefined, onError);
+        }
     }
 
-    function sampleSurfaceNormal(x, z, t) {
+    function sampleSurfaceNormal(x, z, t, bot) {
         ensureRobotPhysicsState();
+        const targetNormal = bot && bot.surfaceNormal ? bot.surfaceNormal : robotSurfaceNormal;
         const eps = 0.22;
         const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t);
         const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t);
         const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t);
         const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t);
-        robotSurfaceNormal.set(left - right, eps * 2, back - front).normalize();
-        return robotSurfaceNormal;
+        targetNormal.set(left - right, eps * 2, back - front).normalize();
+        return targetNormal;
     }
 
-    function bounceFloatingRobotWithinBounds(t) {
+    function bounceFloatingRobotWithinBounds(t, bot) {
+        const state = bot && bot.state ? bot.state : robotState;
+        const velocity = bot && bot.velocity ? bot.velocity : robotVelocity;
         let bounced = false;
-        if (robotState.x > robotBounds.x) {
-            robotState.x = robotBounds.x;
-            robotVelocity.x = -Math.abs(robotVelocity.x) * 0.88;
+        if (state.x > robotBounds.x) {
+            state.x = robotBounds.x;
+            velocity.x = -Math.abs(velocity.x) * 0.88;
             bounced = true;
-        } else if (robotState.x < -robotBounds.x) {
-            robotState.x = -robotBounds.x;
-            robotVelocity.x = Math.abs(robotVelocity.x) * 0.88;
-            bounced = true;
-        }
-
-        if (robotState.z > robotBounds.z) {
-            robotState.z = robotBounds.z;
-            robotVelocity.y = -Math.abs(robotVelocity.y) * 0.88;
-            bounced = true;
-        } else if (robotState.z < -robotBounds.z) {
-            robotState.z = -robotBounds.z;
-            robotVelocity.y = Math.abs(robotVelocity.y) * 0.88;
+        } else if (state.x < -robotBounds.x) {
+            state.x = -robotBounds.x;
+            velocity.x = Math.abs(velocity.x) * 0.88;
             bounced = true;
         }
 
-        if (bounced && t - robotState.lastBounce > 0.16) {
-            robotState.lastBounce = t;
-            addImpulse(robotState.x, robotState.z, 0.32);
-            cameraShake = Math.max(cameraShake, 0.035);
+        if (state.z > robotBounds.z) {
+            state.z = robotBounds.z;
+            velocity.y = -Math.abs(velocity.y) * 0.88;
+            bounced = true;
+        } else if (state.z < -robotBounds.z) {
+            state.z = -robotBounds.z;
+            velocity.y = Math.abs(velocity.y) * 0.88;
+            bounced = true;
+        }
+
+        if (bounced && t - state.lastBounce > 0.16) {
+            state.lastBounce = t;
+            addImpulse(state.x, state.z, bot && bot.id === 'red' ? 0.38 : 0.32);
+            cameraShake = Math.max(cameraShake, bot && bot.id === 'red' ? 0.045 : 0.035);
+        }
+    }
+
+    function steerRobotTowardDuel(bot, dt, t) {
+        if (!bot || !bot.opponent || !bot.opponent.state) return;
+        const dx = bot.opponent.state.x - bot.state.x;
+        const dz = bot.opponent.state.z - bot.state.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.001) return;
+
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const closeWeight = 1 - clamp(dist / ROBOT_DUEL_DISTANCE, 0, 1);
+        const pull = dist > ROBOT_DUEL_DISTANCE * 0.68 ? 0.42 : -0.18;
+        const orbit = bot.id === 'blue' ? 1 : -1;
+        bot.velocity.x += nx * pull * dt;
+        bot.velocity.y += nz * pull * dt;
+        bot.velocity.x += -nz * orbit * (0.24 + closeWeight * 0.2) * dt;
+        bot.velocity.y += nx * orbit * (0.24 + closeWeight * 0.2) * dt;
+
+        if (dist < 1.55) {
+            bot.velocity.x -= nx * 0.62 * dt;
+            bot.velocity.y -= nz * 0.62 * dt;
+        }
+
+        bot.velocity.x += Math.sin(t * 1.7 + bot.state.seed) * closeWeight * 0.03 * dt;
+        bot.velocity.y += Math.cos(t * 1.9 + bot.state.seed) * closeWeight * 0.03 * dt;
+    }
+
+    function updateRobotMotion(bot, dt, t, index) {
+        if (!bot) return;
+        if (bot.id === 'blue') aliasPrimaryRobot(bot);
+        if (!bot.group) return;
+
+        const driftX = Math.sin(t * 0.54 + bot.state.z * 0.72 + bot.state.seed) * 0.16;
+        const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
+        bot.velocity.x += driftX * dt;
+        bot.velocity.y += driftZ * dt;
+        steerRobotTowardDuel(bot, dt, t);
+
+        const speed = bot.velocity.length();
+        if (speed > 1.34) bot.velocity.multiplyScalar(1.34 / speed);
+        if (speed < 0.42) {
+            bot.velocity.x += Math.sin(t + bot.state.seed) * dt * 0.22;
+            bot.velocity.y += Math.cos(t * 0.8 + bot.state.seed) * dt * 0.22;
+        }
+
+        bot.state.x += bot.velocity.x * dt;
+        bot.state.z += bot.velocity.y * dt;
+        bounceFloatingRobotWithinBounds(t, bot);
+
+        const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t) : heightAt(bot.state.x, bot.state.z, t);
+        bot.state.waterY = waterY;
+        bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
+        bot.state.y = surface.position.y + waterY + 0.62 + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
+        bot.targetPosition.set(bot.state.x, bot.state.y, bot.state.z + surface.position.z);
+        if (bot.id === 'blue') {
+            robotGroup.position.lerp(robotTargetPosition, clamp(dt * 4.6, 0, 1));
+        } else {
+            bot.group.position.lerp(bot.targetPosition, clamp(dt * 4.6, 0, 1));
+        }
+
+        const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);
+        bot.forward.set(bot.velocity.x, 0, bot.velocity.y);
+        if (bot.forward.lengthSq() < 0.0001) bot.forward.set(0, 0, 1);
+        bot.forward.normalize();
+
+        if (bot.opponent && bot.opponent.state) {
+            const duelVector = new THREE.Vector3(bot.opponent.state.x - bot.state.x, 0, bot.opponent.state.z - bot.state.z);
+            const duelDistance = Math.max(0.001, duelVector.length());
+            if (duelDistance < ROBOT_DUEL_DISTANCE + 1.1) {
+                duelVector.normalize();
+                bot.forward.lerp(duelVector, clamp((ROBOT_DUEL_DISTANCE + 1.1 - duelDistance) / 2.8, 0, 0.78)).normalize();
+            }
+        }
+
+        const heading = Math.atan2(bot.forward.x, bot.forward.z);
+        if (bot.id === 'blue') {
+            robotHeadingQuaternion.setFromAxisAngle(robotUp, heading);
+            targetQuaternion.setFromUnitVectors(robotUp, normal);
+            targetQuaternion.multiply(robotHeadingQuaternion);
+
+            robotSwayQuaternion.setFromEuler(new THREE.Euler(
+                Math.sin(t * 2.1 + robotState.seed) * 0.075 + normal.z * 0.22,
+                0,
+                -normal.x * 0.28 + Math.sin(t * 1.6 + robotState.seed) * 0.055,
+                'XYZ'
+            ));
+            composedRobotQuaternion.copy(targetQuaternion).multiply(robotSwayQuaternion);
+            targetQuaternion.slerp(composedRobotQuaternion, clamp(dt * 2.8, 0, 1));
+            robotGroup.quaternion.slerp(targetQuaternion, clamp(dt * 3.8, 0, 1));
+        } else {
+            bot.headingQuaternion.setFromAxisAngle(bot.up, heading);
+            bot.targetQuaternion.setFromUnitVectors(bot.up, normal);
+            bot.targetQuaternion.multiply(bot.headingQuaternion);
+            bot.swayQuaternion.setFromEuler(new THREE.Euler(
+                Math.sin(t * 2.1 + bot.state.seed) * 0.075 + normal.z * 0.22,
+                0,
+                -normal.x * 0.28 + Math.sin(t * 1.6 + bot.state.seed) * 0.055,
+                'XYZ'
+            ));
+            bot.composedQuaternion.copy(bot.targetQuaternion).multiply(bot.swayQuaternion);
+            bot.targetQuaternion.slerp(bot.composedQuaternion, clamp(dt * 2.8, 0, 1));
+            bot.group.quaternion.slerp(bot.targetQuaternion, clamp(dt * 3.8, 0, 1));
+        }
+
+        if (bot.model) {
+            bot.model.position.y = bot.modelBaseY + Math.sin(t * 3.2 + bot.state.seed) * 0.035;
+        }
+
+        if (!bot.thrusterLight) {
+            bot.thrusterLight = new THREE.PointLight(bot.accentHex, 1.8, 5);
+            bot.thrusterLight.position.set(0, -0.2, 0);
+            bot.group.add(bot.thrusterLight);
+            if (bot.id === 'blue') robotThrusterLight = bot.thrusterLight;
+        }
+        bot.thrusterLight.intensity = 1.4 + Math.sin(t * 32 + bot.state.seed) * 0.35 + Math.sin(t * 4.8) * 0.15;
+
+        if (Math.random() < 0.45 && active) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 0.22;
+            const px = bot.group.position.x + Math.cos(angle) * dist;
+            const py = bot.group.position.y - 0.45;
+            const pz = bot.group.position.z + Math.sin(angle) * dist;
+            const emberColor = Math.random() < 0.24 ? 0xffaa00 : bot.accentHex; // Occasionally orange sparks, mostly robot-colored jet flame
+            createSmokeSprite(px, py, pz, emberColor, 0.09 + Math.random() * 0.07, 0.45 + Math.random() * 0.35, {
+                vx: (Math.random() - 0.5) * 0.3 + bot.velocity.x * -0.2,
+                vy: -1.4 - Math.random() * 1.0,
+                vz: (Math.random() - 0.5) * 0.3 + bot.velocity.y * -0.2,
+                spin: (Math.random() - 0.5) * 4.5,
+                opacity: 0.85,
+                expansion: 1.15,
+                fadePower: 1.45,
+                kind: 'robotJet'
+            });
+        }
+    }
+
+    function robotMuzzlePosition(bot) {
+        const start = bot.group.position.clone();
+        start.y += 0.14;
+        const forward = bot.opponent && bot.opponent.group
+            ? bot.opponent.group.position.clone().sub(bot.group.position)
+            : new THREE.Vector3(bot.velocity.x, 0, bot.velocity.y);
+        if (forward.lengthSq() < 0.001) forward.set(0, 0, bot.id === 'blue' ? 1 : -1);
+        forward.normalize();
+        start.addScaledVector(forward, 0.55);
+        return start;
+    }
+
+    function disposeEnergyProjectile(projectile) {
+        if (!projectile || !projectile.mesh) return;
+        if (scene) scene.remove(projectile.mesh);
+        if (projectile.mesh.material && projectile.mesh.material.dispose) {
+            projectile.mesh.material.dispose();
+        }
+    }
+
+    function spawnEnergyProjectile(source, target, t) {
+        if (!scene || !source || !target || !source.group || !target.group) return;
+        ensureImpactAssets();
+        while (energyProjectiles.length >= MAX_ENERGY_PROJECTILES) {
+            disposeEnergyProjectile(energyProjectiles.shift());
+        }
+
+        const material = new THREE.MeshBasicMaterial({
+            color: source.projectileHex,
+            transparent: true,
+            opacity: 0.96,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const mesh = new THREE.Mesh(window.energyProjectileGeom, material);
+        const projectileLight = new THREE.PointLight(source.projectileHex, 4.8, 8);
+        projectileLight.position.set(0, 0, 0);
+        mesh.add(projectileLight);
+
+        const start = robotMuzzlePosition(source);
+        const targetPosition = target.group.position.clone();
+        targetPosition.y += 0.12;
+        const direction = targetPosition.sub(start);
+        if (direction.lengthSq() < 0.001) direction.set(source.id === 'blue' ? 1 : -1, 0, 0);
+        direction.normalize();
+        mesh.position.copy(start);
+        mesh.scale.setScalar(0.8);
+        scene.add(mesh);
+
+        energyProjectiles.push({
+            mesh,
+            projectileLight,
+            source,
+            target,
+            direction,
+            speed: ROBOT_PROJECTILE_SPEED + Math.random() * 1.8,
+            life: 1.1,
+            maxLife: 1.1,
+            color: source.projectileHex,
+            pulseSeed: Math.random() * Math.PI * 2
+        });
+        source.state.lastShot = t;
+        source.state.recoil = 0.32;
+        cameraShake = Math.max(cameraShake, 0.045);
+
+        createSmokeSprite(start.x, start.y, start.z, source.projectileHex, 0.22, 0.26, {
+            vx: direction.x * 0.2,
+            vy: 0.12,
+            vz: direction.z * 0.2,
+            spin: 7,
+            opacity: 0.95,
+            expansion: 2.6,
+            fadePower: 1.7,
+            kind: 'energyMuzzle'
+        });
+    }
+
+    function explodeEnergyProjectile(projectile) {
+        const pos = projectile.mesh.position.clone();
+        if (surface) {
+            const local = pos.clone();
+            surface.worldToLocal(local);
+            addImpulse(clamp(local.x, -robotBounds.x, robotBounds.x), clamp(local.z, -robotBounds.z, robotBounds.z), 0.62);
+        }
+        spawnImpactBurst(pos.x, pos.y, pos.z, 0.84);
+        cameraShake = Math.max(cameraShake, 0.17);
+        disposeEnergyProjectile(projectile);
+    }
+
+    function updateEnergyProjectiles(dt, t) {
+        for (let i = energyProjectiles.length - 1; i >= 0; i--) {
+            const projectile = energyProjectiles[i];
+            projectile.life -= dt;
+
+            if (projectile.target && projectile.target.group) {
+                const targetPosition = projectile.target.group.position.clone();
+                targetPosition.y += 0.12;
+                const toTarget = targetPosition.sub(projectile.mesh.position);
+                if (toTarget.lengthSq() > 0.001) {
+                    projectile.direction.lerp(toTarget.normalize(), clamp(dt * 2.2, 0, 0.32)).normalize();
+                }
+            }
+
+            projectile.mesh.position.addScaledVector(projectile.direction, projectile.speed * dt);
+            const pulse = 0.88 + Math.sin(t * 26 + projectile.pulseSeed) * 0.24;
+            projectile.mesh.scale.setScalar(pulse);
+            if (projectile.projectileLight) {
+                projectile.projectileLight.intensity = 3.8 + pulse * 2.8;
+            }
+
+            if (Math.random() < 0.86 && active) {
+                createSmokeSprite(
+                    projectile.mesh.position.x - projectile.direction.x * 0.12,
+                    projectile.mesh.position.y,
+                    projectile.mesh.position.z - projectile.direction.z * 0.12,
+                    projectile.color,
+                    0.08 + Math.random() * 0.06,
+                    0.28 + Math.random() * 0.18,
+                    {
+                        vx: -projectile.direction.x * 0.22 + (Math.random() - 0.5) * 0.15,
+                        vy: (Math.random() - 0.5) * 0.08,
+                        vz: -projectile.direction.z * 0.22 + (Math.random() - 0.5) * 0.15,
+                        spin: (Math.random() - 0.5) * 7,
+                        opacity: 0.9,
+                        expansion: 1.9,
+                        fadePower: 1.35,
+                        kind: 'energyProjectile'
+                    }
+                );
+            }
+
+            let hit = projectile.life <= 0;
+            if (!hit && projectile.target && projectile.target.group) {
+                hit = projectile.mesh.position.distanceTo(projectile.target.group.position) < 0.55;
+            }
+            if (hit) {
+                explodeEnergyProjectile(projectile);
+                energyProjectiles.splice(i, 1);
+            }
+        }
+    }
+
+    function clearEnergyProjectiles() {
+        while (energyProjectiles.length) {
+            disposeEnergyProjectile(energyProjectiles.pop());
+        }
+    }
+
+    function updateRobotDuel(dt, t) {
+        if (robotFleet.length < 2) return;
+        const blueRobot = robotFleet[0];
+        const redRobot = robotFleet[1];
+        if (!blueRobot.group || !redRobot.group) return;
+
+        const dx = redRobot.state.x - blueRobot.state.x;
+        const dz = redRobot.state.z - blueRobot.state.z;
+        const distance = Math.hypot(dx, dz);
+        if (distance > ROBOT_DUEL_DISTANCE) return;
+
+        const proximity = 1 - clamp(distance / ROBOT_DUEL_DISTANCE, 0, 1);
+        const blueCooldown = ROBOT_DUEL_COOLDOWN + Math.sin(t * 0.8) * 0.1;
+        const redCooldown = ROBOT_DUEL_COOLDOWN * 1.12 + Math.cos(t * 0.7) * 0.08;
+        if (t - blueRobot.state.lastShot > blueCooldown) spawnEnergyProjectile(blueRobot, redRobot, t);
+        if (t - redRobot.state.lastShot > redCooldown) spawnEnergyProjectile(redRobot, blueRobot, t);
+
+        if (!updateRobotDuel.lastPulse || t - updateRobotDuel.lastPulse > 0.2) {
+            const midX = (blueRobot.state.x + redRobot.state.x) * 0.5;
+            const midZ = (blueRobot.state.z + redRobot.state.z) * 0.5;
+            addImpulse(midX, midZ, 0.035 + proximity * 0.07);
+            updateRobotDuel.lastPulse = t;
         }
     }
 
     function updateFloatingRobot(dt, t) {
         ensureRobotPhysicsState();
-        if (!robotGroup) loadFloatingRobot();
-        if (!robotGroup) return;
-
-        const driftX = Math.sin(t * 0.54 + robotState.z * 0.72) * 0.16;
-        const driftZ = Math.cos(t * 0.49 + robotState.x * 0.61) * 0.14;
-        robotVelocity.x += driftX * dt;
-        robotVelocity.y += driftZ * dt;
-
-        const speed = robotVelocity.length();
-        if (speed > 1.28) robotVelocity.multiplyScalar(1.28 / speed);
-        if (speed < 0.42) {
-            robotVelocity.x += Math.sin(t + robotState.seed) * dt * 0.22;
-            robotVelocity.y += Math.cos(t * 0.8 + robotState.seed) * dt * 0.22;
-        }
-
-        robotState.x += robotVelocity.x * dt;
-        robotState.z += robotVelocity.y * dt;
-        bounceFloatingRobotWithinBounds(t);
-
-        const waterY = heightAt(robotState.x, robotState.z, t);
-        robotState.waterY = waterY;
-        robotState.y = surface.position.y + waterY + 0.62 + Math.sin(t * 1.9 + robotState.seed) * 0.06;
-        robotTargetPosition.set(robotState.x, robotState.y, robotState.z + surface.position.z);
-        robotGroup.position.lerp(robotTargetPosition, clamp(dt * 4.6, 0, 1));
-
-        const normal = sampleSurfaceNormal(robotState.x, robotState.z, t);
-        robotForward.set(robotVelocity.x, 0, robotVelocity.y);
-        if (robotForward.lengthSq() < 0.0001) robotForward.set(0, 0, 1);
-        robotForward.normalize();
-
-        const heading = Math.atan2(robotForward.x, robotForward.z);
-        robotHeadingQuaternion.setFromAxisAngle(robotUp, heading);
-        targetQuaternion.setFromUnitVectors(robotUp, normal);
-        targetQuaternion.multiply(robotHeadingQuaternion);
-
-        robotSwayQuaternion.setFromEuler(new THREE.Euler(
-            Math.sin(t * 2.1 + robotState.seed) * 0.075 + normal.z * 0.22,
-            0,
-            -normal.x * 0.28 + Math.sin(t * 1.6 + robotState.seed) * 0.055,
-            'XYZ'
-        ));
-        composedRobotQuaternion.copy(targetQuaternion).multiply(robotSwayQuaternion);
-        targetQuaternion.slerp(composedRobotQuaternion, clamp(dt * 2.8, 0, 1));
-        robotGroup.quaternion.slerp(targetQuaternion, clamp(dt * 3.8, 0, 1));
-
-        if (robotModel) {
-            robotModel.position.y = robotModelBaseY + Math.sin(t * 3.2 + robotState.seed) * 0.035;
-        }
-
-        if (robotGroup) {
-            if (!robotThrusterLight) {
-                robotThrusterLight = new THREE.PointLight(0x22d3ee, 1.8, 5);
-                robotThrusterLight.position.set(0, -0.2, 0);
-                robotGroup.add(robotThrusterLight);
-            }
-            if (robotThrusterLight) {
-                robotThrusterLight.intensity = 1.4 + Math.sin(t * 32) * 0.35 + Math.sin(t * 4.8) * 0.15;
-            }
-
-            if (Math.random() < 0.45 && active) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 0.22;
-                const px = robotGroup.position.x + Math.cos(angle) * dist;
-                const py = robotGroup.position.y - 0.45;
-                const pz = robotGroup.position.z + Math.sin(angle) * dist;
-                
-                const emberColor = Math.random() < 0.24 ? 0xffaa00 : 0x22d3ee; // Occasionally orange sparks, mostly cyan jet flame
-                createSmokeSprite(px, py, pz, emberColor, 0.09 + Math.random() * 0.07, 0.45 + Math.random() * 0.35, {
-                    vx: (Math.random() - 0.5) * 0.3 + robotVelocity.x * -0.2,
-                    vy: -1.4 - Math.random() * 1.0,
-                    vz: (Math.random() - 0.5) * 0.3 + robotVelocity.y * -0.2,
-                    spin: (Math.random() - 0.5) * 4.5,
-                    opacity: 0.85,
-                    expansion: 1.15,
-                    fadePower: 1.45,
-                    kind: 'robotJet'
-                });
-            }
-        }
+        loadFloatingRobot();
+        robotFleet.forEach(function (bot, index) {
+            updateRobotMotion(bot, dt, t, index);
+        });
+        updateRobotDuel(dt, t);
+        updateEnergyProjectiles(dt, t);
+        aliasPrimaryRobot(robotFleet[0]);
     }
 
     function createHeightfield() {
@@ -1364,6 +1718,7 @@
             animationId = null;
         }
         exitMode(currentMode);
+        clearEnergyProjectiles();
         if (canvas) canvas.style.display = 'none';
     }
 
@@ -1424,6 +1779,14 @@
         setMode: function (mode) {
             if (typeof mode !== 'number') return;
             setMode(mode);
+        },
+        debugState: function () {
+            return {
+                active,
+                robotCount: robotFleet.length,
+                loadedRobots: robotFleet.filter(function (bot) { return bot.loaded; }).length,
+                energyProjectiles: energyProjectiles.length
+            };
         }
     };
 })();
