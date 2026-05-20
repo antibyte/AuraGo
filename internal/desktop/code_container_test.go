@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -86,7 +87,8 @@ func (f *fakeCodeContainerDocker) EnsureImage(ctx context.Context, image string)
 
 func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error) {
 	f.creates = append(f.creates, req)
-	f.containers = append(f.containers, CodeDockerContainer{ID: "created-1", Names: []string{"/" + codeContainerName}})
+	id := "created-" + strconv.Itoa(len(f.creates))
+	f.containers = append(f.containers, CodeDockerContainer{ID: id, Names: []string{"/" + codeContainerName}})
 	if f.inspectByName == nil {
 		f.inspectByName = map[string]CodeDockerInspect{}
 	}
@@ -97,8 +99,8 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 			mounts = append(mounts, CodeDockerMount{Source: parts[0], Destination: parts[1]})
 		}
 	}
-	f.inspectByName["created-1"] = CodeDockerInspect{ID: "created-1", Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, Mounts: mounts}
-	return "created-1", nil
+	f.inspectByName[id] = CodeDockerInspect{ID: id, Name: "/" + codeContainerName, State: CodeDockerState{Running: true}, Mounts: mounts}
+	return id, nil
 }
 
 func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container, action string) error {
@@ -303,6 +305,45 @@ func TestCodeContainerEnsureStartedReplacesDefaultContainerWhenRuntimeMissing(t 
 		if !strings.Contains(runtimeProbe, want) {
 			t.Fatalf("runtime probe %q missing %q", runtimeProbe, want)
 		}
+	}
+}
+
+func TestCodeContainerEnsureStartedFallsBackToLocalRuntimeImageWhenDefaultStillMissingRuntime(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeCodeContainerDocker{
+		execResults: []CodeDockerExecResult{
+			{ExitCode: 127, Output: "go not found\npython3 not found\n"},
+			{ExitCode: 0},
+			{ExitCode: 0},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: t.TempDir(),
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if len(fake.creates) != 2 {
+		t.Fatalf("create count = %d, want default container plus local runtime fallback", len(fake.creates))
+	}
+	if fake.creates[0].Image != defaultCodeContainerImage {
+		t.Fatalf("first image = %q, want default image", fake.creates[0].Image)
+	}
+	if fake.creates[1].Image != "aurago/code-studio-runtime:latest" {
+		t.Fatalf("fallback image = %q, want local runtime fallback", fake.creates[1].Image)
+	}
+	if !containsString(fake.ensuredImages, defaultCodeContainerImage) {
+		t.Fatalf("ensured images = %#v, want default image ensured", fake.ensuredImages)
+	}
+	if !containsString(fake.ensuredImages, "aurago/code-studio-runtime:latest") {
+		t.Fatalf("ensured images = %#v, want local runtime fallback ensured", fake.ensuredImages)
+	}
+	if !containsString(fake.actions, "created-1:remove") {
+		t.Fatalf("actions = %#v, want failed default container removal", fake.actions)
 	}
 }
 

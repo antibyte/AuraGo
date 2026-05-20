@@ -14,14 +14,15 @@ import (
 )
 
 const (
-	codeContainerName             = "aurago-code-studio"
-	defaultCodeContainerImage     = "ghcr.io/antibyte/aurago-code-studio:latest"
-	codeWorkspaceInContainer      = "/workspace"
-	codeWorkspaceDirName          = "code-studio-workspace"
-	defaultCodeContainerMemoryMB  = 4096
-	defaultCodeContainerCPUCores  = 2
-	defaultCodeContainerPidsLimit = 1024
-	defaultCodeContainerStopAfter = 30 * time.Minute
+	codeContainerName                 = "aurago-code-studio"
+	defaultCodeContainerImage         = "ghcr.io/antibyte/aurago-code-studio:latest"
+	runtimeFallbackCodeContainerImage = "aurago/code-studio-runtime:latest"
+	codeWorkspaceInContainer          = "/workspace"
+	codeWorkspaceDirName              = "code-studio-workspace"
+	defaultCodeContainerMemoryMB      = 4096
+	defaultCodeContainerCPUCores      = 2
+	defaultCodeContainerPidsLimit     = 1024
+	defaultCodeContainerStopAfter     = 30 * time.Minute
 )
 
 type ContainerState int
@@ -243,6 +244,51 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 		return fmt.Errorf("prepare code studio image %s: %w", image, err)
 	}
 
+	createdID, err := s.createCodeStudioContainerLocked(ctx, image, codeWorkspaceDir)
+	if err != nil {
+		s.state = StateError
+		return err
+	}
+	runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, createdID)
+	if err != nil {
+		s.state = StateError
+		return err
+	}
+	if runtimeMissing {
+		if err := s.docker.ContainerAction(ctx, createdID, "remove"); err != nil {
+			s.state = StateError
+			return fmt.Errorf("remove code studio container with missing runtime tools: %w", err)
+		}
+		fallbackImage := runtimeFallbackCodeContainerImage
+		if err := s.docker.EnsureImage(ctx, fallbackImage); err != nil {
+			s.state = StateError
+			return fmt.Errorf("prepare code studio runtime fallback image %s: %w", fallbackImage, err)
+		}
+		createdID, err = s.createCodeStudioContainerLocked(ctx, fallbackImage, codeWorkspaceDir)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		runtimeMissing, err = s.containerRuntimeMissingLocked(ctx, createdID)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		if runtimeMissing {
+			s.state = StateError
+			return fmt.Errorf("code studio runtime fallback image %s is missing required runtime tools", fallbackImage)
+		}
+	}
+	if err := seedCodeStudioContainerWorkspace(ctx, s.docker, createdID); err != nil {
+		s.state = StateError
+		return err
+	}
+	s.state = StateRunning
+	s.touchLocked()
+	return nil
+}
+
+func (s *CodeContainerService) createCodeStudioContainerLocked(ctx context.Context, image, codeWorkspaceDir string) (string, error) {
 	createdID, err := s.docker.CreateContainer(ctx, CodeDockerCreateRequest{
 		Name:        codeContainerName,
 		Image:       image,
@@ -257,42 +303,28 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 		Resources:   codeStudioResourcesPtr(s.cfg.CodeStudio),
 	})
 	if err != nil {
-		s.state = StateError
-		return fmt.Errorf("create code studio container: %w", err)
+		return "", fmt.Errorf("create code studio container: %w", err)
 	}
 	if createdID == "" {
 		createdID = codeContainerName
 	}
 	if err := s.docker.ContainerAction(ctx, createdID, "start"); err != nil {
-		s.state = StateError
-		return fmt.Errorf("start code studio container: %w", err)
+		return "", fmt.Errorf("start code studio container: %w", err)
 	}
 	if err := s.waitForRunningLocked(ctx, createdID); err != nil {
-		s.state = StateError
-		return err
+		return "", err
 	}
-	runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, createdID)
-	if err != nil {
-		s.state = StateError
-		return err
-	}
-	if runtimeMissing {
-		s.state = StateError
-		return fmt.Errorf("code studio default image %s is missing required runtime tools", image)
-	}
-	if err := seedCodeStudioContainerWorkspace(ctx, s.docker, createdID); err != nil {
-		s.state = StateError
-		return err
-	}
-	s.state = StateRunning
-	s.touchLocked()
-	return nil
+	return createdID, nil
 }
 
 func (s *CodeContainerService) defaultContainerRuntimeMissingLocked(ctx context.Context, containerID string) (bool, error) {
 	if !strings.EqualFold(codeStudioImage(s.cfg.CodeStudio), defaultCodeContainerImage) {
 		return false, nil
 	}
+	return s.containerRuntimeMissingLocked(ctx, containerID)
+}
+
+func (s *CodeContainerService) containerRuntimeMissingLocked(ctx context.Context, containerID string) (bool, error) {
 	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", buildCodeStudioRuntimeProbeScript()}, 30*time.Second)
 	if err != nil {
 		return false, fmt.Errorf("check code studio container runtime tools: %w", err)

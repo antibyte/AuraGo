@@ -23,6 +23,7 @@ type codeStudioDockerAdapter struct {
 
 const legacyLocalCodeStudioImage = "aurago/code-studio:latest"
 const publishedCodeStudioImage = "ghcr.io/antibyte/aurago-code-studio:latest"
+const runtimeFallbackCodeStudioImage = "aurago/code-studio-runtime:latest"
 
 func newCodeStudioDockerAdapter(cfg desktop.Config, logger *slog.Logger) codeStudioDockerAdapter {
 	return codeStudioDockerAdapter{
@@ -102,6 +103,18 @@ func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) 
 	}
 	if strings.EqualFold(image, publishedCodeStudioImage) {
 		return a.refreshPublishedCodeStudioImage(ctx, image, exists)
+	}
+	if strings.EqualFold(image, runtimeFallbackCodeStudioImage) {
+		if err := a.buildDefaultImage(ctx, image); err != nil {
+			if exists {
+				if a.logger != nil {
+					a.logger.Warn("code studio runtime fallback image rebuild failed; using cached image", "image", image, "error", err)
+				}
+				return nil
+			}
+			return fmt.Errorf("build code studio runtime fallback image: %w", err)
+		}
+		return nil
 	}
 	if exists {
 		return nil

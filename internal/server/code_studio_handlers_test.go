@@ -324,6 +324,23 @@ func TestCodeStudioDefaultImageRefreshesCachedLatest(t *testing.T) {
 	}
 }
 
+func TestCodeStudioRuntimeFallbackImageBuildsFromBundledDockerfile(t *testing.T) {
+	source, err := os.ReadFile("code_studio_docker_adapter.go")
+	if err != nil {
+		t.Fatalf("read code studio docker adapter: %v", err)
+	}
+	text := string(source)
+	for _, want := range []string{
+		`runtimeFallbackCodeStudioImage = "aurago/code-studio-runtime:latest"`,
+		"strings.EqualFold(image, runtimeFallbackCodeStudioImage)",
+		"a.buildDefaultImage(ctx, image)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("Code Studio docker adapter must build local runtime fallback image, missing %q", want)
+		}
+	}
+}
+
 func writeAttachFrame(t *testing.T, buf *bytes.Buffer, stream byte, payload []byte) {
 	t.Helper()
 	header := make([]byte, 8)
