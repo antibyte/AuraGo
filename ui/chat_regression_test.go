@@ -841,8 +841,12 @@ func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 
 	foldJS := string(foldContent)
 	for _, marker := range []string{
-		"clamp(2, 6, aboveBy / 22)",
-		"progress * 4",
+		"function textLengthForRow(row)",
+		"function foldMetricsForRow(row, rect)",
+		"(textLength - 320) / 1680",
+		"partialDelay: clamp(0, maxDelay, longBubbleFactor * 180)",
+		"(partial - metrics.partialDelay) / metrics.progressSpan",
+		"progress * metrics.maxPartialAngle",
 		"scale(0.995)",
 	} {
 		if !strings.Contains(foldJS, marker) {

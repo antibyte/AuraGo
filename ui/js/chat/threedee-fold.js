@@ -24,6 +24,27 @@
         return chatContent ? Array.from(chatContent.querySelectorAll('.msg-row')) : [];
     }
 
+    function textLengthForRow(row) {
+        const bubble = row ? row.querySelector('.bubble') : null;
+        const raw = bubble ? (bubble.textContent || '') : (row ? row.textContent || '' : '');
+        return raw.replace(/\s+/g, ' ').trim().length;
+    }
+
+    function foldMetricsForRow(row, rect) {
+        const textLength = textLengthForRow(row);
+        const textFactor = clamp(0, 1, (textLength - 320) / 1680);
+        const heightFactor = clamp(0, 1, (((rect && rect.height) || 0) - 260) / 900);
+        const longBubbleFactor = Math.max(textFactor, heightFactor);
+        const maxDelay = rect && rect.height ? rect.height * 0.35 : 0;
+
+        return {
+            partialDelay: clamp(0, maxDelay, longBubbleFactor * 180),
+            progressSpan: Math.max(1, ((rect && rect.height) || 0) + longBubbleFactor * 240),
+            maxPartialAngle: 4 - longBubbleFactor * 1.6,
+            fullFoldDivisor: 22 + longBubbleFactor * 18
+        };
+    }
+
     function markReady(row) {
         if (!row || row.classList.contains('threedee-fold-ready')) return;
         if (readyTimers.has(row)) return;
@@ -60,17 +81,18 @@
             const rect = row.getBoundingClientRect();
             const aboveBy = chatRect.top - rect.bottom;
             const partial = chatRect.top - rect.top;
+            const metrics = foldMetricsForRow(row, rect);
 
             if (aboveBy > 0) {
-                const foldAngle = clamp(2, 6, aboveBy / 22);
+                const foldAngle = clamp(2, 6, aboveBy / metrics.fullFoldDivisor);
                 row.classList.add('folding', 'folded');
                 row.classList.remove('unfolding');
                 row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-2px) scale(0.995)`;
                 row.style.opacity = String(clamp(0.72, 0.94, 1 - foldAngle / 54));
                 row.style.filter = `blur(${clamp(0, 0.28, foldAngle / 42).toFixed(2)}px)`;
-            } else if (partial > 0 && rect.height > 0) {
-                const progress = clamp(0, 1, partial / rect.height);
-                const foldAngle = progress * 4;
+            } else if (partial > metrics.partialDelay && rect.height > 0) {
+                const progress = clamp(0, 1, (partial - metrics.partialDelay) / metrics.progressSpan);
+                const foldAngle = progress * metrics.maxPartialAngle;
                 row.classList.add('folding');
                 row.classList.remove('folded', 'unfolding');
                 row.style.transform = `perspective(800px) rotateX(-${foldAngle.toFixed(2)}deg) scale(${(1 - progress * 0.003).toFixed(3)})`;
