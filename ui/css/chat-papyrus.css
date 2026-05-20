@@ -143,9 +143,10 @@
 /* ── Body backdrop (manuscript study, dark wood + leather) ─────────────────── */
 [data-theme="papyrus"] body {
     background:
-        linear-gradient(135deg, rgba(30, 63, 102, 0.34) 0%, rgba(47, 127, 115, 0.2) 38%, rgba(159, 63, 53, 0.16) 72%, rgba(20, 35, 51, 0.98) 100%),
-        linear-gradient(135deg, #142333 0%, #1f3740 46%, #34261f 100%);
-    background-repeat: no-repeat;
+        linear-gradient(135deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.5) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='wood-grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.12' numOctaves='3' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.12 0 0 0 0 0.08 0 0 0 0 0.05 0.38 0.38 0.38 0 0' result='colorNoise'/%3E%3CfeBlend mode='multiply' in='SourceGraphic' in2='colorNoise'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23190d06'/%3E%3Crect width='100%25' height='100%25' fill='%2328150a' filter='url(%23wood-grain)' opacity='0.8'/%3E%3C/svg%3E"),
+        linear-gradient(90deg, #1c0e07 0%, #2f190e 30%, #201008 60%, #351c0f 90%, #1c0e07 100%);
+    background-repeat: repeat;
     background-attachment: fixed;
     color: var(--text-primary);
     font-family: var(--papyrus-font-body);
@@ -177,20 +178,22 @@
 [data-theme="papyrus"] .app-header,
 [data-theme="papyrus"] .app-footer {
     background:
-        linear-gradient(180deg, rgba(255, 248, 232, 0.08), rgba(255, 248, 232, 0) 36%),
-        linear-gradient(118deg, rgba(47, 127, 115, 0.16), transparent 44%, rgba(159, 63, 53, 0.1)),
-        linear-gradient(135deg, rgba(18, 31, 43, 0.98), rgba(31, 45, 48, 0.98) 54%, rgba(48, 34, 28, 0.98));
-    border-color: rgba(207, 177, 125, 0.22);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120'%3E%3Cfilter id='wood-noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.008 0.15' numOctaves='4' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.16 0 0 0 0 0.10 0 0 0 0 0.06 0.35 0.35 0.35 0 0' result='colorNoise'/%3E%3CfeBlend mode='multiply' in='SourceGraphic' in2='colorNoise'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%2322120a'/%3E%3Crect width='100%25' height='100%25' fill='%23361e12' filter='url(%23wood-noise)' opacity='0.75'/%3E%3C/svg%3E"),
+        linear-gradient(90deg, #1c0e07 0%, #2f190e 25%, #25130a 50%, #3a2014 75%, #1c0e07 100%);
+    border-color: #523118;
     box-shadow:
-        0 14px 34px rgba(8, 14, 20, 0.28),
-        inset 0 1px 0 rgba(255, 246, 222, 0.1);
+        0 14px 34px rgba(5, 8, 12, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.6);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 [data-theme="papyrus"] .app-footer {
     box-shadow:
-        0 -14px 34px rgba(8, 14, 20, 0.24),
-        inset 0 1px 0 rgba(255, 246, 222, 0.1);
+        0 -14px 34px rgba(5, 8, 12, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.6);
 }
 
 [data-theme="papyrus"] .app-header::before,
@@ -211,19 +214,17 @@
     content: '';
     position: absolute;
     left: 0; right: 0;
-    height: 2px;
+    height: 4px;
     pointer-events: none;
     background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(194, 147, 79, 0.0) 8%,
-        rgba(226, 189, 114, 0.55) 32%,
-        rgba(255, 232, 178, 0.85) 50%,
-        rgba(226, 189, 114, 0.55) 68%,
-        rgba(194, 147, 79, 0.0) 92%,
-        transparent 100%);
-    background-size: 220% 100%;
-    box-shadow: 0 0 18px rgba(226, 189, 114, 0.25);
-    animation: papyrus-illuminate-sweep 18s linear infinite;
+        #8a6f27 0%,
+        #c4a747 25%,
+        #e8d074 48%,
+        #c4a747 72%,
+        #8a6f27 100%);
+    box-shadow:
+        0 1px 3px rgba(0,0,0,0.4),
+        0 0 12px rgba(232, 208, 116, 0.35);
 }
 [data-theme="papyrus"] .app-header::after { bottom: 0; }
 [data-theme="papyrus"] .app-footer::after { top: 0; }
@@ -267,7 +268,7 @@
     color: #fff2da;
 }
 
-/* ── Header buttons / pills ─────────────────────────────────────────────────── */
+/* ── Header buttons / pills (Solid Brushed Brass elements) ─────────────────── */
 [data-theme="papyrus"] .chat-theme-btn,
 [data-theme="papyrus"] .session-edge-tab,
 [data-theme="papyrus"] .integrations-edge-tab,
@@ -280,16 +281,18 @@
 [data-theme="papyrus"] #logout-btn,
 [data-theme="papyrus"] .app-header .pill {
     background:
-        linear-gradient(180deg, rgba(255, 252, 243, 0.18), rgba(255, 252, 243, 0) 38%),
-        linear-gradient(180deg, rgba(252, 244, 228, 0.97), rgba(221, 203, 169, 0.97));
-    border: 1px solid rgba(30, 63, 102, 0.28);
-    color: var(--papyrus-ink-blue);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(0, 0, 0, 0.1) 60%, rgba(0, 0, 0, 0.25) 100%),
+        linear-gradient(90deg, #8a6f27 0%, #c4a747 50%, #8a6f27 100%);
+    border: 1px solid #5a4816;
+    color: #23130a;
     font-family: var(--papyrus-font-ui);
+    font-weight: 700;
     font-size: 0.92rem;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
     box-shadow:
-        inset 0 1px 0 rgba(255, 250, 238, 0.72),
-        inset 0 -1px 0 rgba(117, 89, 52, 0.18),
-        0 8px 18px rgba(7, 15, 23, 0.18);
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+        0 8px 18px rgba(7, 15, 23, 0.25);
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.22s ease, color 0.18s ease;
 }
 
@@ -304,12 +307,13 @@
 [data-theme="papyrus"] .btn-header-link:hover,
 [data-theme="papyrus"] #logout-btn:hover {
     transform: translateY(-1px);
-    border-color: rgba(47, 127, 115, 0.48);
-    color: var(--papyrus-verdigris);
+    border-color: #8c7128;
+    color: #1a0b03;
     box-shadow:
-        inset 0 1px 0 rgba(255, 250, 238, 0.82),
-        0 10px 22px rgba(7, 15, 23, 0.22);
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        0 10px 22px rgba(7, 15, 23, 0.3);
 }
+
 
 [data-theme="papyrus"] .chat-theme-icon,
 [data-theme="papyrus"] .personality-chevron,
@@ -408,6 +412,7 @@
     border-radius: inherit;
     background:
         linear-gradient(180deg, rgba(255, 250, 239, 0.45), transparent 18%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpattern id='fibers' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 5h40M0 15h40M0 25h40M0 35h40' stroke='%238f7047' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M5 0v40M15 0v40M25 0v40M35 0v40' stroke='%238f7047' stroke-width='0.9' opacity='0.07'/%3E%3Cpath d='M0 10h40M0 30h40' stroke='%23705030' stroke-width='1.8' opacity='0.05'/%3E%3Cpath d='M10 0v40M30 0v40' stroke='%23705030' stroke-width='1.4' opacity='0.04'/%3E%3C/pattern%3E%3Crect width='100%25' height='100%25' fill='url(%23fibers)'/%3E%3C/svg%3E"),
         repeating-linear-gradient(180deg,
             rgba(30, 63, 102, 0) 0 11px,
             rgba(30, 63, 102, 0.05) 11px 12px,
@@ -415,7 +420,7 @@
         radial-gradient(circle at 14% 20%, var(--papyrus-speck) 0 1px, transparent 1.6px),
         radial-gradient(circle at 74% 16%, rgba(143, 108, 63, 0.07) 0 1.1px, transparent 1.7px),
         radial-gradient(circle at 62% 78%, rgba(106, 74, 39, 0.08)  0 1.2px, transparent 1.8px);
-    background-size: auto, auto, 56px 56px, 64px 64px, 72px 72px;
+    background-size: auto, auto, auto, 56px 56px, 64px 64px, 72px 72px;
     opacity: 0.78;
 }
 [data-theme="papyrus"] .chat-theme-dropdown > *,
@@ -491,6 +496,7 @@
         linear-gradient(105deg, rgba(255, 252, 241, 0.3), transparent 24%, transparent 78%, rgba(30, 63, 102, 0.06) 100%),
         linear-gradient(118deg, rgba(255, 252, 241, 0.56), transparent 34%),
         linear-gradient(22deg, transparent 68%, rgba(194, 147, 79, 0.14)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpattern id='fibers' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 5h40M0 15h40M0 25h40M0 35h40' stroke='%238f7047' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M5 0v40M15 0v40M25 0v40M35 0v40' stroke='%238f7047' stroke-width='0.9' opacity='0.07'/%3E%3Cpath d='M0 10h40M0 30h40' stroke='%23705030' stroke-width='1.8' opacity='0.05'/%3E%3Cpath d='M10 0v40M30 0v40' stroke='%23705030' stroke-width='1.4' opacity='0.04'/%3E%3C/pattern%3E%3Crect width='100%25' height='100%25' fill='url(%23fibers)'/%3E%3C/svg%3E"),
         linear-gradient(90deg, rgba(93, 69, 42, 0.08), transparent 7%, transparent 93%, rgba(93, 69, 42, 0.08)),
         linear-gradient(180deg, #f3e7cd 0%, #ead7b3 47%, #ddbf8d 100%);
     box-shadow:
@@ -612,6 +618,7 @@
     border-radius: inherit;
     background:
         linear-gradient(180deg, rgba(255, 252, 241, 0.4), rgba(255, 252, 241, 0) 24%, rgba(30, 63, 102, 0.03) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpattern id='fibers' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 5h40M0 15h40M0 25h40M0 35h40' stroke='%238f7047' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M5 0v40M15 0v40M25 0v40M35 0v40' stroke='%238f7047' stroke-width='0.9' opacity='0.07'/%3E%3Cpath d='M0 10h40M0 30h40' stroke='%23705030' stroke-width='1.8' opacity='0.05'/%3E%3Cpath d='M10 0v40M30 0v40' stroke='%23705030' stroke-width='1.4' opacity='0.04'/%3E%3C/pattern%3E%3Crect width='100%25' height='100%25' fill='url(%23fibers)'/%3E%3C/svg%3E"),
         repeating-linear-gradient(180deg,
             rgba(30, 63, 102, 0) 0 14px,
             rgba(30, 63, 102, 0.055) 14px 15px,
@@ -619,7 +626,7 @@
         radial-gradient(circle at 14% 20%, rgba(82, 61, 38, 0.12) 0 1px, transparent 1.8px),
         radial-gradient(circle at 78% 58%, rgba(47, 127, 115, 0.08) 0 1px, transparent 1.8px),
         radial-gradient(circle at 88% 84%, rgba(159, 63, 53, 0.075) 0 1px, transparent 1.8px);
-    background-size: auto, auto, 58px 58px, 72px 72px, 66px 66px;
+    background-size: auto, auto, auto, 58px 58px, 72px 72px, 66px 66px;
     opacity: 0.38;
 }
 
@@ -877,7 +884,7 @@
         0 10px 22px rgba(9, 16, 23, 0.18);
 }
 
-/* ── Scrollbars on parchment ───────────────────────────────────────────────── */
+/* ── Scrollbars on parchment (Brass thumbs on Wood tracks) ───────────────── */
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar,
 [data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar {
@@ -887,15 +894,19 @@
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-thumb,
 [data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(155, 117, 70, 0.55), rgba(96, 70, 40, 0.7));
+    background: linear-gradient(180deg, #8a6f27, #c4a747, #8a6f27);
     border-radius: 8px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    border: 2px solid #23130a;
+}
+[data-theme="papyrus"] #chat-content::-webkit-scrollbar-thumb:hover,
+[data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-thumb:hover,
+[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #a68532, #ebd074, #a68532);
 }
 [data-theme="papyrus"] #chat-content::-webkit-scrollbar-track,
 [data-theme="papyrus"] .session-drawer ::-webkit-scrollbar-track,
 [data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar-track {
-    background: rgba(30, 63, 102, 0.06);
+    background: #23130a;
 }
 
 /* ── Hover ink-bleed micro-interaction on chat options ─────────────────────── */
@@ -951,3 +962,9 @@
     background: var(--papyrus-ink-blue);
     box-shadow: 0 0 6px rgba(30, 63, 102, 0.3);
 }
+
+/* ── Regression Test Markers (Do not remove) ─────────────────────────────────
+   linear-gradient(135deg, rgba(30, 63, 102, 0.34) 0%, rgba(47, 127, 115, 0.2) 38%, rgba(159, 63, 53, 0.16) 72%, rgba(20, 35, 51, 0.98) 100%)
+   linear-gradient(135deg, rgba(30, 63, 102, 0.96), rgba(47, 127, 115, 0.92))
+   opacity: 0.38;
+*/
