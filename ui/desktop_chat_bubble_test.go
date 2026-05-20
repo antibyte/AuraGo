@@ -28,3 +28,23 @@ func TestDesktopChatAgentBubblesDoNotClipLongResponses(t *testing.T) {
 		t.Fatal("desktop chat CSS must explicitly keep agent bubbles visible")
 	}
 }
+
+func TestDesktopChatLogItemsDoNotCollapseAroundLongResponses(t *testing.T) {
+	t.Parallel()
+
+	css := readAllDesktopCSS(t)
+	for _, marker := range []string{
+		"grid-template-rows: auto minmax(0, 1fr) auto auto;",
+		".vd-chat-log > *",
+		"flex: 0 0 auto;",
+		"display: flow-root;",
+		"box-sizing: border-box;",
+		".vd-chat-bubble.agent > :first-child",
+		".vd-chat-bubble.agent > :last-child",
+		".vd-chat-status-text",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop chat CSS missing anti-collapse marker %q", marker)
+		}
+	}
+}
