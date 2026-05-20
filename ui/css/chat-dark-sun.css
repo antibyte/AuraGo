@@ -349,8 +349,8 @@
 }
 
 [data-theme="dark-sun"] .bubble.bot::before {
+    inset: 0;
     border-color: transparent transparent var(--bot-bubble-tail) transparent;
-    filter: drop-shadow(-1px 0 0 rgba(255, 122, 42, 0.18));
 }
 
 [data-theme="dark-sun"] .bubble.user {
@@ -366,8 +366,8 @@
 }
 
 [data-theme="dark-sun"] .bubble.user::before {
+    inset: 0;
     border-color: transparent transparent var(--user-bubble-tail) transparent;
-    filter: drop-shadow(1px 0 0 rgba(255, 132, 48, 0.22));
 }
 
 [data-theme="dark-sun"] .bubble.technical,

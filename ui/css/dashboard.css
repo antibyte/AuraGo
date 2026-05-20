@@ -172,13 +172,14 @@
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius);
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.35s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.35s ease, border-color 0.25s ease;
             position: relative;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
             box-shadow:
                 var(--surface-shadow),
-                inset 0 1px 0 var(--surface-highlight);
+                inset 0 1px 0 var(--surface-highlight),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.04);
         }
 
         .dash-grid > .dash-card {
@@ -195,36 +196,42 @@
             display: block;
         }
 
+        /* Top edge accent glow — accent-colored hairline that animates in on hover */
         .dash-card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(45, 212, 191, 0.3), 
+            top: 0; left: 10%; right: 10%; height: 1px;
+            background: linear-gradient(90deg,
+                transparent,
+                var(--accent, rgba(45, 212, 191, 1)) 40%,
+                rgba(125, 211, 252, 0.9) 60%,
                 transparent);
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.35s ease;
+            border-radius: 0 0 4px 4px;
+            filter: blur(0.5px);
         }
 
+        /* Ambient inner radial — subtle top-glow that pulls focus up */
         .dash-card::after {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+            background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(45, 212, 191, 0.07), transparent 70%);
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.35s ease;
             pointer-events: none;
             border-radius: var(--radius);
         }
 
         .dash-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-4px);
-            box-shadow: 
+            border-color: color-mix(in srgb, var(--accent) 55%, var(--border-subtle));
+            transform: translateY(-5px);
+            box-shadow:
                 var(--surface-shadow-strong),
                 0 0 0 1px var(--border-accent),
-                inset 0 1px 0 var(--surface-highlight);
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                0 20px 40px rgba(0, 0, 0, 0.18);
         }
 
         .dash-card:hover::before,
@@ -233,17 +240,20 @@
         }
 
         .dash-card-header {
-            padding: 0.8rem 1.2rem;
+            padding: 0.85rem 1.2rem;
             border-bottom: 1px solid var(--border-subtle);
             font-weight: 600;
             font-size: var(--text-base);
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            letter-spacing: 0.01em;
         }
 
         .dash-card-header .card-icon {
             font-size: 1.1rem;
+            filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 45%, transparent));
         }
 
         .dash-card-body {

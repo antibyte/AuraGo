@@ -412,17 +412,7 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 
 		decay := baseAmount * distFactor * resistance
 
-		// 4. Pull toward center
-		var newVal float64
-		if val > 0.5 {
-			newVal = math.Max(0.5, val-decay)
-		} else if val < 0.5 {
-			newVal = math.Min(0.5, val+decay)
-		} else {
-			continue
-		}
-
-		// 5. Enforce trait bounds (floors from profile anchors + milestones)
+		// 4. Enforce trait bounds (floors from profile anchors + milestones)
 		floor := 0.0
 		ceiling := 1.0
 		if meta.AnchorTraits != nil {
@@ -436,7 +426,23 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 			}
 			ceiling = b.Ceiling
 		}
-		newVal = math.Max(floor, math.Min(ceiling, newVal))
+
+		// 5. Pull toward natural target (0.5, clamped by bounds) to avoid instant snapping
+		var newVal float64
+		target := 0.5
+		if target < floor {
+			target = floor
+		} else if target > ceiling {
+			target = ceiling
+		}
+
+		if val > target {
+			newVal = math.Max(target, val-decay)
+		} else if val < target {
+			newVal = math.Min(target, val+decay)
+		} else {
+			continue
+		}
 
 		updates = append(updates, traitUpdate{trait: trait, value: newVal})
 	}

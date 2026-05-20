@@ -18,7 +18,11 @@
 }
 
 .vd-taskbar {
-    border-top: 1px solid var(--vd-border);
+    background: rgba(10, 14, 20, 0.45);
+    backdrop-filter: blur(36px) saturate(150%);
+    -webkit-backdrop-filter: blur(36px) saturate(150%);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -8px 30px rgba(0, 0, 0, 0.2);
     position: relative;
     overflow: visible;
 }
@@ -141,6 +145,45 @@
     cursor: pointer;
     font: inherit;
     touch-action: manipulation;
+    transition: transform 0.3s cubic-bezier(0.2, 1, 0.22, 1), box-shadow 0.3s ease, background 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Micro-animation ripple on hover */
+.vd-window-button::after,
+.vd-button::after,
+.vd-start-button::after,
+.vd-agent-button::after,
+.vd-tool-button::after,
+.vd-chat-send::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, transparent 70%);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 1, 0.22, 1);
+    pointer-events: none;
+}
+
+.vd-window-button:hover::after,
+.vd-button:hover::after,
+.vd-start-button:hover::after,
+.vd-agent-button:hover::after,
+.vd-tool-button:hover::after,
+.vd-chat-send:hover::after {
+    opacity: 1;
+    transform: scale(1.5);
+}
+
+.vd-window-button:active,
+.vd-button:active,
+.vd-start-button:active,
+.vd-agent-button:active,
+.vd-tool-button:active,
+.vd-chat-send:active {
+    transform: scale(0.96);
 }
 
 .vd-window-button:hover,

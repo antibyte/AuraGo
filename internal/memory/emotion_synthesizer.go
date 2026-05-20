@@ -163,11 +163,6 @@ func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *Emoti
 		return fmt.Errorf("validate external emotion state: %w", err)
 	}
 
-	es.mu.Lock()
-	es.lastCall = time.Now()
-	es.lastState = &stateCopy
-	es.mu.Unlock()
-
 	if stm != nil {
 		if utf8.RuneCountInString(triggerSummary) > 200 {
 			triggerSummary = string([]rune(triggerSummary)[:200])
@@ -176,6 +171,11 @@ func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *Emoti
 			return fmt.Errorf("persist external emotion state: %w", err)
 		}
 	}
+
+	es.mu.Lock()
+	es.lastCall = time.Now()
+	es.lastState = &stateCopy
+	es.mu.Unlock()
 
 	return nil
 }
@@ -202,14 +202,16 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	// Slow path: deduplicate concurrent LLM calls so only one runs at a time.
 	sfKey := emotionSynthesisKey(input)
 	v, _, _ := es.sfGroup.Do(sfKey, func() (interface{}, error) {
-		// Re-check inside singleflight: a concurrent goroutine may have just completed.
-		es.mu.RLock()
+		// Re-check inside singleflight and lock early to enforce rate-limit on concurrent calls.
+		es.mu.Lock()
 		if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
 			stateCopy := *es.lastState
-			es.mu.RUnlock()
+			es.mu.Unlock()
 			return &sfEmotionResult{state: &stateCopy}, nil
 		}
-		es.mu.RUnlock()
+		// Claim the rate limit slot immediately so concurrent misses are blocked.
+		es.lastCall = time.Now()
+		es.mu.Unlock()
 
 		prompt := es.buildPrompt(input)
 
@@ -286,6 +288,8 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 // emotionSynthesisKey generates a singleflight key from the EmotionInput context
 // so that concurrent calls with different inputs are not incorrectly deduplicated.
 func emotionSynthesisKey(input EmotionInput) string {
+	// Round volatile float fields to prevent singleflight bypass
+	input.InactivityHours = math.Round(input.InactivityHours*10) / 10
 	data, _ := json.Marshal(input)
 	h := sha256.New()
 	h.Write(data)

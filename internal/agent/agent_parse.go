@@ -1673,7 +1673,13 @@ func decodeBase64(s string) ([]byte, error) {
 // homepageActiveInChain wird true sobald das Homepage-Tool in der aktuellen Aktionskette
 // aufgerufen wurde – ab dann gilt das erhöhte Limit für die gesamte Kette.
 func calculateEffectiveMaxCalls(cfg *config.Config, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
+	if cfg == nil {
+		return 10
+	}
 	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
+	if effectiveMaxCalls <= 0 {
+		effectiveMaxCalls = 10
+	}
 
 	// 1. Personality Engine V2: Thoroughness Trait
 	if personalityEnabled && cfg.Personality.EngineV2 && shortTermMem != nil {

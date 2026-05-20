@@ -398,6 +398,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Warn("[Sync] Circuit breaker triggered", "count", s.toolCallCount, "limit", effectiveMaxCalls)
 			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: You have reached the maximum of %d consecutive tool calls. You MUST now summarize your progress and respond to the user with a final answer.", effectiveMaxCalls)
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
+			req.Tools = nil // Physically remove tool schemas to prevent infinite loops
 		}
 
 		flags.ActiveProcesses = GetActiveProcessStatus(registry)

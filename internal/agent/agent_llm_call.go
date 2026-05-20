@@ -180,7 +180,9 @@ func handleStreamingResponse(
 	}
 
 	recvCh := make(chan recvResult, 1)
-	recvEg, recvCtx := errgroup.WithContext(llmCtx)
+	recvCtx, cancelRecv := context.WithCancel(llmCtx)
+	defer cancelRecv()
+	recvEg, _ := errgroup.WithContext(recvCtx)
 	recvEg.Go(func() error {
 		defer close(recvCh)
 		for {
