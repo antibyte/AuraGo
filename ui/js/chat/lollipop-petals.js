@@ -64,9 +64,8 @@
         const viewH = chatBox ? chatBox.clientHeight : window.innerHeight;
         const travel = Math.max(scrollH, viewH) + size + 160;
         const delay = immediate ? randomBetween(-duration, 0) : 0;
-        // Sway amplitude for playful wobble
+        // Sway amplitude — baked into the fall keyframes
         const swayAmp = randomBetween(15, 45);
-        const swaySpeed = randomBetween(2, 5);
 
         petal.className = `lollipop-petal ${pick(BLOSSOM_CLASSES)}`;
         petal.style.setProperty('--petal-left', `${left}%`);
@@ -80,15 +79,17 @@
         petal.style.setProperty('--petal-rotate-end', `${rotationEnd.toFixed(1)}deg`);
         petal.style.setProperty('--petal-travel', `${travel}px`);
         petal.style.setProperty('--petal-sway', `${swayAmp}px`);
-        petal.style.setProperty('--petal-sway-speed', `${swaySpeed.toFixed(1)}s`);
         petal.style.zIndex = String(randomInt(1, 3));
     }
 
     function createPetal() {
         const petal = document.createElement('span');
         rerollPetal(petal, true);
-        petal.addEventListener('animationiteration', () => {
-            rerollPetal(petal, false);
+        // Only reroll when the fall animation (not any other) completes its loop
+        petal.addEventListener('animationiteration', (e) => {
+            if (e.animationName === 'lollipopPetalFall') {
+                rerollPetal(petal, false);
+            }
         });
         return petal;
     }

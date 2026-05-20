@@ -276,9 +276,7 @@
     background-size: contain;
     filter: drop-shadow(0 6px 10px rgba(168, 84, 128, 0.15));
     transform: translate3d(0, 0, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
-    animation:
-        lollipopPetalFall var(--petal-duration, 20s) linear var(--petal-delay, 0s) infinite,
-        lollipopPetalSway var(--petal-sway-speed, 3s) ease-in-out var(--petal-delay, 0s) infinite;
+    animation: lollipopPetalFall var(--petal-duration, 20s) ease-in-out var(--petal-delay, 0s) infinite;
     will-change: transform, opacity;
 }
 
@@ -690,24 +688,22 @@
     8% {
         opacity: var(--petal-opacity, 0.72);
     }
-    85% {
-        opacity: calc(var(--petal-opacity, 0.72) * 0.6);
+    20% {
+        transform: translate3d(var(--petal-sway, 28px), 20%, 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.2)) scale(var(--petal-scale, 1));
+    }
+    40% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * -0.6), 40%, 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.4)) scale(var(--petal-scale, 1));
+    }
+    60% {
+        transform: translate3d(var(--petal-sway, 28px), 60%, 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.6)) scale(var(--petal-scale, 1));
+    }
+    80% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * -0.4), 80%, 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.8)) scale(var(--petal-scale, 1));
+        opacity: calc(var(--petal-opacity, 0.72) * 0.7);
     }
     100% {
         transform: translate3d(var(--petal-drift, 28px), var(--petal-travel, calc(100vh + 180px)), 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
         opacity: calc(var(--petal-opacity, 0.72) * 0.12);
-    }
-}
-
-@keyframes lollipopPetalSway {
-    0%, 100% {
-        margin-left: 0;
-    }
-    25% {
-        margin-left: var(--petal-sway, 25px);
-    }
-    75% {
-        margin-left: calc(var(--petal-sway, 25px) * -1);
     }
 }
 
