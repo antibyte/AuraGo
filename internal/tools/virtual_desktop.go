@@ -408,6 +408,255 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			message = "desktop app open event emitted; ignored path outside Code Studio workspace"
 		}
 		return virtualDesktopJSON("ok", message, payload, event)
+	case "list_apps":
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		allApps := append([]desktop.AppManifest{}, payload.BuiltinApps...)
+		allApps = append(allApps, payload.InstalledApps...)
+		return virtualDesktopJSON("ok", "desktop apps listed", map[string]interface{}{
+			"builtin_apps":   payload.BuiltinApps,
+			"installed_apps": payload.InstalledApps,
+			"all_apps":       allApps,
+			"counts": map[string]interface{}{
+				"builtin":   len(payload.BuiltinApps),
+				"installed": len(payload.InstalledApps),
+				"total":     len(allApps),
+			},
+		}, nil)
+	case "get_app":
+		appID := virtualDesktopString(args, "app_id", "id")
+		if appID == "" {
+			return virtualDesktopJSON("error", "app_id is required", nil, nil)
+		}
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		for _, app := range payload.BuiltinApps {
+			if app.ID == appID {
+				return virtualDesktopJSON("ok", "desktop app found", map[string]interface{}{
+					"app":    app,
+					"found":  true,
+					"source": "builtin",
+				}, nil)
+			}
+		}
+		for _, app := range payload.InstalledApps {
+			if app.ID == appID {
+				return virtualDesktopJSON("ok", "desktop app found", map[string]interface{}{
+					"app":    app,
+					"found":  true,
+					"source": "installed",
+				}, nil)
+			}
+		}
+		return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q not found", appID), map[string]interface{}{
+			"code":   "desktop_app_not_found",
+			"app_id": appID,
+		}, nil)
+	case "list_widgets":
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		widgets := payload.AllWidgets
+		if len(widgets) == 0 {
+			widgets = payload.Widgets
+		}
+		visibleWidgets := []desktop.Widget{}
+		for _, w := range widgets {
+			if w.Visible {
+				visibleWidgets = append(visibleWidgets, w)
+			}
+		}
+		return virtualDesktopJSON("ok", "desktop widgets listed", map[string]interface{}{
+			"widgets":         widgets,
+			"visible_widgets": visibleWidgets,
+			"counts": map[string]interface{}{
+				"total":   len(widgets),
+				"visible": len(visibleWidgets),
+			},
+		}, nil)
+	case "get_widget":
+		widgetID := virtualDesktopString(args, "widget_id", "id")
+		if widgetID == "" {
+			return virtualDesktopJSON("error", "widget_id is required", nil, nil)
+		}
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		widgets := payload.AllWidgets
+		if len(widgets) == 0 {
+			widgets = payload.Widgets
+		}
+		for _, w := range widgets {
+			if w.ID == widgetID {
+				return virtualDesktopJSON("ok", "desktop widget found", map[string]interface{}{
+					"widget":  w,
+					"found":   true,
+					"visible": w.Visible,
+				}, nil)
+			}
+		}
+		return virtualDesktopJSON("error", fmt.Sprintf("desktop widget %q not found", widgetID), map[string]interface{}{
+			"code":      "desktop_widget_not_found",
+			"widget_id": widgetID,
+		}, nil)
+	case "diagnose_app":
+		appID := virtualDesktopString(args, "app_id", "id")
+		if appID == "" {
+			return virtualDesktopJSON("error", "app_id is required", nil, nil)
+		}
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		var app desktop.AppManifest
+		appFound := false
+		for _, a := range payload.BuiltinApps {
+			if a.ID == appID {
+				app = a
+				appFound = true
+				break
+			}
+		}
+		if !appFound {
+			for _, a := range payload.InstalledApps {
+				if a.ID == appID {
+					app = a
+					appFound = true
+					break
+				}
+			}
+		}
+		if !appFound {
+			return virtualDesktopJSON("error", fmt.Sprintf("desktop app %q not found", appID), map[string]interface{}{
+				"code":   "desktop_app_not_found",
+				"app_id": appID,
+			}, nil)
+		}
+		checks := []map[string]interface{}{}
+		recommendations := []string{}
+		if app.Builtin {
+			checks = append(checks, map[string]interface{}{"check": "builtin", "ok": true, "detail": "built-in apps are always healthy"})
+			return virtualDesktopJSON("ok", "desktop app diagnosed", map[string]interface{}{
+				"app_id":          appID,
+				"ok":              true,
+				"builtin":         true,
+				"checks":          checks,
+				"health":          app.Health,
+				"health_reason":   app.HealthReason,
+				"recommendations": recommendations,
+			}, nil)
+		}
+		entryPath := app.EntryPath
+		if entryPath == "" {
+			entryPath = path.Join("Apps", app.ID, app.Entry)
+		}
+		content, _, readErr := svc.ReadFile(ctx, entryPath)
+		ok := readErr == nil && strings.TrimSpace(content) != ""
+		checks = append(checks, map[string]interface{}{
+			"check":      "entry_readable",
+			"ok":         readErr == nil,
+			"entry_path": entryPath,
+			"detail":     virtualDesktopErrDetail(readErr),
+		})
+		if readErr == nil {
+			if strings.TrimSpace(content) == "" {
+				checks = append(checks, map[string]interface{}{"check": "entry_nonempty", "ok": false, "detail": "entry file is empty"})
+				recommendations = append(recommendations, "Reinstall or rewrite the app entry file")
+			} else {
+				checks = append(checks, map[string]interface{}{"check": "entry_nonempty", "ok": true, "detail": "entry file has content"})
+			}
+		}
+		return virtualDesktopJSON("ok", "desktop app diagnosed", map[string]interface{}{
+			"app_id":          appID,
+			"ok":              ok,
+			"builtin":         false,
+			"checks":          checks,
+			"health":          app.Health,
+			"health_reason":   app.HealthReason,
+			"entry_path":      entryPath,
+			"recommendations": recommendations,
+		}, nil)
+	case "diagnose_widget":
+		widgetID := virtualDesktopString(args, "widget_id", "id")
+		if widgetID == "" {
+			return virtualDesktopJSON("error", "widget_id is required", nil, nil)
+		}
+		payload, err := svc.Bootstrap(ctx)
+		if err != nil {
+			return virtualDesktopJSON("error", err.Error(), nil, nil)
+		}
+		widgets := payload.AllWidgets
+		if len(widgets) == 0 {
+			widgets = payload.Widgets
+		}
+		var widget desktop.Widget
+		widgetFound := false
+		for _, w := range widgets {
+			if w.ID == widgetID {
+				widget = w
+				widgetFound = true
+				break
+			}
+		}
+		if !widgetFound {
+			return virtualDesktopJSON("error", fmt.Sprintf("desktop widget %q not found", widgetID), map[string]interface{}{
+				"code":      "desktop_widget_not_found",
+				"widget_id": widgetID,
+			}, nil)
+		}
+		checks := []map[string]interface{}{}
+		recommendations := []string{}
+		if widget.Entry == "" {
+			checks = append(checks, map[string]interface{}{
+				"check":          "has_entry",
+				"ok":             true,
+				"entry_required": false,
+				"detail":         "widget has no entry file",
+			})
+			return virtualDesktopJSON("ok", "desktop widget diagnosed", map[string]interface{}{
+				"widget_id":       widgetID,
+				"ok":              true,
+				"checks":          checks,
+				"recommendations": recommendations,
+			}, nil)
+		}
+		var entryPath string
+		if widget.AppID != "" {
+			entryPath = path.Join("Apps", widget.AppID, widget.Entry)
+		} else {
+			entryPath = path.Join("Widgets", widget.Entry)
+		}
+		content, _, readErr := svc.ReadFile(ctx, entryPath)
+		checks = append(checks, map[string]interface{}{
+			"check":      "entry_readable",
+			"ok":         readErr == nil,
+			"entry_path": entryPath,
+			"detail":     virtualDesktopErrDetail(readErr),
+		})
+		ok := readErr == nil && strings.TrimSpace(content) != ""
+		if readErr == nil {
+			if strings.TrimSpace(content) == "" {
+				checks = append(checks, map[string]interface{}{"check": "entry_nonempty", "ok": false, "detail": "widget entry file is empty"})
+				recommendations = append(recommendations, "Rewrite the widget HTML with non-empty content")
+			} else {
+				checks = append(checks, map[string]interface{}{"check": "entry_nonempty", "ok": true, "detail": "widget entry file has content"})
+			}
+		} else {
+			ok = false
+			recommendations = append(recommendations, "Ensure the widget entry file exists")
+		}
+		return virtualDesktopJSON("ok", "desktop widget diagnosed", map[string]interface{}{
+			"widget_id":       widgetID,
+			"ok":              ok,
+			"checks":          checks,
+			"recommendations": recommendations,
+		}, nil)
 	case "show_notification":
 		title := virtualDesktopString(args, "title", "name")
 		message := virtualDesktopString(args, "message", "content")
@@ -1173,6 +1422,13 @@ func virtualDesktopFiles(args map[string]interface{}) (map[string]string, error)
 		return nil, fmt.Errorf("files are required")
 	}
 	return files, nil
+}
+
+func virtualDesktopErrDetail(err error) interface{} {
+	if err == nil {
+		return nil
+	}
+	return err.Error()
 }
 
 func mapToStruct(raw interface{}, target interface{}) error {

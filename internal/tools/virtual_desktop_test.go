@@ -1229,6 +1229,409 @@ func TestExecuteVirtualDesktopSearchFileReturnsContextForLargeFiles(t *testing.T
 	}
 }
 
+func TestExecuteVirtualDesktopListAppsReturnsBuiltinAndInstalled(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "list_apps"})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			BuiltinApps   []map[string]interface{} `json:"builtin_apps"`
+			InstalledApps []map[string]interface{} `json:"installed_apps"`
+			AllApps       []map[string]interface{} `json:"all_apps"`
+			Counts        struct {
+				Builtin   int `json:"builtin"`
+				Installed int `json:"installed"`
+				Total     int `json:"total"`
+			} `json:"counts"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal list_apps: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("status = %q, output = %s", payload.Status, exec.Output)
+	}
+	if payload.Data.Counts.Builtin == 0 {
+		t.Fatalf("expected builtin apps, got %+v", payload.Data.Counts)
+	}
+	if payload.Data.Counts.Installed != 1 {
+		t.Fatalf("installed count = %d, want 1", payload.Data.Counts.Installed)
+	}
+	if payload.Data.Counts.Total != payload.Data.Counts.Builtin+payload.Data.Counts.Installed {
+		t.Fatalf("total mismatch: %+v", payload.Data.Counts)
+	}
+	foundTodo := false
+	for _, app := range payload.Data.InstalledApps {
+		if app["id"] == "todo-board" {
+			foundTodo = true
+			break
+		}
+	}
+	if !foundTodo {
+		t.Fatalf("todo-board not in installed_apps: %+v", payload.Data.InstalledApps)
+	}
+}
+
+func TestExecuteVirtualDesktopGetAppFindsBuiltinAndInstalled(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	builtin := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_app",
+		"app_id":    "editor",
+	})
+	var builtinPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			App    map[string]interface{} `json:"app"`
+			Found  bool                   `json:"found"`
+			Source string                 `json:"source"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(builtin.Output), &builtinPayload); err != nil {
+		t.Fatalf("unmarshal get_app builtin: %v\n%s", err, builtin.Output)
+	}
+	if builtinPayload.Status != "ok" || !builtinPayload.Data.Found || builtinPayload.Data.Source != "builtin" {
+		t.Fatalf("builtin app lookup failed: %+v output=%s", builtinPayload.Data, builtin.Output)
+	}
+	if builtinPayload.Data.App["id"] != "editor" {
+		t.Fatalf("app id = %v, want editor", builtinPayload.Data.App["id"])
+	}
+
+	installed := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_app",
+		"app_id":    "todo-board",
+	})
+	var installedPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			App    map[string]interface{} `json:"app"`
+			Found  bool                   `json:"found"`
+			Source string                 `json:"source"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(installed.Output), &installedPayload); err != nil {
+		t.Fatalf("unmarshal get_app installed: %v\n%s", err, installed.Output)
+	}
+	if installedPayload.Status != "ok" || !installedPayload.Data.Found || installedPayload.Data.Source != "installed" {
+		t.Fatalf("installed app lookup failed: %+v output=%s", installedPayload.Data, installed.Output)
+	}
+
+	missing := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_app",
+		"app_id":    "nonexistent-app",
+	})
+	var missingPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code  string `json:"code"`
+			AppID string `json:"app_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(missing.Output), &missingPayload); err != nil {
+		t.Fatalf("unmarshal get_app missing: %v\n%s", err, missing.Output)
+	}
+	if missingPayload.Status != "error" || missingPayload.Data.Code != "desktop_app_not_found" {
+		t.Fatalf("missing app lookup failed: %+v output=%s", missingPayload.Data, missing.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopListWidgetsAndGetWidget(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/weather_pforzheim.html",
+		"content":   "<main>Weather</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	list := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{"operation": "list_widgets"})
+	var listPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widgets        []map[string]interface{} `json:"widgets"`
+			VisibleWidgets []map[string]interface{} `json:"visible_widgets"`
+			Counts         struct {
+				Total   int `json:"total"`
+				Visible int `json:"visible"`
+			} `json:"counts"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(list.Output), &listPayload); err != nil {
+		t.Fatalf("unmarshal list_widgets: %v\n%s", err, list.Output)
+	}
+	if listPayload.Status != "ok" || listPayload.Data.Counts.Total == 0 {
+		t.Fatalf("list_widgets failed: %+v output=%s", listPayload.Data, list.Output)
+	}
+	foundWeather := false
+	for _, w := range listPayload.Data.Widgets {
+		if w["id"] == "weather_pforzheim" {
+			foundWeather = true
+			break
+		}
+	}
+	if !foundWeather {
+		t.Fatalf("weather_pforzheim not in widgets: %+v", listPayload.Data.Widgets)
+	}
+
+	get := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_widget",
+		"widget_id": "weather_pforzheim",
+	})
+	var getPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widget  map[string]interface{} `json:"widget"`
+			Found   bool                   `json:"found"`
+			Visible bool                   `json:"visible"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(get.Output), &getPayload); err != nil {
+		t.Fatalf("unmarshal get_widget: %v\n%s", err, get.Output)
+	}
+	if getPayload.Status != "ok" || !getPayload.Data.Found {
+		t.Fatalf("get_widget failed: %+v output=%s", getPayload.Data, get.Output)
+	}
+	if getPayload.Data.Widget["id"] != "weather_pforzheim" {
+		t.Fatalf("widget id = %v, want weather_pforzheim", getPayload.Data.Widget["id"])
+	}
+
+	missing := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_widget",
+		"widget_id": "nonexistent-widget",
+	})
+	var missingPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code     string `json:"code"`
+			WidgetID string `json:"widget_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(missing.Output), &missingPayload); err != nil {
+		t.Fatalf("unmarshal get_widget missing: %v\n%s", err, missing.Output)
+	}
+	if missingPayload.Status != "error" || missingPayload.Data.Code != "desktop_widget_not_found" {
+		t.Fatalf("missing widget lookup failed: %+v output=%s", missingPayload.Data, missing.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopDiagnoseAppHealthyAndBroken(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	healthy := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_app",
+		"app_id":    "todo-board",
+	})
+	var healthyPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			AppID           string                   `json:"app_id"`
+			Ok              bool                     `json:"ok"`
+			Builtin         bool                     `json:"builtin"`
+			Checks          []map[string]interface{} `json:"checks"`
+			EntryPath       string                   `json:"entry_path"`
+			Recommendations []string                 `json:"recommendations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(healthy.Output), &healthyPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_app healthy: %v\n%s", err, healthy.Output)
+	}
+	if healthyPayload.Status != "ok" || !healthyPayload.Data.Ok || healthyPayload.Data.Builtin {
+		t.Fatalf("healthy app diagnosis failed: %+v output=%s", healthyPayload.Data, healthy.Output)
+	}
+	if healthyPayload.Data.EntryPath == "" {
+		t.Fatalf("expected entry_path for installed app")
+	}
+
+	builtin := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_app",
+		"app_id":    "editor",
+	})
+	var builtinPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Ok      bool `json:"ok"`
+			Builtin bool `json:"builtin"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(builtin.Output), &builtinPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_app builtin: %v\n%s", err, builtin.Output)
+	}
+	if builtinPayload.Status != "ok" || !builtinPayload.Data.Ok || !builtinPayload.Data.Builtin {
+		t.Fatalf("builtin app diagnosis failed: %+v output=%s", builtinPayload.Data, builtin.Output)
+	}
+
+	entryPath := filepath.Join(cfg.VirtualDesktop.WorkspaceDir, "Apps", "todo-board", "index.html")
+	if err := os.Remove(entryPath); err != nil {
+		t.Fatalf("remove app entry: %v", err)
+	}
+	broken := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_app",
+		"app_id":    "todo-board",
+	})
+	var brokenPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Ok     bool                     `json:"ok"`
+			Checks []map[string]interface{} `json:"checks"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(broken.Output), &brokenPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_app broken: %v\n%s", err, broken.Output)
+	}
+	if brokenPayload.Status != "ok" || brokenPayload.Data.Ok {
+		t.Fatalf("broken app diagnosis should report ok=false in data: %+v output=%s", brokenPayload.Data, broken.Output)
+	}
+
+	missing := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_app",
+		"app_id":    "nonexistent-app",
+	})
+	var missingPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code string `json:"code"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(missing.Output), &missingPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_app missing: %v\n%s", err, missing.Output)
+	}
+	if missingPayload.Status != "error" || missingPayload.Data.Code != "desktop_app_not_found" {
+		t.Fatalf("missing app diagnosis failed: %+v output=%s", missingPayload.Data, missing.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopDiagnoseWidgetHealthyAndBroken(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/weather_pforzheim.html",
+		"content":   "<main>Weather</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	healthy := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_widget",
+		"widget_id": "weather_pforzheim",
+	})
+	var healthyPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			WidgetID        string                   `json:"widget_id"`
+			Ok              bool                     `json:"ok"`
+			Checks          []map[string]interface{} `json:"checks"`
+			Recommendations []string                 `json:"recommendations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(healthy.Output), &healthyPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_widget healthy: %v\n%s", err, healthy.Output)
+	}
+	if healthyPayload.Status != "ok" || !healthyPayload.Data.Ok {
+		t.Fatalf("healthy widget diagnosis failed: %+v output=%s", healthyPayload.Data, healthy.Output)
+	}
+
+	entryPath := filepath.Join(cfg.VirtualDesktop.WorkspaceDir, "Widgets", "weather_pforzheim.html")
+	if err := os.Remove(entryPath); err != nil {
+		t.Fatalf("remove widget entry: %v", err)
+	}
+	broken := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_widget",
+		"widget_id": "weather_pforzheim",
+	})
+	var brokenPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Ok     bool                     `json:"ok"`
+			Checks []map[string]interface{} `json:"checks"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(broken.Output), &brokenPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_widget broken: %v\n%s", err, broken.Output)
+	}
+	if brokenPayload.Status != "ok" || brokenPayload.Data.Ok {
+		t.Fatalf("broken widget diagnosis should report ok=false in data: %+v output=%s", brokenPayload.Data, broken.Output)
+	}
+
+	missing := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_widget",
+		"widget_id": "nonexistent-widget",
+	})
+	var missingPayload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Code string `json:"code"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(missing.Output), &missingPayload); err != nil {
+		t.Fatalf("unmarshal diagnose_widget missing: %v\n%s", err, missing.Output)
+	}
+	if missingPayload.Status != "error" || missingPayload.Data.Code != "desktop_widget_not_found" {
+		t.Fatalf("missing widget diagnosis failed: %+v output=%s", missingPayload.Data, missing.Output)
+	}
+}
+
 func TestExecuteVirtualDesktopReadFileExcerptReturnsLineWindow(t *testing.T) {
 	t.Parallel()
 

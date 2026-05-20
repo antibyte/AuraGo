@@ -438,8 +438,10 @@ func TestBuildNativeToolSchemasDocumentsVirtualDesktopPapirusIconCatalog(t *test
 	params, _ := virtualDesktop.Parameters.(map[string]interface{})
 	props, _ := params["properties"].(map[string]interface{})
 	operation, _ := props["operation"].(map[string]interface{})
-	if !containsInterfaceString(operation["enum"], "open_in_app") {
-		t.Fatalf("virtual_desktop operation enum missing open_in_app: %#v", operation["enum"])
+	for _, wantOp := range []string{"open_in_app", "list_apps", "get_app", "list_widgets", "get_widget", "diagnose_app", "diagnose_widget"} {
+		if !containsInterfaceString(operation["enum"], wantOp) {
+			t.Fatalf("virtual_desktop operation enum missing %s: %#v", wantOp, operation["enum"])
+		}
 	}
 	appID, _ := props["app_id"].(map[string]interface{})
 	appIDDescription, _ := appID["description"].(string)

@@ -179,6 +179,18 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 		return "Check the homepage workspace first with homepage list_files/read_file. If files were created via the filesystem tool, recreate them with homepage write_file in the correct project directory."
 	case tc.Action == "filesystem" && strings.Contains(lower, "unknown filesystem operation"):
 		return "Use the exact filesystem operations read_file or write_file, not read or write. Correct the operation name before retrying."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop app") && strings.Contains(lower, "not found"):
+		return "The requested app is not installed or built-in. Use virtual_desktop list_apps to see available apps, then use a valid app_id. If you want to run a generated app, first install it with install_app or write_file to Apps/<app_id>.html."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop widget") && strings.Contains(lower, "not found"):
+		return "The requested widget is not registered. Use virtual_desktop list_widgets to see available widgets, or create a standalone widget by writing non-empty HTML to Widgets/<widget_id>.html or Widgets/<widget_id>/index.html."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "entry file is unavailable"):
+		return "The app is registered but its entry file is missing or empty. Use virtual_desktop diagnose_app to inspect the issue, then reinstall or rewrite the entry file."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "path is required"):
+		return "Virtual desktop file operations require a workspace-relative path such as 'Apps/my-app/index.html' or 'Widgets/weather.html'. Do not use absolute paths like '/workspace/...' or host filesystem paths."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "content is required"):
+		return "Apps/ and Widgets/ paths require non-empty content. Provide complete HTML or script content, or use patch_file for targeted edits."
+	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop widget html file must not be empty"):
+		return "Standalone widget HTML files must contain non-empty HTML. Rewrite the widget with valid HTML content."
 	default:
 		return base
 	}
