@@ -4678,10 +4678,23 @@ widget that starts inside its range, including blocks starting
 directly at `from` but not including `to`.
 */
 class BlockWrapper extends RangeValue {
-    constructor(tagName, attributes) {
+    constructor(
+    /**
+    @internal
+    */
+    tagName, 
+    /**
+    @internal
+    */
+    attributes, 
+    /**
+    @internal
+    */
+    rank) {
         super();
         this.tagName = tagName;
         this.attributes = attributes;
+        this.rank = rank;
     }
     eq(other) {
         return other == this ||
@@ -4692,7 +4705,7 @@ class BlockWrapper extends RangeValue {
     attributes.
     */
     static create(spec) {
-        return new BlockWrapper(spec.tagName, spec.attributes || noAttrs$1);
+        return new BlockWrapper(spec.tagName, spec.attributes || noAttrs$1, spec.rank == null ? 50 : Math.max(0, Math.min(spec.rank, 100)));
     }
     /**
     Create a range set from the given block wrapper ranges.
@@ -6593,6 +6606,7 @@ class TileBuilder {
             this.cache.reused.set(oldTile, 2 /* Reused.DOM */);
         let text = new TextTile(composition.text, composition.text.nodeValue);
         text.flags |= 8 /* TileFlag.Composition */;
+        this.pos = composition.range.toB;
         head.append(text);
     }
     addInlineWidget(widget, marks, openStart) {
@@ -6691,7 +6705,8 @@ class TileBuilder {
                 this.wrappers.splice(i, 1);
         for (let cur = this.blockWrappers; cur.value && cur.from <= this.pos; cur.next())
             if (cur.to >= this.pos) {
-                let wrap = new OpenWrapper(cur.from, cur.to, cur.value, cur.rank), i = this.wrappers.length;
+                let rank = (cur.rank * 102) + cur.value.rank;
+                let wrap = new OpenWrapper(cur.from, cur.to, cur.value, rank), i = this.wrappers.length;
                 while (i > 0 && (this.wrappers[i - 1].rank - wrap.rank || this.wrappers[i - 1].to - wrap.to) < 0)
                     i--;
                 this.wrappers.splice(i, 0, wrap);
@@ -8117,7 +8132,7 @@ class InlineCoordsScan {
     // (including the position after the last piece). For a text tile,
     // these will be character clusters, for a composite tile, these
     // will be child tiles.
-    scan(positions, getRects) {
+    scan(positions, getRects, recursed = false) {
         let lo = 0, hi = positions.length - 1, seen = new Set();
         let bidi = this.bidiIn(positions[0], positions[hi]);
         let above, below;
@@ -8190,19 +8205,19 @@ class InlineCoordsScan {
         if (!closestRect) {
             let side = above && (!below || (this.y - above.bottom < below.top - this.y)) ? above : below;
             this.y = (side.top + side.bottom) / 2;
-            return this.scan(positions, getRects);
+            return this.scan(positions, getRects, true);
         }
         // Handle the case where closest matched a higher element on the
         // same line as an element below/above the coords
-        if (closestDx) {
+        if (closestDx && !recursed) {
             let { top, bottom } = closestRect;
             if (above && above.bottom > (top + top + bottom) / 3) {
                 this.y = above.bottom - 1;
-                return this.scan(positions, getRects);
+                return this.scan(positions, getRects, true);
             }
             if (below && below.top < (top + bottom + bottom) / 3) {
                 this.y = below.top + 1;
-                return this.scan(positions, getRects);
+                return this.scan(positions, getRects, true);
             }
         }
         let ltr = (bidi ? this.dirAt(positions[closestI], 1) : this.baseDir) == Direction.LTR;
@@ -9496,7 +9511,7 @@ observers.compositionend = view => {
     view.inputState.compositionFirstChange = null;
     if (browser.chrome && browser.android) {
         // Delay flushing for a bit on Android because it'll often fire a
-        // bunch of contradictory changes in a row at end of compositon
+        // bunch of contradictory changes in a row at end of composition
         view.observer.flushSoon();
     }
     else if (view.inputState.compositionPendingChange) {
@@ -9627,8 +9642,7 @@ class HeightOracle {
     }
     refresh(whiteSpace, lineHeight, charWidth, textHeight, lineLength, knownHeights) {
         let lineWrapping = wrappingWhiteSpace.indexOf(whiteSpace) > -1;
-        let changed = Math.abs(lineHeight - this.lineHeight) > 0.3 || this.lineWrapping != lineWrapping ||
-            Math.abs(charWidth - this.charWidth) > 0.1;
+        let changed = Math.abs(lineHeight - this.lineHeight) > 0.3 || this.lineWrapping != lineWrapping;
         this.lineWrapping = lineWrapping;
         this.lineHeight = lineHeight;
         this.charWidth = charWidth;
@@ -14830,11 +14844,13 @@ const showHoverTooltipHost = /*@__PURE__*/showTooltip.compute([showHoverTooltip]
         arrow: tooltips.some(t => t.arrow),
     };
 });
+const hoverPlugin = /*@__PURE__*/Facet.define();
 class HoverPlugin {
-    constructor(view, source, field, setHover, hoverTime) {
+    constructor(view, source, field, locked, setHover, hoverTime) {
         this.view = view;
         this.source = source;
         this.field = field;
+        this.locked = locked;
         this.setHover = setHover;
         this.hoverTime = hoverTime;
         this.hoverTimeout = -1;
@@ -14845,7 +14861,7 @@ class HoverPlugin {
         view.dom.addEventListener("mouseleave", this.mouseleave = this.mouseleave.bind(this));
         view.dom.addEventListener("mousemove", this.mousemove = this.mousemove.bind(this));
     }
-    update() {
+    update(update) {
         if (this.pending) {
             this.pending = null;
             clearTimeout(this.restartTimeout);
@@ -14889,19 +14905,29 @@ class HoverPlugin {
             let rtl = bidi && bidi.dir == Direction.RTL ? -1 : 1;
             side = (lastMove.x < posCoords.left ? -rtl : rtl);
         }
+        this.activateHover(view, pos, side);
+    }
+    activateHover(view, pos, side, locked) {
         let open = this.source(view, pos, side);
-        if (open === null || open === void 0 ? void 0 : open.then) {
+        let done = (value) => {
+            if (value && !(Array.isArray(value) && !value.length)) {
+                let tooltips = Array.isArray(value) ? value : [value];
+                if (locked)
+                    this.locked.set(tooltips, locked);
+                view.dispatch({ effects: this.setHover.of(tooltips) });
+            }
+        };
+        if (open && "then" in open) {
             let pending = this.pending = { pos };
             open.then(result => {
                 if (this.pending == pending) {
                     this.pending = null;
-                    if (result && !(Array.isArray(result) && !result.length))
-                        view.dispatch({ effects: this.setHover.of(Array.isArray(result) ? result : [result]) });
+                    done(result);
                 }
             }, e => logException(view.state, e, "hover tooltip"));
         }
-        else if (open && !(Array.isArray(open) && !open.length)) {
-            view.dispatch({ effects: this.setHover.of(Array.isArray(open) ? open : [open]) });
+        else {
+            done(open);
         }
     }
     get tooltip() {
@@ -14915,7 +14941,7 @@ class HoverPlugin {
         if (this.hoverTimeout < 0)
             this.hoverTimeout = setTimeout(this.checkHover, this.hoverTime);
         let { active, tooltip } = this;
-        if (active.length && tooltip && !isInTooltip(tooltip.dom, event) || this.pending) {
+        if (active.length && !this.locked.has(active) && tooltip && !isInTooltip(tooltip.dom, event) || this.pending) {
             let { pos } = active[0] || this.pending, end = (_b = (_a = active[0]) === null || _a === void 0 ? void 0 : _a.end) !== null && _b !== void 0 ? _b : pos;
             if ((pos == end ? this.view.posAtCoords(this.lastMove) != pos
                 : !isOverRange(this.view, pos, end, event.clientX, event.clientY))) {
@@ -14928,7 +14954,7 @@ class HoverPlugin {
         clearTimeout(this.hoverTimeout);
         this.hoverTimeout = -1;
         let { active } = this;
-        if (active.length) {
+        if (active.length && !this.locked.has(active)) {
             let { tooltip } = this;
             let inTooltip = tooltip && tooltip.dom.contains(event.relatedTarget);
             if (!inTooltip)
@@ -14940,7 +14966,8 @@ class HoverPlugin {
     watchTooltipLeave(tooltip) {
         let watch = (event) => {
             tooltip.removeEventListener("mouseleave", watch);
-            if (this.active.length && !this.view.dom.contains(event.relatedTarget))
+            let { active } = this;
+            if (active.length && !this.locked.has(active) && !this.view.dom.contains(event.relatedTarget))
                 this.view.dispatch({ effects: this.setHover.of([]) });
         };
         tooltip.addEventListener("mouseleave", watch);
@@ -14991,47 +15018,83 @@ extension.
 */
 function hoverTooltip(source, options = {}) {
     let setHover = StateEffect.define();
+    // This would be better stored in the state field, but we've set
+    // down the type of the field in our interface, so it's indirectly
+    // stored by array identity.
+    let locked = new WeakMap();
     let hoverState = StateField.define({
         create() { return []; },
         update(value, tr) {
+            let lock = locked.get(value);
             if (value.length) {
                 if (options.hideOnChange && (tr.docChanged || tr.selection))
                     value = [];
+                else if (lock && lock(tr))
+                    value = [];
                 else if (options.hideOn)
                     value = value.filter(v => !options.hideOn(tr, v));
-                if (tr.docChanged) {
-                    let mapped = [];
-                    for (let tooltip of value) {
-                        let newPos = tr.changes.mapPos(tooltip.pos, -1, MapMode.TrackDel);
-                        if (newPos != null) {
-                            let copy = Object.assign(Object.create(null), tooltip);
-                            copy.pos = newPos;
-                            if (copy.end != null)
-                                copy.end = tr.changes.mapPos(copy.end);
-                            mapped.push(copy);
-                        }
+            }
+            if (tr.docChanged && value.length) {
+                let mapped = [];
+                for (let tooltip of value) {
+                    let newPos = tr.changes.mapPos(tooltip.pos, -1, MapMode.TrackDel);
+                    if (newPos != null) {
+                        let copy = Object.assign(Object.create(null), tooltip);
+                        copy.pos = newPos;
+                        if (copy.end != null)
+                            copy.end = tr.changes.mapPos(copy.end);
+                        mapped.push(copy);
                     }
-                    value = mapped;
                 }
+                value = mapped;
             }
             for (let effect of tr.effects) {
-                if (effect.is(setHover))
+                if (effect.is(setHover)) {
                     value = effect.value;
-                if (effect.is(closeHoverTooltipEffect))
+                    lock = undefined;
+                }
+                if (effect.is(closeHoverTooltipEffect) && !effect.value || effect.value == hoverState)
                     value = [];
             }
+            if (value.length && lock)
+                locked.set(value, lock);
             return value;
         },
         provide: f => showHoverTooltip.from(f)
     });
+    const plugin = ViewPlugin.define(view => new HoverPlugin(view, source, hoverState, locked, setHover, options.hoverTime || 300 /* Hover.Time */));
     return {
         active: hoverState,
         extension: [
             hoverState,
-            ViewPlugin.define(view => new HoverPlugin(view, source, hoverState, setHover, options.hoverTime || 300 /* Hover.Time */)),
+            plugin,
+            hoverPlugin.of(plugin),
             showHoverTooltipHost
         ]
     };
+}
+/**
+Activate hover tooltips for the given position and side. If you
+provide a specific hover tooltip (the value returned from
+[`hoverTooltip`](https://codemirror.net/6/docs/ref/#view.hoverTooltip)), only that one will be
+activated. If not given, all hover tooltips at the given position
+are triggered.
+
+Note that tooltips opened this way don't close automatically, and
+you'll want to pass an `until` callback or use
+[`closeHoverTooltip`](https://codemirror.net/6/docs/ref/#view.closeHoverTooltip)/[`closeHoverTooltips`](https://codemirror.net/6/docs/ref/#view.closeHoverTooltips)
+to deactivate them.
+*/
+function activateHover(view, pos, side, options = {}) {
+    var _a;
+    let plugins = view.state.facet(hoverPlugin).map(p => view.plugin(p)).filter((p) => !!p);
+    if (options.tooltip && options.tooltip.active) {
+        let found = plugins.find(p => p.field == options.tooltip.active);
+        if (found)
+            plugins = [found];
+    }
+    for (let plugin of plugins)
+        plugin.activateHover(view, pos, side, (_a = options.until) !== null && _a !== void 0 ? _a : (() => false));
 }
 /**
 Get the active tooltip view for a given tooltip, if available.
@@ -25618,8 +25681,8 @@ function rangeAroundSelected(total, selected, max) {
         let off = Math.floor(selected / max);
         return { from: off * max, to: (off + 1) * max };
     }
-    let off = Math.floor((total - selected) / max);
-    return { from: total - (off + 1) * max, to: total - off * max };
+    let off = Math.ceil((total - selected) / max);
+    return { from: total - off * max, to: total - (off - 1) * max };
 }
 class CompletionTooltip {
     constructor(view, stateField, applyCompletion) {
@@ -26478,7 +26541,8 @@ const baseTheme$1 = /*@__PURE__*/EditorView.baseTheme({
         content: '"···"',
         opacity: 0.5,
         display: "block",
-        textAlign: "center"
+        textAlign: "center",
+        cursor: "pointer",
     },
     ".cm-tooltip.cm-completionInfo": {
         position: "absolute",
@@ -33181,6 +33245,10 @@ const nextDiagnostic = (view) => {
             return false;
     }
     view.dispatch({ selection: { anchor: next.from, head: next.to }, scrollIntoView: true });
+    activateHover(view, next.from, 1, {
+        tooltip: lintHover,
+        until: tr => tr.docChanged || tr.newSelection.main.head < next.from || tr.newSelection.main.head > next.to
+    });
     return true;
 };
 /**
@@ -33490,7 +33558,7 @@ const baseTheme = /*@__PURE__*/EditorView.baseTheme({
         backgroundRepeat: "repeat-x",
         paddingBottom: "0.7px",
     },
-    ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#d11") },
+    ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#f11") },
     ".cm-lintRange-warning": { backgroundImage: /*@__PURE__*/underline("orange") },
     ".cm-lintRange-info": { backgroundImage: /*@__PURE__*/underline("#999") },
     ".cm-lintRange-hint": { backgroundImage: /*@__PURE__*/underline("#66d") },
@@ -33571,6 +33639,7 @@ function maxSeverity(diagnostics) {
     }
     return sev;
 }
+const lintHover = /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip });
 const lintExtensions = [
     lintState,
     /*@__PURE__*/EditorView.decorations.compute([lintState], state => {
@@ -33579,7 +33648,7 @@ const lintExtensions = [
             activeMark.range(selected.from, selected.to)
         ]);
     }),
-    /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip }),
+    lintHover,
     baseTheme
 ];
 

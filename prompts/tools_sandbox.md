@@ -18,8 +18,7 @@ conditions: ["sandbox_enabled"]
 | `description` | ❌ | Brief description of what the code does |
 
 **Important:**
-- **Prefer execute_sandbox** over execute_python for all code execution — it runs in an isolated container with no host access
-- Use `execute_python` only when you need to create **persistent tools** (save_tool) or run pre-registered **skills**
+- `execute_sandbox` is the default isolated executor for supported languages; see `ctx_coding_guidelines.md` for the full execution priority rules
 - Code runs in a fresh container by default — no state persists between calls
 - Network access depends on sandbox configuration (may be disabled)
 - Multi-language support: write the code natively in the target language, set `sandbox_lang` accordingly

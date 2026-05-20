@@ -23,7 +23,7 @@ You are performing scheduled daily maintenance. Review system state and ensure o
    - Report deleted, moved, renamed, and intentionally kept items with short reasons.
 3. **Knowledge Health.** Reflect on recent archives and the persistent summary.
    - Flag outdated information that has not been compressed yet for the next reflection loop.
-   - Call `knowledge_graph` with `operation: "search"` and a broad term to spot-check graph quality. If the graph seems sparse or stale, note it in the report — nightly auto-extraction runs automatically and will populate it from recent conversations.
+   - Call `knowledge_graph` with `operation: "search"` and a broad entity type or common environment term to spot-check graph quality. Verify that returned nodes have useful names and expected relationships. If the graph seems sparse or stale, note it in the report — nightly auto-extraction runs automatically and will populate it from recent conversations.
    - Check whether the core memory has grown too large: call `manage_memory` with `operation: "view"`. Remove entries that are stale, redundant, or captured as more permanent facts in the knowledge graph.
 4. **Software Updates.** Call `manage_updates` with operation `check`.
    - If an update is available, summarize the changelog and inform the user in the maintenance report. Do NOT install without user permission.

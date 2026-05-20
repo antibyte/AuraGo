@@ -5,7 +5,7 @@ Run a saved custom Python tool from `agent_workspace/tools`.
 ## When to use
 
 - Use for user-created Python tools that are registered in the custom tool manifest.
-- Use `discover_tools` or `list_tools` first if you do not know the exact tool name.
+- In native function-calling sessions, use `discover_tools` first if you do not know the exact tool name or call method. In text-JSON sessions, `list_tools` lists custom Python tools only.
 - Do not use this for built-in AuraGo tools or registered skills. Use the direct tool call, `invoke_tool`, or `execute_skill` as indicated by `discover_tools`.
 
 ## Parameters

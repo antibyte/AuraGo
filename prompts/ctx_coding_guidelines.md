@@ -6,7 +6,15 @@ conditions: ["requires_coding"]
 ---
 # CODING GUIDELINES
 
-**Tool priority:** If `execute_sandbox` is available, **always prefer it** over `execute_python` for running code. Use `execute_python` only for persistent tools (`save_tool`) or pre-registered skills.
+## Execution
+
+**Tool priority:** If `execute_sandbox` is available, **always prefer it** over `execute_python` for running code in any supported language. Use `execute_python` only for persistent tools (`save_tool`) or pre-registered skills.
+
+## General
+
+1. **Use the native language.** For JavaScript, Go, Java, C++, and R tasks, write code in that language and set `sandbox_lang` accordingly instead of translating everything to Python.
+2. **Keep runs non-interactive.** No prompts, GUI, or commands that wait for user input.
+3. **Make outputs machine-readable when chaining.** Prefer JSON or concise structured text when another tool call depends on the result.
 
 ## Python
 
