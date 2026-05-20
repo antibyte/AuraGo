@@ -349,7 +349,10 @@
 }
 
 [data-theme="dark-sun"] .bubble.bot::before {
-    inset: 0;
+    left: -7px;
+    right: auto;
+    top: auto;
+    bottom: 0;
     border-color: transparent transparent var(--bot-bubble-tail) transparent;
 }
 
@@ -366,7 +369,10 @@
 }
 
 [data-theme="dark-sun"] .bubble.user::before {
-    inset: 0;
+    right: -7px;
+    left: auto;
+    top: auto;
+    bottom: 0;
     border-color: transparent transparent var(--user-bubble-tail) transparent;
 }
 

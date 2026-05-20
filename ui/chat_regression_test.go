@@ -757,6 +757,55 @@ func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_DarkSunBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
+	t.Parallel()
+
+	darkSunContent, err := os.ReadFile(filepath.Join("css", "chat-dark-sun.css"))
+	if err != nil {
+		t.Fatalf("read dark sun CSS: %v", err)
+	}
+
+	darkSunCSS := string(darkSunContent)
+	blockFor := func(selector string) string {
+		start := strings.Index(darkSunCSS, selector+" {")
+		if start < 0 {
+			t.Fatalf("dark sun CSS missing selector %q", selector)
+		}
+		end := strings.Index(darkSunCSS[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("dark sun CSS selector %q is missing closing brace", selector)
+		}
+		return darkSunCSS[start : start+end]
+	}
+
+	for _, tc := range []struct {
+		name     string
+		selector string
+		markers  []string
+	}{
+		{
+			name:     "bot",
+			selector: `[data-theme="dark-sun"] .bubble.bot::before`,
+			markers:  []string{"left: -7px;", "right: auto;", "bottom: 0;"},
+		},
+		{
+			name:     "user",
+			selector: `[data-theme="dark-sun"] .bubble.user::before`,
+			markers:  []string{"right: -7px;", "left: auto;", "bottom: 0;"},
+		},
+	} {
+		block := blockFor(tc.selector)
+		if strings.Contains(block, "inset:") {
+			t.Fatalf("dark sun %s bubble tail must not reset its anchor with inset: %s", tc.name, block)
+		}
+		for _, marker := range tc.markers {
+			if !strings.Contains(block, marker) {
+				t.Fatalf("dark sun %s bubble tail missing anchor marker %q in block: %s", tc.name, marker, block)
+			}
+		}
+	}
+}
+
 func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	t.Parallel()
 
