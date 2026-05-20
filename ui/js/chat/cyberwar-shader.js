@@ -31,6 +31,12 @@
         void main() {
             vec2 uv = v_uv;
             vec2 p = uv * 2.0 - 1.0;
+            float radarRadius = length(p);
+            float radarSweep = exp(-24.0 * abs(atan(p.y, p.x) - (fract(u_time * 0.07) * 6.2831853 - 3.1415926)));
+            radarSweep *= smoothstep(1.2, 0.12, radarRadius);
+            float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 46.0)));
+            float radarPips = smoothstep(0.996, 1.0, hash(floor((uv + vec2(u_time * 0.015, 0.0)) * vec2(36.0, 24.0))));
+            radarPips *= smoothstep(1.1, 0.2, radarRadius);
 
             float vignette = smoothstep(1.55, 0.18, dot(p, p));
             float gridX = smoothstep(0.986, 1.0, abs(sin((uv.x + u_time * 0.009) * u_res.x * 0.028)));
@@ -55,17 +61,21 @@
                 blue * (0.06 + 0.04 * sin(u_time * 0.58 + (uv.x + uv.y) * 6.0));
 
             vec3 color =
-                fog * 0.48 +
-                cyan * sweep * 0.34 +
-                magenta * diag * 0.22 +
+                fog * 0.44 +
+                cyan * sweep * 0.12 +
+                magenta * diag * 0.16 +
                 blue * grid * (0.45 + pulse * 0.18) +
+                vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.16 +
+                vec3(0.05, 1.0, 0.42) * radarSweep * radarPips * 0.1 +
                 vec3(1.0, 0.9, 1.0) * spark;
 
             float alpha =
                 vignette * 0.18 +
-                sweep * 0.06 +
-                diag * 0.05 +
+                sweep * 0.025 +
+                diag * 0.035 +
                 grid * 0.22 +
+                radarSweep * radarRings * 0.035 +
+                radarPips * 0.04 +
                 spark * 0.12;
 
             gl_FragColor = vec4(color, alpha);

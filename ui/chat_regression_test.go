@@ -2563,6 +2563,84 @@ func TestCyberwarScrollActivityButtonStaysFixedOutOfFooterFlow(t *testing.T) {
 	}
 }
 
+func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
+	t.Parallel()
+
+	cssContent, err := os.ReadFile(filepath.Join("css", "chat-cyberwar.css"))
+	if err != nil {
+		t.Fatalf("read chat-cyberwar.css: %v", err)
+	}
+	shaderContent, err := os.ReadFile(filepath.Join("js", "chat", "cyberwar-shader.js"))
+	if err != nil {
+		t.Fatalf("read cyberwar-shader.js: %v", err)
+	}
+
+	cyberwarCSS := string(cssContent)
+	cyberwarShader := string(shaderContent)
+	cssBlockFor := func(selector string) string {
+		start := strings.Index(cyberwarCSS, selector+" {")
+		if start < 0 {
+			t.Fatalf("cyberwar CSS missing selector %q", selector)
+		}
+		end := strings.Index(cyberwarCSS[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("cyberwar CSS selector %q is missing closing brace", selector)
+		}
+		return cyberwarCSS[start : start+end]
+	}
+
+	for _, forbidden := range []string{
+		"top: 100vh;",
+		"top: -10px;",
+		"opacity: 0.85;",
+		"[data-theme=\"cyberwar\"] #chat-box::after {\n    display: block;",
+		"cyan * sweep * 0.34",
+		"sweep * 0.06",
+	} {
+		if strings.Contains(cyberwarCSS, forbidden) || strings.Contains(cyberwarShader, forbidden) {
+			t.Fatalf("cyberwar theme still contains dominant or layout-affecting scan marker %q", forbidden)
+		}
+	}
+
+	for _, marker := range []string{
+		"repeating-radial-gradient(circle at 50% 50%",
+		"rgba(13, 242, 114, 0.18) 29deg",
+		"animation: cyberwarRadarSweep 18s linear infinite;",
+		"opacity: 0.72;",
+		"will-change: transform;",
+		"repeating-radial-gradient(circle at 78% 56%",
+		"conic-gradient(from -36deg at 78% 56%",
+		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
+		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;",
+		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;",
+		"animation: cyberwarScanlineScan 10s linear infinite;",
+		"[data-theme=\"cyberwar\"] #chat-box::after {\n    display: none;",
+		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
+	} {
+		if !strings.Contains(cyberwarCSS, marker) {
+			t.Fatalf("cyberwar CSS missing balanced radar/scanline marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		"float radarRadius = length(p);",
+		"float radarSweep = exp(-24.0 * abs(atan(p.y, p.x) - (fract(u_time * 0.07) * 6.2831853 - 3.1415926)));",
+		"float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 46.0)));",
+		"cyan * sweep * 0.12",
+		"sweep * 0.025",
+		"vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.16",
+	} {
+		if !strings.Contains(cyberwarShader, marker) {
+			t.Fatalf("cyberwar shader missing balanced radar/scanline marker %q", marker)
+		}
+	}
+
+	chatContentBlock := cssBlockFor(`[data-theme="cyberwar"] #chat-content`)
+	if !strings.Contains(chatContentBlock, "overflow: hidden;") {
+		t.Fatalf("cyberwar chat content must clip flex overflow to avoid phantom bottom scroll: %s", chatContentBlock)
+	}
+}
+
 func TestSharedSSEAuthFailureRedirectsImmediately(t *testing.T) {
 	t.Parallel()
 
