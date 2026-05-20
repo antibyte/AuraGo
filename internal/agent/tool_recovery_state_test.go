@@ -302,7 +302,7 @@ func TestToolRecoveryStateHintsVirtualDesktopInvalidIcon(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}
 	tc := ToolCall{Action: "virtual_desktop", Operation: "create_app"}
-	result := `Tool Output: {"status":"error","message":"unknown/unsupported desktop icon: rocket"}`
+	result := `Tool Output: {"status":"error","message":"desktop app icon must use icon_catalog.preferred, icon_catalog.aliases, or sprite:<name>"}`
 
 	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect first identical error to trip circuit breaker")
