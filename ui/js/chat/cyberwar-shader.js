@@ -200,8 +200,8 @@
             for (int i = 0; i < 36; i++) {
                 float ca = float(i) * TAU / 36.0 - PI;
                 float ad = angleDist(pAngle, ca);
-                float thick = (mod(float(i), 9) == 0.0) ? 0.004 : 0.002;
-                float len = (mod(float(i), 9) == 0.0) ? 0.08 : 0.04;
+                float thick = (mod(float(i), 9.0) == 0.0) ? 0.004 : 0.002;
+                float len = (mod(float(i), 9.0) == 0.0) ? 0.08 : 0.04;
                 compass += exp(-ad * ad / (thick * thick)) *
                            smoothstep(1.02 - len, 1.02, r) *
                            smoothstep(1.12, 1.02, r);
