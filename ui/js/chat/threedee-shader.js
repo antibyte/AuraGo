@@ -87,6 +87,10 @@
     const ROBOT_PROJECTILE_SPEED = 7.4;
     const ROBOT_HIT_RECOIL = 1.55;
     const ROBOT_RED_TARGET_SIZE = 1.62;
+    const RED_ROBOT_FOOT_JET_OFFSETS = [
+        [0, -0.58, -0.25],
+        [0, -0.58, 0.25]
+    ];
     const MAX_ENERGY_PROJECTILES = 18;
     const energyProjectiles = [];
     const robotFleet = [];
@@ -1188,7 +1192,7 @@
     function createJetFlameSprite(bot, t) {
         if (!bot || !bot.group) return;
         const offsets = bot.id === 'red'
-            ? [new THREE.Vector3(-0.25, -0.58, 0.08), new THREE.Vector3(0.25, -0.58, 0.08)]
+            ? RED_ROBOT_FOOT_JET_OFFSETS.map(function (point) { return new THREE.Vector3(point[0], point[1], point[2]); })
             : [new THREE.Vector3(0, -0.45, 0)];
         offsets.forEach(function (offset, index) {
             const foot = bot.group.localToWorld(offset.clone());
