@@ -1218,6 +1218,31 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_8BitBubbleListsKeepMarkersInsideBubble(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("css", "chat-8bit.css"))
+	if err != nil {
+		t.Fatalf("read chat-8bit.css: %v", err)
+	}
+
+	bitCSS := string(content)
+	for _, marker := range []string{
+		`[data-theme="8bit"] .bubble :where(ul, ol) {`,
+		"box-sizing: border-box;",
+		"max-width: 100%;",
+		"padding-left: 2.85rem;",
+		"overflow-wrap: anywhere;",
+		`[data-theme="8bit"] .bubble li {`,
+		"padding-left: 0.35rem;",
+		"word-break: normal;",
+	} {
+		if !strings.Contains(bitCSS, marker) {
+			t.Fatalf("8Bit bubble list CSS missing inside-bubble marker %q", marker)
+		}
+	}
+}
+
 func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 	t.Parallel()
 

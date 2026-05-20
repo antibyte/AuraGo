@@ -319,6 +319,19 @@ html[data-theme="8bit"]::after {
     text-shadow: 1px 1px 0 #0d1520;
 }
 
+[data-theme="8bit"] .bubble :where(ul, ol) {
+    box-sizing: border-box;
+    max-width: 100%;
+    padding-left: 2.85rem;
+    overflow-wrap: anywhere;
+}
+
+[data-theme="8bit"] .bubble li {
+    padding-left: 0.35rem;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
 [data-theme="8bit"] .bubble code,
 [data-theme="8bit"] code {
     border: 1px solid var(--8bit-green);
