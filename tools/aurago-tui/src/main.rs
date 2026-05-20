@@ -85,13 +85,15 @@ fn setup_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
 }
 
 fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
-    disable_raw_mode()?;
-    execute!(
+    // These calls are safe to repeat; ignore secondary errors so we always
+    // try to put the terminal back into a usable state even on early exit / panic paths.
+    let _ = disable_raw_mode();
+    let _ = execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
         DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    );
+    let _ = terminal.show_cursor();
     Ok(())
 }
 
@@ -130,19 +132,13 @@ async fn run_app(
     loop {
         // ── Draw UI ──────────────────────────────────────────────────────────
         {
-            let mut app_lock = app.lock().unwrap();
+            let mut app_lock = app.lock().expect("AppState mutex poisoned (impossible in single-threaded TUI unless a prior panic occurred)");
             let tick_val = app_lock.tick_counter;
 
-            // Auto-scroll: clamp scroll to bottom of messages in chat
-            if app_lock.auto_scroll
-                && app_lock.screen == Screen::Chat
-                && !app_lock.chat_messages.is_empty()
-            {
-                app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
-            }
-            // Clamp scroll to valid range
-            if app_lock.scroll > app_lock.chat_messages.len().saturating_sub(1) {
-                app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
+            // Auto-scroll: use a very large scroll offset; Paragraph clamps it to the real bottom.
+            // This guarantees correct bottom alignment regardless of how many visual lines each message has.
+            if app_lock.auto_scroll && app_lock.screen == Screen::Chat {
+                app_lock.scroll = usize::MAX;
             }
 
             let current_theme = if app_lock.screen == Screen::Chat {
@@ -193,7 +189,13 @@ async fn run_app(
             Some(ev) = event_rx.recv() => ev,
         };
 
-        let mut app_lock = app.lock().unwrap();
+        // Handle terminal resize immediately so the next draw uses correct dimensions
+        if let AppEvent::Crossterm(crossterm::event::Event::Resize(_, _)) = &event {
+            let _ = terminal.autoresize();
+            // Force a redraw on next loop iteration (we will fall through to draw)
+        }
+
+        let mut app_lock = app.lock().expect("AppState mutex poisoned (impossible in single-threaded TUI unless a prior panic occurred)");
 
         match event {
             AppEvent::Crossterm(crossterm::event::Event::Key(key)) => {
@@ -204,22 +206,17 @@ async fn run_app(
                     crossterm::event::MouseEventKind::ScrollUp => {
                         if app_lock.screen == Screen::Chat {
                             app_lock.auto_scroll = false;
-                            if app_lock.scroll > 0 {
-                                app_lock.scroll -= 3; // Scroll 3 lines at a time
-                            }
+                            app_lock.scroll = app_lock.scroll.saturating_sub(3);
                         } else if app_lock.screen == Screen::Dashboard {
                             // Could scroll logs in future
                         }
                     }
                     crossterm::event::MouseEventKind::ScrollDown => {
                         if app_lock.screen == Screen::Chat {
-                            let max = app_lock.chat_messages.len().saturating_sub(1);
-                            if app_lock.scroll < max {
-                                app_lock.scroll = (app_lock.scroll + 3).min(max);
-                            }
-                            if app_lock.scroll >= max {
-                                app_lock.auto_scroll = true;
-                            }
+                            // Manual scroll down: keep auto-scroll off.
+                            // User can press Ctrl+G (ScrollBottom) or use the action to re-stick to bottom.
+                            app_lock.auto_scroll = false;
+                            app_lock.scroll = app_lock.scroll.saturating_add(3);
                         }
                     }
                     _ => {}
@@ -235,6 +232,17 @@ async fn run_app(
             AppEvent::ChatSent => {}
             AppEvent::ChatError(err) => {
                 app_lock.status_message = format!("Chat error: {}", err);
+                // Finish any in-flight streaming assistant message so we don't leave a dangling spinner
+                app_lock.finish_stream();
+                // Add a visible error line in the chat
+                app_lock.chat_messages.push(crate::app::ChatMessage {
+                    role: "system".to_string(),
+                    content: format!("⚠️  {}", err),
+                    is_streaming: false,
+                    is_tool: false,
+                    is_thinking: false,
+                });
+                app_lock.scroll_to_bottom();
             }
             AppEvent::LoginResult(result) => {
                 app_lock.login_loading = false;

@@ -181,19 +181,21 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         ]));
     }
 
-    let para = Paragraph::new(Text::from(lines))
+    let para = Paragraph::new(Text::from(lines.clone()))
         .scroll((app.scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(para, inner);
 
+    // Use the *actual* number of rendered lines for the scrollbar (was previously a wrong message*3 hack)
+    let total_lines = lines.len();
+    let mut scrollbar_state =
+        ratatui::widgets::ScrollbarState::new(total_lines)
+            .position(app.scroll.min(total_lines));
     let scrollbar = Scrollbar::default()
         .orientation(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"))
         .track_symbol(Some("│"));
-    let mut scrollbar_state =
-        ratatui::widgets::ScrollbarState::new(app.chat_messages.len().saturating_mul(3))
-            .position(app.scroll.min(app.chat_messages.len().saturating_mul(3)));
     f.render_stateful_widget(
         scrollbar,
         inner.inner(Margin {

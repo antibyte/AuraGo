@@ -444,9 +444,8 @@ impl AppState {
         match event {
             SseEvent::Delta(text) => {
                 self.append_stream_delta(text);
-                if self.auto_scroll {
-                    self.scroll = self.scroll.saturating_add(1);
-                }
+                // When auto_scroll is on, the draw loop will force scroll = usize::MAX
+                // so we no longer need per-delta nudges here.
             }
             SseEvent::DeltaDone => self.finish_stream(),
             SseEvent::ThinkingStart => self.thinking_active = true,
@@ -460,7 +459,7 @@ impl AppState {
                     is_thinking: false,
                 });
                 if self.auto_scroll {
-                    self.scroll = self.chat_messages.len().saturating_sub(1);
+                    self.scroll_to_bottom(); // will be turned into usize::MAX in next draw
                 }
             }
             SseEvent::TokenUpdate(p) => self.tokens = p,

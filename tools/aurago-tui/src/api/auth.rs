@@ -20,11 +20,14 @@ pub async fn login(client: &ApiClient, password: &str, totp_code: &str) -> Resul
         .request_raw(Method::POST, "/auth/login", Some(&req))
         .await?;
 
+    // Robust extraction of the aurago_session cookie from Set-Cookie header(s).
+    // We look for the first cookie that has the name "aurago_session" (case-insensitive name match).
     if let Some(cookie) = raw_resp.headers().get("set-cookie") {
         if let Ok(cookie_str) = cookie.to_str() {
             let session_cookie = cookie_str
                 .split(';')
-                .find(|s| s.starts_with("aurago_session="))
+                .map(|part| part.trim())
+                .find(|part| part.to_lowercase().starts_with("aurago_session="))
                 .map(|s| s.to_string());
             if let Some(sc) = session_cookie {
                 client.set_session_cookie(sc);
