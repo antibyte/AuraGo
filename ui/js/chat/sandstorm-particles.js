@@ -139,6 +139,134 @@
     // Ground height map
     let groundHeight = [];
 
+    // Bubble tracking and sand accumulation state
+    let cachedBubbles = [];
+    let lastBubbleQueryTime = 0;
+    let lastScrollTop = 0;
+    const sandColors = [
+        '242, 220, 185', // pale cream
+        '224, 184, 126', // warm gold
+        '198, 150, 96',  // amber
+        '163, 112, 57',  // ochre
+        '138, 89, 44'    // deep brown
+    ];
+
+    function updateBubbleBounds(time) {
+        if (!chatBox) return;
+        
+        // Query bubble elements every 150ms to keep performance high
+        if (time - lastBubbleQueryTime > 150) {
+            lastBubbleQueryTime = time;
+            const bubbleElements = chatBox.querySelectorAll('.bubble');
+            const chatBoxRect = chatBox.getBoundingClientRect();
+            
+            cachedBubbles = [];
+            for (let i = 0; i < bubbleElements.length; i++) {
+                const el = bubbleElements[i];
+                const rect = el.getBoundingClientRect();
+                
+                const left = rect.left - chatBoxRect.left;
+                const top = rect.top - chatBoxRect.top;
+                const right = rect.right - chatBoxRect.left;
+                const bottom = rect.bottom - chatBoxRect.top;
+                const width = rect.width;
+                
+                // Only track if the bubble is in/near the visible screen area
+                if (bottom > -50 && top < chatBoxRect.height + 50 && width > 20) {
+                    const BUCKET_SIZE = 3;
+                    const numBuckets = Math.ceil(width / BUCKET_SIZE);
+                    
+                    // Initialize heightmap on DOM element for automatic GC
+                    if (!el.__sandHeightMap || el.__sandHeightMap.length !== numBuckets) {
+                        el.__sandHeightMap = new Float32Array(numBuckets);
+                    }
+                    
+                    cachedBubbles.push({
+                        el: el,
+                        left: left,
+                        top: top,
+                        right: right,
+                        bottom: bottom,
+                        width: width,
+                        bucketSize: BUCKET_SIZE,
+                        heightMap: el.__sandHeightMap
+                    });
+                }
+            }
+        } else {
+            // Just update the positions of already cached bubbles (extremely cheap!)
+            const chatBoxRect = chatBox.getBoundingClientRect();
+            for (let i = 0; i < cachedBubbles.length; i++) {
+                const b = cachedBubbles[i];
+                const rect = b.el.getBoundingClientRect();
+                b.left = rect.left - chatBoxRect.left;
+                b.top = rect.top - chatBoxRect.top;
+                b.right = rect.right - chatBoxRect.left;
+                b.bottom = rect.bottom - chatBoxRect.top;
+            }
+        }
+    }
+
+    function handleScrollErosion() {
+        if (!chatBox) return;
+        const scrollTop = chatBox.scrollTop || 0;
+        const diff = Math.abs(scrollTop - lastScrollTop);
+        lastScrollTop = scrollTop;
+        
+        if (diff > 1) {
+            const decay = Math.min(0.5, diff * 0.04);
+            for (let i = 0; i < cachedBubbles.length; i++) {
+                const b = cachedBubbles[i];
+                const map = b.heightMap;
+                for (let k = 0; k < map.length; k++) {
+                    map[k] = Math.max(0, map[k] - decay);
+                }
+            }
+        }
+    }
+
+    function drawBubbleSand() {
+        for (let i = 0; i < cachedBubbles.length; i++) {
+            const b = cachedBubbles[i];
+            const map = b.heightMap;
+            let hasSand = false;
+            for (let k = 0; k < map.length; k++) {
+                if (map[k] > 0.2) { hasSand = true; break; }
+            }
+            if (!hasSand) continue;
+            
+            ctx.beginPath();
+            // Start at the top-left of the bubble
+            ctx.moveTo(b.left, b.top);
+            for (let col = 0; col < map.length; col++) {
+                const px = b.left + col * b.bucketSize + b.bucketSize / 2;
+                const py = b.top - map[col];
+                ctx.lineTo(px, py);
+            }
+            // End at top-right of the bubble
+            ctx.lineTo(b.right, b.top);
+            ctx.closePath();
+            
+            // Dune sand gradient
+            const sandGrad = ctx.createLinearGradient(0, b.top - 18, 0, b.top);
+            sandGrad.addColorStop(0, 'rgba(240, 212, 165, 0.95)'); // Pale top highlight
+            sandGrad.addColorStop(0.4, 'rgba(215, 178, 128, 0.95)'); // Golden middle
+            sandGrad.addColorStop(1, 'rgba(163, 112, 57, 0.95)'); // Warm ochre base
+            ctx.fillStyle = sandGrad;
+            ctx.fill();
+            
+            // Add tiny detailed sand grains along the peak
+            ctx.fillStyle = 'rgba(255, 240, 215, 0.85)';
+            for (let col = 0; col < map.length; col += 2) {
+                if (map[col] > 1) {
+                    const px = b.left + col * b.bucketSize + rand(-1, 1);
+                    const py = b.top - map[col] - rand(0, 1.2);
+                    ctx.fillRect(px, py, 1.1, 1.1);
+                }
+            }
+        }
+    }
+
     // Storm state
     let stormActive = false;
     let stormEndTime = 0;
@@ -508,6 +636,32 @@
             fx[i] += fvx[i] * fd[i] * dt * 2.4;
             fy[i] += fvy[i] * fd[i] * dt * 2.2;
 
+            // Check collision with bubbles
+            let landed = false;
+            if (!storm && fvy[i] > -0.2) {
+                for (let bIdx = 0; bIdx < cachedBubbles.length; bIdx++) {
+                    const b = cachedBubbles[bIdx];
+                    if (fx[i] >= b.left && fx[i] <= b.right) {
+                        const col = Math.floor((fx[i] - b.left) / b.bucketSize);
+                        if (col >= 0 && col < b.heightMap.length) {
+                            const surfaceY = b.top - b.heightMap[col];
+                            if (fy[i] >= surfaceY - 4.5 && fy[i] <= surfaceY + 2.5) {
+                                b.heightMap[col] = Math.min(b.heightMap[col] + fs[i] * 0.45, 18);
+                                if (col > 0) b.heightMap[col - 1] = Math.min(b.heightMap[col - 1] + fs[i] * 0.15, 18);
+                                if (col < b.heightMap.length - 1) b.heightMap[col + 1] = Math.min(b.heightMap[col + 1] + fs[i] * 0.15, 18);
+                                if (col > 1) b.heightMap[col - 2] = Math.min(b.heightMap[col - 2] + fs[i] * 0.05, 18);
+                                if (col < b.heightMap.length - 2) b.heightMap[col + 2] = Math.min(b.heightMap[col + 2] + fs[i] * 0.05, 18);
+
+                                spawnFlying(i, width, height, true);
+                                landed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (landed) continue;
+
             const groundY = getGroundY(fx[i], height);
             if (!storm && fy[i] >= groundY - 2 && fvy[i] > 0) {
                 addToGround(fx[i], groundY - rand(0, 3), fs[i], fa[i]);
@@ -520,15 +674,22 @@
             }
 
             if (fk[i] === 1) {
-                ctx.strokeStyle = `rgba(235, 208, 165, ${fa[i] * (storm ? 0.65 : 0.45)})`;
-                ctx.lineWidth = Math.max(0.5, fs[i] * 0.35);
+                ctx.strokeStyle = `rgba(${sandColors[i % sandColors.length]}, ${fa[i] * (storm ? 0.75 : 0.55)})`;
+                ctx.lineWidth = Math.max(0.6, fs[i] * 0.4);
                 ctx.beginPath();
                 ctx.moveTo(fx[i], fy[i]);
-                ctx.lineTo(fx[i] - fvx[i] * 6, fy[i] - fvy[i] * 4.5);
+                ctx.lineTo(fx[i] - fvx[i] * 6.5, fy[i] - fvy[i] * 4.8);
                 ctx.stroke();
             } else {
-                ctx.fillStyle = `rgba(225, 192, 145, ${fa[i] * (storm ? 0.95 : 0.8)})`;
-                ctx.fillRect(fx[i], fy[i], fs[i], fs[i]);
+                const s = fs[i];
+                ctx.beginPath();
+                ctx.moveTo(fx[i], fy[i] - s);
+                ctx.lineTo(fx[i] + s, fy[i]);
+                ctx.lineTo(fx[i], fy[i] + s);
+                ctx.lineTo(fx[i] - s, fy[i]);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(${sandColors[i % sandColors.length]}, ${fa[i] * (storm ? 0.96 : 0.85)})`;
+                ctx.fill();
             }
         }
     }
@@ -661,6 +822,10 @@
             stormActive = false;
         }
 
+        // Update bubble elements & track vertical scrolling/velocity
+        updateBubbleBounds(time);
+        handleScrollErosion();
+
         // WebGL fog (rendered first, behind particles)
         renderFog(time);
 
@@ -672,6 +837,9 @@
 
         drawGroundPile(width, height);
         drawGroundParticles();
+        
+        // Draw the sand dunes accumulated on top of the chat bubbles
+        drawBubbleSand();
 
         updateAndDrawTrails(dt, time, width, height);
         updateAndDrawFlying(dt, time, width, height);
