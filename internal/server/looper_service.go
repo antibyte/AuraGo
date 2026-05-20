@@ -206,7 +206,10 @@ func (r *LooperRunner) executeStarted(
 			history = resetHistoryAfterStep(sysPrompt, testRes.Response)
 		}
 
-		// EXIT CONDITION — no tools needed, just a boolean evaluation
+		// EXIT CONDITION — no tools needed, just a boolean evaluation.
+		// When the model gives an ambiguous answer we do one cheap clarification
+		// round ("reply ONLY with true or false"). This dramatically improves
+		// reliability of long creative loops such as "Ralph Loop".
 		r.holder.SetStep("exit")
 		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", noTools, optsNoTools, history)
 		if err != nil {
@@ -214,9 +217,22 @@ func (r *LooperRunner) executeStarted(
 		}
 		r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
 
+		shouldExit, decisive := agent.ParseExitBooleanWithConfidence(exitRes.Response)
+		if !decisive {
+			// One-shot clarification (very cheap, no tools)
+			clarityPrompt := "The previous answer was ambiguous. Reply with ONLY the single lowercase word \"true\" or \"false\". No explanation."
+			clarityRes, _, cerr := stepExec("exit_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, history)
+			if cerr == nil {
+				r.holder.AppendLog(i, "exit_clarify", clarityPrompt, clarityRes.Response, clarityRes.Duration)
+				shouldExit = agent.ParseExitBoolean(clarityRes.Response)
+			} else {
+				r.logger.Warn("[Looper] exit clarification call failed", "err", cerr)
+			}
+		}
+
 		fullHistory = history
 
-		if agent.ParseExitBoolean(exitRes.Response) {
+		if shouldExit {
 			break
 		}
 

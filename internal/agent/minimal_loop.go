@@ -296,25 +296,36 @@ func TrimHistory(history []openai.ChatCompletionMessage, maxChars int) []openai.
 
 // ParseExitBoolean parses an LLM response into a boolean for loop exit conditions.
 func ParseExitBoolean(raw string) bool {
+	decision, _ := ParseExitBooleanWithConfidence(raw)
+	return decision
+}
+
+// ParseExitBooleanWithConfidence returns the boolean decision and whether the
+// model's answer was clearly decisive.
+//
+// decisive == false means the response was ambiguous (no clear true/false signal).
+// In that case the caller (e.g. the Desktop Looper) should consider a cheap
+// clarification round ("reply only with true or false").
+func ParseExitBooleanWithConfidence(raw string) (decision bool, decisive bool) {
 	s := strings.TrimSpace(strings.ToLower(raw))
 	if s == "" {
-		return false
+		return false, false
 	}
 
-	// Direct boolean strings
+	// Direct boolean strings — always decisive
 	if s == "true" || s == "yes" || s == "ja" || s == "1" {
-		return true
+		return true, true
 	}
 	if s == "false" || s == "no" || s == "nein" || s == "0" {
-		return false
+		return false, true
 	}
 
 	// JSON boolean extraction
-	if idx := strings.Index(s, `"true"`); idx != -1 {
-		return true
+	if strings.Contains(s, `"true"`) {
+		return true, true
 	}
-	if idx := strings.Index(s, `"false"`); idx != -1 {
-		return false
+	if strings.Contains(s, `"false"`) {
+		return false, true
 	}
 
 	// Look for standalone true/false words — scan backwards so the last
@@ -325,13 +336,13 @@ func ParseExitBoolean(raw string) bool {
 	for i := len(words) - 1; i >= 0; i-- {
 		w := words[i]
 		if w == "true" {
-			return true
+			return true, true
 		}
 		if w == "false" {
-			return false
+			return false, true
 		}
 	}
 
-	// Default: continue looping
-	return false
+	// Ambiguous answer — not decisive. Default to "continue looping".
+	return false, false
 }
