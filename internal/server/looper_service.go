@@ -105,10 +105,6 @@ func (r *LooperRunner) executeStarted(
 	// so sending 50+ tool schemas wastes thousands of tokens per call.
 	noTools := []openai.Tool{}
 
-	// maxHistoryChars keeps the conversation history from growing unbounded.
-	// 40 000 chars ≈ 10 000 tokens, enough for rich context without explosion.
-	const maxHistoryChars = 40000
-
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 		const maxRetries = 3
 		for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -180,7 +176,7 @@ func (r *LooperRunner) executeStarted(
 		ctxMode = "every_iteration"
 	}
 
-	var fullHistory []openai.ChatCompletionMessage
+	var lastActionResult string
 	var lastTestResult string
 	var previousIterationSummary string // used primarily by "never" mode
 	var lastIterationSummary string     // result of the optional "summarize" step
@@ -286,6 +282,7 @@ func (r *LooperRunner) executeStarted(
 			return r.setErrorAndReturn(err)
 		}
 		r.holder.AppendLog(i, "action", cfg.Action, actionRes.Response, actionRes.Duration)
+		lastActionResult = buildActionFinishResult(actionRes.Response, history, cfg.Action)
 
 		history = appendStepResult(history, "action", actionRes.Response, ctxMode, sysPrompt)
 
@@ -347,22 +344,15 @@ func (r *LooperRunner) executeStarted(
 			decision = shouldExit
 		}
 
-		fullHistory = history
-
 		if decision {
 			break
 		}
 
 		// Build a compact summary for the next iteration (mainly used by "never" mode).
-		// We combine the last Test result with a bit of the Action result for better context.
 		previousIterationSummary = ""
 		if lastTestResult != "" {
 			previousIterationSummary = "Test result: " + truncateResponse(lastTestResult, 1500)
-			// We could also store the last Action result, but lastTestResult is usually the most relevant signal.
 		}
-
-		// Trim history between iterations to prevent unbounded context growth.
-		fullHistory = agent.TrimHistory(fullHistory, maxHistoryChars)
 
 		// E8 – Pause checkpoint (safe iteration boundary).
 		// We only pause between iterations, never in the middle of Plan/Action/Test/Exit.
@@ -383,33 +373,7 @@ func (r *LooperRunner) executeStarted(
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
-
-		// Build the context for Finish depending on FinishContext setting
-		finishHistory := iterSeed
-
-		finishCtxMode := cfg.FinishContext
-		if finishCtxMode == "" {
-			finishCtxMode = "last_test" // sensible default
-		}
-
-		if finishCtxMode != "none" && len(fullHistory) > 0 {
-			var finalPart string
-
-			switch finishCtxMode {
-			case "last_action_test", "full":
-				// Try to extract the last meaningful Action + Test result from fullHistory
-				finalPart = "Result of the last iteration:\n" + truncateResponse(lastTestResult, 3000)
-			default: // "last_test"
-				finalPart = "Final test result of the loop:\n" + truncateResponse(lastTestResult, 3000)
-			}
-
-			if finalPart != "" {
-				finishHistory = append(finishHistory, openai.ChatCompletionMessage{
-					Role:    openai.ChatMessageRoleUser,
-					Content: finalPart,
-				})
-			}
-		}
+		finishHistory := buildFinishHistory(iterSeed, cfg.FinishContext, lastActionResult, lastTestResult, sysPrompt)
 
 		finishRes, _, err := stepExec("finish", cfg.Finish, "", tools, optsWithTools, finishHistory)
 		if err != nil {
@@ -420,6 +384,117 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	return nil
+}
+
+func buildFinishHistory(iterSeed []openai.ChatCompletionMessage, finishCtxMode, lastActionResult, lastTestResult, sysPrompt string) []openai.ChatCompletionMessage {
+	finishHistory := make([]openai.ChatCompletionMessage, len(iterSeed))
+	copy(finishHistory, iterSeed)
+
+	basePrompt := sysPrompt
+	if basePrompt == "" && len(finishHistory) > 0 && finishHistory[0].Role == openai.ChatMessageRoleSystem {
+		basePrompt = finishHistory[0].Content
+	}
+	finishSystem := buildLooperFinishSystemPrompt(basePrompt)
+	if finishSystem != "" {
+		if len(finishHistory) > 0 && finishHistory[0].Role == openai.ChatMessageRoleSystem {
+			finishHistory[0].Content = finishSystem
+		} else {
+			finishHistory = append([]openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: finishSystem},
+			}, finishHistory...)
+		}
+	}
+
+	if finalPart := buildFinishContextMessage(finishCtxMode, lastActionResult, lastTestResult); finalPart != "" {
+		finishHistory = append(finishHistory, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: finalPart,
+		})
+	}
+
+	return finishHistory
+}
+
+func buildActionFinishResult(actionResult string, actionHistory []openai.ChatCompletionMessage, actionPrompt string) string {
+	actionResult = strings.TrimSpace(actionResult)
+	toolOutputs := recentToolOutputsAfterLastUserPrompt(actionHistory, actionPrompt, 2500)
+	if toolOutputs == "" {
+		return actionResult
+	}
+	if actionResult == "" {
+		return "Action tool output:\n" + toolOutputs
+	}
+	return actionResult + "\n\nAction tool output:\n" + toolOutputs
+}
+
+func recentToolOutputsAfterLastUserPrompt(history []openai.ChatCompletionMessage, prompt string, maxLen int) string {
+	start := -1
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == openai.ChatMessageRoleUser && history[i].Content == prompt {
+			start = i + 1
+			break
+		}
+	}
+	if start == -1 {
+		return ""
+	}
+
+	var chunks []string
+	used := 0
+	for _, msg := range history[start:] {
+		if msg.Role != openai.ChatMessageRoleTool || strings.TrimSpace(msg.Content) == "" {
+			continue
+		}
+		name := strings.TrimSpace(msg.Name)
+		if name == "" {
+			name = "tool"
+		}
+		remaining := maxLen - used
+		if remaining <= 0 {
+			break
+		}
+		chunk := name + " output:\n" + truncateResponse(strings.TrimSpace(msg.Content), remaining)
+		chunks = append(chunks, chunk)
+		used += len(chunk)
+	}
+	return strings.Join(chunks, "\n\n")
+}
+
+func buildLooperFinishSystemPrompt(basePrompt string) string {
+	basePrompt = strings.TrimSpace(basePrompt)
+	const finishRules = "Looper finish step rules:\n" +
+		"- If the finish instruction asks to open, show, present, export, or hand off a result in the desktop, perform the concrete desktop tool action before final text.\n" +
+		"- Use virtual_desktop write_document/write_file/open_in_app/open_app as appropriate. Do not merely say that you will open something.\n" +
+		"- For Writer documents, create or update a workspace document, then call virtual_desktop open_in_app with app_id \"writer\" and the document path.\n" +
+		"- For view-only files, call virtual_desktop open_in_app with app_id \"viewer\" and the file path. For code files, use app_id \"code-studio\"."
+	if basePrompt == "" {
+		return finishRules
+	}
+	return basePrompt + "\n\n" + finishRules
+}
+
+func buildFinishContextMessage(finishCtxMode, lastActionResult, lastTestResult string) string {
+	switch strings.TrimSpace(finishCtxMode) {
+	case "none":
+		return ""
+	case "last_action_test", "full":
+		parts := make([]string, 0, 2)
+		if strings.TrimSpace(lastActionResult) != "" {
+			parts = append(parts, "Final action result:\n"+truncateResponse(lastActionResult, 4000))
+		}
+		if strings.TrimSpace(lastTestResult) != "" {
+			parts = append(parts, "Final test result:\n"+truncateResponse(lastTestResult, 3000))
+		}
+		if len(parts) == 0 {
+			return ""
+		}
+		return "Result of the last iteration:\n\n" + strings.Join(parts, "\n\n")
+	default:
+		if strings.TrimSpace(lastTestResult) == "" {
+			return ""
+		}
+		return "Final test result of the loop:\n" + truncateResponse(lastTestResult, 3000)
+	}
 }
 
 // truncateResponse shortens a response to maxLen characters for compact context passing.

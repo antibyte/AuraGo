@@ -11,21 +11,21 @@ import (
 
 // LooperPreset describes a saved Looper configuration.
 type LooperPreset struct {
-	ID         int64     `json:"id"`
-	Name       string    `json:"name"`
-	IsBuiltin  bool      `json:"is_builtin"`
-	Prepare    string    `json:"prepare"`
-	Plan       string    `json:"plan"`
-	Action     string    `json:"action"`
-	Test       string    `json:"test"`
-	ExitCond   string    `json:"exit_cond"`
-	Finish     string    `json:"finish"`
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsBuiltin bool   `json:"is_builtin"`
+	Prepare   string `json:"prepare"`
+	Plan      string `json:"plan"`
+	Action    string `json:"action"`
+	Test      string `json:"test"`
+	ExitCond  string `json:"exit_cond"`
+	Finish    string `json:"finish"`
 
 	// FinishContext controls how much of the final iteration result
 	// is made available to the Finish prompt.
 	// Valid values: "none", "last_test", "last_action_test", "full"
 	// Default / empty = "last_test" (good balance for most creative loops)
-	FinishContext string    `json:"finish_context"`
+	FinishContext string `json:"finish_context"`
 
 	// PrepareTruncation controls how many characters of the Prepare step result
 	// are kept for the iteration seed (iterSeed). Higher values are useful for
@@ -38,12 +38,12 @@ type LooperPreset struct {
 	// This greatly improves coherence for long creative loops (e.g. Ralph Loop).
 	SummarizeIterations bool `json:"summarize_iterations"`
 
-	ProviderID string    `json:"provider_id"`
-	Model      string    `json:"model"`
-	MaxIter      int       `json:"max_iter"`
-	ContextMode  string    `json:"context_mode"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ProviderID  string    `json:"provider_id"`
+	Model       string    `json:"model"`
+	MaxIter     int       `json:"max_iter"`
+	ContextMode string    `json:"context_mode"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // LooperLogEntry is one step inside a loop run.
@@ -84,12 +84,12 @@ type LooperResumeState struct {
 
 // LooperRunConfig holds everything needed to execute one loop.
 type LooperRunConfig struct {
-	Prepare    string
-	Plan       string
-	Action     string
-	Test       string
-	ExitCond   string
-	Finish     string
+	Prepare  string
+	Plan     string
+	Action   string
+	Test     string
+	ExitCond string
+	Finish   string
 
 	// FinishContext is passed through from the preset.
 	// See LooperPreset.FinishContext for possible values.
@@ -101,10 +101,10 @@ type LooperRunConfig struct {
 	// SummarizeIterations comes from the preset.
 	SummarizeIterations bool
 
-	ProviderID   string
-	Model        string
-	MaxIter      int
-	ContextMode  string
+	ProviderID  string
+	Model       string
+	MaxIter     int
+	ContextMode string
 }
 
 // LooperPresetStore handles CRUD for looper presets.
@@ -155,15 +155,6 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 }
 
 func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
-	var seeded string
-	err := ps.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'looper_presets_seeded'`).Scan(&seeded)
-	if err == nil && seeded == "true" {
-		return nil
-	}
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("read looper seed state: %w", err)
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -173,8 +164,24 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 
 	for _, p := range DefaultLooperPresets() {
 		_, err := tx.ExecContext(ctx,
-			`INSERT OR IGNORE INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
+			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(name) DO UPDATE SET
+				is_builtin=excluded.is_builtin,
+				prepare=excluded.prepare,
+				plan=excluded.plan,
+				action=excluded.action,
+				test=excluded.test,
+				exit_cond=excluded.exit_cond,
+				finish=excluded.finish,
+				finish_context=excluded.finish_context,
+				prepare_truncation=excluded.prepare_truncation,
+				provider_id=excluded.provider_id,
+				model=excluded.model,
+				max_iter=excluded.max_iter,
+				context_mode=excluded.context_mode,
+				updated_at=excluded.updated_at
+			WHERE desktop_looper_presets.is_builtin = 1`,
 			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
 		if err != nil {
 			return fmt.Errorf("seed looper preset %s: %w", p.Name, err)
@@ -322,13 +329,13 @@ func (h *LooperRunStateHolder) SetRunning(maxIter int) {
 	h.paused = false
 	h.resumeState = nil
 	h.state = LooperRunState{
-		Running:       true,
-		CurrentStep:   "prepare",
-		MaxIterations: maxIter,
-		Logs:          make([]LooperLogEntry, 0),
-		Error:         "",
-		Paused:        false,
-		ResumeFrom:    0,
+		Running:        true,
+		CurrentStep:    "prepare",
+		MaxIterations:  maxIter,
+		Logs:           make([]LooperLogEntry, 0),
+		Error:          "",
+		Paused:         false,
+		ResumeFrom:     0,
 		ResumeSnapshot: nil,
 	}
 }

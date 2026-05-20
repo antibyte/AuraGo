@@ -2,9 +2,13 @@ package desktop
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestLooperRunStateHolderTryStartAllowsOneConcurrentRun(t *testing.T) {
@@ -110,5 +114,45 @@ func TestLooperRunStateHolderPauseAndResumeSnapshot(t *testing.T) {
 	st3 := holder.State()
 	if st3.Paused || st3.ResumeFrom != 0 {
 		t.Fatalf("state after clear must be clean: %+v", st3)
+	}
+}
+
+func TestLooperPresetStoreInitRefreshesBuiltinPresets(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS desktop_meta (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	)`); err != nil {
+		t.Fatalf("create desktop_meta: %v", err)
+	}
+
+	store := NewLooperPresetStore(db)
+	if err := store.Init(context.Background()); err != nil {
+		t.Fatalf("initial init: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE desktop_looper_presets SET finish='Old finish', finish_context='' WHERE name='Story Iteration' AND is_builtin=1`); err != nil {
+		t.Fatalf("simulate old builtin preset: %v", err)
+	}
+
+	if err := store.Init(context.Background()); err != nil {
+		t.Fatalf("refresh init: %v", err)
+	}
+
+	var finish, finishContext string
+	if err := db.QueryRow(`SELECT finish, finish_context FROM desktop_looper_presets WHERE name='Story Iteration'`).Scan(&finish, &finishContext); err != nil {
+		t.Fatalf("read refreshed preset: %v", err)
+	}
+	if finishContext != "last_action_test" {
+		t.Fatalf("finish_context = %q, want last_action_test", finishContext)
+	}
+	if !strings.Contains(finish, "open_in_app") {
+		t.Fatalf("finish prompt was not refreshed with desktop open instruction: %q", finish)
 	}
 }

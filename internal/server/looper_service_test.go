@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
@@ -15,14 +16,14 @@ func TestAppendStepResult(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		history        []openai.ChatCompletionMessage
-		stepName       string
-		result         string
-		ctxMode        string
-		wantLastRole   string
-		wantContains   string
-		wantLen        int
+		name         string
+		history      []openai.ChatCompletionMessage
+		stepName     string
+		result       string
+		ctxMode      string
+		wantLastRole string
+		wantContains string
+		wantLen      int
 	}{
 		{
 			name:         "every_step after plan",
@@ -55,14 +56,14 @@ func TestAppendStepResult(t *testing.T) {
 			wantLen:      3,
 		},
 		{
-			name:           "every_step after action resets",
-			history:        baseHistory,
-			stepName:       "action",
-			result:         "I rewrote chapter 3.",
-			ctxMode:        "every_step",
-			wantLastRole:   "user",
-			wantLen:        2,
-			wantContains:   "rewrote chapter 3",
+			name:         "every_step after action resets",
+			history:      baseHistory,
+			stepName:     "action",
+			result:       "I rewrote chapter 3.",
+			ctxMode:      "every_step",
+			wantLastRole: "user",
+			wantLen:      2,
+			wantContains: "rewrote chapter 3",
 		},
 	}
 
@@ -82,6 +83,79 @@ func TestAppendStepResult(t *testing.T) {
 				t.Errorf("expected content to contain %q, got %q", tc.wantContains, last.Content)
 			}
 		})
+	}
+}
+
+func TestBuildFinishHistoryIncludesActionAndDesktopHandoffRules(t *testing.T) {
+	iterSeed := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "base system"},
+		{Role: openai.ChatMessageRoleUser, Content: "Create a story"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "Prepared context"},
+	}
+
+	got := buildFinishHistory(
+		iterSeed,
+		"last_action_test",
+		"Final story saved to Documents/final-story.docx",
+		"Rating: 10/10",
+		"base system",
+	)
+
+	if len(got) != len(iterSeed)+1 {
+		t.Fatalf("finish history len = %d, want %d", len(got), len(iterSeed)+1)
+	}
+	if !strings.Contains(got[0].Content, "open_in_app") || !strings.Contains(got[0].Content, "app_id \"writer\"") {
+		t.Fatalf("finish system prompt missing desktop open rules: %q", got[0].Content)
+	}
+	finalContext := got[len(got)-1].Content
+	for _, want := range []string{"Final action result:", "Documents/final-story.docx", "Final test result:", "Rating: 10/10"} {
+		if !strings.Contains(finalContext, want) {
+			t.Fatalf("finish context missing %q: %q", want, finalContext)
+		}
+	}
+	if iterSeed[0].Content != "base system" {
+		t.Fatalf("buildFinishHistory mutated iterSeed system prompt: %q", iterSeed[0].Content)
+	}
+}
+
+func TestBuildFinishHistoryDefaultUsesLastTestOnly(t *testing.T) {
+	got := buildFinishHistory(
+		nil,
+		"",
+		"Action output should not be included by default",
+		"Final review score: 9",
+		"base system",
+	)
+
+	if len(got) != 2 {
+		t.Fatalf("finish history len = %d, want 2", len(got))
+	}
+	if got[0].Role != openai.ChatMessageRoleSystem {
+		t.Fatalf("first message role = %q, want system", got[0].Role)
+	}
+	finalContext := got[len(got)-1].Content
+	if !strings.Contains(finalContext, "Final test result of the loop:") {
+		t.Fatalf("missing default test context: %q", finalContext)
+	}
+	if strings.Contains(finalContext, "Action output should not be included") {
+		t.Fatalf("default finish context unexpectedly included action output: %q", finalContext)
+	}
+}
+
+func TestBuildActionFinishResultIncludesActionToolOutput(t *testing.T) {
+	history := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "Plan prompt"},
+		{Role: openai.ChatMessageRoleTool, Name: "virtual_desktop", Content: `{"path":"Documents/old.docx"}`},
+		{Role: openai.ChatMessageRoleUser, Content: "Action prompt"},
+		{Role: openai.ChatMessageRoleTool, Name: "virtual_desktop", Content: `{"status":"ok","data":{"path":"Documents/final-story.docx"}}`},
+	}
+
+	got := buildActionFinishResult("Saved the final story.", history, "Action prompt")
+	if !strings.Contains(got, "Saved the final story.") || !strings.Contains(got, "Documents/final-story.docx") {
+		t.Fatalf("action finish result missing response or tool output: %q", got)
+	}
+	if strings.Contains(got, "Documents/old.docx") {
+		t.Fatalf("action finish result included tool output before the action prompt: %q", got)
 	}
 }
 
