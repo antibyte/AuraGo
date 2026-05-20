@@ -1092,6 +1092,77 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
+	t.Parallel()
+
+	lollipopContent, err := os.ReadFile(filepath.Join("css", "chat-lollipop.css"))
+	if err != nil {
+		t.Fatalf("read chat-lollipop.css: %v", err)
+	}
+	petalsContent, err := os.ReadFile(filepath.Join("js", "chat", "lollipop-petals.js"))
+	if err != nil {
+		t.Fatalf("read lollipop-petals.js: %v", err)
+	}
+	indexContent, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+
+	lollipopCSS := string(lollipopContent)
+	petalsJS := string(petalsContent)
+	indexHTML := string(indexContent)
+
+	for _, forbidden := range []string{
+		"const duration = randomBetween(14, 30);",
+		"animation: lollipopPetalFall var(--petal-duration, 20s) ease-in-out",
+		"transform: translate3d(var(--petal-sway, 28px), 20%, 0)",
+	} {
+		if strings.Contains(lollipopCSS, forbidden) || strings.Contains(petalsJS, forbidden) {
+			t.Fatalf("lollipop theme still contains old fast/static petal marker %q", forbidden)
+		}
+	}
+
+	for _, marker := range []string{
+		`[data-theme="lollipop"] .app-header::before {`,
+		`[data-theme="lollipop"] .app-header .logo {`,
+		`[data-theme="lollipop"] .app-header .header-actions #logout-btn {`,
+		`display: inline-flex !important;`,
+		`justify-content: center;`,
+		`line-height: 1;`,
+		`animation: lollipopPetalFall var(--petal-duration, 34s) linear`,
+		`var(--petal-y-28, 30vh)`,
+		`var(--petal-y-86, 88vh)`,
+		`[data-theme="lollipop"] .app-footer::before {`,
+		`[data-theme="lollipop"] .app-footer > * {`,
+		`0 -18px 36px rgba(151, 81, 124, 0.18)`,
+	} {
+		if !strings.Contains(lollipopCSS, marker) {
+			t.Fatalf("css/chat-lollipop.css missing polish marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		"const duration = randomBetween(28, 54);",
+		"const drift = randomBetween(-90, 90);",
+		"const swayAmp = randomBetween(24, 68);",
+		"petal.style.setProperty('--petal-y-10'",
+		"petal.style.setProperty('--petal-y-86'",
+	} {
+		if !strings.Contains(petalsJS, marker) {
+			t.Fatalf("js/chat/lollipop-petals.js missing slower drifting petal marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		`/css/chat-lollipop.css?v=20260520a`,
+		`/js/chat/lollipop-petals.js?v=20260520a`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("index.html missing lollipop cache marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 	t.Parallel()
 
@@ -2687,19 +2758,18 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 
 	for _, marker := range []string{
 		"repeating-radial-gradient(circle at 50% 50%",
-		"radial-gradient(circle at 50% 50%,\n            rgba(13, 242, 114, 0.08) 0 0.35vmin",
-		"animation: cyberwarRadarSweep 18s linear infinite;",
-		"opacity: 0.72;",
+		"rgba(13, 242, 114, 0.1) 0 0.35vmin",
+		"animation: cyberwarRadarSweep 16s linear infinite;",
+		"opacity: 0.78;",
 		"will-change: transform;",
-		"repeating-radial-gradient(circle at 50% 50%,\n            transparent 0 5.5rem",
-		"radial-gradient(circle at 50% 50%,\n            rgba(13, 242, 114, 0.07) 0 0.38rem",
+		"transparent 0 5.5rem,",
+		"rgba(13, 242, 114, 0.07) 0 0.38rem",
 		"[data-theme=\"cyberwar\"] #cyberwar-overlay {",
-		"filter: saturate(1.34) brightness(1.16) !important;",
+		"filter: saturate(1.5) brightness(1.22) contrast(1.06) !important;",
 		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
 		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;",
 		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;",
 		"animation: cyberwarScanlineScan 10s linear infinite;",
-		"[data-theme=\"cyberwar\"] #chat-box::after {\n    display: none;",
 		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
 	} {
 		if !strings.Contains(cyberwarCSS, marker) {
@@ -2708,26 +2778,25 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		"const vec2 RADAR_CENTER = vec2(0.5, 0.5);",
-		"const float RADAR_BEAM_HIT_WIDTH = 0.12;",
-		"float angleDistance(float a, float b)",
-		"float sweepLag(float targetAngle, float beamAngle)",
-		"vec2 movingRadarTarget(float t, float radius, float speed, float phase, float wobble)",
-		"float radarTarget(vec2 p, vec2 target, float beamAngle, float scale)",
-		"float targetAfterglow = exp(-recentLag * 7.5)",
-		"float radarBeamCore = exp(-96.0 * beamDelta);",
-		"float radarBeam = (radarBeamCore * 0.98 + radarBeamFan * 0.42) * radarReach;",
-		"float radarRadius = length(p);",
-		"float beamAngle = fract(u_time * 0.075) * RADAR_TAU - RADAR_PI;",
-		"float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 42.0)))",
-		"float radarTargets =",
-		"targetHit * 4.2",
+		"const vec2  CTR = vec2(0.5, 0.5);",
+		"float angleDist(float a, float b)",
+		"float sweepLag(float target, float beam)",
+		"vec2 orbitTarget(float t, float r, float spd, float ph, float wobble)",
+		"float renderTarget(vec2 p, vec2 tgt, float beam, float sc, float glow)",
+		"float afterglow = exp(-lag * 5.5)",
+		"float beamCore    = exp(-140.0 * beamDelta);",
+		"float beam = (beamCore * 1.0 + beamMid * 0.55 + beamOuter * 0.25 + beamBloom * 0.08) * reach;",
+		"float r = length(p);",
+		"float beamAngle = fract(t * 0.07) * TAU - PI;",
+		"float ringBase = smoothstep(0.985, 1.0, abs(sin(r * 38.0)))",
+		"float friendlies =",
+		"hit * 5.0",
 		"chatBox.getBoundingClientRect()",
-		"cyan * sweep * 0.12",
-		"sweep * 0.025",
-		"vec3(0.12, 1.0, 0.5) * radarBeam * 0.34",
-		"radarBeam * 0.16",
-		"vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.18",
+		"color += cGreen * beam * 0.5;",
+		"hScan * 0.02",
+		"color += cBright * beamCore * reach * 0.35;",
+		"beam * 0.22",
+		"color += cGreen * ringBase * 0.12;",
 	} {
 		if !strings.Contains(cyberwarShader, marker) {
 			t.Fatalf("cyberwar shader missing balanced radar/scanline marker %q", marker)
@@ -2737,6 +2806,10 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 	chatContentBlock := cssBlockFor(`[data-theme="cyberwar"] #chat-content`)
 	if !strings.Contains(chatContentBlock, "overflow: hidden;") {
 		t.Fatalf("cyberwar chat content must clip flex overflow to avoid phantom bottom scroll: %s", chatContentBlock)
+	}
+	chatBoxAfterBlock := cssBlockFor(`[data-theme="cyberwar"] #chat-box::after`)
+	if !strings.Contains(chatBoxAfterBlock, "display: none;") {
+		t.Fatalf("cyberwar chat box after pseudo-element must stay disabled to avoid phantom scroll: %s", chatBoxAfterBlock)
 	}
 }
 

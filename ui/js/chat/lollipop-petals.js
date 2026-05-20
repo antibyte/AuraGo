@@ -51,21 +51,21 @@
 
     function rerollPetal(petal, immediate) {
         const chatBox = document.getElementById(CHAT_BOX_ID);
-        const duration = randomBetween(14, 30);
+        const duration = randomBetween(28, 54);
         const size = randomBetween(24, 68);
         const left = randomBetween(2, 96);
-        const drift = randomBetween(-70, 70);
+        const drift = randomBetween(-90, 90);
         const opacity = randomBetween(0.4, 0.82);
         const scale = randomBetween(0.7, 1.2);
-        const rotationStart = randomBetween(-30, 30);
-        const rotationEnd = rotationStart + randomBetween(160, 360) * (Math.random() > 0.5 ? 1 : -1);
+        const rotationStart = randomBetween(-24, 24);
+        const rotationEnd = rotationStart + randomBetween(130, 280) * (Math.random() > 0.5 ? 1 : -1);
         // Use scrollHeight to cover full scrollable area, not just viewport
         const scrollH = chatBox ? chatBox.scrollHeight : window.innerHeight;
         const viewH = chatBox ? chatBox.clientHeight : window.innerHeight;
         const travel = Math.max(scrollH, viewH) + size + 160;
         const delay = immediate ? randomBetween(-duration, 0) : 0;
         // Sway amplitude — baked into the fall keyframes
-        const swayAmp = randomBetween(15, 45);
+        const swayAmp = randomBetween(24, 68);
 
         petal.className = `lollipop-petal ${pick(BLOSSOM_CLASSES)}`;
         petal.style.setProperty('--petal-left', `${left}%`);
@@ -78,6 +78,11 @@
         petal.style.setProperty('--petal-rotate-start', `${rotationStart.toFixed(1)}deg`);
         petal.style.setProperty('--petal-rotate-end', `${rotationEnd.toFixed(1)}deg`);
         petal.style.setProperty('--petal-travel', `${travel}px`);
+        petal.style.setProperty('--petal-y-10', `${(travel * 0.1).toFixed(1)}px`);
+        petal.style.setProperty('--petal-y-28', `${(travel * 0.28).toFixed(1)}px`);
+        petal.style.setProperty('--petal-y-48', `${(travel * 0.48).toFixed(1)}px`);
+        petal.style.setProperty('--petal-y-68', `${(travel * 0.68).toFixed(1)}px`);
+        petal.style.setProperty('--petal-y-86', `${(travel * 0.86).toFixed(1)}px`);
         petal.style.setProperty('--petal-sway', `${swayAmp}px`);
         petal.style.zIndex = String(randomInt(1, 3));
     }
