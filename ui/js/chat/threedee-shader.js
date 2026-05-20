@@ -87,6 +87,11 @@
     const ROBOT_PROJECTILE_SPEED = 7.4;
     const ROBOT_HIT_RECOIL = 1.55;
     const ROBOT_RED_TARGET_SIZE = 1.62;
+    const ROBOT_FLIGHT_MIN_INTERVAL = 6.4;
+    const ROBOT_FLIGHT_MAX_INTERVAL = 12.5;
+    const ROBOT_FLIGHT_DURATION = 2.05;
+    const ROBOT_FLIGHT_HEIGHT = 1.12;
+    const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const RED_ROBOT_FOOT_JET_OFFSETS = [
         [0, -0.58, -0.25],
         [0, -0.58, 0.25]
@@ -832,13 +837,18 @@
             activeRobots.forEach(function (bot) {
                 if (!bot || !bot.state) return;
                 const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
+                const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
                 const hoverDepression = -0.28 * Math.exp(-(distToRobot * distToRobot) / 0.75);
                 const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5) * Math.exp(-distToRobot * 1.6) * 0.14;
-                height += hoverDepression + hoverRipple;
+                height += (hoverDepression + hoverRipple) * flightWaveInfluence;
             });
         }
 
         return height;
+    }
+
+    function robotWaveInfluenceForFlightHeight(flightLift) {
+        return 1 - smoothstep(0.18, ROBOT_WAVE_DAMPING_HEIGHT, Math.max(0, flightLift || 0)) * 0.86;
     }
 
     function colorForHeight(height, target) {
@@ -922,7 +932,12 @@
                 lastShot: -999,
                 recoil: 0,
                 hitFlash: 0,
-                hits: 0
+                hits: 0,
+                flightLift: 0,
+                flightStartedAt: -999,
+                flightDuration: ROBOT_FLIGHT_DURATION,
+                flightPeak: ROBOT_FLIGHT_HEIGHT,
+                nextFlightAt: NaN
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -1227,10 +1242,47 @@
         });
     }
 
+    function scheduleNextRobotFlight(bot, t) {
+        if (!bot || !bot.state) return;
+        const span = ROBOT_FLIGHT_MAX_INTERVAL - ROBOT_FLIGHT_MIN_INTERVAL;
+        const stagger = bot.id === 'red' ? 1.15 : 0;
+        const firstDelay = bot.state.nextFlightAt !== bot.state.nextFlightAt ? 2.2 + Math.random() * 3.2 : 0;
+        bot.state.nextFlightAt = t + firstDelay + ROBOT_FLIGHT_MIN_INTERVAL + Math.random() * span + stagger;
+    }
+
+    function updateRobotFlight(bot, t) {
+        if (!bot || !bot.state) return;
+        const state = bot.state;
+        if (!Number.isFinite(state.nextFlightAt)) {
+            scheduleNextRobotFlight(bot, t);
+        }
+
+        if (state.flightStartedAt < 0 && t >= state.nextFlightAt) {
+            state.flightStartedAt = t;
+            state.flightDuration = ROBOT_FLIGHT_DURATION * (0.84 + Math.random() * 0.34);
+            state.flightPeak = ROBOT_FLIGHT_HEIGHT * (bot.id === 'red' ? 1.08 : 0.94) * (0.88 + Math.random() * 0.22);
+        }
+
+        if (state.flightStartedAt >= 0) {
+            const progress = clamp((t - state.flightStartedAt) / state.flightDuration, 0, 1);
+            const rise = Math.sin(progress * Math.PI);
+            const hoverBeat = 1 + Math.sin(progress * Math.PI * 4 + state.seed) * 0.035;
+            state.flightLift = Math.max(0, rise * state.flightPeak * hoverBeat);
+            if (progress >= 1) {
+                state.flightStartedAt = -999;
+                state.flightLift = 0;
+                scheduleNextRobotFlight(bot, t);
+            }
+        } else {
+            state.flightLift = Math.max(0, (state.flightLift || 0) * 0.82);
+        }
+    }
+
     function updateRobotMotion(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         if (!bot.group) return;
+        updateRobotFlight(bot, t);
 
         const driftX = Math.sin(t * 0.54 + bot.state.z * 0.72 + bot.state.seed) * 0.16;
         const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
@@ -1250,10 +1302,11 @@
         bounceFloatingRobotWithinBounds(t, bot);
 
         const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t) : heightAt(bot.state.x, bot.state.z, t);
+        const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
         bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 2.8);
-        bot.state.y = surface.position.y + waterY + 0.62 + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
+        bot.state.y = surface.position.y + waterY * flightWaveInfluence + 0.62 + (bot.state.flightLift || 0) + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
         bot.targetPosition.set(bot.state.x, bot.state.y, bot.state.z + surface.position.z);
         if (bot.id === 'blue') {
             robotGroup.position.lerp(robotTargetPosition, clamp(dt * 4.6, 0, 1));
@@ -1262,6 +1315,7 @@
         }
 
         const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);
+        normal.lerp(bot.up, 1 - flightWaveInfluence).normalize();
         bot.forward.set(bot.velocity.x, 0, bot.velocity.y);
         if (bot.forward.lengthSq() < 0.0001) bot.forward.set(0, 0, 1);
         bot.forward.normalize();
@@ -1315,9 +1369,9 @@
             bot.group.add(bot.thrusterLight);
             if (bot.id === 'blue') robotThrusterLight = bot.thrusterLight;
         }
-        bot.thrusterLight.intensity = 1.4 + bot.state.hitFlash * 2.2 + Math.sin(t * 32 + bot.state.seed) * 0.35 + Math.sin(t * 4.8) * 0.15;
+        bot.thrusterLight.intensity = 1.4 + (bot.state.flightLift || 0) * 0.9 + bot.state.hitFlash * 2.2 + Math.sin(t * 32 + bot.state.seed) * 0.35 + Math.sin(t * 4.8) * 0.15;
 
-        if (Math.random() < (bot.id === 'red' ? 0.9 : 0.45) && active) {
+        if (Math.random() < ((bot.id === 'red' ? 0.9 : 0.45) + (bot.state.flightLift || 0) * 0.18) && active) {
             createJetFlameSprite(bot, t);
         }
     }
@@ -1937,7 +1991,8 @@
                 loadedRobots: robotFleet.filter(function (bot) { return bot.loaded; }).length,
                 energyProjectiles: energyProjectiles.length,
                 duelDistance,
-                robotHits: robotFleet.map(function (bot) { return bot.state.hits || 0; })
+                robotHits: robotFleet.map(function (bot) { return bot.state.hits || 0; }),
+                robotFlightLift: robotFleet.map(function (bot) { return bot.state.flightLift || 0; })
             };
         }
     };

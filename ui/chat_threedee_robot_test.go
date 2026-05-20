@@ -158,6 +158,32 @@ func TestThreeDeeRobotsRequireCloseRangeAndReactToHits(t *testing.T) {
 	}
 }
 
+func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const ROBOT_FLIGHT_MIN_INTERVAL =",
+		"const ROBOT_FLIGHT_MAX_INTERVAL =",
+		"const ROBOT_FLIGHT_DURATION =",
+		"const ROBOT_FLIGHT_HEIGHT =",
+		"const ROBOT_WAVE_DAMPING_HEIGHT =",
+		"flightLift",
+		"nextFlightAt",
+		"function scheduleNextRobotFlight",
+		"function updateRobotFlight",
+		"robotWaveInfluenceForFlightHeight",
+		"height += (hoverDepression + hoverRipple) * flightWaveInfluence",
+		"waterY * flightWaveInfluence",
+		"normal.lerp(bot.up, 1 - flightWaveInfluence).normalize()",
+		"bot.thrusterLight.intensity = 1.4 + (bot.state.flightLift || 0) * 0.9",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing robot flight/wave damping marker %q", marker)
+		}
+	}
+}
+
 func readGLBJSONChunk(t *testing.T, asset string, data []byte) string {
 	t.Helper()
 
