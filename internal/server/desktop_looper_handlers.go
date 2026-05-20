@@ -281,7 +281,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			return
 		}
 
-		loopCtx, loopCancel := context.WithTimeout(r.Context(), looperRunTimeout(req.MaxIter))
+		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxIter))
 		if err := runner.TryStart(req.MaxIter, loopCancel); err != nil {
 			loopCancel()
 			jsonError(w, err.Error(), http.StatusConflict)
