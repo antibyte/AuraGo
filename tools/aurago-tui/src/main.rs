@@ -7,10 +7,10 @@ use clap::Parser;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, EventStream},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use futures::StreamExt;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use reqwest::Method;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::time::interval;
@@ -21,18 +21,18 @@ mod config;
 mod events;
 mod ui;
 
-use api::{auth, sse, types::*, ApiClient};
-use app::{AppState, ConfirmAction, DashTab, MediaTab, Screen};
-use events::keybindings::{map_key, Action, KeyContext};
+use api::{ApiClient, auth, sse, types::*};
+use app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use events::AppEvent;
-use ui::theme::Theme;
+use events::keybindings::{Action, KeyContext, map_key};
+use ui::{theme::Theme, utils::truncate_str};
 
 #[derive(Parser, Debug)]
 #[command(name = "aurago-tui")]
 #[command(about = "AuraGo Terminal Chat Client")]
 struct Args {
-    #[arg(short, long, default_value = "http://localhost:8080")]
-    url: String,
+    #[arg(short, long)]
+    url: Option<String>,
     #[arg(long, help = "Skip TLS certificate verification (insecure)")]
     insecure: bool,
 }
@@ -41,10 +41,10 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
     let mut cfg = config::Config::load().unwrap_or_default();
-    if !args.url.is_empty() {
-        cfg.server_url = args.url;
+    if let Some(url) = args.url {
+        cfg.server_url = url;
+        cfg.save().ok();
     }
-    cfg.save().ok();
 
     let mut terminal = setup_terminal()?;
     let app = Arc::new(Mutex::new(AppState {
@@ -132,16 +132,19 @@ async fn run_app(
         {
             let mut app_lock = app.lock().unwrap();
             let tick_val = app_lock.tick_counter;
-            
+
             // Auto-scroll: clamp scroll to bottom of messages in chat
-            if app_lock.auto_scroll && app_lock.screen == Screen::Chat && !app_lock.chat_messages.is_empty() {
+            if app_lock.auto_scroll
+                && app_lock.screen == Screen::Chat
+                && !app_lock.chat_messages.is_empty()
+            {
                 app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
             }
             // Clamp scroll to valid range
             if app_lock.scroll > app_lock.chat_messages.len().saturating_sub(1) {
                 app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
             }
-            
+
             let current_theme = if app_lock.screen == Screen::Chat {
                 Theme::from_mood(app_lock.personality.mood.as_deref().unwrap_or("neutral"))
             } else {
@@ -157,16 +160,24 @@ async fn run_app(
                         Screen::Splash => ui::splash::draw_splash(f, &current_theme, tick_val),
                         Screen::Login => ui::login::draw_login(f, &app_lock, &current_theme),
                         Screen::Chat => ui::chat::draw_chat(f, &app_lock, &current_theme),
-                        Screen::Dashboard => ui::dashboard::draw_dashboard(f, &app_lock, &current_theme),
+                        Screen::Dashboard => {
+                            ui::dashboard::draw_dashboard(f, &app_lock, &current_theme)
+                        }
                         Screen::Plans => ui::plans::draw_plans(f, &app_lock, &current_theme),
-                        Screen::Missions => ui::missions::draw_missions(f, &app_lock, &current_theme),
+                        Screen::Missions => {
+                            ui::missions::draw_missions(f, &app_lock, &current_theme)
+                        }
                         Screen::Skills => ui::skills::draw_skills(f, &app_lock, &current_theme),
-                        Screen::Containers => ui::containers::draw_containers(f, &app_lock, &current_theme),
+                        Screen::Containers => {
+                            ui::containers::draw_containers(f, &app_lock, &current_theme)
+                        }
                         Screen::Config => ui::config::draw_config(f, &app_lock, &current_theme),
-                        Screen::Knowledge => ui::knowledge::draw_knowledge(f, &app_lock, &current_theme),
+                        Screen::Knowledge => {
+                            ui::knowledge::draw_knowledge(f, &app_lock, &current_theme)
+                        }
                         Screen::Media => ui::media::draw_media(f, &app_lock, &current_theme),
                     }
-                    
+
                     // Draw confirmation dialog overlay
                     if app_lock.confirm_action.is_some() {
                         draw_confirm_dialog(f, &app_lock, &current_theme);
@@ -237,65 +248,51 @@ async fn run_app(
                                 let _ = auth::save_session_cookie(&cookie, &path);
                             }
                         }
-                        let tx = event_tx.clone();
-                        let c = client.clone();
-                        tokio::spawn(async move {
-                            start_chat_session(&c, tx).await;
-                        });
+                        start_new_chat_session(&mut sse_handle, &client, &event_tx);
                     }
                     Err(e) => {
                         app_lock.login_error = Some(e);
                     }
                 }
             }
-            AppEvent::AuthCheckResult(result) => {
-                match result {
-                    Ok((enabled, password_set, totp_enabled)) => {
-                        app_lock.auth_enabled = enabled;
-                        app_lock.totp_enabled = totp_enabled;
-                        if !enabled || !password_set {
-                            app_lock.authenticated = true;
-                            app_lock.navigate_to(Screen::Chat);
-                            let tx = event_tx.clone();
-                            let c = client.clone();
-                            tokio::spawn(async move {
-                                start_chat_session(&c, tx).await;
-                            });
-                        } else {
-                            app_lock.authenticated = false;
-                            app_lock.screen = Screen::Login;
-                        }
-                    }
-                    Err(e) => {
-                        app_lock.login_error = Some(format!("Auth check failed: {}", e));
+            AppEvent::AuthCheckResult(result) => match result {
+                Ok((enabled, password_set, totp_enabled)) => {
+                    app_lock.auth_enabled = enabled;
+                    app_lock.totp_enabled = totp_enabled;
+                    if !enabled || !password_set {
+                        app_lock.authenticated = true;
+                        app_lock.navigate_to(Screen::Chat);
+                        start_new_chat_session(&mut sse_handle, &client, &event_tx);
+                    } else {
+                        app_lock.authenticated = false;
                         app_lock.screen = Screen::Login;
                     }
                 }
-            }
-            AppEvent::HistoryLoaded(result) => {
-                match result {
-                    Ok(history) => {
-                        app_lock.load_history(history);
-                        app_lock.status_message = "Connected".to_string();
-                    }
-                    Err(e) => {
-                        app_lock.status_message = format!("History error: {}", e);
-                    }
+                Err(e) => {
+                    app_lock.login_error = Some(format!("Auth check failed: {}", e));
+                    app_lock.screen = Screen::Login;
                 }
-            }
+            },
+            AppEvent::HistoryLoaded(result) => match result {
+                Ok(history) => {
+                    app_lock.load_history(history);
+                    app_lock.status_message = "Connected".to_string();
+                }
+                Err(e) => {
+                    app_lock.status_message = format!("History error: {}", e);
+                }
+            },
 
             // ── Sessions ─────────────────────────────────────────────────────
-            AppEvent::SessionsLoaded(result) => {
-                match result {
-                    Ok(sessions) => {
-                        app_lock.sessions = sessions;
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Failed to load sessions: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+            AppEvent::SessionsLoaded(result) => match result {
+                Ok(sessions) => {
+                    app_lock.sessions = sessions;
                 }
-            }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Failed to load sessions: {}", e));
+                    app_lock.toast_ticks = 10;
+                }
+            },
             AppEvent::SessionCreated(result) => {
                 match result {
                     Ok(session) => {
@@ -308,7 +305,8 @@ async fn run_app(
                         let tx = event_tx.clone();
                         let sid = app_lock.active_session_id.clone();
                         tokio::spawn(async move {
-                            let result = auth::fetch_history_for_session(&c, &sid).await
+                            let result = auth::fetch_history_for_session(&c, &sid)
+                                .await
                                 .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::HistoryLoaded(result));
                         });
@@ -346,36 +344,26 @@ async fn run_app(
                 }
                 app_lock.dash_loading = false;
             }
-            AppEvent::DashboardBudgetLoaded(result) => {
-                match result {
-                    Ok(info) => app_lock.dash_budget = info,
-                    Err(e) => app_lock.status_message = format!("Budget error: {}", e),
-                }
-            }
-            AppEvent::DashboardOverviewLoaded(result) => {
-                match result {
-                    Ok(info) => app_lock.dash_overview = info,
-                    Err(e) => app_lock.status_message = format!("Overview error: {}", e),
-                }
-            }
-            AppEvent::DashboardPersonalityLoaded(result) => {
-                match result {
-                    Ok(info) => app_lock.dash_personality = info,
-                    Err(e) => app_lock.status_message = format!("Personality error: {}", e),
-                }
-            }
-            AppEvent::DashboardLogsLoaded(result) => {
-                match result {
-                    Ok(logs) => app_lock.dash_logs = logs,
-                    Err(e) => app_lock.status_message = format!("Logs error: {}", e),
-                }
-            }
-            AppEvent::DashboardActivityLoaded(result) => {
-                match result {
-                    Ok(activity) => app_lock.dash_activity = activity,
-                    Err(e) => app_lock.status_message = format!("Activity error: {}", e),
-                }
-            }
+            AppEvent::DashboardBudgetLoaded(result) => match result {
+                Ok(info) => app_lock.dash_budget = info,
+                Err(e) => app_lock.status_message = format!("Budget error: {}", e),
+            },
+            AppEvent::DashboardOverviewLoaded(result) => match result {
+                Ok(info) => app_lock.dash_overview = info,
+                Err(e) => app_lock.status_message = format!("Overview error: {}", e),
+            },
+            AppEvent::DashboardPersonalityLoaded(result) => match result {
+                Ok(info) => app_lock.dash_personality = info,
+                Err(e) => app_lock.status_message = format!("Personality error: {}", e),
+            },
+            AppEvent::DashboardLogsLoaded(result) => match result {
+                Ok(logs) => app_lock.dash_logs = logs,
+                Err(e) => app_lock.status_message = format!("Logs error: {}", e),
+            },
+            AppEvent::DashboardActivityLoaded(result) => match result {
+                Ok(activity) => app_lock.dash_activity = activity,
+                Err(e) => app_lock.status_message = format!("Activity error: {}", e),
+            },
 
             // ── Plans ────────────────────────────────────────────────────────
             AppEvent::PlansLoaded(result) => {
@@ -419,7 +407,8 @@ async fn run_app(
                         let tx = event_tx.clone();
                         let sid = app_lock.active_session_id.clone();
                         tokio::spawn(async move {
-                            let result = auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
+                            let result =
+                                auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::PlansLoaded(result));
                         });
                     }
@@ -446,23 +435,21 @@ async fn run_app(
                 }
                 app_lock.missions_loading = false;
             }
-            AppEvent::MissionActionDone(result) => {
-                match result {
-                    Ok(()) => {
-                        app_lock.status_message = "Mission action completed".to_string();
-                        let c = client.clone();
-                        let tx = event_tx.clone();
-                        tokio::spawn(async move {
-                            let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
-                            let _ = tx.send(AppEvent::MissionsLoaded(result));
-                        });
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Mission action failed: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+            AppEvent::MissionActionDone(result) => match result {
+                Ok(()) => {
+                    app_lock.status_message = "Mission action completed".to_string();
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::MissionsLoaded(result));
+                    });
                 }
-            }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Mission action failed: {}", e));
+                    app_lock.toast_ticks = 10;
+                }
+            },
 
             // ── Skills ───────────────────────────────────────────────────────
             AppEvent::SkillsLoaded(result) => {
@@ -480,30 +467,29 @@ async fn run_app(
                 }
                 app_lock.skills_loading = false;
             }
-            AppEvent::SkillActionDone(result) => {
-                match result {
-                    Ok(()) => {
-                        app_lock.status_message = "Skill action completed".to_string();
-                        let c = client.clone();
-                        let tx = event_tx.clone();
-                        tokio::spawn(async move {
-                            let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
-                            let _ = tx.send(AppEvent::SkillsLoaded(result));
-                        });
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Skill action failed: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+            AppEvent::SkillActionDone(result) => match result {
+                Ok(()) => {
+                    app_lock.status_message = "Skill action completed".to_string();
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::SkillsLoaded(result));
+                    });
                 }
-            }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Skill action failed: {}", e));
+                    app_lock.toast_ticks = 10;
+                }
+            },
 
             // ── Containers ───────────────────────────────────────────────────
             AppEvent::ContainersLoaded(result) => {
                 match result {
                     Ok(containers) => {
                         app_lock.containers = containers;
-                        if app_lock.containers_selected.is_none() && !app_lock.containers.is_empty() {
+                        if app_lock.containers_selected.is_none() && !app_lock.containers.is_empty()
+                        {
                             app_lock.containers_selected = Some(0);
                         }
                     }
@@ -514,29 +500,28 @@ async fn run_app(
                 }
                 app_lock.containers_loading = false;
             }
-            AppEvent::ContainerActionDone(result) => {
-                match result {
-                    Ok(_) => {
-                        app_lock.status_message = "Container action completed".to_string();
-                        let c = client.clone();
-                        let tx = event_tx.clone();
-                        tokio::spawn(async move {
-                            let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
-                            let _ = tx.send(AppEvent::ContainersLoaded(result));
-                        });
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Container action failed: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+            AppEvent::ContainerActionDone(result) => match result {
+                Ok(_) => {
+                    app_lock.status_message = "Container action completed".to_string();
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::ContainersLoaded(result));
+                    });
                 }
-            }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Container action failed: {}", e));
+                    app_lock.toast_ticks = 10;
+                }
+            },
             AppEvent::ContainerLogsLoaded(result) => {
                 match result {
                     Ok(val) => {
                         // Display container logs as a toast or in a dedicated area
                         if let Some(logs) = val.as_str() {
-                            app_lock.toast = Some(format!("Container logs:\n{}", truncate_str(logs, 500)));
+                            app_lock.toast =
+                                Some(format!("Container logs:\n{}", truncate_str(logs, 500)));
                             app_lock.toast_ticks = 20;
                         }
                     }
@@ -565,30 +550,26 @@ async fn run_app(
                 }
                 app_lock.config_loading = false;
             }
-            AppEvent::ConfigSchemaLoaded(result) => {
-                match result {
-                    Ok(schema) => {
-                        app_lock.config_schema = schema;
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Failed to load config schema: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+            AppEvent::ConfigSchemaLoaded(result) => match result {
+                Ok(schema) => {
+                    app_lock.config_schema = schema;
                 }
-            }
-            AppEvent::ConfigSaved(result) => {
-                match result {
-                    Ok(()) => {
-                        app_lock.config_dirty = false;
-                        app_lock.toast = Some("✓ Configuration saved".to_string());
-                        app_lock.toast_ticks = 8;
-                    }
-                    Err(e) => {
-                        app_lock.toast = Some(format!("Failed to save config: {}", e));
-                        app_lock.toast_ticks = 10;
-                    }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Failed to load config schema: {}", e));
+                    app_lock.toast_ticks = 10;
                 }
-            }
+            },
+            AppEvent::ConfigSaved(result) => match result {
+                Ok(()) => {
+                    app_lock.config_dirty = false;
+                    app_lock.toast = Some("✓ Configuration saved".to_string());
+                    app_lock.toast_ticks = 8;
+                }
+                Err(e) => {
+                    app_lock.toast = Some(format!("Failed to save config: {}", e));
+                    app_lock.toast_ticks = 10;
+                }
+            },
             AppEvent::VaultStatusLoaded(result) => {
                 match result {
                     Ok(_status) => {
@@ -606,7 +587,9 @@ async fn run_app(
                 match result {
                     Ok(files) => {
                         app_lock.knowledge_files = files;
-                        if app_lock.knowledge_selected.is_none() && !app_lock.knowledge_files.is_empty() {
+                        if app_lock.knowledge_selected.is_none()
+                            && !app_lock.knowledge_files.is_empty()
+                        {
                             app_lock.knowledge_selected = Some(0);
                         }
                     }
@@ -626,7 +609,9 @@ async fn run_app(
                         let c = client.clone();
                         let tx = event_tx.clone();
                         tokio::spawn(async move {
-                            let result = auth::fetch_knowledge_files(&c).await.map_err(|e| e.to_string());
+                            let result = auth::fetch_knowledge_files(&c)
+                                .await
+                                .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::KnowledgeFilesLoaded(result));
                         });
                     }
@@ -665,11 +650,19 @@ async fn run_app(
                         let media_type = match app_lock.media_tab {
                             MediaTab::Audio => "audio",
                             MediaTab::Documents => "documents",
-                        }.to_string();
+                        }
+                        .to_string();
                         let offset = app_lock.media_offset;
-                        let query = if app_lock.media_search.is_empty() { None } else { Some(app_lock.media_search.clone()) };
+                        let query = if app_lock.media_search.is_empty() {
+                            None
+                        } else {
+                            Some(app_lock.media_search.clone())
+                        };
                         tokio::spawn(async move {
-                            let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref()).await.map_err(|e| e.to_string());
+                            let result =
+                                auth::fetch_media(&c, &media_type, 50, offset, query.as_deref())
+                                    .await
+                                    .map_err(|e| e.to_string());
                             let _ = tx.send(AppEvent::MediaLoaded(result));
                         });
                     }
@@ -706,11 +699,7 @@ fn handle_key_event(
             Screen::Chat
         };
         if app_lock.screen == Screen::Chat {
-            let tx = event_tx.clone();
-            let c = client.clone();
-            tokio::spawn(async move {
-                start_chat_session(&c, tx).await;
-            });
+            start_new_chat_session(sse_handle, client, event_tx);
         }
         return;
     }
@@ -749,7 +738,9 @@ fn handle_key_event(
 
     // Handle confirmation dialog
     if app_lock.confirm_action.is_some() {
-        if key.code == crossterm::event::KeyCode::Char('y') || key.code == crossterm::event::KeyCode::Char('Y') {
+        if key.code == crossterm::event::KeyCode::Char('y')
+            || key.code == crossterm::event::KeyCode::Char('Y')
+        {
             let action = app_lock.confirm_action.take();
             if let Some(confirm) = action {
                 execute_confirmed_action(confirm, app_lock, client, event_tx);
@@ -867,8 +858,12 @@ fn dispatch_action(
                 let t = tx.clone();
                 tokio::spawn(async move {
                     match auth::login(&c, &password, &totp).await {
-                        Ok(_) => { let _ = t.send(AppEvent::LoginResult(Ok(()))); }
-                        Err(e) => { let _ = t.send(AppEvent::LoginResult(Err(e.to_string()))); }
+                        Ok(_) => {
+                            let _ = t.send(AppEvent::LoginResult(Ok(())));
+                        }
+                        Err(e) => {
+                            let _ = t.send(AppEvent::LoginResult(Err(e.to_string())));
+                        }
                     }
                 });
             } else if app.screen == Screen::Chat && !app.chat_input.trim().is_empty() {
@@ -896,11 +891,20 @@ fn dispatch_action(
                         messages,
                         stream: true,
                     };
-                    match c.request::<ChatCompletionRequest, serde_json::Value>(
-                        Method::POST, "/v1/chat/completions", Some(&req),
-                    ).await {
-                        Ok(_) => { let _ = t.send(AppEvent::ChatSent); }
-                        Err(e) => { let _ = t.send(AppEvent::ChatError(e.to_string())); }
+                    match c
+                        .request::<ChatCompletionRequest, serde_json::Value>(
+                            Method::POST,
+                            "/v1/chat/completions",
+                            Some(&req),
+                        )
+                        .await
+                    {
+                        Ok(_) => {
+                            let _ = t.send(AppEvent::ChatSent);
+                        }
+                        Err(e) => {
+                            let _ = t.send(AppEvent::ChatError(e.to_string()));
+                        }
                     }
                 });
             }
@@ -992,7 +996,10 @@ fn dispatch_action(
             } else if app.screen == Screen::Config && app.config_editing {
                 if app.config_edit_cursor > 0 {
                     app.config_edit_cursor -= 1;
-                    app.config_edit_value.remove(app.config_edit_cursor);
+                    let byte_idx = char_to_byte(&app.config_edit_value, app.config_edit_cursor);
+                    if byte_idx < app.config_edit_value.len() {
+                        app.config_edit_value.remove(byte_idx);
+                    }
                 }
             } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
                 app.knowledge_search.pop();
@@ -1004,8 +1011,11 @@ fn dispatch_action(
         }
         Action::DeleteChar => {
             if app.screen == Screen::Config && app.config_editing {
-                if app.config_edit_cursor < app.config_edit_value.len() {
-                    app.config_edit_value.remove(app.config_edit_cursor);
+                if app.config_edit_cursor < char_len(&app.config_edit_value) {
+                    let byte_idx = char_to_byte(&app.config_edit_value, app.config_edit_cursor);
+                    if byte_idx < app.config_edit_value.len() {
+                        app.config_edit_value.remove(byte_idx);
+                    }
                 }
             } else if app.screen == Screen::Chat {
                 app.delete_at_cursor();
@@ -1013,14 +1023,18 @@ fn dispatch_action(
         }
         Action::CursorLeft => {
             if app.screen == Screen::Config && app.config_editing {
-                if app.config_edit_cursor > 0 { app.config_edit_cursor -= 1; }
+                if app.config_edit_cursor > 0 {
+                    app.config_edit_cursor -= 1;
+                }
             } else if app.screen == Screen::Chat {
                 app.cursor_left();
             }
         }
         Action::CursorRight => {
             if app.screen == Screen::Config && app.config_editing {
-                if app.config_edit_cursor < app.config_edit_value.len() { app.config_edit_cursor += 1; }
+                if app.config_edit_cursor < char_len(&app.config_edit_value) {
+                    app.config_edit_cursor += 1;
+                }
             } else if app.screen == Screen::Chat {
                 app.cursor_right();
             }
@@ -1034,7 +1048,7 @@ fn dispatch_action(
         }
         Action::CursorEnd => {
             if app.screen == Screen::Config && app.config_editing {
-                app.config_edit_cursor = app.config_edit_value.len();
+                app.config_edit_cursor = char_len(&app.config_edit_value);
             } else if app.screen == Screen::Chat {
                 app.cursor_end();
             }
@@ -1059,10 +1073,14 @@ fn dispatch_action(
                 if is_backspace {
                     if app.config_edit_cursor > 0 {
                         app.config_edit_cursor -= 1;
-                        app.config_edit_value.remove(app.config_edit_cursor);
+                        let byte_idx = char_to_byte(&app.config_edit_value, app.config_edit_cursor);
+                        if byte_idx < app.config_edit_value.len() {
+                            app.config_edit_value.remove(byte_idx);
+                        }
                     }
                 } else if !c.is_control() {
-                    app.config_edit_value.insert(app.config_edit_cursor, c);
+                    let byte_idx = char_to_byte(&app.config_edit_value, app.config_edit_cursor);
+                    app.config_edit_value.insert(byte_idx, c);
                     app.config_edit_cursor += 1;
                 }
             } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
@@ -1172,7 +1190,9 @@ fn dispatch_action(
                     let t = tx.clone();
                     let data = app.config_data.clone();
                     tokio::spawn(async move {
-                        let result = auth::save_config(&c, &data).await.map_err(|e| e.to_string());
+                        let result = auth::save_config(&c, &data)
+                            .await
+                            .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ConfigSaved(result));
                     });
                 }
@@ -1217,7 +1237,8 @@ fn dispatch_action(
                     let t = tx.clone();
                     let sid = app.active_session_id.clone();
                     tokio::spawn(async move {
-                        let result = auth::fetch_history_for_session(&c, &sid).await
+                        let result = auth::fetch_history_for_session(&c, &sid)
+                            .await
                             .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::HistoryLoaded(result));
                     });
@@ -1240,7 +1261,9 @@ fn dispatch_action(
                     let c = client.clone();
                     let t = tx.clone();
                     tokio::spawn(async move {
-                        let result = auth::delete_session(&c, &id).await.map_err(|e| e.to_string());
+                        let result = auth::delete_session(&c, &id)
+                            .await
+                            .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::SessionDeleted(result));
                     });
                 } else {
@@ -1285,26 +1308,22 @@ fn dispatch_action(
         }
 
         // ── Search ────────────────────────────────────────────────────────────
-        Action::SearchActivate => {
-            match app.screen {
-                Screen::Knowledge => app.knowledge_search_active = true,
-                Screen::Media => app.media_search_active = true,
-                _ => {}
+        Action::SearchActivate => match app.screen {
+            Screen::Knowledge => app.knowledge_search_active = true,
+            Screen::Media => app.media_search_active = true,
+            _ => {}
+        },
+        Action::SearchDeactivate => match app.screen {
+            Screen::Knowledge => {
+                app.knowledge_search_active = false;
+                app.knowledge_search.clear();
             }
-        }
-        Action::SearchDeactivate => {
-            match app.screen {
-                Screen::Knowledge => {
-                    app.knowledge_search_active = false;
-                    app.knowledge_search.clear();
-                }
-                Screen::Media => {
-                    app.media_search_active = false;
-                    app.media_search.clear();
-                }
-                _ => {}
+            Screen::Media => {
+                app.media_search_active = false;
+                app.media_search.clear();
             }
-        }
+            _ => {}
+        },
         Action::SearchSubmit => {
             match app.screen {
                 Screen::Knowledge => {
@@ -1335,6 +1354,7 @@ fn dispatch_action(
                         }
                         if let Some((_, value)) = fields.get(app.config_field_index) {
                             app.config_edit_value = value.to_string();
+                            app.config_edit_cursor = char_len(&app.config_edit_value);
                             app.config_editing = true;
                         }
                     }
@@ -1412,11 +1432,7 @@ fn navigate_and_load(
 }
 
 /// Load data appropriate for the current screen
-fn load_data_for_screen(
-    app: &mut AppState,
-    client: &ApiClient,
-    tx: &UnboundedSender<AppEvent>,
-) {
+fn load_data_for_screen(app: &mut AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     match app.screen {
         Screen::Dashboard => {
             app.dash_loading = true;
@@ -1441,7 +1457,9 @@ fn load_data_for_screen(
             let c = client.clone();
             let t = tx.clone();
             tokio::spawn(async move {
-                let result = auth::fetch_personality_state(&c).await.map_err(|e| e.to_string());
+                let result = auth::fetch_personality_state(&c)
+                    .await
+                    .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::DashboardPersonalityLoaded(result));
             });
             let c = client.clone();
@@ -1505,7 +1523,9 @@ fn load_data_for_screen(
             let c = client.clone();
             let t = tx.clone();
             tokio::spawn(async move {
-                let result = auth::fetch_config_schema(&c).await.map_err(|e| e.to_string());
+                let result = auth::fetch_config_schema(&c)
+                    .await
+                    .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::ConfigSchemaLoaded(result));
             });
         }
@@ -1514,7 +1534,9 @@ fn load_data_for_screen(
             let c = client.clone();
             let t = tx.clone();
             tokio::spawn(async move {
-                let result = auth::fetch_knowledge_files(&c).await.map_err(|e| e.to_string());
+                let result = auth::fetch_knowledge_files(&c)
+                    .await
+                    .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::KnowledgeFilesLoaded(result));
             });
         }
@@ -1525,11 +1547,18 @@ fn load_data_for_screen(
             let media_type = match app.media_tab {
                 MediaTab::Audio => "audio",
                 MediaTab::Documents => "documents",
-            }.to_string();
+            }
+            .to_string();
             let offset = app.media_offset;
-            let query = if app.media_search.is_empty() { None } else { Some(app.media_search.clone()) };
+            let query = if app.media_search.is_empty() {
+                None
+            } else {
+                Some(app.media_search.clone())
+            };
             tokio::spawn(async move {
-                let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref()).await.map_err(|e| e.to_string());
+                let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref())
+                    .await
+                    .map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::MediaLoaded(result));
             });
         }
@@ -1538,11 +1567,7 @@ fn load_data_for_screen(
 }
 
 /// Load detail data for the currently selected list item
-fn load_detail_for_selected(
-    app: &AppState,
-    client: &ApiClient,
-    tx: &UnboundedSender<AppEvent>,
-) {
+fn load_detail_for_selected(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     match app.screen {
         Screen::Plans => {
             if let Some(idx) = app.plans_selected {
@@ -1551,7 +1576,9 @@ fn load_detail_for_selected(
                     let c = client.clone();
                     let t = tx.clone();
                     tokio::spawn(async move {
-                        let result = auth::fetch_plan_detail(&c, &id).await.map_err(|e| e.to_string());
+                        let result = auth::fetch_plan_detail(&c, &id)
+                            .await
+                            .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::PlanDetailLoaded(result));
                     });
                 }
@@ -1564,7 +1591,9 @@ fn load_detail_for_selected(
                     let c = client.clone();
                     let t = tx.clone();
                     tokio::spawn(async move {
-                        let result = auth::fetch_container_logs(&c, &id).await.map_err(|e| e.to_string());
+                        let result = auth::fetch_container_logs(&c, &id)
+                            .await
+                            .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ContainerLogsLoaded(result));
                     });
                 }
@@ -1575,11 +1604,7 @@ fn load_detail_for_selected(
 }
 
 /// Execute the primary action (Enter) for the selected item
-fn execute_primary_action(
-    app: &AppState,
-    client: &ApiClient,
-    tx: &UnboundedSender<AppEvent>,
-) {
+fn execute_primary_action(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     match app.screen {
         Screen::Plans => {
             if let Some(idx) = app.plans_selected {
@@ -1610,78 +1635,20 @@ fn execute_primary_action(
         Screen::Containers => {
             if let Some(idx) = app.containers_selected {
                 if let Some(container) = app.containers.get(idx) {
-                    let action_str = if container.state == "running" { "stop" } else { "start" };
+                    let action_str = if container.state == "running" {
+                        "stop"
+                    } else {
+                        "start"
+                    };
                     let id = container.id.clone();
                     let c = client.clone();
                     let t = tx.clone();
                     let a = action_str.to_string();
                     tokio::spawn(async move {
-                        let result = auth::container_action(&c, &id, &a).await.map_err(|e| e.to_string());
+                        let result = auth::container_action(&c, &id, &a)
+                            .await
+                            .map_err(|e| e.to_string());
                         let _ = t.send(AppEvent::ContainerActionDone(result));
-                    });
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Execute delete action for the selected item
-#[allow(dead_code)]
-fn execute_delete_action(
-    app: &AppState,
-    client: &ApiClient,
-    tx: &UnboundedSender<AppEvent>,
-) {
-    match app.screen {
-        Screen::Missions => {
-            if let Some(idx) = app.missions_selected {
-                if let Some(mission) = app.missions.get(idx) {
-                    let id = mission.id.clone();
-                    let c = client.clone();
-                    let t = tx.clone();
-                    tokio::spawn(async move {
-                        let result = auth::delete_mission(&c, &id).await.map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::MissionActionDone(result));
-                    });
-                }
-            }
-        }
-        Screen::Containers => {
-            if let Some(idx) = app.containers_selected {
-                if let Some(container) = app.containers.get(idx) {
-                    let id = container.id.clone();
-                    let c = client.clone();
-                    let t = tx.clone();
-                    tokio::spawn(async move {
-                        let result = auth::remove_container(&c, &id, false).await.map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::ContainerActionDone(result));
-                    });
-                }
-            }
-        }
-        Screen::Knowledge => {
-            if let Some(idx) = app.knowledge_selected {
-                if let Some(file) = app.knowledge_files.get(idx) {
-                    let name = file.name.clone();
-                    let c = client.clone();
-                    let t = tx.clone();
-                    tokio::spawn(async move {
-                        let result = auth::delete_knowledge_file(&c, &name).await.map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::KnowledgeFileDeleted(result));
-                    });
-                }
-            }
-        }
-        Screen::Media => {
-            if let Some(idx) = app.media_selected {
-                if let Some(item) = app.media_items.get(idx) {
-                    let id = item.id;
-                    let c = client.clone();
-                    let t = tx.clone();
-                    tokio::spawn(async move {
-                        let result = auth::delete_media(&c, id).await.map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::MediaDeleted(result));
                     });
                 }
             }
@@ -1691,11 +1658,7 @@ fn execute_delete_action(
 }
 
 /// Execute toggle action (enable/disable) for the selected item
-fn execute_toggle_action(
-    app: &AppState,
-    client: &ApiClient,
-    tx: &UnboundedSender<AppEvent>,
-) {
+fn execute_toggle_action(app: &AppState, client: &ApiClient, tx: &UnboundedSender<AppEvent>) {
     if app.screen == Screen::Skills {
         if let Some(idx) = app.skills_selected {
             if let Some(skill) = app.skills.get(idx) {
@@ -1704,7 +1667,9 @@ fn execute_toggle_action(
                 let c = client.clone();
                 let t = tx.clone();
                 tokio::spawn(async move {
-                    let result = auth::toggle_skill(&c, &id, new_state).await.map_err(|e| e.to_string());
+                    let result = auth::toggle_skill(&c, &id, new_state)
+                        .await
+                        .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::SkillActionDone(result));
                 });
             }
@@ -1715,10 +1680,18 @@ fn execute_toggle_action(
 /// Show a delete confirmation dialog for the current context
 fn show_delete_confirmation(app: &mut AppState) {
     let confirm = match app.screen {
-        Screen::Missions => app.missions_selected.map(|i| ConfirmAction::DeleteMission { index: i }),
-        Screen::Containers => app.containers_selected.map(|i| ConfirmAction::DeleteContainer { index: i }),
-        Screen::Knowledge => app.knowledge_selected.map(|i| ConfirmAction::DeleteKnowledge { index: i }),
-        Screen::Media => app.media_selected.map(|i| ConfirmAction::DeleteMedia { index: i }),
+        Screen::Missions => app
+            .missions_selected
+            .map(|i| ConfirmAction::DeleteMission { index: i }),
+        Screen::Containers => app
+            .containers_selected
+            .map(|i| ConfirmAction::DeleteContainer { index: i }),
+        Screen::Knowledge => app
+            .knowledge_selected
+            .map(|i| ConfirmAction::DeleteKnowledge { index: i }),
+        Screen::Media => app
+            .media_selected
+            .map(|i| ConfirmAction::DeleteMedia { index: i }),
         _ => None,
     };
     if let Some(c) = confirm {
@@ -1740,7 +1713,9 @@ fn execute_confirmed_action(
                 let c = client.clone();
                 let t = tx.clone();
                 tokio::spawn(async move {
-                    let result = auth::delete_mission(&c, &id).await.map_err(|e| e.to_string());
+                    let result = auth::delete_mission(&c, &id)
+                        .await
+                        .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::MissionActionDone(result));
                 });
             }
@@ -1751,7 +1726,9 @@ fn execute_confirmed_action(
                 let c = client.clone();
                 let t = tx.clone();
                 tokio::spawn(async move {
-                    let result = auth::remove_container(&c, &id, false).await.map_err(|e| e.to_string());
+                    let result = auth::remove_container(&c, &id, false)
+                        .await
+                        .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::ContainerActionDone(result));
                 });
             }
@@ -1762,7 +1739,9 @@ fn execute_confirmed_action(
                 let c = client.clone();
                 let t = tx.clone();
                 tokio::spawn(async move {
-                    let result = auth::delete_knowledge_file(&c, &name).await.map_err(|e| e.to_string());
+                    let result = auth::delete_knowledge_file(&c, &name)
+                        .await
+                        .map_err(|e| e.to_string());
                     let _ = t.send(AppEvent::KnowledgeFileDeleted(result));
                 });
             }
@@ -1811,11 +1790,18 @@ fn draw_confirm_dialog(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
         Line::from(""),
         Line::from(Span::styled(
             format!(" ⚠️  Confirm: {}? ", action_text),
-            Style::default().fg(theme.warning).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.warning)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  y", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  y",
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" = Confirm   ", Style::default().fg(theme.fg)),
             Span::styled("Any other key", Style::default().fg(theme.accent)),
             Span::styled(" = Cancel", Style::default().fg(theme.fg)),
@@ -1873,7 +1859,9 @@ fn draw_nav_bar(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
             let marker = if is_current { "● " } else { "  " };
             let arrow = if is_selected { "▸ " } else { "  " };
             let style = if is_selected {
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD)
             } else if is_current {
                 Style::default().fg(theme.fg).add_modifier(Modifier::BOLD)
             } else {
@@ -1898,38 +1886,48 @@ fn draw_nav_bar(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
 /// Starts a chat session: fetches history and opens an SSE connection.
 /// Returns a `JoinHandle` for the SSE connection task (the reconnect loop).
 /// The caller should abort this handle before starting a new session.
-pub async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) -> tokio::task::JoinHandle<()> {
-    // Fetch history
-    match auth::fetch_history(client).await {
-        Ok(history) => {
-            let _ = tx.send(AppEvent::HistoryLoaded(Ok(history)));
-        }
-        Err(e) => {
-            let _ = tx.send(AppEvent::HistoryLoaded(Err(e.to_string())));
-        }
-    }
-
-    // Start SSE stream
-    let url = client.sse_url("/events");
-    let c = client.client.clone();
-    let origin = client.base_url.clone();
-    let cookie = client.get_session_cookie();
-    let (sse_tx, mut sse_rx) = mpsc::unbounded_channel::<sse::SseEvent>();
-
-    let handle = tokio::spawn(async move {
-        sse::connect_sse(c, url, origin, cookie, sse_tx).await;
-    });
-
-    let tx2 = tx.clone();
+pub fn start_chat_session(
+    client: ApiClient,
+    tx: UnboundedSender<AppEvent>,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        while let Some(ev) = sse_rx.recv().await {
-            if tx2.send(AppEvent::Sse(ev)).is_err() {
-                break;
+        match auth::fetch_history(&client).await {
+            Ok(history) => {
+                let _ = tx.send(AppEvent::HistoryLoaded(Ok(history)));
+            }
+            Err(e) => {
+                let _ = tx.send(AppEvent::HistoryLoaded(Err(e.to_string())));
             }
         }
-    });
 
-    handle
+        let url = client.sse_url("/events");
+        let c = client.client.clone();
+        let origin = client.base_url.clone();
+        let cookie = client.get_session_cookie();
+        let (sse_tx, mut sse_rx) = mpsc::unbounded_channel::<sse::SseEvent>();
+
+        let tx2 = tx.clone();
+        tokio::spawn(async move {
+            while let Some(ev) = sse_rx.recv().await {
+                if tx2.send(AppEvent::Sse(ev)).is_err() {
+                    break;
+                }
+            }
+        });
+
+        sse::connect_sse(c, url, origin, cookie, sse_tx).await;
+    })
+}
+
+fn start_new_chat_session(
+    sse_handle: &mut Option<tokio::task::JoinHandle<()>>,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    if let Some(handle) = sse_handle.take() {
+        handle.abort();
+    }
+    *sse_handle = Some(start_chat_session(client.clone(), tx.clone()));
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────
@@ -1979,19 +1977,5 @@ fn set_nested_config_value(
         if let Some(obj) = section_data.as_object_mut() {
             obj.insert(field_key.to_string(), new_val);
         }
-    }
-}
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let mut end = max_len;
-        while !s.is_char_boundary(end) && end > 0 {
-            end -= 1;
-        }
-        format!("{}…", &s[..end])
     }
 }

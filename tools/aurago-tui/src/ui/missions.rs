@@ -1,13 +1,14 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
-use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
+use crate::app::AppState;
 
 pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -35,8 +36,16 @@ pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
 }
 
 fn draw_missions_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
-    let title = Span::styled(" 🚀 Missions ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
-    let count = Span::styled(format!(" ({} missions)", app.missions.len()), Style::default().fg(theme.accent_dim));
+    let title = Span::styled(
+        " 🚀 Missions ",
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    );
+    let count = Span::styled(
+        format!(" ({} missions)", app.missions.len()),
+        Style::default().fg(theme.accent_dim),
+    );
     let block = Block::default()
         .borders(Borders::BOTTOM)
         .border_style(Style::default().fg(theme.border));
@@ -69,25 +78,25 @@ fn draw_missions_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     let items: Vec<ListItem> = if app.missions.is_empty() {
         vec![ListItem::new(Line::from("No missions found"))]
     } else {
-        app.missions.iter().enumerate().map(|(i, m)| {
-            let is_selected = app.missions_selected == Some(i);
-            let style = if is_selected {
-                Style::default().bg(theme.accent).fg(theme.bg)
-            } else {
-                Style::default().fg(theme.fg)
-            };
-            let icon = mission_type_icon(&m.exec_type);
-            let name = if m.name.len() > 22 {
-                format!("{}...", &m.name[..19])
-            } else {
-                m.name.clone()
-            };
-            let status_dot = mission_status_dot(&m.status);
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("{}{} ", icon, status_dot), style),
-                Span::styled(name, style),
-            ]))
-        }).collect()
+        app.missions
+            .iter()
+            .enumerate()
+            .map(|(i, m)| {
+                let is_selected = app.missions_selected == Some(i);
+                let style = if is_selected {
+                    Style::default().bg(theme.accent).fg(theme.bg)
+                } else {
+                    Style::default().fg(theme.fg)
+                };
+                let icon = mission_type_icon(&m.exec_type);
+                let name = utils::truncate_str(&m.name, 22);
+                let status_dot = mission_status_dot(&m.status);
+                ListItem::new(Line::from(vec![
+                    Span::styled(format!("{}{} ", icon, status_dot), style),
+                    Span::styled(name, style),
+                ]))
+            })
+            .collect()
     };
 
     let block = Block::default()
@@ -107,7 +116,10 @@ fn draw_missions_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("Name: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(&m.name, Style::default().fg(theme.fg).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &m.name,
+                    Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(theme.accent_dim)),
@@ -118,7 +130,10 @@ fn draw_missions_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
             ]),
             Line::from(vec![
                 Span::styled("Type: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(format!("{} {}", mission_type_icon(&m.exec_type), m.exec_type), Style::default().fg(theme.accent)),
+                Span::styled(
+                    format!("{} {}", mission_type_icon(&m.exec_type), m.exec_type),
+                    Style::default().fg(theme.accent),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Priority: ", Style::default().fg(theme.accent_dim)),
@@ -150,17 +165,15 @@ fn draw_missions_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             "Prompt:",
-            Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
         )));
 
         // Wrap prompt text
         let prompt_lines: Vec<&str> = m.prompt.lines().take(20).collect();
         for line in prompt_lines {
-            let truncated = if line.len() > 100 {
-                format!("{}...", &line[..97])
-            } else {
-                line.to_string()
-            };
+            let truncated = utils::truncate_str(line, 100);
             lines.push(Line::from(Span::styled(
                 format!("  {}", truncated),
                 Style::default().fg(theme.fg),

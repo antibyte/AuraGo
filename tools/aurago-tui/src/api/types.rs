@@ -76,11 +76,11 @@ pub struct LLMStreamDelta {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenUpdatePayload {
-    pub prompt: i32,
-    pub completion: i32,
-    pub total: i32,
-    pub session_total: i32,
-    pub global_total: i32,
+    pub prompt: i64,
+    pub completion: i64,
+    pub total: i64,
+    pub session_total: i64,
+    pub global_total: i64,
     #[serde(default)]
     pub is_estimated: bool,
     #[serde(default)]
@@ -307,40 +307,6 @@ pub struct CronEntry {
     pub enabled: bool,
 }
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ConfigSection {
-    #[serde(default)]
-    pub key: String,
-    #[serde(default)]
-    pub label: String,
-    #[serde(default)]
-    pub fields: Vec<ConfigField>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ConfigField {
-    #[serde(default)]
-    pub key: String,
-    #[serde(default)]
-    pub label: String,
-    #[serde(default)]
-    pub field_type: String,
-    #[serde(default)]
-    pub value: serde_json::Value,
-    #[serde(default)]
-    pub default: serde_json::Value,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub options: Vec<String>,
-    #[serde(default)]
-    pub disabled: bool,
-    #[serde(default)]
-    pub sensitive: bool,
-}
-
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct VaultStatus {
     #[serde(default)]
@@ -377,6 +343,8 @@ pub struct MediaItem {
     pub format: String,
     #[serde(default)]
     pub media_type: String,
+    #[serde(default)]
+    pub size: i64,
     #[serde(default)]
     pub created_at: String,
     #[serde(default)]

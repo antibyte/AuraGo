@@ -1,14 +1,14 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
-    Frame,
 };
 
-use crate::app::AppState;
-use super::theme::{spinner_frame, Theme};
+use super::theme::{Theme, spinner_frame};
 use super::utils;
+use crate::app::AppState;
 
 pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -69,9 +69,11 @@ fn draw_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .border_style(Style::default().fg(theme.border))
         .style(Style::default().bg(theme.bg));
 
-    let para = Paragraph::new(header_text)
-        .block(block)
-        .style(Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
+    let para = Paragraph::new(header_text).block(block).style(
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    );
     f.render_widget(para, area);
 }
 
@@ -126,7 +128,10 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             "tool" => ("🔧 ", theme.tool_msg),
             _ => ("💬 ", theme.system_msg),
         };
-        let prefix_span = Span::styled(prefix, Style::default().fg(color).add_modifier(Modifier::BOLD));
+        let prefix_span = Span::styled(
+            prefix,
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        );
         for (i, line_text) in msg.content.lines().enumerate() {
             if i == 0 {
                 lines.push(Line::from(vec![
@@ -163,8 +168,16 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     // Show "new messages" indicator when not auto-scrolling
     if !app.auto_scroll && !app.chat_messages.is_empty() {
         lines.push(Line::from(vec![
-            Span::styled("  ↓ ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
-            Span::styled("New messages — press Ctrl+G to scroll down", Style::default().fg(theme.accent_dim)),
+            Span::styled(
+                "  ↓ ",
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "New messages — press Ctrl+G to scroll down",
+                Style::default().fg(theme.accent_dim),
+            ),
         ]));
     }
 
@@ -178,11 +191,15 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"))
         .track_symbol(Some("│"));
-    let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(app.chat_messages.len().saturating_mul(3))
-        .position(app.scroll.min(app.chat_messages.len().saturating_mul(3)));
+    let mut scrollbar_state =
+        ratatui::widgets::ScrollbarState::new(app.chat_messages.len().saturating_mul(3))
+            .position(app.scroll.min(app.chat_messages.len().saturating_mul(3)));
     f.render_stateful_widget(
         scrollbar,
-        inner.inner(Margin { horizontal: 0, vertical: 0 }),
+        inner.inner(Margin {
+            horizontal: 0,
+            vertical: 0,
+        }),
         &mut scrollbar_state,
     );
 }
@@ -203,7 +220,9 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     // Convert character cursor to byte offset for split_at to avoid panic with non-ASCII
     let char_count = app.chat_input.chars().count();
     let cursor_char = app.chat_input_cursor.min(char_count);
-    let byte_idx = app.chat_input.char_indices()
+    let byte_idx = app
+        .chat_input
+        .char_indices()
         .nth(cursor_char)
         .map(|(i, _)| i)
         .unwrap_or_else(|| app.chat_input.len());
@@ -283,17 +302,28 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
             .map(|(i, s)| {
                 let is_active = s.id == app.active_session_id;
                 let is_highlighted = i == app.session_drawer_index;
-                let marker = if is_active { "● " } else if is_highlighted { "▸ " } else { "  " };
+                let marker = if is_active {
+                    "● "
+                } else if is_highlighted {
+                    "▸ "
+                } else {
+                    "  "
+                };
                 let name = if s.name.is_empty() {
-                    format!("Session {}", &s.id[..8.min(s.id.len())])
+                    format!("Session {}", utils::truncate_str(&s.id, 8))
                 } else {
                     s.name.clone()
                 };
                 let count = format!(" ({})", s.message_count);
                 let style = if is_highlighted {
-                    Style::default().bg(theme.accent).fg(theme.bg).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .bg(theme.accent)
+                        .fg(theme.bg)
+                        .add_modifier(Modifier::BOLD)
                 } else if is_active {
-                    Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(theme.accent)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(theme.fg)
                 };
@@ -311,17 +341,36 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
 
     // Footer hints
     let hints = Line::from(vec![
-        Span::styled(" j/k", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " j/k",
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Navigate  ", Style::default().fg(theme.accent_dim)),
-        Span::styled("n", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "n",
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" New  ", Style::default().fg(theme.accent_dim)),
-        Span::styled("d", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "d",
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Del  ", Style::default().fg(theme.accent_dim)),
-        Span::styled("Esc", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Esc",
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Close", Style::default().fg(theme.accent_dim)),
     ]);
-    let hint_para = Paragraph::new(hints)
-        .style(Style::default().bg(theme.bg));
+    let hint_para = Paragraph::new(hints).style(Style::default().bg(theme.bg));
     f.render_widget(hint_para, chunks[1]);
 }
 
@@ -334,7 +383,10 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         .border_style(Style::default().fg(theme.border_focus));
     let text = Text::from(vec![
         Line::from(""),
-        Line::from(Span::styled("── Chat ──────────────────────────", Style::default().fg(theme.accent))),
+        Line::from(Span::styled(
+            "── Chat ──────────────────────────",
+            Style::default().fg(theme.accent),
+        )),
         Line::from("Enter          Send message"),
         Line::from("Shift+Enter    New line"),
         Line::from("↑ / ↓          Scroll messages"),
@@ -343,7 +395,10 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Ctrl+S         Session drawer"),
         Line::from("Tab            Focus sidebar"),
         Line::from(""),
-        Line::from(Span::styled("── Navigation ────────────────────", Style::default().fg(theme.accent))),
+        Line::from(Span::styled(
+            "── Navigation ────────────────────",
+            Style::default().fg(theme.accent),
+        )),
         Line::from("F1             Open nav bar"),
         Line::from("F2             Chat"),
         Line::from("F3             Dashboard"),
@@ -354,7 +409,10 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Ctrl+N         Open nav bar"),
         Line::from("Ctrl+O         Logout"),
         Line::from(""),
-        Line::from(Span::styled("── List pages ────────────────────", Style::default().fg(theme.accent))),
+        Line::from(Span::styled(
+            "── List pages ────────────────────",
+            Style::default().fg(theme.accent),
+        )),
         Line::from("j / ↓          Move down"),
         Line::from("k / ↑          Move up"),
         Line::from("Enter          Select / detail"),
@@ -363,7 +421,10 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Delete         Delete item"),
         Line::from("r              Refresh"),
         Line::from(""),
-        Line::from(Span::styled("── General ───────────────────────", Style::default().fg(theme.accent))),
+        Line::from(Span::styled(
+            "── General ───────────────────────",
+            Style::default().fg(theme.accent),
+        )),
         Line::from("Esc / ?        Close help"),
         Line::from("Ctrl+T         Toggle theme"),
         Line::from("Ctrl+C         Quit"),
@@ -372,7 +433,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
     f.render_widget(para, area);
 }
 
-pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, anim: u16, _max_ticks: u16) {
+pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, _anim: u16, _max_ticks: u16) {
     let area = f.area();
     let toast_width = (area.width as usize * 70 / 100).max(40);
     let lines_needed = toast.lines().count().max(1);
@@ -383,12 +444,16 @@ pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, anim: u16, _max_tic
     f.render_widget(Clear, toast_area);
 
     let is_success = toast.starts_with('✓');
-    let border_color = if is_success { theme.success } else { theme.warning };
-    let text_color = if is_success { theme.success } else { theme.warning };
-
-    // Animate: pulse the border brightness
-    let pulse = if anim < 5 { 0.5 + (anim as f32 / 5.0) * 0.5 } else { 1.0 };
-    let _ = pulse;
+    let border_color = if is_success {
+        theme.success
+    } else {
+        theme.warning
+    };
+    let text_color = if is_success {
+        theme.success
+    } else {
+        theme.warning
+    };
 
     let block = Block::default()
         .title(" Notification ")

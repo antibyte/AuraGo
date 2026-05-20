@@ -1,13 +1,14 @@
 use ratatui::{
+    Frame,
     layout::Alignment,
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Clear, Paragraph},
-    Frame,
 };
 
 use super::theme::Theme;
 use super::utils;
+use crate::app::{char_len, char_to_byte};
 
 const LOGO: &[&str] = &[
     "  ░█████╗░██╗░░░██╗██████╗░░█████╗░░██████╗░░█████╗░  ",
@@ -45,13 +46,19 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
 
     // Typing effect for subtitle
     let subtitle = "Terminal Chat Client";
-    let visible_chars = ((tick as usize) / 3).min(subtitle.len());
-    let typed_text = &subtitle[..visible_chars];
-    let cursor = if visible_chars < subtitle.len() && tick % 6 < 3 { "▎" } else { "" };
+    let visible_chars = ((tick as usize) / 3).min(char_len(subtitle));
+    let typed_text = &subtitle[..char_to_byte(subtitle, visible_chars)];
+    let cursor = if visible_chars < char_len(subtitle) && tick % 6 < 3 {
+        "▎"
+    } else {
+        ""
+    };
     let display = format!("{:^40}", format!("{}{}", typed_text, cursor));
     lines.push(Line::from(Span::styled(
         display,
-        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(""));
 
@@ -75,5 +82,3 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
     let para = Paragraph::new(Text::from(lines)).alignment(Alignment::Center);
     f.render_widget(para, center);
 }
-
-

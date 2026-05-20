@@ -1,5 +1,5 @@
-use crate::api::types::*;
 use crate::api::sse::SseEvent;
+use crate::api::types::*;
 
 /// Convert a character index to a byte index in a string.
 /// Returns `s.len()` if char_idx is out of bounds.
@@ -15,7 +15,7 @@ pub fn char_len(s: &str) -> usize {
     s.chars().count()
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Screen {
     Splash,
     Login,
@@ -510,7 +510,7 @@ impl AppState {
     // ── Navigation helpers ────────────────────────────────────────────────
 
     pub fn navigate_to(&mut self, screen: Screen) {
-        self.screen = screen.clone();
+        self.screen = screen;
         self.nav_bar_index = screen.nav_index();
         self.nav_bar_open = false;
     }

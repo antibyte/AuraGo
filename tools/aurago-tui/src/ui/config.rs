@@ -6,15 +6,15 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
-use crate::app::AppState;
 use super::theme::Theme;
 use super::utils;
+use crate::app::{AppState, char_to_byte};
 
 pub fn draw_config(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // header
+            Constraint::Length(3), // header
             Constraint::Min(5),    // content
             Constraint::Length(1), // status
         ])
@@ -38,13 +38,20 @@ fn draw_config_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
             Span::raw("")
         },
         if app.config_dirty {
-            Span::styled("unsaved", Style::default().fg(ratatui::style::Color::Yellow))
+            Span::styled(
+                "unsaved",
+                Style::default().fg(ratatui::style::Color::Yellow),
+            )
         } else {
             Span::raw("")
         },
         Span::raw("  "),
         Span::styled(
-            format!("Section {}/{}  ", app.config_section_index + 1, app.config_sections.len().max(1)),
+            format!(
+                "Section {}/{}  ",
+                app.config_section_index + 1,
+                app.config_sections.len().max(1)
+            ),
             Style::default().fg(theme.accent_dim),
         ),
     ])];
@@ -59,9 +66,10 @@ fn draw_config_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
 
 fn draw_config_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     if app.config_loading {
-        let msg = Paragraph::new(Line::from(vec![
-            Span::styled("  Loading configuration…", Style::default().fg(theme.accent_dim)),
-        ]));
+        let msg = Paragraph::new(Line::from(vec![Span::styled(
+            "  Loading configuration…",
+            Style::default().fg(theme.accent_dim),
+        )]));
         f.render_widget(msg, area);
         return;
     }
@@ -71,7 +79,7 @@ fn draw_config_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect)
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Length(22), // section sidebar
-            Constraint::Min(30),   // fields
+            Constraint::Min(30),    // fields
         ])
         .split(area);
 
@@ -87,7 +95,9 @@ fn draw_section_sidebar(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
         .map(|(i, section)| {
             let is_selected = i == app.config_section_index;
             let style = if is_selected {
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -125,9 +135,10 @@ fn draw_fields_panel(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let section_data = match section_data {
         Some(data) => data,
         None => {
-            let msg = Paragraph::new(Line::from(vec![
-                Span::styled("  No data for this section", Style::default().fg(theme.accent_dim)),
-            ]));
+            let msg = Paragraph::new(Line::from(vec![Span::styled(
+                "  No data for this section",
+                Style::default().fg(theme.accent_dim),
+            )]));
             f.render_widget(msg, area);
             return;
         }
@@ -152,7 +163,9 @@ fn draw_fields_panel(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .map(|(i, (key, value))| {
             let is_selected = i == app.config_field_index;
             let style = if is_selected {
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -200,7 +213,7 @@ fn draw_edit_field(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     f.render_widget(block, area);
 
     // Show cursor at edit position
-    let cursor_idx = app.config_edit_cursor.min(app.config_edit_value.len());
+    let cursor_idx = char_to_byte(&app.config_edit_value, app.config_edit_cursor);
     let (before, after) = app.config_edit_value.split_at(cursor_idx);
     let cursor_visible = app.tick_counter % 4 < 2;
     let cursor_str = if cursor_visible { "▎" } else { " " };
@@ -233,8 +246,14 @@ fn draw_config_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     ];
 
     if app.config_dirty {
-        spans.push(Span::styled("  ● ", Style::default().fg(ratatui::style::Color::Yellow)));
-        spans.push(Span::styled("unsaved changes", Style::default().fg(ratatui::style::Color::Yellow)));
+        spans.push(Span::styled(
+            "  ● ",
+            Style::default().fg(ratatui::style::Color::Yellow),
+        ));
+        spans.push(Span::styled(
+            "unsaved changes",
+            Style::default().fg(ratatui::style::Color::Yellow),
+        ));
     }
 
     let para = Paragraph::new(Line::from(spans));
@@ -244,7 +263,10 @@ fn draw_config_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /// Collect flat key-value pairs from a JSON object (one level deep)
-fn collect_fields<'a>(data: &'a serde_json::Value, prefix: &str) -> Vec<(String, &'a serde_json::Value)> {
+fn collect_fields<'a>(
+    data: &'a serde_json::Value,
+    prefix: &str,
+) -> Vec<(String, &'a serde_json::Value)> {
     let mut result = Vec::new();
     if let Some(obj) = data.as_object() {
         for (key, value) in obj {
@@ -279,5 +301,3 @@ fn format_value(value: &serde_json::Value, max_len: usize) -> String {
     };
     utils::truncate_str(&s, max_len)
 }
-
-

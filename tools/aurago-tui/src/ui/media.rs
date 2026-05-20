@@ -6,15 +6,15 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 
-use crate::app::{AppState, MediaTab};
 use super::theme::Theme;
 use super::utils;
+use crate::app::{AppState, MediaTab};
 
 pub fn draw_media(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // header with tabs
+            Constraint::Length(3), // header with tabs
             Constraint::Min(5),    // content
             Constraint::Length(1), // status
         ])
@@ -42,11 +42,15 @@ fn draw_media_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
 
     let audio_style = match app.media_tab {
-        MediaTab::Audio => Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+        MediaTab::Audio => Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
         MediaTab::Documents => Style::default().fg(theme.accent_dim),
     };
     let docs_style = match app.media_tab {
-        MediaTab::Documents => Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+        MediaTab::Documents => Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
         MediaTab::Audio => Style::default().fg(theme.accent_dim),
     };
 
@@ -60,7 +64,9 @@ fn draw_media_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         ),
         Span::styled(
             search_indicator,
-            Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
         ),
     ]);
 
@@ -74,23 +80,25 @@ fn draw_media_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
 fn draw_media_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     if app.media_loading {
-        let msg = Paragraph::new(Line::from(vec![
-            Span::styled("  Loading media…", Style::default().fg(theme.accent_dim)),
-        ]));
+        let msg = Paragraph::new(Line::from(vec![Span::styled(
+            "  Loading media…",
+            Style::default().fg(theme.accent_dim),
+        )]));
         f.render_widget(msg, area);
         return;
     }
 
     if app.media_items.is_empty() {
-        let msg = Paragraph::new(Line::from(vec![
-            Span::styled(
-                format!("  No {} files found", match app.media_tab {
+        let msg = Paragraph::new(Line::from(vec![Span::styled(
+            format!(
+                "  No {} files found",
+                match app.media_tab {
                     MediaTab::Audio => "audio",
                     MediaTab::Documents => "document",
-                }),
-                Style::default().fg(theme.accent_dim),
+                }
             ),
-        ]));
+            Style::default().fg(theme.accent_dim),
+        )]));
         f.render_widget(msg, area);
         return;
     }
@@ -98,10 +106,7 @@ fn draw_media_content(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
     // Split into list (left) and detail (right)
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(45),
-            Constraint::Percentage(55),
-        ])
+        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
         .split(area);
 
     draw_media_list(f, app, theme, chunks[0]);
@@ -116,7 +121,9 @@ fn draw_media_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .map(|(i, item)| {
             let is_selected = Some(i) == app.media_selected;
             let style = if is_selected {
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -127,7 +134,8 @@ fn draw_media_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 MediaTab::Documents => doc_icon(&item.filename),
             };
 
-            let name = utils::truncate_str(&item.filename, (area.width as usize).saturating_sub(10));
+            let name =
+                utils::truncate_str(&item.filename, (area.width as usize).saturating_sub(10));
 
             ListItem::new(Line::from(vec![
                 Span::styled(marker, Style::default().fg(theme.accent)),
@@ -166,9 +174,10 @@ fn draw_media_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let selected_idx = match app.media_selected {
         Some(idx) => idx,
         None => {
-            let msg = Paragraph::new(Line::from(vec![
-                Span::styled("  Select an item to view details", Style::default().fg(theme.accent_dim)),
-            ]));
+            let msg = Paragraph::new(Line::from(vec![Span::styled(
+                "  Select an item to view details",
+                Style::default().fg(theme.accent_dim),
+            )]));
             f.render_widget(msg, inner);
             return;
         }
@@ -179,7 +188,7 @@ fn draw_media_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         None => return,
     };
 
-    let size_str = utils::format_size(0); // MediaItem has no size field
+    let size_str = utils::format_size(item.size);
     let icon = match app.media_tab {
         MediaTab::Audio => "🎵",
         MediaTab::Documents => doc_icon(&item.filename),
@@ -219,8 +228,14 @@ fn draw_media_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     };
 
     let page_info = if app.media_total > 0 {
-        let current_end = (app.media_offset as i64 + app.media_items.len() as i64).min(app.media_total);
-        format!("  {}-{}/{}", app.media_offset + 1, current_end, app.media_total)
+        let current_end =
+            (app.media_offset as i64 + app.media_items.len() as i64).min(app.media_total);
+        format!(
+            "  {}-{}/{}",
+            app.media_offset + 1,
+            current_end,
+            app.media_total
+        )
     } else {
         String::new()
     };
@@ -231,7 +246,10 @@ fn draw_media_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         Span::styled("Del", Style::default().fg(theme.accent)),
         Span::styled(" delete ", Style::default().fg(theme.accent_dim)),
         Span::styled("h/l", Style::default().fg(theme.accent)),
-        Span::styled(format!(" {} ", tab_hint), Style::default().fg(theme.accent_dim)),
+        Span::styled(
+            format!(" {} ", tab_hint),
+            Style::default().fg(theme.accent_dim),
+        ),
         Span::styled("/", Style::default().fg(theme.accent)),
         Span::styled(" search ", Style::default().fg(theme.accent_dim)),
         Span::styled("r", Style::default().fg(theme.accent)),
@@ -257,5 +275,3 @@ fn doc_icon(filename: &str) -> &'static str {
         _ => "📎",
     }
 }
-
-

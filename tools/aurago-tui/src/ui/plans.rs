@@ -1,14 +1,14 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
-use crate::app::AppState;
 use super::theme::Theme;
 use super::utils;
+use crate::app::AppState;
 
 pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -36,8 +36,16 @@ pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
 }
 
 fn draw_plans_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
-    let title = Span::styled(" 📋 Plans ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
-    let count = Span::styled(format!(" ({} plans)", app.plans.len()), Style::default().fg(theme.accent_dim));
+    let title = Span::styled(
+        " 📋 Plans ",
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    );
+    let count = Span::styled(
+        format!(" ({} plans)", app.plans.len()),
+        Style::default().fg(theme.accent_dim),
+    );
     let block = Block::default()
         .borders(Borders::BOTTOM)
         .border_style(Style::default().fg(theme.border));
@@ -70,24 +78,24 @@ fn draw_plans_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let items: Vec<ListItem> = if app.plans.is_empty() {
         vec![ListItem::new(Line::from("No plans found"))]
     } else {
-        app.plans.iter().enumerate().map(|(i, p)| {
-            let status_icon = plan_status_icon(&p.status);
-            let is_selected = app.plans_selected == Some(i);
-            let style = if is_selected {
-                Style::default().bg(theme.accent).fg(theme.bg)
-            } else {
-                Style::default().fg(theme.fg)
-            };
-            let name = if p.name.len() > 24 {
-                format!("{}...", &p.name[..21])
-            } else {
-                p.name.clone()
-            };
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("{} ", status_icon), style),
-                Span::styled(name, style),
-            ]))
-        }).collect()
+        app.plans
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let status_icon = plan_status_icon(&p.status);
+                let is_selected = app.plans_selected == Some(i);
+                let style = if is_selected {
+                    Style::default().bg(theme.accent).fg(theme.bg)
+                } else {
+                    Style::default().fg(theme.fg)
+                };
+                let name = utils::truncate_str(&p.name, 24);
+                ListItem::new(Line::from(vec![
+                    Span::styled(format!("{} ", status_icon), style),
+                    Span::styled(name, style),
+                ]))
+            })
+            .collect()
     };
 
     let block = Block::default()
@@ -108,15 +116,24 @@ fn draw_plans_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("Name: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(&p.name, Style::default().fg(theme.fg).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &p.name,
+                    Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(format!("{} {}", plan_status_icon(&p.status), p.status), plan_status_color(&p.status, theme)),
+                Span::styled(
+                    format!("{} {}", plan_status_icon(&p.status), p.status),
+                    plan_status_color(&p.status, theme),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Progress: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(format!("{:.0}%", p.progress * 100.0), Style::default().fg(theme.fg)),
+                Span::styled(
+                    format!("{:.0}%", p.progress * 100.0),
+                    Style::default().fg(theme.fg),
+                ),
                 Span::styled(progress_bar, Style::default().fg(theme.accent_dim)),
             ]),
             Line::from(vec![
@@ -130,7 +147,9 @@ fn draw_plans_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             Line::from(""),
             Line::from(Span::styled(
                 format!("Tasks ({}):", p.tasks.len()),
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD),
             )),
         ];
 
@@ -141,12 +160,11 @@ fn draw_plans_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 Span::styled(&task.title, Style::default().fg(theme.fg)),
             ]));
             if !task.description.is_empty() {
-                let desc = if task.description.len() > 80 {
-                    format!("     {}...", &task.description[..77])
-                } else {
-                    format!("     {}", task.description)
-                };
-                lines.push(Line::from(Span::styled(desc, Style::default().fg(theme.accent_dim))));
+                let desc = format!("     {}", utils::truncate_str(&task.description, 80));
+                lines.push(Line::from(Span::styled(
+                    desc,
+                    Style::default().fg(theme.accent_dim),
+                )));
             }
         }
 
@@ -204,4 +222,3 @@ fn task_status_icon(status: &str) -> &'static str {
         _ => "⬜",
     }
 }
-

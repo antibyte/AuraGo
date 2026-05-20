@@ -51,7 +51,7 @@ pub async fn connect_sse(
         // If not connected, the error was already sent via tx
 
         // Exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (max)
-        let _ = tx.send(SseEvent::Unknown(format!(
+        let _ = tx.send(SseEvent::AgentStatus(format!(
             "SSE disconnected — reconnecting in {}s...",
             retry_delay_secs
         )));
@@ -98,7 +98,8 @@ async fn connect_sse_once(
                 } else if let Ok(val) = serde_json::from_str::<Value>(&ev.data) {
                     if let Some(event_name) = val.get("event").and_then(|v| v.as_str()) {
                         if let Some(detail) = val.get("detail").and_then(|v| v.as_str()) {
-                            let _ = tx.send(SseEvent::LogLine(format!("{}: {}", event_name, detail)));
+                            let _ =
+                                tx.send(SseEvent::LogLine(format!("{}: {}", event_name, detail)));
                             continue;
                         }
                     }
@@ -121,7 +122,9 @@ async fn connect_sse_once(
 fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
     match wrapper.event_type.as_str() {
         "llm_stream_delta" => {
-            if let Ok(delta) = serde_json::from_value::<super::types::LLMStreamDelta>(wrapper.payload) {
+            if let Ok(delta) =
+                serde_json::from_value::<super::types::LLMStreamDelta>(wrapper.payload)
+            {
                 SseEvent::Delta(delta.content.unwrap_or_default())
             } else {
                 SseEvent::Unknown("bad llm_stream_delta".to_string())
@@ -141,21 +144,28 @@ fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
         }
         "tool_call_preview" => {
             if let Ok(v) = serde_json::from_value::<Value>(wrapper.payload) {
-                let action = v.get("action").and_then(|s| s.as_str()).unwrap_or("unknown");
+                let action = v
+                    .get("action")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("unknown");
                 SseEvent::ToolCall(action.to_string())
             } else {
                 SseEvent::Unknown("bad tool_call_preview".to_string())
             }
         }
         "token_update" => {
-            if let Ok(p) = serde_json::from_value::<super::types::TokenUpdatePayload>(wrapper.payload) {
+            if let Ok(p) =
+                serde_json::from_value::<super::types::TokenUpdatePayload>(wrapper.payload)
+            {
                 SseEvent::TokenUpdate(p)
             } else {
                 SseEvent::Unknown("bad token_update".to_string())
             }
         }
         "personality_update" => {
-            if let Ok(p) = serde_json::from_value::<super::types::PersonalityUpdatePayload>(wrapper.payload) {
+            if let Ok(p) =
+                serde_json::from_value::<super::types::PersonalityUpdatePayload>(wrapper.payload)
+            {
                 SseEvent::PersonalityUpdate(p)
             } else {
                 SseEvent::Unknown("bad personality_update".to_string())
@@ -163,7 +173,11 @@ fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
         }
         "agent_status" => {
             if let Ok(v) = serde_json::from_value::<Value>(wrapper.payload) {
-                let text = v.get("status").and_then(|s| s.as_str()).unwrap_or("unknown").to_string();
+                let text = v
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("unknown")
+                    .to_string();
                 SseEvent::AgentStatus(text)
             } else {
                 SseEvent::Unknown("bad agent_status".to_string())
@@ -171,7 +185,11 @@ fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
         }
         "toast" => {
             if let Ok(v) = serde_json::from_value::<Value>(wrapper.payload) {
-                let text = v.get("message").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                let text = v
+                    .get("message")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 SseEvent::Toast(text)
             } else {
                 SseEvent::Unknown("bad toast".to_string())

@@ -1,13 +1,14 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
-use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
+use crate::app::AppState;
 
 pub fn draw_containers(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -35,11 +36,25 @@ pub fn draw_containers(f: &mut Frame, app: &AppState, theme: &Theme) {
 }
 
 fn draw_containers_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
-    let running = app.containers.iter().filter(|c| c.state == "running").count();
+    let running = app
+        .containers
+        .iter()
+        .filter(|c| c.state == "running")
+        .count();
     let stopped = app.containers.len().saturating_sub(running);
-    let title = Span::styled(" 🐳 Containers ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
+    let title = Span::styled(
+        " 🐳 Containers ",
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    );
     let stats = Span::styled(
-        format!(" ({} total │ {} running │ {} stopped)", app.containers.len(), running, stopped),
+        format!(
+            " ({} total │ {} running │ {} stopped)",
+            app.containers.len(),
+            running,
+            stopped
+        ),
         Style::default().fg(theme.accent_dim),
     );
     let block = Block::default()
@@ -74,24 +89,24 @@ fn draw_containers_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
     let items: Vec<ListItem> = if app.containers.is_empty() {
         vec![ListItem::new(Line::from("No containers found"))]
     } else {
-        app.containers.iter().enumerate().map(|(i, c)| {
-            let is_selected = app.containers_selected == Some(i);
-            let style = if is_selected {
-                Style::default().bg(theme.accent).fg(theme.bg)
-            } else {
-                Style::default().fg(theme.fg)
-            };
-            let state_icon = container_state_icon(&c.state);
-            let name = if c.name.len() > 24 {
-                format!("{}...", &c.name[..21])
-            } else {
-                c.name.clone()
-            };
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("{} ", state_icon), style),
-                Span::styled(name, style),
-            ]))
-        }).collect()
+        app.containers
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let is_selected = app.containers_selected == Some(i);
+                let style = if is_selected {
+                    Style::default().bg(theme.accent).fg(theme.bg)
+                } else {
+                    Style::default().fg(theme.fg)
+                };
+                let state_icon = container_state_icon(&c.state);
+                let name = utils::truncate_str(&c.name, 24);
+                ListItem::new(Line::from(vec![
+                    Span::styled(format!("{} ", state_icon), style),
+                    Span::styled(name, style),
+                ]))
+            })
+            .collect()
     };
 
     let block = Block::default()
@@ -111,7 +126,10 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("Name: ", Style::default().fg(theme.accent_dim)),
-                Span::styled(&c.name, Style::default().fg(theme.fg).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &c.name,
+                    Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Image: ", Style::default().fg(theme.accent_dim)),
@@ -139,7 +157,10 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
 
         lines.push(Line::from(vec![
             Span::styled("ID: ", Style::default().fg(theme.accent_dim)),
-            Span::styled(if c.id.len() > 12 { &c.id[..12] } else { &c.id }, Style::default().fg(theme.accent_dim)),
+            Span::styled(
+                utils::truncate_str(&c.id, 12),
+                Style::default().fg(theme.accent_dim),
+            ),
         ]));
 
         Text::from(lines)
@@ -157,7 +178,8 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
 
 fn draw_containers_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
-    let right = " j/k: navigate │ Enter: start/stop │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
+    let right =
+        " j/k: navigate │ Enter: start/stop │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);

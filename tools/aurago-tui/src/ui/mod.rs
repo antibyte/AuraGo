@@ -1,4 +1,3 @@
-pub mod animations;
 pub mod chat;
 pub mod config;
 pub mod containers;

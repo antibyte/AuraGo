@@ -11,7 +11,7 @@ A modern, fancy Terminal UI (TUI) chat client for **AuraGo**.
 
 ## Build
 
-Requires [Rust](https://rustup.rs/) 1.70+.
+Requires [Rust](https://rustup.rs/) 1.85+.
 
 ```bash
 cd tools/aurago-tui
@@ -65,9 +65,17 @@ src/
 │   ├── mod.rs       # UI dispatcher
 │   ├── login.rs     # Login form with password + OTP
 │   ├── chat.rs      # Main chat layout
+│   ├── dashboard.rs # System, budget, logs, and activity dashboards
+│   ├── plans.rs     # Plan list and detail views
+│   ├── missions.rs  # Mission list and detail views
+│   ├── skills.rs    # Skill management view
+│   ├── containers.rs# Container management view
+│   ├── config.rs    # Configuration editor
+│   ├── knowledge.rs # Knowledge file browser
+│   ├── media.rs     # Media browser
 │   ├── splash.rs    # Rainbow ASCII splash
 │   ├── theme.rs     # Color schemes & mood theming
-│   └── animations.rs# Animation helpers
+│   └── utils.rs     # Shared UI helpers
 └── events/
     ├── mod.rs       # Event types
     └── keybindings.rs # Key → Action mapping

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use reqwest::{Client, ClientBuilder, Method};
-use serde::{de::DeserializeOwned, Serialize};
+use reqwest::{Client, ClientBuilder, Method, RequestBuilder, Response};
+use serde::{Serialize, de::DeserializeOwned};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -23,9 +23,7 @@ impl ApiClient {
         if insecure {
             builder = builder.danger_accept_invalid_certs(true);
         }
-        let client = builder
-            .build()
-            .context("Failed to build HTTP client")?;
+        let client = builder.build().context("Failed to build HTTP client")?;
         let mut url = base_url.to_string();
         while url.ends_with('/') {
             url.pop();
@@ -52,26 +50,38 @@ impl ApiClient {
         B: Serialize,
         R: DeserializeOwned,
     {
-        let url = format!("{}{}", self.base_url, path);
-        let mut req = self.client.request(method.clone(), &url);
-        req = req.header("Origin", &self.base_url);
-        if let Some(b) = body {
-            req = req.json(b);
-        }
-        if let Some(cookie) = self.get_session_cookie() {
-            req = req.header("Cookie", cookie);
-        }
-        let resp = req.send().await.context("HTTP request failed")?;
-        let status = resp.status();
-        if !status.is_success() {
-            let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!("HTTP {}: {}", status, text);
-        }
-        let data = resp.json::<R>().await.context("Failed to decode JSON response")?;
+        let req = self.build_request(method, path, body);
+        let resp = Self::send_checked(req).await?;
+        let data = resp
+            .json::<R>()
+            .await
+            .context("Failed to decode JSON response")?;
         Ok(data)
     }
 
-    pub async fn request_raw<B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<reqwest::Response>
+    pub async fn request_raw<B>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&B>,
+    ) -> Result<reqwest::Response>
+    where
+        B: Serialize,
+    {
+        let req = self.build_request(method, path, body);
+        Self::send_checked(req).await
+    }
+
+    pub async fn request_empty<B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<()>
+    where
+        B: Serialize,
+    {
+        let req = self.build_request(method, path, body);
+        Self::send_checked(req).await?;
+        Ok(())
+    }
+
+    fn build_request<B>(&self, method: Method, path: &str, body: Option<&B>) -> RequestBuilder
     where
         B: Serialize,
     {
@@ -84,6 +94,10 @@ impl ApiClient {
         if let Some(cookie) = self.get_session_cookie() {
             req = req.header("Cookie", cookie);
         }
+        req
+    }
+
+    async fn send_checked(req: RequestBuilder) -> Result<Response> {
         let resp = req.send().await.context("HTTP request failed")?;
         let status = resp.status();
         if !status.is_success() {
@@ -91,28 +105,6 @@ impl ApiClient {
             anyhow::bail!("HTTP {}: {}", status, text);
         }
         Ok(resp)
-    }
-
-    pub async fn request_empty<B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<()>
-    where
-        B: Serialize,
-    {
-        let url = format!("{}{}", self.base_url, path);
-        let mut req = self.client.request(method, &url);
-        req = req.header("Origin", &self.base_url);
-        if let Some(b) = body {
-            req = req.json(b);
-        }
-        if let Some(cookie) = self.get_session_cookie() {
-            req = req.header("Cookie", cookie);
-        }
-        let resp = req.send().await.context("HTTP request failed")?;
-        let status = resp.status();
-        if !status.is_success() {
-            let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!("HTTP {}: {}", status, text);
-        }
-        Ok(())
     }
 
     pub fn sse_url(&self, path: &str) -> String {
