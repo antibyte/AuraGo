@@ -143,8 +143,8 @@ func TestThreeDeeRobotsRequireCloseRangeAndReactToHits(t *testing.T) {
 		"target.state.hits",
 		"function createJetFlameSprite",
 		"const RED_ROBOT_FOOT_JET_OFFSETS =",
-		"[0, -0.58, -0.25]",
-		"[0, -0.58, 0.25]",
+		"[0, ROBOT_FOOT_JET_UNDERSIDE_Y, -0.25]",
+		"[0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0.25]",
 		"RED_ROBOT_FOOT_JET_OFFSETS.map",
 		"kind: 'robotJetFlame'",
 		"function spawnEnergyExplosion",
@@ -173,7 +173,7 @@ func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
 		"function scheduleNextRobotFlight",
 		"function updateRobotFlight",
 		"robotWaveInfluenceForFlightHeight",
-		"height += (hoverDepression + hoverRipple) * flightWaveInfluence",
+		"height += hoverDepression * flightWaveInfluence",
 		"waterY * flightWaveInfluence",
 		"normal.lerp(bot.up, 1 - flightWaveInfluence).normalize()",
 		"bot.thrusterLight.intensity = 1.4 + (bot.state.flightLift || 0) * 0.9",
@@ -181,6 +181,34 @@ func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing robot flight/wave damping marker %q", marker)
 		}
+	}
+}
+
+func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const ROBOT_FOOT_JET_UNDERSIDE_Y =",
+		"const ROBOT_THRUSTER_RIPPLE_LIFETIME =",
+		"const MAX_ROBOT_THRUSTER_RIPPLES =",
+		"const robotThrusterRipples = [];",
+		"function addRobotThrusterRipple",
+		"function updateRobotThrusterRipples",
+		"function robotThrusterRippleHeightAt",
+		"bot.state.nextThrusterRippleAt",
+		"const hoverDepression = -0.2 * Math.exp",
+		"height += hoverDepression * flightWaveInfluence;",
+		"height += robotThrusterRippleHeightAt(x, z, t);",
+		"updateRobotThrusterRipples(t);",
+		"new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing thruster underside/ripple marker %q", marker)
+		}
+	}
+	if strings.Contains(shader, "const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5)") {
+		t.Fatal("thruster ripple must not be a continuous phase-resetting heightAt sine wave")
 	}
 }
 

@@ -92,13 +92,18 @@
     const ROBOT_FLIGHT_DURATION = 2.05;
     const ROBOT_FLIGHT_HEIGHT = 1.12;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
+    const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
+    const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.4;
+    const ROBOT_THRUSTER_RIPPLE_INTERVAL = 0.46;
+    const MAX_ROBOT_THRUSTER_RIPPLES = 28;
     const RED_ROBOT_FOOT_JET_OFFSETS = [
-        [0, -0.58, -0.25],
-        [0, -0.58, 0.25]
+        [0, ROBOT_FOOT_JET_UNDERSIDE_Y, -0.25],
+        [0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0.25]
     ];
     const MAX_ENERGY_PROJECTILES = 18;
     const energyProjectiles = [];
     const robotFleet = [];
+    const robotThrusterRipples = [];
 
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -838,17 +843,34 @@
                 if (!bot || !bot.state) return;
                 const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
                 const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
-                const hoverDepression = -0.28 * Math.exp(-(distToRobot * distToRobot) / 0.75);
-                const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5) * Math.exp(-distToRobot * 1.6) * 0.14;
-                height += (hoverDepression + hoverRipple) * flightWaveInfluence;
+                const hoverDepression = -0.2 * Math.exp(-(distToRobot * distToRobot) / 0.72);
+                height += hoverDepression * flightWaveInfluence;
             });
         }
+
+        height += robotThrusterRippleHeightAt(x, z, t);
 
         return height;
     }
 
     function robotWaveInfluenceForFlightHeight(flightLift) {
         return 1 - smoothstep(0.18, ROBOT_WAVE_DAMPING_HEIGHT, Math.max(0, flightLift || 0)) * 0.86;
+    }
+
+    function robotThrusterRippleHeightAt(x, z, t) {
+        let height = 0;
+        for (const ripple of robotThrusterRipples) {
+            const age = t - ripple.start;
+            if (age < 0 || age > ROBOT_THRUSTER_RIPPLE_LIFETIME) continue;
+
+            const dist = Math.hypot(x - ripple.x, z - ripple.z);
+            const radius = 0.18 + age * 1.85;
+            const crest = Math.cos((dist - radius) * 4.9);
+            const envelope = Math.exp(-Math.abs(dist - radius) * 1.35);
+            const fade = Math.pow(1 - age / ROBOT_THRUSTER_RIPPLE_LIFETIME, 1.55);
+            height += crest * envelope * fade * ripple.strength;
+        }
+        return softClip(height, 0.34);
     }
 
     function colorForHeight(height, target) {
@@ -937,7 +959,8 @@
                 flightStartedAt: -999,
                 flightDuration: ROBOT_FLIGHT_DURATION,
                 flightPeak: ROBOT_FLIGHT_HEIGHT,
-                nextFlightAt: NaN
+                nextFlightAt: NaN,
+                nextThrusterRippleAt: NaN
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -1208,7 +1231,7 @@
         if (!bot || !bot.group) return;
         const offsets = bot.id === 'red'
             ? RED_ROBOT_FOOT_JET_OFFSETS.map(function (point) { return new THREE.Vector3(point[0], point[1], point[2]); })
-            : [new THREE.Vector3(0, -0.45, 0)];
+            : [new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)];
         offsets.forEach(function (offset, index) {
             const foot = bot.group.localToWorld(offset.clone());
             const flameCount = bot.id === 'red' ? 2 : 1;
@@ -1276,6 +1299,45 @@
         } else {
             state.flightLift = Math.max(0, (state.flightLift || 0) * 0.82);
         }
+    }
+
+    function addRobotThrusterRipple(bot, t) {
+        if (!bot || !bot.state) return;
+        const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
+        const strength = (bot.id === 'red' ? 0.145 : 0.105) * flightWaveInfluence;
+        if (strength < 0.012) {
+            bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL;
+            return;
+        }
+
+        robotThrusterRipples.push({
+            x: bot.state.x,
+            z: bot.state.z,
+            start: t,
+            strength
+        });
+        while (robotThrusterRipples.length > MAX_ROBOT_THRUSTER_RIPPLES) {
+            robotThrusterRipples.shift();
+        }
+        bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * (0.72 + Math.random() * 0.66);
+    }
+
+    function updateRobotThrusterRipples(t) {
+        for (let i = robotThrusterRipples.length - 1; i >= 0; i--) {
+            if (t - robotThrusterRipples[i].start > ROBOT_THRUSTER_RIPPLE_LIFETIME) {
+                robotThrusterRipples.splice(i, 1);
+            }
+        }
+
+        robotFleet.forEach(function (bot) {
+            if (!bot || !bot.state || !bot.group) return;
+            if (!Number.isFinite(bot.state.nextThrusterRippleAt)) {
+                bot.state.nextThrusterRippleAt = t + Math.random() * 0.35;
+            }
+            if (t >= bot.state.nextThrusterRippleAt) {
+                addRobotThrusterRipple(bot, t);
+            }
+        });
     }
 
     function updateRobotMotion(bot, dt, t, index) {
@@ -1670,6 +1732,7 @@
         robotFleet.forEach(function (bot, index) {
             updateRobotMotion(bot, dt, t, index);
         });
+        updateRobotThrusterRipples(t);
         updateRobotDuel(dt, t);
         updateEnergyProjectiles(dt, t);
         aliasPrimaryRobot(robotFleet[0]);
@@ -1920,6 +1983,7 @@
         }
         exitMode(currentMode);
         clearEnergyProjectiles();
+        robotThrusterRipples.length = 0;
         if (canvas) canvas.style.display = 'none';
     }
 
