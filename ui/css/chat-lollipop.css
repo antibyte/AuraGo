@@ -254,8 +254,11 @@
 }
 
 [data-theme="lollipop"] #lollipop-petal-layer {
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     pointer-events: none;
     z-index: 2;
@@ -263,34 +266,62 @@
 
 [data-theme="lollipop"] .lollipop-petal {
     position: absolute;
-    top: -18%;
+    top: -12%;
     left: var(--petal-left, 50%);
-    width: var(--petal-size, 64px);
-    height: var(--petal-size, 64px);
+    width: var(--petal-size, 56px);
+    height: var(--petal-size, 56px);
     opacity: var(--petal-opacity, 0.72);
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
-    filter: drop-shadow(0 8px 12px rgba(168, 84, 128, 0.12));
+    filter: drop-shadow(0 6px 10px rgba(168, 84, 128, 0.15));
     transform: translate3d(0, 0, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
-    animation: lollipopPetalFall var(--petal-duration, 20s) linear var(--petal-delay, 0s) infinite;
+    animation:
+        lollipopPetalFall var(--petal-duration, 20s) linear var(--petal-delay, 0s) infinite,
+        lollipopPetalSway var(--petal-sway-speed, 3s) ease-in-out var(--petal-delay, 0s) infinite;
     will-change: transform, opacity;
 }
 
+/* ── Blossom A: 5-petal pink rose — perfectly symmetric ───────────────── */
 [data-theme="lollipop"] .lollipop-petal.blossom-a {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='9' fill='%23f3a6cf'/%3E%3Ccircle cx='18' cy='28' r='9' fill='%23f7c1dc'/%3E%3Ccircle cx='46' cy='28' r='9' fill='%23f4b1d5'/%3E%3Ccircle cx='24' cy='44' r='9' fill='%23ef95c3'/%3E%3Ccircle cx='40' cy='44' r='9' fill='%23f7c7a3'/%3E%3Ccircle cx='32' cy='30' r='7' fill='%23f7e48a'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='14' rx='9' ry='12' fill='%23f3a6cf' transform='rotate(0 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='12' fill='%23f7bbd8' transform='rotate(72 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='12' fill='%23f4aed2' transform='rotate(144 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='12' fill='%23f0a0c8' transform='rotate(216 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='12' fill='%23f7c5dd' transform='rotate(288 32 32)'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23ffe88a'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23ffda5c'/%3E%3C/svg%3E");
 }
 
+/* ── Blossom B: 5-petal purple/lavender — symmetric ───────────────────── */
 [data-theme="lollipop"] .lollipop-petal.blossom-b {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='8' fill='%23d6b4ff'/%3E%3Ccircle cx='18' cy='28' r='8' fill='%23e7d3ff'/%3E%3Ccircle cx='46' cy='28' r='8' fill='%23cfa7ff'/%3E%3Ccircle cx='24' cy='44' r='8' fill='%23efc2ff'/%3E%3Ccircle cx='40' cy='44' r='8' fill='%23f4b5da'/%3E%3Ccircle cx='32' cy='30' r='6' fill='%23fff0a8'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='15' rx='8' ry='11' fill='%23d6b4ff' transform='rotate(0 32 32)'/%3E%3Cellipse cx='32' cy='15' rx='8' ry='11' fill='%23e2c6ff' transform='rotate(72 32 32)'/%3E%3Cellipse cx='32' cy='15' rx='8' ry='11' fill='%23cba5f7' transform='rotate(144 32 32)'/%3E%3Cellipse cx='32' cy='15' rx='8' ry='11' fill='%23ddbcff' transform='rotate(216 32 32)'/%3E%3Cellipse cx='32' cy='15' rx='8' ry='11' fill='%23d0aef8' transform='rotate(288 32 32)'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23fff5b8'/%3E%3Ccircle cx='32' cy='32' r='3.5' fill='%23ffe47a'/%3E%3C/svg%3E");
 }
 
+/* ── Blossom C: 6-petal coral/peach — hexagonal symmetry ──────────────── */
 [data-theme="lollipop"] .lollipop-petal.blossom-c {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cellipse cx='24' cy='9' rx='6' ry='10' fill='%23ffd6ea'/%3E%3Cellipse cx='9' cy='24' rx='10' ry='6' fill='%23f4a4d3'/%3E%3Cellipse cx='39' cy='24' rx='10' ry='6' fill='%23f6c1a3'/%3E%3Cellipse cx='18' cy='38' rx='7' ry='9' fill='%23e3c3ff'/%3E%3Cellipse cx='30' cy='38' rx='7' ry='9' fill='%23f2b7d8'/%3E%3Ccircle cx='24' cy='24' r='6' fill='%23fff0a0'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23ffd6ea' transform='rotate(0 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23ffc4e0' transform='rotate(60 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23f7b5d5' transform='rotate(120 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23ffd0e7' transform='rotate(180 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23f6c1a3' transform='rotate(240 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='7.5' ry='12' fill='%23ffcbde' transform='rotate(300 32 32)'/%3E%3Ccircle cx='32' cy='32' r='6.5' fill='%23fff0a0'/%3E%3Ccircle cx='32' cy='32' r='3.8' fill='%23ffd966'/%3E%3C/svg%3E");
 }
 
+/* ── Blossom D: 5-petal mixed pastel — symmetric ──────────────────────── */
 [data-theme="lollipop"] .lollipop-petal.blossom-d {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 56'%3E%3Ccircle cx='28' cy='12' r='8' fill='%23f8bad9'/%3E%3Ccircle cx='15' cy='25' r='8' fill='%23e7c4ff'/%3E%3Ccircle cx='41' cy='25' r='8' fill='%23f6c8ae'/%3E%3Ccircle cx='20' cy='39' r='8' fill='%23f19dcb'/%3E%3Ccircle cx='36' cy='39' r='8' fill='%23c7f2d9'/%3E%3Ccircle cx='28' cy='27' r='6' fill='%23fff0ad'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='14' rx='9' ry='13' fill='%23f8bad9' transform='rotate(0 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='13' fill='%23e7c4ff' transform='rotate(72 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='13' fill='%23c7f2d9' transform='rotate(144 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='13' fill='%23f6c8ae' transform='rotate(216 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='9' ry='13' fill='%23b8dcf8' transform='rotate(288 32 32)'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23fff0ad'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23ffd54f'/%3E%3C/svg%3E");
+}
+
+/* ── Blossom E: 8-petal daisy — radial symmetry ───────────────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-e {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23fff3f7' transform='rotate(0 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23ffeef4' transform='rotate(45 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23fff0f5' transform='rotate(90 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23ffe8f0' transform='rotate(135 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23fff3f7' transform='rotate(180 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23ffedf3' transform='rotate(225 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23fff1f6' transform='rotate(270 32 32)'/%3E%3Cellipse cx='32' cy='14' rx='5.5' ry='11' fill='%23ffe9f1' transform='rotate(315 32 32)'/%3E%3Ccircle cx='32' cy='32' r='7.5' fill='%23ffe066'/%3E%3Ccircle cx='32' cy='32' r='4.5' fill='%23ffc830'/%3E%3C/svg%3E");
+}
+
+/* ── Blossom F: Cherry blossom — 5 notched petals ─────────────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-f {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='translate(32,32)'%3E%3Cpath d='M0,-18 C6,-14 8,-6 0,-2 C-8,-6 -6,-14 0,-18Z' fill='%23ffb8d9'/%3E%3Cpath d='M0,-18 C6,-14 8,-6 0,-2 C-8,-6 -6,-14 0,-18Z' fill='%23ffc4e0' transform='rotate(72)'/%3E%3Cpath d='M0,-18 C6,-14 8,-6 0,-2 C-8,-6 -6,-14 0,-18Z' fill='%23ffaed0' transform='rotate(144)'/%3E%3Cpath d='M0,-18 C6,-14 8,-6 0,-2 C-8,-6 -6,-14 0,-18Z' fill='%23ffd0e8' transform='rotate(216)'/%3E%3Cpath d='M0,-18 C6,-14 8,-6 0,-2 C-8,-6 -6,-14 0,-18Z' fill='%23ffb5d5' transform='rotate(288)'/%3E%3C/g%3E%3Ccircle cx='32' cy='32' r='5' fill='%23ffe88a'/%3E%3Ccircle cx='30' cy='30' r='1.2' fill='%23f4a0c0'/%3E%3Ccircle cx='34' cy='30' r='1.2' fill='%23f4a0c0'/%3E%3Ccircle cx='32' cy='34' r='1.2' fill='%23f4a0c0'/%3E%3C/svg%3E");
+}
+
+/* ── Blossom Star: Sparkle/twinkle star ────────────────────────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-star {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4 L36 26 L58 32 L36 38 L32 60 L28 38 L6 32 L28 26 Z' fill='%23ffe680' stroke='%23ffd54f' stroke-width='1'/%3E%3Cpath d='M32 14 L34 28 L48 32 L34 36 L32 50 L30 36 L16 32 L30 28 Z' fill='%23fff5cc'/%3E%3Ccircle cx='32' cy='32' r='3' fill='%23ffffff' opacity='0.9'/%3E%3C/svg%3E");
+    filter: drop-shadow(0 4px 8px rgba(255, 200, 0, 0.25));
+}
+
+/* ── Blossom Heart: Cute heart shape ──────────────────────────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-heart {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 56 C32 56 8 38 8 22 C8 14 14 8 22 8 C27 8 30 11 32 14 C34 11 37 8 42 8 C50 8 56 14 56 22 C56 38 32 56 32 56Z' fill='%23f8a0c8'/%3E%3Cpath d='M32 50 C32 50 14 36 14 24 C14 18 18 14 24 14 C28 14 30 16 32 18 C34 16 36 14 40 14 C46 14 50 18 50 24 C50 36 32 50 32 50Z' fill='%23ffc0da'/%3E%3Cpath d='M24 18 C22 18 18 20 18 26' stroke='%23ffffff' stroke-width='2' fill='none' stroke-linecap='round' opacity='0.6'/%3E%3C/svg%3E");
+    filter: drop-shadow(0 4px 8px rgba(230, 92, 165, 0.2));
 }
 
 [data-theme="lollipop"] #chat-box::after {
@@ -652,16 +683,31 @@
 }
 
 @keyframes lollipopPetalFall {
-    from {
+    0% {
         transform: translate3d(0, -12%, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
-        opacity: calc(var(--petal-opacity, 0.72) * 0.7);
+        opacity: calc(var(--petal-opacity, 0.72) * 0.5);
     }
-    18% {
+    8% {
         opacity: var(--petal-opacity, 0.72);
+    }
+    85% {
+        opacity: calc(var(--petal-opacity, 0.72) * 0.6);
     }
     100% {
         transform: translate3d(var(--petal-drift, 28px), var(--petal-travel, calc(100vh + 180px)), 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
-        opacity: calc(var(--petal-opacity, 0.72) * 0.22);
+        opacity: calc(var(--petal-opacity, 0.72) * 0.12);
+    }
+}
+
+@keyframes lollipopPetalSway {
+    0%, 100% {
+        margin-left: 0;
+    }
+    25% {
+        margin-left: var(--petal-sway, 25px);
+    }
+    75% {
+        margin-left: calc(var(--petal-sway, 25px) * -1);
     }
 }
 

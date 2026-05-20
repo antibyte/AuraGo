@@ -2,9 +2,12 @@
     const THEME = 'lollipop';
     const CHAT_BOX_ID = 'chat-box';
     const LAYER_ID = 'lollipop-petal-layer';
-    const PETAL_COUNT_DESKTOP = 16;
-    const PETAL_COUNT_MOBILE = 10;
-    const BLOSSOM_CLASSES = ['blossom-a', 'blossom-b', 'blossom-c', 'blossom-d'];
+    const PETAL_COUNT_DESKTOP = 20;
+    const PETAL_COUNT_MOBILE = 12;
+    const BLOSSOM_CLASSES = [
+        'blossom-a', 'blossom-b', 'blossom-c', 'blossom-d',
+        'blossom-e', 'blossom-f', 'blossom-star', 'blossom-heart'
+    ];
     const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
 
@@ -48,16 +51,22 @@
 
     function rerollPetal(petal, immediate) {
         const chatBox = document.getElementById(CHAT_BOX_ID);
-        const duration = randomBetween(15, 28);
-        const size = randomBetween(30, 78);
-        const left = randomBetween(2, 94);
-        const drift = randomBetween(-56, 56);
-        const opacity = randomBetween(0.44, 0.84);
-        const scale = randomBetween(0.72, 1.16);
-        const rotationStart = randomBetween(-28, 28);
-        const rotationEnd = rotationStart + randomBetween(150, 320);
-        const travel = (chatBox ? chatBox.clientHeight : window.innerHeight) + size + 140;
+        const duration = randomBetween(14, 30);
+        const size = randomBetween(24, 68);
+        const left = randomBetween(2, 96);
+        const drift = randomBetween(-70, 70);
+        const opacity = randomBetween(0.4, 0.82);
+        const scale = randomBetween(0.7, 1.2);
+        const rotationStart = randomBetween(-30, 30);
+        const rotationEnd = rotationStart + randomBetween(160, 360) * (Math.random() > 0.5 ? 1 : -1);
+        // Use scrollHeight to cover full scrollable area, not just viewport
+        const scrollH = chatBox ? chatBox.scrollHeight : window.innerHeight;
+        const viewH = chatBox ? chatBox.clientHeight : window.innerHeight;
+        const travel = Math.max(scrollH, viewH) + size + 160;
         const delay = immediate ? randomBetween(-duration, 0) : 0;
+        // Sway amplitude for playful wobble
+        const swayAmp = randomBetween(15, 45);
+        const swaySpeed = randomBetween(2, 5);
 
         petal.className = `lollipop-petal ${pick(BLOSSOM_CLASSES)}`;
         petal.style.setProperty('--petal-left', `${left}%`);
@@ -70,6 +79,8 @@
         petal.style.setProperty('--petal-rotate-start', `${rotationStart.toFixed(1)}deg`);
         petal.style.setProperty('--petal-rotate-end', `${rotationEnd.toFixed(1)}deg`);
         petal.style.setProperty('--petal-travel', `${travel}px`);
+        petal.style.setProperty('--petal-sway', `${swayAmp}px`);
+        petal.style.setProperty('--petal-sway-speed', `${swaySpeed.toFixed(1)}s`);
         petal.style.zIndex = String(randomInt(1, 3));
     }
 
