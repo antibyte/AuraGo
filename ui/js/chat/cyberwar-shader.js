@@ -28,7 +28,7 @@
         const vec2 RADAR_CENTER = vec2(0.5, 0.5);
         const float RADAR_PI = 3.1415926;
         const float RADAR_TAU = 6.2831853;
-        const float RADAR_BEAM_HIT_WIDTH = 0.075;
+        const float RADAR_BEAM_HIT_WIDTH = 0.12;
 
         float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -36,6 +36,10 @@
 
         float angleDistance(float a, float b) {
             return abs(mod(a - b + RADAR_PI, RADAR_TAU) - RADAR_PI);
+        }
+
+        float sweepLag(float targetAngle, float beamAngle) {
+            return mod(beamAngle - targetAngle + RADAR_TAU, RADAR_TAU);
         }
 
         vec2 movingRadarTarget(float t, float radius, float speed, float phase, float wobble) {
@@ -50,10 +54,14 @@
             float halo = exp(-dist * dist * 120.0 / max(scale, 0.18));
             float targetAngle = atan(target.y, target.x);
             float targetHit = smoothstep(RADAR_BEAM_HIT_WIDTH, 0.0, angleDistance(targetAngle, beamAngle));
+            float recentLag = sweepLag(targetAngle, beamAngle);
+            float targetAfterglow = exp(-recentLag * 7.5) * step(recentLag, 0.72);
             float rayTrack = smoothstep(0.022, 0.0, angleDistance(atan(p.y, p.x), targetAngle));
             float rangeTrack = exp(-96.0 * abs(length(p) - length(target)));
-            float hitTrail = rayTrack * rangeTrack * targetHit * 0.45;
-            return body * (0.42 + targetHit * 2.4) + halo * (0.06 + targetHit * 0.82) + hitTrail;
+            float hitTrail = rayTrack * rangeTrack * (targetHit * 0.7 + targetAfterglow * 0.38);
+            return body * (0.55 + targetHit * 4.2 + targetAfterglow * 1.55) +
+                halo * (0.1 + targetHit * 1.3 + targetAfterglow * 0.42) +
+                hitTrail;
         }
 
         void main() {
@@ -63,8 +71,11 @@
             float radarRadius = length(p);
             float beamAngle = fract(u_time * 0.075) * RADAR_TAU - RADAR_PI;
             float beamDelta = angleDistance(atan(p.y, p.x), beamAngle);
-            float radarSweep = exp(-31.0 * beamDelta);
-            radarSweep *= smoothstep(1.14, 0.08, radarRadius);
+            float radarReach = smoothstep(1.14, 0.08, radarRadius);
+            float radarBeamCore = exp(-96.0 * beamDelta);
+            float radarBeamFan = exp(-22.0 * beamDelta);
+            float radarBeam = (radarBeamCore * 0.98 + radarBeamFan * 0.42) * radarReach;
+            float radarSweep = radarBeam;
             float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 42.0))) * smoothstep(1.12, 0.08, radarRadius);
             float radarPips = smoothstep(0.996, 1.0, hash(floor((uv + vec2(u_time * 0.015, 0.0)) * vec2(36.0, 24.0))));
             radarPips *= smoothstep(1.08, 0.22, radarRadius) * 0.65;
@@ -109,11 +120,13 @@
                 cyan * sweep * 0.12 +
                 magenta * diag * 0.16 +
                 blue * grid * (0.45 + pulse * 0.18) +
+                vec3(0.12, 1.0, 0.5) * radarBeam * 0.34 +
+                vec3(0.56, 1.0, 0.9) * radarBeamCore * radarReach * 0.22 +
                 vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.18 +
                 vec3(0.08, 0.95, 0.52) * radarSweep * radarCross * 0.08 +
                 vec3(0.05, 1.0, 0.42) * radarSweep * radarPips * 0.1 +
-                vec3(0.13, 1.0, 0.52) * radarTargets * 0.18 +
-                vec3(1.0, 0.22, 0.68) * radarThreats * 0.16 +
+                vec3(0.13, 1.0, 0.52) * radarTargets * 0.28 +
+                vec3(1.0, 0.22, 0.68) * radarThreats * 0.24 +
                 vec3(1.0, 0.9, 1.0) * spark;
 
             float alpha =
@@ -121,14 +134,15 @@
                 sweep * 0.025 +
                 diag * 0.035 +
                 grid * 0.22 +
+                radarBeam * 0.16 +
                 radarSweep * radarRings * 0.035 +
                 radarSweep * radarCross * 0.018 +
                 radarPips * 0.04 +
-                radarTargets * 0.085 +
-                radarThreats * 0.078 +
+                radarTargets * 0.13 +
+                radarThreats * 0.12 +
                 spark * 0.12;
 
-            gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.38));
+            gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.46));
         }
     `;
 
