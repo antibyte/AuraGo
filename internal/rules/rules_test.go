@@ -53,6 +53,34 @@ func TestLoadCatalogIncludesEmbeddedHomepageRuleAndDesign(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogIncludesEmbeddedPDFRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("pdf")
+	if !ok {
+		t.Fatal("expected embedded pdf rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded pdf rule should be enabled")
+	}
+	if !contains(rule.Tools, "document_creator") {
+		t.Fatalf("pdf rule tools = %v, want document_creator", rule.Tools)
+	}
+	for _, marker := range []string{"PDF Creation Workflow", "Gotenberg", "Maroto", "visual", "No final PDF may contain placeholders", "If verification is impossible"} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("pdf rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
 func TestLoadCatalogUsesDiskOverrideBeforeEmbeddedRule(t *testing.T) {
 	t.Parallel()
 
@@ -89,6 +117,28 @@ Use the local house style.`
 	}
 	if !strings.Contains(rule.Body, "local house style") {
 		t.Fatalf("disk override body not used: %q", rule.Body)
+	}
+}
+
+func TestCatalogMatchSelectsPDFRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"document_creator"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "pdf" {
+		t.Fatalf("document_creator should select pdf rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Bitte ein PDF erstellen"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "pdf" {
+		t.Fatalf("PDF keyword should select pdf rule first, got %+v", byKeyword.Rules)
 	}
 }
 

@@ -73,6 +73,22 @@ func TestBuildTaskRulePromptContextTreatsGermanPageRebuildAsHomepageWorkflow(t *
 	}
 }
 
+func TestBuildTaskRulePromptContextSelectsPDFRuleByKeyword(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "erstelle ein PDF aus diesem Bericht", nil, nil, "")
+	if !strings.Contains(ctx.TaskRules, "PDF Creation Workflow") {
+		t.Fatalf("TaskRules missing PDF rule for PDF creation request:\n%s", ctx.TaskRules)
+	}
+	if !strings.Contains(ctx.TaskRules, "Always inspect the rendered PDF visually") {
+		t.Fatalf("PDF rule should require visual verification:\n%s", ctx.TaskRules)
+	}
+}
+
 func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +109,26 @@ func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testi
 	}
 	if !strings.Contains(state.flags.HomepageDesignSystem, "Atmospheric Glass") {
 		t.Fatalf("homepage tool did not inject design system:\n%s", state.flags.HomepageDesignSystem)
+	}
+}
+
+func TestEnsureTaskRulesBeforeDocumentCreatorToolLoadsPDFRule(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{Config: cfg}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "document_creator"}, "erstelle das dokument")
+	if !blocked {
+		t.Fatal("expected document_creator call to be blocked until PDF rules are injected")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "PDF Creation Workflow") {
+		t.Fatalf("document_creator tool did not inject required PDF rule:\n%s", state.flags.TaskRules)
 	}
 }
 
