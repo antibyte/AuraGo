@@ -68,7 +68,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
-		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
+		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
 		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
@@ -145,6 +145,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("image_generation", ff.ImageGenerationEnabled)
 	appendToolFeatureKeyPart("music_generation", ff.MusicGenerationEnabled)
 	appendToolFeatureKeyPart("video_generation", ff.VideoGenerationEnabled)
+	appendToolFeatureKeyPart("tts", ff.TTSEnabled)
 	appendToolFeatureKeyPart("package_manager", ff.PackageManagerEnabled)
 	appendToolFeatureKeyPart("remote_control", ff.RemoteControlEnabled)
 	appendToolFeatureKeyPart("allow_shell", ff.AllowShell)

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -496,6 +497,54 @@ func TestBuildNativeToolSchemasReturnsIsolatedCopiesWhenCached(t *testing.T) {
 	}
 	if _, exists := props2["cache_probe"]; exists {
 		t.Fatal("expected cached schema copies to be isolated")
+	}
+}
+
+func TestToolFeatureFlagsKeyIncludesTTSEnabled(t *testing.T) {
+	withoutTTS := ToolFeatureFlags{LDAPEnabled: true}
+	withTTS := withoutTTS
+	withTTS.TTSEnabled = true
+
+	if withoutTTS.Key() == withTTS.Key() {
+		t.Fatal("expected TTSEnabled to change the native tool schema cache key")
+	}
+}
+
+func TestBuildNativeToolSchemasCacheSeparatesTTSFlag(t *testing.T) {
+	withoutTTS := ToolFeatureFlags{LDAPEnabled: true}
+	withTTS := withoutTTS
+	withTTS.TTSEnabled = true
+
+	withoutNames := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, withoutTTS, nil))
+	if containsName(withoutNames, "tts") {
+		t.Fatalf("did not expect tts schema when TTSEnabled=false, got %v", withoutNames)
+	}
+
+	withNames := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, withTTS, nil))
+	if !containsName(withNames, "tts") {
+		t.Fatalf("expected tts schema when TTSEnabled=true, got %v", withNames)
+	}
+}
+
+func TestAllBuiltinToolFeatureFlagsIncludesTTS(t *testing.T) {
+	names := builtinToolNames(allBuiltinToolFeatureFlags())
+	if !containsName(names, "tts") {
+		t.Fatalf("expected all-builtin feature flags to include tts, got %v", names)
+	}
+}
+
+func TestAllBuiltinToolFeatureFlagsEnablesEveryFlag(t *testing.T) {
+	flags := reflect.ValueOf(allBuiltinToolFeatureFlags())
+	fields := reflect.TypeOf(ToolFeatureFlags{})
+
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		if field.Type.Kind() != reflect.Bool {
+			continue
+		}
+		if !flags.Field(i).Bool() {
+			t.Fatalf("allBuiltinToolFeatureFlags leaves %s disabled", field.Name)
+		}
 	}
 }
 

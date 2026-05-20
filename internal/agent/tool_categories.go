@@ -63,6 +63,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"execute_sandbox", "Run code in an isolated sandbox environment"},
 		{"execute_shell", "Execute shell commands on the host system"},
 		{"execute_python", "Execute Python code in AuraGo's managed virtual environment"},
+		{"golangci_lint", "Run golangci-lint on Go packages or paths"},
 		{"upnp_scan", "Discover UPnP/SSDP devices on the local network"},
 		{"cron_scheduler", "Create, list, pause, resume, and delete scheduled cron jobs"},
 		{"manage_plan", "Manage multi-step execution plans"},
