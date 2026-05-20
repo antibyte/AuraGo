@@ -2503,6 +2503,40 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 	}
 }
 
+func TestCyberwarScrollActivityButtonStaysFixedOutOfFooterFlow(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("css", "chat-cyberwar.css"))
+	if err != nil {
+		t.Fatalf("read chat-cyberwar.css: %v", err)
+	}
+	cyberwarCSS := string(content)
+
+	for _, forbidden := range []string{
+		"[data-theme=\"cyberwar\"] .modal-btn,\n[data-theme=\"cyberwar\"] .scroll-to-bottom-btn {\n    position: relative;",
+		"[data-theme=\"cyberwar\"] .scroll-to-bottom-btn {\n    position: relative;",
+	} {
+		if strings.Contains(cyberwarCSS, forbidden) {
+			t.Fatalf("cyberwar scroll activity button must not enter body/footer flow via relative positioning: %q", forbidden)
+		}
+	}
+
+	for _, marker := range []string{
+		"[data-theme=\"cyberwar\"] .scroll-to-bottom-btn {",
+		"position: fixed !important;",
+		"bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));",
+		"right: clamp(1rem, 2.4vw, 1.75rem);",
+		"min-width: 52px;",
+		"height: 42px;",
+		"flex: 0 0 auto;",
+		"box-sizing: border-box;",
+	} {
+		if !strings.Contains(cyberwarCSS, marker) {
+			t.Fatalf("cyberwar scroll activity button is missing fixed-size layout marker %q", marker)
+		}
+	}
+}
+
 func TestSharedSSEAuthFailureRedirectsImmediately(t *testing.T) {
 	t.Parallel()
 
