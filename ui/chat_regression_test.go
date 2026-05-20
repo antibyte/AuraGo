@@ -530,8 +530,8 @@ func TestChatFrontend_PersonaPreviewDescriptionsRemainLocalized(t *testing.T) {
 	for _, marker := range []string{
 		`class="personality-preview-image-frame"`,
 		`id="personality-preview-description"`,
-		`/css/chat.css?v=20260502c`,
-		`/js/chat/chat-history.js?v=20260502c`,
+		`/css/chat.css?v=20260520a`,
+		`/js/chat/chat-history.js?v=20260520a`,
 	} {
 		if !strings.Contains(indexHTML, marker) {
 			t.Fatalf("index.html missing persona description marker %q", marker)
@@ -631,7 +631,7 @@ func TestChatFrontend_PersonaPreviewHoverDoesNotResetSameImageSrc(t *testing.T) 
 			t.Fatalf("chat-history.js missing stable persona preview src marker %q", marker)
 		}
 	}
-	if !strings.Contains(string(indexContent), `/js/chat/chat-history.js?v=20260502c`) {
+	if !strings.Contains(string(indexContent), `/js/chat/chat-history.js?v=20260520a`) {
 		t.Fatal("index.html must bump chat-history.js cache version after stabilizing persona preview hover")
 	}
 }
@@ -1899,6 +1899,60 @@ func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	for _, marker := range requiredMarkers {
 		if !strings.Contains(robotJS, marker) {
 			t.Fatalf("%s is missing expected elevated greeting placement marker %q", robotPath, marker)
+		}
+	}
+}
+
+func TestChatRobotMascotUsesRedSpriteForAggressivePersonas(t *testing.T) {
+	t.Parallel()
+
+	robotPath := filepath.Join("js", "chat", "robot-mascot.js")
+	historyPath := filepath.Join("js", "chat", "chat-history.js")
+	cssPath := filepath.Join("css", "chat.css")
+	redRobotPath := filepath.Join("img", "redrobot.png")
+
+	robotContent, err := os.ReadFile(robotPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", robotPath, err)
+	}
+	historyContent, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", historyPath, err)
+	}
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+
+	assertPNGImageSize(t, redRobotPath, 1254, 1254)
+	for _, marker := range []string{
+		"const aggressivePersonaKeys = new Set(['evil', 'psycho', 'terminator']);",
+		"function setPersonaKey(personaKey)",
+		"mascot.classList.toggle('is-aggressive-persona', aggressivePersonaKeys.has(key));",
+		"window.addEventListener('aurago:persona-icon-change'",
+		"setPersonaKey(window._activePersonaIconKey || 'custom');",
+		"setPersonaKey",
+	} {
+		if !strings.Contains(string(robotContent), marker) {
+			t.Fatalf("%s missing aggressive persona robot marker %q", robotPath, marker)
+		}
+	}
+	for _, marker := range []string{
+		"new CustomEvent('aurago:persona-icon-change'",
+		"window.ChatRobotMascot.setPersonaKey(key);",
+	} {
+		if !strings.Contains(string(historyContent), marker) {
+			t.Fatalf("%s missing robot persona update marker %q", historyPath, marker)
+		}
+	}
+	for _, marker := range []string{
+		"--chat-robot-sprite-image: url('/img/image.png?v=20260425a');",
+		".chat-robot-mascot.is-aggressive-persona",
+		"--chat-robot-sprite-image: url('/img/redrobot.png?v=20260520a');",
+		"background-image: var(--chat-robot-sprite-image);",
+	} {
+		if !strings.Contains(string(cssContent), marker) {
+			t.Fatalf("%s missing aggressive persona robot CSS marker %q", cssPath, marker)
 		}
 	}
 }

@@ -114,6 +114,10 @@ function setActivePersonaIconKey(previewKey) {
         img.src = personaIconUrl(key);
         img.dataset.personaIcon = key;
     });
+    if (window.ChatRobotMascot && typeof window.ChatRobotMascot.setPersonaKey === 'function') {
+        window.ChatRobotMascot.setPersonaKey(key);
+    }
+    window.dispatchEvent(new CustomEvent('aurago:persona-icon-change', { detail: { key } }));
 }
 
 function showPersonaPreview(previewKey, descriptionKey) {

@@ -7,6 +7,7 @@
 
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
     const animationFrameCount = 6;
+    const aggressivePersonaKeys = new Set(['evil', 'psycho', 'terminator']);
     const animations = [
         { name: 'idle', row: 0, frames: [0, 1, 2, 3, 4, 5], hold: 1200, weight: 3 },
         { name: 'wave', row: 1, frames: [0, 1, 2, 3, 4, 5], hold: 1600, weight: 2 },
@@ -106,6 +107,16 @@
     function applyRobotState(nextState) {
         robotState = nextState;
         mascot.classList.toggle('is-greeting', nextState === 'greeting');
+    }
+
+    function normalizePersonaKey(personaKey) {
+        return String(personaKey || 'custom').trim().toLowerCase();
+    }
+
+    function setPersonaKey(personaKey) {
+        const key = normalizePersonaKey(personaKey);
+        mascot.classList.toggle('is-aggressive-persona', aggressivePersonaKeys.has(key));
+        mascot.dataset.robotPersona = key;
     }
 
     function tick() {
@@ -216,6 +227,9 @@
         }
         tick();
     });
+    window.addEventListener('aurago:persona-icon-change', (event) => {
+        setPersonaKey(event.detail && event.detail.key);
+    });
 
     if (reduceMotion && typeof reduceMotion.addEventListener === 'function') {
         reduceMotion.addEventListener('change', () => {
@@ -227,10 +241,12 @@
     window.ChatRobotMascot = {
         launchToAnchor,
         anchorImmediately,
+        setPersonaKey,
         resetGreeting() {
             syncPlacement(false);
         }
     };
 
+    setPersonaKey(window._activePersonaIconKey || 'custom');
     start();
 })();

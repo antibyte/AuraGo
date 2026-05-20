@@ -928,6 +928,7 @@
             --chat-robot-footer-offset: 7rem;
             --chat-robot-col: 0;
             --chat-robot-row: 0;
+            --chat-robot-sprite-image: url('/img/image.png?v=20260425a');
             --chat-robot-icon-start: 24%;
             --chat-robot-icon-rise-mid: 40px;
             --chat-robot-icon-rise-end: 104px;
@@ -951,6 +952,10 @@
                 width 720ms cubic-bezier(0.22, 1, 0.36, 1),
                 height 720ms cubic-bezier(0.22, 1, 0.36, 1),
                 opacity 240ms ease;
+        }
+
+        .chat-robot-mascot.is-aggressive-persona {
+            --chat-robot-sprite-image: url('/img/redrobot.png?v=20260520a');
         }
 
         .chat-robot-mascot::after {
@@ -988,7 +993,7 @@
             position: relative;
             width: 100%;
             height: 100%;
-            background-image: url('/img/image.png?v=20260425a');
+            background-image: var(--chat-robot-sprite-image);
             background-repeat: no-repeat;
             background-size: 600% 600%;
             background-position:
