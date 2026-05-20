@@ -176,6 +176,22 @@
 
 [data-theme="threedee"] .bubble.bot::before {
     content: '';
+    position: absolute;
+    left: -7px;
+    right: auto;
+    top: auto;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 10px 8px;
+    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+    z-index: 9;
+    pointer-events: none;
+}
+
+[data-theme="threedee"] .bubble.bot::after {
+    content: '';
     display: block;
     position: absolute;
     inset: 0;
@@ -209,6 +225,22 @@
 }
 
 [data-theme="threedee"] .bubble.user::before {
+    content: '';
+    position: absolute;
+    right: -7px;
+    left: auto;
+    top: auto;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 8px 10px 0;
+    border-color: transparent transparent var(--user-bubble-tail) transparent;
+    z-index: 9;
+    pointer-events: none;
+}
+
+[data-theme="threedee"] .bubble.user::after {
     content: '';
     display: block;
     position: absolute;

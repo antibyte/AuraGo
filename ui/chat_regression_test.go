@@ -806,6 +806,67 @@ func TestChatFrontend_DarkSunBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_ThreeDeeBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
+	t.Parallel()
+
+	threeDeeContent, err := os.ReadFile(filepath.Join("css", "chat-threedee.css"))
+	if err != nil {
+		t.Fatalf("read threedee CSS: %v", err)
+	}
+
+	threeDeeCSS := string(threeDeeContent)
+	blockFor := func(selector string) string {
+		start := strings.Index(threeDeeCSS, selector+" {")
+		if start < 0 {
+			t.Fatalf("threedee CSS missing selector %q", selector)
+		}
+		end := strings.Index(threeDeeCSS[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("threedee CSS selector %q is missing closing brace", selector)
+		}
+		return threeDeeCSS[start : start+end]
+	}
+
+	for _, tc := range []struct {
+		name     string
+		selector string
+		markers  []string
+	}{
+		{
+			name:     "bot",
+			selector: `[data-theme="threedee"] .bubble.bot::before`,
+			markers:  []string{"left: -7px;", "right: auto;", "bottom: 0;"},
+		},
+		{
+			name:     "user",
+			selector: `[data-theme="threedee"] .bubble.user::before`,
+			markers:  []string{"right: -7px;", "left: auto;", "bottom: 0;"},
+		},
+	} {
+		block := blockFor(tc.selector)
+		if strings.Contains(block, "inset:") || strings.Contains(block, "mask-composite") {
+			t.Fatalf("threedee %s bubble tail must not be reused as the full-bubble border overlay: %s", tc.name, block)
+		}
+		for _, marker := range tc.markers {
+			if !strings.Contains(block, marker) {
+				t.Fatalf("threedee %s bubble tail missing anchor marker %q in block: %s", tc.name, marker, block)
+			}
+		}
+	}
+
+	for _, selector := range []string{
+		`[data-theme="threedee"] .bubble.bot::after`,
+		`[data-theme="threedee"] .bubble.user::after`,
+	} {
+		block := blockFor(selector)
+		for _, marker := range []string{"inset: 0;", "mask-composite: exclude;", "pointer-events: none;"} {
+			if !strings.Contains(block, marker) {
+				t.Fatalf("threedee border overlay %q missing marker %q in block: %s", selector, marker, block)
+			}
+		}
+	}
+}
+
 func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	t.Parallel()
 
