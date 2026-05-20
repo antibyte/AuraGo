@@ -47,5 +47,16 @@ func DefaultLooperPresets() []LooperPreset {
 			Finish:   "Report the final test coverage summary to the user.",
 			MaxIter:  10,
 		},
+		{
+			Name:      "Ralph Loop",
+			IsBuiltin: true,
+			Prepare:   "Load the creative brief or reference material (previous audio, lyrics, mood board, or style description). Summarize the artistic intent, emotional target, and hard constraints (length, language, instruments, vibe).",
+			Plan:      "Critically review the current artifact against the brief. Identify what is working emotionally, what feels generic, structural issues, and concrete improvements that would make it unmistakably 'Ralph-quality'.",
+			Action:    "Execute the plan: generate or refine the artifact (music, lyrics, arrangement, or code). Use available creative tools when appropriate. Make the change bold but coherent with the reference.",
+			Test:      "Evaluate the result on four axes: (1) Emotional impact, (2) Originality vs reference, (3) Technical polish, (4) 'Would Ralph be proud?'. Give a 1-10 score per axis and an overall verdict with specific praise and criticism.",
+			ExitCond:  "Are all four axes >= 8 and the overall verdict 'production ready / signature Ralph'? Answer only true or false.",
+			Finish:    "Export the final artifact to the desktop (Writer, Music player, Gallery, or Radio) and write a short artist note explaining the journey and the key decision that made it special.",
+			MaxIter:   18,
+		},
 	}
 }

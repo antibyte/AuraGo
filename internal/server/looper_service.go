@@ -156,30 +156,11 @@ func (r *LooperRunner) executeStarted(
 
 		r.holder.SetIteration(i)
 
-		var history []openai.ChatCompletionMessage
-
-		switch ctxMode {
-		case "never":
-			if i == 1 {
-				history = make([]openai.ChatCompletionMessage, len(iterSeed))
-				copy(history, iterSeed)
-			} else {
-				history = fullHistory
-			}
-
-		case "every_step":
-			history = make([]openai.ChatCompletionMessage, len(iterSeed))
-			copy(history, iterSeed)
-
-		default: // "every_iteration"
-			history = make([]openai.ChatCompletionMessage, len(iterSeed))
-			copy(history, iterSeed)
-			if i > 1 && lastTestResult != "" {
-				history = append(history, openai.ChatCompletionMessage{
-					Role:    openai.ChatMessageRoleUser,
-					Content: "Previous iteration test result: " + truncateResponse(lastTestResult, 2000),
-				})
-			}
+		history := buildBaseHistoryForIteration(iterSeed, ctxMode, i, lastTestResult)
+		if ctxMode == "never" && i > 1 {
+			// In "never" mode we deliberately carry the previous full history (already trimmed)
+			history = make([]openai.ChatCompletionMessage, len(fullHistory))
+			copy(history, fullHistory)
 		}
 
 		// PLAN
@@ -191,10 +172,7 @@ func (r *LooperRunner) executeStarted(
 		r.holder.AppendLog(i, "plan", cfg.Plan, planRes.Response, planRes.Duration)
 
 		if ctxMode == "every_step" {
-			history = []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(planRes.Response, 2000)},
-			}
+			history = resetHistoryAfterStep(sysPrompt, planRes.Response)
 		} else {
 			history = append(history, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
@@ -211,10 +189,7 @@ func (r *LooperRunner) executeStarted(
 		r.holder.AppendLog(i, "action", cfg.Action, actionRes.Response, actionRes.Duration)
 
 		if ctxMode == "every_step" {
-			history = []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(actionRes.Response, 2000)},
-			}
+			history = resetHistoryAfterStep(sysPrompt, actionRes.Response)
 		}
 
 		// TEST
@@ -228,10 +203,7 @@ func (r *LooperRunner) executeStarted(
 		lastTestResult = testRes.Response
 
 		if ctxMode == "every_step" {
-			history = []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: truncateResponse(testRes.Response, 2000)},
-			}
+			history = resetHistoryAfterStep(sysPrompt, testRes.Response)
 		}
 
 		// EXIT CONDITION — no tools needed, just a boolean evaluation
@@ -277,6 +249,49 @@ func truncateResponse(s string, maxLen int) string {
 func (r *LooperRunner) setErrorAndReturn(err error) error {
 	r.holder.SetError(err.Error())
 	return err
+}
+
+// buildBaseHistoryForIteration returns a fresh history slice for the given iteration
+// according to the chosen context mode. It never mutates iterSeed.
+func buildBaseHistoryForIteration(iterSeed []openai.ChatCompletionMessage, ctxMode string, i int, lastTestResult string) []openai.ChatCompletionMessage {
+	switch ctxMode {
+	case "never":
+		if i == 1 {
+			h := make([]openai.ChatCompletionMessage, len(iterSeed))
+			copy(h, iterSeed)
+			return h
+		}
+		// Subsequent iterations in "never" intentionally start from previous full history
+		// (caller is responsible for passing the correct fullHistory).
+		h := make([]openai.ChatCompletionMessage, len(iterSeed))
+		copy(h, iterSeed)
+		return h
+
+	case "every_step":
+		h := make([]openai.ChatCompletionMessage, len(iterSeed))
+		copy(h, iterSeed)
+		return h
+
+	default: // "every_iteration"
+		h := make([]openai.ChatCompletionMessage, len(iterSeed))
+		copy(h, iterSeed)
+		if i > 1 && lastTestResult != "" {
+			h = append(h, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "Previous iteration test result: " + truncateResponse(lastTestResult, 2000),
+			})
+		}
+		return h
+	}
+}
+
+// resetHistoryAfterStep is used by "every_step" mode to give the *next* step
+// a minimal, clean context containing only the system prompt and the just-completed step result.
+func resetHistoryAfterStep(sysPrompt, stepResult string) []openai.ChatCompletionMessage {
+	return []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+		{Role: openai.ChatMessageRoleUser, Content: truncateResponse(stepResult, 2000)},
+	}
 }
 
 // Server-side singleton management for looper.
