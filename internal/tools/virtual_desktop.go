@@ -426,7 +426,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			},
 		}, nil)
 	case "get_app":
-		appID := virtualDesktopString(args, "app_id", "id")
+		appID := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "app_id", "id")))
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
@@ -435,7 +435,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			return virtualDesktopJSON("error", err.Error(), nil, nil)
 		}
 		for _, app := range payload.BuiltinApps {
-			if app.ID == appID {
+			if strings.EqualFold(app.ID, appID) {
 				return virtualDesktopJSON("ok", "desktop app found", map[string]interface{}{
 					"app":    app,
 					"found":  true,
@@ -444,7 +444,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			}
 		}
 		for _, app := range payload.InstalledApps {
-			if app.ID == appID {
+			if strings.EqualFold(app.ID, appID) {
 				return virtualDesktopJSON("ok", "desktop app found", map[string]interface{}{
 					"app":    app,
 					"found":  true,
@@ -480,7 +480,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			},
 		}, nil)
 	case "get_widget":
-		widgetID := virtualDesktopString(args, "widget_id", "id")
+		widgetID := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "widget_id", "id")))
 		if widgetID == "" {
 			return virtualDesktopJSON("error", "widget_id is required", nil, nil)
 		}
@@ -493,7 +493,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			widgets = payload.Widgets
 		}
 		for _, w := range widgets {
-			if w.ID == widgetID {
+			if strings.EqualFold(w.ID, widgetID) {
 				return virtualDesktopJSON("ok", "desktop widget found", map[string]interface{}{
 					"widget":  w,
 					"found":   true,
@@ -506,7 +506,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			"widget_id": widgetID,
 		}, nil)
 	case "diagnose_app":
-		appID := virtualDesktopString(args, "app_id", "id")
+		appID := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "app_id", "id")))
 		if appID == "" {
 			return virtualDesktopJSON("error", "app_id is required", nil, nil)
 		}
@@ -517,7 +517,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		var app desktop.AppManifest
 		appFound := false
 		for _, a := range payload.BuiltinApps {
-			if a.ID == appID {
+			if strings.EqualFold(a.ID, appID) {
 				app = a
 				appFound = true
 				break
@@ -525,7 +525,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		}
 		if !appFound {
 			for _, a := range payload.InstalledApps {
-				if a.ID == appID {
+				if strings.EqualFold(a.ID, appID) {
 					app = a
 					appFound = true
 					break
@@ -571,6 +571,8 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			} else {
 				checks = append(checks, map[string]interface{}{"check": "entry_nonempty", "ok": true, "detail": "entry file has content"})
 			}
+		} else {
+			recommendations = append(recommendations, "Reinstall or rewrite the app entry file")
 		}
 		return virtualDesktopJSON("ok", "desktop app diagnosed", map[string]interface{}{
 			"app_id":          appID,
@@ -583,7 +585,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			"recommendations": recommendations,
 		}, nil)
 	case "diagnose_widget":
-		widgetID := virtualDesktopString(args, "widget_id", "id")
+		widgetID := strings.ToLower(strings.TrimSpace(virtualDesktopString(args, "widget_id", "id")))
 		if widgetID == "" {
 			return virtualDesktopJSON("error", "widget_id is required", nil, nil)
 		}
@@ -598,7 +600,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 		var widget desktop.Widget
 		widgetFound := false
 		for _, w := range widgets {
-			if w.ID == widgetID {
+			if strings.EqualFold(w.ID, widgetID) {
 				widget = w
 				widgetFound = true
 				break
@@ -622,6 +624,7 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			return virtualDesktopJSON("ok", "desktop widget diagnosed", map[string]interface{}{
 				"widget_id":       widgetID,
 				"ok":              true,
+				"widget":          widget,
 				"checks":          checks,
 				"recommendations": recommendations,
 			}, nil)
@@ -651,9 +654,15 @@ func ExecuteVirtualDesktop(ctx context.Context, cfg *config.Config, args map[str
 			ok = false
 			recommendations = append(recommendations, "Ensure the widget entry file exists")
 		}
+		standalone := widget.AppID == ""
 		return virtualDesktopJSON("ok", "desktop widget diagnosed", map[string]interface{}{
 			"widget_id":       widgetID,
 			"ok":              ok,
+			"widget":          widget,
+			"entry_path":      entryPath,
+			"app_id":          widget.AppID,
+			"standalone":      standalone,
+			"app_backed":      !standalone,
 			"checks":          checks,
 			"recommendations": recommendations,
 		}, nil)

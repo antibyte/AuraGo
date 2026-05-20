@@ -499,6 +499,10 @@ func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
 		"window.parent",
 		"Fruity",
 		"WhiteSur",
+		"Quick Start",
+		"diagnose_app",
+		"list_apps",
+		"Permissions Catalog",
 	} {
 		if !strings.Contains(manual, want) {
 			t.Fatalf("virtual desktop manual missing %q", want)

@@ -191,6 +191,10 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 		return "Apps/ and Widgets/ paths require non-empty content. Provide complete HTML or script content, or use patch_file for targeted edits."
 	case tc.Action == "virtual_desktop" && strings.Contains(lower, "desktop widget html file must not be empty"):
 		return "Standalone widget HTML files must contain non-empty HTML. Rewrite the widget with valid HTML content."
+	case tc.Action == "virtual_desktop" && (strings.Contains(lower, "desktop path escapes workspace") || strings.Contains(lower, "absolute") || strings.Contains(lower, "/workspace") || strings.Contains(lower, "host filesystem")):
+		return "Virtual desktop file operations require a workspace-relative path such as 'Apps/my-app/index.html' or 'Widgets/weather.html'. Do not use absolute paths like '/workspace/...' or host filesystem paths. Use only the relative path inside the virtual desktop workspace."
+	case tc.Action == "virtual_desktop" && (strings.Contains(lower, "unknown/unsupported desktop icon") || strings.Contains(lower, "emoji icon")):
+		return "The specified desktop icon is not supported. Use virtual_desktop status to retrieve the icon_catalog, then choose a preferred or alias semantic name from the catalog. Do not use emoji icons or arbitrary icon strings."
 	default:
 		return base
 	}

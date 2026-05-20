@@ -278,6 +278,46 @@ func TestToolRecoveryStateHintsVirtualDesktopWidgetNotFound(t *testing.T) {
 	}
 }
 
+func TestToolRecoveryStateHintsVirtualDesktopPathEscape(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "virtual_desktop", Operation: "write_file"}
+	result := `Tool Output: {"status":"error","message":"desktop path escapes workspace: /workspace/Apps/foo.html"}`
+
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect first identical error to trip circuit breaker")
+	}
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect second identical error to trip circuit breaker yet")
+	}
+	if len(req.Messages) != 1 {
+		t.Fatalf("expected one recovery hint message, got %d", len(req.Messages))
+	}
+	if !strings.Contains(req.Messages[0].Content, "Apps/my-app/index.html") || !strings.Contains(req.Messages[0].Content, "/workspace/") {
+		t.Fatalf("expected virtual_desktop path-escape recovery hint with workspace-relative guidance, got: %s", req.Messages[0].Content)
+	}
+}
+
+func TestToolRecoveryStateHintsVirtualDesktopInvalidIcon(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "virtual_desktop", Operation: "create_app"}
+	result := `Tool Output: {"status":"error","message":"unknown/unsupported desktop icon: rocket"}`
+
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect first identical error to trip circuit breaker")
+	}
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect second identical error to trip circuit breaker yet")
+	}
+	if len(req.Messages) != 1 {
+		t.Fatalf("expected one recovery hint message, got %d", len(req.Messages))
+	}
+	if !strings.Contains(req.Messages[0].Content, "icon_catalog") || !strings.Contains(req.Messages[0].Content, "emoji") {
+		t.Fatalf("expected virtual_desktop invalid-icon recovery hint with icon_catalog guidance, got: %s", req.Messages[0].Content)
+	}
+}
+
 func TestToolRecoveryStateHandleDuplicateToolCallBoundsFrequencyMap(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

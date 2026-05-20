@@ -31,6 +31,135 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `upsert_widget`: register or update a pinned widget. Provide `widget`.
 - `open_app` / `open_in_app`: ask the browser desktop to open an app. Provide `app_id` and optionally `path` to open a specific file. Available built-in apps: `editor` (plain text workspace files), `writer` (word-processing documents), `sheets` (spreadsheets), `code-studio` (code). Use the generated app id itself (for example `space-invaders`) when you want to run a generated app after editing it. `open_in_app` can also infer the generated app when `path` is its entry file, for example `Apps/space-invaders/index.html`. Code Studio mounts the virtual desktop workspace at `/workspace`, so a desktop file such as `Apps/space-invaders/game.js` opens there as `/workspace/Apps/space-invaders/game.js`; do not pass host filesystem or AuraGo repo paths.
 - `show_notification`: show a desktop notification. Provide `title` and `content`.
+- `list_apps`: list all desktop apps. Returns `builtin_apps`, `installed_apps`, `all_apps`, and `counts` (builtin, installed, total).
+- `get_app`: retrieve full details for one built-in or installed app. Use `app_id`. Returns `app`, `found`, and `source` (`builtin` or `installed`).
+- `list_widgets`: list all pinned widgets with their position, size, and owning app.
+- `get_widget`: retrieve full details for one widget. Use `widget_id`.
+- `diagnose_app`: run diagnostics on a desktop app. Use `app_id`; checks registration, built-in status, entry file path/readability/non-empty content, `health`/`health_reason`, and recommendations.
+- `diagnose_widget`: run diagnostics on a widget. Use `widget_id`; checks registration, widget payload, entry path/readability/non-empty content, standalone/app-backed flags, and recommendations.
+
+## Path Rules
+
+The desktop workspace is rooted at `virtual_desktop.workspace_dir`. All `path` values are relative to this root. Top-level folders include `Documents`, `Apps`, and `Widgets`.
+
+- **Apps path**: Generated app files live under `Apps/<app_id>/`. The manifest `entry` field names a file inside that folder, for example `index.html`. You may also write a single-file app directly to `Apps/<app_id>.html`; AuraGo auto-registers it as `Apps/<app_id>/index.html`.
+- **Widgets path**: Standalone widgets live under `Widgets/<widget_id>.html` or `Widgets/<widget_id>/index.html`. App-backed widget entries live inside their owning app folder (`Apps/<app_id>/widget.html`).
+- **Documents path**: Office files and general workspace files live under `Documents/` or other workspace folders returned by `status`.
+- Do not use absolute filesystem paths, host repo paths, or paths outside the workspace. Code Studio resolves workspace files under `/workspace`.
+
+## install_app vs Apps/<id>.html
+
+Use `install_app` when you need a full generated app with a manifest, multiple files, SDK runtime, and icon registration. This is the recommended path for most generated apps.
+
+Use `write_file` to `Apps/<id>.html` only for quick single-file HTML apps that do not need a manifest or SDK features. When you write non-empty HTML to `Apps/<id>.html`, AuraGo auto-registers a generated app with an inferred manifest. If you later need to add files or set an explicit icon, switch to `install_app` and use the same `id`.
+
+Deleting `Apps/<id>.html` with `delete` or `delete_file` also removes the auto-registered app. Use `delete_app` with `app_id` to remove an app installed via `install_app`.
+
+## Agent Workflows
+
+### Quick Start: Generated App
+
+1. Call `status` to check the desktop state and `icon_catalog`.
+2. Choose an `id`, `name`, and `icon` for the app.
+3. Build the `manifest` and `files` map.
+4. Call `install_app` with the manifest and files.
+5. Call `diagnose_app` with `app_id` to verify the installation.
+6. Call `open_app` with `app_id` to launch it.
+
+Example flow:
+
+```json
+{"operation": "install_app", "manifest": {"id": "todo-app", "name": "Todo List", "version": "1.0.0", "icon": "notes", "entry": "index.html", "runtime": "aura-desktop-sdk@1", "description": "A simple todo list."}, "files": {"index.html": "...", "app.js": "..."}}
+{"operation": "diagnose_app", "app_id": "todo-app"}
+{"operation": "open_app", "app_id": "todo-app"}
+```
+
+### Quick Start: Standalone Widget
+
+1. Call `status` to check available space and `icon_catalog`.
+2. Choose a `widget_id`, `title`, and `icon`.
+3. Write complete non-empty HTML to `Widgets/<widget_id>.html` or `Widgets/<widget_id>/index.html` using `write_file`.
+4. The desktop auto-registers and pins the widget.
+5. Call `diagnose_widget` with `widget_id` to verify it.
+
+Standalone widgets should not use the SDK bridge unless they explicitly need desktop actions. Keep them simple and self-contained.
+
+### Quick Start: App-Backed Widget
+
+1. Install the owning app first with `install_app`.
+2. Create the widget entry HTML inside the app folder (for example `Apps/<app_id>/widget.html`).
+3. Call `upsert_widget` with `widget.id`, `widget.app_id`, `widget.entry`, and layout fields (`x`, `y`, `w`, `h`).
+4. Call `diagnose_widget` with `widget_id` to verify it.
+
+App-backed widgets share the owning app's permissions and can use the full SDK bridge.
+
+## Permissions Catalog
+
+Generated apps and widgets declare permissions in their `manifest.permissions` or `widget.permissions` arrays. The desktop enforces these at runtime through the SDK bridge.
+
+| Permission | Scope |
+|---|---|
+| `apps:open` | Open other apps via `AuraDesktop.desktop.openApp` |
+| `files:read` | Read workspace files via `AuraDesktop.fs.read` |
+| `files:write` | Write workspace files via `AuraDesktop.fs.write` |
+| `filesystem:read` | Alias for `files:read`; workspace file read via SDK bridge |
+| `filesystem:write` | Alias for `files:write`; workspace file write via SDK bridge |
+| `notifications` | Show desktop notifications via `AuraDesktop.notifications.show` |
+| `widgets:write` | Register or update widgets via `AuraDesktop.widgets.register` |
+
+Request only the permissions the app needs.
+
+## SDK API Reference
+
+Generated apps and widgets using `aura-desktop-sdk@1` have these SDK signatures available in the iframe:
+
+```js
+AuraDesktop.app(options: { title?: string, root?: string | Element })
+  // returns { root, context, mount(content), toolbar(items), notify(message, title) }
+
+AuraDesktop.request(action, payload)
+
+AuraDesktop.ui.icon(name, options?)
+AuraDesktop.ui.button(options)
+AuraDesktop.ui.toolbar(items)
+AuraDesktop.ui.panel(children, options?)
+AuraDesktop.ui.card(options)
+AuraDesktop.ui.list(items, renderItem)
+AuraDesktop.ui.tabs(options)
+AuraDesktop.ui.field(options)
+AuraDesktop.ui.input(options?)
+AuraDesktop.ui.textarea(options?)
+AuraDesktop.ui.select(options)
+AuraDesktop.ui.toggle(options)
+AuraDesktop.ui.emptyState(options)
+AuraDesktop.ui.toast(message)
+
+AuraDesktop.fs.list(path)
+AuraDesktop.fs.read(path)
+AuraDesktop.fs.write(path, content)
+
+AuraDesktop.widgets.register(definition)
+AuraDesktop.widgets.resize(options?)
+
+AuraDesktop.notifications.show(options)
+
+AuraDesktop.desktop.openApp(appID)
+AuraDesktop.desktop.context()
+
+AuraDesktop.menu.set(menus)
+AuraDesktop.menu.clear()
+AuraDesktop.menu.onAction(handler)
+
+AuraDesktop.contextMenu.set(itemsOrFactory)
+AuraDesktop.contextMenu.show(items, eventOrPoint)
+AuraDesktop.contextMenu.clear()
+AuraDesktop.contextMenu.onAction(handler)
+
+AuraDesktop.clipboard.readText()
+AuraDesktop.clipboard.writeText(text)
+
+AuraDesktop.icons.catalog()
+```
 
 ## App Manifest
 
@@ -175,3 +304,78 @@ For widgets owned by a generated app, register them with `upsert_widget`. An app
 
 If `entry` is set for an app-backed widget, it must be a file inside the owning app directory (`Apps/<app_id>/`). Standalone widget entries live under `Widgets/` and may be either `<widget_id>.html` or `<widget_id>/index.html`. Widget entries should also load the SDK stylesheet and script when they need SDK features.
 Register an iframe widget only after the owning app has been installed and the widget entry file exists with non-empty HTML content.
+
+## Complete Examples
+
+### Generated App with Widget
+
+Install a generated app and its companion widget in one flow:
+
+```json
+{
+  "operation": "install_app",
+  "manifest": {
+    "id": "weather-dash",
+    "name": "Weather Dashboard",
+    "version": "1.0.0",
+    "icon": "weather",
+    "entry": "index.html",
+    "runtime": "aura-desktop-sdk@1",
+    "description": "Local weather dashboard.",
+    "permissions": ["files:read", "notifications"]
+  },
+  "files": {
+    "index.html": "<link rel=\"stylesheet\" href=\"/css/desktop-sdk.css\"><main id=\"app\"></main><script src=\"/js/desktop/aura-desktop-sdk.js\"></script><script src=\"app.js\"></script>",
+    "app.js": "const app = AuraDesktop.app({ title: 'Weather Dashboard' }); app.mount(AuraDesktop.ui.panel([AuraDesktop.ui.emptyState({ icon: 'weather', title: 'Loading...' })]));",
+    "widget.html": "<link rel=\"stylesheet\" href=\"/css/desktop-sdk.css\"><main id=\"widget\"></main><script src=\"/js/desktop/aura-desktop-sdk.js\"></script><script src=\"widget.js\"></script>",
+    "widget.js": "document.getElementById('widget').textContent = 'Weather widget ready';"
+  }
+}
+```
+
+Then register the widget:
+
+```json
+{
+  "operation": "upsert_widget",
+  "widget": {
+    "id": "weather-dash-mini",
+    "app_id": "weather-dash",
+    "type": "summary",
+    "title": "Weather",
+    "icon": "weather",
+    "entry": "widget.html",
+    "runtime": "aura-desktop-sdk@1",
+    "permissions": ["notifications"],
+    "x": 0,
+    "y": 0,
+    "w": 2,
+    "h": 1
+  }
+}
+```
+
+### Standalone Widget
+
+```json
+{
+  "operation": "write_file",
+  "path": "Widgets/clock.html",
+  "content": "<div style='padding:8px;font-family:sans-serif;'><strong>Clock</strong><div id='t'></div><script>setInterval(()=>document.getElementById('t').textContent=new Date().toLocaleTimeString(),1000)</script></div>"
+}
+```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `install_app` returns empty-content error | Entry file HTML is empty or whitespace-only | Provide real HTML in the entry file |
+| `write_file` to `Apps/<id>.html` fails | Content is empty or too small | Add meaningful HTML content; do not use placeholders |
+| Widget does not appear on desktop | Entry file missing or empty | Verify `Widgets/<id>.html` exists with non-empty content; call `diagnose_widget` |
+| App opens but shows blank page | Missing SDK CSS/JS links or broken `entry` path | Ensure `/css/desktop-sdk.css` and `/js/desktop/aura-desktop-sdk.js` are in the entry HTML |
+| `open_app` says app not found | App ID mismatch or app was deleted | Check `list_apps` for the correct `app_id`; reinstall if needed |
+| Icon shows generic fallback | Unknown or emoji icon name | Use a catalog semantic name from `status.icon_catalog`; avoid emoji |
+| SDK bridge calls fail silently | Missing permission in manifest | Add the required permission to `manifest.permissions` and reinstall |
+| Widget fetches blocked by CSP | Widget tried to call an external API directly | Use same-origin requests or agent-mediated flows; do not fetch arbitrary third-party APIs from widgets |
+| `diagnose_app` reports entry file unreadable or empty | Entry file missing, unreadable, or has no content | Reinstall or rewrite the app entry file with non-empty HTML; check `entry_path` in the diagnosis output |
+

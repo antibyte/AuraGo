@@ -1674,3 +1674,193 @@ func TestExecuteVirtualDesktopReadFileExcerptReturnsLineWindow(t *testing.T) {
 		t.Fatalf("excerpt should guide patch_file usage: %+v", payload.Data)
 	}
 }
+
+func TestExecuteVirtualDesktopGetAppCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_app",
+		"app_id":    "TODO-BOARD",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			App    map[string]interface{} `json:"app"`
+			Found  bool                   `json:"found"`
+			Source string                 `json:"source"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal get_app: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" || !payload.Data.Found || payload.Data.Source != "installed" {
+		t.Fatalf("case-insensitive get_app failed: %+v output=%s", payload.Data, exec.Output)
+	}
+	if payload.Data.App["id"] != "todo-board" {
+		t.Fatalf("app id = %v, want todo-board", payload.Data.App["id"])
+	}
+}
+
+func TestExecuteVirtualDesktopGetWidgetCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/weather_pforzheim.html",
+		"content":   "<main>Weather</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "get_widget",
+		"widget_id": "WEATHER_PFORZHEIM",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Widget  map[string]interface{} `json:"widget"`
+			Found   bool                   `json:"found"`
+			Visible bool                   `json:"visible"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal get_widget: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" || !payload.Data.Found {
+		t.Fatalf("case-insensitive get_widget failed: %+v output=%s", payload.Data, exec.Output)
+	}
+	if payload.Data.Widget["id"] != "weather_pforzheim" {
+		t.Fatalf("widget id = %v, want weather_pforzheim", payload.Data.Widget["id"])
+	}
+}
+
+func TestExecuteVirtualDesktopDiagnoseAppMissingEntryRecommendsRewrite(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	install := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "install_app",
+		"manifest": map[string]interface{}{
+			"id":      "todo-board",
+			"name":    "Todo Board",
+			"version": "1.0.0",
+			"icon":    "todo",
+			"entry":   "index.html",
+		},
+		"files": map[string]interface{}{
+			"index.html": "<main>Todo</main>",
+		},
+	})
+	if !strings.Contains(install.Output, `"status":"ok"`) {
+		t.Fatalf("install_app failed: %s", install.Output)
+	}
+
+	entryPath := filepath.Join(cfg.VirtualDesktop.WorkspaceDir, "Apps", "todo-board", "index.html")
+	if err := os.Remove(entryPath); err != nil {
+		t.Fatalf("remove app entry: %v", err)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_app",
+		"app_id":    "TODO-BOARD",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Ok              bool                     `json:"ok"`
+			Checks          []map[string]interface{} `json:"checks"`
+			Recommendations []string                 `json:"recommendations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal diagnose_app missing entry: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" || payload.Data.Ok {
+		t.Fatalf("expected ok=false for missing entry: %+v output=%s", payload.Data, exec.Output)
+	}
+	hasRec := false
+	for _, r := range payload.Data.Recommendations {
+		if strings.Contains(r, "Reinstall") || strings.Contains(r, "rewrite") {
+			hasRec = true
+			break
+		}
+	}
+	if !hasRec {
+		t.Fatalf("expected recommendation for missing entry, got %v", payload.Data.Recommendations)
+	}
+}
+
+func TestExecuteVirtualDesktopDiagnoseWidgetPayloadIncludesDetails(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Widgets/weather_pforzheim.html",
+		"content":   "<main>Weather</main>",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	exec := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "diagnose_widget",
+		"widget_id": "WEATHER_PFORZHEIM",
+	})
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			WidgetID        string                   `json:"widget_id"`
+			Ok              bool                     `json:"ok"`
+			Widget          map[string]interface{}   `json:"widget"`
+			EntryPath       string                   `json:"entry_path"`
+			AppID           string                   `json:"app_id"`
+			Standalone      bool                     `json:"standalone"`
+			AppBacked       bool                     `json:"app_backed"`
+			Checks          []map[string]interface{} `json:"checks"`
+			Recommendations []string                 `json:"recommendations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(exec.Output), &payload); err != nil {
+		t.Fatalf("unmarshal diagnose_widget: %v\n%s", err, exec.Output)
+	}
+	if payload.Status != "ok" || !payload.Data.Ok {
+		t.Fatalf("diagnose_widget failed: %+v output=%s", payload.Data, exec.Output)
+	}
+	if payload.Data.Widget["id"] != "weather_pforzheim" {
+		t.Fatalf("widget.id = %v, want weather_pforzheim", payload.Data.Widget["id"])
+	}
+	if payload.Data.EntryPath != "Widgets/weather_pforzheim.html" {
+		t.Fatalf("entry_path = %q, want Widgets/weather_pforzheim.html", payload.Data.EntryPath)
+	}
+	if payload.Data.AppID != "" {
+		t.Fatalf("app_id = %q, want empty for standalone", payload.Data.AppID)
+	}
+	if !payload.Data.Standalone {
+		t.Fatalf("standalone = %v, want true", payload.Data.Standalone)
+	}
+	if payload.Data.AppBacked {
+		t.Fatalf("app_backed = %v, want false", payload.Data.AppBacked)
+	}
+}
