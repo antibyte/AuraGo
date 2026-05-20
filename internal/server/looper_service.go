@@ -145,6 +145,37 @@ func (r *LooperRunner) executeStarted(
 
 	var fullHistory []openai.ChatCompletionMessage
 	var lastTestResult string
+	var previousIterationSummary string // used primarily by "never" mode
+
+	// ─────────────────────────────────────────────────────────────────────
+	// ITERATION LOOP + CONTEXT MODE SEMANTICS
+	//
+	// We support three different strategies for how much history is carried
+	// between iterations. The goal is to give the LLM the right amount of
+	// context for different kinds of tasks.
+	//
+	// 1. "every_iteration" (DEFAULT / recommended for creative work like Ralph Loop)
+	//    - Every iteration starts with the original Prepare result (iterSeed).
+	//    - The Test result of the *previous* iteration is injected as additional context.
+	//    - This gives good continuity while still keeping the original task visible.
+	//
+	// 2. "every_step"
+	//    - After every single step (Plan, Action, Test) the history is reset to
+	//      only System + the result of the just completed step.
+	//    - Very low token usage, strong isolation between steps.
+	//    - **Warning**: The original Prepare context disappears quickly.
+	//      Only use for very isolated, stateless micro-tasks.
+	//
+	// 3. "never"  (fresh start per iteration, but with progress memory)
+	//    - Every iteration starts from the original task (iterSeed).
+	//    - For iterations > 1 we append a compact summary of what was achieved
+	//      in the previous iteration.
+	//    - This is the intended "relatively fresh but still progressing" mode.
+	//    - IMPORTANT: The original Prepare must NEVER be lost in this mode.
+	//
+	// The implementation below (especially buildBaseHistoryForIteration + the
+	// special handling after it) enforces these semantics.
+	// ─────────────────────────────────────────────────────────────────────
 
 	// ITERATIONS
 	for i := 1; i <= cfg.MaxIter; i++ {
@@ -156,11 +187,16 @@ func (r *LooperRunner) executeStarted(
 
 		r.holder.SetIteration(i)
 
-		history := buildBaseHistoryForIteration(iterSeed, ctxMode, i, lastTestResult)
-		if ctxMode == "never" && i > 1 {
-			// In "never" mode we deliberately carry the previous full history (already trimmed)
-			history = make([]openai.ChatCompletionMessage, len(fullHistory))
-			copy(history, fullHistory)
+		history := buildBaseHistoryForIteration(iterSeed, ctxMode, i, lastTestResult, previousIterationSummary)
+
+		// Special handling for "never" mode:
+		// We always want the original task (iterSeed) to be present.
+		// On top of that we add a compact summary of the previous iteration's progress.
+		if ctxMode == "never" && i > 1 && previousIterationSummary != "" {
+			history = append(history, openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "Summary of previous iteration:\n" + truncateResponse(previousIterationSummary, 2800),
+			})
 		}
 
 		// PLAN
@@ -236,6 +272,14 @@ func (r *LooperRunner) executeStarted(
 			break
 		}
 
+		// Build a compact summary for the next iteration (mainly used by "never" mode).
+		// We combine the last Test result with a bit of the Action result for better context.
+		previousIterationSummary = ""
+		if lastTestResult != "" {
+			previousIterationSummary = "Test result: " + truncateResponse(lastTestResult, 1500)
+			// We could also store the last Action result, but lastTestResult is usually the most relevant signal.
+		}
+
 		// Trim history between iterations to prevent unbounded context growth.
 		fullHistory = agent.TrimHistory(fullHistory, maxHistoryChars)
 	}
@@ -269,16 +313,21 @@ func (r *LooperRunner) setErrorAndReturn(err error) error {
 
 // buildBaseHistoryForIteration returns a fresh history slice for the given iteration
 // according to the chosen context mode. It never mutates iterSeed.
-func buildBaseHistoryForIteration(iterSeed []openai.ChatCompletionMessage, ctxMode string, i int, lastTestResult string) []openai.ChatCompletionMessage {
+//
+// For "never" mode the caller is responsible for appending a previousIterationSummary
+// after calling this function (see the loop in executeStarted).
+func buildBaseHistoryForIteration(
+	iterSeed []openai.ChatCompletionMessage,
+	ctxMode string,
+	i int,
+	lastTestResult string,
+	previousIterationSummary string, // currently only used for documentation / future use in "never"
+) []openai.ChatCompletionMessage {
+
 	switch ctxMode {
 	case "never":
-		if i == 1 {
-			h := make([]openai.ChatCompletionMessage, len(iterSeed))
-			copy(h, iterSeed)
-			return h
-		}
-		// Subsequent iterations in "never" intentionally start from previous full history
-		// (caller is responsible for passing the correct fullHistory).
+		// "never" = fresh start from the original task every time.
+		// The progress summary is added by the caller after this call.
 		h := make([]openai.ChatCompletionMessage, len(iterSeed))
 		copy(h, iterSeed)
 		return h
