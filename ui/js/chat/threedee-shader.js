@@ -20,7 +20,7 @@
     let modeTransitionStart = 0;
     const MODE_DURATION = 18;
     const MODE_FADE = 2;
-    const MODE_COUNT = 4;
+    const MODE_COUNT = 5;
     const COLOR_PATTERN_DURATION = 4;
     const COLOR_PATTERN_FADE = 1.4;
 
@@ -65,6 +65,7 @@
 
     let robotGroup;
     let robotModel;
+    let robotThrusterLight;
     let robotModelBaseY = 0;
     let robotLoading = false;
     let robotLoaded = false;
@@ -358,6 +359,7 @@
         const startZScene = z - 5.3 - driftZ;
 
         const mesh = new THREE.Mesh(window.sphereGeom, window.sphereMat);
+        mesh.castShadow = true;
         const light = new THREE.PointLight(0xff6600, 3, 10);
         mesh.add(light);
         mesh.position.set(startX, 6, startZScene);
@@ -488,6 +490,37 @@
                 p.mesh.position.z = (Math.random() - 0.5) * 20;
             }
         });
+
+        // Spawn ambient fireflies/embers floating upwards from the wave field
+        if (active && Math.random() < 0.18 && sprites.length < 160) {
+            const rx = (Math.random() - 0.5) * GRID.width;
+            const rz = (Math.random() - 0.5) * GRID.depth;
+            const h = heightAt(rx, rz, t);
+            const ry = h + (surface ? surface.position.y : -2.55) + 0.08;
+            
+            // Pick ember color based on mode
+            let emberColor = 0x7dd3fc; // Default ice blue
+            if (currentMode === 0) {
+                emberColor = 0xc084fc; // Purple during text mode
+            } else if (currentMode === 2) {
+                emberColor = 0xffa23a; // Fiery orange during meteor storm
+            } else if (currentMode === 4) {
+                emberColor = Math.random() < 0.5 ? 0xff4bb5 : 0x22d3ee; // Swirling pink/cyan in vortex mode
+            } else if (h > 0.3) {
+                emberColor = 0xb9d9ff; // Brighter highlights on peaks
+            }
+            
+            createSmokeSprite(rx, ry, rz + (surface ? surface.position.z : -5.3), emberColor, 0.05 + Math.random() * 0.06, 1.8 + Math.random() * 1.4, {
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: 0.35 + Math.random() * 0.45,
+                vz: (Math.random() - 0.5) * 0.4,
+                spin: (Math.random() - 0.5) * 2.5,
+                opacity: 0.65,
+                expansion: 0.08,
+                fadePower: 1.4,
+                kind: 'ember'
+            });
+        }
     }
 
     function buildTextMask() {
@@ -613,6 +646,37 @@
         return true;
     }
 
+    function colorVortexForPosition(x, z, height, t, target) {
+        const weight = Math.max(modeWeight(4, t), 0);
+        if (weight <= 0.001) return;
+
+        const dist = Math.hypot(x, z);
+        const angle = Math.atan2(z, x);
+        const swirlVal = Math.sin(dist * 1.5 - angle * 2.0 - t * 5.5) * 0.5 + 0.5;
+
+        // mix neon pink/magenta and electric blue
+        colorAccent.setHSL(0.82 + swirlVal * 0.12, 0.95, 0.55); // pink to magenta
+        colorAccentNext.setHSL(0.58, 0.95, 0.5); // electric blue
+
+        colorAccent.lerp(colorAccentNext, Math.sin(dist * 0.8 - t * 2.0) * 0.5 + 0.5);
+        target.lerp(colorAccent, weight * 0.88);
+    }
+
+    function vortexHeightAt(x, z, t) {
+        const weight = Math.max(modeWeight(4, t), 0);
+        if (weight <= 0.001) return 0;
+
+        const dist = Math.hypot(x, z);
+        const angle = Math.atan2(z, x);
+
+        // swirling whirlpool waves
+        const swirl = Math.sin(dist * 1.6 - angle * 2.0 - t * 5.5) * 0.36;
+        // vortex funnel shape pulled down at the center and lifted around the walls
+        const funnel = -0.9 * Math.exp(-(dist * dist) / 1.4) + 0.45 * Math.exp(-((dist - 3.2) * (dist - 3.2)) / 2.5);
+
+        return (swirl + funnel) * weight;
+    }
+
     function projectMouseToGrid(event) {
         if (!raycaster || !camera || !mousePlane || !canvas) return;
 
@@ -659,6 +723,10 @@
             window.addEventListener('mouseup', onMouseUp, true);
         } else if (mode === 2) {
             nextImpulseAt = Math.min(nextImpulseAt, t + 0.4);
+        } else if (mode === 4) {
+            // Mode 4 setup: spawn central energy blast
+            ensureImpactAssets();
+            spawnImpactBurst(0, surface ? surface.position.y + 0.5 : -2.0, surface ? surface.position.z : -5.3, 1.45);
         }
     }
 
@@ -741,6 +809,15 @@
 
         height += textHeightAt(x, z, t);
         height += mouseHeightAt(x, z, t);
+        height += vortexHeightAt(x, z, t);
+
+        // Robot thruster downdraft and ripples under the robot
+        if (robotState) {
+            const distToRobot = Math.hypot(x - robotState.x, z - robotState.z);
+            const hoverDepression = -0.28 * Math.exp(-(distToRobot * distToRobot) / 0.75);
+            const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5) * Math.exp(-distToRobot * 1.6) * 0.14;
+            height += hoverDepression + hoverRipple;
+        }
 
         return height;
     }
@@ -853,8 +930,8 @@
         root.traverse(function (node) {
             if (!node.isMesh) return;
             node.frustumCulled = false;
-            node.castShadow = false;
-            node.receiveShadow = false;
+            node.castShadow = true;
+            node.receiveShadow = true;
             if (!node.material) return;
             node.material = Array.isArray(node.material)
                 ? node.material.map(function (material) { return material.clone(); })
@@ -1010,6 +1087,37 @@
         if (robotModel) {
             robotModel.position.y = robotModelBaseY + Math.sin(t * 3.2 + robotState.seed) * 0.035;
         }
+
+        if (robotGroup) {
+            if (!robotThrusterLight) {
+                robotThrusterLight = new THREE.PointLight(0x22d3ee, 1.8, 5);
+                robotThrusterLight.position.set(0, -0.2, 0);
+                robotGroup.add(robotThrusterLight);
+            }
+            if (robotThrusterLight) {
+                robotThrusterLight.intensity = 1.4 + Math.sin(t * 32) * 0.35 + Math.sin(t * 4.8) * 0.15;
+            }
+
+            if (Math.random() < 0.45 && active) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 0.22;
+                const px = robotGroup.position.x + Math.cos(angle) * dist;
+                const py = robotGroup.position.y - 0.45;
+                const pz = robotGroup.position.z + Math.sin(angle) * dist;
+                
+                const emberColor = Math.random() < 0.24 ? 0xffaa00 : 0x22d3ee; // Occasionally orange sparks, mostly cyan jet flame
+                createSmokeSprite(px, py, pz, emberColor, 0.09 + Math.random() * 0.07, 0.45 + Math.random() * 0.35, {
+                    vx: (Math.random() - 0.5) * 0.3 + robotVelocity.x * -0.2,
+                    vy: -1.4 - Math.random() * 1.0,
+                    vz: (Math.random() - 0.5) * 0.3 + robotVelocity.y * -0.2,
+                    spin: (Math.random() - 0.5) * 4.5,
+                    opacity: 0.85,
+                    expansion: 1.15,
+                    fadePower: 1.45,
+                    kind: 'robotJet'
+                });
+            }
+        }
     }
 
     function createHeightfield() {
@@ -1033,6 +1141,7 @@
         surface = new THREE.Mesh(surfaceGeometry, createSurfaceMaterial());
         surface.position.set(0, -2.55, -5.3);
         surface.rotation.z = -0.015;
+        surface.receiveShadow = true;
         scene.add(surface);
 
         gridGeometry = createRectGridGeometry();
@@ -1077,13 +1186,28 @@
         if ('outputColorSpace' in renderer) {
             renderer.outputColorSpace = THREE.SRGBColorSpace;
         }
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const ambient = new THREE.HemisphereLight(0xbfd7ff, 0x0b0f1a, 1.05);
         scene.add(ambient);
 
         const key = new THREE.DirectionalLight(0xb9d9ff, 1.35);
-        key.position.set(-3.5, 6, 6);
+        key.position.set(-5, 8, 2);
+        key.castShadow = true;
+        key.shadow.mapSize.width = 1024;
+        key.shadow.mapSize.height = 1024;
+        key.shadow.camera.near = 0.5;
+        key.shadow.camera.far = 30;
+        key.shadow.camera.left = -15;
+        key.shadow.camera.right = 15;
+        key.shadow.camera.top = 15;
+        key.shadow.camera.bottom = -15;
+        key.shadow.bias = -0.0006;
         scene.add(key);
+
+        key.target.position.set(0, -2.55, -5.3);
+        scene.add(key.target);
 
         const rim = new THREE.DirectionalLight(0x7dd3fc, 0.55);
         rim.position.set(5, 3, -8);
@@ -1160,6 +1284,9 @@
             colorForHeight(height, colorScratch);
             if (currentMode === 3 || previousMode === 3) {
                 colorOverrideForPosition(x, z, height, t, colorScratch);
+            }
+            if (currentMode === 4 || previousMode === 4) {
+                colorVortexForPosition(x, z, height, t, colorScratch);
             }
             if (currentMode === 0 || previousMode === 0) colorTextForPosition(x, z, height, t, colorScratch);
             color.array[i * 3] = colorScratch.r;
