@@ -306,7 +306,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 				Model:             model,
 				MaxIter:           req.MaxIter,
 				ContextMode:       desktop.NormalizeContextMode(req.ContextMode),
-			}, cfg, client, toolSchemas, dispatchCtx); err != nil {
+			}, cfg, client, toolSchemas, dispatchCtx, nil); err != nil {
 				s.Logger.Error("looper execution failed", "error", err)
 			}
 		}()
@@ -353,6 +353,136 @@ func handleLooperPause(s *Server) http.HandlerFunc {
 		runner.Pause()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"status": "pause_requested"})
+	}
+}
+
+func handleLooperResume(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			Prepare           string `json:"prepare"`
+			Plan              string `json:"plan"`
+			Action            string `json:"action"`
+			Test              string `json:"test"`
+			ExitCond          string `json:"exit_cond"`
+			Finish            string `json:"finish"`
+			FinishContext       string `json:"finish_context"`
+			PrepareTruncation   int    `json:"prepare_truncation"`
+			SummarizeIterations bool   `json:"summarize_iterations"`
+			ProviderID          string `json:"provider_id"`
+			Model             string `json:"model"`
+			MaxIter           int    `json:"max_iter"`
+			ContextMode       string `json:"context_mode"`
+		}
+		if err := decodeDesktopJSON(w, r, &req, desktopMediumJSONBodyLimit); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if req.MaxIter <= 0 {
+			req.MaxIter = 20
+		}
+		if req.MaxIter > 100 {
+			req.MaxIter = 100
+		}
+		if !validateLooperPrompts(w, req.Prepare, req.Plan, req.Action, req.Test, req.ExitCond, req.Finish) {
+			return
+		}
+
+		runner, err := getLooperRunner(s)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+
+		// Must have a saved resume snapshot
+		if _, ok := runner.ResumeState(); !ok {
+			jsonError(w, "no paused run to resume", http.StatusConflict)
+			return
+		}
+
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		s.CfgMu.RUnlock()
+
+		var client llm.ChatClient
+		model := req.Model
+		if req.ProviderID != "" {
+			for _, p := range cfg.Providers {
+				if p.ID == req.ProviderID {
+					client = llm.NewClientFromProviderDetails(p.Type, p.BaseURL, p.APIKey, p.AccountID)
+					if model == "" {
+						model = p.Model
+					}
+					break
+				}
+			}
+		}
+		if client == nil {
+			client = s.LLMClient
+		}
+
+		dispatchCtx := &agent.DispatchContext{
+			// same fields as in handleLooperRun
+			CheatsheetDB:       s.CheatsheetDB,
+			ImageGalleryDB:     s.ImageGalleryDB,
+			MediaRegistryDB:    s.MediaRegistryDB,
+			HomepageRegistryDB: s.HomepageRegistryDB,
+			ContactsDB:         s.ContactsDB,
+			PlannerDB:          s.PlannerDB,
+			SQLConnectionsDB:   s.SQLConnectionsDB,
+			SQLConnectionPool:  s.SQLConnectionPool,
+			RemoteHub:          s.RemoteHub,
+			HistoryMgr:         s.HistoryManager,
+			IsMaintenance:      tools.IsBusy(),
+			Guardian:           s.Guardian,
+			LLMGuardian:        s.LLMGuardian,
+			SessionID:          "looper",
+			CoAgentRegistry:    s.CoAgentRegistry,
+			BudgetTracker:      s.BudgetTracker,
+			DaemonSupervisor:   s.DaemonSupervisor,
+			PreparationService: s.PreparationService,
+			MessageSource:      "looper",
+		}
+
+		toolSchemas := agent.GetLooperToolSchemas(cfg)
+
+		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxIter))
+		if err := runner.TryStart(req.MaxIter, loopCancel); err != nil {
+			loopCancel()
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		go func() {
+			defer loopCancel()
+			if err := runner.Resume(loopCtx, desktop.LooperRunConfig{
+				Prepare:           req.Prepare,
+				Plan:              req.Plan,
+				Action:            req.Action,
+				Test:              req.Test,
+				ExitCond:          req.ExitCond,
+				Finish:            req.Finish,
+				FinishContext:       req.FinishContext,
+				PrepareTruncation:   req.PrepareTruncation,
+				SummarizeIterations: req.SummarizeIterations,
+				ProviderID:          req.ProviderID,
+				Model:             model,
+				MaxIter:           req.MaxIter,
+				ContextMode:       desktop.NormalizeContextMode(req.ContextMode),
+			}, cfg, client, toolSchemas, dispatchCtx); err != nil {
+				s.Logger.Error("looper resume failed", "error", err)
+			}
+		}()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "resuming",
+		})
 	}
 }
 

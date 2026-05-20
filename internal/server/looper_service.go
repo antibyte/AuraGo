@@ -64,6 +64,25 @@ func (r *LooperRunner) ResumeState() (desktop.LooperResumeState, bool) {
 	return r.holder.GetResumeState()
 }
 
+// Resume continues a paused loop from the saved snapshot (clean E8 completion).
+// It re-runs Prepare to re-establish context and then continues the iteration
+// loop from the saved point using the seeded carry-over state.
+func (r *LooperRunner) Resume(
+	ctx context.Context,
+	cfg desktop.LooperRunConfig,
+	auraCfg *config.Config,
+	client llm.ChatClient,
+	tools []openai.Tool,
+	dispatchCtx *agent.DispatchContext,
+) error {
+	rs, ok := r.holder.GetResumeState()
+	if !ok {
+		return fmt.Errorf("no paused run to resume")
+	}
+	r.holder.ClearResumeState()
+	return r.executeStarted(ctx, cfg, auraCfg, client, tools, dispatchCtx, &rs)
+}
+
 func (r *LooperRunner) executeStarted(
 	ctx context.Context,
 	cfg desktop.LooperRunConfig,
@@ -71,6 +90,7 @@ func (r *LooperRunner) executeStarted(
 	client llm.ChatClient,
 	tools []openai.Tool,
 	dispatchCtx *agent.DispatchContext,
+	resumeSeed *desktop.LooperResumeState, // non-nil when continuing a paused run (E8)
 ) error {
 	defer r.holder.SetIdle()
 
@@ -165,6 +185,15 @@ func (r *LooperRunner) executeStarted(
 	var previousIterationSummary string // used primarily by "never" mode
 	var lastIterationSummary string     // result of the optional "summarize" step
 
+	startIter := 1
+	if resumeSeed != nil {
+		startIter = resumeSeed.Iteration + 1
+		lastTestResult = resumeSeed.LastTestResult
+		previousIterationSummary = resumeSeed.PreviousIterationSummary
+		lastIterationSummary = resumeSeed.LastIterationSummary
+		r.logger.Info("[Looper] resuming from saved state", "from_iteration", resumeSeed.Iteration, "starting_at", startIter)
+	}
+
 	// ─────────────────────────────────────────────────────────────────────
 	// ITERATION LOOP + CONTEXT MODE SEMANTICS
 	//
@@ -196,7 +225,7 @@ func (r *LooperRunner) executeStarted(
 	// ─────────────────────────────────────────────────────────────────────
 
 	// ITERATIONS
-	for i := 1; i <= cfg.MaxIter; i++ {
+	for i := startIter; i <= cfg.MaxIter; i++ {
 		select {
 		case <-ctx.Done():
 			return r.setErrorAndReturn(fmt.Errorf("aborted by user"))
