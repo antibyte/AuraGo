@@ -94,7 +94,7 @@
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
-    const ROBOT_THRUSTER_RIPPLE_INTERVAL = 1.45;
+    const ROBOT_THRUSTER_RIPPLE_MIN_GAP = 0.9;
     const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 2;
     const MAX_ROBOT_THRUSTER_RIPPLES = 10;
     const RED_ROBOT_FOOT_JET_OFFSETS = [
@@ -814,7 +814,7 @@
         }
     }
 
-    function heightAt(x, z, t) {
+    function heightAt(x, z, t, options) {
         const slowWave = Math.sin(x * 0.46 + t * 0.72) * 0.22;
         const crossWave = Math.sin(z * 0.68 - t * 0.58) * 0.18;
         const diagonalWave = Math.sin((x + z) * 0.32 + t * 0.42) * 0.12;
@@ -849,7 +849,7 @@
             });
         }
 
-        height += robotThrusterRippleHeightAt(x, z, t);
+        height += robotThrusterRippleHeightAt(x, z, t, options && options.ignoreRobotRippleOwner);
 
         return height;
     }
@@ -858,9 +858,10 @@
         return 1 - smoothstep(0.18, ROBOT_WAVE_DAMPING_HEIGHT, Math.max(0, flightLift || 0)) * 0.86;
     }
 
-    function robotThrusterRippleHeightAt(x, z, t) {
+    function robotThrusterRippleHeightAt(x, z, t, ignoreOwner) {
         let height = 0;
         for (const ripple of robotThrusterRipples) {
+            if (ignoreOwner && ripple.owner === ignoreOwner) continue;
             const age = t - ripple.start;
             if (age < 0 || age > ROBOT_THRUSTER_RIPPLE_LIFETIME) continue;
 
@@ -965,7 +966,9 @@
                 flightDuration: ROBOT_FLIGHT_DURATION,
                 flightPeak: ROBOT_FLIGHT_HEIGHT,
                 nextFlightAt: NaN,
-                nextThrusterRippleAt: NaN
+                lastThrusterRippleAt: -999,
+                thrusterRipplePrimed: false,
+                flightWasActive: false
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -1167,10 +1170,11 @@
         ensureRobotPhysicsState();
         const targetNormal = bot && bot.surfaceNormal ? bot.surfaceNormal : robotSurfaceNormal;
         const eps = 0.22;
-        const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t);
-        const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t);
-        const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t);
-        const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t);
+        const sampleOptions = bot && bot.id ? { ignoreRobotRippleOwner: bot.id } : null;
+        const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
+        const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
+        const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
+        const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
         targetNormal.set(left - right, eps * 2, back - front).normalize();
         return targetNormal;
     }
@@ -1306,10 +1310,15 @@
         }
     }
 
-    function addRobotThrusterRipple(bot, t) {
+    function addRobotThrusterRipple(bot, t, strengthScale) {
         if (!bot || !bot.state) return;
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         const owner = bot.id || 'robot';
+        const lastRippleAt = Number.isFinite(bot.state.lastThrusterRippleAt) ? bot.state.lastThrusterRippleAt : -999;
+        if (t - lastRippleAt < ROBOT_THRUSTER_RIPPLE_MIN_GAP) {
+            return false;
+        }
+
         let activeForRobot = 0;
         for (const ripple of robotThrusterRipples) {
             const age = t - ripple.start;
@@ -1318,14 +1327,13 @@
             }
         }
         if (activeForRobot >= ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT) {
-            bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * 0.5;
-            return;
+            return false;
         }
 
-        const strength = (bot.id === 'red' ? 0.078 : 0.056) * flightWaveInfluence;
+        const rippleScale = strengthScale == null ? 1 : clamp(strengthScale, 0.35, 1.35);
+        const strength = (bot.id === 'red' ? 0.078 : 0.056) * flightWaveInfluence * rippleScale;
         if (strength < 0.012) {
-            bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL;
-            return;
+            return false;
         }
 
         robotThrusterRipples.push({
@@ -1338,7 +1346,8 @@
         while (robotThrusterRipples.length > MAX_ROBOT_THRUSTER_RIPPLES) {
             robotThrusterRipples.shift();
         }
-        bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * (0.86 + Math.random() * 0.38);
+        bot.state.lastThrusterRippleAt = t;
+        return true;
     }
 
     function updateRobotThrusterRipples(t) {
@@ -1347,23 +1356,26 @@
                 robotThrusterRipples.splice(i, 1);
             }
         }
-
-        robotFleet.forEach(function (bot) {
-            if (!bot || !bot.state || !bot.group) return;
-            if (!Number.isFinite(bot.state.nextThrusterRippleAt)) {
-                bot.state.nextThrusterRippleAt = t + Math.random() * 0.35;
-            }
-            if (t >= bot.state.nextThrusterRippleAt) {
-                addRobotThrusterRipple(bot, t);
-            }
-        });
     }
 
     function updateRobotMotion(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         if (!bot.group) return;
+        const wasFlightActive = bot.state.flightWasActive === true;
+        let pendingThrusterRipple = 0;
         updateRobotFlight(bot, t);
+        const isFlightActive = (bot.state.flightLift || 0) > 0.06 || bot.state.flightStartedAt >= 0;
+        if (!bot.state.thrusterRipplePrimed) {
+            pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.55);
+            bot.state.thrusterRipplePrimed = true;
+        }
+        if (!wasFlightActive && isFlightActive) {
+            pendingThrusterRipple = Math.max(pendingThrusterRipple, 1);
+        } else if (wasFlightActive && !isFlightActive) {
+            pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.78);
+        }
+        bot.state.flightWasActive = isFlightActive;
 
         const driftX = Math.sin(t * 0.54 + bot.state.z * 0.72 + bot.state.seed) * 0.16;
         const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
@@ -1382,7 +1394,8 @@
         bot.state.z += bot.velocity.y * dt;
         bounceFloatingRobotWithinBounds(t, bot);
 
-        const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t) : heightAt(bot.state.x, bot.state.z, t);
+        const sampleOptions = bot.id ? { ignoreRobotRippleOwner: bot.id } : null;
+        const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
@@ -1454,6 +1467,9 @@
 
         if (Math.random() < ((bot.id === 'red' ? 0.9 : 0.45) + (bot.state.flightLift || 0) * 0.18) && active) {
             createJetFlameSprite(bot, t);
+        }
+        if (pendingThrusterRipple > 0) {
+            addRobotThrusterRipple(bot, t, pendingThrusterRipple);
         }
     }
 
@@ -1958,9 +1974,9 @@
             spawnImpulse(t, false);
         }
         pruneImpulses(t);
+        updateFloatingRobot(dt, t);
         updateParticles(dt, t);
         updateSurface(t);
-        updateFloatingRobot(dt, t);
 
         if (camera) {
             const sway = Math.sin(t * 0.2) * 0.18;

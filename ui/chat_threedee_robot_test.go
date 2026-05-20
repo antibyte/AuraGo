@@ -89,7 +89,7 @@ func TestThreeDeeRobotUsesWavePhysicsAndBoundaryBounce(t *testing.T) {
 		"sampleSurfaceNormal",
 		"updateFloatingRobot",
 		"bounceFloatingRobotWithinBounds",
-		"heightAt(robotState.x, robotState.z, t)",
+		"heightAt(robotState.x, robotState.z, t, sampleOptions)",
 		"surface.position.z",
 		"robotGroup.position.lerp",
 		"targetQuaternion.slerp",
@@ -197,15 +197,21 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"function addRobotThrusterRipple",
 		"function updateRobotThrusterRipples",
 		"function robotThrusterRippleHeightAt",
-		"bot.state.nextThrusterRippleAt",
+		"lastThrusterRippleAt: -999",
+		"thrusterRipplePrimed: false",
+		"flightWasActive: false",
 		"const hoverDepression = -0.2 * Math.exp",
 		"height += hoverDepression * flightWaveInfluence;",
-		"height += robotThrusterRippleHeightAt(x, z, t);",
+		"height += robotThrusterRippleHeightAt(x, z, t, options && options.ignoreRobotRippleOwner);",
+		"if (ignoreOwner && ripple.owner === ignoreOwner) continue;",
+		"const sampleOptions = bot && bot.id ? { ignoreRobotRippleOwner: bot.id } : null;",
 		"updateRobotThrusterRipples(t);",
 		"new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)",
 		"const owner = bot.id || 'robot';",
 		"owner,",
 		"activeForRobot >= ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT",
+		"const rippleScale = strengthScale == null ? 1 : clamp(strengthScale, 0.35, 1.35);",
+		"addRobotThrusterRipple(bot, t, pendingThrusterRipple);",
 		"const rippleAttack = smoothstep",
 		"const rippleRelease = 1 - smoothstep",
 		"const rippleFade = rippleAttack * rippleRelease * rippleRelease",
@@ -218,20 +224,38 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 	if strings.Contains(shader, "const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5)") {
 		t.Fatal("thruster ripple must not be a continuous phase-resetting heightAt sine wave")
 	}
+	if strings.Contains(shader, "nextThrusterRippleAt") {
+		t.Fatal("thruster ripples must be event-driven, not periodically rescheduled")
+	}
 }
 
 func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
 	t.Parallel()
 
 	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
-	if interval := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_INTERVAL"); interval < 1.2 {
-		t.Fatalf("thruster ripple interval should avoid dense ripple stacks, got %.2f", interval)
+	if minGap := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MIN_GAP"); minGap < 0.8 {
+		t.Fatalf("thruster ripple minimum gap should avoid dense ripple stacks, got %.2f", minGap)
 	}
 	if maxActive := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT"); maxActive > 2 {
 		t.Fatalf("thruster ripples should stay sparse per robot, got max %.0f", maxActive)
 	}
 	if maxRipples := extractJSConstFloat(t, shader, "MAX_ROBOT_THRUSTER_RIPPLES"); maxRipples > 12 {
 		t.Fatalf("global thruster ripple pool should stay small enough to avoid jitter, got %.0f", maxRipples)
+	}
+	for _, marker := range []string{
+		"t - lastRippleAt < ROBOT_THRUSTER_RIPPLE_MIN_GAP",
+		"pendingThrusterRipple = Math.max(pendingThrusterRipple, 1)",
+		"pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.78)",
+		"bot.state.flightWasActive = isFlightActive;",
+		"updateFloatingRobot(dt, t);",
+		"updateSurface(t);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing sparse event-driven ripple marker %q", marker)
+		}
+	}
+	if strings.Contains(shader, "ROBOT_THRUSTER_RIPPLE_INTERVAL") {
+		t.Fatal("thruster ripple interval scheduler should not exist")
 	}
 }
 
