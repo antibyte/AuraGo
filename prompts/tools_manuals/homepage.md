@@ -477,7 +477,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `publish_local`, `deploy_netlify`, `deploy_vercel`) to save tokens and keep the pipeline recoverable — avoid running many individual `exec` calls
-- **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. Always use `homepage` → `write_file` instead.
+- Use the homepage workspace operations from the Required Task Rule for project files; do not fall back to generic workspace tools.
 - **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage` → `exec`, `list_files`, `read_file`, `write_file`, or `build`.
 - **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.
 
@@ -569,11 +569,11 @@ Notes:
 **Solutions:**
 1. Use `framework: "html"` for plain HTML projects (no Node.js required)
 2. Rebuild the homepage container to get a newer Node.js: `homepage rebuild`
-3. Create files manually with `homepage write_file` — do NOT use the `filesystem` tool
+3. Create files manually with `homepage write_file`
 
 ### deploy_netlify: "Deploy path does not exist"
 
-**Problem:** Files were created with the `filesystem` tool instead of `homepage write_file`, placing them in `agent_workspace/workdir/` instead of the homepage workspace.
+**Problem:** Files were created outside the homepage workspace, commonly through a generic file tool, placing them in `agent_workspace/workdir/` instead of the homepage workspace.
 
 **Solution:** Use `homepage write_file` to create all project files. The `deploy_netlify` operation only finds files in the homepage workspace (`data/homepage/`).
 
@@ -622,7 +622,7 @@ homepage:
 
 - **File paths**: All file paths are relative to `/workspace` inside the container
 - **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`, not `/workspace/my-site`)
-- **NEVER use `filesystem` tool** for homepage project files — it writes to `agent_workspace/workdir/` instead of the homepage workspace
+- Use homepage workspace operations for homepage project files; generic workspace tools use a different location
 - **Container persistence**: The container persists between sessions (uses `unless-stopped` restart policy)
 - **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`
 - **Plain HTML projects**: Skip the build step entirely — no Docker dev container needed for deployment
