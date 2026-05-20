@@ -38,9 +38,10 @@ var (
 func SetToolDesktopService(svc *desktop.Service) {
 	toolDesktopMu.Lock()
 	defer toolDesktopMu.Unlock()
-	if toolDesktopSvc != nil && toolDesktopSvc != svc {
-		_ = toolDesktopSvc.Close()
-	}
+	// Only store the pointer. Lifecycle (Close) is managed by the creator
+	// (server getDesktopService on config change, or explicit shutdown).
+	// This avoids cross-test interference when many short-lived *Server
+	// instances exist in the same process during parallel tests.
 	toolDesktopSvc = svc
 	if svc != nil {
 		toolDesktopCfg = svc.Config()

@@ -219,47 +219,46 @@ func (s *Service) cleanupStaleDeletes() {
 	}
 }
 
-// Close closes the desktop registry database.
+// Close closes the desktop registry database and stops any managed Code Studio container.
+// It always attempts to close all resources even if an earlier step fails.
 func (s *Service) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
 	s.invalidateBootstrapCache()
+
+	var closeErr error
+
+	// Stop Code Studio container first (best effort, with timeout).
 	if s.codeContainer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
 		if err := s.codeContainer.Stop(ctx); err != nil {
-			return err
+			closeErr = errors.Join(closeErr, fmt.Errorf("code container stop: %w", err))
 		}
+		cancel()
 	}
+
+	// Close DBs in a consistent order. Always attempt every close.
 	if s.db != nil {
-		err := s.db.Close()
+		if err := s.db.Close(); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("desktop registry db: %w", err))
+		}
 		s.db = nil
-		if s.mediaRegistryDB != nil {
-			err = errors.Join(err, s.mediaRegistryDB.Close())
-			s.mediaRegistryDB = nil
-		}
-		if s.imageGalleryDB != nil {
-			err = errors.Join(err, s.imageGalleryDB.Close())
-			s.imageGalleryDB = nil
-		}
-		return err
 	}
 	if s.mediaRegistryDB != nil {
-		err := s.mediaRegistryDB.Close()
-		s.mediaRegistryDB = nil
-		if s.imageGalleryDB != nil {
-			err = errors.Join(err, s.imageGalleryDB.Close())
-			s.imageGalleryDB = nil
+		if err := s.mediaRegistryDB.Close(); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("media registry db: %w", err))
 		}
-		return err
+		s.mediaRegistryDB = nil
 	}
 	if s.imageGalleryDB != nil {
-		err := s.imageGalleryDB.Close()
+		if err := s.imageGalleryDB.Close(); err != nil {
+			closeErr = errors.Join(closeErr, fmt.Errorf("image gallery db: %w", err))
+		}
 		s.imageGalleryDB = nil
-		return err
 	}
-	return nil
+
+	return closeErr
 }
 
 // CodeContainer returns the lazy Code Studio container service.

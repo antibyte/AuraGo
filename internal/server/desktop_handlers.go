@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/tools"
 
 	"github.com/gorilla/websocket"
 )
@@ -69,6 +70,9 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		_ = s.DesktopService.Close()
 		s.DesktopService = nil
 		s.DesktopHub = nil
+		// Intentionally do not call CloseToolDesktopService() here — the next
+		// creation block will overwrite the cache with the fresh service via Set.
+		// Calling Close globally would break parallel tests that share the process.
 	}
 	if s.DesktopService == nil {
 		svc, err := desktop.NewService(desktopCfg)
@@ -84,6 +88,10 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 		}
 		s.DesktopService = svc
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)
+		// Share the long-lived instance with the agent tool layer so that
+		// virtual_desktop / office tool calls reuse the same service instead of
+		// spinning up transient instances on every call.
+		tools.SetToolDesktopService(svc)
 	}
 	return s.DesktopService, s.DesktopHub, nil
 }
