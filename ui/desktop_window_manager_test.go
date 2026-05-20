@@ -68,3 +68,57 @@ func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopWindowResizeHandlesStayOutsideScrollableContent(t *testing.T) {
+	t.Parallel()
+
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-windows.css"), "\r\n", "\n")
+	blockFor := func(selector string) string {
+		haystack := "\n" + css
+		start := strings.LastIndex(haystack, "\n"+selector+" {")
+		if start < 0 {
+			t.Fatalf("desktop windows CSS missing selector %q", selector)
+		}
+		start++
+		end := strings.Index(haystack[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("desktop windows CSS selector %q is missing closing brace", selector)
+		}
+		return haystack[start : start+end]
+	}
+
+	for selector, markers := range map[string][]string{
+		".vd-window":                             {"overflow: visible;"},
+		".vd-window-content":                     {"overflow: hidden;"},
+		".vd-resize-handle::after":               {"inset: 0;"},
+		".vd-resize-e,\n.vd-resize-w":            {"width: 8px;"},
+		".vd-resize-n,\n.vd-resize-s":            {"height: 8px;"},
+		".vd-resize-e":                           {"right: -8px;"},
+		".vd-resize-w":                           {"left: -8px;"},
+		".vd-resize-n":                           {"top: -8px;"},
+		".vd-resize-s":                           {"bottom: -8px;"},
+		".vd-window.maximized .vd-resize-handle": {"display: none;"},
+	} {
+		block := blockFor(selector)
+		for _, marker := range markers {
+			if !strings.Contains(block, marker) {
+				t.Fatalf("desktop resize handle selector %q missing marker %q in block: %s", selector, marker, block)
+			}
+		}
+	}
+
+	for selector, forbidden := range map[string][]string{
+		".vd-resize-handle::after": {"inset: -3px;"},
+		".vd-resize-e":             {"right: 0;"},
+		".vd-resize-w":             {"left: 0;"},
+		".vd-resize-n":             {"top: 0;"},
+		".vd-resize-s":             {"bottom: 0;"},
+	} {
+		block := blockFor(selector)
+		for _, marker := range forbidden {
+			if strings.Contains(block, marker) {
+				t.Fatalf("desktop resize handle selector %q must not cover scrollable content with %q in block: %s", selector, marker, block)
+			}
+		}
+	}
+}

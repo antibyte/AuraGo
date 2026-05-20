@@ -46,7 +46,7 @@
     background: var(--vd-surface);
     box-shadow: var(--vd-shadow);
     backdrop-filter: blur(26px);
-    overflow: hidden;
+    overflow: visible;
     pointer-events: auto;
     transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
 }
@@ -64,6 +64,10 @@
     border-bottom: 0;
     border-left: 0;
     border-radius: 0;
+}
+
+.vd-window.maximized .vd-resize-handle {
+    display: none;
 }
 
 .vd-window.active {
@@ -370,70 +374,70 @@
 .vd-resize-handle::after {
     content: '';
     position: absolute;
-    inset: -3px;
+    inset: 0;
 }
 
 .vd-resize-n,
 .vd-resize-s {
     left: 8px;
     right: 8px;
-    height: 7px;
+    height: 8px;
     cursor: ns-resize;
 }
 
 .vd-resize-n {
-    top: 0;
+    top: -8px;
 }
 
 .vd-resize-s {
-    bottom: 0;
+    bottom: -8px;
 }
 
 .vd-resize-e,
 .vd-resize-w {
     top: 8px;
     bottom: 8px;
-    width: 7px;
+    width: 8px;
     cursor: ew-resize;
 }
 
 .vd-resize-e {
-    right: 0;
+    right: -8px;
 }
 
 .vd-resize-w {
-    left: 0;
+    left: -8px;
 }
 
 .vd-resize-ne,
 .vd-resize-nw,
 .vd-resize-se,
 .vd-resize-sw {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
 }
 
 .vd-resize-ne {
-    top: 0;
-    right: 0;
+    top: -8px;
+    right: -8px;
     cursor: nesw-resize;
 }
 
 .vd-resize-nw {
-    top: 0;
-    left: 0;
+    top: -8px;
+    left: -8px;
     cursor: nwse-resize;
 }
 
 .vd-resize-se {
-    right: 0;
-    bottom: 0;
+    right: -8px;
+    bottom: -8px;
     cursor: nwse-resize;
 }
 
 .vd-resize-sw {
-    left: 0;
-    bottom: 0;
+    left: -8px;
+    bottom: -8px;
     cursor: nesw-resize;
 }
 
