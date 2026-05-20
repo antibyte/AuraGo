@@ -53,6 +53,7 @@ type LooperLogEntry struct {
 	Prompt    string `json:"prompt"`
 	Response  string `json:"response"`
 	Duration  int64  `json:"duration"`
+	Reason    string `json:"reason,omitempty"` // populated when exit condition returns structured output with "reason"
 }
 
 // LooperRunState is the live status of a running or finished loop.
@@ -64,6 +65,21 @@ type LooperRunState struct {
 	LastResult    string           `json:"last_result"`
 	Logs          []LooperLogEntry `json:"logs"`
 	Error         string           `json:"error,omitempty"`
+	// Pause / Resume support (E8)
+	Paused         bool               `json:"paused"`
+	ResumeFrom     int                `json:"resume_from,omitempty"`
+	ResumeSnapshot *LooperResumeState `json:"resume_snapshot,omitempty"`
+}
+
+// LooperResumeState captures the minimal state required to resume a loop
+// from a given iteration. It stores the key carry-over variables that the
+// iteration loop uses to maintain continuity (especially important for
+// "every_iteration" and "never" context modes and for the optional summarizer).
+type LooperResumeState struct {
+	Iteration                int    `json:"iteration"`
+	LastTestResult           string `json:"last_test_result,omitempty"`
+	PreviousIterationSummary string `json:"previous_iteration_summary,omitempty"`
+	LastIterationSummary     string `json:"last_iteration_summary,omitempty"`
 }
 
 // LooperRunConfig holds everything needed to execute one loop.
@@ -275,14 +291,18 @@ func (ps *LooperPresetStore) DeletePreset(ctx context.Context, id int64) error {
 
 // LooperRunStateHolder holds mutable run state safely.
 type LooperRunStateHolder struct {
-	mu       sync.Mutex
-	state    LooperRunState
-	cancelFn context.CancelFunc
+	mu          sync.Mutex
+	state       LooperRunState
+	cancelFn    context.CancelFunc
+	paused      bool
+	resumeState *LooperResumeState
 }
 
 // NewLooperRunStateHolder creates a state holder.
 func NewLooperRunStateHolder() *LooperRunStateHolder {
-	return &LooperRunStateHolder{state: LooperRunState{CurrentStep: "idle"}}
+	return &LooperRunStateHolder{
+		state: LooperRunState{CurrentStep: "idle"},
+	}
 }
 
 // State returns a deep copy of the current state.
@@ -299,12 +319,17 @@ func (h *LooperRunStateHolder) State() LooperRunState {
 func (h *LooperRunStateHolder) SetRunning(maxIter int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.paused = false
+	h.resumeState = nil
 	h.state = LooperRunState{
 		Running:       true,
 		CurrentStep:   "prepare",
 		MaxIterations: maxIter,
 		Logs:          make([]LooperLogEntry, 0),
 		Error:         "",
+		Paused:        false,
+		ResumeFrom:    0,
+		ResumeSnapshot: nil,
 	}
 }
 
@@ -315,23 +340,45 @@ func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) 
 	if h.state.Running {
 		return fmt.Errorf("a loop is already running")
 	}
+	h.paused = false
+	h.resumeState = nil
 	h.cancelFn = cancel
 	h.state = LooperRunState{
-		Running:       true,
-		CurrentStep:   "prepare",
-		MaxIterations: maxIter,
-		Logs:          make([]LooperLogEntry, 0),
-		Error:         "",
+		Running:        true,
+		CurrentStep:    "prepare",
+		MaxIterations:  maxIter,
+		Logs:           make([]LooperLogEntry, 0),
+		Error:          "",
+		Paused:         false,
+		ResumeFrom:     0,
+		ResumeSnapshot: nil,
 	}
 	return nil
 }
 
-// SetIdle marks the run as finished.
+// SetIdle marks the run as finished (normal completion or error).
+// If a resume snapshot exists we deliberately keep the paused/resumable state
+// so that a later resume call can continue from where we left off.
 func (h *LooperRunStateHolder) SetIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.resumeState != nil || h.state.Paused {
+		// We intentionally paused with a valid resume point.
+		// Keep the snapshot and only ensure the run flag is off.
+		h.state.Running = false
+		h.state.CurrentStep = "paused"
+		h.cancelFn = nil
+		h.paused = false // the request flag is no longer relevant
+		return
+	}
+	// Normal terminal state (finished, error, or user stopped without resume intent)
+	h.paused = false
+	h.resumeState = nil
 	h.state.Running = false
 	h.state.CurrentStep = "idle"
+	h.state.Paused = false
+	h.state.ResumeFrom = 0
+	h.state.ResumeSnapshot = nil
 	h.cancelFn = nil
 }
 
@@ -358,6 +405,12 @@ func (h *LooperRunStateHolder) SetLastResult(res string) {
 
 // AppendLog adds a log entry. Keeps at most 200 entries to prevent unbounded growth.
 func (h *LooperRunStateHolder) AppendLog(iteration int, step, prompt, response string, duration time.Duration) {
+	h.AppendLogWithReason(iteration, step, prompt, response, duration, "")
+}
+
+// AppendLogWithReason is like AppendLog but also records an optional human-readable reason
+// (typically coming from structured exit output).
+func (h *LooperRunStateHolder) AppendLogWithReason(iteration int, step, prompt, response string, duration time.Duration, reason string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Logs = append(h.state.Logs, LooperLogEntry{
@@ -366,6 +419,7 @@ func (h *LooperRunStateHolder) AppendLog(iteration int, step, prompt, response s
 		Prompt:    prompt,
 		Response:  response,
 		Duration:  duration.Milliseconds(),
+		Reason:    reason,
 	})
 	const maxLogs = 200
 	if len(h.state.Logs) > maxLogs {
@@ -395,4 +449,72 @@ func (h *LooperRunStateHolder) CancelRun() {
 	if fn != nil {
 		fn()
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pause / Resume support (E8 – clean foundation)
+//
+// RequestPause + checkpoint logic inside the runner allow expensive creative
+// loops (e.g. the 18-iteration Ralph Loop) to be paused at safe iteration
+// boundaries and later resumed without losing the accumulated context and
+// summaries.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// RequestPause signals that the currently executing loop should pause
+// at the next safe checkpoint (after completing the current iteration's
+// Exit decision and before starting the next iteration).
+// The check is performed inside executeStarted.
+func (h *LooperRunStateHolder) RequestPause() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.Running && !h.state.Paused {
+		h.paused = true
+	}
+}
+
+// IsPauseRequested returns whether a pause request is pending.
+func (h *LooperRunStateHolder) IsPauseRequested() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.paused
+}
+
+// SaveResumeState stores the snapshot that enables resuming the loop later.
+// It transitions the holder into a "paused, resumable" state that the UI
+// can observe via State() (Paused=true + ResumeFrom + ResumeSnapshot).
+func (h *LooperRunStateHolder) SaveResumeState(rs LooperResumeState) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	cp := rs // copy
+	h.resumeState = &cp
+	h.state.Paused = true
+	h.state.Running = false
+	h.state.CurrentStep = "paused"
+	h.state.ResumeFrom = rs.Iteration
+	h.state.ResumeSnapshot = &cp
+	h.paused = false
+	h.cancelFn = nil
+}
+
+// GetResumeState returns the saved resume snapshot (if one exists).
+func (h *LooperRunStateHolder) GetResumeState() (LooperResumeState, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.resumeState == nil {
+		return LooperResumeState{}, false
+	}
+	cp := *h.resumeState
+	return cp, true
+}
+
+// ClearResumeState discards any saved resume information (used after a
+// successful resume or when the user explicitly discards a paused run).
+func (h *LooperRunStateHolder) ClearResumeState() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.resumeState = nil
+	h.paused = false
+	h.state.Paused = false
+	h.state.ResumeFrom = 0
+	h.state.ResumeSnapshot = nil
 }

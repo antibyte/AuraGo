@@ -477,6 +477,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/examples", handleLooperExamples(s))
 	mux.HandleFunc("/api/desktop/looper/run", handleLooperRun(s))
 	mux.HandleFunc("/api/desktop/looper/stop", handleLooperStop(s))
+	mux.HandleFunc("/api/desktop/looper/pause", handleLooperPause(s))
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
 	registerCodeStudioRoutes(mux, s)
 

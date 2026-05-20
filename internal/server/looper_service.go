@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -50,6 +51,17 @@ func (r *LooperRunner) Shutdown() {
 
 func (r *LooperRunner) TryStart(maxIter int, cancel context.CancelFunc) error {
 	return r.holder.TryStart(maxIter, cancel)
+}
+
+// Pause requests a graceful pause at the next iteration boundary.
+// Safe to call from the HTTP handler while the loop goroutine is running.
+func (r *LooperRunner) Pause() {
+	r.holder.RequestPause()
+}
+
+// ResumeState returns any saved resume snapshot from a previously paused run.
+func (r *LooperRunner) ResumeState() (desktop.LooperResumeState, bool) {
+	return r.holder.GetResumeState()
 }
 
 func (r *LooperRunner) executeStarted(
@@ -193,6 +205,20 @@ func (r *LooperRunner) executeStarted(
 
 		r.holder.SetIteration(i)
 
+		// Early pause check at iteration start (catches pause requests that arrived
+		// exactly after the previous checkpoint but before we began the new round).
+		if r.holder.IsPauseRequested() {
+			rs := desktop.LooperResumeState{
+				Iteration:                i,
+				LastTestResult:           lastTestResult,
+				PreviousIterationSummary: previousIterationSummary,
+				LastIterationSummary:     lastIterationSummary,
+			}
+			r.holder.SaveResumeState(rs)
+			r.logger.Info("[Looper] run paused before starting iteration", "iteration", i)
+			return nil
+		}
+
 		history := buildBaseHistoryForIteration(iterSeed, ctxMode, i, lastTestResult, previousIterationSummary)
 
 		// Special handling for "never" mode:
@@ -260,32 +286,41 @@ func (r *LooperRunner) executeStarted(
 		history = appendStepResult(history, "test", testRes.Response, ctxMode, sysPrompt)
 
 		// EXIT CONDITION — no tools needed, just a boolean evaluation.
-		// When the model gives an ambiguous answer we do one cheap clarification
-		// round ("reply ONLY with true or false"). This dramatically improves
-		// reliability of long creative loops such as "Ralph Loop".
+		// We now prefer structured output from the model:
+		//   {"decision": true/false, "reason": "...", "confidence": 0.0-1.0}
+		// Falls back to the previous boolean parser + clarification if no valid JSON is returned.
 		r.holder.SetStep("exit")
 		exitRes, _, err := stepExec("exit", cfg.ExitCond, "", noTools, optsNoTools, history)
 		if err != nil {
 			return r.setErrorAndReturn(err)
 		}
-		r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
 
-		shouldExit, decisive := agent.ParseExitBooleanWithConfidence(exitRes.Response)
-		if !decisive {
-			// One-shot clarification (very cheap, no tools)
-			clarityPrompt := "The previous answer was ambiguous. Reply with ONLY the single lowercase word \"true\" or \"false\". No explanation."
-			clarityRes, _, cerr := stepExec("exit_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, history)
-			if cerr == nil {
-				r.holder.AppendLog(i, "exit_clarify", clarityPrompt, clarityRes.Response, clarityRes.Duration)
-				shouldExit = agent.ParseExitBoolean(clarityRes.Response)
-			} else {
-				r.logger.Warn("[Looper] exit clarification call failed", "err", cerr)
+		decision, reason, confidence, usedStructured := parseStructuredExit(exitRes.Response)
+
+		if usedStructured {
+			r.holder.AppendLogWithReason(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration, reason)
+			r.logger.Info("[Looper] exit structured", "iteration", i, "decision", decision, "confidence", confidence, "reason", reason)
+		} else {
+			r.holder.AppendLog(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration)
+
+			shouldExit, decisive := agent.ParseExitBooleanWithConfidence(exitRes.Response)
+			if !decisive {
+				// One-shot clarification (very cheap, no tools)
+				clarityPrompt := "The previous answer was ambiguous. Reply with ONLY the single lowercase word \"true\" or \"false\". No explanation."
+				clarityRes, _, cerr := stepExec("exit_clarify", clarityPrompt, sysPrompt, noTools, optsNoTools, history)
+				if cerr == nil {
+					r.holder.AppendLog(i, "exit_clarify", clarityPrompt, clarityRes.Response, clarityRes.Duration)
+					shouldExit = agent.ParseExitBoolean(clarityRes.Response)
+				} else {
+					r.logger.Warn("[Looper] exit clarification call failed", "err", cerr)
+				}
 			}
+			decision = shouldExit
 		}
 
 		fullHistory = history
 
-		if shouldExit {
+		if decision {
 			break
 		}
 
@@ -299,6 +334,21 @@ func (r *LooperRunner) executeStarted(
 
 		// Trim history between iterations to prevent unbounded context growth.
 		fullHistory = agent.TrimHistory(fullHistory, maxHistoryChars)
+
+		// E8 – Pause checkpoint (safe iteration boundary).
+		// We only pause between iterations, never in the middle of Plan/Action/Test/Exit.
+		// This guarantees that lastTestResult + summaries are consistent for resume.
+		if r.holder.IsPauseRequested() {
+			rs := desktop.LooperResumeState{
+				Iteration:                i,
+				LastTestResult:           lastTestResult,
+				PreviousIterationSummary: previousIterationSummary,
+				LastIterationSummary:     lastIterationSummary,
+			}
+			r.holder.SaveResumeState(rs)
+			r.logger.Info("[Looper] run paused by user request", "iteration", i, "resume_from", i)
+			return nil // clean return – holder is now in paused + resumable state
+		}
 	}
 
 	// FINISH
@@ -354,6 +404,49 @@ func truncateResponse(s string, maxLen int) string {
 func (r *LooperRunner) setErrorAndReturn(err error) error {
 	r.holder.SetError(err.Error())
 	return err
+}
+
+// parseStructuredExit tries to interpret the model's response as structured exit output.
+// Expected format (best effort):
+//
+//	{"decision": true/false, "reason": "short explanation", "confidence": 0.75}
+//
+// Returns (decision, reason, confidence, usedStructured).
+func parseStructuredExit(raw string) (bool, string, float64, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return false, "", 0, false
+	}
+
+	// Try to find a JSON object
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+	if start == -1 || end == -1 || end <= start {
+		return false, "", 0, false
+	}
+
+	jsonPart := s[start : end+1]
+
+	var data struct {
+		Decision   *bool    `json:"decision"`
+		Reason     string   `json:"reason"`
+		Confidence *float64 `json:"confidence"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonPart), &data); err != nil {
+		return false, "", 0, false
+	}
+
+	if data.Decision == nil {
+		return false, "", 0, false
+	}
+
+	conf := 0.0
+	if data.Confidence != nil {
+		conf = *data.Confidence
+	}
+
+	return *data.Decision, strings.TrimSpace(data.Reason), conf, true
 }
 
 // buildBaseHistoryForIteration returns a fresh history slice for the given iteration
