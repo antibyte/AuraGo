@@ -225,46 +225,137 @@
         }
     }
 
+    function updateBubbleSandPhysics(dt) {
+        const MAX_SLOPE = 0.8; // Maximum slope before sand slides down (angle of repose)
+        for (let i = 0; i < cachedBubbles.length; i++) {
+            const b = cachedBubbles[i];
+            const map = b.heightMap;
+            
+            // 1. Sliding physics pass (angle of repose)
+            for (let pass = 0; pass < 2; pass++) {
+                for (let col = 0; col < map.length; col++) {
+                    if (col > 0) {
+                        const diff = map[col] - map[col - 1];
+                        if (diff > MAX_SLOPE) {
+                            const transfer = (diff - MAX_SLOPE) * 0.45 * dt;
+                            map[col] -= transfer;
+                            map[col - 1] += transfer;
+                        }
+                    }
+                    if (col < map.length - 1) {
+                        const diff = map[col] - map[col + 1];
+                        if (diff > MAX_SLOPE) {
+                            const transfer = (diff - MAX_SLOPE) * 0.45 * dt;
+                            map[col] -= transfer;
+                            map[col + 1] += transfer;
+                        }
+                    }
+                }
+            }
+            
+            // 2. Slow natural erosion/settling over time (wind or gravity)
+            for (let col = 0; col < map.length; col++) {
+                if (map[col] > 0) {
+                    map[col] = Math.max(0, map[col] - 0.003 * dt);
+                }
+            }
+        }
+    }
+
     function drawBubbleSand() {
+        ctx.save();
         for (let i = 0; i < cachedBubbles.length; i++) {
             const b = cachedBubbles[i];
             const map = b.heightMap;
             let hasSand = false;
             for (let k = 0; k < map.length; k++) {
-                if (map[k] > 0.2) { hasSand = true; break; }
+                if (map[k] > 0.15) { hasSand = true; break; }
             }
             if (!hasSand) continue;
             
+            // Draw soft shadow under/around the sand
+            ctx.shadowBlur = 3;
+            ctx.shadowColor = 'rgba(163, 112, 57, 0.4)';
+            
+            // 1. Draw base/shadow layer
             ctx.beginPath();
-            // Start at the top-left of the bubble
             ctx.moveTo(b.left, b.top);
             for (let col = 0; col < map.length; col++) {
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
-                const py = b.top - map[col];
+                
+                // Rounded corner tapering (first 14px and last 14px of bubble width)
+                const distFromLeft = col * b.bucketSize;
+                const distFromRight = b.width - distFromLeft;
+                let taper = 1;
+                if (distFromLeft < 14) {
+                    taper = distFromLeft / 14;
+                } else if (distFromRight < 14) {
+                    taper = distFromRight / 14;
+                }
+                
+                const py = b.top - map[col] * taper;
                 ctx.lineTo(px, py);
             }
-            // End at top-right of the bubble
             ctx.lineTo(b.right, b.top);
             ctx.closePath();
             
-            // Dune sand gradient
+            // Base sand gradient
             const sandGrad = ctx.createLinearGradient(0, b.top - 18, 0, b.top);
-            sandGrad.addColorStop(0, 'rgba(240, 212, 165, 0.95)'); // Pale top highlight
-            sandGrad.addColorStop(0.4, 'rgba(215, 178, 128, 0.95)'); // Golden middle
-            sandGrad.addColorStop(1, 'rgba(163, 112, 57, 0.95)'); // Warm ochre base
+            sandGrad.addColorStop(0, 'rgba(235, 195, 140, 0.95)'); // Bright top highlight
+            sandGrad.addColorStop(0.4, 'rgba(210, 165, 110, 0.95)'); // Golden middle
+            sandGrad.addColorStop(1, 'rgba(150, 95, 45, 0.95)'); // Warm base
             ctx.fillStyle = sandGrad;
             ctx.fill();
             
-            // Add tiny detailed sand grains along the peak
-            ctx.fillStyle = 'rgba(255, 240, 215, 0.85)';
+            // Turn off shadow for highlights
+            ctx.shadowBlur = 0;
+            
+            // 2. Draw a beautiful golden peak highlight layer (gives 3D depth)
+            ctx.beginPath();
+            ctx.moveTo(b.left, b.top);
+            for (let col = 0; col < map.length; col++) {
+                const px = b.left + col * b.bucketSize + b.bucketSize / 2;
+                const distFromLeft = col * b.bucketSize;
+                const distFromRight = b.width - distFromLeft;
+                let taper = 1;
+                if (distFromLeft < 14) taper = distFromLeft / 14;
+                else if (distFromRight < 14) taper = distFromRight / 14;
+                
+                const py = b.top - map[col] * taper * 0.7;
+                ctx.lineTo(px, py);
+            }
+            ctx.lineTo(b.right, b.top);
+            ctx.closePath();
+            
+            const highlightGrad = ctx.createLinearGradient(0, b.top - 12, 0, b.top);
+            highlightGrad.addColorStop(0, 'rgba(255, 235, 200, 0.6)');
+            highlightGrad.addColorStop(1, 'rgba(235, 195, 140, 0)');
+            ctx.fillStyle = highlightGrad;
+            ctx.fill();
+            
+            // 3. Draw soft, organic sand speck grains
             for (let col = 0; col < map.length; col += 2) {
-                if (map[col] > 1) {
-                    const px = b.left + col * b.bucketSize + rand(-1, 1);
-                    const py = b.top - map[col] - rand(0, 1.2);
-                    ctx.fillRect(px, py, 1.1, 1.1);
+                const distFromLeft = col * b.bucketSize;
+                const distFromRight = b.width - distFromLeft;
+                let taper = 1;
+                if (distFromLeft < 14) taper = distFromLeft / 14;
+                else if (distFromRight < 14) taper = distFromRight / 14;
+                
+                const h = map[col] * taper;
+                if (h > 0.8) {
+                    ctx.fillStyle = `rgba(255, 245, 220, ${rand(0.3, 0.85)})`;
+                    const px = b.left + col * b.bucketSize + rand(-1.2, 1.2);
+                    const py = b.top - h - rand(0, 1.0);
+                    ctx.fillRect(px, py, 1.0, 1.0);
+                    
+                    if (col % 4 === 0) {
+                        ctx.fillStyle = `rgba(138, 89, 44, ${rand(0.2, 0.5)})`;
+                        ctx.fillRect(px, py + 1, 1.0, 1.0);
+                    }
                 }
             }
         }
+        ctx.restore();
     }
 
     // Storm state
@@ -644,7 +735,15 @@
                     if (fx[i] >= b.left && fx[i] <= b.right) {
                         const col = Math.floor((fx[i] - b.left) / b.bucketSize);
                         if (col >= 0 && col < b.heightMap.length) {
-                            const surfaceY = b.top - b.heightMap[col];
+                            const distFromLeft = col * b.bucketSize;
+                            const distFromRight = b.width - distFromLeft;
+                            let taper = 1;
+                            if (distFromLeft < 14) {
+                                taper = distFromLeft / 14;
+                            } else if (distFromRight < 14) {
+                                taper = distFromRight / 14;
+                            }
+                            const surfaceY = b.top - b.heightMap[col] * taper;
                             if (fy[i] >= surfaceY - 4.5 && fy[i] <= surfaceY + 2.5) {
                                 b.heightMap[col] = Math.min(b.heightMap[col] + fs[i] * 0.45, 18);
                                 if (col > 0) b.heightMap[col - 1] = Math.min(b.heightMap[col - 1] + fs[i] * 0.15, 18);
@@ -825,6 +924,7 @@
         // Update bubble elements & track vertical scrolling/velocity
         updateBubbleBounds(time);
         handleScrollErosion();
+        updateBubbleSandPhysics(dt);
 
         // WebGL fog (rendered first, behind particles)
         renderFog(time);
