@@ -87,18 +87,18 @@
     transform-origin: 50% 50%;
     mix-blend-mode: screen;
     background:
-        linear-gradient(90deg, transparent 49.94%, rgba(13, 242, 114, 0.08) 50%, transparent 50.06%),
-        linear-gradient(0deg, transparent 49.94%, rgba(0, 240, 255, 0.06) 50%, transparent 50.06%),
+        linear-gradient(90deg, transparent 49.92%, rgba(13, 242, 114, 0.1) 50%, transparent 50.08%),
+        linear-gradient(0deg, transparent 49.92%, rgba(0, 240, 255, 0.08) 50%, transparent 50.08%),
         repeating-radial-gradient(circle at 50% 50%,
-            transparent 0 8vmin,
-            rgba(0, 240, 255, 0.09) calc(8vmin + 1px),
-            transparent calc(8vmin + 3px)),
+            transparent 0 6vmin,
+            rgba(0, 240, 255, 0.11) calc(6vmin + 1px),
+            transparent calc(6vmin + 2px)),
         radial-gradient(circle at 50% 50%,
-            rgba(13, 242, 114, 0.08) 0 0.35vmin,
-            rgba(0, 240, 255, 0.045) 0.4vmin 0.9vmin,
+            rgba(13, 242, 114, 0.1) 0 0.35vmin,
+            rgba(0, 240, 255, 0.06) 0.4vmin 0.9vmin,
             transparent 1.35vmin);
-    animation: cyberwarRadarSweep 18s linear infinite;
-    opacity: 0.72;
+    animation: cyberwarRadarSweep 16s linear infinite;
+    opacity: 0.78;
     will-change: transform;
 }
 
@@ -349,7 +349,7 @@
     z-index: 2 !important;
     opacity: 1 !important;
     mix-blend-mode: screen !important;
-    filter: saturate(1.34) brightness(1.16) !important;
+    filter: saturate(1.5) brightness(1.22) contrast(1.06) !important;
 }
 
 /* Legacy pseudo-element sweeper remains disabled; the shader owns the moving beam. */
@@ -457,6 +457,8 @@
     border-bottom: 1px solid rgba(13, 242, 114, 0.15);
     padding-bottom: 4px;
     font-weight: 600;
+    text-shadow: 0 0 6px rgba(13, 242, 114, 0.5);
+    animation: cyberwarDataFlicker 4s step-end infinite;
 }
 
 /* User Uplink Uplink Bubble styling */
@@ -479,6 +481,8 @@
     border-bottom: 1px solid rgba(255, 0, 92, 0.2);
     padding-bottom: 4px;
     font-weight: 600;
+    text-shadow: 0 0 6px rgba(255, 0, 92, 0.5);
+    animation: cyberwarDataFlicker 3.5s step-end infinite;
 }
 
 /* Bubble hover neon glowing status */
@@ -861,6 +865,24 @@
     }
     100% {
         box-shadow: 0 0 24px rgba(0, 240, 255, 0.7);
+    }
+}
+
+@keyframes cyberwarDataFlicker {
+    0%, 94%, 100% {
+        opacity: 1;
+    }
+    95% {
+        opacity: 0.4;
+    }
+    96% {
+        opacity: 0.9;
+    }
+    97% {
+        opacity: 0.3;
+    }
+    98% {
+        opacity: 1;
     }
 }
 
