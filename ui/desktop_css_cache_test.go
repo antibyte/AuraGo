@@ -27,7 +27,7 @@ func TestDesktopHTMLBustsDesktopCSSAggregatorCache(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260520b`) {
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260520c`) {
 		t.Fatalf("desktop.html must bust the desktop.css aggregator cache with the current desktop asset version")
 	}
 }
