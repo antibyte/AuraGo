@@ -16,6 +16,7 @@ type fakeCodeContainerDocker struct {
 	creates       []CodeDockerCreateRequest
 	actions       []string
 	execs         []fakeCodeContainerExec
+	execResults   []CodeDockerExecResult
 }
 
 type fakeCodeContainerExec struct {
@@ -111,7 +112,11 @@ func (f *fakeCodeContainerDocker) ContainerAction(ctx context.Context, container
 }
 
 func (f *fakeCodeContainerDocker) ExecContainer(ctx context.Context, container string, cmd []string, timeout time.Duration) (CodeDockerExecResult, error) {
+	index := len(f.execs)
 	f.execs = append(f.execs, fakeCodeContainerExec{container: container, cmd: append([]string(nil), cmd...)})
+	if index < len(f.execResults) {
+		return f.execResults[index], nil
+	}
 	return CodeDockerExecResult{ExitCode: 0}, nil
 }
 
@@ -137,13 +142,19 @@ func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing
 	if err := svc.EnsureStarted(context.Background()); err != nil {
 		t.Fatalf("EnsureStarted returned error: %v", err)
 	}
-	if len(fake.execs) != 1 {
-		t.Fatalf("container seed exec count = %d, want 1", len(fake.execs))
+	if len(fake.execs) != 2 {
+		t.Fatalf("container exec count = %d, want runtime check and seed", len(fake.execs))
 	}
-	if fake.execs[0].container != "created-1" {
-		t.Fatalf("container seed target = %q, want created-1", fake.execs[0].container)
+	if fake.execs[1].container != "created-1" {
+		t.Fatalf("container seed target = %q, want created-1", fake.execs[1].container)
 	}
-	joined := strings.Join(fake.execs[0].cmd, " ")
+	runtimeProbe := strings.Join(fake.execs[0].cmd, " ")
+	for _, want := range []string{"command -v node", "command -v python3", "command -v go"} {
+		if !strings.Contains(runtimeProbe, want) {
+			t.Fatalf("runtime probe command %q missing %q", runtimeProbe, want)
+		}
+	}
+	joined := strings.Join(fake.execs[1].cmd, " ")
 	for _, want := range []string{"/workspace", "README.md", "hello.go", "hello.py", "Hello from Code Studio"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("container seed command %q missing %q", joined, want)
@@ -243,6 +254,55 @@ func TestCodeContainerEnsureStartedReplacesLegacyWorkspaceMount(t *testing.T) {
 	wantBind := workspace + ":" + codeWorkspaceInContainer
 	if len(fake.creates[0].Volumes) != 1 || fake.creates[0].Volumes[0] != wantBind {
 		t.Fatalf("replacement volumes = %#v, want %q", fake.creates[0].Volumes, wantBind)
+	}
+}
+
+func TestCodeContainerEnsureStartedReplacesDefaultContainerWhenRuntimeMissing(t *testing.T) {
+	t.Parallel()
+
+	workspace := t.TempDir()
+	fake := &fakeCodeContainerDocker{
+		containers: []CodeDockerContainer{{ID: "old-1", Names: []string{"/" + codeContainerName}}},
+		inspectByName: map[string]CodeDockerInspect{
+			"old-1": {
+				ID:    "old-1",
+				Name:  "/" + codeContainerName,
+				State: CodeDockerState{Running: true},
+				Mounts: []CodeDockerMount{{
+					Source:      workspace,
+					Destination: codeWorkspaceInContainer,
+				}},
+			},
+		},
+		execResults: []CodeDockerExecResult{
+			{ExitCode: 127, Output: "go not found\npython3 not found\n"},
+			{ExitCode: 0},
+			{ExitCode: 0},
+		},
+	}
+	svc := NewCodeContainerService(Config{
+		WorkspaceDir: workspace,
+		CodeStudio:   CodeStudioConfig{Enabled: true},
+	}, nil)
+	svc.docker = fake
+
+	if err := svc.EnsureStarted(context.Background()); err != nil {
+		t.Fatalf("EnsureStarted returned error: %v", err)
+	}
+	if !containsString(fake.actions, "old-1:remove") {
+		t.Fatalf("actions = %#v, want old default container removal", fake.actions)
+	}
+	if len(fake.creates) != 1 {
+		t.Fatalf("create count = %d, want replacement container", len(fake.creates))
+	}
+	if len(fake.execs) < 2 {
+		t.Fatalf("exec count = %d, want runtime check and seed", len(fake.execs))
+	}
+	runtimeProbe := strings.Join(fake.execs[0].cmd, " ")
+	for _, want := range []string{"command -v node", "command -v python3", "command -v go"} {
+		if !strings.Contains(runtimeProbe, want) {
+			t.Fatalf("runtime probe %q missing %q", runtimeProbe, want)
+		}
 	}
 }
 

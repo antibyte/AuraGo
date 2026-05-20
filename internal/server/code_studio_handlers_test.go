@@ -191,6 +191,19 @@ func TestCodeStudioDockerfileDoesNotSelfUpdateNPM(t *testing.T) {
 	}
 }
 
+func TestCodeStudioDockerfileIncludesRunButtonRuntimes(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.code-studio"))
+	if err != nil {
+		t.Fatalf("read code studio Dockerfile: %v", err)
+	}
+	dockerfile := string(content)
+	for _, tool := range []string{"python3", "python3-venv", "python3-pip", "golang-go"} {
+		if !strings.Contains(dockerfile, tool) {
+			t.Fatalf("Dockerfile must install %s so Code Studio run buttons work", tool)
+		}
+	}
+}
+
 func TestCodeStudioDockerfileHandlesExistingUID1000User(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.code-studio"))
 	if err != nil {
@@ -291,6 +304,22 @@ func TestCodeStudioDefaultImageDoesNotRequireDockerAPIBuild(t *testing.T) {
 	for _, forbidden := range []string{"exec.Command", "exec.CommandContext", `"docker", "build"`} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("Code Studio default image build must not require local docker CLI: found %s", forbidden)
+		}
+	}
+}
+
+func TestCodeStudioDefaultImageRefreshesCachedLatest(t *testing.T) {
+	source, err := os.ReadFile("code_studio_docker_adapter.go")
+	if err != nil {
+		t.Fatalf("read code studio docker adapter: %v", err)
+	}
+	text := string(source)
+	for _, want := range []string{
+		"refreshPublishedCodeStudioImage",
+		"published Code Studio image refresh failed; using cached image",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("Code Studio docker adapter must refresh cached latest images, missing %q", want)
 		}
 	}
 }

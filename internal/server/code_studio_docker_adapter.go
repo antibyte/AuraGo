@@ -91,19 +91,38 @@ func (a codeStudioDockerAdapter) EnsureImage(ctx context.Context, image string) 
 	if err != nil {
 		return err
 	}
-	if exists {
-		return nil
-	}
 	if strings.EqualFold(image, legacyLocalCodeStudioImage) {
+		if exists {
+			return nil
+		}
 		if err := a.buildDefaultImage(ctx, image); err != nil {
 			return fmt.Errorf("build default code studio image: %w", err)
 		}
 		return nil
 	}
-	if strings.EqualFold(image, publishedCodeStudioImage) && a.logger != nil {
-		a.logger.Info("Pulling published Code Studio image; Docker build API is not required", "image", image)
+	if strings.EqualFold(image, publishedCodeStudioImage) {
+		return a.refreshPublishedCodeStudioImage(ctx, image, exists)
+	}
+	if exists {
+		return nil
 	}
 	return tools.PullImageWait(ctx, a.cfg, image, a.logger)
+}
+
+func (a codeStudioDockerAdapter) refreshPublishedCodeStudioImage(ctx context.Context, image string, exists bool) error {
+	if a.logger != nil {
+		a.logger.Info("Pulling published Code Studio image; Docker build API is not required", "image", image)
+	}
+	if err := tools.PullImageWait(ctx, a.cfg, image, a.logger); err != nil {
+		if exists {
+			if a.logger != nil {
+				a.logger.Warn("published Code Studio image refresh failed; using cached image", "image", image, "error", err)
+			}
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (a codeStudioDockerAdapter) imageExists(ctx context.Context, image string) (bool, error) {

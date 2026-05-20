@@ -213,6 +213,21 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 				return err
 			}
 		}
+		runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, containerID)
+		if err != nil {
+			s.state = StateError
+			return err
+		}
+		if runtimeMissing {
+			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
+				s.state = StateError
+				return fmt.Errorf("replace code studio container with missing runtime tools: %w", err)
+			}
+			containerID = ""
+			running = false
+		}
+	}
+	if containerID != "" {
 		if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
 			s.state = StateError
 			return err
@@ -256,6 +271,15 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 		s.state = StateError
 		return err
 	}
+	runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, createdID)
+	if err != nil {
+		s.state = StateError
+		return err
+	}
+	if runtimeMissing {
+		s.state = StateError
+		return fmt.Errorf("code studio default image %s is missing required runtime tools", image)
+	}
 	if err := seedCodeStudioContainerWorkspace(ctx, s.docker, createdID); err != nil {
 		s.state = StateError
 		return err
@@ -263,6 +287,31 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	s.state = StateRunning
 	s.touchLocked()
 	return nil
+}
+
+func (s *CodeContainerService) defaultContainerRuntimeMissingLocked(ctx context.Context, containerID string) (bool, error) {
+	if !strings.EqualFold(codeStudioImage(s.cfg.CodeStudio), defaultCodeContainerImage) {
+		return false, nil
+	}
+	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", buildCodeStudioRuntimeProbeScript()}, 30*time.Second)
+	if err != nil {
+		return false, fmt.Errorf("check code studio container runtime tools: %w", err)
+	}
+	if result.ExitCode == 0 {
+		return false, nil
+	}
+	if s.logger != nil {
+		s.logger.Warn("code studio default container missing required runtime tools", "container", containerID, "output", strings.TrimSpace(result.Output))
+	}
+	return true, nil
+}
+
+func buildCodeStudioRuntimeProbeScript() string {
+	return strings.Join([]string{
+		"command -v node >/dev/null 2>&1 || { echo 'node not found'; exit 127; }",
+		"command -v python3 >/dev/null 2>&1 || { echo 'python3 not found'; exit 127; }",
+		"command -v go >/dev/null 2>&1 || { echo 'go not found'; exit 127; }",
+	}, "\n")
 }
 
 func (s *CodeContainerService) ensureWorkspaceLocked() (string, error) {
