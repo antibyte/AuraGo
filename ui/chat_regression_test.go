@@ -2687,8 +2687,10 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 		"animation: cyberwarRadarSweep 18s linear infinite;",
 		"opacity: 0.72;",
 		"will-change: transform;",
-		"repeating-radial-gradient(circle at 78% 56%",
-		"conic-gradient(from -36deg at 78% 56%",
+		"repeating-radial-gradient(circle at 50% 50%,\n            transparent 0 5.5rem",
+		"conic-gradient(from -36deg at 50% 50%",
+		"[data-theme=\"cyberwar\"] #cyberwar-overlay {",
+		"filter: saturate(1.22) brightness(1.08) !important;",
 		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
 		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;",
 		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;",
@@ -2702,12 +2704,20 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 	}
 
 	for _, marker := range []string{
+		"const vec2 RADAR_CENTER = vec2(0.5, 0.5);",
+		"const float RADAR_BEAM_HIT_WIDTH = 0.075;",
+		"float angleDistance(float a, float b)",
+		"vec2 movingRadarTarget(float t, float radius, float speed, float phase, float wobble)",
+		"float radarTarget(vec2 p, vec2 target, float beamAngle, float scale)",
 		"float radarRadius = length(p);",
-		"float radarSweep = exp(-24.0 * abs(atan(p.y, p.x) - (fract(u_time * 0.07) * 6.2831853 - 3.1415926)));",
-		"float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 46.0)));",
+		"float beamAngle = fract(u_time * 0.075) * RADAR_TAU - RADAR_PI;",
+		"float radarRings = smoothstep(0.985, 1.0, abs(sin(radarRadius * 42.0)))",
+		"float radarTargets =",
+		"targetHit * 2.4",
+		"chatBox.getBoundingClientRect()",
 		"cyan * sweep * 0.12",
 		"sweep * 0.025",
-		"vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.16",
+		"vec3(0.05, 1.0, 0.42) * radarSweep * radarRings * 0.18",
 	} {
 		if !strings.Contains(cyberwarShader, marker) {
 			t.Fatalf("cyberwar shader missing balanced radar/scanline marker %q", marker)

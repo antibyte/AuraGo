@@ -330,11 +330,11 @@
     z-index: 1;
     background: 
         linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.32), rgba(13, 242, 114, 0.16), transparent),
-        repeating-radial-gradient(circle at 78% 56%,
+        repeating-radial-gradient(circle at 50% 50%,
             transparent 0 5.5rem,
             rgba(13, 242, 114, 0.075) calc(5.5rem + 1px),
             transparent calc(5.5rem + 3px)),
-        conic-gradient(from -36deg at 78% 56%,
+        conic-gradient(from -36deg at 50% 50%,
             transparent 0deg,
             rgba(13, 242, 114, 0.015) 18deg,
             rgba(13, 242, 114, 0.12) 31deg,
@@ -349,6 +349,13 @@
     background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;
     background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;
     animation: cyberwarScanlineScan 10s linear infinite;
+}
+
+[data-theme="cyberwar"] #cyberwar-overlay {
+    z-index: 2 !important;
+    opacity: 0.88 !important;
+    mix-blend-mode: screen !important;
+    filter: saturate(1.22) brightness(1.08) !important;
 }
 
 /* Dynamic Conic Radar Sweeper centered in chat viewport - disabled to prevent overflow */
