@@ -93,9 +93,10 @@
     const ROBOT_FLIGHT_HEIGHT = 1.12;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
-    const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.4;
-    const ROBOT_THRUSTER_RIPPLE_INTERVAL = 0.46;
-    const MAX_ROBOT_THRUSTER_RIPPLES = 28;
+    const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
+    const ROBOT_THRUSTER_RIPPLE_INTERVAL = 1.45;
+    const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 2;
+    const MAX_ROBOT_THRUSTER_RIPPLES = 10;
     const RED_ROBOT_FOOT_JET_OFFSETS = [
         [0, ROBOT_FOOT_JET_UNDERSIDE_Y, -0.25],
         [0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0.25]
@@ -864,13 +865,17 @@
             if (age < 0 || age > ROBOT_THRUSTER_RIPPLE_LIFETIME) continue;
 
             const dist = Math.hypot(x - ripple.x, z - ripple.z);
-            const radius = 0.18 + age * 1.85;
-            const crest = Math.cos((dist - radius) * 4.9);
-            const envelope = Math.exp(-Math.abs(dist - radius) * 1.35);
-            const fade = Math.pow(1 - age / ROBOT_THRUSTER_RIPPLE_LIFETIME, 1.55);
-            height += crest * envelope * fade * ripple.strength;
+            const progress = age / ROBOT_THRUSTER_RIPPLE_LIFETIME;
+            const radius = 0.16 + age * 1.42;
+            const delta = dist - radius;
+            const crest = Math.cos(delta * 4.1);
+            const envelope = Math.exp(-(delta * delta) / 0.42);
+            const rippleAttack = smoothstep(0, 0.18, age);
+            const rippleRelease = 1 - smoothstep(0.58, 1, progress);
+            const rippleFade = rippleAttack * rippleRelease * rippleRelease;
+            height += crest * envelope * rippleFade * ripple.strength;
         }
-        return softClip(height, 0.34);
+        return softClip(height, 0.22);
     }
 
     function colorForHeight(height, target) {
@@ -1304,13 +1309,27 @@
     function addRobotThrusterRipple(bot, t) {
         if (!bot || !bot.state) return;
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
-        const strength = (bot.id === 'red' ? 0.145 : 0.105) * flightWaveInfluence;
+        const owner = bot.id || 'robot';
+        let activeForRobot = 0;
+        for (const ripple of robotThrusterRipples) {
+            const age = t - ripple.start;
+            if (ripple.owner === owner && age >= 0 && age <= ROBOT_THRUSTER_RIPPLE_LIFETIME) {
+                activeForRobot++;
+            }
+        }
+        if (activeForRobot >= ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT) {
+            bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * 0.5;
+            return;
+        }
+
+        const strength = (bot.id === 'red' ? 0.078 : 0.056) * flightWaveInfluence;
         if (strength < 0.012) {
             bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL;
             return;
         }
 
         robotThrusterRipples.push({
+            owner,
             x: bot.state.x,
             z: bot.state.z,
             start: t,
@@ -1319,7 +1338,7 @@
         while (robotThrusterRipples.length > MAX_ROBOT_THRUSTER_RIPPLES) {
             robotThrusterRipples.shift();
         }
-        bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * (0.72 + Math.random() * 0.66);
+        bot.state.nextThrusterRippleAt = t + ROBOT_THRUSTER_RIPPLE_INTERVAL * (0.86 + Math.random() * 0.38);
     }
 
     function updateRobotThrusterRipples(t) {
@@ -2054,6 +2073,7 @@
                 robotCount: robotFleet.length,
                 loadedRobots: robotFleet.filter(function (bot) { return bot.loaded; }).length,
                 energyProjectiles: energyProjectiles.length,
+                thrusterRipples: robotThrusterRipples.length,
                 duelDistance,
                 robotHits: robotFleet.map(function (bot) { return bot.state.hits || 0; }),
                 robotFlightLift: robotFleet.map(function (bot) { return bot.state.flightLift || 0; })

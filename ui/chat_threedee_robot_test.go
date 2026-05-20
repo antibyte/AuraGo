@@ -191,6 +191,7 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 	for _, marker := range []string{
 		"const ROBOT_FOOT_JET_UNDERSIDE_Y =",
 		"const ROBOT_THRUSTER_RIPPLE_LIFETIME =",
+		"const ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT =",
 		"const MAX_ROBOT_THRUSTER_RIPPLES =",
 		"const robotThrusterRipples = [];",
 		"function addRobotThrusterRipple",
@@ -202,6 +203,13 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"height += robotThrusterRippleHeightAt(x, z, t);",
 		"updateRobotThrusterRipples(t);",
 		"new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)",
+		"const owner = bot.id || 'robot';",
+		"owner,",
+		"activeForRobot >= ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT",
+		"const rippleAttack = smoothstep",
+		"const rippleRelease = 1 - smoothstep",
+		"const rippleFade = rippleAttack * rippleRelease * rippleRelease",
+		"Math.exp(-(delta * delta) / 0.42)",
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing thruster underside/ripple marker %q", marker)
@@ -209,6 +217,21 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 	}
 	if strings.Contains(shader, "const hoverRipple = Math.sin(distToRobot * 6.8 - t * 11.5)") {
 		t.Fatal("thruster ripple must not be a continuous phase-resetting heightAt sine wave")
+	}
+}
+
+func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	if interval := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_INTERVAL"); interval < 1.2 {
+		t.Fatalf("thruster ripple interval should avoid dense ripple stacks, got %.2f", interval)
+	}
+	if maxActive := extractJSConstFloat(t, shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT"); maxActive > 2 {
+		t.Fatalf("thruster ripples should stay sparse per robot, got max %.0f", maxActive)
+	}
+	if maxRipples := extractJSConstFloat(t, shader, "MAX_ROBOT_THRUSTER_RIPPLES"); maxRipples > 12 {
+		t.Fatalf("global thruster ripple pool should stay small enough to avoid jitter, got %.0f", maxRipples)
 	}
 }
 
