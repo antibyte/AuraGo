@@ -96,17 +96,14 @@
         let finalized = false;
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
-            const timeout = setTimeout(() => { ctrl.abort(); doReject(new Error('Request timed out')); }, 10 * 60 * 1000);
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
-                clearTimeout(timeout);
                 resolve();
             }
             function doReject(err) {
                 if (finalized) return;
                 finalized = true;
-                clearTimeout(timeout);
                 reject(err);
             }
             fetch('/api/desktop/chat/stream', {

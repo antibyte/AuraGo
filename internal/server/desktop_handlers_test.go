@@ -204,10 +204,10 @@ func TestDesktopChatHandlersUseDirectAgentLoopForStreaming(t *testing.T) {
 		"prepareDesktopAgentTurn(r.Context(), s, body.Message, body.Context, true)",
 		"agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker)",
 		"agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker)",
-		"context.WithTimeout(ctx, 10*time.Minute)",
+		"context.WithTimeout(ctx, desktopChatAgentTurnTimeout)",
 		"lockSessionRequest(desktopChatSessionID)",
-		"const desktopChatSessionID = \"virtual-desktop\"",
-		"const desktopChatMessageSource = \"virtual_desktop_chat\"",
+		"desktopChatSessionID               = \"virtual-desktop\"",
+		"desktopChatMessageSource           = \"virtual_desktop_chat\"",
 		"event == \"done\"",
 		"latestDesktopAssistantMessage(b.shortTermMem, b.sessionID)",
 	} {
@@ -220,6 +220,39 @@ func TestDesktopChatHandlersUseDirectAgentLoopForStreaming(t *testing.T) {
 	}
 	if strings.Contains(source, "context.WithTimeout(context.Background(), 10*time.Minute)") {
 		t.Fatal("desktop chat must not use context.Background for agent loopback timeout")
+	}
+}
+
+func TestDesktopChatStreamKeepsConnectionAliveDuringLongTurns(t *testing.T) {
+	t.Parallel()
+
+	sourceBytes, err := os.ReadFile("desktop_handlers_chat.go")
+	if err != nil {
+		t.Fatalf("ReadFile desktop_handlers_chat.go: %v", err)
+	}
+	source := string(sourceBytes)
+	for _, marker := range []string{
+		"desktopChatAgentTurnTimeout",
+		"30 * time.Minute",
+		"desktopChatStreamHeartbeatInterval",
+		"15 * time.Second",
+		"context.WithTimeout(r.Context(), desktopChatAgentTurnTimeout)",
+		"heartbeat := time.NewTicker(desktopChatStreamHeartbeatInterval)",
+		"case <-heartbeat.C:",
+		"broker.sendHeartbeat()",
+		"writeSSEComment(b.w, b.flusher, \"heartbeat\")",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat stream missing long-running connection marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{
+		"context.WithTimeout(r.Context(), 10*time.Minute)",
+		"context.WithTimeout(ctx, 10*time.Minute)",
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("desktop chat stream still uses short fixed timeout marker %q", forbidden)
+		}
 	}
 }
 

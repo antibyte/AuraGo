@@ -20,8 +20,12 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const desktopChatSessionID = "virtual-desktop"
-const desktopChatMessageSource = "virtual_desktop_chat"
+const (
+	desktopChatSessionID               = "virtual-desktop"
+	desktopChatMessageSource           = "virtual_desktop_chat"
+	desktopChatAgentTurnTimeout        = 30 * time.Minute
+	desktopChatStreamHeartbeatInterval = 15 * time.Second
+)
 
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +141,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			flusher:  flusher,
 			canFlush: canFlush,
 		}
-		llmCtx, llmCancel := context.WithTimeout(r.Context(), 10*time.Minute)
+		llmCtx, llmCancel := context.WithTimeout(r.Context(), desktopChatAgentTurnTimeout)
 		defer llmCancel()
 		done := make(chan struct{})
 		go func() {
@@ -158,11 +162,24 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 				combinedBroker.Send("done", "done")
 			}
 		}()
-		select {
-		case <-done:
-		case <-r.Context().Done():
-			llmCancel()
-			<-done
+		heartbeat := time.NewTicker(desktopChatStreamHeartbeatInterval)
+		defer heartbeat.Stop()
+		streamFinished := false
+		for !streamFinished {
+			select {
+			case <-done:
+				streamFinished = true
+			case <-r.Context().Done():
+				llmCancel()
+				<-done
+				streamFinished = true
+			case <-heartbeat.C:
+				if !broker.sendHeartbeat() {
+					llmCancel()
+					<-done
+					streamFinished = true
+				}
+			}
 		}
 		broker.mu.Lock()
 		alreadyClosed := broker.closed
@@ -183,6 +200,19 @@ type desktopStreamBroker struct {
 	canFlush bool
 	mu       sync.Mutex
 	closed   bool
+}
+
+func (b *desktopStreamBroker) sendHeartbeat() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return false
+	}
+	if err := writeSSEComment(b.w, b.flusher, "heartbeat"); err != nil {
+		b.closed = true
+		return false
+	}
+	return true
 }
 
 type desktopStreamCombinedBroker struct {
@@ -618,7 +648,7 @@ func runDesktopAgentChat(ctx context.Context, s *Server, message string, chatCon
 		return ""
 	}
 	broker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)}
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, desktopChatAgentTurnTimeout)
 	defer cancel()
 	done := make(chan struct{})
 	go func() {

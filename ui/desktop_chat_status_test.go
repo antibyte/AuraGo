@@ -75,3 +75,20 @@ func TestDesktopChatCanStopActiveStreamWithoutOverwritingHistory(t *testing.T) {
 		t.Fatal("desktop chat CSS missing stop-state send button styling")
 	}
 }
+
+func TestDesktopChatStreamsDoNotAbortLongActionsOnFixedTimer(t *testing.T) {
+	t.Parallel()
+
+	for _, asset := range []string{
+		"js/desktop/apps/agent-chat.js",
+		"js/desktop/core/window-shell-runtime.js",
+	} {
+		source := readDesktopAssetText(t, asset)
+		if strings.Contains(source, "Request timed out") {
+			t.Fatalf("%s must not surface long running desktop chat turns as a request timeout", asset)
+		}
+		if strings.Contains(source, "10 * 60 * 1000") {
+			t.Fatalf("%s must not abort active desktop chat streams on a fixed 10 minute client timer", asset)
+		}
+	}
+}

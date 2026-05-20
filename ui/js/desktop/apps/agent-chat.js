@@ -476,10 +476,6 @@
             const ctrl = new AbortController();
             const abortChatStream = () => ctrl.abort();
             host._desktopChatAbort = abortChatStream;
-            const timeout = setTimeout(() => {
-                ctrl.abort();
-                doReject(new Error('Request timed out'));
-            }, 10 * 60 * 1000);
 
             function clearAbortHandle() {
                 if (host._desktopChatAbort === abortChatStream) host._desktopChatAbort = null;
@@ -488,7 +484,6 @@
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
-                clearTimeout(timeout);
                 clearAbortHandle();
                 flushStreamingBubble();
                 if (statusEl && statusEl.parentNode) statusEl.remove();
@@ -509,7 +504,6 @@
             function doReject(err) {
                 if (finalized) return;
                 finalized = true;
-                clearTimeout(timeout);
                 clearAbortHandle();
                 if (streamTextFrame) {
                     const cancel = window.cancelAnimationFrame || window.clearTimeout;
