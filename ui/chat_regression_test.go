@@ -937,6 +937,32 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	}
 }
 
+func TestPapyrusHeaderTextControlsStayVerticallyCentered(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
+	if err != nil {
+		t.Fatalf("read chat-papyrus.css: %v", err)
+	}
+	papyrusCSS := string(content)
+
+	for _, marker := range []string{
+		`[data-theme="papyrus"] .app-header .header-actions :where(.pill, .select-personality, .btn-header, .btn-header-link, #logout-btn) {`,
+		"display: inline-flex !important;",
+		`[data-theme="papyrus"] .app-header .header-actions :where(.pill, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn) {`,
+		"align-items: center !important;",
+		"justify-content: center !important;",
+		"line-height: 1 !important;",
+		"padding-top: 0 !important;",
+		"padding-bottom: 0 !important;",
+		`[data-theme="papyrus"] .app-header .header-actions :where(.personality-select-label, #moodText) {`,
+	} {
+		if !strings.Contains(papyrusCSS, marker) {
+			t.Fatalf("papyrus header text controls missing vertical centering marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 	t.Parallel()
 

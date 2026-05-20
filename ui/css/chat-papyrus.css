@@ -296,6 +296,22 @@
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.22s ease, color 0.18s ease;
 }
 
+[data-theme="papyrus"] .app-header .header-actions :where(.pill, .select-personality, .btn-header, .btn-header-link, #logout-btn) {
+    display: inline-flex !important;
+}
+
+[data-theme="papyrus"] .app-header .header-actions :where(.pill, .select-personality, .mood-toggle, .btn-header, .btn-header-link, #logout-btn) {
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+[data-theme="papyrus"] .app-header .header-actions :where(.personality-select-label, #moodText) {
+    line-height: 1 !important;
+}
+
 [data-theme="papyrus"] .chat-theme-btn:hover,
 [data-theme="papyrus"] .session-edge-tab:hover,
 [data-theme="papyrus"] .integrations-edge-tab:hover,
