@@ -82,9 +82,11 @@
     let robotState;
     let robotVelocity;
     let robotBounds;
-    const ROBOT_DUEL_DISTANCE = 5.6;
+    const ROBOT_DUEL_DISTANCE = 3.85;
     const ROBOT_DUEL_COOLDOWN = 1.05;
     const ROBOT_PROJECTILE_SPEED = 7.4;
+    const ROBOT_HIT_RECOIL = 1.55;
+    const ROBOT_RED_TARGET_SIZE = 1.62;
     const MAX_ENERGY_PROJECTILES = 18;
     const energyProjectiles = [];
     const robotFleet = [];
@@ -914,7 +916,9 @@
                 seed: options.seed == null ? Math.random() * Math.PI * 2 : options.seed,
                 lastBounce: 0,
                 lastShot: -999,
-                recoil: 0
+                recoil: 0,
+                hitFlash: 0,
+                hits: 0
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -998,7 +1002,7 @@
         const maxAxis = Math.max(size.x, size.y, size.z);
         if (!Number.isFinite(maxAxis) || maxAxis <= 0) return;
 
-        const targetSize = config && config.id === 'red' ? 1.42 : 1.45;
+        const targetSize = config && config.id === 'red' ? ROBOT_RED_TARGET_SIZE : 1.45;
         const scale = targetSize / maxAxis;
         root.scale.setScalar(scale);
         root.updateMatrixWorld(true);
@@ -1181,6 +1185,44 @@
         bot.velocity.y += Math.cos(t * 1.9 + bot.state.seed) * closeWeight * 0.03 * dt;
     }
 
+    function createJetFlameSprite(bot, t) {
+        if (!bot || !bot.group) return;
+        const offsets = bot.id === 'red'
+            ? [new THREE.Vector3(-0.25, -0.58, 0.08), new THREE.Vector3(0.25, -0.58, 0.08)]
+            : [new THREE.Vector3(0, -0.45, 0)];
+        offsets.forEach(function (offset, index) {
+            const foot = bot.group.localToWorld(offset.clone());
+            const flameCount = bot.id === 'red' ? 2 : 1;
+            for (let flame = 0; flame < flameCount; flame++) {
+                const hotCore = Math.random() < 0.44;
+                const flameColor = bot.id === 'red'
+                    ? (hotCore ? 0xfff0a8 : (Math.random() < 0.62 ? 0xff6a00 : 0xff2a00))
+                    : (hotCore ? 0xffaa00 : bot.accentHex);
+                const scale = bot.id === 'red'
+                    ? 0.2 + Math.random() * 0.15
+                    : 0.09 + Math.random() * 0.07;
+                createSmokeSprite(
+                    foot.x + (Math.random() - 0.5) * 0.07,
+                    foot.y - 0.06 - flame * 0.05,
+                    foot.z + (Math.random() - 0.5) * 0.07,
+                    flameColor,
+                    scale,
+                    bot.id === 'red' ? 0.38 + Math.random() * 0.24 : 0.45 + Math.random() * 0.35,
+                    {
+                        vx: (Math.random() - 0.5) * 0.28 + bot.velocity.x * -0.12,
+                        vy: bot.id === 'red' ? -2.75 - Math.random() * 1.55 : -1.4 - Math.random() * 1.0,
+                        vz: (Math.random() - 0.5) * 0.28 + bot.velocity.y * -0.12,
+                        spin: (Math.random() - 0.5) * 6.0 + index * 0.35,
+                        opacity: bot.id === 'red' ? 0.96 : 0.85,
+                        expansion: bot.id === 'red' ? 1.45 : 1.15,
+                        fadePower: bot.id === 'red' ? 1.8 : 1.45,
+                        kind: 'robotJetFlame'
+                    }
+                );
+            }
+        });
+    }
+
     function updateRobotMotion(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
@@ -1206,6 +1248,7 @@
         const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t) : heightAt(bot.state.x, bot.state.z, t);
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
+        bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 2.8);
         bot.state.y = surface.position.y + waterY + 0.62 + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
         bot.targetPosition.set(bot.state.x, bot.state.y, bot.state.z + surface.position.z);
         if (bot.id === 'blue') {
@@ -1268,25 +1311,10 @@
             bot.group.add(bot.thrusterLight);
             if (bot.id === 'blue') robotThrusterLight = bot.thrusterLight;
         }
-        bot.thrusterLight.intensity = 1.4 + Math.sin(t * 32 + bot.state.seed) * 0.35 + Math.sin(t * 4.8) * 0.15;
+        bot.thrusterLight.intensity = 1.4 + bot.state.hitFlash * 2.2 + Math.sin(t * 32 + bot.state.seed) * 0.35 + Math.sin(t * 4.8) * 0.15;
 
-        if (Math.random() < 0.45 && active) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * 0.22;
-            const px = bot.group.position.x + Math.cos(angle) * dist;
-            const py = bot.group.position.y - 0.45;
-            const pz = bot.group.position.z + Math.sin(angle) * dist;
-            const emberColor = Math.random() < 0.24 ? 0xffaa00 : bot.accentHex; // Occasionally orange sparks, mostly robot-colored jet flame
-            createSmokeSprite(px, py, pz, emberColor, 0.09 + Math.random() * 0.07, 0.45 + Math.random() * 0.35, {
-                vx: (Math.random() - 0.5) * 0.3 + bot.velocity.x * -0.2,
-                vy: -1.4 - Math.random() * 1.0,
-                vz: (Math.random() - 0.5) * 0.3 + bot.velocity.y * -0.2,
-                spin: (Math.random() - 0.5) * 4.5,
-                opacity: 0.85,
-                expansion: 1.15,
-                fadePower: 1.45,
-                kind: 'robotJet'
-            });
+        if (Math.random() < (bot.id === 'red' ? 0.9 : 0.45) && active) {
+            createJetFlameSprite(bot, t);
         }
     }
 
@@ -1367,15 +1395,128 @@
         });
     }
 
-    function explodeEnergyProjectile(projectile) {
+    function applyRobotHitRecoil(projectile, impactPosition) {
+        const target = projectile && projectile.target;
+        if (!target || !target.velocity || !target.state) return;
+        const recoil = projectile.direction ? projectile.direction.clone() : new THREE.Vector3();
+        recoil.y = 0;
+        if (recoil.lengthSq() < 0.001 && target.group && impactPosition) {
+            recoil.copy(target.group.position).sub(impactPosition);
+            recoil.y = 0;
+        }
+        if (recoil.lengthSq() < 0.001) recoil.set(target.id === 'red' ? 1 : -1, 0, 0);
+        recoil.normalize();
+        target.velocity.x += recoil.x * ROBOT_HIT_RECOIL;
+        target.velocity.y += recoil.z * ROBOT_HIT_RECOIL;
+        target.state.x += recoil.x * 0.14;
+        target.state.z += recoil.z * 0.14;
+        target.state.recoil = Math.max(target.state.recoil || 0, 0.5);
+        target.state.hitFlash = Math.max(target.state.hitFlash || 0, 0.42);
+        target.state.hits = (target.state.hits || 0) + 1;
+        bounceFloatingRobotWithinBounds(performance.now() / 1000, target);
+    }
+
+    function spawnEnergyExplosion(projectile, hitTarget) {
+        if (!scene || !projectile || !projectile.mesh) return;
+        ensureImpactAssets();
+        const pos = projectile.mesh.position.clone();
+        const color = projectile.color || 0x7dd3fc;
+        const worldNormal = new THREE.Vector3(0, 1, 0);
+        if (surface) {
+            const localPos = pos.clone();
+            surface.worldToLocal(localPos);
+            const eps = 0.22;
+            const t = performance.now() / 1000;
+            const left = heightAt(clamp(localPos.x - eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const right = heightAt(clamp(localPos.x + eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const back = heightAt(localPos.x, clamp(localPos.z - eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            const front = heightAt(localPos.x, clamp(localPos.z + eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            worldNormal.set(left - right, eps * 2, back - front).normalize().transformDirection(surface.matrixWorld);
+        }
+
+        const burstCenter = pos.clone().addScaledVector(worldNormal, 0.08);
+        for (let i = 0; i < 6; i++) {
+            const coreColor = i === 0 ? 0xffffff : color;
+            createSmokeSprite(
+                burstCenter.x + (Math.random() - 0.5) * 0.08,
+                burstCenter.y + (Math.random() - 0.5) * 0.05,
+                burstCenter.z + (Math.random() - 0.5) * 0.08,
+                coreColor,
+                0.16 + Math.random() * 0.16,
+                0.24 + Math.random() * 0.18,
+                {
+                    vx: (Math.random() - 0.5) * 0.45 + worldNormal.x * 0.15,
+                    vy: 0.18 + Math.random() * 0.35 + worldNormal.y * 0.25,
+                    vz: (Math.random() - 0.5) * 0.45 + worldNormal.z * 0.15,
+                    spin: (Math.random() - 0.5) * 6,
+                    opacity: 0.72,
+                    expansion: 1.35,
+                    fadePower: 1.8,
+                    kind: 'energyImpactCore'
+                }
+            );
+        }
+
+        for (let i = 0; i < 16; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const lift = 0.15 + Math.random() * 0.55;
+            const speed = 0.45 + Math.random() * (hitTarget ? 1.6 : 1.1);
+            createSmokeSprite(
+                burstCenter.x,
+                burstCenter.y + 0.02,
+                burstCenter.z,
+                Math.random() < 0.3 ? 0xffffff : color,
+                0.035 + Math.random() * 0.055,
+                0.18 + Math.random() * 0.18,
+                {
+                    vx: Math.cos(angle) * speed + worldNormal.x * lift,
+                    vy: lift + worldNormal.y * 0.35,
+                    vz: Math.sin(angle) * speed + worldNormal.z * lift,
+                    spin: (Math.random() - 0.5) * 10,
+                    opacity: 0.9,
+                    expansion: 0.5,
+                    fadePower: 1.55,
+                    kind: 'energyImpactSpark'
+                }
+            );
+        }
+
+        const flash = new THREE.PointLight(color, hitTarget ? 6.8 : 4.5, hitTarget ? 10 : 7);
+        flash.position.copy(burstCenter);
+        scene.add(flash);
+        impactLights.push({ light: flash, life: 0.32, maxLife: 0.32, baseIntensity: hitTarget ? 6.8 : 4.5 });
+
+        for (let ring = 0; ring < 2; ring++) {
+            const material = window.shockwaveMat.clone();
+            material.color.setHex(color);
+            material.opacity = 0.48 - ring * 0.16;
+            const shock = new THREE.Mesh(window.shockwaveGeom, material);
+            shock.position.copy(burstCenter.clone().addScaledVector(worldNormal, 0.02 + ring * 0.012));
+            const normalAlign = new THREE.Quaternion();
+            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
+            shock.quaternion.copy(normalAlign);
+            scene.add(shock);
+            shockwaves.push({
+                mesh: shock,
+                life: 0.3 + ring * 0.08,
+                maxLife: 0.3 + ring * 0.08,
+                maxScale: (hitTarget ? 2.15 : 1.6) + ring * 0.65,
+                baseOpacity: 0.44 - ring * 0.12,
+                kind: 'energyImpactRing'
+            });
+        }
+    }
+
+    function explodeEnergyProjectile(projectile, hitTarget) {
         const pos = projectile.mesh.position.clone();
         if (surface) {
             const local = pos.clone();
             surface.worldToLocal(local);
-            addImpulse(clamp(local.x, -robotBounds.x, robotBounds.x), clamp(local.z, -robotBounds.z, robotBounds.z), 0.62);
+            addImpulse(clamp(local.x, -robotBounds.x, robotBounds.x), clamp(local.z, -robotBounds.z, robotBounds.z), hitTarget ? 0.34 : 0.18);
         }
-        spawnImpactBurst(pos.x, pos.y, pos.z, 0.84);
-        cameraShake = Math.max(cameraShake, 0.17);
+        if (hitTarget) applyRobotHitRecoil(projectile, pos);
+        spawnEnergyExplosion(projectile, hitTarget);
+        cameraShake = Math.max(cameraShake, hitTarget ? 0.095 : 0.05);
         disposeEnergyProjectile(projectile);
     }
 
@@ -1422,11 +1563,13 @@
             }
 
             let hit = projectile.life <= 0;
+            let hitTarget = false;
             if (!hit && projectile.target && projectile.target.group) {
-                hit = projectile.mesh.position.distanceTo(projectile.target.group.position) < 0.55;
+                hitTarget = projectile.mesh.position.distanceTo(projectile.target.group.position) < 0.62;
+                hit = hitTarget;
             }
             if (hit) {
-                explodeEnergyProjectile(projectile);
+                explodeEnergyProjectile(projectile, hitTarget);
                 energyProjectiles.splice(i, 1);
             }
         }
@@ -1781,11 +1924,16 @@
             setMode(mode);
         },
         debugState: function () {
+            const duelDistance = robotFleet.length >= 2
+                ? Math.hypot(robotFleet[0].state.x - robotFleet[1].state.x, robotFleet[0].state.z - robotFleet[1].state.z)
+                : null;
             return {
                 active,
                 robotCount: robotFleet.length,
                 loadedRobots: robotFleet.filter(function (bot) { return bot.loaded; }).length,
-                energyProjectiles: energyProjectiles.length
+                energyProjectiles: energyProjectiles.length,
+                duelDistance,
+                robotHits: robotFleet.map(function (bot) { return bot.state.hits || 0; })
             };
         }
     };

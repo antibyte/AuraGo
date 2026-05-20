@@ -2,6 +2,8 @@ package ui
 
 import (
 	"encoding/binary"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -113,11 +115,41 @@ func TestThreeDeeRobotsDuelWithEnergyProjectiles(t *testing.T) {
 		"function updateEnergyProjectiles",
 		"projectileLight",
 		"energyProjectile",
-		"spawnImpactBurst(",
+		"spawnEnergyExplosion(",
 		"cameraShake = Math.max(cameraShake",
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing robot duel marker %q", marker)
+		}
+	}
+}
+
+func TestThreeDeeRobotsRequireCloseRangeAndReactToHits(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	if distance := extractJSConstFloat(t, shader, "ROBOT_DUEL_DISTANCE"); distance > 4.2 {
+		t.Fatalf("ROBOT_DUEL_DISTANCE should require close robot range, got %.2f", distance)
+	}
+	if redScale := extractJSConstFloat(t, shader, "ROBOT_RED_TARGET_SIZE"); redScale <= 1.45 {
+		t.Fatalf("ROBOT_RED_TARGET_SIZE should make red robot larger than blue, got %.2f", redScale)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_HIT_RECOIL =",
+		"function applyRobotHitRecoil",
+		"target.velocity.x += recoil.x * ROBOT_HIT_RECOIL",
+		"target.state.hitFlash",
+		"target.state.hits",
+		"function createJetFlameSprite",
+		"kind: 'robotJetFlame'",
+		"function spawnEnergyExplosion",
+		"kind: 'energyImpactCore'",
+		"kind: 'energyImpactSpark'",
+		"kind: 'energyImpactRing'",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing close duel/hit reaction marker %q", marker)
 		}
 	}
 }
@@ -139,4 +171,19 @@ func readGLBJSONChunk(t *testing.T, asset string, data []byte) string {
 		t.Fatalf("ThreeDee robot asset %s has truncated GLB JSON chunk", asset)
 	}
 	return strings.TrimRight(string(data[20:20+jsonLen]), "\x00 ")
+}
+
+func extractJSConstFloat(t *testing.T, source, name string) float64 {
+	t.Helper()
+
+	re := regexp.MustCompile(`const\s+` + regexp.QuoteMeta(name) + `\s*=\s*([0-9]+(?:\.[0-9]+)?)`)
+	match := re.FindStringSubmatch(source)
+	if len(match) != 2 {
+		t.Fatalf("missing numeric JS const %s", name)
+	}
+	value, err := strconv.ParseFloat(match[1], 64)
+	if err != nil {
+		t.Fatalf("invalid numeric JS const %s=%q: %v", name, match[1], err)
+	}
+	return value
 }
