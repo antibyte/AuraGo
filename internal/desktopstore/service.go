@@ -541,6 +541,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		return fmt.Errorf("store app %q is no longer in the allowlist", record.AppID)
 	}
 	record.Image = entry.Image
+	record.Env = updateEnv(entry, record.Env)
 	record.Status = AppStatusUpdating
 	record.Error = ""
 	record.LastOperationID = op.ID
@@ -689,10 +690,6 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 
 func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode, hostIP string, hostPort int, tailscaleEnabled bool) InstalledApp {
 	now := time.Now().UTC()
-	env := append([]string(nil), entry.Env...)
-	if entry.ID == "homarr" {
-		env = append(env, "SECRET_ENCRYPTION_KEY="+randomHex(32))
-	}
 	tailscaleStatus := TailscaleStatusDisabled
 	tailscalePort := 0
 	if tailscaleEnabled {
@@ -716,7 +713,7 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		TailscalePort:      tailscalePort,
 		LogoPath:           entry.LogoURL,
 		Volumes:            resolveVolumes(entry),
-		Env:                env,
+		Env:                installEnv(entry),
 		ExtraHosts:         append([]string(nil), entry.ExtraHosts...),
 		CreatedAt:          now,
 		UpdatedAt:          now,
@@ -724,6 +721,47 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		LastOperationType:  op.Type,
 		LastOperationState: OperationRunning,
 	}
+}
+
+func installEnv(entry CatalogEntry) []string {
+	env := append([]string(nil), entry.Env...)
+	if entry.ID == "homarr" {
+		env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", randomHex(32))
+	}
+	return env
+}
+
+func updateEnv(entry CatalogEntry, previous []string) []string {
+	env := append([]string(nil), entry.Env...)
+	if entry.ID == "homarr" {
+		if value, ok := envValue(previous, "SECRET_ENCRYPTION_KEY"); ok {
+			env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", value)
+		} else {
+			env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", randomHex(32))
+		}
+	}
+	return env
+}
+
+func envValue(env []string, key string) (string, bool) {
+	prefix := key + "="
+	for _, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			return strings.TrimPrefix(item, prefix), true
+		}
+	}
+	return "", false
+}
+
+func appendEnvValue(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app InstalledApp) error {

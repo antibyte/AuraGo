@@ -100,6 +100,9 @@ func DefaultCatalog() []CatalogEntry {
 			Volumes: []VolumeTemplate{
 				{NameSuffix: "data", ContainerPath: "/app/data"},
 			},
+			Env: []string{
+				"UPTIME_KUMA_DISABLE_FRAME_SAMEORIGIN=true",
+			},
 		},
 	}
 }

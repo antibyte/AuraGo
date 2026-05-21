@@ -50,6 +50,18 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		if entry.Name == "" || entry.Description == "" || entry.LogoSlug == "" {
 			t.Fatalf("%s must have name, description and logo slug", entry.ID)
 		}
+		if entry.ID == "uptime-kuma" {
+			hasFrameEnv := false
+			for _, env := range entry.Env {
+				if env == "UPTIME_KUMA_DISABLE_FRAME_SAMEORIGIN=true" {
+					hasFrameEnv = true
+					break
+				}
+			}
+			if !hasFrameEnv {
+				t.Fatalf("uptime-kuma must disable sameorigin frame protection for AuraGo desktop embedding: %#v", entry.Env)
+			}
+		}
 		delete(expected, entry.ID)
 	}
 	if len(expected) != 0 {
@@ -425,6 +437,96 @@ func TestUpdateOperationUsesCurrentCatalogImage(t *testing.T) {
 	}
 	if stored.Image != "example/demo:new" {
 		t.Fatalf("stored image = %q, want current catalog image", stored.Image)
+	}
+}
+
+func TestUpdateOperationRefreshesCatalogEnv(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	catalog := []CatalogEntry{
+		{
+			ID:          "demo-app",
+			Name:        "Demo App",
+			Description: "Demo app for env update tests.",
+			Image:       "example/demo:new",
+			Icon:        "package",
+			LogoSlug:    "demo",
+			LogoURL:     "https://example.invalid/demo.png",
+			PrimaryPort: PortSpec{ContainerPort: 8080, Protocol: "tcp"},
+			Volumes:     []VolumeTemplate{{NameSuffix: "data", ContainerPath: "/data"}},
+			Env:         []string{"DEMO_SETTING=new"},
+		},
+	}
+	svc := newTestServiceWithCatalog(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19889), catalog)
+
+	seedOp := Operation{ID: "op-seed", Type: OperationInstall}
+	record := svc.buildInstallRecord(catalog[0], seedOp, BindModeLocal, "127.0.0.1", 19889, false)
+	record.Env = []string{"DEMO_SETTING=old"}
+	record.Status = AppStatusRunning
+	record.LastOperationState = OperationSucceeded
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed installed app: %v", err)
+	}
+
+	updateOp, err := svc.StartAppOperation(ctx, "demo-app", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+
+	if len(docker.created) != 1 {
+		t.Fatalf("created containers = %d, want 1 updated container", len(docker.created))
+	}
+	if got := strings.Join(docker.created[0].Env, ","); got != "DEMO_SETTING=new" {
+		t.Fatalf("updated container env = %q, want current catalog env", got)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "demo-app")
+	if err != nil || !ok {
+		t.Fatalf("get updated app: ok=%v err=%v", ok, err)
+	}
+	if got := strings.Join(stored.Env, ","); got != "DEMO_SETTING=new" {
+		t.Fatalf("stored env = %q, want current catalog env", got)
+	}
+}
+
+func TestUpdateOperationPreservesHomarrSecretEnv(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19339))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	before, ok, err := svc.GetInstalled(ctx, "homarr")
+	if err != nil || !ok {
+		t.Fatalf("get installed homarr: ok=%v err=%v", ok, err)
+	}
+	secret, ok := envValue(before.Env, "SECRET_ENCRYPTION_KEY")
+	if !ok || secret == "" {
+		t.Fatalf("installed homarr secret env missing: %#v", before.Env)
+	}
+
+	updateOp, err := svc.StartAppOperation(ctx, "homarr", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+
+	after, ok, err := svc.GetInstalled(ctx, "homarr")
+	if err != nil || !ok {
+		t.Fatalf("get updated homarr: ok=%v err=%v", ok, err)
+	}
+	updatedSecret, ok := envValue(after.Env, "SECRET_ENCRYPTION_KEY")
+	if !ok || updatedSecret != secret {
+		t.Fatalf("homarr secret after update = %q/%v, want original %q", updatedSecret, ok, secret)
 	}
 }
 
