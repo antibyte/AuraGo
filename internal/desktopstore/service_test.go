@@ -15,8 +15,8 @@ import (
 
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	catalog := DefaultCatalog()
-	if len(catalog) != 7 {
-		t.Fatalf("expected 7 catalog apps, got %d", len(catalog))
+	if len(catalog) != 8 {
+		t.Fatalf("expected 8 catalog apps, got %d", len(catalog))
 	}
 
 	expected := map[string]struct {
@@ -31,6 +31,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"adguard-home": {image: "adguard/adguardhome", port: 3000, icon: "network"},
 		"excalidraw":   {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
 		"uptime-kuma":  {image: "louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
+		"olivetin":     {image: "ghcr.io/jamesread/olivetin:latest", port: 1337, icon: "terminal"},
 	}
 
 	for _, entry := range catalog {
@@ -148,6 +149,38 @@ func TestInstallOperationCreatesContainerDesktopShortcutAndLaunchpadLink(t *test
 	}
 	if launchpad.upserted.URL != "aurago-store://n8n" {
 		t.Fatalf("launchpad URL = %q", launchpad.upserted.URL)
+	}
+}
+
+func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19189))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "olivetin", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	if len(docker.created) != 1 {
+		t.Fatalf("created containers = %d, want 1", len(docker.created))
+	}
+	spec := docker.created[0]
+	if spec.Image != "ghcr.io/jamesread/olivetin:latest" {
+		t.Fatalf("olivetin image = %q", spec.Image)
+	}
+	if len(spec.Volumes) != 1 || spec.Volumes[0].ContainerPath != "/config" {
+		t.Fatalf("unexpected olivetin volumes: %#v", spec.Volumes)
+	}
+	seeded := docker.copiedFiles["aurago-store-olivetin:/config"]
+	if !strings.Contains(seeded["config.yaml"], `title: "Hello world!"`) {
+		t.Fatalf("olivetin default config not seeded: %#v", seeded)
+	}
+	if len(docker.events) < 2 || docker.events[0] != "copy:aurago-store-olivetin:/config" || docker.events[1] != "start:aurago-store-olivetin" {
+		t.Fatalf("olivetin config must be copied before start: %#v", docker.events)
 	}
 }
 
@@ -935,6 +968,8 @@ func fixedPorts(values ...int) PortAllocator {
 type fakeDockerAdapter struct {
 	pulled            []string
 	created           []ContainerSpec
+	copiedFiles       map[string]map[string]string
+	events            []string
 	started           []string
 	stopped           []string
 	restarted         []string
@@ -968,8 +1003,22 @@ func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpe
 	return "container-" + spec.Name, nil
 }
 
+func (f *fakeDockerAdapter) CopyToContainer(_ context.Context, containerName, destDir string, files map[string]string) error {
+	if f.copiedFiles == nil {
+		f.copiedFiles = map[string]map[string]string{}
+	}
+	key := containerName + ":" + destDir
+	f.copiedFiles[key] = map[string]string{}
+	for name, content := range files {
+		f.copiedFiles[key][name] = content
+	}
+	f.events = append(f.events, "copy:"+key)
+	return nil
+}
+
 func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error {
 	f.started = append(f.started, name)
+	f.events = append(f.events, "start:"+name)
 	if len(f.startErrors) > 0 {
 		err := f.startErrors[0]
 		f.startErrors = f.startErrors[1:]

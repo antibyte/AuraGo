@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -570,6 +571,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return s.failInstall(ctx, record, err)
 	}
 	record.ContainerID = containerID
+	if err := s.seedContainerFiles(ctx, entry, record); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
 	if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
@@ -804,6 +808,34 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		LastOperationType:  op.Type,
 		LastOperationState: OperationRunning,
 	}
+}
+
+func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
+	if len(entry.SeedFiles) == 0 {
+		return nil
+	}
+	grouped := map[string]map[string]string{}
+	for _, seed := range entry.SeedFiles {
+		cleanPath := pathpkg.Clean("/" + strings.TrimLeft(strings.TrimSpace(seed.Path), "/"))
+		dir, name := pathpkg.Split(cleanPath)
+		dir = strings.TrimRight(dir, "/")
+		if dir == "" {
+			dir = "/"
+		}
+		if name == "" || name == "." || strings.Contains(name, "/") {
+			return fmt.Errorf("invalid seed file path %q", seed.Path)
+		}
+		if grouped[dir] == nil {
+			grouped[dir] = map[string]string{}
+		}
+		grouped[dir][name] = seed.Content
+	}
+	for destDir, files := range grouped {
+		if err := s.requireDocker().CopyToContainer(ctx, app.ContainerName, destDir, files); err != nil {
+			return fmt.Errorf("seed container files in %s: %w", destDir, err)
+		}
+	}
+	return nil
 }
 
 func installEnv(entry CatalogEntry) []string {
@@ -1252,6 +1284,9 @@ func (missingDockerAdapter) PullImage(context.Context, string) error {
 }
 func (missingDockerAdapter) CreateContainer(context.Context, ContainerSpec) (string, error) {
 	return "", fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) CopyToContainer(context.Context, string, string, map[string]string) error {
+	return fmt.Errorf("Docker adapter is not configured")
 }
 func (missingDockerAdapter) StartContainer(context.Context, string) error {
 	return fmt.Errorf("Docker adapter is not configured")

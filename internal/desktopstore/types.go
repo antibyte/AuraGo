@@ -51,6 +51,7 @@ type CatalogEntry struct {
 	Volumes     []VolumeTemplate  `json:"volumes,omitempty"`
 	Env         []string          `json:"env,omitempty"`
 	ExtraHosts  []string          `json:"extra_hosts,omitempty"`
+	SeedFiles   []SeedFile        `json:"-"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
 }
 
@@ -70,6 +71,12 @@ type VolumeTemplate struct {
 type VolumeBinding struct {
 	Name          string `json:"name"`
 	ContainerPath string `json:"container_path"`
+}
+
+// SeedFile is copied into a newly-created container before first start.
+type SeedFile struct {
+	Path    string
+	Content string
 }
 
 // PortBinding is a resolved Docker host binding for an installed app.
@@ -171,6 +178,7 @@ type LaunchpadLink struct {
 type DockerAdapter interface {
 	PullImage(ctx context.Context, image string) error
 	CreateContainer(ctx context.Context, spec ContainerSpec) (string, error)
+	CopyToContainer(ctx context.Context, containerName, destDir string, files map[string]string) error
 	StartContainer(ctx context.Context, name string) error
 	StopContainer(ctx context.Context, name string) error
 	RestartContainer(ctx context.Context, name string) error

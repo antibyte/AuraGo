@@ -65,6 +65,22 @@ func DefaultCatalog() []CatalogEntry {
 			},
 		},
 		{
+			ID:          "olivetin",
+			Name:        "OliveTin",
+			Description: "Web UI for running predefined shell automation actions.",
+			Image:       "ghcr.io/jamesread/olivetin:latest",
+			Icon:        "terminal",
+			LogoSlug:    "olivetin",
+			LogoURL:     logoURL("olivetin"),
+			PrimaryPort: PortSpec{ContainerPort: 1337, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "config", ContainerPath: "/config"},
+			},
+			SeedFiles: []SeedFile{
+				{Path: "/config/config.yaml", Content: oliveTinDefaultConfig},
+			},
+		},
+		{
 			ID:          "adguard-home",
 			Name:        "AdGuard Home",
 			Description: "Network-wide ad blocking and DNS filtering; v1 exposes only the setup web UI. Keep the admin web port on 3000 during setup.",
@@ -106,6 +122,11 @@ func DefaultCatalog() []CatalogEntry {
 		},
 	}
 }
+
+const oliveTinDefaultConfig = `actions:
+  - title: "Hello world!"
+    shell: echo 'Hello World!'
+`
 
 func logoURL(slug string) string {
 	return fmt.Sprintf("%s/%s.png", dashboardIconPNGBase, slug)

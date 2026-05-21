@@ -1,12 +1,15 @@
 package desktopstore
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	pathpkg "path"
 	"strconv"
 	"strings"
 
@@ -58,6 +61,50 @@ func (a ToolsDockerAdapter) CreateContainer(ctx context.Context, spec ContainerS
 		}
 	}
 	return resp.ID, nil
+}
+
+func (a ToolsDockerAdapter) CopyToContainer(ctx context.Context, containerName, destDir string, files map[string]string) error {
+	containerName = strings.TrimSpace(containerName)
+	destDir = pathpkg.Clean("/" + strings.TrimLeft(strings.TrimSpace(destDir), "/"))
+	if containerName == "" {
+		return fmt.Errorf("container name is required")
+	}
+	if destDir == "." || destDir == "" {
+		destDir = "/"
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	for name, content := range files {
+		cleanName := pathpkg.Clean(strings.TrimLeft(strings.TrimSpace(name), "/"))
+		if cleanName == "." || cleanName == "" || strings.HasPrefix(cleanName, "../") || strings.Contains(cleanName, "/../") {
+			_ = tw.Close()
+			return fmt.Errorf("invalid container copy file name %q", name)
+		}
+		data := []byte(content)
+		if err := tw.WriteHeader(&tar.Header{Name: cleanName, Mode: 0o644, Size: int64(len(data))}); err != nil {
+			_ = tw.Close()
+			return fmt.Errorf("write container copy tar header: %w", err)
+		}
+		if _, err := tw.Write(data); err != nil {
+			_ = tw.Close()
+			return fmt.Errorf("write container copy tar body: %w", err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("close container copy tar: %w", err)
+	}
+	endpoint := "/containers/" + url.PathEscape(containerName) + "/archive?path=" + url.QueryEscape(destDir)
+	data, code, err := tools.DockerRequestBytesContext(ctx, a.Config, http.MethodPut, endpoint, tarBuf.Bytes(), "application/x-tar")
+	if err != nil {
+		return err
+	}
+	if code == http.StatusOK || code == http.StatusNoContent {
+		return nil
+	}
+	return dockerHTTPError("copy files to container", code, data)
 }
 
 func (a ToolsDockerAdapter) StartContainer(ctx context.Context, name string) error {
