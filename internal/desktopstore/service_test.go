@@ -316,6 +316,30 @@ func TestOpenURLChoosesLocalLanOrTailnetSurface(t *testing.T) {
 	}
 }
 
+func TestOpenURLRejectsAppThatIsNotRunning(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19667))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	stopOp, err := svc.StartAppOperation(ctx, "node-red", OperationStop, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start stop: %v", err)
+	}
+	if err := svc.RunOperation(ctx, stopOp.ID); err != nil {
+		t.Fatalf("run stop: %v", err)
+	}
+
+	if _, _, err := svc.OpenURL(ctx, "node-red", "127.0.0.1:8080", false, ""); err == nil || !strings.Contains(err.Error(), "is not running") {
+		t.Fatalf("OpenURL stopped app error = %v, want not running", err)
+	}
+}
+
 func TestUpdateOperationRecreatesContainerAndKeepsVolumesPorts(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -351,6 +375,56 @@ func TestUpdateOperationRecreatesContainerAndKeepsVolumesPorts(t *testing.T) {
 	}
 	if before.Volumes[0] != after.Volumes[0] {
 		t.Fatalf("volume changed on update: before %#v after %#v", before.Volumes[0], after.Volumes[0])
+	}
+}
+
+func TestUpdateOperationUsesCurrentCatalogImage(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	catalog := []CatalogEntry{
+		{
+			ID:          "demo-app",
+			Name:        "Demo App",
+			Description: "Demo app for update tests.",
+			Image:       "example/demo:new",
+			Icon:        "package",
+			LogoSlug:    "demo",
+			LogoURL:     "https://example.invalid/demo.png",
+			PrimaryPort: PortSpec{ContainerPort: 8080, Protocol: "tcp"},
+			Volumes:     []VolumeTemplate{{NameSuffix: "data", ContainerPath: "/data"}},
+		},
+	}
+	svc := newTestServiceWithCatalog(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19888), catalog)
+
+	seedOp := Operation{ID: "op-seed", Type: OperationInstall}
+	record := svc.buildInstallRecord(catalog[0], seedOp, BindModeLocal, "127.0.0.1", 19888, false)
+	record.Image = "example/demo:old"
+	record.Status = AppStatusRunning
+	record.LastOperationState = OperationSucceeded
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed installed app: %v", err)
+	}
+
+	updateOp, err := svc.StartAppOperation(ctx, "demo-app", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+
+	if len(docker.created) != 1 {
+		t.Fatalf("created containers = %d, want 1 updated container", len(docker.created))
+	}
+	if got := docker.created[0].Image; got != "example/demo:new" {
+		t.Fatalf("updated container image = %q, want current catalog image", got)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "demo-app")
+	if err != nil || !ok {
+		t.Fatalf("get updated app: ok=%v err=%v", ok, err)
+	}
+	if stored.Image != "example/demo:new" {
+		t.Fatalf("stored image = %q, want current catalog image", stored.Image)
 	}
 }
 
@@ -530,6 +604,51 @@ func TestInstallWaitsForContainerReadiness(t *testing.T) {
 	}
 }
 
+func TestWaitContainerReadyRejectsUnhealthyContainer(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{
+		inspectState: ContainerState{
+			Name:    "aurago-store-node-red",
+			Running: true,
+			Status:  "running",
+			Health:  "unhealthy",
+		},
+	}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19187))
+	app := InstalledApp{
+		AppID:         "node-red",
+		ContainerName: "aurago-store-node-red",
+		Protocol:      "tcp",
+		HostIP:        "127.0.0.1",
+		HostPort:      19187,
+	}
+
+	err := svc.waitContainerReady(ctx, app, time.Nanosecond)
+	if err == nil || !strings.Contains(err.Error(), "unhealthy") {
+		t.Fatalf("waitContainerReady error = %v, want unhealthy", err)
+	}
+}
+
+func TestGetInstalledRejectsCorruptRuntimeJSON(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19188))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if _, err := svc.db.ExecContext(ctx, `UPDATE desktop_store_apps SET volumes_json = ? WHERE app_id = ?`, `{`, "node-red"); err != nil {
+		t.Fatalf("corrupt runtime json: %v", err)
+	}
+
+	if _, _, err := svc.GetInstalled(ctx, "node-red"); err == nil || !strings.Contains(err.Error(), "decode desktop store volumes") {
+		t.Fatalf("GetInstalled corrupt JSON error = %v, want decode volumes error", err)
+	}
+}
+
 func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -553,6 +672,11 @@ func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
 
 func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
 	t.Helper()
+	return newTestServiceWithCatalog(t, docker, desktopAdapter, launchpad, ports, nil)
+}
+
+func newTestServiceWithCatalog(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry) *Service {
+	t.Helper()
 	svc, err := NewService(Config{
 		DBPath:        filepath.Join(t.TempDir(), "desktop_store.db"),
 		Docker:        docker,
@@ -560,6 +684,7 @@ func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAd
 		Launchpad:     launchpad,
 		PortAllocator: ports,
 		PortProbe:     func(context.Context, string, int) bool { return true },
+		Catalog:       catalog,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -597,6 +722,8 @@ type fakeDockerAdapter struct {
 	createErrors      []error
 	startErrors       []error
 	inspectCalls      int
+	inspectState      ContainerState
+	inspectErr        error
 }
 
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
@@ -654,6 +781,15 @@ func (f *fakeDockerAdapter) RemoveVolume(_ context.Context, name string, _ bool)
 
 func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (ContainerState, error) {
 	f.inspectCalls++
+	if f.inspectErr != nil {
+		return ContainerState{}, f.inspectErr
+	}
+	if f.inspectState.Name != "" || f.inspectState.Status != "" || f.inspectState.Health != "" {
+		if f.inspectState.Name == "" {
+			f.inspectState.Name = name
+		}
+		return f.inspectState, nil
+	}
 	return ContainerState{Name: name, Running: true, Status: "running"}, nil
 }
 

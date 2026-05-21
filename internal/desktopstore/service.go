@@ -442,6 +442,9 @@ func (s *Service) OpenURL(ctx context.Context, appID, requestHost string, fromTa
 	if !ok {
 		return "", InstalledApp{}, fmt.Errorf("store app %q is not installed", appID)
 	}
+	if app.Status != AppStatusRunning {
+		return "", InstalledApp{}, fmt.Errorf("store app %q is not running (status: %s)", app.AppID, app.Status)
+	}
 	if fromTailscale && app.TailscaleEnabled && app.TailscaleStatus == TailscaleStatusActive && strings.TrimSpace(tailscaleDNS) != "" {
 		return fmt.Sprintf("https://%s:%d/", strings.Trim(strings.TrimSpace(tailscaleDNS), "."), app.TailscalePort), app, nil
 	}
@@ -537,6 +540,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if !ok {
 		return fmt.Errorf("store app %q is no longer in the allowlist", record.AppID)
 	}
+	record.Image = entry.Image
 	record.Status = AppStatusUpdating
 	record.Error = ""
 	record.LastOperationID = op.ID
@@ -852,8 +856,10 @@ func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, time
 			} else {
 				lastErr = fmt.Errorf("container is not running")
 			}
-		} else if strings.EqualFold(state.Health, "starting") {
-			lastErr = fmt.Errorf("container health is starting")
+		} else if health := strings.ToLower(strings.TrimSpace(state.Health)); health == "starting" || health == "unhealthy" {
+			lastErr = fmt.Errorf("container health is %s", health)
+		} else if state.Health != "" && health != "healthy" {
+			lastErr = fmt.Errorf("container health is %s", state.Health)
 		} else if app.Protocol != "tcp" || s.portProbe(ctx, app.HostIP, app.HostPort) {
 			return nil
 		} else {
@@ -921,9 +927,15 @@ func scanInstalledApp(scanner interface{ Scan(dest ...any) error }) (InstalledAp
 	app.TailscaleEnabled = tailscaleEnabled != 0
 	app.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 	app.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
-	_ = json.Unmarshal([]byte(volumesJSON), &app.Volumes)
-	_ = json.Unmarshal([]byte(envJSON), &app.Env)
-	_ = json.Unmarshal([]byte(extraHostsJSON), &app.ExtraHosts)
+	if err := json.Unmarshal([]byte(volumesJSON), &app.Volumes); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store volumes for %s: %w", app.AppID, err)
+	}
+	if err := json.Unmarshal([]byte(envJSON), &app.Env); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store env for %s: %w", app.AppID, err)
+	}
+	if err := json.Unmarshal([]byte(extraHostsJSON), &app.ExtraHosts); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store extra hosts for %s: %w", app.AppID, err)
+	}
 	return app, nil
 }
 

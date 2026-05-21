@@ -15,8 +15,10 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 		t.Fatal("generated desktop iframes must not allow popups")
 	}
 	for _, want := range []string{
-		`iframe.setAttribute('sandbox', sandboxFlags)`,
-		`appId && !widgetId ? 'allow-scripts allow-forms allow-modals allow-same-origin' : 'allow-scripts allow-forms allow-modals'`,
+		`const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];`,
+		`if (appId && !widgetId) sandboxFlags.push('allow-same-origin');`,
+		`if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');`,
+		`iframe.setAttribute('sandbox', sandboxFlags.join(' '));`,
 		`const cleanup = state.windowCleanups.get(win.id)`,
 		`function registerWindowCleanup(windowId, cleanup)`,
 		`function renderAppError`,

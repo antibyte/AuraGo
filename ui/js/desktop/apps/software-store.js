@@ -16,6 +16,8 @@
         let installed = [];
         let busy = new Map();
         let dockerAvailable = true;
+        let mutationsAllowed = true;
+        let mutationDisabledReason = '';
 
         host.innerHTML = `
             <div class="vd-store">
@@ -41,9 +43,11 @@
                 catalog = body.catalog || [];
                 installed = body.installed || [];
                 dockerAvailable = body.docker_available !== false;
+                mutationsAllowed = body.mutations_allowed !== false && dockerAvailable;
+                mutationDisabledReason = body.mutation_disabled_reason || '';
                 if (warning) {
-                    warning.hidden = dockerAvailable;
-                    warning.textContent = dockerAvailable ? '' : t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                    warning.hidden = mutationsAllowed;
+                    warning.textContent = mutationsAllowed ? '' : mutationDisabledText();
                 }
                 renderCards();
             } catch (err) {
@@ -66,8 +70,7 @@
                 const running = app && app.status === 'running';
                 const stopped = app && app.status === 'stopped';
                 const operation = busy.get(entry.id);
-                const installDisabled = !dockerAvailable;
-                const dockerUnavailable = t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
                 const logo = entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
                 const fallback = `<div class="vd-store-logo-fallback"${entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
@@ -87,10 +90,10 @@
                     ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
                     <div class="vd-store-actions">
                         ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>` : ''}
-                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
-                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop">${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
-                        ${app ? `<button type="button" class="vd-store-btn" data-action="update">${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
-                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall">${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${installDisabled ? `disabled title="${esc(dockerUnavailable)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
+                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
+                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
+                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
+                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
                     </div>
                 </article>`;
             }).join('');
@@ -119,16 +122,36 @@
 
         function handleAction(appId, action) {
             if (busy.has(appId)) return;
+            if (isMutatingAction(action) && !mutationsAllowed) {
+                notify({ title: t('desktop.store.title', 'Software Store'), message: mutationDisabledText() });
+                return;
+            }
             if (action === 'install') {
-                if (!dockerAvailable) {
-                    notify({ title: t('desktop.store.title', 'Software Store'), message: t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.') });
-                    return;
-                }
                 return openInstallModal(appId);
             }
             if (action === 'open') return openApp('store-' + appId);
             if (action === 'uninstall') return openUninstallModal(appId);
             return startOperation(appId, action, '/api/desktop/store/apps/' + encodeURIComponent(appId) + '/' + encodeURIComponent(action), 'POST');
+        }
+
+        function isMutatingAction(action) {
+            return action === 'install' || action === 'start' || action === 'stop' || action === 'restart' || action === 'update' || action === 'uninstall';
+        }
+
+        function mutationDisabledText() {
+            if (!dockerAvailable || mutationDisabledReason === 'docker_unavailable') {
+                return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+            }
+            switch (mutationDisabledReason) {
+                case 'desktop_readonly':
+                    return t('desktop.store.desktop_readonly', 'Virtual Desktop is in read-only mode. Store actions are disabled.');
+                case 'docker_disabled':
+                    return t('desktop.store.docker_disabled', 'Docker integration is disabled. Store actions are disabled.');
+                case 'docker_readonly':
+                    return t('desktop.store.docker_readonly', 'Docker is in read-only mode. Store actions are disabled.');
+                default:
+                    return t('desktop.store.mutations_disabled', 'Store actions are disabled.');
+            }
         }
 
         function openInstallModal(appId) {

@@ -86,12 +86,18 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 		if desktopSvc, _, err := s.getDesktopService(r.Context()); err == nil {
 			dockerAvailable = tools.DockerPing(desktopSvc.Config().DockerHost) == nil
 		}
+		mutationDisabledReason := s.desktopStoreMutationDisabledReason()
+		if !dockerAvailable && mutationDisabledReason == "" {
+			mutationDisabledReason = "docker_unavailable"
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status":           "ok",
-			"catalog":          store.Catalog(),
-			"installed":        apps,
-			"docker_available": dockerAvailable,
+			"status":                   "ok",
+			"catalog":                  store.Catalog(),
+			"installed":                apps,
+			"docker_available":         dockerAvailable,
+			"mutations_allowed":        dockerAvailable && mutationDisabledReason == "",
+			"mutation_disabled_reason": mutationDisabledReason,
 		})
 	}
 }
@@ -127,6 +133,9 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 			return
 		}
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		if rejectDesktopStoreMutationIfDisabled(s, w) {
 			return
 		}
 		store, err := s.getDesktopStoreService(r.Context())
@@ -206,6 +215,9 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
+		if rejectDesktopStoreMutationIfDisabled(s, w) {
+			return
+		}
 		opType := action
 		switch opType {
 		case desktopstore.OperationStart, desktopstore.OperationStop, desktopstore.OperationRestart, desktopstore.OperationUpdate:
@@ -260,6 +272,9 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		if rejectDesktopStoreMutationIfDisabled(s, w) {
 			return
 		}
 		store, err := s.getDesktopStoreService(r.Context())
@@ -355,6 +370,46 @@ func writeDesktopStoreStartError(w http.ResponseWriter, err error) {
 		status = http.StatusConflict
 	}
 	jsonError(w, err.Error(), status)
+}
+
+func rejectDesktopStoreMutationIfDisabled(s *Server, w http.ResponseWriter) bool {
+	reason := s.desktopStoreMutationDisabledReason()
+	if reason == "" {
+		return false
+	}
+	jsonError(w, desktopStoreMutationDisabledMessage(reason), http.StatusForbidden)
+	return true
+}
+
+func (s *Server) desktopStoreMutationDisabledReason() string {
+	if s == nil || s.Cfg == nil {
+		return ""
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	switch {
+	case s.Cfg.VirtualDesktop.ReadOnly:
+		return "desktop_readonly"
+	case !s.Cfg.Docker.Enabled:
+		return "docker_disabled"
+	case s.Cfg.Docker.ReadOnly:
+		return "docker_readonly"
+	default:
+		return ""
+	}
+}
+
+func desktopStoreMutationDisabledMessage(reason string) string {
+	switch reason {
+	case "desktop_readonly":
+		return "Virtual Desktop is in read-only mode. Store actions are disabled."
+	case "docker_disabled":
+		return "Docker integration is disabled. Store actions are disabled."
+	case "docker_readonly":
+		return "Docker is in read-only mode. Store actions are disabled."
+	default:
+		return "Store actions are disabled."
+	}
 }
 
 func (s *Server) storeTailnetRequestInfo(r *http.Request) (bool, string) {
