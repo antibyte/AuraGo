@@ -153,6 +153,22 @@ func TestReconfigureExposureRetriesHomepageAfterBackendBecomesReachable(t *testi
 	t.Fatal("homepage exposure was not retried after backend became reachable")
 }
 
+func TestStoreAppProxyResponseRemovesFrameHeadersAndDisablesHTMLCache(t *testing.T) {
+	resp := &http.Response{Header: make(http.Header)}
+	resp.Header.Set("X-Frame-Options", "SAMEORIGIN")
+	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := sanitizeStoreAppProxyResponse(resp); err != nil {
+		t.Fatalf("sanitizeStoreAppProxyResponse returned error: %v", err)
+	}
+	if got := resp.Header.Get("X-Frame-Options"); got != "" {
+		t.Fatalf("X-Frame-Options = %q, want stripped for embedded store app proxy responses", got)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store for embedded store app documents", got)
+	}
+}
+
 type blockingListener struct {
 	closed chan struct{}
 	addr   net.Addr

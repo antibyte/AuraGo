@@ -570,7 +570,8 @@
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
-            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
+            const frameURL = cacheBustURL(body.url, 'aurago_store_embed');
+            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
             host.replaceChildren(frame);
         } catch (err) {
             if (!contentEl(id)) return;
@@ -590,6 +591,20 @@
                     }
                 });
             }
+        }
+    }
+
+    function cacheBustURL(src, paramName) {
+        if (!src) return src;
+        const name = paramName || 'aurago_embed';
+        const value = String(Date.now());
+        try {
+            const url = new URL(src, window.location.origin);
+            url.searchParams.set(name, value);
+            return url.toString();
+        } catch (_) {
+            const joiner = String(src).includes('?') ? '&' : '?';
+            return String(src) + joiner + encodeURIComponent(name) + '=' + encodeURIComponent(value);
         }
     }
 
