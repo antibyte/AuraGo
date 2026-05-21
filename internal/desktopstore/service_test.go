@@ -224,9 +224,51 @@ func TestInstallDesktopFailureCleansRunningContainer(t *testing.T) {
 	}
 }
 
+func TestInstallReplacesFailedInstallingRecord(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	launchpad := &fakeLaunchpadAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, launchpad, fixedPorts(19184))
+
+	staleOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start stale install: %v", err)
+	}
+	if err := svc.updateOperation(ctx, staleOp.ID, OperationFailed, "", "interrupted before cleanup"); err != nil {
+		t.Fatalf("mark stale operation failed: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], staleOp, BindModeLocal, "127.0.0.1", 19184, false)
+	record.LastOperationState = OperationRunning
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed failed installing record: %v", err)
+	}
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start replacement install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run replacement install: %v", err)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "node-red")
+	if err != nil || !ok {
+		t.Fatalf("get replacement install: ok=%v err=%v", ok, err)
+	}
+	if stored.Status != AppStatusRunning || stored.LastOperationID != op.ID || stored.LastOperationState != OperationSucceeded {
+		t.Fatalf("replacement record not running from new operation: %#v", stored)
+	}
+	if docker.removedContainers["aurago-store-node-red"] == 0 {
+		t.Fatalf("stale container cleanup not attempted: %#v", docker.removedContainers)
+	}
+	if len(docker.removedVolumes) == 0 {
+		t.Fatal("stale volumes were not cleaned before replacement install")
+	}
+}
+
 func TestStartInstallRejectsConcurrentOperationForSameApp(t *testing.T) {
 	ctx := context.Background()
-	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19184))
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19185))
 
 	first, err := svc.StartInstall(ctx, InstallRequest{AppID: "n8n", BindMode: BindModeLocal})
 	if err != nil {
@@ -245,7 +287,7 @@ func TestStartInstallRejectsConcurrentOperationForSameApp(t *testing.T) {
 
 func TestStartInstallResetsStaleOperationBeforeCreatingNewOne(t *testing.T) {
 	ctx := context.Background()
-	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19185))
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19186))
 
 	stale, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
 	if err != nil {
@@ -655,6 +697,36 @@ func TestUninstallRemovesVolumesOnlyWhenRequested(t *testing.T) {
 	}
 }
 
+func TestUninstallIgnoresMissingDesktopApp(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19445))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	desktopAdapter.deleteErr = errors.New("desktop app not found")
+
+	uninstallOp, err := svc.StartAppOperation(ctx, "node-red", OperationUninstall, OperationRequest{DeleteData: false})
+	if err != nil {
+		t.Fatalf("start uninstall: %v", err)
+	}
+	if err := svc.RunOperation(ctx, uninstallOp.ID); err != nil {
+		t.Fatalf("run uninstall: %v", err)
+	}
+	if _, ok, err := svc.GetInstalled(ctx, "node-red"); err != nil || ok {
+		t.Fatalf("install record should be removed despite missing desktop app: ok=%v err=%v", ok, err)
+	}
+	if desktopAdapter.deletedAppID != "store-node-red" {
+		t.Fatalf("deleted desktop app = %q", desktopAdapter.deletedAppID)
+	}
+}
+
 func TestUpdateFailureRestoresPreviousRecord(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -903,6 +975,7 @@ type fakeDesktopAdapter struct {
 	shortcutAppID string
 	deletedAppID  string
 	installErr    error
+	deleteErr     error
 }
 
 func (f *fakeDesktopAdapter) InstallApp(_ context.Context, manifest desktop.AppManifest, files map[string]string, _ string) error {
@@ -927,6 +1000,9 @@ func (f *fakeDesktopAdapter) AddDesktopAppShortcut(_ context.Context, appID, _ s
 
 func (f *fakeDesktopAdapter) DeleteApp(_ context.Context, appID, _ string) error {
 	f.deletedAppID = appID
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
 	return nil
 }
 

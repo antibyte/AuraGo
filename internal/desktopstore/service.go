@@ -480,10 +480,20 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if !ok {
 		return fmt.Errorf("store app %q is not in the allowlist", req.AppID)
 	}
-	if _, exists, err := s.GetInstalled(ctx, entry.ID); err != nil {
+	if existing, exists, err := s.GetInstalled(ctx, entry.ID); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("store app %q is already installed", entry.ID)
+		replace, err := s.canReplaceInstallingRecord(ctx, existing)
+		if err != nil {
+			return err
+		}
+		if replace {
+			if err := s.cleanupInstallArtifacts(ctx, existing); err != nil {
+				return fmt.Errorf("clean up stale store app %q: %w", entry.ID, err)
+			}
+		} else {
+			return fmt.Errorf("store app %q is already installed", entry.ID)
+		}
 	}
 	hostPort, err := s.portAllocator(ctx, entry.PrimaryPort.ContainerPort)
 	if err != nil {
@@ -523,6 +533,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return s.failInstall(ctx, record, err)
 	}
 	record.LaunchpadLinkID = linkID
+	record.LastOperationState = OperationSucceeded
 	return s.saveInstalled(ctx, record)
 }
 
@@ -664,15 +675,8 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 	if err := s.requireDocker().RemoveContainer(ctx, app.ContainerName, true); err != nil {
 		return fmt.Errorf("remove container: %w", err)
 	}
-	if s.cfg.Desktop != nil {
-		if err := s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource); err != nil {
-			return fmt.Errorf("delete desktop app: %w", err)
-		}
-	}
-	if s.cfg.Launchpad != nil && app.LaunchpadLinkID != "" {
-		if err := s.cfg.Launchpad.DeleteStoreLink(ctx, app.LaunchpadLinkID); err != nil {
-			return fmt.Errorf("delete launchpad link: %w", err)
-		}
+	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
 	}
 	if deleteData {
 		for _, volume := range app.Volumes {
@@ -686,6 +690,32 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return fmt.Errorf("delete desktop store app record: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) canReplaceInstallingRecord(ctx context.Context, app InstalledApp) (bool, error) {
+	if app.Status != AppStatusInstalling || app.LastOperationType != OperationInstall {
+		return false, nil
+	}
+	if strings.TrimSpace(app.LastOperationID) == "" {
+		return true, nil
+	}
+	op, err := s.Operation(ctx, app.LastOperationID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, fmt.Errorf("load previous install operation for %s: %w", app.AppID, err)
+	}
+	switch op.Status {
+	case OperationFailed, OperationSucceeded:
+		return true, nil
+	case OperationPending, OperationRunning:
+		if time.Since(op.UpdatedAt) > operationStaleAfter {
+			_ = s.updateOperation(ctx, op.ID, OperationFailed, "stale operation reset", "operation timed out before completion")
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode, hostIP string, hostPort int, tailscaleEnabled bool) InstalledApp {
@@ -863,19 +893,49 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 }
 
 func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr error) error {
+	_ = s.cleanupInstallArtifacts(ctx, app)
+	return runErr
+}
+
+func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp) error {
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	_ = s.requireDocker().RemoveContainer(ctx, app.ContainerName, true)
 	for _, volume := range app.Volumes {
 		_ = s.requireDocker().RemoveVolume(ctx, volume.Name, true)
 	}
+	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	if err != nil {
+		return fmt.Errorf("delete desktop store app record: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) deleteStoreArtifacts(ctx context.Context, app InstalledApp) error {
 	if s.cfg.Desktop != nil {
-		_ = s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource)
+		if err := s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource); err != nil && !isMissingStoreArtifact(err) {
+			return fmt.Errorf("delete desktop app: %w", err)
+		}
 	}
 	if s.cfg.Launchpad != nil && app.LaunchpadLinkID != "" {
-		_ = s.cfg.Launchpad.DeleteStoreLink(ctx, app.LaunchpadLinkID)
+		if err := s.cfg.Launchpad.DeleteStoreLink(ctx, app.LaunchpadLinkID); err != nil && !isMissingStoreArtifact(err) {
+			return fmt.Errorf("delete launchpad link: %w", err)
+		}
 	}
-	_, _ = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
-	return runErr
+	return nil
+}
+
+func isMissingStoreArtifact(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
+	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "not found") || strings.Contains(errText, "no rows")
 }
 
 func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, timeout time.Duration) error {
