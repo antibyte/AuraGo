@@ -31,6 +31,15 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	}
 }
 
+func TestDesktopMainLoaderBumpsCacheAfterStoreIframeChanges(t *testing.T) {
+	t.Parallel()
+
+	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	if !strings.Contains(main, "var assetV = v + '-desktop-20260521-store-iframe-cache';") {
+		t.Fatal("desktop main loader asset version must be bumped after store iframe behavior changes")
+	}
+}
+
 func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	t.Parallel()
 
