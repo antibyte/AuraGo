@@ -30,8 +30,8 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"open-webui":   {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
 		"adguard-home": {image: "adguard/adguardhome", port: 3000, icon: "network"},
 		"excalidraw":   {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
-		"uptime-kuma":  {image: "louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
-		"olivetin":     {image: "ghcr.io/jamesread/olivetin:latest", port: 1337, icon: "terminal"},
+		"uptime-kuma":  {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
+		"olivetin":     {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "terminal"},
 	}
 
 	for _, entry := range catalog {
@@ -169,7 +169,7 @@ func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
 		t.Fatalf("created containers = %d, want 1", len(docker.created))
 	}
 	spec := docker.created[0]
-	if spec.Image != "ghcr.io/jamesread/olivetin:latest" {
+	if spec.Image != "ghcr.io/olivetin/olivetin:latest" {
 		t.Fatalf("olivetin image = %q", spec.Image)
 	}
 	if len(spec.Volumes) != 1 || spec.Volumes[0].ContainerPath != "/config" {
