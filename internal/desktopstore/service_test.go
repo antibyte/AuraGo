@@ -25,8 +25,8 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		icon  string
 	}{
 		"homarr":       {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home"},
-		"n8n":          {image: "docker.n8n.io/n8nio/n8n", port: 5678, icon: "workflow"},
-		"node-red":     {image: "nodered/node-red", port: 1880, icon: "workflow"},
+		"n8n":          {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "workflow"},
+		"node-red":     {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "workflow"},
 		"open-webui":   {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
 		"adguard-home": {image: "adguard/adguardhome", port: 3000, icon: "network"},
 		"excalidraw":   {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
@@ -263,6 +263,49 @@ func TestInstallReplacesFailedInstallingRecord(t *testing.T) {
 	}
 	if len(docker.removedVolumes) == 0 {
 		t.Fatal("stale volumes were not cleaned before replacement install")
+	}
+}
+
+func TestInitRecoversInterruptedInstallingOperation(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	launchpad := &fakeLaunchpadAdapter{}
+	svc := newTestServiceAtPath(t, dbPath, docker, desktopAdapter, launchpad, fixedPorts(19187), nil)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.updateOperation(ctx, op.ID, OperationRunning, "running", ""); err != nil {
+		t.Fatalf("mark operation running: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], op, BindModeLocal, "127.0.0.1", 19187, false)
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed installing record: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close first service: %v", err)
+	}
+
+	recoveryDocker := &fakeDockerAdapter{}
+	recoveredSvc := newTestServiceAtPath(t, dbPath, recoveryDocker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19188), nil)
+	recoveredOp, err := recoveredSvc.Operation(ctx, op.ID)
+	if err != nil {
+		t.Fatalf("load recovered operation: %v", err)
+	}
+	if recoveredOp.Status != OperationFailed || recoveredOp.CompletedAt == nil {
+		t.Fatalf("interrupted operation not failed on startup: %#v", recoveredOp)
+	}
+	if _, ok, err := recoveredSvc.GetInstalled(ctx, "node-red"); err != nil || ok {
+		t.Fatalf("installing record should be removed on startup recovery: ok=%v err=%v", ok, err)
+	}
+	if recoveryDocker.removedContainers["aurago-store-node-red"] == 0 {
+		t.Fatalf("startup recovery did not clean container: %#v", recoveryDocker.removedContainers)
+	}
+	if len(recoveryDocker.removedVolumes) == 0 {
+		t.Fatal("startup recovery did not clean volumes")
 	}
 }
 
@@ -846,13 +889,18 @@ func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
 
 func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
 	t.Helper()
-	return newTestServiceWithCatalog(t, docker, desktopAdapter, launchpad, ports, nil)
+	return newTestServiceAtPath(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, nil)
 }
 
 func newTestServiceWithCatalog(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry) *Service {
 	t.Helper()
+	return newTestServiceAtPath(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, catalog)
+}
+
+func newTestServiceAtPath(t *testing.T, dbPath string, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry) *Service {
+	t.Helper()
 	svc, err := NewService(Config{
-		DBPath:        filepath.Join(t.TempDir(), "desktop_store.db"),
+		DBPath:        dbPath,
 		Docker:        docker,
 		Desktop:       desktopAdapter,
 		Launchpad:     launchpad,

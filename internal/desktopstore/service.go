@@ -130,6 +130,11 @@ func (s *Service) Init(ctx context.Context) error {
 		s.db = nil
 		return err
 	}
+	if err := s.recoverInterruptedOperationsLocked(ctx); err != nil {
+		db.Close()
+		s.db = nil
+		return err
+	}
 	return nil
 }
 
@@ -197,6 +202,54 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("migrate desktop store database: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error {
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `UPDATE desktop_store_operations
+		SET status = ?, message = ?, error = ?, updated_at = ?, completed_at = ?
+		WHERE status IN (?, ?)`,
+		OperationFailed, "operation interrupted", "operation did not complete before the store service restarted",
+		formatTime(now), formatTime(now), OperationPending, OperationRunning)
+	if err != nil {
+		return fmt.Errorf("recover interrupted desktop store operations: %w", err)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
+		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
+		tailscale_port, logo_path, volumes_json, env_json, extra_hosts_json, created_at, updated_at,
+		last_operation_id, last_operation_type, last_operation_state
+		FROM desktop_store_apps WHERE status IN (?, ?)`, AppStatusInstalling, AppStatusUpdating)
+	if err != nil {
+		return fmt.Errorf("load interrupted desktop store apps: %w", err)
+	}
+	defer rows.Close()
+	var apps []InstalledApp
+	for rows.Next() {
+		app, err := scanInstalledApp(rows)
+		if err != nil {
+			return err
+		}
+		apps = append(apps, app)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read interrupted desktop store apps: %w", err)
+	}
+	for _, app := range apps {
+		switch app.Status {
+		case AppStatusInstalling:
+			if err := s.cleanupInstallArtifacts(ctx, app); err != nil {
+				return fmt.Errorf("recover interrupted install for %s: %w", app.AppID, err)
+			}
+		case AppStatusUpdating:
+			app.Status = AppStatusError
+			app.Error = "Store operation was interrupted before completion."
+			app.LastOperationState = OperationFailed
+			if err := s.saveInstalled(ctx, app); err != nil {
+				return fmt.Errorf("recover interrupted update for %s: %w", app.AppID, err)
+			}
 		}
 	}
 	return nil
