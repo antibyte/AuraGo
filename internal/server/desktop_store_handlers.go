@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -75,7 +76,11 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		apps, _ := store.ListApps(r.Context())
+		apps, err := store.ListApps(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status":    "ok",
@@ -130,7 +135,7 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 		}
 		op, err := store.StartInstall(r.Context(), req)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeDesktopStoreStartError(w, err)
 			return
 		}
 		s.runDesktopStoreOperation(op.ID)
@@ -209,7 +214,7 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		}
 		op, err := store.StartAppOperation(r.Context(), appID, opType, desktopstore.OperationRequest{})
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeDesktopStoreStartError(w, err)
 			return
 		}
 		s.runDesktopStoreOperation(op.ID)
@@ -259,7 +264,7 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 		deleteData := strings.EqualFold(r.URL.Query().Get("delete_data"), "true")
 		op, err := store.StartAppOperation(r.Context(), appID, desktopstore.OperationUninstall, desktopstore.OperationRequest{DeleteData: deleteData})
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeDesktopStoreStartError(w, err)
 			return
 		}
 		s.runDesktopStoreOperation(op.ID)
@@ -311,6 +316,14 @@ func writeDesktopStoreOperationAccepted(w http.ResponseWriter, op desktopstore.O
 		"operation_id": op.ID,
 		"operation":    op,
 	})
+}
+
+func writeDesktopStoreStartError(w http.ResponseWriter, err error) {
+	status := http.StatusBadRequest
+	if errors.Is(err, desktopstore.ErrOperationInProgress) {
+		status = http.StatusConflict
+	}
+	jsonError(w, err.Error(), status)
 }
 
 func (s *Server) storeTailnetRequestInfo(r *http.Request) (bool, string) {

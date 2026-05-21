@@ -67,7 +67,7 @@ func DefaultCatalog() []CatalogEntry {
 		{
 			ID:          "adguard-home",
 			Name:        "AdGuard Home",
-			Description: "Network-wide ad blocking and DNS filtering; v1 exposes only the setup web UI.",
+			Description: "Network-wide ad blocking and DNS filtering; v1 exposes only the setup web UI. Keep the admin web port on 3000 during setup.",
 			Image:       "adguard/adguardhome",
 			Icon:        "network",
 			LogoSlug:    "adguard-home",

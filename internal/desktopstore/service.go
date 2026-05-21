@@ -25,6 +25,12 @@ const storeSource = "desktop-store"
 
 var storeAppIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 
+// ErrOperationInProgress is returned when an app already has an active
+// lifecycle operation. Callers should surface this as a conflict, not bad input.
+var ErrOperationInProgress = errors.New("desktop store operation already in progress")
+
+const operationStaleAfter = 35 * time.Minute
+
 // Config describes the desktop store service dependencies.
 type Config struct {
 	DBPath        string
@@ -226,6 +232,13 @@ func (s *Service) createOperation(ctx context.Context, opType, appID string, req
 		return Operation{}, fmt.Errorf("marshal operation request: %w", err)
 	}
 	now := time.Now().UTC()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.rejectActiveOperationLocked(ctx, appID, now); err != nil {
+		return Operation{}, err
+	}
+
 	op := Operation{
 		ID:          newID("op"),
 		Type:        opType,
@@ -242,6 +255,53 @@ func (s *Service) createOperation(ctx context.Context, opType, appID string, req
 		return Operation{}, fmt.Errorf("create desktop store operation: %w", err)
 	}
 	return op, nil
+}
+
+func (s *Service) rejectActiveOperationLocked(ctx context.Context, appID string, now time.Time) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, status, updated_at FROM desktop_store_operations
+		WHERE app_id = ? AND status IN (?, ?)
+		ORDER BY created_at ASC`,
+		appID, OperationPending, OperationRunning)
+	if err != nil {
+		return fmt.Errorf("check active desktop store operations: %w", err)
+	}
+	var staleIDs []string
+	var activeErr error
+	for rows.Next() {
+		var id, status, updatedAtText string
+		if err := rows.Scan(&id, &status, &updatedAtText); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("scan active desktop store operation: %w", err)
+		}
+		updatedAt, parseErr := time.Parse(time.RFC3339Nano, updatedAtText)
+		if parseErr == nil && now.Sub(updatedAt) > operationStaleAfter {
+			staleIDs = append(staleIDs, id)
+			continue
+		}
+		if activeErr == nil {
+			activeErr = fmt.Errorf("%w: app %s has %s operation %s", ErrOperationInProgress, appID, status, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("read active desktop store operations: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close active desktop store operations: %w", err)
+	}
+	for _, id := range staleIDs {
+		if _, err := s.db.ExecContext(ctx, `UPDATE desktop_store_operations
+			SET status = ?, message = ?, error = ?, updated_at = ?, completed_at = ?
+			WHERE id = ?`,
+			OperationFailed, "stale operation reset", "operation timed out before completion",
+			formatTime(now), formatTime(now), id); err != nil {
+			return fmt.Errorf("reset stale desktop store operation: %w", err)
+		}
+	}
+	if activeErr != nil {
+		return activeErr
+	}
+	return nil
 }
 
 // RunOperation executes a pending operation and stores its terminal state.

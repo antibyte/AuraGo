@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/desktop"
 )
@@ -207,6 +208,55 @@ func TestInstallDesktopFailureCleansRunningContainer(t *testing.T) {
 	}
 	if docker.removedContainers["aurago-store-homarr"] == 0 {
 		t.Fatalf("desktop failure did not remove running container: %#v", docker.removedContainers)
+	}
+}
+
+func TestStartInstallRejectsConcurrentOperationForSameApp(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19184))
+
+	first, err := svc.StartInstall(ctx, InstallRequest{AppID: "n8n", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start first install: %v", err)
+	}
+	if first.Status != OperationPending {
+		t.Fatalf("first operation status = %s, want pending", first.Status)
+	}
+	if _, err := svc.StartInstall(ctx, InstallRequest{AppID: "n8n", BindMode: BindModeLocal}); !errors.Is(err, ErrOperationInProgress) {
+		t.Fatalf("second install error = %v, want ErrOperationInProgress", err)
+	}
+	if _, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal}); err != nil {
+		t.Fatalf("different app should not be blocked: %v", err)
+	}
+}
+
+func TestStartInstallResetsStaleOperationBeforeCreatingNewOne(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19185))
+
+	stale, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start stale install: %v", err)
+	}
+	old := time.Now().UTC().Add(-(operationStaleAfter + time.Minute))
+	_, err = svc.db.ExecContext(ctx, `UPDATE desktop_store_operations SET status = ?, updated_at = ? WHERE id = ?`,
+		OperationRunning, formatTime(old), stale.ID)
+	if err != nil {
+		t.Fatalf("age operation: %v", err)
+	}
+	next, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start after stale operation: %v", err)
+	}
+	if next.ID == stale.ID {
+		t.Fatal("expected a new operation id")
+	}
+	oldOp, err := svc.Operation(ctx, stale.ID)
+	if err != nil {
+		t.Fatalf("get stale operation: %v", err)
+	}
+	if oldOp.Status != OperationFailed || oldOp.CompletedAt == nil {
+		t.Fatalf("stale operation not marked failed/completed: %#v", oldOp)
 	}
 }
 
