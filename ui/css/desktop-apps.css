@@ -5645,6 +5645,17 @@
     font-size: 11px;
 }
 
+.vd-store-warning {
+    border: 1px solid rgba(234,179,8,0.32);
+    background: rgba(234,179,8,0.12);
+    color: #fde68a;
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
 .vd-store-status {
     display: inline-flex;
     align-items: center;
@@ -5701,6 +5712,11 @@
 .vd-store-btn:hover:not(:disabled) {
     background: rgba(255,255,255,0.08);
     border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38);
+}
+
+.vd-store-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
 }
 
 .vd-store-primary {

@@ -15,6 +15,7 @@
         let catalog = [];
         let installed = [];
         let busy = new Map();
+        let dockerAvailable = true;
 
         host.innerHTML = `
             <div class="vd-store">
@@ -25,10 +26,12 @@
                     </div>
                     <button type="button" class="vd-store-btn" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.context_refresh', 'Refresh'))}</span></button>
                 </div>
+                <div class="vd-store-warning" hidden></div>
                 <div class="vd-store-grid"></div>
             </div>`;
 
         const grid = host.querySelector('.vd-store-grid');
+        const warning = host.querySelector('.vd-store-warning');
         host.querySelector('[data-action="refresh"]').addEventListener('click', load);
 
         async function load() {
@@ -37,6 +40,11 @@
                 const body = await api('/api/desktop/store/catalog');
                 catalog = body.catalog || [];
                 installed = body.installed || [];
+                dockerAvailable = body.docker_available !== false;
+                if (warning) {
+                    warning.hidden = dockerAvailable;
+                    warning.textContent = dockerAvailable ? '' : t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                }
                 renderCards();
             } catch (err) {
                 grid.innerHTML = `<div class="vd-store-empty">${esc(err.message)}</div>`;
@@ -58,6 +66,8 @@
                 const running = app && app.status === 'running';
                 const stopped = app && app.status === 'stopped';
                 const operation = busy.get(entry.id);
+                const installDisabled = !dockerAvailable;
+                const dockerUnavailable = t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
                 const logo = entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
                 const fallback = `<div class="vd-store-logo-fallback"${entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
@@ -80,7 +90,7 @@
                         ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start">${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
                         ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop">${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
                         ${app ? `<button type="button" class="vd-store-btn" data-action="update">${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
-                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall">${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install">${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
+                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall">${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${installDisabled ? `disabled title="${esc(dockerUnavailable)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
                     </div>
                 </article>`;
             }).join('');
@@ -109,7 +119,13 @@
 
         function handleAction(appId, action) {
             if (busy.has(appId)) return;
-            if (action === 'install') return openInstallModal(appId);
+            if (action === 'install') {
+                if (!dockerAvailable) {
+                    notify({ title: t('desktop.store.title', 'Software Store'), message: t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.') });
+                    return;
+                }
+                return openInstallModal(appId);
+            }
             if (action === 'open') return openApp('store-' + appId);
             if (action === 'uninstall') return openUninstallModal(appId);
             return startOperation(appId, action, '/api/desktop/store/apps/' + encodeURIComponent(appId) + '/' + encodeURIComponent(action), 'POST');

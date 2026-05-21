@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Κατάστημα λογισμικού",
   "desktop.store.title": "Κατάστημα λογισμικού",
   "desktop.store.subtitle": "Εγκατάσταση εγκεκριμένων Docker web apps.",
+  "desktop.store.docker_unavailable": "Το Docker δεν είναι διαθέσιμο. Οι ενέργειες εγκατάστασης είναι απενεργοποιημένες.",
   "desktop.store.empty": "Δεν υπάρχουν διαθέσιμες εφαρμογές.",
   "desktop.store.not_installed": "Δεν έχει εγκατασταθεί",
   "desktop.store.open": "Άνοιγμα",

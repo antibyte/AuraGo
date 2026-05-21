@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Software Store",
   "desktop.store.title": "Software Store",
   "desktop.store.subtitle": "Freigegebene Docker-Webapps installieren.",
+  "desktop.store.docker_unavailable": "Docker ist nicht verfügbar. Installationsaktionen sind deaktiviert.",
   "desktop.store.empty": "Keine Apps verfügbar.",
   "desktop.store.not_installed": "Nicht installiert",
   "desktop.store.open": "Öffnen",

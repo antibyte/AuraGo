@@ -681,6 +681,7 @@
   "desktop.app_software_store": "软件商店",
   "desktop.store.title": "软件商店",
   "desktop.store.subtitle": "安装允许列表中的 Docker Web 应用。",
+  "desktop.store.docker_unavailable": "Docker 不可用。安装操作已禁用。",
   "desktop.store.empty": "没有可用应用。",
   "desktop.store.not_installed": "未安装",
   "desktop.store.open": "打开",

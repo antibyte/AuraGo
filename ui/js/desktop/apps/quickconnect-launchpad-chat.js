@@ -570,8 +570,7 @@
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
-            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app));
-            frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-downloads allow-same-origin');
+            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true });
             host.replaceChildren(frame);
         } catch (err) {
             if (!contentEl(id)) return;
@@ -594,7 +593,7 @@
         }
     }
 
-    function makeSandboxedFrame(src, appId, widgetId, windowId, className, title) {
+    function makeSandboxedFrame(src, appId, widgetId, windowId, className, title, options) {
         const iframe = document.createElement('iframe');
         iframe.className = className;
         iframe.title = title || appId || 'Aura Desktop app';
@@ -602,8 +601,10 @@
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
-        const sandboxFlags = appId && !widgetId ? 'allow-scripts allow-forms allow-modals allow-same-origin' : 'allow-scripts allow-forms allow-modals';
-        iframe.setAttribute('sandbox', sandboxFlags);
+        const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
+        if (appId && !widgetId) sandboxFlags.push('allow-same-origin');
+        if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
+        iframe.setAttribute('sandbox', sandboxFlags.join(' '));
         iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));

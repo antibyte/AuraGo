@@ -196,3 +196,6 @@ type LaunchpadAdapter interface {
 // PortAllocator chooses a host port. The preferred port is the app's default
 // container port; implementations may use it or pick a free alternative.
 type PortAllocator func(ctx context.Context, preferred int) (int, error)
+
+// PortProbe checks whether a host TCP port accepts connections.
+type PortProbe func(ctx context.Context, hostIP string, hostPort int) bool

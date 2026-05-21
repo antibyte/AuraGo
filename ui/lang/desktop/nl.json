@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Softwarewinkel",
   "desktop.store.title": "Softwarewinkel",
   "desktop.store.subtitle": "Installeer toegestane Docker-webapps.",
+  "desktop.store.docker_unavailable": "Docker is niet beschikbaar. Installatieacties zijn uitgeschakeld.",
   "desktop.store.empty": "Geen apps beschikbaar.",
   "desktop.store.not_installed": "Niet geïnstalleerd",
   "desktop.store.open": "Openen",

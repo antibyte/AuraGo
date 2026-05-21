@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Softwarebutik",
   "desktop.store.title": "Softwarebutik",
   "desktop.store.subtitle": "Installer godkendte Docker-webapps.",
+  "desktop.store.docker_unavailable": "Docker er ikke tilgængelig. Installationshandlinger er deaktiveret.",
   "desktop.store.empty": "Ingen apps tilgængelige.",
   "desktop.store.not_installed": "Ikke installeret",
   "desktop.store.open": "Åbn",

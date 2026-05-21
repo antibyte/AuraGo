@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Tienda de software",
   "desktop.store.title": "Tienda de software",
   "desktop.store.subtitle": "Instala apps web Docker permitidas.",
+  "desktop.store.docker_unavailable": "Docker no está disponible. Las acciones de instalación están desactivadas.",
   "desktop.store.empty": "No hay apps disponibles.",
   "desktop.store.not_installed": "No instalada",
   "desktop.store.open": "Abrir",

@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Obchod softwaru",
   "desktop.store.title": "Obchod softwaru",
   "desktop.store.subtitle": "Instalujte povolené Docker webové aplikace.",
+  "desktop.store.docker_unavailable": "Docker není dostupný. Akce instalace jsou deaktivované.",
   "desktop.store.empty": "Nejsou dostupné žádné aplikace.",
   "desktop.store.not_installed": "Není nainstalováno",
   "desktop.store.open": "Otevřít",

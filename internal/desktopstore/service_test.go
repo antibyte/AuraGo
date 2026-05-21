@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -512,6 +513,44 @@ func TestUpdateFailureRestoresPreviousRecord(t *testing.T) {
 	}
 }
 
+func TestInstallWaitsForContainerReadiness(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19186))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if docker.inspectCalls == 0 {
+		t.Fatal("install did not inspect container readiness before marking running")
+	}
+}
+
+func TestStorePortAcceptsChecksLocalTCPPort(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen readiness port: %v", err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if !storePortAccepts(context.Background(), "0.0.0.0", port) {
+		t.Fatal("expected port probe to reach listener through local fallback")
+	}
+}
+
 func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator) *Service {
 	t.Helper()
 	svc, err := NewService(Config{
@@ -520,6 +559,7 @@ func newTestService(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAd
 		Desktop:       desktopAdapter,
 		Launchpad:     launchpad,
 		PortAllocator: ports,
+		PortProbe:     func(context.Context, string, int) bool { return true },
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -556,6 +596,7 @@ type fakeDockerAdapter struct {
 	createErr         error
 	createErrors      []error
 	startErrors       []error
+	inspectCalls      int
 }
 
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
@@ -612,6 +653,7 @@ func (f *fakeDockerAdapter) RemoveVolume(_ context.Context, name string, _ bool)
 }
 
 func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (ContainerState, error) {
+	f.inspectCalls++
 	return ContainerState{Name: name, Running: true, Status: "running"}, nil
 }
 

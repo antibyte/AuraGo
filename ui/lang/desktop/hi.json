@@ -681,6 +681,7 @@
   "desktop.app_software_store": "सॉफ़्टवेयर स्टोर",
   "desktop.store.title": "सॉफ़्टवेयर स्टोर",
   "desktop.store.subtitle": "स्वीकृत Docker वेब ऐप इंस्टॉल करें।",
+  "desktop.store.docker_unavailable": "Docker उपलब्ध नहीं है। इंस्टॉलेशन क्रियाएँ बंद हैं।",
   "desktop.store.empty": "कोई ऐप उपलब्ध नहीं है।",
   "desktop.store.not_installed": "इंस्टॉल नहीं है",
   "desktop.store.open": "खोलें",

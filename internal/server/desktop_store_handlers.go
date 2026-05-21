@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
+	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 )
 
@@ -81,11 +82,16 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		dockerAvailable := false
+		if desktopSvc, _, err := s.getDesktopService(r.Context()); err == nil {
+			dockerAvailable = tools.DockerPing(desktopSvc.Config().DockerHost) == nil
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status":    "ok",
-			"catalog":   store.Catalog(),
-			"installed": apps,
+			"status":           "ok",
+			"catalog":          store.Catalog(),
+			"installed":        apps,
+			"docker_available": dockerAvailable,
 		})
 	}
 }
@@ -274,7 +280,7 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 
 func (s *Server) runDesktopStoreOperation(operationID string) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 30*time.Minute)
 		defer cancel()
 		store, err := s.getDesktopStoreService(ctx)
 		if err != nil {
@@ -291,6 +297,31 @@ func (s *Server) runDesktopStoreOperation(operationID string) {
 		}
 		s.broadcastDesktopStoreChanged(operationID)
 	}()
+}
+
+func desktopStoreOperationContext(shutdownCh <-chan struct{}, timeout time.Duration) (context.Context, context.CancelFunc) {
+	baseCtx, baseCancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	if shutdownCh != nil {
+		go func() {
+			select {
+			case <-shutdownCh:
+				baseCancel()
+			case <-done:
+			}
+		}()
+	}
+	ctx, timeoutCancel := context.WithTimeout(baseCtx, timeout)
+	cancel := func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		timeoutCancel()
+		baseCancel()
+	}
+	return ctx, cancel
 }
 
 func (s *Server) broadcastDesktopStoreChanged(operationID string) {

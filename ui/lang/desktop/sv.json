@@ -681,6 +681,7 @@
   "desktop.app_software_store": "Programvarubutik",
   "desktop.store.title": "Programvarubutik",
   "desktop.store.subtitle": "Installera godkända Docker-webbappar.",
+  "desktop.store.docker_unavailable": "Docker är inte tillgängligt. Installationsåtgärder är inaktiverade.",
   "desktop.store.empty": "Inga appar tillgängliga.",
   "desktop.store.not_installed": "Inte installerad",
   "desktop.store.open": "Öppna",

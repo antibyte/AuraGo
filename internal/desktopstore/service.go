@@ -30,6 +30,8 @@ var storeAppIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 var ErrOperationInProgress = errors.New("desktop store operation already in progress")
 
 const operationStaleAfter = 35 * time.Minute
+const appReadinessTimeout = 60 * time.Second
+const appReadinessPollInterval = 500 * time.Millisecond
 
 // Config describes the desktop store service dependencies.
 type Config struct {
@@ -41,6 +43,7 @@ type Config struct {
 	Desktop       DesktopAdapter
 	Launchpad     LaunchpadAdapter
 	PortAllocator PortAllocator
+	PortProbe     PortProbe
 }
 
 // Service owns the software store catalog, persistent install records and
@@ -52,6 +55,7 @@ type Service struct {
 	catalog       []CatalogEntry
 	catalogByID   map[string]CatalogEntry
 	portAllocator PortAllocator
+	portProbe     PortProbe
 	closed        bool
 }
 
@@ -90,11 +94,16 @@ func NewService(cfg Config) (*Service, error) {
 	if allocator == nil {
 		allocator = DefaultPortAllocator
 	}
+	portProbe := cfg.PortProbe
+	if portProbe == nil {
+		portProbe = storePortAccepts
+	}
 	return &Service{
 		cfg:           cfg,
 		catalog:       append([]CatalogEntry(nil), catalog...),
 		catalogByID:   catalogByID,
 		portAllocator: allocator,
+		portProbe:     portProbe,
 	}, nil
 }
 
@@ -498,6 +507,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
+	if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
 	record.Status = AppStatusRunning
 	record.Error = ""
 	if err := s.installDesktopApp(ctx, entry, record); err != nil {
@@ -575,6 +587,10 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
 			return rollbackPrevious(fmt.Errorf("start updated container: %w", err))
 		}
+		if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
+			return rollbackPrevious(fmt.Errorf("updated container readiness: %w", err))
+		}
 	}
 	record.Status = previous.Status
 	record.Error = ""
@@ -584,7 +600,10 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 
 func (s *Service) start(ctx context.Context, op Operation) error {
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
-		return s.requireDocker().StartContainer(ctx, app.ContainerName)
+		if err := s.requireDocker().StartContainer(ctx, app.ContainerName); err != nil {
+			return err
+		}
+		return s.waitContainerReady(ctx, app, appReadinessTimeout)
 	})
 }
 
@@ -596,7 +615,10 @@ func (s *Service) stop(ctx context.Context, op Operation) error {
 
 func (s *Service) restart(ctx context.Context, op Operation) error {
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
-		return s.requireDocker().RestartContainer(ctx, app.ContainerName)
+		if err := s.requireDocker().RestartContainer(ctx, app.ContainerName); err != nil {
+			return err
+		}
+		return s.waitContainerReady(ctx, app, appReadinessTimeout)
 	})
 }
 
@@ -812,6 +834,59 @@ func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr erro
 	}
 	_, _ = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	return runErr
+}
+
+func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, timeout time.Duration) error {
+	if timeout <= 0 {
+		timeout = appReadinessTimeout
+	}
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for {
+		state, err := s.requireDocker().InspectContainer(ctx, app.ContainerName)
+		if err != nil {
+			lastErr = err
+		} else if !state.Running {
+			if state.Status != "" {
+				lastErr = fmt.Errorf("container status is %s", state.Status)
+			} else {
+				lastErr = fmt.Errorf("container is not running")
+			}
+		} else if strings.EqualFold(state.Health, "starting") {
+			lastErr = fmt.Errorf("container health is starting")
+		} else if app.Protocol != "tcp" || s.portProbe(ctx, app.HostIP, app.HostPort) {
+			return nil
+		} else {
+			lastErr = fmt.Errorf("container web port %d is not reachable yet", app.HostPort)
+		}
+		if time.Now().After(deadline) {
+			if lastErr != nil {
+				return fmt.Errorf("wait for container readiness: %w", lastErr)
+			}
+			return fmt.Errorf("wait for container readiness timed out")
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(appReadinessPollInterval):
+		}
+	}
+}
+
+func storePortAccepts(ctx context.Context, hostIP string, hostPort int) bool {
+	host := strings.TrimSpace(hostIP)
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, 750*time.Millisecond)
+	defer cancel()
+	var d net.Dialer
+	conn, err := d.DialContext(dialCtx, "tcp", net.JoinHostPort(host, fmt.Sprintf("%d", hostPort)))
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func (s *Service) requireDocker() DockerAdapter {
