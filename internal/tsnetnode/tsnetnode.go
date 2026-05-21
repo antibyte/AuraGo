@@ -676,6 +676,7 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 		req.Host = target.Host
 		req.Header.Set("X-Forwarded-Proto", "https")
 		req.Header.Set("X-Forwarded-Host", forwardedHost)
+		sanitizeStoreAppProxyRequest(req)
 	}
 	proxy.ModifyResponse = sanitizeStoreAppProxyResponse
 	ln, err := listenTLSWithTimeoutFn(srv, ":"+strconv.Itoa(spec.Port), tsnetTLSFallbackTimeout)
@@ -711,6 +712,16 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 	return nil
 }
 
+func sanitizeStoreAppProxyRequest(req *http.Request) {
+	if req == nil {
+		return
+	}
+	req.Header.Del("If-None-Match")
+	req.Header.Del("If-Modified-Since")
+	req.Header.Del("If-Range")
+	req.Header.Set("Cache-Control", "no-cache")
+}
+
 func sanitizeStoreAppProxyResponse(resp *http.Response) error {
 	if resp == nil {
 		return nil
@@ -718,6 +729,8 @@ func sanitizeStoreAppProxyResponse(resp *http.Response) error {
 	resp.Header.Del("X-Frame-Options")
 	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
 		resp.Header.Set("Cache-Control", "no-store")
+		resp.Header.Del("ETag")
+		resp.Header.Del("Last-Modified")
 	}
 	return nil
 }

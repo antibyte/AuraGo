@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -157,6 +158,8 @@ func TestStoreAppProxyResponseRemovesFrameHeadersAndDisablesHTMLCache(t *testing
 	resp := &http.Response{Header: make(http.Header)}
 	resp.Header.Set("X-Frame-Options", "SAMEORIGIN")
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+	resp.Header.Set("ETag", `W/"old"`)
+	resp.Header.Set("Last-Modified", "Thu, 21 May 2026 19:00:00 GMT")
 
 	if err := sanitizeStoreAppProxyResponse(resp); err != nil {
 		t.Fatalf("sanitizeStoreAppProxyResponse returned error: %v", err)
@@ -166,6 +169,30 @@ func TestStoreAppProxyResponseRemovesFrameHeadersAndDisablesHTMLCache(t *testing
 	}
 	if got := resp.Header.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store for embedded store app documents", got)
+	}
+	if got := resp.Header.Get("ETag"); got != "" {
+		t.Fatalf("ETag = %q, want stripped so stale frame headers cannot be reused", got)
+	}
+	if got := resp.Header.Get("Last-Modified"); got != "" {
+		t.Fatalf("Last-Modified = %q, want stripped so stale frame headers cannot be reused", got)
+	}
+}
+
+func TestStoreAppProxyRequestDropsConditionalCacheHeaders(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "https://example.test/dashboard", nil)
+	req.Header.Set("If-None-Match", `W/"old"`)
+	req.Header.Set("If-Modified-Since", "Thu, 21 May 2026 19:00:00 GMT")
+	req.Header.Set("If-Range", `W/"old"`)
+
+	sanitizeStoreAppProxyRequest(req)
+
+	for _, header := range []string{"If-None-Match", "If-Modified-Since", "If-Range"} {
+		if got := req.Header.Get(header); got != "" {
+			t.Fatalf("%s = %q, want stripped", header, got)
+		}
+	}
+	if got := req.Header.Get("Cache-Control"); got != "no-cache" {
+		t.Fatalf("Cache-Control = %q, want no-cache for fresh embedded documents", got)
 	}
 }
 

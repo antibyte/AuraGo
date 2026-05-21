@@ -570,7 +570,7 @@
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
-            const frameURL = cacheBustURL(body.url, 'aurago_store_embed');
+            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
             host.replaceChildren(frame);
         } catch (err) {
@@ -592,6 +592,20 @@
                 });
             }
         }
+    }
+
+    function storeFrameURL(src, storeAppId) {
+        if (!src) return src;
+        if (storeAppId === 'uptime-kuma') {
+            try {
+                const url = new URL(src, window.location.origin);
+                url.pathname = '/dashboard';
+                return url.toString();
+            } catch (_) {
+                return String(src).replace(/\/?(\?.*)?$/, '/dashboard$1');
+            }
+        }
+        return src;
     }
 
     function cacheBustURL(src, paramName) {
