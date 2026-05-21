@@ -5605,11 +5605,18 @@
     width: 32px;
     height: 32px;
     object-fit: contain;
+    grid-area: 1 / 1;
 }
 
 .vd-store-logo-fallback {
     display: grid;
     place-items: center;
+    grid-area: 1 / 1;
+}
+
+.vd-store-logo[hidden],
+.vd-store-logo-fallback[hidden] {
+    display: none !important;
 }
 
 .vd-store-card-title-wrap {

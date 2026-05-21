@@ -21,3 +21,17 @@ func TestSoftwareStoreDisablesMutatingActionsWhenBackendDisallowsThem(t *testing
 		}
 	}
 }
+
+func TestSoftwareStoreLogoFallbackRespectsHiddenAttribute(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "css/desktop-apps.css")
+	for _, want := range []string{
+		".vd-store-logo-fallback[hidden]",
+		"display: none",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store logo fallback CSS missing marker %q", want)
+		}
+	}
+}
