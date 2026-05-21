@@ -29,7 +29,7 @@ func NewToolsDockerAdapter(host, workspaceDir string, logger *slog.Logger) Tools
 }
 
 func (a ToolsDockerAdapter) PullImage(ctx context.Context, image string) error {
-	return tools.PullImageWait(ctx, a.Config, image, a.Logger)
+	return tools.PullImageForce(ctx, a.Config, image, a.Logger)
 }
 
 func (a ToolsDockerAdapter) CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {

@@ -617,6 +617,65 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 	return nil
 }
 
+// PullImageForce pulls a Docker image even when the same reference already
+// exists locally. Use this for user-triggered "update" actions on mutable tags.
+func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger *slog.Logger) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(image) == "" {
+		return fmt.Errorf("image is required")
+	}
+	if logger != nil {
+		logger.Info("Pulling Docker image", "image", image, "force", true)
+	}
+	client := getPullDockerClient(cfg)
+	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("create pull request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("pull image %s: %w", image, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
+	}
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var event struct {
+			Error       string `json:"error"`
+			ErrorDetail struct {
+				Message string `json:"message"`
+			} `json:"errorDetail"`
+		}
+		if err := json.Unmarshal(line, &event); err == nil {
+			if event.ErrorDetail.Message != "" {
+				return fmt.Errorf("pull image %s: %s", image, event.ErrorDetail.Message)
+			}
+			if event.Error != "" {
+				return fmt.Errorf("pull image %s: %s", image, event.Error)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("pull image %s (reading stream): %w", image, err)
+	}
+	if logger != nil {
+		logger.Info("Docker image pulled successfully", "image", image, "force", true)
+	}
+	return nil
+}
+
 // BuildImageWait builds a Docker image through the Docker Engine API using a
 // minimal tar build context containing the supplied Dockerfile. This works from
 // containerized AuraGo installs where DOCKER_HOST points at a socket proxy and

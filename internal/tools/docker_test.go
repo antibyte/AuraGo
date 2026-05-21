@@ -86,3 +86,47 @@ func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
 		t.Fatalf("error = %v, want Docker stream message", err)
 	}
 }
+
+func TestPullImageForceSkipsLocalImageCheckAndPullsTag(t *testing.T) {
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if got := r.URL.Query().Get("fromImage"); got != "ghcr.io/example/app:latest" {
+			t.Fatalf("fromImage = %q", got)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"pulled"}` + "\n"))
+	}))
+	defer server.Close()
+
+	host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	if err := PullImageForce(context.Background(), DockerConfig{Host: host}, "ghcr.io/example/app:latest", nil); err != nil {
+		t.Fatalf("PullImageForce returned error: %v", err)
+	}
+	if len(paths) != 1 {
+		t.Fatalf("paths = %#v, want only force pull request", paths)
+	}
+}
+
+func TestPullImageForceReturnsDockerStreamError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"errorDetail":{"message":"manifest not found"},"error":"manifest not found"}` + "\n"))
+	}))
+	defer server.Close()
+
+	host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	err := PullImageForce(context.Background(), DockerConfig{Host: host}, "ghcr.io/example/missing:latest", nil)
+	if err == nil || !strings.Contains(err.Error(), "manifest not found") {
+		t.Fatalf("error = %v, want Docker stream error", err)
+	}
+}

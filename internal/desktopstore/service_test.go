@@ -164,6 +164,52 @@ func TestInstalledAppJSONDoesNotExposeRuntimeEnv(t *testing.T) {
 	}
 }
 
+func TestInstallFailureCleansContainerVolumesAndRecord(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{startErrors: []error{errors.New("start failed")}}
+	desktopAdapter := &fakeDesktopAdapter{}
+	launchpad := &fakeLaunchpadAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, launchpad, fixedPorts(19182))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "n8n", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err == nil {
+		t.Fatal("expected install failure")
+	}
+	if _, ok, err := svc.GetInstalled(ctx, "n8n"); err != nil || ok {
+		t.Fatalf("install record should be removed after failed install: ok=%v err=%v", ok, err)
+	}
+	if docker.removedContainers["aurago-store-n8n"] == 0 {
+		t.Fatalf("failed install did not remove container: %#v", docker.removedContainers)
+	}
+	if len(docker.removedVolumes) == 0 {
+		t.Fatal("failed install did not remove created named volumes")
+	}
+}
+
+func TestInstallDesktopFailureCleansRunningContainer(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{installErr: errors.New("desktop install failed")}
+	svc := newTestService(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19183))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err == nil {
+		t.Fatal("expected desktop install failure")
+	}
+	if _, ok, err := svc.GetInstalled(ctx, "homarr"); err != nil || ok {
+		t.Fatalf("install record should be removed after desktop failure: ok=%v err=%v", ok, err)
+	}
+	if docker.removedContainers["aurago-store-homarr"] == 0 {
+		t.Fatalf("desktop failure did not remove running container: %#v", docker.removedContainers)
+	}
+}
+
 func TestInstallLanModeBindsAllInterfaces(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -257,6 +303,80 @@ func TestUpdateOperationRecreatesContainerAndKeepsVolumesPorts(t *testing.T) {
 	}
 }
 
+func TestUpdateStartFailureRollsBackPreviousRunningContainer(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19334))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	docker.startErrors = []error{errors.New("updated container failed to start"), nil}
+	updateOp, err := svc.StartAppOperation(ctx, "uptime-kuma", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err == nil {
+		t.Fatal("expected update start failure")
+	}
+	after, ok, err := svc.GetInstalled(ctx, "uptime-kuma")
+	if err != nil || !ok {
+		t.Fatalf("get install after update: ok=%v err=%v", ok, err)
+	}
+	if after.Status != AppStatusRunning {
+		t.Fatalf("status after rollback = %s, want running", after.Status)
+	}
+	if len(docker.created) != 3 {
+		t.Fatalf("created containers = %d, want install, failed update, rollback", len(docker.created))
+	}
+	if docker.removedContainers["aurago-store-uptime-kuma"] < 2 {
+		t.Fatalf("expected old and failed updated containers to be removed: %#v", docker.removedContainers)
+	}
+}
+
+func TestUpdateStoppedAppKeepsItStopped(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19335))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	stopOp, err := svc.StartAppOperation(ctx, "node-red", OperationStop, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start stop: %v", err)
+	}
+	if err := svc.RunOperation(ctx, stopOp.ID); err != nil {
+		t.Fatalf("run stop: %v", err)
+	}
+	startCountBeforeUpdate := len(docker.started)
+	updateOp, err := svc.StartAppOperation(ctx, "node-red", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+	after, ok, err := svc.GetInstalled(ctx, "node-red")
+	if err != nil || !ok {
+		t.Fatalf("get install after update: ok=%v err=%v", ok, err)
+	}
+	if after.Status != AppStatusStopped {
+		t.Fatalf("status after stopped update = %s, want stopped", after.Status)
+	}
+	if len(docker.started) != startCountBeforeUpdate {
+		t.Fatalf("stopped update started container: before=%d after=%d", startCountBeforeUpdate, len(docker.started))
+	}
+}
+
 func TestUninstallRemovesVolumesOnlyWhenRequested(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -324,7 +444,7 @@ func TestUpdateFailureRestoresPreviousRecord(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get install before update: ok=%v err=%v", ok, err)
 	}
-	docker.createErr = errors.New("create failed")
+	docker.createErrors = []error{errors.New("create failed"), nil}
 
 	updateOp, err := svc.StartAppOperation(ctx, "excalidraw", OperationUpdate, OperationRequest{})
 	if err != nil {
@@ -384,6 +504,8 @@ type fakeDockerAdapter struct {
 	removedContainers map[string]int
 	removedVolumes    []string
 	createErr         error
+	createErrors      []error
+	startErrors       []error
 }
 
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
@@ -392,6 +514,13 @@ func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
 }
 
 func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpec) (string, error) {
+	if len(f.createErrors) > 0 {
+		err := f.createErrors[0]
+		f.createErrors = f.createErrors[1:]
+		if err != nil {
+			return "", err
+		}
+	}
 	if f.createErr != nil {
 		return "", f.createErr
 	}
@@ -401,6 +530,11 @@ func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpe
 
 func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error {
 	f.started = append(f.started, name)
+	if len(f.startErrors) > 0 {
+		err := f.startErrors[0]
+		f.startErrors = f.startErrors[1:]
+		return err
+	}
 	return nil
 }
 
@@ -438,9 +572,13 @@ type fakeDesktopAdapter struct {
 	startVisible  *bool
 	shortcutAppID string
 	deletedAppID  string
+	installErr    error
 }
 
 func (f *fakeDesktopAdapter) InstallApp(_ context.Context, manifest desktop.AppManifest, files map[string]string, _ string) error {
+	if f.installErr != nil {
+		return f.installErr
+	}
 	f.installed = manifest
 	f.files = files
 	return nil

@@ -427,25 +427,25 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return err
 	}
 	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
-		return s.failInstallRecord(ctx, record, err)
+		return s.failInstall(ctx, record, err)
 	}
 	spec := containerSpecFromRecord(record)
 	containerID, err := s.requireDocker().CreateContainer(ctx, spec)
 	if err != nil {
-		return s.failInstallRecord(ctx, record, err)
+		return s.failInstall(ctx, record, err)
 	}
 	record.ContainerID = containerID
 	if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
-		return s.failInstallRecord(ctx, record, err)
+		return s.failInstall(ctx, record, err)
 	}
 	record.Status = AppStatusRunning
 	record.Error = ""
 	if err := s.installDesktopApp(ctx, entry, record); err != nil {
-		return s.failInstallRecord(ctx, record, err)
+		return s.failInstall(ctx, record, err)
 	}
 	linkID, err := s.upsertLaunchpad(ctx, entry, record)
 	if err != nil {
-		return s.failInstallRecord(ctx, record, err)
+		return s.failInstall(ctx, record, err)
 	}
 	record.LaunchpadLinkID = linkID
 	return s.saveInstalled(ctx, record)
@@ -460,6 +460,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		return fmt.Errorf("store app %q is not installed", op.AppID)
 	}
 	previous := record
+	previousWasRunning := previous.Status == AppStatusRunning
 	entry, ok := s.catalogByID[record.AppID]
 	if !ok {
 		return fmt.Errorf("store app %q is no longer in the allowlist", record.AppID)
@@ -472,35 +473,50 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return err
 	}
-	fail := func(runErr error) error {
-		previous.Status = AppStatusRunning
-		previous.Error = ""
+	restorePrevious := func(runErr error) error {
 		previous.LastOperationID = op.ID
 		previous.LastOperationType = op.Type
 		previous.LastOperationState = OperationFailed
 		_ = s.saveInstalled(ctx, previous)
 		return runErr
 	}
+	rollbackPrevious := func(runErr error) error {
+		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(previous))
+		if rollbackErr != nil {
+			previous.Status = AppStatusError
+			previous.Error = fmt.Sprintf("%v; rollback failed: %v", runErr, rollbackErr)
+			return restorePrevious(runErr)
+		}
+		previous.ContainerID = rollbackID
+		if previousWasRunning {
+			if rollbackErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); rollbackErr != nil {
+				previous.Status = AppStatusError
+				previous.Error = fmt.Sprintf("%v; rollback start failed: %v", runErr, rollbackErr)
+				return restorePrevious(runErr)
+			}
+		}
+		previous.Error = ""
+		return restorePrevious(runErr)
+	}
 	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
-		return fail(err)
+		return restorePrevious(err)
 	}
 	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
-		return fail(fmt.Errorf("remove old container: %w", err))
+		return restorePrevious(fmt.Errorf("remove old container: %w", err))
 	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(record))
 	if err != nil {
-		if rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(previous)); rollbackErr == nil {
-			previous.ContainerID = rollbackID
-			_ = s.requireDocker().StartContainer(ctx, previous.ContainerName)
-		}
-		return fail(fmt.Errorf("create updated container: %w", err))
+		return rollbackPrevious(fmt.Errorf("create updated container: %w", err))
 	}
 	record.ContainerID = containerID
-	if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
-		return fail(fmt.Errorf("start updated container: %w", err))
+	if previousWasRunning {
+		if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
+			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
+			return rollbackPrevious(fmt.Errorf("start updated container: %w", err))
+		}
 	}
-	record.Status = AppStatusRunning
+	record.Status = previous.Status
 	record.Error = ""
 	record.LastOperationState = OperationSucceeded
 	return s.saveInstalled(ctx, record)
@@ -722,11 +738,19 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 	return nil
 }
 
-func (s *Service) failInstallRecord(ctx context.Context, app InstalledApp, runErr error) error {
-	app.Status = AppStatusError
-	app.Error = runErr.Error()
-	app.LastOperationState = OperationFailed
-	_ = s.saveInstalled(ctx, app)
+func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr error) error {
+	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
+	_ = s.requireDocker().RemoveContainer(ctx, app.ContainerName, true)
+	for _, volume := range app.Volumes {
+		_ = s.requireDocker().RemoveVolume(ctx, volume.Name, true)
+	}
+	if s.cfg.Desktop != nil {
+		_ = s.cfg.Desktop.DeleteApp(ctx, app.DesktopAppID, storeSource)
+	}
+	if s.cfg.Launchpad != nil && app.LaunchpadLinkID != "" {
+		_ = s.cfg.Launchpad.DeleteStoreLink(ctx, app.LaunchpadLinkID)
+	}
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	return runErr
 }
 
@@ -852,7 +876,7 @@ func DefaultPortAllocator(ctx context.Context, preferred int) (int, error) {
 		return preferred, nil
 	}
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(ctx, "tcp4", "127.0.0.1:0")
+	ln, err := lc.Listen(ctx, "tcp4", "0.0.0.0:0")
 	if err != nil {
 		return 0, err
 	}
@@ -862,7 +886,7 @@ func DefaultPortAllocator(ctx context.Context, preferred int) (int, error) {
 
 func portAvailable(ctx context.Context, port int) bool {
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(ctx, "tcp4", fmt.Sprintf("127.0.0.1:%d", port))
+	ln, err := lc.Listen(ctx, "tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return false
 	}
