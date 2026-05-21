@@ -36,6 +36,26 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 	}
 }
 
+func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, want := range []string{
+		`const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });`,
+		`if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');`,
+		`if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');`,
+	} {
+		if !strings.Contains(mainText, want) {
+			t.Fatalf("desktop store app iframe missing browser feature marker %q", want)
+		}
+	}
+
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderContainerWebApp(id, app)")
+	if strings.Contains(body, "allow-popups") {
+		t.Fatal("store app frames must not allow popups")
+	}
+}
+
 func TestDesktopWorkspaceCSPDisallowsPopupsAndTightensBaseAndObjects(t *testing.T) {
 	t.Parallel()
 

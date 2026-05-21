@@ -570,7 +570,7 @@
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
-            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true });
+            const frame = makeSandboxedFrame(body.url, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
             host.replaceChildren(frame);
         } catch (err) {
             if (!contentEl(id)) return;
@@ -604,6 +604,8 @@
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
         if (appId && !widgetId) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
+        if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');
+        if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
         iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
         iframe.tabIndex = 0;
