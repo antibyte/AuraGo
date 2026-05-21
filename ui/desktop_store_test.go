@@ -14,7 +14,8 @@ func TestSoftwareStoreDisablesMutatingActionsWhenBackendDisallowsThem(t *testing
 		"body.mutations_allowed !== false",
 		"mutationDisabledText()",
 		"if (isMutatingAction(action) && !mutationsAllowed)",
-		"mutationDisabled ? `disabled title=\"${esc(mutationDisabled)}\"` : ''",
+		"const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;",
+		"actionDisabled ? `disabled title=\"${esc(actionDisabled)}\"` : ''",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing mutation guard marker %q", want)
@@ -32,6 +33,22 @@ func TestSoftwareStoreLogoFallbackRespectsHiddenAttribute(t *testing.T) {
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store logo fallback CSS missing marker %q", want)
+		}
+	}
+}
+
+func TestSoftwareStoreShowsInstallingAndDisablesActionsDuringInstallOperation(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;",
+		"actionDisabled ? `disabled title=\"${esc(actionDisabled)}\"` : ''",
+		"if (operation && operation.type === 'install')",
+		"return t('desktop.store.status_installing', 'Installing');",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing install operation UI marker %q", want)
 		}
 	}
 }

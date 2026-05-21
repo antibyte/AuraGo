@@ -66,11 +66,14 @@
             }
             grid.innerHTML = catalog.map(entry => {
                 const app = installedFor(entry.id);
-                const status = app ? (app.status || 'installed') : 'available';
+                const operation = busy.get(entry.id);
+                const status = operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed'
+                    ? 'installing'
+                    : app ? (app.status || 'installed') : 'available';
                 const running = app && app.status === 'running';
                 const stopped = app && app.status === 'stopped';
-                const operation = busy.get(entry.id);
                 const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
+                const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;
                 const logo = entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
                 const fallback = `<div class="vd-store-logo-fallback"${entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
                 const access = app ? accessLabel(app) : t('desktop.store.not_installed', 'Not installed');
@@ -90,10 +93,10 @@
                     ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
                     <div class="vd-store-actions">
                         ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>` : ''}
-                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
-                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
-                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
-                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${mutationDisabled ? `disabled title="${esc(mutationDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
+                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start', 'Start'))}</span></button>` : ''}
+                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop', 'Stop'))}</span></button>` : ''}
+                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update', 'Update'))}</span></button>
+                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall', 'Uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install', 'Install'))}</span></button>`}
                     </div>
                 </article>`;
             }).join('');
@@ -107,6 +110,11 @@
         }
 
         function statusLabel(status, operation) {
+            if (operation && operation.type === 'install') {
+                if (operation.status === 'pending' || operation.status === 'running') {
+                    return t('desktop.store.status_installing', 'Installing');
+                }
+            }
             if (operation && operation.status && operation.status !== 'succeeded') {
                 return t('desktop.store.operation_' + operation.status, operation.status);
             }
