@@ -812,10 +812,23 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
+	companions, err := s.prepareAutoCompanions(entry, record)
+	if err != nil {
+		return fmt.Errorf("resolve companion containers: %w", err)
+	}
+	record.Companions = companions
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return err
 	}
+	if networkName := privateStoreNetworkName(entry); networkName != "" {
+		if err := s.requireDocker().CreateNetwork(ctx, networkName); err != nil {
+			return s.failInstall(ctx, record, err)
+		}
+	}
 	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	if err := s.createAutoCompanions(ctx, &record); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
 	spec := containerSpecFromRecord(record)
@@ -882,6 +895,13 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
+	autoCompanions, err := s.prepareAutoCompanions(entry, record)
+	if err != nil {
+		return fmt.Errorf("resolve companion containers: %w", err)
+	}
+	if len(autoCompanions) > 0 {
+		record.Companions = mergeCompanions(record.Companions, autoCompanions)
+	}
 	record.Status = AppStatusUpdating
 	record.Error = ""
 	record.LastOperationID = op.ID
@@ -918,6 +938,14 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.requireDocker().PullImage(ctx, entry.Image); err != nil {
 		return restorePrevious(err)
 	}
+	if networkName := privateStoreNetworkName(entry); networkName != "" {
+		if err := s.requireDocker().CreateNetwork(ctx, networkName); err != nil {
+			return restorePrevious(err)
+		}
+	}
+	if err := s.recreateAutoCompanions(ctx, &record, autoCompanions); err != nil {
+		return restorePrevious(err)
+	}
 	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
 		return restorePrevious(fmt.Errorf("remove old container: %w", err))
@@ -945,6 +973,11 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 
 func (s *Service) start(ctx context.Context, op Operation) error {
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
+		for _, companion := range app.Companions {
+			if err := s.requireDocker().StartContainer(ctx, companion.ContainerName); err != nil {
+				return fmt.Errorf("start companion container %s: %w", companion.ContainerName, err)
+			}
+		}
 		if err := s.requireDocker().StartContainer(ctx, app.ContainerName); err != nil {
 			return err
 		}
@@ -954,12 +987,25 @@ func (s *Service) start(ctx context.Context, op Operation) error {
 
 func (s *Service) stop(ctx context.Context, op Operation) error {
 	return s.action(ctx, op, AppStatusStopped, func(app InstalledApp) error {
-		return s.requireDocker().StopContainer(ctx, app.ContainerName)
+		if err := s.requireDocker().StopContainer(ctx, app.ContainerName); err != nil {
+			return err
+		}
+		for _, companion := range app.Companions {
+			if err := s.requireDocker().StopContainer(ctx, companion.ContainerName); err != nil {
+				return fmt.Errorf("stop companion container %s: %w", companion.ContainerName, err)
+			}
+		}
+		return nil
 	})
 }
 
 func (s *Service) restart(ctx context.Context, op Operation) error {
 	return s.action(ctx, op, AppStatusRunning, func(app InstalledApp) error {
+		for _, companion := range app.Companions {
+			if err := s.requireDocker().RestartContainer(ctx, companion.ContainerName); err != nil {
+				return fmt.Errorf("restart companion container %s: %w", companion.ContainerName, err)
+			}
+		}
 		if err := s.requireDocker().RestartContainer(ctx, app.ContainerName); err != nil {
 			return err
 		}
@@ -1011,6 +1057,9 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return fmt.Errorf("remove container: %w", err)
 	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
+		return err
+	}
+	if err := s.removePrivateStoreNetworks(ctx, app); err != nil {
 		return err
 	}
 	if deleteData {
@@ -1292,6 +1341,109 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 	return env, refs, nil
 }
 
+func (s *Service) prepareAutoCompanions(entry CatalogEntry, app InstalledApp) ([]CompanionApp, error) {
+	if len(entry.Companions) == 0 {
+		return nil, nil
+	}
+	secretValues := s.secretTemplateValues(app.SecretRefs, app.Env)
+	companions := make([]CompanionApp, 0, len(entry.Companions))
+	for _, template := range entry.Companions {
+		env := applyEnvTemplates(template.Env, app, secretValues)
+		if hasUnresolvedSecretTemplate(env) {
+			if isPrivateStoreNetwork(template.NetworkMode) {
+				return nil, fmt.Errorf("companion %s has unresolved generated secrets", template.ID)
+			}
+			continue
+		}
+		companions = append(companions, CompanionApp{
+			ID:            template.ID,
+			Name:          template.Name,
+			ContainerName: CompanionContainerName(app.AppID, template.ID),
+			Image:         template.Image,
+			Status:        AppStatusInstalling,
+			NetworkMode:   template.NetworkMode,
+			Volumes:       resolveCompanionVolumes(entry, template),
+			HostBinds:     resolveHostBinds(template.HostBinds),
+			Env:           env,
+		})
+	}
+	return companions, nil
+}
+
+func (s *Service) secretTemplateValues(refs []SecretRef, env []string) map[string]string {
+	values := map[string]string{}
+	for _, ref := range refs {
+		value := ""
+		if ref.VaultKey != "" && s.cfg.Secrets != nil {
+			if stored, err := s.cfg.Secrets.ReadSecret(ref.VaultKey); err == nil {
+				value = stored
+			}
+		}
+		if value == "" && ref.Env != "" {
+			value, _ = envValue(env, ref.Env)
+		}
+		if value != "" && ref.VaultKey != "" {
+			values[ref.VaultKey] = value
+		}
+	}
+	return values
+}
+
+func hasUnresolvedSecretTemplate(env []string) bool {
+	for _, item := range env {
+		if strings.Contains(item, "${SECRET:") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) createAutoCompanions(ctx context.Context, app *InstalledApp) error {
+	for i := range app.Companions {
+		if err := s.createCompanionAt(ctx, app, i); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) recreateAutoCompanions(ctx context.Context, app *InstalledApp, companions []CompanionApp) error {
+	for _, companion := range companions {
+		index := companionIndex(app.Companions, companion.ID)
+		if index < 0 {
+			app.Companions = append(app.Companions, companion)
+			index = len(app.Companions) - 1
+		} else {
+			app.Companions[index] = companion
+		}
+		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
+		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+		if err := s.createCompanionAt(ctx, app, index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) createCompanionAt(ctx context.Context, app *InstalledApp, index int) error {
+	companion := &app.Companions[index]
+	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
+		return fmt.Errorf("pull companion image %s: %w", companion.Image, err)
+	}
+	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(*app, *companion))
+	if err != nil {
+		return fmt.Errorf("create companion container %s: %w", companion.ContainerName, err)
+	}
+	companion.ContainerID = containerID
+	if err := s.requireDocker().StartContainer(ctx, companion.ContainerName); err != nil {
+		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+		return fmt.Errorf("start companion container %s: %w", companion.ContainerName, err)
+	}
+	companion.Status = AppStatusRunning
+	companion.Error = ""
+	return nil
+}
+
 func applyEnvTemplates(env []string, app InstalledApp, secrets map[string]string) []string {
 	out := make([]string, 0, len(env))
 	replacements := map[string]string{
@@ -1481,6 +1633,7 @@ func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp)
 			_ = s.requireDocker().RemoveVolume(ctx, volume.Name, true)
 		}
 	}
+	_ = s.removePrivateStoreNetworks(ctx, app)
 	_ = s.deleteStoreSecrets(ctx, app)
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
@@ -1526,6 +1679,24 @@ func (s *Service) deleteStoreSecrets(ctx context.Context, app InstalledApp) erro
 		}
 	}
 	_ = ctx
+	return nil
+}
+
+func (s *Service) removePrivateStoreNetworks(ctx context.Context, app InstalledApp) error {
+	removed := map[string]struct{}{}
+	for _, companion := range app.Companions {
+		networkMode := strings.TrimSpace(companion.NetworkMode)
+		if !isPrivateStoreNetwork(networkMode) {
+			continue
+		}
+		if _, ok := removed[networkMode]; ok {
+			continue
+		}
+		removed[networkMode] = struct{}{}
+		if err := s.requireDocker().RemoveNetwork(ctx, networkMode); err != nil {
+			return fmt.Errorf("remove network %s: %w", networkMode, err)
+		}
+	}
 	return nil
 }
 
@@ -1728,6 +1899,7 @@ func containerSpecFromRecord(app InstalledApp) ContainerSpec {
 		Volumes:      append([]VolumeBinding(nil), app.Volumes...),
 		HostBinds:    append([]HostBinding(nil), app.HostBinds...),
 		ExtraHosts:   append([]string(nil), app.ExtraHosts...),
+		NetworkMode:  privateNetworkModeFromApp(app),
 		Restart:      "unless-stopped",
 		Labels: map[string]string{
 			"aurago.desktop_store":        "true",
@@ -1770,6 +1942,23 @@ func replaceCompanion(companions []CompanionApp, companion CompanionApp) []Compa
 	return out
 }
 
+func mergeCompanions(existing []CompanionApp, replacements []CompanionApp) []CompanionApp {
+	out := append([]CompanionApp(nil), existing...)
+	for _, replacement := range replacements {
+		out = replaceCompanion(out, replacement)
+	}
+	return out
+}
+
+func companionIndex(companions []CompanionApp, id string) int {
+	for i, companion := range companions {
+		if companion.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
 func resolveVolumes(entry CatalogEntry) []VolumeBinding {
 	volumes := make([]VolumeBinding, 0, len(entry.Volumes))
 	for _, template := range entry.Volumes {
@@ -1798,6 +1987,38 @@ func resolveCompanionVolumes(entry CatalogEntry, companion CompanionTemplate) []
 		})
 	}
 	return volumes
+}
+
+func privateStoreNetworkName(entry CatalogEntry) string {
+	for _, companion := range entry.Companions {
+		networkMode := strings.TrimSpace(companion.NetworkMode)
+		if isPrivateStoreNetwork(networkMode) {
+			return networkMode
+		}
+	}
+	return ""
+}
+
+func privateNetworkModeFromApp(app InstalledApp) string {
+	for _, companion := range app.Companions {
+		networkMode := strings.TrimSpace(companion.NetworkMode)
+		if isPrivateStoreNetwork(networkMode) {
+			return networkMode
+		}
+	}
+	return ""
+}
+
+func isPrivateStoreNetwork(networkMode string) bool {
+	networkMode = strings.ToLower(strings.TrimSpace(networkMode))
+	if networkMode == "" {
+		return false
+	}
+	switch networkMode {
+	case "host", "bridge", "none", "default":
+		return false
+	}
+	return !strings.HasPrefix(networkMode, "container:")
 }
 
 func normalizeAppID(id string) string {
@@ -1936,6 +2157,12 @@ func (missingDockerAdapter) RemoveContainer(context.Context, string, bool) error
 	return fmt.Errorf("Docker adapter is not configured")
 }
 func (missingDockerAdapter) RemoveVolume(context.Context, string, bool) error {
+	return fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) CreateNetwork(context.Context, string) error {
+	return fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) RemoveNetwork(context.Context, string) error {
 	return fmt.Errorf("Docker adapter is not configured")
 }
 func (missingDockerAdapter) InspectContainer(context.Context, string) (ContainerState, error) {

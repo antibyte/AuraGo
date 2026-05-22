@@ -157,6 +157,41 @@ func (a ToolsDockerAdapter) RemoveVolume(ctx context.Context, name string, force
 	return dockerHTTPError("remove volume", code, data)
 }
 
+func (a ToolsDockerAdapter) CreateNetwork(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	payload := map[string]any{"Name": name, "Driver": "bridge"}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal docker network payload: %w", err)
+	}
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, "/networks/create", string(body))
+	if err != nil {
+		return err
+	}
+	if code == http.StatusCreated || code == http.StatusConflict {
+		return nil
+	}
+	return dockerHTTPError("create network", code, data)
+}
+
+func (a ToolsDockerAdapter) RemoveNetwork(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodDelete, "/networks/"+url.PathEscape(name), "")
+	if err != nil {
+		return err
+	}
+	if code == http.StatusNoContent || code == http.StatusOK || code == http.StatusNotFound {
+		return nil
+	}
+	return dockerHTTPError("remove network", code, data)
+}
+
 func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (ContainerState, error) {
 	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodGet, "/containers/"+url.PathEscape(name)+"/json", "")
 	if err != nil {

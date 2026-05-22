@@ -262,6 +262,8 @@ type DockerAdapter interface {
 	RestartContainer(ctx context.Context, name string) error
 	RemoveContainer(ctx context.Context, name string, force bool) error
 	RemoveVolume(ctx context.Context, name string, force bool) error
+	CreateNetwork(ctx context.Context, name string) error
+	RemoveNetwork(ctx context.Context, name string) error
 	InspectContainer(ctx context.Context, name string) (ContainerState, error)
 }
 

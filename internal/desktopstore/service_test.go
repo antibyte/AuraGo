@@ -35,12 +35,12 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code"},
 		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
 		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder"},
-		"stirling-pdf":        {image: "stirlingtools/stirling-pdf:latest", port: 8080, icon: "pdf"},
+		"stirling-pdf":        {image: "ghcr.io/stirling-tools/stirling-pdf:latest", port: 8080, icon: "pdf"},
 		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "run"},
-		"emulatorjs":          {image: "lscr.io/linuxserver/emulatorjs:latest", port: 3000, icon: "run"},
-		"beszel":              {image: "henrygd/beszel:latest", port: 8090, icon: "monitor"},
-		"dozzle":              {image: "amir20/dozzle:latest", port: 8080, icon: "terminal"},
-		"code-server":         {image: "lscr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
+		"romm":                {image: "ghcr.io/rommapp/romm:latest", port: 8080, icon: "run"},
+		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor"},
+		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},
+		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
 	}
 
 	for _, entry := range catalog {
@@ -72,9 +72,42 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("uptime-kuma must disable sameorigin frame protection for AuraGo desktop embedding: %#v", entry.Env)
 			}
 		}
-		if entry.ID == "emulatorjs" {
-			if len(entry.ExtraPorts) != 2 {
-				t.Fatalf("emulatorjs must expose frontend and netplay ports, got %#v", entry.ExtraPorts)
+		if entry.ID == "romm" {
+			if len(entry.ExtraPorts) != 0 {
+				t.Fatalf("romm should expose only its web UI, got extra ports %#v", entry.ExtraPorts)
+			}
+			wantVolumes := map[string]string{
+				"resources":  "/romm/resources",
+				"redis-data": "/redis-data",
+				"library":    "/romm/library",
+				"assets":     "/romm/assets",
+				"config":     "/romm/config",
+			}
+			for _, volume := range entry.Volumes {
+				if wantVolumes[volume.NameSuffix] == volume.ContainerPath {
+					delete(wantVolumes, volume.NameSuffix)
+				}
+			}
+			if len(wantVolumes) != 0 {
+				t.Fatalf("romm missing expected volumes: %#v in %#v", wantVolumes, entry.Volumes)
+			}
+			for _, key := range []string{"db_password", "db_root_password", "auth_secret_key"} {
+				if !catalogSecretKey(entry.GeneratedSecrets, key) {
+					t.Fatalf("romm missing generated secret %q in %#v", key, entry.GeneratedSecrets)
+				}
+			}
+			if len(entry.Companions) != 1 {
+				t.Fatalf("romm must define a database companion, got %#v", entry.Companions)
+			}
+			db := entry.Companions[0]
+			if db.ID != "db" || db.Name != "RomM MariaDB" || db.Image != "ghcr.io/linuxserver/mariadb:latest" {
+				t.Fatalf("romm database companion identity = %#v", db)
+			}
+			if db.NetworkMode != "aurago-store-romm-net" {
+				t.Fatalf("romm database companion network = %q, want private store network", db.NetworkMode)
+			}
+			if len(db.Volumes) != 1 || db.Volumes[0].ContainerPath != "/config" {
+				t.Fatalf("romm database companion volume = %#v", db.Volumes)
 			}
 		}
 		if entry.ID == "quakejs-rootless" {
@@ -91,6 +124,9 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			if len(entry.Companions) != 1 || entry.Companions[0].ID != "agent" || entry.Companions[0].NetworkMode != "host" {
 				t.Fatalf("beszel must define a host-network local agent companion: %#v", entry.Companions)
 			}
+			if entry.Companions[0].Image != "ghcr.io/henrygd/beszel/beszel-agent:latest" {
+				t.Fatalf("beszel agent image = %q", entry.Companions[0].Image)
+			}
 		}
 		if entry.ID == "code-server" {
 			if len(entry.GeneratedSecrets) != 1 || entry.GeneratedSecrets[0].Env != "PASSWORD" || !entry.GeneratedSecrets[0].Expose {
@@ -102,6 +138,15 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	if len(expected) != 0 {
 		t.Fatalf("missing catalog entries: %#v", expected)
 	}
+}
+
+func catalogSecretKey(secrets []GeneratedSecret, key string) bool {
+	for _, secret := range secrets {
+		if secret.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.T) {
@@ -312,12 +357,13 @@ func TestInstallOperationCopiesCatalogMetadataToDesktopManifest(t *testing.T) {
 	}
 }
 
-func TestInstallEmulatorJSPublishesManagerFrontendAndNetplayPorts(t *testing.T) {
+func TestInstallRomMCreatesDatabaseCompanionNetworkAndSecrets(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
-	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19300, 19080, 14001))
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), secrets)
 
-	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "emulatorjs", BindMode: BindModeLocal})
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "romm", BindMode: BindModeLocal})
 	if err != nil {
 		t.Fatalf("start install: %v", err)
 	}
@@ -325,29 +371,139 @@ func TestInstallEmulatorJSPublishesManagerFrontendAndNetplayPorts(t *testing.T) 
 		t.Fatalf("run install: %v", err)
 	}
 
-	stored, ok, err := svc.GetInstalled(ctx, "emulatorjs")
+	stored, ok, err := svc.GetInstalled(ctx, "romm")
 	if err != nil || !ok {
-		t.Fatalf("get installed emulatorjs: ok=%v err=%v", ok, err)
+		t.Fatalf("get installed romm: ok=%v err=%v", ok, err)
 	}
-	if stored.HostPort != 19300 || stored.ContainerPort != 3000 {
-		t.Fatalf("primary port = %d:%d, want 19300:3000", stored.HostPort, stored.ContainerPort)
+	if stored.HostPort != 17676 || stored.ContainerPort != 8080 {
+		t.Fatalf("primary port = %d:%d, want 17676:8080", stored.HostPort, stored.ContainerPort)
 	}
-	assertPortBinding(t, stored.Ports, "manager", 3000, 19300)
-	assertPortBinding(t, stored.Ports, "frontend", 80, 19080)
-	assertPortBinding(t, stored.Ports, "netplay", 4001, 14001)
-	if len(docker.created) != 1 {
-		t.Fatalf("created containers = %d, want 1", len(docker.created))
+	assertPortBinding(t, stored.Ports, "web", 8080, 17676)
+	if len(stored.Companions) != 1 || stored.Companions[0].ID != "db" || stored.Companions[0].Status != AppStatusRunning {
+		t.Fatalf("romm database companion not persisted as running: %#v", stored.Companions)
 	}
-	assertPortBinding(t, docker.created[0].PortBindings, "manager", 3000, 19300)
-	assertPortBinding(t, docker.created[0].PortBindings, "frontend", 80, 19080)
-	assertPortBinding(t, docker.created[0].PortBindings, "netplay", 4001, 14001)
+	if !containsString(docker.createdNetworks, "aurago-store-romm-net") {
+		t.Fatalf("romm private network not created: %#v", docker.createdNetworks)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want database companion and romm", len(docker.created))
+	}
+	db := docker.created[0]
+	app := docker.created[1]
+	if db.Name != "aurago-store-romm-db" || db.Image != "ghcr.io/linuxserver/mariadb:latest" {
+		t.Fatalf("romm database container = %#v", db)
+	}
+	if app.Name != "aurago-store-romm" || app.Image != "ghcr.io/rommapp/romm:latest" {
+		t.Fatalf("romm app container = %#v", app)
+	}
+	if db.NetworkMode != "aurago-store-romm-net" || app.NetworkMode != "aurago-store-romm-net" {
+		t.Fatalf("romm containers must use private network, db=%q app=%q", db.NetworkMode, app.NetworkMode)
+	}
+	if !containsString(docker.events, "start:aurago-store-romm-db") || !containsString(docker.events, "start:aurago-store-romm") {
+		t.Fatalf("romm containers were not started: %#v", docker.events)
+	}
+	if indexOfString(docker.events, "start:aurago-store-romm-db") > indexOfString(docker.events, "start:aurago-store-romm") {
+		t.Fatalf("romm database must start before app: %#v", docker.events)
+	}
+	dbPassword, ok := secrets.data["desktop_store_romm_db_password"]
+	if !ok || len(dbPassword) < 24 {
+		t.Fatalf("romm database password secret missing: %#v", secrets.data)
+	}
+	rootPassword, ok := secrets.data["desktop_store_romm_db_root_password"]
+	if !ok || len(rootPassword) < 24 {
+		t.Fatalf("romm database root password secret missing: %#v", secrets.data)
+	}
+	authSecret, ok := secrets.data["desktop_store_romm_auth_secret_key"]
+	if !ok || len(authSecret) < 24 {
+		t.Fatalf("romm auth secret missing: %#v", secrets.data)
+	}
+	if !containsString(app.Env, "DB_HOST=aurago-store-romm-db") || !containsString(app.Env, "DB_PASSWD="+dbPassword) || !containsString(app.Env, "ROMM_AUTH_SECRET_KEY="+authSecret) {
+		t.Fatalf("romm app env missing database or auth secrets: %#v", app.Env)
+	}
+	if !containsString(db.Env, "MYSQL_PASSWORD="+dbPassword) || !containsString(db.Env, "MYSQL_ROOT_PASSWORD="+rootPassword) {
+		t.Fatalf("romm database env missing generated credentials: %#v", db.Env)
+	}
+	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_resources", "/romm/resources")
+	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_library", "/romm/library")
+	assertVolumeBinding(t, db.Volumes, "aurago_store_romm_db", "/config")
+}
 
-	frontendURL, _, err := svc.OpenURL(ctx, "emulatorjs", "", false, "", "frontend")
+func TestUninstallRomMDeleteDataRemovesCompanionVolumeSecretsAndNetwork(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), secrets)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "romm", BindMode: BindModeLocal})
 	if err != nil {
-		t.Fatalf("open frontend URL: %v", err)
+		t.Fatalf("start install: %v", err)
 	}
-	if frontendURL != "http://127.0.0.1:19080/" {
-		t.Fatalf("frontend URL = %q, want http://127.0.0.1:19080/", frontendURL)
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	delOp, err := svc.StartAppOperation(ctx, "romm", OperationUninstall, OperationRequest{DeleteData: true})
+	if err != nil {
+		t.Fatalf("start uninstall: %v", err)
+	}
+	if err := svc.RunOperation(ctx, delOp.ID); err != nil {
+		t.Fatalf("run uninstall: %v", err)
+	}
+	for _, volume := range []string{"aurago_store_romm_resources", "aurago_store_romm_redis-data", "aurago_store_romm_library", "aurago_store_romm_assets", "aurago_store_romm_config", "aurago_store_romm_db"} {
+		if !containsString(docker.removedVolumes, volume) {
+			t.Fatalf("romm volume %s was not removed: %#v", volume, docker.removedVolumes)
+		}
+	}
+	if !containsString(docker.removedNetworks, "aurago-store-romm-net") {
+		t.Fatalf("romm private network was not removed: %#v", docker.removedNetworks)
+	}
+	for _, key := range []string{"desktop_store_romm_db_password", "desktop_store_romm_db_root_password", "desktop_store_romm_auth_secret_key"} {
+		if _, ok := secrets.data[key]; ok {
+			t.Fatalf("romm secret %s was not deleted: %#v", key, secrets.data)
+		}
+	}
+}
+
+func TestUpdateRomMRecreatesDatabaseCompanionFromVaultSecrets(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	svc := newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), nil, secrets)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "romm", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	dbPassword := secrets.data["desktop_store_romm_db_password"]
+	rootPassword := secrets.data["desktop_store_romm_db_root_password"]
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close service: %v", err)
+	}
+
+	docker.created = nil
+	docker.events = nil
+	svc = newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), nil, secrets)
+
+	updateOp, err := svc.StartAppOperation(ctx, "romm", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want recreated db companion and app: %#v", len(docker.created), docker.created)
+	}
+	db := docker.created[0]
+	if db.Name != "aurago-store-romm-db" {
+		t.Fatalf("first recreated container = %#v, want RomM database", db)
+	}
+	if !containsString(db.Env, "MYSQL_PASSWORD="+dbPassword) || !containsString(db.Env, "MYSQL_ROOT_PASSWORD="+rootPassword) {
+		t.Fatalf("recreated romm database env did not use preserved vault secrets: %#v", db.Env)
 	}
 }
 
@@ -467,7 +623,7 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 		t.Fatalf("created containers = %d, want hub and agent", len(docker.created))
 	}
 	agent := docker.created[1]
-	if agent.Name != "aurago-store-beszel-agent" || agent.Image != "henrygd/beszel-agent:latest" {
+	if agent.Name != "aurago-store-beszel-agent" || agent.Image != "ghcr.io/henrygd/beszel/beszel-agent:latest" {
 		t.Fatalf("agent container identity = %#v", agent)
 	}
 	if agent.NetworkMode != "host" {
@@ -513,7 +669,7 @@ func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
 	if !strings.Contains(seeded["config.yaml"], `title: "Hello world!"`) {
 		t.Fatalf("olivetin default config not seeded: %#v", seeded)
 	}
-	if len(docker.events) < 2 || docker.events[0] != "copy:aurago-store-olivetin:/config" || docker.events[1] != "start:aurago-store-olivetin" {
+	if indexOfString(docker.events, "copy:aurago-store-olivetin:/config") > indexOfString(docker.events, "start:aurago-store-olivetin") {
 		t.Fatalf("olivetin config must be copied before start: %#v", docker.events)
 	}
 }
@@ -1365,6 +1521,15 @@ func containsString(items []string, want string) bool {
 	return false
 }
 
+func indexOfString(items []string, want string) int {
+	for i, item := range items {
+		if item == want {
+			return i
+		}
+	}
+	return len(items)
+}
+
 func fixedPorts(values ...int) PortAllocator {
 	index := 0
 	return func(context.Context, int) (int, error) {
@@ -1380,6 +1545,7 @@ func fixedPorts(values ...int) PortAllocator {
 type fakeDockerAdapter struct {
 	pulled            []string
 	created           []ContainerSpec
+	createdNetworks   []string
 	copiedFiles       map[string]map[string]string
 	events            []string
 	started           []string
@@ -1387,6 +1553,7 @@ type fakeDockerAdapter struct {
 	restarted         []string
 	removedContainers map[string]int
 	removedVolumes    []string
+	removedNetworks   []string
 	createErr         error
 	createErrors      []error
 	startErrors       []error
@@ -1428,6 +1595,7 @@ func (f *fakeSecretStore) DeleteSecret(key string) error {
 
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
 	f.pulled = append(f.pulled, image)
+	f.events = append(f.events, "pull:"+image)
 	return nil
 }
 
@@ -1443,6 +1611,7 @@ func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpe
 		return "", f.createErr
 	}
 	f.created = append(f.created, spec)
+	f.events = append(f.events, "create:"+spec.Name)
 	return "container-" + spec.Name, nil
 }
 
@@ -1490,6 +1659,17 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 
 func (f *fakeDockerAdapter) RemoveVolume(_ context.Context, name string, _ bool) error {
 	f.removedVolumes = append(f.removedVolumes, name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) CreateNetwork(_ context.Context, name string) error {
+	f.createdNetworks = append(f.createdNetworks, name)
+	f.events = append(f.events, "network:"+name)
+	return nil
+}
+
+func (f *fakeDockerAdapter) RemoveNetwork(_ context.Context, name string) error {
+	f.removedNetworks = append(f.removedNetworks, name)
 	return nil
 }
 

@@ -57,12 +57,12 @@ func TestDesktopStoreInstallRejectsDockerReadOnly(t *testing.T) {
 }
 
 func TestDesktopStoreOpenURLUsesRequestedPortID(t *testing.T) {
-	svc, _, _ := testInstalledStoreApp(t, "emulatorjs", 19300, 19080, 14001)
+	svc, _, _ := testInstalledStoreApp(t, "romm", 17676)
 	s := testDesktopStoreServerWithService(t, svc)
-	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/emulatorjs/open-url?port_id=frontend", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/romm/open-url?port_id=web", nil)
 	rec := httptest.NewRecorder()
 
-	handleDesktopStoreOpenURL(s, "emulatorjs").ServeHTTP(rec, req)
+	handleDesktopStoreOpenURL(s, "romm").ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
@@ -73,13 +73,13 @@ func TestDesktopStoreOpenURLUsesRequestedPortID(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.URL != "http://127.0.0.1:19080/" {
-		t.Fatalf("url = %q, want frontend port URL", body.URL)
+	if body.URL != "http://127.0.0.1:17676/" {
+		t.Fatalf("url = %q, want RomM web URL", body.URL)
 	}
 
-	badReq := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/emulatorjs/open-url?port_id=missing", nil)
+	badReq := httptest.NewRequest(http.MethodGet, "/api/desktop/store/apps/romm/open-url?port_id=missing", nil)
 	badRec := httptest.NewRecorder()
-	handleDesktopStoreOpenURL(s, "emulatorjs").ServeHTTP(badRec, badReq)
+	handleDesktopStoreOpenURL(s, "romm").ServeHTTP(badRec, badReq)
 	if badRec.Code != http.StatusNotFound {
 		t.Fatalf("invalid port status = %d, want 404; body=%s", badRec.Code, badRec.Body.String())
 	}
@@ -137,7 +137,7 @@ func TestDesktopStoreBeszelAgentConfigStoresSecretsAndCreatesCompanion(t *testin
 
 func TestDesktopStoreTailscaleProxySpecsIncludeEveryPublishedPort(t *testing.T) {
 	apps := []desktopstore.InstalledApp{{
-		AppID:            "emulatorjs",
+		AppID:            "multiport-demo",
 		Status:           desktopstore.AppStatusRunning,
 		TailscaleEnabled: true,
 		Ports: []desktopstore.PortBinding{
@@ -152,10 +152,10 @@ func TestDesktopStoreTailscaleProxySpecsIncludeEveryPublishedPort(t *testing.T) 
 	if len(specs) != 3 {
 		t.Fatalf("specs = %#v, want 3", specs)
 	}
-	if _, ok := active["emulatorjs"]; !ok {
+	if _, ok := active["multiport-demo"]; !ok {
 		t.Fatalf("primary active app missing: %#v", active)
 	}
-	want := map[string]int{"emulatorjs": 19300, "emulatorjs-frontend": 19080, "emulatorjs-netplay": 14001}
+	want := map[string]int{"multiport-demo": 19300, "multiport-demo-frontend": 19080, "multiport-demo-netplay": 14001}
 	for _, spec := range specs {
 		if want[spec.ID] != spec.Port {
 			t.Fatalf("unexpected proxy spec %#v, want map %#v", spec, want)
@@ -232,7 +232,9 @@ func serverFixedPorts(values ...int) desktopstore.PortAllocator {
 }
 
 type serverStoreDockerAdapter struct {
-	created []desktopstore.ContainerSpec
+	created         []desktopstore.ContainerSpec
+	createdNetworks []string
+	removedNetworks []string
 }
 
 func (f *serverStoreDockerAdapter) PullImage(context.Context, string) error { return nil }
@@ -253,6 +255,14 @@ func (f *serverStoreDockerAdapter) RestartContainer(context.Context, string) err
 }
 func (f *serverStoreDockerAdapter) RemoveContainer(context.Context, string, bool) error { return nil }
 func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error    { return nil }
+func (f *serverStoreDockerAdapter) CreateNetwork(_ context.Context, name string) error {
+	f.createdNetworks = append(f.createdNetworks, name)
+	return nil
+}
+func (f *serverStoreDockerAdapter) RemoveNetwork(_ context.Context, name string) error {
+	f.removedNetworks = append(f.removedNetworks, name)
+	return nil
+}
 func (f *serverStoreDockerAdapter) InspectContainer(_ context.Context, name string) (desktopstore.ContainerState, error) {
 	return desktopstore.ContainerState{Name: name, Running: true, Status: "running"}, nil
 }
