@@ -570,6 +570,10 @@
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
+            if (shouldOpenStoreAppExternally(app)) {
+                renderExternalStoreAppLaunch(id, app, storeAppId);
+                return;
+            }
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             host.replaceChildren(frame);
@@ -591,6 +595,48 @@
                     }
                 });
             }
+        }
+    }
+
+    function shouldOpenStoreAppExternally(app) {
+        return !!(app && app.metadata && (app.metadata.open_external === 'true' || app.metadata.store_app_id === 'romm'));
+    }
+
+    function renderExternalStoreAppLaunch(id, app, storeAppId) {
+        const host = contentEl(id);
+        if (!host) return;
+        host.innerHTML = `<div class="vd-store-frame-error vd-store-frame-external">
+            <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
+            <button type="button" class="vd-store-btn vd-store-primary" data-action="open-external">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>
+        </div>`;
+        const open = host.querySelector('[data-action="open-external"]');
+        if (open) {
+            open.focus({ preventScroll: true });
+            open.addEventListener('click', () => openExternalStoreApp(storeAppId, appName(app)));
+        }
+    }
+
+    async function openExternalStoreApp(storeAppId, title) {
+        const pendingWindow = window.open('about:blank', '_blank');
+        if (pendingWindow) {
+            pendingWindow.opener = null;
+        }
+        try {
+            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            if (body.url) {
+                if (pendingWindow && !pendingWindow.closed) {
+                    pendingWindow.location.replace(body.url);
+                } else {
+                    window.open(body.url, '_blank', 'noopener');
+                }
+            } else if (pendingWindow && !pendingWindow.closed) {
+                pendingWindow.close();
+            }
+        } catch (err) {
+            if (pendingWindow && !pendingWindow.closed) {
+                pendingWindow.close();
+            }
+            showDesktopNotification({ title: title || storeAppId, message: err.message });
         }
     }
 

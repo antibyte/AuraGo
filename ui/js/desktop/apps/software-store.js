@@ -201,6 +201,7 @@
 
         function handleAction(appId, action, portId) {
             if (busy.has(appId)) return;
+            const entry = catalog.find(item => item.id === appId);
             if (isMutatingAction(action) && !mutationsAllowed) {
                 notify({ title: t('desktop.store.title', 'Software Store'), message: mutationDisabledText() });
                 return;
@@ -208,6 +209,7 @@
             if (action === 'install') {
                 return openInstallModal(appId);
             }
+            if (action === 'open' && shouldOpenStoreEntryExternally(entry)) return openStorePort(appId, '');
             if (action === 'open') return openApp('store-' + appId);
             if (action === 'open-port') return openStorePort(appId, portId);
             if (action === 'credentials') return openCredentialsModal(appId);
@@ -218,6 +220,10 @@
 
         function isMutatingAction(action) {
             return action === 'install' || action === 'start' || action === 'stop' || action === 'restart' || action === 'update' || action === 'uninstall';
+        }
+
+        function shouldOpenStoreEntryExternally(entry) {
+            return !!(entry && entry.metadata && entry.metadata.open_external === 'true');
         }
 
         function mutationDisabledText() {
@@ -296,10 +302,25 @@
         }
 
         async function openStorePort(appId, portId) {
+            const pendingWindow = window.open('about:blank', '_blank');
+            if (pendingWindow) {
+                pendingWindow.opener = null;
+            }
             try {
                 const body = await api('/api/desktop/store/apps/' + encodeURIComponent(appId) + '/open-url?port_id=' + encodeURIComponent(portId || ''));
-                if (body.url) window.open(body.url, '_blank', 'noopener');
+                if (body.url) {
+                    if (pendingWindow && !pendingWindow.closed) {
+                        pendingWindow.location.replace(body.url);
+                    } else {
+                        window.open(body.url, '_blank', 'noopener');
+                    }
+                } else if (pendingWindow && !pendingWindow.closed) {
+                    pendingWindow.close();
+                }
             } catch (err) {
+                if (pendingWindow && !pendingWindow.closed) {
+                    pendingWindow.close();
+                }
                 notify({ title: t('desktop.store.title', 'Software Store'), message: err.message });
             }
         }

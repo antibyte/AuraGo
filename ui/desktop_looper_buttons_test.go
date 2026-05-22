@@ -59,12 +59,12 @@ func TestDesktopLooperStylesBustComponentCache(t *testing.T) {
 	t.Parallel()
 
 	desktopCSS := readDesktopAssetText(t, "css/desktop.css")
-	if !strings.Contains(desktopCSS, "@import url('desktop-apps.css?v=20260523-store-romm-buttons');") {
+	if !strings.Contains(desktopCSS, "@import url('desktop-apps.css?v=20260523-romm-external');") {
 		t.Fatal("desktop.css must bust the desktop-apps.css cache for Looper action button styling")
 	}
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(desktopHTML, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260523-store-romm-buttons`) {
+	if !strings.Contains(desktopHTML, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260523-romm-external`) {
 		t.Fatal("desktop.html must bust the desktop.css aggregator cache for Looper action button styling")
 	}
 }

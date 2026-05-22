@@ -232,6 +232,9 @@ func DefaultCatalog() []CatalogEntry {
 				{Key: "db_root_password", Label: "Database root password"},
 				{Key: "auth_secret_key", Env: "ROMM_AUTH_SECRET_KEY", Label: "Authentication secret"},
 			},
+			Metadata: map[string]string{
+				"open_external": "true",
+			},
 			Companions: []CompanionTemplate{
 				{
 					ID:          "db",

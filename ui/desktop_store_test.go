@@ -120,6 +120,25 @@ func TestSoftwareStoreSupportsExpandedAppCapabilities(t *testing.T) {
 	}
 }
 
+func TestSoftwareStoreOpensExternalStoreAppsInBrowserTab(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"function shouldOpenStoreEntryExternally(entry)",
+		"entry.metadata.open_external === 'true'",
+		"const entry = catalog.find(item => item.id === appId);",
+		"if (action === 'open' && shouldOpenStoreEntryExternally(entry)) return openStorePort(appId, '');",
+		"const pendingWindow = window.open('about:blank', '_blank');",
+		"pendingWindow.opener = null;",
+		"pendingWindow.location.replace(body.url);",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing external open marker %q", want)
+		}
+	}
+}
+
 func TestSoftwareStoreFiltersRetiredEmulatorJSEntries(t *testing.T) {
 	t.Parallel()
 

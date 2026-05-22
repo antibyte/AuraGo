@@ -109,6 +109,9 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			if len(db.Volumes) != 1 || db.Volumes[0].ContainerPath != "/config" {
 				t.Fatalf("romm database companion volume = %#v", db.Volumes)
 			}
+			if entry.Metadata["open_external"] != "true" {
+				t.Fatalf("romm must open outside the desktop iframe to avoid browser renderer crashes: %#v", entry.Metadata)
+			}
 		}
 		if entry.ID == "quakejs-rootless" {
 			if entry.Metadata["open_maximized"] != "true" || entry.Metadata["frame_features"] != "game" {
