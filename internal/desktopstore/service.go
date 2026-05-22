@@ -1362,6 +1362,12 @@ func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app
 			"container_name": app.ContainerName,
 		},
 	}
+	for key, value := range entry.Metadata {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		manifest.Metadata[key] = value
+	}
 	files := map[string]string{
 		"index.html": `<!doctype html><meta charset="utf-8"><title>` + entry.Name + `</title><p>` + entry.Name + ` is managed by AuraGo Software Store.</p>`,
 	}

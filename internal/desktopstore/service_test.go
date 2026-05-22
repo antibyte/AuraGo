@@ -77,6 +77,11 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("emulatorjs must expose frontend and netplay ports, got %#v", entry.ExtraPorts)
 			}
 		}
+		if entry.ID == "quakejs-rootless" {
+			if entry.Metadata["open_maximized"] != "true" || entry.Metadata["frame_features"] != "game" {
+				t.Fatalf("quakejs-rootless must request maximized game-friendly embedding metadata: %#v", entry.Metadata)
+			}
+		}
 		if entry.ID == "dozzle" {
 			if len(entry.HostBinds) != 1 || entry.HostBinds[0].HostPath != "/var/run/docker.sock" || !entry.HostBinds[0].ReadOnly {
 				t.Fatalf("dozzle must mount Docker socket read-only: %#v", entry.HostBinds)
@@ -283,6 +288,27 @@ func TestInstallOperationCreatesContainerDesktopShortcutAndLaunchpadLink(t *test
 	}
 	if launchpad.upserted.URL != "aurago-store://n8n" {
 		t.Fatalf("launchpad URL = %q", launchpad.upserted.URL)
+	}
+}
+
+func TestInstallOperationCopiesCatalogMetadataToDesktopManifest(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	desktopAdapter := &fakeDesktopAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(18088))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "quakejs-rootless", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if desktopAdapter.installed.Metadata["open_maximized"] != "true" {
+		t.Fatalf("desktop manifest did not preserve open_maximized metadata: %#v", desktopAdapter.installed.Metadata)
+	}
+	if desktopAdapter.installed.Metadata["frame_features"] != "game" {
+		t.Fatalf("desktop manifest did not preserve frame_features metadata: %#v", desktopAdapter.installed.Metadata)
 	}
 }
 

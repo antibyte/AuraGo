@@ -49,9 +49,12 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`function storeFrameURL(src, storeAppId)`,
 		`if (storeAppId === 'uptime-kuma')`,
 		`function cacheBustURL(src, paramName)`,
-		`const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });`,
+		`const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });`,
 		`if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');`,
 		`if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');`,
+		`if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');`,
+		`if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');`,
+		`if (options && options.allowGamepad) allowParts.push('gamepad');`,
 	} {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop store app iframe missing browser feature marker %q", want)

@@ -39,6 +39,20 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 	}
 }
 
+func TestDesktopWindowCanOpenMetadataAppsMaximized(t *testing.T) {
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"function shouldOpenMaximized(app)",
+		"app.metadata.open_maximized === 'true'",
+		"app.metadata.store_app_id === 'quakejs-rootless'",
+		"if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop window runtime missing maximized metadata marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopWindowChromeUsesCssGlyphsInsteadOfTextFallbacks(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	openAppBody := jsFunctionBodyInWindowMenuTest(t, source, "function openApp(appId, context)")

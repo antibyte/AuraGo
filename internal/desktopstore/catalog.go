@@ -197,6 +197,10 @@ func DefaultCatalog() []CatalogEntry {
 			LogoSlug:    "quakejs",
 			LogoURL:     logoURL("quakejs"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Game", ContainerPort: 8080, Protocol: "tcp"},
+			Metadata: map[string]string{
+				"open_maximized": "true",
+				"frame_features": "game",
+			},
 		},
 		{
 			ID:          "emulatorjs",

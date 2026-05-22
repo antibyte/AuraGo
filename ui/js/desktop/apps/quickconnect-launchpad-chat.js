@@ -571,7 +571,7 @@
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
+            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             host.replaceChildren(frame);
         } catch (err) {
             if (!contentEl(id)) return;
@@ -635,8 +635,13 @@
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
         if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
+        if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
-        iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
+        const allowParts = ['clipboard-read', 'clipboard-write'];
+        if (options && options.allowFullscreen) allowParts.push('fullscreen');
+        if (options && options.allowGamepad) allowParts.push('gamepad');
+        iframe.setAttribute('allow', allowParts.join('; '));
+        if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         iframe.addEventListener('load', () => focusDesktopFrame(iframe));

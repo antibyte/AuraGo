@@ -511,6 +511,10 @@
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
+    function shouldOpenMaximized(app) {
+        return !!(app && app.metadata && (app.metadata.open_maximized === 'true' || app.metadata.store_app_id === 'quakejs-rootless'));
+    }
+
     function clampWindowSize(size) {
         const workspace = $('vd-workspace') || document.body;
         const workspaceRect = workspace.getBoundingClientRect();
@@ -737,6 +741,7 @@
         state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', isFruityTheme() ? 240 : 150);
+        if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         focusWindow(id);
         renderAppContent(id, appId, windowContext);
         renderTaskbar();
