@@ -20,6 +20,9 @@ func DefaultCatalog() []CatalogEntry {
 			Volumes: []VolumeTemplate{
 				{NameSuffix: "appdata", ContainerPath: "/appdata"},
 			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: "secret_encryption_key", Env: "SECRET_ENCRYPTION_KEY", Label: "Encryption key"},
+			},
 		},
 		{
 			ID:          "n8n",
@@ -84,6 +87,9 @@ func DefaultCatalog() []CatalogEntry {
 				"DISABLE_ACCOUNTS=false",
 				"DISABLE_INTERNAL_ACCOUNTS=false",
 				"OIDC_ENABLED=false",
+			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: "jwt_secret", Env: "JWT_SECRET", Label: "JWT secret"},
 			},
 		},
 		{
@@ -164,6 +170,128 @@ func DefaultCatalog() []CatalogEntry {
 			},
 			Env: []string{
 				"UPTIME_KUMA_DISABLE_FRAME_SAMEORIGIN=true",
+			},
+		},
+		{
+			ID:          "stirling-pdf",
+			Name:        "Stirling PDF",
+			Description: "Local PDF toolkit for merging, splitting, converting, signing, and OCR workflows.",
+			Image:       "stirlingtools/stirling-pdf:latest",
+			Icon:        "pdf",
+			LogoSlug:    "stirling-pdf",
+			LogoURL:     logoURL("stirling-pdf"),
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8080, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "configs", ContainerPath: "/configs"},
+				{NameSuffix: "logs", ContainerPath: "/logs"},
+				{NameSuffix: "pipeline", ContainerPath: "/pipeline"},
+				{NameSuffix: "tessdata", ContainerPath: "/usr/share/tessdata"},
+			},
+		},
+		{
+			ID:          "quakejs-rootless",
+			Name:        "QuakeJS Rootless",
+			Description: "Browser-playable QuakeJS server packaged for rootless container deployments.",
+			Image:       "docker.io/awakenedpower/quakejs-rootless:latest",
+			Icon:        "run",
+			LogoSlug:    "quakejs",
+			LogoURL:     logoURL("quakejs"),
+			PrimaryPort: PortSpec{ID: "web", Name: "Game", ContainerPort: 8080, Protocol: "tcp"},
+		},
+		{
+			ID:          "emulatorjs",
+			Name:        "EmulatorJS",
+			Description: "Retro game emulator manager with a browser frontend and optional netplay service.",
+			Image:       "lscr.io/linuxserver/emulatorjs:latest",
+			Icon:        "run",
+			LogoSlug:    "emulatorjs",
+			LogoURL:     logoURL("emulatorjs"),
+			PrimaryPort: PortSpec{ID: "manager", Name: "Manager", ContainerPort: 3000, Protocol: "tcp"},
+			ExtraPorts: []PortSpec{
+				{ID: "frontend", Name: "Frontend", ContainerPort: 80, Protocol: "tcp"},
+				{ID: "netplay", Name: "Netplay", ContainerPort: 4001, Protocol: "tcp"},
+			},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "config", ContainerPath: "/config"},
+				{NameSuffix: "data", ContainerPath: "/data"},
+			},
+			Env: []string{
+				"PUID=1000",
+				"PGID=1000",
+				"TZ=Etc/UTC",
+				"SUBFOLDER=/",
+			},
+		},
+		{
+			ID:          "beszel",
+			Name:        "Beszel",
+			Description: "Lightweight server monitoring hub with an optional local host agent.",
+			Image:       "henrygd/beszel:latest",
+			Icon:        "monitor",
+			LogoSlug:    "beszel",
+			LogoURL:     logoURL("beszel"),
+			PrimaryPort: PortSpec{ID: "hub", Name: "Hub", ContainerPort: 8090, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/beszel_data"},
+				{NameSuffix: "socket", ContainerPath: "/beszel_socket"},
+			},
+			Companions: []CompanionTemplate{
+				{
+					ID:          "agent",
+					Name:        "Beszel Agent",
+					Image:       "henrygd/beszel-agent:latest",
+					NetworkMode: "host",
+					Env: []string{
+						"LISTEN=/beszel_socket/beszel.sock",
+						"HUB_URL=${APP_URL}",
+						"KEY=${SECRET:desktop_store_beszel_agent_key}",
+						"TOKEN=${SECRET:desktop_store_beszel_agent_token}",
+					},
+					Volumes: []VolumeTemplate{
+						{NameSuffix: "socket", ContainerPath: "/beszel_socket"},
+						{NameSuffix: "agent-data", ContainerPath: "/var/lib/beszel-agent"},
+					},
+					HostBinds: []HostBindTemplate{
+						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
+					},
+				},
+			},
+		},
+		{
+			ID:          "dozzle",
+			Name:        "Dozzle",
+			Description: "Real-time Docker log viewer for local containers.",
+			Image:       "amir20/dozzle:latest",
+			Icon:        "terminal",
+			LogoSlug:    "dozzle",
+			LogoURL:     logoURL("dozzle"),
+			PrimaryPort: PortSpec{ID: "web", Name: "Logs", ContainerPort: 8080, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/data"},
+			},
+			HostBinds: []HostBindTemplate{
+				{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
+			},
+		},
+		{
+			ID:          "code-server",
+			Name:        "code-server",
+			Description: "Browser-based VS Code development environment.",
+			Image:       "lscr.io/linuxserver/code-server:latest",
+			Icon:        "code",
+			LogoSlug:    "code-server",
+			LogoURL:     logoURL("code-server"),
+			PrimaryPort: PortSpec{ID: "web", Name: "IDE", ContainerPort: 8443, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "config", ContainerPath: "/config"},
+			},
+			Env: []string{
+				"PUID=1000",
+				"PGID=1000",
+				"TZ=Etc/UTC",
+			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: "password", Env: "PASSWORD", Label: "Password", Expose: true},
 			},
 		},
 	}

@@ -40,23 +40,29 @@ const (
 
 // CatalogEntry is one installable store application from the fixed allowlist.
 type CatalogEntry struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Image       string            `json:"image"`
-	Icon        string            `json:"icon"`
-	LogoSlug    string            `json:"logo_slug"`
-	LogoURL     string            `json:"logo_url"`
-	PrimaryPort PortSpec          `json:"primary_port"`
-	Volumes     []VolumeTemplate  `json:"volumes,omitempty"`
-	Env         []string          `json:"env,omitempty"`
-	ExtraHosts  []string          `json:"extra_hosts,omitempty"`
-	SeedFiles   []SeedFile        `json:"-"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description"`
+	Image            string              `json:"image"`
+	Icon             string              `json:"icon"`
+	LogoSlug         string              `json:"logo_slug"`
+	LogoURL          string              `json:"logo_url"`
+	PrimaryPort      PortSpec            `json:"primary_port"`
+	ExtraPorts       []PortSpec          `json:"extra_ports,omitempty"`
+	Volumes          []VolumeTemplate    `json:"volumes,omitempty"`
+	HostBinds        []HostBindTemplate  `json:"host_binds,omitempty"`
+	Env              []string            `json:"env,omitempty"`
+	ExtraHosts       []string            `json:"extra_hosts,omitempty"`
+	GeneratedSecrets []GeneratedSecret   `json:"generated_secrets,omitempty"`
+	Companions       []CompanionTemplate `json:"companions,omitempty"`
+	SeedFiles        []SeedFile          `json:"-"`
+	Metadata         map[string]string   `json:"metadata,omitempty"`
 }
 
 // PortSpec describes the container-side web UI port.
 type PortSpec struct {
+	ID            string `json:"id,omitempty"`
+	Name          string `json:"name,omitempty"`
 	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
 }
@@ -73,6 +79,63 @@ type VolumeBinding struct {
 	ContainerPath string `json:"container_path"`
 }
 
+// HostBindTemplate describes a fixed allowlisted host path mounted into a Store app.
+type HostBindTemplate struct {
+	HostPath      string `json:"host_path"`
+	ContainerPath string `json:"container_path"`
+	ReadOnly      bool   `json:"read_only,omitempty"`
+}
+
+// HostBinding is a resolved host path bind for a running Store app.
+type HostBinding struct {
+	HostPath      string `json:"host_path"`
+	ContainerPath string `json:"container_path"`
+	ReadOnly      bool   `json:"read_only,omitempty"`
+}
+
+// GeneratedSecret describes one generated or user-supplied Store secret.
+type GeneratedSecret struct {
+	Key    string `json:"key"`
+	Env    string `json:"env,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Expose bool   `json:"expose,omitempty"`
+}
+
+// SecretRef records a Store secret's vault key without exposing its value.
+type SecretRef struct {
+	Key      string `json:"key"`
+	VaultKey string `json:"-"`
+	Env      string `json:"-"`
+	Label    string `json:"label,omitempty"`
+	Expose   bool   `json:"expose,omitempty"`
+}
+
+// CompanionTemplate describes an allowlisted sidecar container for a Store app.
+type CompanionTemplate struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Image       string             `json:"image"`
+	Env         []string           `json:"env,omitempty"`
+	Volumes     []VolumeTemplate   `json:"volumes,omitempty"`
+	HostBinds   []HostBindTemplate `json:"host_binds,omitempty"`
+	NetworkMode string             `json:"network_mode,omitempty"`
+}
+
+// CompanionApp is the persisted runtime state for a companion container.
+type CompanionApp struct {
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	ContainerName string          `json:"container_name"`
+	ContainerID   string          `json:"container_id,omitempty"`
+	Image         string          `json:"image"`
+	Status        string          `json:"status"`
+	Error         string          `json:"error,omitempty"`
+	NetworkMode   string          `json:"network_mode,omitempty"`
+	Volumes       []VolumeBinding `json:"volumes,omitempty"`
+	HostBinds     []HostBinding   `json:"host_binds,omitempty"`
+	Env           []string        `json:"-"`
+}
+
 // SeedFile is copied into a newly-created container before first start.
 type SeedFile struct {
 	Path    string
@@ -81,6 +144,8 @@ type SeedFile struct {
 
 // PortBinding is a resolved Docker host binding for an installed app.
 type PortBinding struct {
+	ID            string `json:"id,omitempty"`
+	Name          string `json:"name,omitempty"`
 	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
 	HostIP        string `json:"host_ip"`
@@ -94,7 +159,9 @@ type ContainerSpec struct {
 	Env          []string          `json:"env,omitempty"`
 	PortBindings []PortBinding     `json:"port_bindings,omitempty"`
 	Volumes      []VolumeBinding   `json:"volumes,omitempty"`
+	HostBinds    []HostBinding     `json:"host_binds,omitempty"`
 	ExtraHosts   []string          `json:"extra_hosts,omitempty"`
+	NetworkMode  string            `json:"network_mode,omitempty"`
 	Restart      string            `json:"restart,omitempty"`
 	Labels       map[string]string `json:"labels,omitempty"`
 }
@@ -126,7 +193,11 @@ type InstalledApp struct {
 	TailscaleStatus    string          `json:"tailscale_status"`
 	TailscalePort      int             `json:"tailscale_port,omitempty"`
 	LogoPath           string          `json:"logo_path,omitempty"`
+	Ports              []PortBinding   `json:"ports,omitempty"`
 	Volumes            []VolumeBinding `json:"volumes,omitempty"`
+	HostBinds          []HostBinding   `json:"host_binds,omitempty"`
+	SecretRefs         []SecretRef     `json:"secret_refs,omitempty"`
+	Companions         []CompanionApp  `json:"companions,omitempty"`
 	Env                []string        `json:"-"`
 	ExtraHosts         []string        `json:"-"`
 	CreatedAt          time.Time       `json:"created_at"`
@@ -160,6 +231,13 @@ type InstallRequest struct {
 // OperationRequest carries action-specific options.
 type OperationRequest struct {
 	DeleteData bool `json:"delete_data,omitempty"`
+}
+
+// ExposedCredential is an admin-only response for user-visible generated credentials.
+type ExposedCredential struct {
+	Key   string `json:"key"`
+	Label string `json:"label,omitempty"`
+	Value string `json:"value"`
 }
 
 // LaunchpadLink is the small link shape needed by the store adapter.
@@ -199,6 +277,14 @@ type DesktopAdapter interface {
 type LaunchpadAdapter interface {
 	UpsertStoreLink(ctx context.Context, link LaunchpadLink) (string, error)
 	DeleteStoreLink(ctx context.Context, id string) error
+}
+
+// SecretStore is the encrypted Store secret dependency used for generated and
+// user-supplied container credentials.
+type SecretStore interface {
+	ReadSecret(key string) (string, error)
+	WriteSecret(key, value string) error
+	DeleteSecret(key string) error
 }
 
 // PortAllocator chooses a host port. The preferred port is the app's default

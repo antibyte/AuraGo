@@ -26,6 +26,14 @@ func registerDesktopStoreRoutes(mux *http.ServeMux, s *Server) {
 }
 
 func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Service, error) {
+	s.DesktopMu.Lock()
+	if s.DesktopStore != nil {
+		store := s.DesktopStore
+		s.DesktopMu.Unlock()
+		return store, nil
+	}
+	s.DesktopMu.Unlock()
+
 	desktopSvc, _, err := s.getDesktopService(ctx)
 	if err != nil {
 		return nil, err
@@ -51,6 +59,7 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		Docker:     desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
 		Desktop:    desktopSvc,
 		Launchpad:  launchpadAdapter,
+		Secrets:    s.Vault,
 	})
 	if err != nil {
 		return nil, err
@@ -204,6 +213,14 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			handleDesktopStoreOpenURL(s, appID)(w, r)
 			return
 		}
+		if action == "credentials" {
+			handleDesktopStoreCredentials(s, appID)(w, r)
+			return
+		}
+		if len(parts) == 4 && parts[1] == "companions" && parts[2] == "agent" && parts[3] == "config" {
+			handleDesktopStoreBeszelAgentConfig(s, appID)(w, r)
+			return
+		}
 		if r.Method == http.MethodDelete && action == "" {
 			handleDesktopStoreDelete(s, appID)(w, r)
 			return
@@ -255,7 +272,7 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			return
 		}
 		fromTailnet, tailnetDNS := s.storeTailnetRequestInfo(r)
-		openURL, app, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS)
+		openURL, app, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS, r.URL.Query().Get("port_id"))
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
@@ -264,6 +281,76 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status": "ok",
 			"url":    openURL,
+			"app":    app,
+		})
+	}
+}
+
+func handleDesktopStoreCredentials(s *Server, appID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		store, err := s.getDesktopStoreService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		credentials, err := store.ExposedCredentials(r.Context(), appID)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":      "ok",
+			"credentials": credentials,
+		})
+	}
+}
+
+func handleDesktopStoreBeszelAgentConfig(s *Server, appID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		if rejectDesktopStoreMutationIfDisabled(s, w) {
+			return
+		}
+		if strings.ToLower(strings.TrimSpace(appID)) != "beszel" {
+			jsonError(w, "unsupported store companion", http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Key   string `json:"key"`
+			Token string `json:"token"`
+		}
+		if err := decodeDesktopJSON(w, r, &req, desktopSmallJSONBodyLimit); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		store, err := s.getDesktopStoreService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		app, err := store.ConfigureBeszelAgent(r.Context(), req.Key, req.Token)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		s.broadcastDesktopStoreChanged("")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
 			"app":    app,
 		})
 	}
@@ -457,20 +544,7 @@ func (s *Server) reconcileDesktopStoreTailscale(ctx context.Context) error {
 		}
 		return nil
 	}
-	specs := make([]tsnetnode.StoreAppProxySpec, 0, len(apps))
-	active := map[string]struct{}{}
-	for _, app := range apps {
-		if !app.TailscaleEnabled || app.Status != desktopstore.AppStatusRunning || app.TailscalePort <= 0 {
-			continue
-		}
-		specs = append(specs, tsnetnode.StoreAppProxySpec{
-			ID:        app.AppID,
-			Port:      app.TailscalePort,
-			TargetURL: fmtStoreLocalTarget(app.HostPort),
-			Enabled:   true,
-		})
-		active[app.AppID] = struct{}{}
-	}
+	specs, active := desktopStoreTailscaleProxySpecs(apps)
 	if err := s.TsNetManager.ReconcileStoreAppProxies(specs); err != nil {
 		return err
 	}
@@ -485,6 +559,39 @@ func (s *Server) reconcileDesktopStoreTailscale(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func desktopStoreTailscaleProxySpecs(apps []desktopstore.InstalledApp) ([]tsnetnode.StoreAppProxySpec, map[string]struct{}) {
+	var specs []tsnetnode.StoreAppProxySpec
+	active := map[string]struct{}{}
+	for _, app := range apps {
+		if !app.TailscaleEnabled || app.Status != desktopstore.AppStatusRunning {
+			continue
+		}
+		ports := app.Ports
+		if len(ports) == 0 && app.HostPort > 0 {
+			ports = []desktopstore.PortBinding{{ID: "main", HostPort: app.HostPort}}
+		}
+		for i, port := range ports {
+			if port.HostPort <= 0 {
+				continue
+			}
+			id := app.AppID
+			if i > 0 && strings.TrimSpace(port.ID) != "" {
+				id = app.AppID + "-" + strings.ToLower(strings.TrimSpace(port.ID))
+			}
+			specs = append(specs, tsnetnode.StoreAppProxySpec{
+				ID:        id,
+				Port:      port.HostPort,
+				TargetURL: fmtStoreLocalTarget(port.HostPort),
+				Enabled:   true,
+			})
+			if i == 0 {
+				active[app.AppID] = struct{}{}
+			}
+		}
+	}
+	return specs, active
 }
 
 func fmtStoreLocalTarget(port int) string {

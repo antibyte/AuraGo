@@ -5663,6 +5663,16 @@
     font-weight: 700;
 }
 
+.vd-store-card-warning {
+    border: 1px solid rgba(234,179,8,0.24);
+    background: rgba(234,179,8,0.08);
+    color: #fde68a;
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .vd-store-status {
     display: inline-flex;
     align-items: center;
@@ -5801,6 +5811,35 @@
 .vd-store-choice span {
     display: grid;
     gap: 2px;
+}
+
+.vd-store-field,
+.vd-store-credential {
+    display: grid;
+    gap: 6px;
+    margin: 10px 0;
+    color: var(--vd-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.vd-store-field input,
+.vd-store-field textarea,
+.vd-store-credential input {
+    width: 100%;
+    min-height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--vd-border);
+    background: rgba(0,0,0,0.18);
+    color: var(--vd-text);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+}
+
+.vd-store-field textarea {
+    min-height: 76px;
+    resize: vertical;
 }
 
 @media (max-width: 720px) {

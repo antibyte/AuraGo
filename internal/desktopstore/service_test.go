@@ -15,8 +15,8 @@ import (
 
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	catalog := DefaultCatalog()
-	if len(catalog) != 11 {
-		t.Fatalf("expected 11 catalog apps, got %d", len(catalog))
+	if len(catalog) != 17 {
+		t.Fatalf("expected 17 catalog apps, got %d", len(catalog))
 	}
 
 	expected := map[string]struct {
@@ -35,6 +35,12 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code"},
 		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
 		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder"},
+		"stirling-pdf":        {image: "stirlingtools/stirling-pdf:latest", port: 8080, icon: "pdf"},
+		"quakejs-rootless":    {image: "docker.io/awakenedpower/quakejs-rootless:latest", port: 8080, icon: "run"},
+		"emulatorjs":          {image: "lscr.io/linuxserver/emulatorjs:latest", port: 3000, icon: "run"},
+		"beszel":              {image: "henrygd/beszel:latest", port: 8090, icon: "monitor"},
+		"dozzle":              {image: "amir20/dozzle:latest", port: 8080, icon: "terminal"},
+		"code-server":         {image: "lscr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
 	}
 
 	for _, entry := range catalog {
@@ -66,10 +72,66 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 				t.Fatalf("uptime-kuma must disable sameorigin frame protection for AuraGo desktop embedding: %#v", entry.Env)
 			}
 		}
+		if entry.ID == "emulatorjs" {
+			if len(entry.ExtraPorts) != 2 {
+				t.Fatalf("emulatorjs must expose frontend and netplay ports, got %#v", entry.ExtraPorts)
+			}
+		}
+		if entry.ID == "dozzle" {
+			if len(entry.HostBinds) != 1 || entry.HostBinds[0].HostPath != "/var/run/docker.sock" || !entry.HostBinds[0].ReadOnly {
+				t.Fatalf("dozzle must mount Docker socket read-only: %#v", entry.HostBinds)
+			}
+		}
+		if entry.ID == "beszel" {
+			if len(entry.Companions) != 1 || entry.Companions[0].ID != "agent" || entry.Companions[0].NetworkMode != "host" {
+				t.Fatalf("beszel must define a host-network local agent companion: %#v", entry.Companions)
+			}
+		}
+		if entry.ID == "code-server" {
+			if len(entry.GeneratedSecrets) != 1 || entry.GeneratedSecrets[0].Env != "PASSWORD" || !entry.GeneratedSecrets[0].Expose {
+				t.Fatalf("code-server must define an exposed generated PASSWORD secret: %#v", entry.GeneratedSecrets)
+			}
+		}
 		delete(expected, entry.ID)
 	}
 	if len(expected) != 0 {
 		t.Fatalf("missing catalog entries: %#v", expected)
+	}
+}
+
+func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.T) {
+	payload := dockerCreatePayload(ContainerSpec{
+		Name:  "aurago-store-demo",
+		Image: "ghcr.io/example/demo:latest",
+		PortBindings: []PortBinding{
+			{ID: "manager", ContainerPort: 3000, Protocol: "tcp", HostIP: "127.0.0.1", HostPort: 19300},
+			{ID: "frontend", ContainerPort: 80, Protocol: "tcp", HostIP: "127.0.0.1", HostPort: 19080},
+		},
+		Volumes: []VolumeBinding{{Name: "aurago_store_demo_data", ContainerPath: "/data"}},
+		HostBinds: []HostBinding{{
+			HostPath:      "/var/run/docker.sock",
+			ContainerPath: "/var/run/docker.sock",
+			ReadOnly:      true,
+		}},
+		NetworkMode: "host",
+	})
+	hostConfig := payload["HostConfig"].(map[string]any)
+	if hostConfig["NetworkMode"] != "host" {
+		t.Fatalf("NetworkMode = %#v, want host", hostConfig["NetworkMode"])
+	}
+	binds := hostConfig["Binds"].([]string)
+	if !containsString(binds, "aurago_store_demo_data:/data") {
+		t.Fatalf("named volume bind missing from %#v", binds)
+	}
+	if !containsString(binds, "/var/run/docker.sock:/var/run/docker.sock:ro") {
+		t.Fatalf("read-only host bind missing from %#v", binds)
+	}
+	portBindings := hostConfig["PortBindings"].(map[string]any)
+	if _, ok := portBindings["3000/tcp"]; !ok {
+		t.Fatalf("manager port missing from %#v", portBindings)
+	}
+	if _, ok := portBindings["80/tcp"]; !ok {
+		t.Fatalf("frontend port missing from %#v", portBindings)
 	}
 }
 
@@ -222,6 +284,180 @@ func TestInstallOperationCreatesContainerDesktopShortcutAndLaunchpadLink(t *test
 	if launchpad.upserted.URL != "aurago-store://n8n" {
 		t.Fatalf("launchpad URL = %q", launchpad.upserted.URL)
 	}
+}
+
+func TestInstallEmulatorJSPublishesManagerFrontendAndNetplayPorts(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19300, 19080, 14001))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "emulatorjs", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	stored, ok, err := svc.GetInstalled(ctx, "emulatorjs")
+	if err != nil || !ok {
+		t.Fatalf("get installed emulatorjs: ok=%v err=%v", ok, err)
+	}
+	if stored.HostPort != 19300 || stored.ContainerPort != 3000 {
+		t.Fatalf("primary port = %d:%d, want 19300:3000", stored.HostPort, stored.ContainerPort)
+	}
+	assertPortBinding(t, stored.Ports, "manager", 3000, 19300)
+	assertPortBinding(t, stored.Ports, "frontend", 80, 19080)
+	assertPortBinding(t, stored.Ports, "netplay", 4001, 14001)
+	if len(docker.created) != 1 {
+		t.Fatalf("created containers = %d, want 1", len(docker.created))
+	}
+	assertPortBinding(t, docker.created[0].PortBindings, "manager", 3000, 19300)
+	assertPortBinding(t, docker.created[0].PortBindings, "frontend", 80, 19080)
+	assertPortBinding(t, docker.created[0].PortBindings, "netplay", 4001, 14001)
+
+	frontendURL, _, err := svc.OpenURL(ctx, "emulatorjs", "", false, "", "frontend")
+	if err != nil {
+		t.Fatalf("open frontend URL: %v", err)
+	}
+	if frontendURL != "http://127.0.0.1:19080/" {
+		t.Fatalf("frontend URL = %q, want http://127.0.0.1:19080/", frontendURL)
+	}
+}
+
+func TestInstallDozzleUsesReadOnlyDockerSocketBindAndDeleteDataOnlyRemovesVolumes(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18080))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "dozzle", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "dozzle")
+	if err != nil || !ok {
+		t.Fatalf("get installed dozzle: ok=%v err=%v", ok, err)
+	}
+	if len(stored.HostBinds) != 1 || !stored.HostBinds[0].ReadOnly {
+		t.Fatalf("stored host binds = %#v, want read-only Docker socket bind", stored.HostBinds)
+	}
+	if len(docker.created) != 1 || len(docker.created[0].HostBinds) != 1 || !docker.created[0].HostBinds[0].ReadOnly {
+		t.Fatalf("created dozzle host binds = %#v", docker.created)
+	}
+
+	delOp, err := svc.StartAppOperation(ctx, "dozzle", OperationUninstall, OperationRequest{DeleteData: true})
+	if err != nil {
+		t.Fatalf("start uninstall: %v", err)
+	}
+	if err := svc.RunOperation(ctx, delOp.ID); err != nil {
+		t.Fatalf("run uninstall: %v", err)
+	}
+	if containsString(docker.removedVolumes, "/var/run/docker.sock") {
+		t.Fatalf("host bind was treated as removable volume: %#v", docker.removedVolumes)
+	}
+	if !containsString(docker.removedVolumes, "aurago_store_dozzle_data") {
+		t.Fatalf("dozzle data volume was not removed: %#v", docker.removedVolumes)
+	}
+}
+
+func TestInstallCodeServerGeneratesVaultPasswordAndPreservesItOnUpdate(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18443), secrets)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "code-server", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "code-server")
+	if err != nil || !ok {
+		t.Fatalf("get installed code-server: ok=%v err=%v", ok, err)
+	}
+	password, ok := secrets.data["desktop_store_code-server_password"]
+	if !ok || len(password) < 24 {
+		t.Fatalf("generated code-server password missing or too short: %#v", secrets.data)
+	}
+	if got, ok := envValue(stored.Env, "PASSWORD"); !ok || got != password {
+		t.Fatalf("stored env PASSWORD = %q/%v, want vault password", got, ok)
+	}
+	if len(stored.SecretRefs) != 1 || !stored.SecretRefs[0].Expose {
+		t.Fatalf("stored secret refs = %#v, want exposed password ref", stored.SecretRefs)
+	}
+	data, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatalf("marshal installed app: %v", err)
+	}
+	if strings.Contains(string(data), password) || strings.Contains(string(data), `"env"`) || strings.Contains(string(data), "desktop_store_code-server_password") {
+		t.Fatalf("runtime secret leaked in installed app JSON: %s", string(data))
+	}
+
+	updateOp, err := svc.StartAppOperation(ctx, "code-server", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+	updated, ok, err := svc.GetInstalled(ctx, "code-server")
+	if err != nil || !ok {
+		t.Fatalf("get updated code-server: ok=%v err=%v", ok, err)
+	}
+	if got, _ := envValue(updated.Env, "PASSWORD"); got != password {
+		t.Fatalf("code-server password changed on update: %q want %q", got, password)
+	}
+}
+
+func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18090), secrets)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "beszel", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	app, err := svc.ConfigureBeszelAgent(ctx, "ssh-ed25519 public-key", "agent-token")
+	if err != nil {
+		t.Fatalf("configure beszel agent: %v", err)
+	}
+	if secrets.data["desktop_store_beszel_agent_key"] != "ssh-ed25519 public-key" || secrets.data["desktop_store_beszel_agent_token"] != "agent-token" {
+		t.Fatalf("beszel agent secrets not stored in vault: %#v", secrets.data)
+	}
+	if len(app.Companions) != 1 || app.Companions[0].ID != "agent" || app.Companions[0].Status != AppStatusRunning {
+		t.Fatalf("beszel companion not persisted as running: %#v", app.Companions)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want hub and agent", len(docker.created))
+	}
+	agent := docker.created[1]
+	if agent.Name != "aurago-store-beszel-agent" || agent.Image != "henrygd/beszel-agent:latest" {
+		t.Fatalf("agent container identity = %#v", agent)
+	}
+	if agent.NetworkMode != "host" {
+		t.Fatalf("agent network mode = %q, want host", agent.NetworkMode)
+	}
+	if !containsString(agent.Env, "LISTEN=/beszel_socket/beszel.sock") || !containsString(agent.Env, "HUB_URL=http://localhost:18090") {
+		t.Fatalf("agent env missing socket listen or hub URL: %#v", agent.Env)
+	}
+	if !containsString(agent.Env, "KEY=ssh-ed25519 public-key") || !containsString(agent.Env, "TOKEN=agent-token") {
+		t.Fatalf("agent env missing vault secrets: %#v", agent.Env)
+	}
+	if len(agent.HostBinds) != 1 || agent.HostBinds[0].HostPath != "/var/run/docker.sock" || !agent.HostBinds[0].ReadOnly {
+		t.Fatalf("agent Docker socket bind = %#v", agent.HostBinds)
+	}
+	assertVolumeBinding(t, agent.Volumes, "aurago_store_beszel_socket", "/beszel_socket")
+	assertVolumeBinding(t, agent.Volumes, "aurago_store_beszel_agent_data", "/var/lib/beszel-agent")
 }
 
 func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
@@ -1002,7 +1238,17 @@ func newTestServiceWithCatalog(t *testing.T, docker DockerAdapter, desktopAdapte
 	return newTestServiceAtPath(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, catalog)
 }
 
+func newTestServiceWithSecrets(t *testing.T, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, secrets SecretStore) *Service {
+	t.Helper()
+	return newTestServiceAtPathWithSecrets(t, filepath.Join(t.TempDir(), "desktop_store.db"), docker, desktopAdapter, launchpad, ports, nil, secrets)
+}
+
 func newTestServiceAtPath(t *testing.T, dbPath string, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry) *Service {
+	t.Helper()
+	return newTestServiceAtPathWithSecrets(t, dbPath, docker, desktopAdapter, launchpad, ports, catalog, nil)
+}
+
+func newTestServiceAtPathWithSecrets(t *testing.T, dbPath string, docker DockerAdapter, desktopAdapter DesktopAdapter, launchpad LaunchpadAdapter, ports PortAllocator, catalog []CatalogEntry, secrets SecretStore) *Service {
 	t.Helper()
 	svc, err := NewService(Config{
 		DBPath:        dbPath,
@@ -1012,6 +1258,7 @@ func newTestServiceAtPath(t *testing.T, dbPath string, docker DockerAdapter, des
 		PortAllocator: ports,
 		PortProbe:     func(context.Context, string, int) bool { return true },
 		Catalog:       catalog,
+		Secrets:       secrets,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -1023,6 +1270,38 @@ func newTestServiceAtPath(t *testing.T, dbPath string, docker DockerAdapter, des
 		_ = svc.Close()
 	})
 	return svc
+}
+
+func assertPortBinding(t *testing.T, ports []PortBinding, id string, containerPort, hostPort int) {
+	t.Helper()
+	for _, port := range ports {
+		if port.ID == id {
+			if port.ContainerPort != containerPort || port.HostPort != hostPort {
+				t.Fatalf("port %s = %#v, want container %d host %d", id, port, containerPort, hostPort)
+			}
+			return
+		}
+	}
+	t.Fatalf("port %s missing from %#v", id, ports)
+}
+
+func assertVolumeBinding(t *testing.T, volumes []VolumeBinding, name, path string) {
+	t.Helper()
+	for _, volume := range volumes {
+		if volume.Name == name && volume.ContainerPath == path {
+			return
+		}
+	}
+	t.Fatalf("volume %s:%s missing from %#v", name, path, volumes)
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 func fixedPorts(values ...int) PortAllocator {
@@ -1053,6 +1332,37 @@ type fakeDockerAdapter struct {
 	inspectCalls      int
 	inspectState      ContainerState
 	inspectErr        error
+}
+
+type fakeSecretStore struct {
+	data map[string]string
+}
+
+func (f *fakeSecretStore) ReadSecret(key string) (string, error) {
+	if f.data == nil {
+		f.data = map[string]string{}
+	}
+	value, ok := f.data[key]
+	if !ok {
+		return "", errors.New("secret not found")
+	}
+	return value, nil
+}
+
+func (f *fakeSecretStore) WriteSecret(key, value string) error {
+	if f.data == nil {
+		f.data = map[string]string{}
+	}
+	f.data[key] = value
+	return nil
+}
+
+func (f *fakeSecretStore) DeleteSecret(key string) error {
+	if f.data == nil {
+		f.data = map[string]string{}
+	}
+	delete(f.data, key)
+	return nil
 }
 
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {

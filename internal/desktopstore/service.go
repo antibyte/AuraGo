@@ -13,6 +13,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,6 +44,7 @@ type Config struct {
 	Docker        DockerAdapter
 	Desktop       DesktopAdapter
 	Launchpad     LaunchpadAdapter
+	Secrets       SecretStore
 	PortAllocator PortAllocator
 	PortProbe     PortProbe
 }
@@ -74,6 +76,7 @@ func NewService(cfg Config) (*Service, error) {
 	if len(catalog) == 0 {
 		catalog = DefaultCatalog()
 	}
+	normalizedCatalog := make([]CatalogEntry, 0, len(catalog))
 	catalogByID := make(map[string]CatalogEntry, len(catalog))
 	for _, entry := range catalog {
 		entry.ID = normalizeAppID(entry.ID)
@@ -86,10 +89,49 @@ func NewService(cfg Config) (*Service, error) {
 		if entry.PrimaryPort.Protocol == "" {
 			entry.PrimaryPort.Protocol = "tcp"
 		}
+		if entry.PrimaryPort.ID == "" {
+			entry.PrimaryPort.ID = "main"
+		}
+		if entry.PrimaryPort.Name == "" {
+			entry.PrimaryPort.Name = "Web UI"
+		}
 		if entry.PrimaryPort.ContainerPort <= 0 {
 			return nil, fmt.Errorf("catalog app %s container port is required", entry.ID)
 		}
+		for i := range entry.ExtraPorts {
+			if entry.ExtraPorts[i].ID == "" {
+				entry.ExtraPorts[i].ID = fmt.Sprintf("port-%d", i+2)
+			}
+			if entry.ExtraPorts[i].Name == "" {
+				entry.ExtraPorts[i].Name = entry.ExtraPorts[i].ID
+			}
+			if entry.ExtraPorts[i].Protocol == "" {
+				entry.ExtraPorts[i].Protocol = "tcp"
+			}
+			if entry.ExtraPorts[i].ContainerPort <= 0 {
+				return nil, fmt.Errorf("catalog app %s extra port %s is invalid", entry.ID, entry.ExtraPorts[i].ID)
+			}
+		}
+		for _, bind := range entry.HostBinds {
+			if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
+				return nil, fmt.Errorf("catalog app %s host bind paths are required", entry.ID)
+			}
+		}
+		for _, secret := range entry.GeneratedSecrets {
+			if strings.TrimSpace(secret.Key) == "" {
+				return nil, fmt.Errorf("catalog app %s generated secret key is required", entry.ID)
+			}
+		}
+		for _, companion := range entry.Companions {
+			if !storeAppIDPattern.MatchString(normalizeAppID(companion.ID)) {
+				return nil, fmt.Errorf("catalog app %s companion id %q is invalid", entry.ID, companion.ID)
+			}
+			if strings.TrimSpace(companion.Image) == "" {
+				return nil, fmt.Errorf("catalog app %s companion %s image is required", entry.ID, companion.ID)
+			}
+		}
 		catalogByID[entry.ID] = entry
+		normalizedCatalog = append(normalizedCatalog, entry)
 	}
 	allocator := cfg.PortAllocator
 	if allocator == nil {
@@ -101,7 +143,7 @@ func NewService(cfg Config) (*Service, error) {
 	}
 	return &Service{
 		cfg:           cfg,
-		catalog:       append([]CatalogEntry(nil), catalog...),
+		catalog:       normalizedCatalog,
 		catalogByID:   catalogByID,
 		portAllocator: allocator,
 		portProbe:     portProbe,
@@ -177,9 +219,13 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			tailscale_status TEXT NOT NULL DEFAULT 'disabled',
 			tailscale_port INTEGER NOT NULL DEFAULT 0,
 			logo_path TEXT NOT NULL DEFAULT '',
+			ports_json TEXT NOT NULL DEFAULT '[]',
 			volumes_json TEXT NOT NULL DEFAULT '[]',
+			host_binds_json TEXT NOT NULL DEFAULT '[]',
 			env_json TEXT NOT NULL DEFAULT '[]',
 			extra_hosts_json TEXT NOT NULL DEFAULT '[]',
+			secret_refs_json TEXT NOT NULL DEFAULT '[]',
+			companions_json TEXT NOT NULL DEFAULT '[]',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
 			last_operation_id TEXT NOT NULL DEFAULT '',
@@ -205,6 +251,47 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			return fmt.Errorf("migrate desktop store database: %w", err)
 		}
 	}
+	for _, column := range []struct {
+		name string
+		def  string
+	}{
+		{"ports_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"host_binds_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"secret_refs_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"companions_json", "TEXT NOT NULL DEFAULT '[]'"},
+	} {
+		if err := s.ensureColumn(ctx, "desktop_store_apps", column.name, column.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) ensureColumn(ctx context.Context, table, name, def string) error {
+	rows, err := s.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return fmt.Errorf("inspect desktop store table %s: %w", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var colName, colType string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &colName, &colType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("scan desktop store table %s column: %w", table, err)
+		}
+		if strings.EqualFold(colName, name) {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read desktop store table %s columns: %w", table, err)
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
+		return fmt.Errorf("add desktop store column %s.%s: %w", table, name, err)
+	}
 	return nil
 }
 
@@ -220,7 +307,8 @@ func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error 
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
 		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
-		tailscale_port, logo_path, volumes_json, env_json, extra_hosts_json, created_at, updated_at,
+		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
+		secret_refs_json, companions_json, created_at, updated_at,
 		last_operation_id, last_operation_type, last_operation_state
 		FROM desktop_store_apps WHERE status IN (?, ?)`, AppStatusInstalling, AppStatusUpdating)
 	if err != nil {
@@ -447,7 +535,8 @@ func (s *Service) ListApps(ctx context.Context) ([]InstalledApp, error) {
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
 		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
-		tailscale_port, logo_path, volumes_json, env_json, extra_hosts_json, created_at, updated_at,
+		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
+		secret_refs_json, companions_json, created_at, updated_at,
 		last_operation_id, last_operation_type, last_operation_state
 		FROM desktop_store_apps ORDER BY app_id`)
 	if err != nil {
@@ -472,7 +561,8 @@ func (s *Service) GetInstalled(ctx context.Context, appID string) (InstalledApp,
 	}
 	row := s.db.QueryRowContext(ctx, `SELECT app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image,
 		status, error, bind_mode, host_ip, host_port, container_port, protocol, tailscale_enabled, tailscale_status,
-		tailscale_port, logo_path, volumes_json, env_json, extra_hosts_json, created_at, updated_at,
+		tailscale_port, logo_path, ports_json, volumes_json, host_binds_json, env_json, extra_hosts_json,
+		secret_refs_json, companions_json, created_at, updated_at,
 		last_operation_id, last_operation_type, last_operation_state
 		FROM desktop_store_apps WHERE app_id = ?`, normalizeAppID(appID))
 	app, err := scanInstalledApp(row)
@@ -488,7 +578,7 @@ func (s *Service) GetInstalled(ctx context.Context, appID string) (InstalledApp,
 // OpenURL computes the best URL for an installed app in the current request
 // context. Tailscale is used only when the caller marks the request as coming
 // from a Tailnet surface and the proxy is active.
-func (s *Service) OpenURL(ctx context.Context, appID, requestHost string, fromTailscale bool, tailscaleDNS string) (string, InstalledApp, error) {
+func (s *Service) OpenURL(ctx context.Context, appID, requestHost string, fromTailscale bool, tailscaleDNS string, portID ...string) (string, InstalledApp, error) {
 	app, ok, err := s.GetInstalled(ctx, appID)
 	if err != nil {
 		return "", InstalledApp{}, err
@@ -499,8 +589,16 @@ func (s *Service) OpenURL(ctx context.Context, appID, requestHost string, fromTa
 	if app.Status != AppStatusRunning {
 		return "", InstalledApp{}, fmt.Errorf("store app %q is not running (status: %s)", app.AppID, app.Status)
 	}
+	port, err := selectAppPort(app, firstString(portID))
+	if err != nil {
+		return "", InstalledApp{}, err
+	}
 	if fromTailscale && app.TailscaleEnabled && app.TailscaleStatus == TailscaleStatusActive && strings.TrimSpace(tailscaleDNS) != "" {
-		return fmt.Sprintf("https://%s:%d/", strings.Trim(strings.TrimSpace(tailscaleDNS), "."), app.TailscalePort), app, nil
+		tailnetPort := port.HostPort
+		if firstString(portID) == "" && app.TailscalePort > 0 {
+			tailnetPort = app.TailscalePort
+		}
+		return fmt.Sprintf("https://%s:%d/", strings.Trim(strings.TrimSpace(tailscaleDNS), "."), tailnetPort), app, nil
 	}
 	host := "127.0.0.1"
 	if app.BindMode == BindModeLAN {
@@ -508,7 +606,7 @@ func (s *Service) OpenURL(ctx context.Context, appID, requestHost string, fromTa
 			host = reqHost
 		}
 	}
-	return fmt.Sprintf("http://%s:%d/", host, app.HostPort), app, nil
+	return fmt.Sprintf("http://%s:%d/", host, port.HostPort), app, nil
 }
 
 // SetTailscaleStatus updates the activation state for a stored app proxy.
@@ -527,6 +625,142 @@ func (s *Service) SetTailscaleStatus(ctx context.Context, appID, status string) 
 		return fmt.Errorf("update desktop store tailscale status: %w", err)
 	}
 	return nil
+}
+
+// ExposedCredentials returns admin-visible generated credentials for a Store app.
+func (s *Service) ExposedCredentials(ctx context.Context, appID string) ([]ExposedCredential, error) {
+	app, ok, err := s.GetInstalled(ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("store app %q is not installed", appID)
+	}
+	if s.cfg.Secrets == nil {
+		return nil, fmt.Errorf("desktop store secret vault is not configured")
+	}
+	credentials := make([]ExposedCredential, 0, len(app.SecretRefs))
+	for _, ref := range app.SecretRefs {
+		if !ref.Expose || strings.TrimSpace(ref.VaultKey) == "" {
+			continue
+		}
+		value, err := s.cfg.Secrets.ReadSecret(ref.VaultKey)
+		if err != nil {
+			return nil, fmt.Errorf("read store credential %s: %w", ref.Key, err)
+		}
+		credentials = append(credentials, ExposedCredential{
+			Key:   ref.Key,
+			Label: ref.Label,
+			Value: value,
+		})
+	}
+	return credentials, nil
+}
+
+func selectAppPort(app InstalledApp, portID string) (PortBinding, error) {
+	portID = strings.ToLower(strings.TrimSpace(portID))
+	ports := app.Ports
+	if len(ports) == 0 && app.HostPort > 0 {
+		ports = []PortBinding{{ID: "main", Name: "Web UI", ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}}
+	}
+	if len(ports) == 0 {
+		return PortBinding{}, fmt.Errorf("store app %q has no published ports", app.AppID)
+	}
+	if portID == "" {
+		return ports[0], nil
+	}
+	for _, port := range ports {
+		if strings.EqualFold(port.ID, portID) {
+			return port, nil
+		}
+	}
+	return PortBinding{}, fmt.Errorf("store app %q does not expose port %q", app.AppID, portID)
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+// ConfigureBeszelAgent stores the local Beszel agent credentials and recreates
+// the allowlisted host-network companion container.
+func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (InstalledApp, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return InstalledApp{}, err
+	}
+	key = strings.TrimSpace(key)
+	token = strings.TrimSpace(token)
+	if key == "" || token == "" {
+		return InstalledApp{}, fmt.Errorf("Beszel agent key and token are required")
+	}
+	if s.cfg.Secrets == nil {
+		return InstalledApp{}, fmt.Errorf("desktop store secret vault is not configured")
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_key", key); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent key: %w", err)
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_token", token); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent token: %w", err)
+	}
+	app, ok, err := s.GetInstalled(ctx, "beszel")
+	if err != nil {
+		return InstalledApp{}, err
+	}
+	if !ok {
+		return InstalledApp{}, fmt.Errorf("Beszel hub is not installed")
+	}
+	entry, ok := s.catalogByID["beszel"]
+	if !ok || len(entry.Companions) == 0 {
+		return InstalledApp{}, fmt.Errorf("Beszel agent companion is not in the allowlist")
+	}
+	var template CompanionTemplate
+	for _, candidate := range entry.Companions {
+		if candidate.ID == "agent" {
+			template = candidate
+			break
+		}
+	}
+	if template.ID == "" {
+		return InstalledApp{}, fmt.Errorf("Beszel agent companion is not in the allowlist")
+	}
+	companion := CompanionApp{
+		ID:            template.ID,
+		Name:          template.Name,
+		ContainerName: CompanionContainerName(app.AppID, template.ID),
+		Image:         template.Image,
+		Status:        AppStatusInstalling,
+		NetworkMode:   template.NetworkMode,
+		Volumes:       resolveCompanionVolumes(entry, template),
+		HostBinds:     resolveHostBinds(template.HostBinds),
+	}
+	_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
+	_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+	secrets := map[string]string{
+		"desktop_store_beszel_agent_key":   key,
+		"desktop_store_beszel_agent_token": token,
+	}
+	companion.Env = applyEnvTemplates(template.Env, app, secrets)
+	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
+		return InstalledApp{}, err
+	}
+	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(app, companion))
+	if err != nil {
+		return InstalledApp{}, err
+	}
+	companion.ContainerID = containerID
+	if err := s.requireDocker().StartContainer(ctx, companion.ContainerName); err != nil {
+		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+		return InstalledApp{}, err
+	}
+	companion.Status = AppStatusRunning
+	companion.Error = ""
+	app.Companions = replaceCompanion(app.Companions, companion)
+	if err := s.saveInstalled(ctx, app); err != nil {
+		return InstalledApp{}, err
+	}
+	return app, nil
 }
 
 func (s *Service) install(ctx context.Context, op Operation, req InstallRequest) error {
@@ -559,6 +793,18 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		hostIP = "0.0.0.0"
 	}
 	record := s.buildInstallRecord(entry, op, bindMode, hostIP, hostPort, req.TailscaleEnabled)
+	ports, err := s.allocatePortBindings(ctx, entry, hostIP, hostPort)
+	if err != nil {
+		return fmt.Errorf("allocate ports: %w", err)
+	}
+	record.Ports = ports
+	record.HostBinds = resolveHostBinds(entry.HostBinds)
+	env, secretRefs, err := s.installEnv(entry, record)
+	if err != nil {
+		return fmt.Errorf("resolve install environment: %w", err)
+	}
+	record.Env = env
+	record.SecretRefs = secretRefs
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return err
 	}
@@ -609,7 +855,26 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		return fmt.Errorf("store app %q is no longer in the allowlist", record.AppID)
 	}
 	record.Image = entry.Image
-	record.Env = updateEnv(entry, record.Env)
+	ports, err := s.updatePortBindings(ctx, entry, record)
+	if err != nil {
+		return fmt.Errorf("update port bindings: %w", err)
+	}
+	record.Ports = ports
+	if len(ports) > 0 {
+		record.HostIP = ports[0].HostIP
+		record.HostPort = ports[0].HostPort
+		record.ContainerPort = ports[0].ContainerPort
+		record.Protocol = strings.ToLower(ports[0].Protocol)
+	}
+	record.Volumes = resolveVolumes(entry)
+	record.HostBinds = resolveHostBinds(entry.HostBinds)
+	record.ExtraHosts = append([]string(nil), entry.ExtraHosts...)
+	env, secretRefs, err := s.updateEnv(entry, record, previous)
+	if err != nil {
+		return fmt.Errorf("resolve update environment: %w", err)
+	}
+	record.Env = env
+	record.SecretRefs = secretRefs
 	record.Status = AppStatusUpdating
 	record.Error = ""
 	record.LastOperationID = op.ID
@@ -728,6 +993,12 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 	if !ok {
 		return fmt.Errorf("store app %q is not installed", op.AppID)
 	}
+	for _, companion := range app.Companions {
+		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
+		if err := s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true); err != nil {
+			return fmt.Errorf("remove companion container %s: %w", companion.ContainerName, err)
+		}
+	}
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, app.ContainerName, true); err != nil {
 		return fmt.Errorf("remove container: %w", err)
@@ -736,10 +1007,26 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return err
 	}
 	if deleteData {
+		removed := map[string]struct{}{}
 		for _, volume := range app.Volumes {
+			removed[volume.Name] = struct{}{}
 			if err := s.requireDocker().RemoveVolume(ctx, volume.Name, true); err != nil {
 				return fmt.Errorf("remove volume %s: %w", volume.Name, err)
 			}
+		}
+		for _, companion := range app.Companions {
+			for _, volume := range companion.Volumes {
+				if _, ok := removed[volume.Name]; ok {
+					continue
+				}
+				removed[volume.Name] = struct{}{}
+				if err := s.requireDocker().RemoveVolume(ctx, volume.Name, true); err != nil {
+					return fmt.Errorf("remove volume %s: %w", volume.Name, err)
+				}
+			}
+		}
+		if err := s.deleteStoreSecrets(ctx, app); err != nil {
+			return err
 		}
 	}
 	_, err = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
@@ -799,8 +1086,10 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		TailscaleStatus:    tailscaleStatus,
 		TailscalePort:      tailscalePort,
 		LogoPath:           entry.LogoURL,
+		Ports:              []PortBinding{{ID: entry.PrimaryPort.ID, Name: entry.PrimaryPort.Name, ContainerPort: entry.PrimaryPort.ContainerPort, Protocol: strings.ToLower(entry.PrimaryPort.Protocol), HostIP: hostIP, HostPort: hostPort}},
 		Volumes:            resolveVolumes(entry),
-		Env:                installEnv(entry),
+		HostBinds:          resolveHostBinds(entry.HostBinds),
+		Env:                append([]string(nil), entry.Env...),
 		ExtraHosts:         append([]string(nil), entry.ExtraHosts...),
 		CreatedAt:          now,
 		UpdatedAt:          now,
@@ -808,6 +1097,101 @@ func (s *Service) buildInstallRecord(entry CatalogEntry, op Operation, bindMode,
 		LastOperationType:  op.Type,
 		LastOperationState: OperationRunning,
 	}
+}
+
+func (s *Service) allocatePortBindings(ctx context.Context, entry CatalogEntry, hostIP string, primaryHostPort int) ([]PortBinding, error) {
+	ports := catalogPorts(entry)
+	out := make([]PortBinding, 0, len(ports))
+	for i, port := range ports {
+		hostPort := primaryHostPort
+		if i > 0 {
+			allocated, err := s.portAllocator(ctx, port.ContainerPort)
+			if err != nil {
+				return nil, fmt.Errorf("allocate port %s: %w", port.ID, err)
+			}
+			hostPort = allocated
+		}
+		out = append(out, PortBinding{
+			ID:            port.ID,
+			Name:          port.Name,
+			ContainerPort: port.ContainerPort,
+			Protocol:      strings.ToLower(port.Protocol),
+			HostIP:        hostIP,
+			HostPort:      hostPort,
+		})
+	}
+	return out, nil
+}
+
+func (s *Service) updatePortBindings(ctx context.Context, entry CatalogEntry, app InstalledApp) ([]PortBinding, error) {
+	previous := map[string]PortBinding{}
+	for _, port := range app.Ports {
+		if port.ID != "" {
+			previous[port.ID] = port
+		}
+	}
+	if len(previous) == 0 && app.HostPort > 0 {
+		previous[entry.PrimaryPort.ID] = PortBinding{ID: entry.PrimaryPort.ID, Name: entry.PrimaryPort.Name, ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}
+	}
+	ports := catalogPorts(entry)
+	out := make([]PortBinding, 0, len(ports))
+	for _, port := range ports {
+		binding, ok := previous[port.ID]
+		if !ok {
+			allocated, err := s.portAllocator(ctx, port.ContainerPort)
+			if err != nil {
+				return nil, fmt.Errorf("allocate port %s: %w", port.ID, err)
+			}
+			binding = PortBinding{HostIP: app.HostIP, HostPort: allocated}
+		}
+		binding.ID = port.ID
+		binding.Name = port.Name
+		binding.ContainerPort = port.ContainerPort
+		binding.Protocol = strings.ToLower(port.Protocol)
+		if strings.TrimSpace(binding.HostIP) == "" {
+			binding.HostIP = app.HostIP
+		}
+		out = append(out, binding)
+	}
+	return out, nil
+}
+
+func catalogPorts(entry CatalogEntry) []PortSpec {
+	primary := entry.PrimaryPort
+	if primary.ID == "" {
+		primary.ID = "main"
+	}
+	if primary.Name == "" {
+		primary.Name = "Web UI"
+	}
+	if primary.Protocol == "" {
+		primary.Protocol = "tcp"
+	}
+	ports := []PortSpec{primary}
+	for _, extra := range entry.ExtraPorts {
+		if extra.Protocol == "" {
+			extra.Protocol = "tcp"
+		}
+		ports = append(ports, extra)
+	}
+	return ports
+}
+
+func resolveHostBinds(templates []HostBindTemplate) []HostBinding {
+	binds := make([]HostBinding, 0, len(templates))
+	for _, template := range templates {
+		hostPath := strings.TrimSpace(template.HostPath)
+		containerPath := strings.TrimSpace(template.ContainerPath)
+		if hostPath == "" || containerPath == "" {
+			continue
+		}
+		binds = append(binds, HostBinding{
+			HostPath:      hostPath,
+			ContainerPath: containerPath,
+			ReadOnly:      template.ReadOnly,
+		})
+	}
+	return binds
 }
 
 func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
@@ -838,35 +1222,98 @@ func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, ap
 	return nil
 }
 
-func installEnv(entry CatalogEntry) []string {
-	env := append([]string(nil), entry.Env...)
-	if key := generatedSecretEnvKey(entry); key != "" {
-		env = appendEnvValue(env, key, randomHex(32))
-	}
-	return env
+func (s *Service) installEnv(entry CatalogEntry, app InstalledApp) ([]string, []SecretRef, error) {
+	return s.resolveEnv(entry, app, nil, nil)
 }
 
-func updateEnv(entry CatalogEntry, previous []string) []string {
-	env := append([]string(nil), entry.Env...)
-	if key := generatedSecretEnvKey(entry); key != "" {
-		if value, ok := envValue(previous, key); ok {
-			env = appendEnvValue(env, key, value)
-		} else {
-			env = appendEnvValue(env, key, randomHex(32))
+func (s *Service) updateEnv(entry CatalogEntry, app InstalledApp, previous InstalledApp) ([]string, []SecretRef, error) {
+	return s.resolveEnv(entry, app, previous.Env, previous.SecretRefs)
+}
+
+func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv []string, previousRefs []SecretRef) ([]string, []SecretRef, error) {
+	env := applyEnvTemplates(entry.Env, app, nil)
+	refs := make([]SecretRef, 0, len(entry.GeneratedSecrets))
+	for _, secret := range entry.GeneratedSecrets {
+		secret.Key = strings.ToLower(strings.TrimSpace(secret.Key))
+		if secret.Key == "" {
+			continue
+		}
+		vaultKey := storeSecretVaultKey(entry.ID, secret.Key)
+		value := ""
+		if s.cfg.Secrets != nil {
+			if stored, err := s.cfg.Secrets.ReadSecret(vaultKey); err == nil {
+				value = stored
+			}
+		}
+		if value == "" && secret.Env != "" {
+			value, _ = envValue(previousEnv, secret.Env)
+		}
+		if value == "" {
+			value = randomHex(32)
+		}
+		if s.cfg.Secrets != nil {
+			if err := s.cfg.Secrets.WriteSecret(vaultKey, value); err != nil {
+				return nil, nil, fmt.Errorf("write generated secret %s: %w", secret.Key, err)
+			}
+		}
+		if secret.Env != "" {
+			env = appendEnvValue(env, secret.Env, value)
+		}
+		refs = append(refs, SecretRef{
+			Key:      secret.Key,
+			VaultKey: vaultKey,
+			Env:      secret.Env,
+			Label:    secret.Label,
+			Expose:   secret.Expose,
+		})
+	}
+	for _, ref := range previousRefs {
+		if ref.Key == "" || ref.VaultKey == "" {
+			continue
+		}
+		found := false
+		for _, next := range refs {
+			if next.Key == ref.Key {
+				found = true
+				break
+			}
+		}
+		if !found && ref.Expose {
+			refs = append(refs, ref)
 		}
 	}
-	return env
+	return env, refs, nil
 }
 
-func generatedSecretEnvKey(entry CatalogEntry) string {
-	switch entry.ID {
-	case "homarr":
-		return "SECRET_ENCRYPTION_KEY"
-	case "bytestash":
-		return "JWT_SECRET"
-	default:
-		return ""
+func applyEnvTemplates(env []string, app InstalledApp, secrets map[string]string) []string {
+	out := make([]string, 0, len(env))
+	replacements := map[string]string{
+		"${HOST_PORT}":         strconv.Itoa(app.HostPort),
+		"${PRIMARY_HOST_PORT}": strconv.Itoa(app.HostPort),
+		"${APP_URL}":           "http://localhost:" + strconv.Itoa(app.HostPort),
 	}
+	for _, port := range app.Ports {
+		if port.ID == "" {
+			continue
+		}
+		key := strings.ToUpper(strings.ReplaceAll(port.ID, "-", "_"))
+		replacements["${PORT_"+key+"_HOST_PORT}"] = strconv.Itoa(port.HostPort)
+	}
+	for key, value := range secrets {
+		replacements["${SECRET:"+key+"}"] = value
+	}
+	for _, item := range env {
+		next := item
+		for old, value := range replacements {
+			next = strings.ReplaceAll(next, old, value)
+		}
+		out = append(out, next)
+	}
+	return out
+}
+
+func storeSecretVaultKey(appID, key string) string {
+	return "desktop_store_" + normalizeAppID(appID) + "_" + strings.ToLower(strings.TrimSpace(key))
 }
 
 func envValue(env []string, key string) (string, bool) {
@@ -946,14 +1393,22 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 	if app.CreatedAt.IsZero() {
 		app.CreatedAt = app.UpdatedAt
 	}
+	if len(app.Ports) == 0 && app.HostPort > 0 {
+		app.Ports = []PortBinding{{ID: "main", Name: "Web UI", ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}}
+	}
+	portsJSON, _ := json.Marshal(app.Ports)
 	volumesJSON, _ := json.Marshal(app.Volumes)
+	hostBindsJSON, _ := json.Marshal(app.HostBinds)
 	envJSON, _ := json.Marshal(app.Env)
 	extraHostsJSON, _ := json.Marshal(app.ExtraHosts)
+	secretRefsJSON, _ := json.Marshal(secretRefsForStorage(app.SecretRefs))
+	companionsJSON, _ := json.Marshal(app.Companions)
 	_, err := s.db.ExecContext(ctx, `INSERT INTO desktop_store_apps(app_id, desktop_app_id, launchpad_link_id,
 		container_name, container_id, image, status, error, bind_mode, host_ip, host_port, container_port, protocol,
-		tailscale_enabled, tailscale_status, tailscale_port, logo_path, volumes_json, env_json, extra_hosts_json,
-		created_at, updated_at, last_operation_id, last_operation_type, last_operation_state)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		tailscale_enabled, tailscale_status, tailscale_port, logo_path, ports_json, volumes_json, host_binds_json,
+		env_json, extra_hosts_json, secret_refs_json, companions_json, created_at, updated_at,
+		last_operation_id, last_operation_type, last_operation_state)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(app_id) DO UPDATE SET
 			desktop_app_id = excluded.desktop_app_id,
 			launchpad_link_id = excluded.launchpad_link_id,
@@ -971,17 +1426,22 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 			tailscale_status = excluded.tailscale_status,
 			tailscale_port = excluded.tailscale_port,
 			logo_path = excluded.logo_path,
+			ports_json = excluded.ports_json,
 			volumes_json = excluded.volumes_json,
+			host_binds_json = excluded.host_binds_json,
 			env_json = excluded.env_json,
 			extra_hosts_json = excluded.extra_hosts_json,
+			secret_refs_json = excluded.secret_refs_json,
+			companions_json = excluded.companions_json,
 			updated_at = excluded.updated_at,
 			last_operation_id = excluded.last_operation_id,
 			last_operation_type = excluded.last_operation_type,
 			last_operation_state = excluded.last_operation_state`,
 		app.AppID, app.DesktopAppID, app.LaunchpadLinkID, app.ContainerName, app.ContainerID, app.Image, app.Status, app.Error,
 		app.BindMode, app.HostIP, app.HostPort, app.ContainerPort, app.Protocol, boolToInt(app.TailscaleEnabled), app.TailscaleStatus,
-		app.TailscalePort, app.LogoPath, string(volumesJSON), string(envJSON), string(extraHostsJSON), formatTime(app.CreatedAt),
-		formatTime(app.UpdatedAt), app.LastOperationID, app.LastOperationType, app.LastOperationState)
+		app.TailscalePort, app.LogoPath, string(portsJSON), string(volumesJSON), string(hostBindsJSON), string(envJSON),
+		string(extraHostsJSON), string(secretRefsJSON), string(companionsJSON), formatTime(app.CreatedAt), formatTime(app.UpdatedAt),
+		app.LastOperationID, app.LastOperationType, app.LastOperationState)
 	if err != nil {
 		return fmt.Errorf("save desktop store app: %w", err)
 	}
@@ -994,11 +1454,21 @@ func (s *Service) failInstall(ctx context.Context, app InstalledApp, runErr erro
 }
 
 func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp) error {
+	for _, companion := range app.Companions {
+		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
+		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+	}
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	_ = s.requireDocker().RemoveContainer(ctx, app.ContainerName, true)
 	for _, volume := range app.Volumes {
 		_ = s.requireDocker().RemoveVolume(ctx, volume.Name, true)
 	}
+	for _, companion := range app.Companions {
+		for _, volume := range companion.Volumes {
+			_ = s.requireDocker().RemoveVolume(ctx, volume.Name, true)
+		}
+	}
+	_ = s.deleteStoreSecrets(ctx, app)
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
@@ -1020,6 +1490,29 @@ func (s *Service) deleteStoreArtifacts(ctx context.Context, app InstalledApp) er
 			return fmt.Errorf("delete launchpad link: %w", err)
 		}
 	}
+	return nil
+}
+
+func (s *Service) deleteStoreSecrets(ctx context.Context, app InstalledApp) error {
+	if s.cfg.Secrets == nil {
+		return nil
+	}
+	for _, ref := range app.SecretRefs {
+		if strings.TrimSpace(ref.VaultKey) == "" {
+			continue
+		}
+		if err := s.cfg.Secrets.DeleteSecret(ref.VaultKey); err != nil {
+			return fmt.Errorf("delete store secret %s: %w", ref.Key, err)
+		}
+	}
+	if app.AppID == "beszel" {
+		for _, key := range []string{"desktop_store_beszel_agent_key", "desktop_store_beszel_agent_token"} {
+			if err := s.cfg.Secrets.DeleteSecret(key); err != nil {
+				return fmt.Errorf("delete store secret %s: %w", key, err)
+			}
+		}
+	}
+	_ = ctx
 	return nil
 }
 
@@ -1110,19 +1603,29 @@ func scanInstalledApp(scanner interface{ Scan(dest ...any) error }) (InstalledAp
 	var app InstalledApp
 	var tailscaleEnabled int
 	var createdAt, updatedAt string
-	var volumesJSON, envJSON, extraHostsJSON string
+	var portsJSON, volumesJSON, hostBindsJSON, envJSON, extraHostsJSON, secretRefsJSON, companionsJSON string
 	err := scanner.Scan(&app.AppID, &app.DesktopAppID, &app.LaunchpadLinkID, &app.ContainerName, &app.ContainerID,
 		&app.Image, &app.Status, &app.Error, &app.BindMode, &app.HostIP, &app.HostPort, &app.ContainerPort, &app.Protocol,
-		&tailscaleEnabled, &app.TailscaleStatus, &app.TailscalePort, &app.LogoPath, &volumesJSON, &envJSON, &extraHostsJSON,
-		&createdAt, &updatedAt, &app.LastOperationID, &app.LastOperationType, &app.LastOperationState)
+		&tailscaleEnabled, &app.TailscaleStatus, &app.TailscalePort, &app.LogoPath, &portsJSON, &volumesJSON, &hostBindsJSON,
+		&envJSON, &extraHostsJSON, &secretRefsJSON, &companionsJSON, &createdAt, &updatedAt, &app.LastOperationID,
+		&app.LastOperationType, &app.LastOperationState)
 	if err != nil {
 		return InstalledApp{}, err
 	}
 	app.TailscaleEnabled = tailscaleEnabled != 0
 	app.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 	app.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	if err := json.Unmarshal([]byte(portsJSON), &app.Ports); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store ports for %s: %w", app.AppID, err)
+	}
+	if len(app.Ports) == 0 && app.HostPort > 0 {
+		app.Ports = []PortBinding{{ID: "main", Name: "Web UI", ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}}
+	}
 	if err := json.Unmarshal([]byte(volumesJSON), &app.Volumes); err != nil {
 		return InstalledApp{}, fmt.Errorf("decode desktop store volumes for %s: %w", app.AppID, err)
+	}
+	if err := json.Unmarshal([]byte(hostBindsJSON), &app.HostBinds); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store host binds for %s: %w", app.AppID, err)
 	}
 	if err := json.Unmarshal([]byte(envJSON), &app.Env); err != nil {
 		return InstalledApp{}, fmt.Errorf("decode desktop store env for %s: %w", app.AppID, err)
@@ -1130,7 +1633,55 @@ func scanInstalledApp(scanner interface{ Scan(dest ...any) error }) (InstalledAp
 	if err := json.Unmarshal([]byte(extraHostsJSON), &app.ExtraHosts); err != nil {
 		return InstalledApp{}, fmt.Errorf("decode desktop store extra hosts for %s: %w", app.AppID, err)
 	}
+	secretRefs, err := secretRefsFromStorage(secretRefsJSON)
+	if err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store secret refs for %s: %w", app.AppID, err)
+	}
+	app.SecretRefs = secretRefs
+	if err := json.Unmarshal([]byte(companionsJSON), &app.Companions); err != nil {
+		return InstalledApp{}, fmt.Errorf("decode desktop store companions for %s: %w", app.AppID, err)
+	}
 	return app, nil
+}
+
+type storedSecretRef struct {
+	Key      string `json:"key"`
+	VaultKey string `json:"vault_key"`
+	Env      string `json:"env,omitempty"`
+	Label    string `json:"label,omitempty"`
+	Expose   bool   `json:"expose,omitempty"`
+}
+
+func secretRefsForStorage(refs []SecretRef) []storedSecretRef {
+	stored := make([]storedSecretRef, 0, len(refs))
+	for _, ref := range refs {
+		stored = append(stored, storedSecretRef{
+			Key:      ref.Key,
+			VaultKey: ref.VaultKey,
+			Env:      ref.Env,
+			Label:    ref.Label,
+			Expose:   ref.Expose,
+		})
+	}
+	return stored
+}
+
+func secretRefsFromStorage(raw string) ([]SecretRef, error) {
+	var stored []storedSecretRef
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		return nil, err
+	}
+	refs := make([]SecretRef, 0, len(stored))
+	for _, ref := range stored {
+		refs = append(refs, SecretRef{
+			Key:      ref.Key,
+			VaultKey: ref.VaultKey,
+			Env:      ref.Env,
+			Label:    ref.Label,
+			Expose:   ref.Expose,
+		})
+	}
+	return refs, nil
 }
 
 func scanOperation(scanner interface{ Scan(dest ...any) error }) (Operation, error) {
@@ -1152,12 +1703,17 @@ func scanOperation(scanner interface{ Scan(dest ...any) error }) (Operation, err
 }
 
 func containerSpecFromRecord(app InstalledApp) ContainerSpec {
+	ports := append([]PortBinding(nil), app.Ports...)
+	if len(ports) == 0 && app.HostPort > 0 {
+		ports = []PortBinding{{ID: "main", Name: "Web UI", ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}}
+	}
 	return ContainerSpec{
 		Name:         app.ContainerName,
 		Image:        app.Image,
 		Env:          append([]string(nil), app.Env...),
-		PortBindings: []PortBinding{{ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}},
+		PortBindings: ports,
 		Volumes:      append([]VolumeBinding(nil), app.Volumes...),
+		HostBinds:    append([]HostBinding(nil), app.HostBinds...),
 		ExtraHosts:   append([]string(nil), app.ExtraHosts...),
 		Restart:      "unless-stopped",
 		Labels: map[string]string{
@@ -1165,6 +1721,40 @@ func containerSpecFromRecord(app InstalledApp) ContainerSpec {
 			"aurago.desktop_store.app_id": app.AppID,
 		},
 	}
+}
+
+func companionContainerSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
+	return ContainerSpec{
+		Name:        companion.ContainerName,
+		Image:       companion.Image,
+		Env:         append([]string(nil), companion.Env...),
+		Volumes:     append([]VolumeBinding(nil), companion.Volumes...),
+		HostBinds:   append([]HostBinding(nil), companion.HostBinds...),
+		NetworkMode: companion.NetworkMode,
+		Restart:     "unless-stopped",
+		Labels: map[string]string{
+			"aurago.desktop_store":           "true",
+			"aurago.desktop_store.app_id":    app.AppID,
+			"aurago.desktop_store.companion": companion.ID,
+		},
+	}
+}
+
+func replaceCompanion(companions []CompanionApp, companion CompanionApp) []CompanionApp {
+	out := make([]CompanionApp, 0, len(companions)+1)
+	replaced := false
+	for _, current := range companions {
+		if current.ID == companion.ID {
+			out = append(out, companion)
+			replaced = true
+			continue
+		}
+		out = append(out, current)
+	}
+	if !replaced {
+		out = append(out, companion)
+	}
+	return out
 }
 
 func resolveVolumes(entry CatalogEntry) []VolumeBinding {
@@ -1176,6 +1766,21 @@ func resolveVolumes(entry CatalogEntry) []VolumeBinding {
 		}
 		volumes = append(volumes, VolumeBinding{
 			Name:          fmt.Sprintf("aurago_store_%s_%s", strings.ReplaceAll(entry.ID, "-", "_"), suffix),
+			ContainerPath: template.ContainerPath,
+		})
+	}
+	return volumes
+}
+
+func resolveCompanionVolumes(entry CatalogEntry, companion CompanionTemplate) []VolumeBinding {
+	volumes := make([]VolumeBinding, 0, len(companion.Volumes))
+	for _, template := range companion.Volumes {
+		suffix := strings.Trim(strings.ToLower(template.NameSuffix), "-_ ")
+		if suffix == "" {
+			suffix = companion.ID + "-data"
+		}
+		volumes = append(volumes, VolumeBinding{
+			Name:          fmt.Sprintf("aurago_store_%s_%s", strings.ReplaceAll(entry.ID, "-", "_"), strings.ReplaceAll(suffix, "-", "_")),
 			ContainerPath: template.ContainerPath,
 		})
 	}
@@ -1205,6 +1810,12 @@ func DesktopAppID(appID string) string {
 // ContainerName returns the managed Docker container name for a store app.
 func ContainerName(appID string) string {
 	return "aurago-store-" + normalizeAppID(appID)
+}
+
+// CompanionContainerName returns the managed Docker container name for a Store
+// app companion container.
+func CompanionContainerName(appID, companionID string) string {
+	return ContainerName(appID) + "-" + normalizeAppID(companionID)
 }
 
 // ManagedLaunchpadLinkID returns the stable Launchpad link ID for a store app.

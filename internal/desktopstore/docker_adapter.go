@@ -233,6 +233,16 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		}
 		binds = append(binds, volume.Name+":"+volume.ContainerPath)
 	}
+	for _, bind := range spec.HostBinds {
+		if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
+			continue
+		}
+		suffix := ":rw"
+		if bind.ReadOnly {
+			suffix = ":ro"
+		}
+		binds = append(binds, bind.HostPath+":"+bind.ContainerPath+suffix)
+	}
 	restart := strings.TrimSpace(spec.Restart)
 	if restart == "" {
 		restart = "unless-stopped"
@@ -245,6 +255,9 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 	}
 	if len(spec.ExtraHosts) > 0 {
 		hostConfig["ExtraHosts"] = append([]string(nil), spec.ExtraHosts...)
+	}
+	if strings.TrimSpace(spec.NetworkMode) != "" {
+		hostConfig["NetworkMode"] = strings.TrimSpace(spec.NetworkMode)
 	}
 	payload := map[string]any{
 		"Image":        spec.Image,

@@ -43,6 +43,7 @@ var blockedSecretPrefixes = []string{
 	"webhook_",
 	"space_agent_",
 	"manifest_",
+	"desktop_store_",
 	"music_minimax_",
 	"music_google_lyria_",
 }
