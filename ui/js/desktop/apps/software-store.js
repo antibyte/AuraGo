@@ -2,6 +2,15 @@
     'use strict';
 
     const instances = new Map();
+    const retiredStoreAppIDs = new Set(['emulatorjs']);
+
+    function activeStoreCatalogEntries(items) {
+        return (Array.isArray(items) ? items : []).filter(entry => !retiredStoreAppIDs.has(String(entry && entry.id || '').toLowerCase()));
+    }
+
+    function activeInstalledStoreApps(items) {
+        return (Array.isArray(items) ? items : []).filter(app => !retiredStoreAppIDs.has(String(app && app.app_id || '').toLowerCase()));
+    }
 
     function render(host, windowId, deps) {
         deps = deps || {};
@@ -46,8 +55,8 @@
             grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading', 'Loading...'))}</div>`;
             try {
                 const body = await api('/api/desktop/store/catalog');
-                catalog = body.catalog || [];
-                installed = body.installed || [];
+                catalog = activeStoreCatalogEntries(body.catalog || []);
+                installed = activeInstalledStoreApps(body.installed || []);
                 dockerAvailable = body.docker_available !== false;
                 mutationsAllowed = body.mutations_allowed !== false && dockerAvailable;
                 mutationDisabledReason = body.mutation_disabled_reason || '';
@@ -69,14 +78,22 @@
         function activeOperationForApp(app) {
             if (!app || !app.last_operation_id) return null;
             if (app.last_operation_state === 'pending' || app.last_operation_state === 'running') {
+                const operationType = app.last_operation_type || app.status || 'install';
+                if (!storeAppStatusAllowsActiveOperation(app, operationType)) return null;
                 return {
                     id: app.last_operation_id,
                     app_id: app.app_id,
-                    type: app.last_operation_type || app.status || 'install',
+                    type: operationType,
                     status: app.last_operation_state
                 };
             }
             return null;
+        }
+
+        function storeAppStatusAllowsActiveOperation(app, operationType) {
+            if (operationType === 'install') return app.status === 'installing';
+            if (operationType === 'update') return app.status === 'updating';
+            return true;
         }
 
         function resumeActiveOperationPolling() {

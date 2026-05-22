@@ -54,6 +54,23 @@ func TestSoftwareStoreShowsInstallingAndDisablesActionsDuringInstallOperation(t 
 	}
 }
 
+func TestSoftwareStoreIgnoresStaleInstallMarkersForRunningApps(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"const operationType = app.last_operation_type || app.status || 'install';",
+		"if (!storeAppStatusAllowsActiveOperation(app, operationType)) return null;",
+		"function storeAppStatusAllowsActiveOperation(app, operationType)",
+		"if (operationType === 'install') return app.status === 'installing';",
+		"if (operationType === 'update') return app.status === 'updating';",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing stale install marker guard %q", want)
+		}
+	}
+}
+
 func TestSoftwareStoreResumesAndRefreshesActiveOperations(t *testing.T) {
 	t.Parallel()
 
@@ -99,6 +116,57 @@ func TestSoftwareStoreSupportsExpandedAppCapabilities(t *testing.T) {
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing expanded app marker %q", want)
+		}
+	}
+}
+
+func TestSoftwareStoreFiltersRetiredEmulatorJSEntries(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"const retiredStoreAppIDs = new Set(['emulatorjs']);",
+		"function activeStoreCatalogEntries(items)",
+		"function activeInstalledStoreApps(items)",
+		"catalog = activeStoreCatalogEntries(body.catalog || []);",
+		"installed = activeInstalledStoreApps(body.installed || []);",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing retired app filter marker %q", want)
+		}
+	}
+}
+
+func TestDesktopAPIClientBypassesBrowserCache(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	for _, want := range []string{
+		"const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});",
+		"const resp = await fetch(url, requestOptions);",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("desktop API client missing no-store marker %q", want)
+		}
+	}
+}
+
+func TestSoftwareStoreActionButtonsUseStableGridLayout(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "css/desktop-apps.css")
+	for _, want := range []string{
+		".vd-store-card {\n    display: grid;",
+		"grid-template-rows: auto minmax(64px, auto) auto auto 1fr;",
+		".vd-store-actions {\n    display: grid;",
+		"grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));",
+		"align-items: stretch;",
+		".vd-store-btn {\n    width: 100%;",
+		".vd-store-btn span {\n    min-width: 0;",
+		"text-overflow: ellipsis;",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store action layout missing marker %q", want)
 		}
 	}
 }

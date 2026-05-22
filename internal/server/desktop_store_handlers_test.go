@@ -85,6 +85,46 @@ func TestDesktopStoreOpenURLUsesRequestedPortID(t *testing.T) {
 	}
 }
 
+func TestDesktopStoreCatalogDisablesBrowserCachingAndUsesRomM(t *testing.T) {
+	svc, _, _ := testInstalledStoreApp(t, "romm", 17676)
+	s := testDesktopStoreServerWithService(t, svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/store/catalog", nil)
+	rec := httptest.NewRecorder()
+
+	handleDesktopStoreCatalog(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); !strings.Contains(got, "no-store") {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := rec.Header().Get("Pragma"); got != "no-cache" {
+		t.Fatalf("Pragma = %q, want no-cache", got)
+	}
+	var body struct {
+		Catalog []struct {
+			ID    string `json:"id"`
+			Image string `json:"image"`
+		} `json:"catalog"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	rommFound := false
+	for _, entry := range body.Catalog {
+		if entry.ID == "emulatorjs" {
+			t.Fatalf("catalog must not expose retired EmulatorJS entry: %#v", entry)
+		}
+		if entry.ID == "romm" {
+			rommFound = entry.Image == "ghcr.io/rommapp/romm:latest"
+		}
+	}
+	if !rommFound {
+		t.Fatalf("catalog missing RomM GHCR entry: %#v", body.Catalog)
+	}
+}
+
 func TestDesktopStoreCredentialsReturnsOnlyExposedGeneratedSecrets(t *testing.T) {
 	svc, secrets, _ := testInstalledStoreApp(t, "code-server", 18443)
 	s := testDesktopStoreServerWithService(t, svc)
@@ -185,6 +225,14 @@ func testDesktopStoreServerWithService(t *testing.T, svc *desktopstore.Service) 
 	t.Helper()
 	s := testDesktopStorePolicyServer(t, false, true, false)
 	s.DesktopStore = svc
+	t.Cleanup(func() {
+		if s.DesktopHub != nil {
+			s.DesktopHub.Close()
+		}
+		if s.DesktopService != nil {
+			_ = s.DesktopService.Close()
+		}
+	})
 	return s
 }
 

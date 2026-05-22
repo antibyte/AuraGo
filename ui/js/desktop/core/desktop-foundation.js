@@ -661,7 +661,8 @@
     }
 
     async function api(url, options) {
-        const resp = await fetch(url, options);
+        const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
+        const resp = await fetch(url, requestOptions);
         const contentType = resp.headers.get('content-type') || '';
         const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
         const body = shouldParseJSON ? await resp.json() : {};

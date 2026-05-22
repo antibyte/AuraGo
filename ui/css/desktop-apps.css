@@ -5573,12 +5573,14 @@
 }
 
 .vd-store-card {
+    display: grid;
+    grid-template-rows: auto minmax(64px, auto) auto auto 1fr;
+    align-content: start;
     min-width: 0;
     border: 1px solid var(--vd-border);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.045);
     padding: 12px;
-    display: grid;
     gap: 10px;
 }
 
@@ -5704,13 +5706,18 @@
 }
 
 .vd-store-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    align-items: stretch;
+    gap: 8px;
+    margin-top: auto;
+    min-width: 0;
 }
 
 .vd-store-btn {
+    width: 100%;
     min-height: 32px;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5724,6 +5731,13 @@
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+}
+
+.vd-store-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .vd-store-btn:hover:not(:disabled) {

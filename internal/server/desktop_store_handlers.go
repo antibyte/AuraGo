@@ -78,6 +78,7 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setDesktopStoreNoCacheHeaders(w)
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
@@ -111,12 +112,19 @@ func handleDesktopStoreCatalog(s *Server) http.HandlerFunc {
 	}
 }
 
+func setDesktopStoreNoCacheHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+}
+
 func handleDesktopStoreApps(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setDesktopStoreNoCacheHeaders(w)
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
@@ -173,6 +181,7 @@ func handleDesktopStoreOperation(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setDesktopStoreNoCacheHeaders(w)
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
@@ -263,6 +272,7 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setDesktopStoreNoCacheHeaders(w)
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
@@ -292,6 +302,7 @@ func handleDesktopStoreCredentials(s *Server, appID string) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setDesktopStoreNoCacheHeaders(w)
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
