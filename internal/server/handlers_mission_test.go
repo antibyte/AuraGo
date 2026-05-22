@@ -98,14 +98,46 @@ func TestInternalLoopbackRequestMessagesAreHidden(t *testing.T) {
 	}
 }
 
+func TestInternalFollowUpRequestsUseAutonomousMessageSource(t *testing.T) {
+	tests := []struct {
+		name       string
+		isFollowUp bool
+		missionID  string
+		want       string
+	}{
+		{name: "visible user chat", isFollowUp: false, missionID: "", want: "web_chat"},
+		{name: "generic internal follow up", isFollowUp: true, missionID: "", want: "follow_up"},
+		{name: "mission overrides follow up", isFollowUp: true, missionID: "mission-1", want: "mission"},
+		{name: "mission without followup header", isFollowUp: false, missionID: "mission-1", want: "mission"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := chatCompletionMessageSource(tt.isFollowUp, tt.missionID); got != tt.want {
+				t.Fatalf("chatCompletionMessageSource(%v, %q) = %q, want %q", tt.isFollowUp, tt.missionID, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMissionRequestsUseSilentFeedbackBroker(t *testing.T) {
-	regular := feedbackBrokerForRequest(NewSSEBroadcaster(), "default", "")
+	regular := feedbackBrokerForRequest(NewSSEBroadcaster(), "default", "", false)
 	if _, ok := regular.(*SSEBrokerAdapter); !ok {
 		t.Fatalf("regular chat broker = %T, want *SSEBrokerAdapter", regular)
 	}
 
-	mission := feedbackBrokerForRequest(NewSSEBroadcaster(), "mission-m1", "m1")
+	mission := feedbackBrokerForRequest(NewSSEBroadcaster(), "mission-m1", "m1", true)
 	if _, ok := mission.(agent.NoopBroker); !ok {
 		t.Fatalf("mission broker = %T, want agent.NoopBroker", mission)
+	}
+
+	missionWithoutFollowUp := feedbackBrokerForRequest(NewSSEBroadcaster(), "mission-m1", "m1", false)
+	if _, ok := missionWithoutFollowUp.(agent.NoopBroker); !ok {
+		t.Fatalf("mission without follow-up broker = %T, want agent.NoopBroker", missionWithoutFollowUp)
+	}
+
+	followUp := feedbackBrokerForRequest(NewSSEBroadcaster(), "default", "", true)
+	if _, ok := followUp.(agent.NoopBroker); !ok {
+		t.Fatalf("follow-up broker = %T, want agent.NoopBroker", followUp)
 	}
 }

@@ -17,6 +17,8 @@ func TestIsAutonomousAgentRunRecognizesHeartbeat(t *testing.T) {
 		{name: "heartbeat session", runCfg: RunConfig{}, sessionID: "heartbeat", want: true},
 		{name: "planner notification source", runCfg: RunConfig{MessageSource: "planner_notification"}, sessionID: "default", want: true},
 		{name: "uptime kuma source", runCfg: RunConfig{MessageSource: "uptime_kuma"}, sessionID: "default", want: true},
+		{name: "follow up source", runCfg: RunConfig{MessageSource: "follow_up"}, sessionID: "default", want: true},
+		{name: "cron source", runCfg: RunConfig{MessageSource: "cron"}, sessionID: "default", want: true},
 		{name: "web chat default", runCfg: RunConfig{MessageSource: "web_chat"}, sessionID: "default", want: false},
 		{name: "mission is autonomous", runCfg: RunConfig{MessageSource: "mission", IsMission: true}, sessionID: "mission-1", want: true},
 	}
@@ -39,6 +41,12 @@ func TestShouldRunTurnSideEffectsBlocksHeartbeatArtifacts(t *testing.T) {
 	}
 	if shouldRunTurnSideEffects(RunConfig{MessageSource: "uptime_kuma"}, "default", prompts.ContextFlags{}) {
 		t.Fatal("uptime kuma runs must not write normal chat side effects")
+	}
+	if shouldRunTurnSideEffects(RunConfig{MessageSource: "follow_up"}, "default", prompts.ContextFlags{}) {
+		t.Fatal("follow-up runs must not write normal chat side effects")
+	}
+	if shouldRunTurnSideEffects(RunConfig{MessageSource: "cron"}, "default", prompts.ContextFlags{}) {
+		t.Fatal("cron runs must not write normal chat side effects")
 	}
 	if shouldRunTurnSideEffects(RunConfig{IsMission: true, MessageSource: "mission"}, "mission-1", prompts.ContextFlags{IsMission: true}) {
 		t.Fatal("mission runs must not write normal chat side effects")
