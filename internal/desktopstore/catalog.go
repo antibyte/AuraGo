@@ -100,7 +100,7 @@ func DefaultCatalog() []CatalogEntry {
 			ID:          "filebrowser-quantum",
 			Name:        "FileBrowser Quantum",
 			Description: "Modern web file manager for browsing, uploading, and sharing files.",
-			Image:       "gtstef/filebrowser:stable",
+			Image:       "ghcr.io/gtsteffaniak/filebrowser:stable",
 			Icon:        "folder",
 			LogoSlug:    "filebrowser-quantum",
 			LogoURL:     logoURL("filebrowser-quantum"),

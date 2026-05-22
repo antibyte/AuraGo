@@ -727,12 +727,45 @@ func sanitizeStoreAppProxyResponse(resp *http.Response) error {
 		return nil
 	}
 	resp.Header.Del("X-Frame-Options")
+	stripFrameAncestorsHeader(resp.Header, "Content-Security-Policy")
+	stripFrameAncestorsHeader(resp.Header, "Content-Security-Policy-Report-Only")
 	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
 		resp.Header.Set("Cache-Control", "no-store")
 		resp.Header.Del("ETag")
 		resp.Header.Del("Last-Modified")
 	}
 	return nil
+}
+
+func stripFrameAncestorsHeader(header http.Header, name string) {
+	values := header.Values(name)
+	if len(values) == 0 {
+		return
+	}
+	header.Del(name)
+	for _, value := range values {
+		cleaned := stripFrameAncestorsDirective(value)
+		if cleaned != "" {
+			header.Add(name, cleaned)
+		}
+	}
+}
+
+func stripFrameAncestorsDirective(value string) string {
+	directives := strings.Split(value, ";")
+	kept := make([]string, 0, len(directives))
+	for _, directive := range directives {
+		trimmed := strings.TrimSpace(directive)
+		if trimmed == "" {
+			continue
+		}
+		fields := strings.Fields(trimmed)
+		if len(fields) > 0 && strings.EqualFold(fields[0], "frame-ancestors") {
+			continue
+		}
+		kept = append(kept, trimmed)
+	}
+	return strings.Join(kept, "; ")
 }
 
 func (m *Manager) stopStoreAppProxy(id string) error {

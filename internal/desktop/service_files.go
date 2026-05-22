@@ -428,7 +428,27 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 	}
 	entry := s.workspaceFileEntry(path, info)
 	_ = s.Audit(ctx, "write_file", s.relativePath(path), map[string]interface{}{"bytes": len(content)}, source)
+	s.invalidateBootstrapCacheForFileMutation(entry.Path)
 	return entry, nil
+}
+
+func (s *Service) invalidateBootstrapCacheForFileMutation(paths ...string) {
+	for _, rawPath := range paths {
+		clean := cleanDesktopPathSlash(rawPath)
+		if clean == "." || clean == "" {
+			s.invalidateBootstrapCache()
+			return
+		}
+		top := clean
+		if idx := strings.Index(top, "/"); idx >= 0 {
+			top = top[:idx]
+		}
+		switch strings.ToLower(top) {
+		case "apps", "widgets", "desktop":
+			s.invalidateBootstrapCache()
+			return
+		}
+	}
 }
 
 func (s *Service) fileWriteStateLocked(path string, maxBytes int64) (FileWriteState, error) {
@@ -479,6 +499,7 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 		return fmt.Errorf("create desktop directory: %w", err)
 	}
 	_ = s.Audit(ctx, "create_directory", s.relativePath(path), map[string]interface{}{}, source)
+	s.invalidateBootstrapCacheForFileMutation(s.relativePath(path))
 	return nil
 }
 
@@ -545,6 +566,7 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 		return fmt.Errorf("move desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "move_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
+	s.invalidateBootstrapCacheForFileMutation(s.relativePath(from), s.relativePath(to))
 	return nil
 }
 
@@ -611,6 +633,7 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 		return fmt.Errorf("copy desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "copy_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
+	s.invalidateBootstrapCacheForFileMutation(s.relativePath(from), s.relativePath(to))
 	return nil
 }
 
@@ -730,5 +753,6 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 		return fmt.Errorf("delete desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_path", s.relativePath(path), map[string]interface{}{}, source)
+	s.invalidateBootstrapCacheForFileMutation(s.relativePath(path))
 	return nil
 }

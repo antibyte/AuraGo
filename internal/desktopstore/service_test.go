@@ -34,7 +34,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"olivetin":            {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "terminal"},
 		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code"},
 		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
-		"filebrowser-quantum": {image: "gtstef/filebrowser:stable", port: 80, icon: "folder"},
+		"filebrowser-quantum": {image: "ghcr.io/gtsteffaniak/filebrowser:stable", port: 80, icon: "folder"},
 	}
 
 	for _, entry := range catalog {
@@ -70,6 +70,30 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	}
 	if len(expected) != 0 {
 		t.Fatalf("missing catalog entries: %#v", expected)
+	}
+}
+
+func TestDockerCreatePayloadEnablesNoNewPrivileges(t *testing.T) {
+	payload := dockerCreatePayload(ContainerSpec{
+		Name:  "aurago-store-demo",
+		Image: "ghcr.io/example/demo:latest",
+		PortBindings: []PortBinding{{
+			ContainerPort: 8080,
+			Protocol:      "tcp",
+			HostIP:        "127.0.0.1",
+			HostPort:      18080,
+		}},
+	})
+	hostConfig, ok := payload["HostConfig"].(map[string]any)
+	if !ok {
+		t.Fatalf("HostConfig missing from payload: %#v", payload)
+	}
+	securityOpt, ok := hostConfig["SecurityOpt"].([]string)
+	if !ok {
+		t.Fatalf("SecurityOpt missing or wrong type: %#v", hostConfig["SecurityOpt"])
+	}
+	if len(securityOpt) != 1 || securityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("SecurityOpt = %#v, want no-new-privileges", securityOpt)
 	}
 }
 

@@ -571,7 +571,7 @@
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
+            const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });
             host.replaceChildren(frame);
         } catch (err) {
             if (!contentEl(id)) return;
@@ -631,7 +631,7 @@
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
-        if (appId && !widgetId) sandboxFlags.push('allow-same-origin');
+        if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
         if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');

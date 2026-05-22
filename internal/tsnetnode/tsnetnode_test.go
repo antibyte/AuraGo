@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -158,6 +159,8 @@ func TestStoreAppProxyResponseRemovesFrameHeadersAndDisablesHTMLCache(t *testing
 	resp := &http.Response{Header: make(http.Header)}
 	resp.Header.Set("X-Frame-Options", "SAMEORIGIN")
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+	resp.Header.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'self'; script-src 'self'")
+	resp.Header.Set("Content-Security-Policy-Report-Only", "frame-ancestors 'none'; default-src 'self'")
 	resp.Header.Set("ETag", `W/"old"`)
 	resp.Header.Set("Last-Modified", "Thu, 21 May 2026 19:00:00 GMT")
 
@@ -166,6 +169,12 @@ func TestStoreAppProxyResponseRemovesFrameHeadersAndDisablesHTMLCache(t *testing
 	}
 	if got := resp.Header.Get("X-Frame-Options"); got != "" {
 		t.Fatalf("X-Frame-Options = %q, want stripped for embedded store app proxy responses", got)
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); strings.Contains(got, "frame-ancestors") || !strings.Contains(got, "default-src 'self'") {
+		t.Fatalf("Content-Security-Policy = %q, want frame-ancestors stripped and other directives preserved", got)
+	}
+	if got := resp.Header.Get("Content-Security-Policy-Report-Only"); strings.Contains(got, "frame-ancestors") || !strings.Contains(got, "default-src 'self'") {
+		t.Fatalf("Content-Security-Policy-Report-Only = %q, want frame-ancestors stripped and other directives preserved", got)
 	}
 	if got := resp.Header.Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store for embedded store app documents", got)

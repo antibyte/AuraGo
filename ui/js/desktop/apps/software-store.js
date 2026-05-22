@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    const instances = new Map();
+
     function render(host, windowId, deps) {
         deps = deps || {};
         const esc = deps.esc || (value => String(value == null ? '' : value));
@@ -11,13 +13,17 @@
         const openApp = deps.openApp || function () {};
         const loadBootstrap = deps.loadBootstrap || function () {};
         if (!host || !api) return;
+        dispose(windowId);
 
         let catalog = [];
         let installed = [];
         let busy = new Map();
+        const pollingOperations = new Set();
+        const instance = { disposed: false, onDesktopEvent: null, pollingOperations };
         let dockerAvailable = true;
         let mutationsAllowed = true;
         let mutationDisabledReason = '';
+        instances.set(windowId, instance);
 
         host.innerHTML = `
             <div class="vd-store">
@@ -50,6 +56,7 @@
                     warning.textContent = mutationsAllowed ? '' : mutationDisabledText();
                 }
                 renderCards();
+                resumeActiveOperationPolling();
             } catch (err) {
                 grid.innerHTML = `<div class="vd-store-empty">${esc(err.message)}</div>`;
             }
@@ -59,6 +66,29 @@
             return installed.find(app => app.app_id === appId);
         }
 
+        function activeOperationForApp(app) {
+            if (!app || !app.last_operation_id) return null;
+            if (app.last_operation_state === 'pending' || app.last_operation_state === 'running') {
+                return {
+                    id: app.last_operation_id,
+                    app_id: app.app_id,
+                    type: app.last_operation_type || app.status || 'install',
+                    status: app.last_operation_state
+                };
+            }
+            return null;
+        }
+
+        function resumeActiveOperationPolling() {
+            installed.forEach(app => {
+                const operation = activeOperationForApp(app);
+                if (!operation || busy.has(app.app_id)) return;
+                busy.set(app.app_id, operation);
+                pollOperation(app.app_id, operation.id);
+            });
+            renderCards();
+        }
+
         function renderCards() {
             if (!catalog.length) {
                 grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty', 'No apps available.'))}</div>`;
@@ -66,7 +96,7 @@
             }
             grid.innerHTML = catalog.map(entry => {
                 const app = installedFor(entry.id);
-                const operation = busy.get(entry.id);
+                const operation = busy.get(entry.id) || activeOperationForApp(app);
                 const status = operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed'
                     ? 'installing'
                     : app ? (app.status || 'installed') : 'available';
@@ -239,9 +269,13 @@
         }
 
         async function pollOperation(appId, operationId) {
+            if (pollingOperations.has(operationId)) return;
+            pollingOperations.add(operationId);
             try {
                 for (;;) {
+                    if (instance.disposed) return;
                     await delay(1000);
+                    if (instance.disposed) return;
                     const body = await api('/api/desktop/store/operations/' + encodeURIComponent(operationId));
                     const op = body.operation;
                     busy.set(appId, op);
@@ -256,7 +290,9 @@
                 }
             } catch (err) {
                 busy.delete(appId);
-                await load();
+                if (!instance.disposed) await load();
+            } finally {
+                pollingOperations.delete(operationId);
             }
         }
 
@@ -264,8 +300,30 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+        instance.onDesktopEvent = payload => {
+            if (payload && payload.operation === 'desktop_store_changed') {
+                load();
+            }
+        };
+        if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
+            window.AuraSSE.on('virtual_desktop_event', instance.onDesktopEvent);
+        }
+
         load();
     }
 
-    window.SoftwareStoreApp = { render };
+    function dispose(windowId) {
+        const instance = instances.get(windowId);
+        if (!instance) return;
+        instance.disposed = true;
+        if (window.AuraSSE && typeof window.AuraSSE.off === 'function' && instance.onDesktopEvent) {
+            window.AuraSSE.off('virtual_desktop_event', instance.onDesktopEvent);
+        }
+        if (instance.pollingOperations && typeof instance.pollingOperations.clear === 'function') {
+            instance.pollingOperations.clear();
+        }
+        instances.delete(windowId);
+    }
+
+    window.SoftwareStoreApp = { render, dispose };
 })();

@@ -241,6 +241,7 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"Binds":         binds,
 		"PortBindings":  portBindings,
 		"RestartPolicy": map[string]any{"Name": restart},
+		"SecurityOpt":   []string{"no-new-privileges:true"},
 	}
 	if len(spec.ExtraHosts) > 0 {
 		hostConfig["ExtraHosts"] = append([]string(nil), spec.ExtraHosts...)

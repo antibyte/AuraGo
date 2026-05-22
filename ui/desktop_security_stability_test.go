@@ -16,7 +16,7 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 	}
 	for _, want := range []string{
 		`const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];`,
-		`if (appId && !widgetId) sandboxFlags.push('allow-same-origin');`,
+		`if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');`,
 		`if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');`,
 		`iframe.setAttribute('sandbox', sandboxFlags.join(' '));`,
 		`const cleanup = state.windowCleanups.get(win.id)`,
@@ -29,6 +29,10 @@ func TestDesktopGeneratedAppSandboxDisallowsPopups(t *testing.T) {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop main script missing stability marker %q", want)
 		}
+	}
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderGeneratedApp(id, appId)")
+	if strings.Contains(body, "allowSameOrigin") || strings.Contains(body, "allow-same-origin") {
+		t.Fatal("generated desktop app iframes must keep an opaque sandbox origin so apps cannot fetch desktop APIs directly")
 	}
 
 	if strings.Contains(readDesktopAssetText(t, "desktop.html"), `id="radialMenuAnchor"`) {
@@ -45,7 +49,7 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`function storeFrameURL(src, storeAppId)`,
 		`if (storeAppId === 'uptime-kuma')`,
 		`function cacheBustURL(src, paramName)`,
-		`const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });`,
+		`const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true });`,
 		`if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');`,
 		`if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');`,
 	} {
@@ -73,7 +77,7 @@ func TestDesktopWorkspaceCSPDisallowsPopupsAndTightensBaseAndObjects(t *testing.
 	}
 	for _, want := range []string{
 		"const desktopAppWorkspaceCSP",
-		"sandbox allow-scripts allow-forms allow-modals allow-same-origin",
+		"sandbox allow-scripts allow-forms allow-modals",
 		"const desktopWidgetWorkspaceCSP",
 		"sandbox allow-scripts allow-forms allow-modals",
 		"object-src 'none'",

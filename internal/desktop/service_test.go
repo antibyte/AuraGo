@@ -943,6 +943,60 @@ func TestServiceBootstrapMarksGeneratedAppWithEmptyEntryBroken(t *testing.T) {
 	t.Fatalf("quick-notes app missing from bootstrap: %+v", bootstrap.InstalledApps)
 }
 
+func TestServiceFileMutationsInvalidateBootstrapAppHealthCache(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	manifest := AppManifest{
+		ID:      "quick-notes",
+		Name:    "Quick Notes",
+		Version: "1.0.0",
+		Icon:    "note",
+		Entry:   "index.html",
+	}
+	if err := svc.InstallApp(ctx, manifest, map[string]string{"index.html": "<main>Quick Notes</main>"}, SourceAgent); err != nil {
+		t.Fatalf("InstallApp: %v", err)
+	}
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap warm cache: %v", err)
+	}
+	if got := testFindApp(t, bootstrap.InstalledApps, "quick-notes").Health; got == "broken" {
+		t.Fatalf("initial health = %q, want healthy", got)
+	}
+
+	if err := svc.WriteFile(ctx, "Apps/quick-notes/index.html", " \n\t", SourceAgent); err != nil {
+		t.Fatalf("WriteFile empty app entry: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after write: %v", err)
+	}
+	app := testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if app.Health != "broken" || app.HealthReason != "empty_entry_file" {
+		t.Fatalf("health after empty write = %s/%s, want broken/empty_entry_file", app.Health, app.HealthReason)
+	}
+
+	if err := svc.WriteFile(ctx, "Apps/quick-notes/index.html", "<main>Quick Notes</main>", SourceAgent); err != nil {
+		t.Fatalf("WriteFile restored app entry: %v", err)
+	}
+	if _, err := svc.Bootstrap(ctx); err != nil {
+		t.Fatalf("Bootstrap rewarm after restore: %v", err)
+	}
+	if err := svc.DeletePath(ctx, "Apps/quick-notes/index.html", SourceUser); err != nil {
+		t.Fatalf("DeletePath app entry: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after delete: %v", err)
+	}
+	app = testFindApp(t, bootstrap.InstalledApps, "quick-notes")
+	if app.Health != "broken" || app.HealthReason != "missing_entry_file" {
+		t.Fatalf("health after delete = %s/%s, want broken/missing_entry_file", app.Health, app.HealthReason)
+	}
+}
+
 func TestServiceDeleteAppRemovesGeneratedAppShortcutAndFiles(t *testing.T) {
 	t.Parallel()
 

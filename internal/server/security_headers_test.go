@@ -70,9 +70,12 @@ func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	}
 }
 
-func TestDesktopWorkspaceCSPAllowsGeneratedAppSameOrigin(t *testing.T) {
-	if !strings.Contains(desktopAppWorkspaceCSP, "allow-same-origin") {
-		t.Fatalf("generated app CSP must allow same-origin for game/browser runtimes: %s", desktopAppWorkspaceCSP)
+func TestDesktopWorkspaceCSPKeepsGeneratedAppsOriginIsolated(t *testing.T) {
+	if strings.Contains(desktopAppWorkspaceCSP, "allow-same-origin") {
+		t.Fatalf("generated app CSP must keep an opaque sandbox origin: %s", desktopAppWorkspaceCSP)
+	}
+	if strings.Contains(desktopAppWorkspaceCSP, "connect-src 'self'") {
+		t.Fatalf("generated app CSP must not allow direct fetches to AuraGo APIs: %s", desktopAppWorkspaceCSP)
 	}
 	if strings.Contains(desktopWidgetWorkspaceCSP, "allow-same-origin") {
 		t.Fatalf("widget CSP must keep stronger origin isolation: %s", desktopWidgetWorkspaceCSP)
