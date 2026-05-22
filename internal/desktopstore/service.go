@@ -840,22 +840,33 @@ func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, ap
 
 func installEnv(entry CatalogEntry) []string {
 	env := append([]string(nil), entry.Env...)
-	if entry.ID == "homarr" {
-		env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", randomHex(32))
+	if key := generatedSecretEnvKey(entry); key != "" {
+		env = appendEnvValue(env, key, randomHex(32))
 	}
 	return env
 }
 
 func updateEnv(entry CatalogEntry, previous []string) []string {
 	env := append([]string(nil), entry.Env...)
-	if entry.ID == "homarr" {
-		if value, ok := envValue(previous, "SECRET_ENCRYPTION_KEY"); ok {
-			env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", value)
+	if key := generatedSecretEnvKey(entry); key != "" {
+		if value, ok := envValue(previous, key); ok {
+			env = appendEnvValue(env, key, value)
 		} else {
-			env = appendEnvValue(env, "SECRET_ENCRYPTION_KEY", randomHex(32))
+			env = appendEnvValue(env, key, randomHex(32))
 		}
 	}
 	return env
+}
+
+func generatedSecretEnvKey(entry CatalogEntry) string {
+	switch entry.ID {
+	case "homarr":
+		return "SECRET_ENCRYPTION_KEY"
+	case "bytestash":
+		return "JWT_SECRET"
+	default:
+		return ""
+	}
 }
 
 func envValue(env []string, key string) (string, bool) {

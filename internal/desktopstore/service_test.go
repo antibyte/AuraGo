@@ -15,8 +15,8 @@ import (
 
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	catalog := DefaultCatalog()
-	if len(catalog) != 8 {
-		t.Fatalf("expected 8 catalog apps, got %d", len(catalog))
+	if len(catalog) != 11 {
+		t.Fatalf("expected 11 catalog apps, got %d", len(catalog))
 	}
 
 	expected := map[string]struct {
@@ -24,14 +24,17 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		port  int
 		icon  string
 	}{
-		"homarr":       {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home"},
-		"n8n":          {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "workflow"},
-		"node-red":     {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "workflow"},
-		"open-webui":   {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
-		"adguard-home": {image: "adguard/adguardhome", port: 3000, icon: "network"},
-		"excalidraw":   {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
-		"uptime-kuma":  {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
-		"olivetin":     {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "terminal"},
+		"homarr":              {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home"},
+		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "workflow"},
+		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "workflow"},
+		"open-webui":          {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "chat"},
+		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network"},
+		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor"},
+		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor"},
+		"olivetin":            {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "terminal"},
+		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code"},
+		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools"},
+		"filebrowser-quantum": {image: "gtstef/filebrowser:stable", port: 80, icon: "folder"},
 	}
 
 	for _, entry := range catalog {
@@ -67,6 +70,51 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	}
 	if len(expected) != 0 {
 		t.Fatalf("missing catalog entries: %#v", expected)
+	}
+}
+
+func TestInstallByteStashGeneratesAndPreservesJWTSecret(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19190))
+
+	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "bytestash", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	before, ok, err := svc.GetInstalled(ctx, "bytestash")
+	if err != nil || !ok {
+		t.Fatalf("get installed bytestash: ok=%v err=%v", ok, err)
+	}
+	secret, ok := envValue(before.Env, "JWT_SECRET")
+	if !ok || len(secret) != 64 {
+		t.Fatalf("installed bytestash JWT_SECRET missing or wrong length: %#v", before.Env)
+	}
+	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/jordan-dalby/bytestash:latest" {
+		t.Fatalf("unexpected bytestash container spec: %#v", docker.created)
+	}
+	if len(docker.created[0].Volumes) != 1 || docker.created[0].Volumes[0].ContainerPath != "/data/snippets" {
+		t.Fatalf("unexpected bytestash volumes: %#v", docker.created[0].Volumes)
+	}
+
+	updateOp, err := svc.StartAppOperation(ctx, "bytestash", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+
+	after, ok, err := svc.GetInstalled(ctx, "bytestash")
+	if err != nil || !ok {
+		t.Fatalf("get updated bytestash: ok=%v err=%v", ok, err)
+	}
+	updatedSecret, ok := envValue(after.Env, "JWT_SECRET")
+	if !ok || updatedSecret != secret {
+		t.Fatalf("bytestash JWT_SECRET after update = %q/%v, want original %q", updatedSecret, ok, secret)
 	}
 }
 
