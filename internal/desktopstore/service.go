@@ -326,6 +326,13 @@ func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error 
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("read interrupted desktop store apps: %w", err)
 	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE desktop_store_apps
+		SET last_operation_state = ?, updated_at = ?
+		WHERE last_operation_state IN (?, ?)
+			AND status NOT IN (?, ?)`,
+		OperationFailed, formatTime(now), OperationPending, OperationRunning, AppStatusInstalling, AppStatusUpdating); err != nil {
+		return fmt.Errorf("clear stale desktop store operation markers: %w", err)
+	}
 	for _, app := range apps {
 		switch app.Status {
 		case AppStatusInstalling:

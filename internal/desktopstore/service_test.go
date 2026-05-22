@@ -650,6 +650,41 @@ func TestInitRecoversInterruptedInstallingOperation(t *testing.T) {
 	}
 }
 
+func TestInitClearsStaleActiveOperationMarkerForRunningApp(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17575), nil)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.updateOperation(ctx, op.ID, OperationRunning, "running", ""); err != nil {
+		t.Fatalf("mark operation running: %v", err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["homarr"], op, BindModeLocal, "127.0.0.1", 17575, false)
+	record.Status = AppStatusRunning
+	record.LastOperationState = OperationRunning
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatalf("seed running record with stale operation marker: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close first service: %v", err)
+	}
+
+	recoveredSvc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17576), nil)
+	stored, ok, err := recoveredSvc.GetInstalled(ctx, "homarr")
+	if err != nil || !ok {
+		t.Fatalf("get recovered app: ok=%v err=%v", ok, err)
+	}
+	if stored.Status != AppStatusRunning {
+		t.Fatalf("running app status changed during metadata recovery: %#v", stored)
+	}
+	if stored.LastOperationState != OperationFailed {
+		t.Fatalf("stale active operation marker = %q, want %q", stored.LastOperationState, OperationFailed)
+	}
+}
+
 func TestStartInstallRejectsConcurrentOperationForSameApp(t *testing.T) {
 	ctx := context.Background()
 	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19185))
