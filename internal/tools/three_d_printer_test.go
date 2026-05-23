@@ -1,9 +1,13 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -391,6 +396,35 @@ func TestElegooCentauriCarbonCameraURLNormalizesSchemelessVideoURL(t *testing.T)
 	}
 }
 
+func TestFetchThreeDPrinterSnapshotReadsMJPEGFrameWithoutTrailingBoundary(t *testing.T) {
+	frame := testThreeDPrinterJPEG(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", `multipart/x-mixed-replace; boundary=elegoo`)
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatal("test server does not support flushing")
+		}
+		_, _ = w.Write([]byte("--elegoo\r\nContent-Type: image/jpeg\r\n\r\n"))
+		_, _ = w.Write(frame)
+		flusher.Flush()
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	data, contentType, err := FetchThreeDPrinterSnapshot(ctx, server.URL)
+	if err != nil {
+		t.Fatalf("FetchThreeDPrinterSnapshot error = %v", err)
+	}
+	if !bytes.Equal(data, frame) {
+		t.Fatalf("snapshot frame mismatch: got %d bytes, want %d", len(data), len(frame))
+	}
+	if !strings.HasPrefix(contentType, "image/jpeg") {
+		t.Fatalf("content type = %q, want image/jpeg", contentType)
+	}
+}
+
 func TestElegooCentauriCarbonCommandStopsAfterTooManyUnrelatedResponses(t *testing.T) {
 	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
 		for i := 0; i < 51; i++ {
@@ -444,6 +478,21 @@ func TestStoreThreeDPrinterMediaWritesSafeFileAndRegistersMedia(t *testing.T) {
 
 func boolPtr(value bool) *bool {
 	return &value
+}
+
+func testThreeDPrinterJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 2; x++ {
+			img.Set(x, y, color.RGBA{R: 120, G: 80, B: 40, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatalf("jpeg.Encode error = %v", err)
+	}
+	return buf.Bytes()
 }
 
 func TestStoreThreeDPrinterMediaRejectsInvalidInputs(t *testing.T) {

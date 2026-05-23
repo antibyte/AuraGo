@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -368,7 +367,7 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 		return nil, "", fmt.Errorf("camera stream returned HTTP %d", resp.StatusCode)
 	}
 	contentType := resp.Header.Get("Content-Type")
-	mediaType, params, _ := mime.ParseMediaType(contentType)
+	mediaType, _, _ := mime.ParseMediaType(contentType)
 	switch {
 	case strings.HasPrefix(mediaType, "image/"):
 		data, err := readHTTPResponseBody(resp.Body, 8*1024*1024)
@@ -377,17 +376,7 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 		}
 		return data, http.DetectContentType(data), nil
 	case strings.EqualFold(mediaType, "multipart/x-mixed-replace"):
-		boundary := params["boundary"]
-		if boundary == "" {
-			return nil, "", fmt.Errorf("MJPEG stream is missing multipart boundary")
-		}
-		reader := multipart.NewReader(resp.Body, boundary)
-		part, err := reader.NextPart()
-		if err != nil {
-			return nil, "", fmt.Errorf("read first MJPEG frame: %w", err)
-		}
-		defer part.Close()
-		data, err := readHTTPResponseBody(part, 8*1024*1024)
+		data, err := readFirstMJPEGJPEGFrame(resp.Body, 8*1024*1024)
 		if err != nil {
 			return nil, "", fmt.Errorf("read first MJPEG frame: %w", err)
 		}
@@ -395,6 +384,56 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 	default:
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return nil, "", fmt.Errorf("unsupported camera content type %q: %s", contentType, strings.TrimSpace(string(body)))
+	}
+}
+
+func readFirstMJPEGJPEGFrame(reader io.Reader, limit int64) ([]byte, error) {
+	if limit <= 0 {
+		limit = 8 * 1024 * 1024
+	}
+	buf := make([]byte, 0, 64*1024)
+	chunk := make([]byte, 8192)
+	frameStart := -1
+	scanFrom := 0
+
+	for {
+		n, err := reader.Read(chunk)
+		if n > 0 {
+			buf = append(buf, chunk[:n]...)
+			if int64(len(buf)) > limit {
+				return nil, fmt.Errorf("MJPEG frame exceeds limit of %d bytes", limit)
+			}
+			if frameStart < 0 {
+				if idx := bytes.Index(buf, []byte{0xff, 0xd8}); idx >= 0 {
+					frameStart = idx
+					scanFrom = frameStart + 2
+				} else if len(buf) > 1 {
+					buf = buf[len(buf)-1:]
+				}
+			}
+			if frameStart >= 0 {
+				if scanFrom < frameStart+2 {
+					scanFrom = frameStart + 2
+				}
+				if idx := bytes.Index(buf[scanFrom:], []byte{0xff, 0xd9}); idx >= 0 {
+					end := scanFrom + idx + 2
+					frame := append([]byte(nil), buf[frameStart:end]...)
+					return frame, nil
+				}
+				if len(buf)-1 > scanFrom {
+					scanFrom = len(buf) - 1
+				}
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				if frameStart >= 0 {
+					return nil, fmt.Errorf("MJPEG stream ended before JPEG frame was complete")
+				}
+				return nil, fmt.Errorf("MJPEG stream ended before JPEG frame started")
+			}
+			return nil, err
+		}
 	}
 }
 
