@@ -5195,6 +5195,101 @@
     background: rgba(255,255,255,0.14);
 }
 
+/* ── Looper Layout Folding Styles ── */
+.vd-looper-header,
+.vd-looper-workspace {
+    max-height: 800px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease,
+                border-color 0.3s ease;
+}
+
+.vd-looper--collapsed .vd-looper-header {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    border-bottom: 0 solid transparent;
+    flex: 0 0 0px;
+    pointer-events: none;
+}
+
+.vd-looper--collapsed .vd-looper-workspace {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    flex: 0 0 0px;
+    pointer-events: none;
+}
+
+.vd-looper--collapsed .vd-looper-monitor {
+    max-height: none;
+    flex: 1 1 auto;
+    border-top-color: transparent;
+}
+
+/* ── Monitor Header Actions ── */
+.vd-looper-monitor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
+.vd-looper-monitor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 4px 8px;
+    height: 24px;
+    border-radius: 5px;
+    border: 1px solid var(--vd-border, rgba(255,255,255,0.08));
+    background: var(--vd-surface-strong, rgba(0,0,0,0.25));
+    color: var(--vd-text-muted, #9aa3ad);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.vd-looper-monitor-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--vd-text, #e8ecf1);
+    border-color: rgba(255,255,255,0.15);
+}
+
+.vd-looper-monitor-btn-stop {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.vd-looper-monitor-btn-stop:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ff6b6b;
+    border-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+}
+
+.vd-looper-monitor-btn-stop svg {
+    margin-top: 1px;
+}
+
+.vd-looper-monitor-btn-toggle {
+    width: 24px;
+    padding: 0;
+}
+
+.vd-looper-monitor-btn-toggle svg {
+    transition: transform 0.25s ease;
+}
+
 .vd-viewer {
     display: flex;
     flex-direction: column;

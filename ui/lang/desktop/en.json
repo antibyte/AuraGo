@@ -724,5 +724,6 @@
     "desktop.store.access_lan": "LAN",
     "desktop.store.access_local": "Local",
     "desktop.store.access_tailnet": "Tailnet",
-    "desktop.store.access_tailnet_pending": "Tailnet pending"
+    "desktop.store.access_tailnet_pending": "Tailnet pending",
+    "desktop.looper_toggle_view": "Toggle view size"
 }

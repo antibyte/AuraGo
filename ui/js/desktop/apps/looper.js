@@ -27,7 +27,8 @@
             activeStep: 'prepare',
             stepValues: { prepare: '', plan: '', action: '', test: '', exit: '', finish: '' },
             startTime: null,
-            logCount: 0
+            logCount: 0,
+            collapsed: false
         };
         instances.set(windowId, state);
 
@@ -107,6 +108,17 @@
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                             <span>${esc(t('desktop.looper_status_idle'))}</span>
                         </div>
+                        <div class="vd-looper-monitor-actions">
+                            <button type="button" class="vd-looper-monitor-btn vd-looper-monitor-btn-stop" id="looper-monitor-stop-${windowId}" style="display: none;" title="${esc(t('desktop.looper_stop'))}">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                                <span>${esc(t('desktop.looper_stop'))}</span>
+                            </button>
+                            <button type="button" class="vd-looper-monitor-btn vd-looper-monitor-btn-toggle" id="looper-toggle-view-${windowId}" title="${esc(t('desktop.looper_toggle_view'))}">
+                                <svg id="looper-toggle-icon-${windowId}" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="18 15 12 9 6 15"></polyline>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="vd-looper-monitor-meta" id="looper-meta-${windowId}"></div>
                     </div>
                     <div class="vd-looper-progress-track">
@@ -131,6 +143,21 @@
 
         const $ = id => container.querySelector('#' + id);
         const $$ = sel => container.querySelectorAll(sel);
+
+        const looperEl = container.querySelector('.vd-looper');
+        const toggleIcon = $(`looper-toggle-icon-${windowId}`);
+
+        function updateToggleState(isCollapsed) {
+            if (!looperEl) return;
+            looperEl.classList.toggle('vd-looper--collapsed', isCollapsed);
+            if (toggleIcon) {
+                if (isCollapsed) {
+                    toggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+                } else {
+                    toggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+                }
+            }
+        }
 
         function saveCurrentStepValue() {
             const textarea = $(`looper-editor-textarea-${windowId}`);
@@ -170,6 +197,23 @@
         });
 
         setActiveStep('prepare');
+
+        if ($(`looper-toggle-view-${windowId}`)) {
+            $(`looper-toggle-view-${windowId}`).addEventListener('click', () => {
+                state.collapsed = !state.collapsed;
+                updateToggleState(state.collapsed);
+            });
+        }
+
+        if ($(`looper-monitor-stop-${windowId}`)) {
+            $(`looper-monitor-stop-${windowId}`).addEventListener('click', async () => {
+                try {
+                    await api('/api/desktop/looper/stop', { method: 'POST' });
+                } catch (e) {
+                    if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_stop_error') });
+                }
+            });
+        }
 
         async function loadProviders() {
             const select = $(`looper-provider-${windowId}`);
@@ -371,6 +415,7 @@
         }
 
         function updateStatus(data) {
+            const wasRunning = state.running;
             state.status = data;
             const monitor = $(`looper-monitor-${windowId}`);
             const titleEl = monitor.querySelector('.vd-looper-monitor-title span');
@@ -380,12 +425,21 @@
             const logsEl = $(`looper-logs-${windowId}`);
             const startBtn = $(`looper-start-${windowId}`);
             const stopBtn = $(`looper-stop-${windowId}`);
+            const monitorStopBtn = $(`looper-monitor-stop-${windowId}`);
 
             state.running = data.running;
             startBtn.disabled = data.running;
             stopBtn.disabled = !data.running;
+            if (monitorStopBtn) {
+                monitorStopBtn.style.display = data.running ? 'inline-flex' : 'none';
+            }
             monitor.classList.toggle('vd-looper-monitor--running', data.running);
             monitor.classList.toggle('vd-looper-monitor--error', !!data.error);
+
+            if (wasRunning && !data.running) {
+                state.collapsed = false;
+                updateToggleState(false);
+            }
 
             if (data.error) {
                 titleEl.textContent = t('desktop.looper_error') + ': ' + data.error;
@@ -458,6 +512,8 @@
                 state.logCount = 0;
                 state.startTime = Date.now();
                 connectStatus();
+                state.collapsed = true;
+                updateToggleState(true);
             } catch (e) {
                 if (e && e.status === 409) {
                     if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
