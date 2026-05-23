@@ -900,6 +900,7 @@
         const diagonalWave = Math.sin((x + z) * 0.32 + t * 0.42) * 0.12;
         let height = slowWave + crossWave + diagonalWave;
         const ignoreRobotOwner = options && options.ignoreRobotOwner;
+        const ignoreRobotFeedbackWaves = options && options.ignoreRobotFeedbackWaves;
 
         // Use pre-computed impulse invariants when available (bulk surface pass)
         const pre = _preImpulse;
@@ -935,7 +936,7 @@
         if (currentMode === 4 || previousMode === 4) height += vortexHeightAt(x, z, t);
 
         // Robot thruster downdraft and ripples under the robot
-        if (robotState) {
+        if (!ignoreRobotFeedbackWaves && robotState) {
             const activeRobots = robotFleet.length ? robotFleet : [{ id: 'blue', state: robotState }];
             for (let ri = 0; ri < activeRobots.length; ri++) {
                 const bot = activeRobots[ri];
@@ -951,7 +952,9 @@
             }
         }
 
-        height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);
+        if (!ignoreRobotFeedbackWaves) {
+            height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);
+        }
 
         return height;
     }
@@ -1299,11 +1302,12 @@
         }
     }
 
-    function sampleSurfaceNormal(x, z, t, bot) {
+    function sampleSurfaceNormal(x, z, t, bot, options) {
         ensureRobotPhysicsState();
         const targetNormal = bot && bot.surfaceNormal ? bot.surfaceNormal : robotSurfaceNormal;
         const eps = 0.22;
-        const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id } : null;
+        const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };
+        if (options) Object.assign(sampleOptions, options);
         const left = heightAt(clamp(x - eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
         const right = heightAt(clamp(x + eps, -robotBounds.x, robotBounds.x), z, t, sampleOptions);
         const back = heightAt(x, clamp(z - eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
@@ -1558,8 +1562,11 @@
         const pendingThrusterRipple = bot.state.pendingThrusterRipple || 0;
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
 
-        const sampleOptions = bot.id ? { ignoreRobotOwner: bot.id } : null;
-        const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
+        const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };
+        const sampledWaterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
+        const previousWaterY = Number.isFinite(bot.state.visualWaterY) ? bot.state.visualWaterY : sampledWaterY;
+        bot.state.visualWaterY = previousWaterY + (sampledWaterY - previousWaterY) * clamp(dt * 3.4, 0, 1);
+        const waterY = bot.state.visualWaterY;
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
         bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 1.5);
@@ -1635,7 +1642,7 @@
             bot.group.position.lerp(bot.targetPosition, clamp(dt * 4.6, 0, 1));
         }
 
-        const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);
+        const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot, sampleOptions);
         normal.lerp(bot.up, 1 - flightWaveInfluence).normalize();
         const targetForward = _scratchVec3.set(0, 0, 0);
         if (bot.velocity.lengthSq() > 0.0001) {

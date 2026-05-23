@@ -207,7 +207,7 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"if (ignoreRobotOwner && botOwner === ignoreRobotOwner) continue;",
 		"height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);",
 		"if (ignoreOwner && ripple.owner === ignoreOwner) continue;",
-		"const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id } : null;",
+		"const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };",
 		"updateRobotThrusterRipples(t);",
 		"new THREE.Vector3(0, ROBOT_FOOT_JET_UNDERSIDE_Y, 0)",
 		"const owner = bot.id || 'robot';",
@@ -267,6 +267,29 @@ func TestThreeDeeRobotThrusterRipplesStaySparse(t *testing.T) {
 	}
 	if strings.Contains(shader, "ROBOT_THRUSTER_RIPPLE_MAX_ACTIVE_PER_ROBOT = 2") {
 		t.Fatal("two active thruster ripples per robot can visually jump between overlapping fronts")
+	}
+}
+
+func TestThreeDeeRobotSamplingIgnoresFeedbackWaves(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const ignoreRobotFeedbackWaves = options && options.ignoreRobotFeedbackWaves;",
+		"if (!ignoreRobotFeedbackWaves && robotState) {",
+		"if (!ignoreRobotFeedbackWaves) {",
+		"height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);",
+		"const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };",
+		"const sampledWaterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);",
+		"bot.state.visualWaterY",
+		"const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot, sampleOptions);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing robot feedback damping marker %q", marker)
+		}
+	}
+	if strings.Contains(shader, "sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);") {
+		t.Fatal("robot normal sampling should receive feedback-free sample options")
 	}
 }
 
