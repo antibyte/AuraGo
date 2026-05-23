@@ -41,7 +41,7 @@
     };
 
     const IMPULSE_LIFETIME = 4.8;
-    const MAX_IMPULSES = 8;
+    const MAX_IMPULSES = 32;
     const FRAME_INTERVAL = 1000 / 30;
 
     let colorLow;
@@ -109,11 +109,25 @@
     const robotThrusterRipples = [];
 
     const AURA_VERTEX_SHADER = [
+        'uniform float time;',
+        'uniform float hitIntensity;',
         'varying vec3 vNormal;',
         'varying vec3 vViewPosition;',
+        'varying vec3 vPosition;',
+        'varying vec2 vUv;',
+        'float organicWave(vec3 p, float t) {',
+        '    float w = sin(p.x * 4.0 + t * 5.0) * cos(p.y * 4.0 + t * 4.0);',
+        '    w += sin(p.z * 6.0 - t * 6.0) * 0.5;',
+        '    w += cos((p.x + p.y + p.z) * 8.0 + t * 8.0) * 0.25;',
+        '    return w;',
+        '}',
         'void main() {',
-        '    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);',
+        '    vUv = uv;',
+        '    vPosition = position;',
         '    vNormal = normalize(normalMatrix * normal);',
+        '    float displacement = organicWave(position, time) * 0.12 * hitIntensity;',
+        '    vec3 displacedPosition = position + normal * displacement;',
+        '    vec4 mvPosition = modelViewMatrix * vec4(displacedPosition, 1.0);',
         '    vViewPosition = -mvPosition.xyz;',
         '    gl_Position = projectionMatrix * mvPosition;',
         '}'
@@ -122,14 +136,28 @@
     const AURA_FRAGMENT_SHADER = [
         'uniform vec3 color;',
         'uniform float intensity;',
+        'uniform float hitIntensity;',
         'uniform float glowPower;',
+        'uniform float time;',
         'varying vec3 vNormal;',
         'varying vec3 vViewPosition;',
+        'varying vec3 vPosition;',
+        'varying vec2 vUv;',
+        'float plasmaPattern(vec3 p, float t) {',
+        '    float v = sin(p.x * 6.0 + t * 4.0) + sin(p.y * 6.0 - t * 3.5);',
+        '    v += cos(p.z * 5.0 + t * 3.0) + cos((p.x + p.y) * 4.0 - t * 5.0);',
+        '    return v * 0.25 + 0.5;',
+        '}',
         'void main() {',
         '    vec3 normal = normalize(vNormal);',
         '    vec3 viewDir = normalize(vViewPosition);',
-        '    float intensityFactor = pow(1.0 - abs(dot(normal, viewDir)), glowPower);',
-        '    gl_FragColor = vec4(color, intensityFactor * intensity);',
+        '    float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), glowPower);',
+        '    float plasma = plasmaPattern(vPosition, time);',
+        '    float energyLines = smoothstep(0.42, 0.46, abs(sin(vPosition.y * 8.0 + plasma * 4.0 - time * 6.0)));',
+        '    energyLines += smoothstep(0.42, 0.46, abs(cos(vPosition.x * 8.0 - plasma * 4.0 + time * 5.0))) * 0.5;',
+        '    vec3 energyColor = color + vec3(0.5, 0.5, 0.5) * hitIntensity;',
+        '    float finalGlow = edgeFactor * 0.6 + energyLines * 0.4 * (0.3 + 0.7 * hitIntensity);',
+        '    gl_FragColor = vec4(mix(color, energyColor, energyLines * 0.6), finalGlow * intensity);',
         '}'
     ].join('\n');
 
@@ -1181,7 +1209,9 @@
                 uniforms: {
                     color: { value: new THREE.Color(bot.projectileHex) },
                     intensity: { value: 0.0 },
-                    glowPower: { value: 2.2 }
+                    hitIntensity: { value: 0.0 },
+                    glowPower: { value: 2.2 },
+                    time: { value: 0.0 }
                 },
                 transparent: true,
                 blending: THREE.AdditiveBlending,
@@ -1239,22 +1269,30 @@
         let bounced = false;
         if (state.x > robotBounds.x) {
             state.x = robotBounds.x;
-            velocity.x = -Math.abs(velocity.x) * 0.88;
-            bounced = true;
+            if (velocity.x > 0) {
+                velocity.x = -velocity.x * 0.88;
+                bounced = true;
+            }
         } else if (state.x < -robotBounds.x) {
             state.x = -robotBounds.x;
-            velocity.x = Math.abs(velocity.x) * 0.88;
-            bounced = true;
+            if (velocity.x < 0) {
+                velocity.x = -velocity.x * 0.88;
+                bounced = true;
+            }
         }
 
         if (state.z > robotBounds.z) {
             state.z = robotBounds.z;
-            velocity.y = -Math.abs(velocity.y) * 0.88;
-            bounced = true;
+            if (velocity.y > 0) {
+                velocity.y = -velocity.y * 0.88;
+                bounced = true;
+            }
         } else if (state.z < -robotBounds.z) {
             state.z = -robotBounds.z;
-            velocity.y = Math.abs(velocity.y) * 0.88;
-            bounced = true;
+            if (velocity.y < 0) {
+                velocity.y = -velocity.y * 0.88;
+                bounced = true;
+            }
         }
 
         if (bounced && t - state.lastBounce > 0.16) {
@@ -1473,6 +1511,8 @@
             bot.auraMesh.scale.set(hitScale, hitScale, hitScale);
             const pulse = Math.sin(t * 15) * 0.15;
             bot.auraMesh.material.uniforms.intensity.value = bot.state.hitFlash * 0.95 + (bot.state.hitFlash > 0.01 ? pulse * bot.state.hitFlash : 0);
+            bot.auraMesh.material.uniforms.hitIntensity.value = bot.state.hitFlash;
+            bot.auraMesh.material.uniforms.time.value = t;
         }
 
         if (bot.state.isAiming && Math.random() < dt * 25 && bot.opponent && bot.opponent.group) {
@@ -1508,21 +1548,28 @@
 
         const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);
         normal.lerp(bot.up, 1 - flightWaveInfluence).normalize();
-        bot.forward.set(bot.velocity.x, 0, bot.velocity.y);
-        if (bot.forward.lengthSq() < 0.0001) bot.forward.set(0, 0, 1);
-        bot.forward.normalize();
+        const targetForward = new THREE.Vector3();
+        if (bot.velocity.lengthSq() > 0.0001) {
+            targetForward.set(bot.velocity.x, 0, bot.velocity.y).normalize();
+        } else {
+            targetForward.copy(bot.forward);
+        }
 
         if (bot.opponent && bot.opponent.state) {
             const duelVector = new THREE.Vector3(bot.opponent.state.x - bot.state.x, 0, bot.opponent.state.z - bot.state.z);
             const duelDistance = Math.max(0.001, duelVector.length());
             if (bot.state.isAiming) {
                 duelVector.normalize();
-                bot.forward.lerp(duelVector, clamp(dt * 15, 0, 1)).normalize();
+                targetForward.copy(duelVector);
             } else if (duelDistance < ROBOT_DUEL_DISTANCE + 1.1) {
                 duelVector.normalize();
-                bot.forward.lerp(duelVector, clamp((ROBOT_DUEL_DISTANCE + 1.1 - duelDistance) / 2.8, 0, 0.78)).normalize();
+                const blend = clamp((ROBOT_DUEL_DISTANCE + 1.1 - duelDistance) / 2.8, 0, 0.78);
+                targetForward.lerp(duelVector, blend).normalize();
             }
         }
+
+        const lerpSpeed = bot.state.isAiming ? 15.0 : 6.0;
+        bot.forward.lerp(targetForward, clamp(dt * lerpSpeed, 0, 1)).normalize();
 
         const heading = Math.atan2(bot.forward.x, bot.forward.z);
         if (bot.id === 'blue') {
