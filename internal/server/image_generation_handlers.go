@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -182,6 +184,10 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 			offset = v
 		}
 
+		s.CfgMu.RLock()
+		dataDir := s.Cfg.Directories.DataDir
+		s.CfgMu.RUnlock()
+
 		seen := make(map[string]bool)
 		var all []unifiedImage
 
@@ -191,6 +197,9 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 			if err == nil {
 				for _, item := range items {
 					if provider != "" && item.Provider != provider {
+						continue
+					}
+					if !mediaRegistryImageFileExists(dataDir, item) {
 						continue
 					}
 					key := item.Filename
@@ -229,6 +238,9 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 			galleryImages, _, err := tools.ListGeneratedImages(s.ImageGalleryDB, provider, query, 5000, 0)
 			if err == nil {
 				for _, img := range galleryImages {
+					if !generatedImageFileExists(dataDir, img.Filename) {
+						continue
+					}
 					key := img.Filename
 					if key != "" && seen[key] {
 						continue
@@ -283,6 +295,101 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 			"offset": offset,
 		})
 	}
+}
+
+var mediaFileServerDataSubdirs = []struct {
+	prefix string
+	subdir string
+}{
+	{prefix: "/files/3d_printer_media/", subdir: "3d_printer_media"},
+	{prefix: "/files/frigate_media/", subdir: "frigate_media"},
+	{prefix: "/files/generated_images/", subdir: "generated_images"},
+	{prefix: "/files/generated_videos/", subdir: "generated_videos"},
+	{prefix: "/files/audio/", subdir: "audio"},
+	{prefix: "/files/documents/", subdir: "documents"},
+	{prefix: "/files/downloads/", subdir: "downloads"},
+	{prefix: "/files/browser_screenshots/", subdir: "browser_screenshots"},
+	{prefix: "/files/browser_downloads/", subdir: "browser_downloads"},
+}
+
+func mediaRegistryImageFileExists(dataDir string, item tools.MediaItem) bool {
+	candidates := make([]string, 0, 3)
+	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.FilePath); ok {
+		candidates = append(candidates, localPath)
+	} else if strings.TrimSpace(item.FilePath) != "" {
+		candidates = append(candidates, item.FilePath)
+	}
+	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.WebPath); ok {
+		candidates = append(candidates, localPath)
+	}
+	if item.Filename != "" && strings.TrimSpace(dataDir) != "" {
+		candidates = append(candidates, filepath.Join(dataDir, "generated_images", item.Filename))
+	}
+
+	for _, candidate := range candidates {
+		if regularFileExists(candidate) {
+			return true
+		}
+	}
+	return len(candidates) == 0 && isExternalWebPath(item.WebPath)
+}
+
+func generatedImageFileExists(dataDir, filename string) bool {
+	if strings.TrimSpace(dataDir) == "" || strings.TrimSpace(filename) == "" {
+		return false
+	}
+	return regularFileExists(filepath.Join(dataDir, "generated_images", filename))
+}
+
+func mediaWebPathToLocalPath(dataDir, rawPath string) (string, bool) {
+	if strings.TrimSpace(dataDir) == "" {
+		return "", false
+	}
+	webPath := strings.TrimSpace(rawPath)
+	if webPath == "" {
+		return "", false
+	}
+	if parsed, err := url.Parse(webPath); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		webPath = parsed.EscapedPath()
+	}
+	if i := strings.IndexAny(webPath, "?#"); i >= 0 {
+		webPath = webPath[:i]
+	}
+	decodedPath, err := url.PathUnescape(webPath)
+	if err != nil {
+		return "", false
+	}
+	cleanPath := path.Clean(decodedPath)
+	for _, mapping := range mediaFileServerDataSubdirs {
+		if !strings.HasPrefix(cleanPath, mapping.prefix) {
+			continue
+		}
+		relPath := strings.TrimPrefix(cleanPath, mapping.prefix)
+		if relPath == "" || relPath == "." {
+			return "", false
+		}
+		root := filepath.Join(dataDir, mapping.subdir)
+		localPath := filepath.Clean(filepath.Join(root, filepath.FromSlash(relPath)))
+		rel, err := filepath.Rel(root, localPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return "", false
+		}
+		return localPath, true
+	}
+	return "", false
+}
+
+func regularFileExists(filePath string) bool {
+	if strings.TrimSpace(filePath) == "" {
+		return false
+	}
+	info, err := os.Stat(filePath)
+	return err == nil && !info.IsDir()
+}
+
+func isExternalWebPath(webPath string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(webPath))
+	return err == nil && parsed.Scheme != "" && parsed.Host != "" && !strings.EqualFold(parsed.Scheme, "file")
 }
 
 // handleImageGalleryBulkDelete handles POST /api/image-gallery/bulk-delete.
