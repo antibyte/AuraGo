@@ -167,6 +167,7 @@ func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
 		"const ROBOT_FLIGHT_MAX_INTERVAL =",
 		"const ROBOT_FLIGHT_DURATION =",
 		"const ROBOT_FLIGHT_HEIGHT =",
+		"const ROBOT_FLIGHT_MAX_HEIGHT =",
 		"const ROBOT_WAVE_DAMPING_HEIGHT =",
 		"flightLift",
 		"nextFlightAt",
@@ -180,6 +181,26 @@ func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing robot flight/wave damping marker %q", marker)
+		}
+	}
+}
+
+func TestThreeDeeRobotFlightsUseRandomHighAltitude(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	baseHeight := extractJSConstFloat(t, shader, "ROBOT_FLIGHT_HEIGHT")
+	maxHeight := extractJSConstFloat(t, shader, "ROBOT_FLIGHT_MAX_HEIGHT")
+	if maxHeight < baseHeight*2.6 {
+		t.Fatalf("robot max flight height should be much higher than the base height, got base %.2f max %.2f", baseHeight, maxHeight)
+	}
+	for _, marker := range []string{
+		"const flightHeightRange = ROBOT_FLIGHT_MAX_HEIGHT - ROBOT_FLIGHT_HEIGHT;",
+		"state.flightPeak = ROBOT_FLIGHT_HEIGHT + Math.random() * flightHeightRange;",
+		"state.flightPeak *= bot.id === 'red' ? 1.08 : 0.96;",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing random high flight marker %q", marker)
 		}
 	}
 }

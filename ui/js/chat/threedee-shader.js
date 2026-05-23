@@ -96,6 +96,7 @@
     const ROBOT_FLIGHT_MAX_INTERVAL = 12.5;
     const ROBOT_FLIGHT_DURATION = 2.05;
     const ROBOT_FLIGHT_HEIGHT = 1.12;
+    const ROBOT_FLIGHT_MAX_HEIGHT = 3.35;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
@@ -1437,7 +1438,9 @@
         if (state.flightStartedAt < 0 && t >= state.nextFlightAt) {
             state.flightStartedAt = t;
             state.flightDuration = ROBOT_FLIGHT_DURATION * (0.84 + Math.random() * 0.34);
-            state.flightPeak = ROBOT_FLIGHT_HEIGHT * (bot.id === 'red' ? 1.08 : 0.94) * (0.88 + Math.random() * 0.22);
+            const flightHeightRange = ROBOT_FLIGHT_MAX_HEIGHT - ROBOT_FLIGHT_HEIGHT;
+            state.flightPeak = ROBOT_FLIGHT_HEIGHT + Math.random() * flightHeightRange;
+            state.flightPeak *= bot.id === 'red' ? 1.08 : 0.96;
         }
 
         if (state.flightStartedAt >= 0) {
