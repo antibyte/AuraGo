@@ -379,6 +379,13 @@
     }
     function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
     function iconForApp(app) { return app ? (appLogoIconKey(app) || appIconKeys[app.id] || app.icon || 'apps') : 'apps'; }
+    function shortcutIconForApp(shortcut, app) {
+        const appLogo = appLogoIconKey(app);
+        if (appLogo) return appLogo;
+        if (!shortcut) shortcut = {};
+        if (!app) app = {};
+        return appIconKeys[app.id] || shortcut.icon || app.icon || '';
+    }
     function iconForDirectory(name) { return directoryIconKeys[name] || 'folder'; }
 
     function iconForFile(file) {
@@ -859,7 +866,7 @@
                     type: 'app',
                     app,
                     path: shortcut.path || '',
-                    icon: appIconKeys[app.id] || shortcut.icon || app.icon || '',
+                    icon: shortcutIconForApp(shortcut, app),
                     shortcut
                 };
             }

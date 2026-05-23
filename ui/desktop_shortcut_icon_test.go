@@ -5,18 +5,29 @@ import (
 	"testing"
 )
 
-func TestDesktopShortcutsKeepPersistedThemeIcons(t *testing.T) {
+func TestDesktopShortcutsPreferCurrentAppLogosAndKeepPersistedThemeIcons(t *testing.T) {
 	t.Parallel()
 
-	mainText := readDesktopAssetText(t, "js/desktop/main.js")
-	renderIconsBody := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderIcons()")
+	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	renderIconsBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function renderIcons()")
 	if !strings.Contains(renderIconsBody, "item.icon || (item.type === 'file'") {
 		t.Fatal("desktop icon rendering does not prefer persisted shortcut icon keys")
 	}
 
-	shortcutItemsBody := jsFunctionBodyInWindowMenuTest(t, mainText, "function desktopShortcutItems()")
 	for _, want := range []string{
-		"icon: shortcut.icon || ''",
+		"function shortcutIconForApp(shortcut, app)",
+		"const appLogo = appLogoIconKey(app);",
+		"if (appLogo) return appLogo;",
+		"return appIconKeys[app.id] || shortcut.icon || app.icon || '';",
+	} {
+		if !strings.Contains(foundation, want) {
+			t.Fatalf("desktop shortcut icon resolver missing marker %q", want)
+		}
+	}
+
+	shortcutItemsBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function desktopShortcutItems()")
+	for _, want := range []string{
+		"icon: shortcutIconForApp(shortcut, app),",
 		"path: shortcut.path || shortcut.target_id || ''",
 	} {
 		if !strings.Contains(shortcutItemsBody, want) {

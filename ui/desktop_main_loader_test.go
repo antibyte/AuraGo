@@ -26,17 +26,17 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260523-desktop-file-create"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260523-shortcut-logo-icons"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
 
-func TestDesktopMainLoaderBumpsCacheAfterDesktopFileCreateFix(t *testing.T) {
+func TestDesktopMainLoaderBumpsCacheAfterShortcutLogoIconFix(t *testing.T) {
 	t.Parallel()
 
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(main, "var assetV = v + '-desktop-20260523-desktop-file-create';") {
-		t.Fatal("desktop main loader asset version must be bumped after desktop file creation fixes")
+	if !strings.Contains(main, "var assetV = v + '-desktop-20260523-shortcut-logo-icons';") {
+		t.Fatal("desktop main loader asset version must be bumped after shortcut logo icon fixes")
 	}
 }
 

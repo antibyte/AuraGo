@@ -18,7 +18,8 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 		"'agent-chat': 'agent-chat'",
 		"launchpad: 'launchpad'",
 		"appIconKeys['code-studio'] = 'code-studio'",
-		"icon: appIconKeys[app.id] || shortcut.icon || app.icon || ''",
+		"function shortcutIconForApp(shortcut, app)",
+		"return appIconKeys[app.id] || shortcut.icon || app.icon || '';",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop theme icon resolver missing marker %q", marker)
