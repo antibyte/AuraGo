@@ -1139,8 +1139,8 @@
             const blueRobot = createRobotConfig({
                 id: 'blue',
                 url: '/3d/robot.glb',
-                x: -6.5,
-                z: -2.0,
+                x: -8.0,
+                z: -2.5,
                 vx: 0.72,
                 vz: 0.46,
                 accentHex: 0x22d3ee,
@@ -1150,8 +1150,8 @@
             const redRobot = createRobotConfig({
                 id: 'red',
                 url: '/3d/redrobot.glb',
-                x: 6.5,
-                z: 2.0,
+                x: 8.0,
+                z: 2.5,
                 vx: -0.68,
                 vz: -0.42,
                 accentHex: 0xff3b6d,
@@ -1233,7 +1233,7 @@
         for (let i = 0; i < detailsCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * radius * 0.75;
-            const r = (isSuper ? 1.5 : 0.8) * (0.5 + Math.random() * 0.8);
+            const r = (isSuper ? 1.0 : 0.5) * (0.5 + Math.random() * 0.8);
             ctx.beginPath();
             ctx.arc(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, r, 0, Math.PI * 2);
             ctx.fill();
@@ -1271,7 +1271,7 @@
 
                                 const count = isSuper ? 2 : 1;
                                 for (let s = 0; s < count; s++) {
-                                    const radius = isSuper ? 3.0 + Math.random() * 2.5 : 1.8 + Math.random() * 1.4;
+                                    const radius = isSuper ? 2.0 + Math.random() * 1.5 : 1.2 + Math.random() * 0.9;
                                     const offsetX = (Math.random() - 0.5) * radius * 0.6;
                                     const offsetY = (Math.random() - 0.5) * radius * 0.6;
                                     drawScorchMarkOnCanvas(ctx, x + offsetX, y + offsetY, radius, isSuper);
