@@ -8,7 +8,7 @@ import (
 func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 	t.Parallel()
 
-	css := readDesktopAssetText(t, "css/desktop-apps.css")
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-apps.css"), "\r\n", "\n")
 	shared := desktopLooperCSSRuleBody(t, css, ".vd-looper-start,\n.vd-looper-stop")
 	for _, want := range []string{
 		"width: 100%;",

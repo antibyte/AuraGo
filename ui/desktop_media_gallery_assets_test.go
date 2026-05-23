@@ -70,7 +70,7 @@ func TestDesktopMediaGalleryCardUsesSemanticActionsAndReadableNames(t *testing.T
 		}
 	}
 
-	css := readAllDesktopCSS(t)
+	css := strings.ReplaceAll(readAllDesktopCSS(t), "\r\n", "\n")
 	for _, want := range []string{
 		".vd-gallery-card-meta {\n    display: grid;",
 		"grid-template-columns: minmax(0, 1fr);",
