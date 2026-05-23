@@ -2165,7 +2165,8 @@
             let hitTarget = false;
 
             if (isSuper && superType === 'grenade') {
-                const waterH = heightAt(projectile.mesh.position.x, projectile.mesh.position.z, t);
+                const surfaceY = surface ? surface.position.y : 0;
+                const waterH = surfaceY + heightAt(projectile.mesh.position.x, projectile.mesh.position.z, t);
                 if (projectile.mesh.position.y <= waterH) {
                     hit = true;
                     if (projectile.target && projectile.target.group) {
