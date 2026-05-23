@@ -271,7 +271,7 @@ func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) 
 		"evasionThreat: null",
 		"function robotSuperweaponDetectionRange",
 		"Math.max(ROBOT_SUPERWEAPON_EVASION_MIN_RANGE",
-		"(bot.state.hits || 0) * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY",
+		"const hitPenalty = hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY * hitPenaltyScale;",
 		"function projectileClosingSpeedToRobot",
 		"projectile.direction.dot(toRobot)",
 		"projectile.velocity3D.dot(toRobot)",
@@ -318,6 +318,29 @@ func TestThreeDeeWhiteRobotDetectsFastRedRocketsEarlier(t *testing.T) {
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing white robot rocket detection marker %q", marker)
+		}
+	}
+}
+
+func TestThreeDeeWhiteRobotDetectionFallsOffSlowerAfterHits(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	scale := extractJSConstFloat(t, shader, "ROBOT_WHITE_EVASION_HIT_PENALTY_SCALE")
+	if scale <= 0 || scale >= 0.72 {
+		t.Fatalf("white robot hit penalty scale should soften detection falloff without removing it, got %.2f", scale)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_WHITE_EVASION_HIT_PENALTY_SCALE =",
+		"const hitPenaltyScale = bot && bot.id === 'blue'",
+		"? ROBOT_WHITE_EVASION_HIT_PENALTY_SCALE",
+		": 1;",
+		"const hitPenalty = hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY * hitPenaltyScale;",
+		"ROBOT_SUPERWEAPON_EVASION_RANGE + rocketBonus - hitPenalty",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing white robot softened hit falloff marker %q", marker)
 		}
 	}
 }

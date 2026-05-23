@@ -106,6 +106,7 @@
     const ROBOT_SUPERWEAPON_EVASION_RANGE = 5.4;
     const ROBOT_SUPERWEAPON_EVASION_MIN_RANGE = 1.15;
     const ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY = 0.62;
+    const ROBOT_WHITE_EVASION_HIT_PENALTY_SCALE = 0.48;
     const ROBOT_WHITE_ROCKET_EVASION_BONUS = 2.45;
     const ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED = 1.15;
     const ROBOT_SUPERWEAPON_EVASION_DURATION = 0.92;
@@ -2235,9 +2236,10 @@
 
     function robotSuperweaponDetectionRange(bot, projectile) {
         const hits = bot && bot.state ? Math.max(0, bot.state.hits || 0) : 0;
-        const hitPenalty = bot && bot.state
-            ? (bot.state.hits || 0) * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY
-            : hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY;
+        const hitPenaltyScale = bot && bot.id === 'blue'
+            ? ROBOT_WHITE_EVASION_HIT_PENALTY_SCALE
+            : 1;
+        const hitPenalty = hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY * hitPenaltyScale;
         const rocketBonus = projectile && bot && projectile.superType === 'rocket' && bot.id === 'blue'
             ? ROBOT_WHITE_ROCKET_EVASION_BONUS
             : 0;
