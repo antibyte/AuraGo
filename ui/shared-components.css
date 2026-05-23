@@ -2095,6 +2095,15 @@ div.toggle.toggle-sm.on::before {
     right: 1rem;
     z-index: 9999;
     pointer-events: none;
+    --radial-item-surface: var(--modal-surface, #1e293b);
+    --radial-item-glass: var(--bg-glass, rgba(255, 255, 255, 0.06));
+    --radial-item-border: var(--border-subtle, rgba(148, 163, 184, 0.16));
+    --radial-item-border-accent: var(--border-accent, rgba(45, 212, 191, 0.3));
+    --radial-item-text: var(--text-primary, #f1f5f9);
+    --radial-item-muted: var(--text-secondary, #94a3b8);
+    --radial-item-accent: var(--accent, #2dd4bf);
+    --radial-item-accent-dim: var(--accent-dim, rgba(45, 212, 191, 0.15));
+    --radial-item-accent-glow: var(--accent-glow, rgba(45, 212, 191, 0.3));
 }
 
 .radial-menu.open {
@@ -2105,11 +2114,11 @@ div.toggle.toggle-sm.on::before {
     width: 32px;
     height: 32px;
     border-radius: 10px;
-    border: 1px solid var(--border-subtle);
-    background: var(--bg-glass);
+    border: 1px solid var(--radial-item-border);
+    background: var(--radial-item-glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    color: var(--text-secondary);
+    color: var(--radial-item-muted);
     cursor: pointer;
     display: grid;
     place-items: center;
@@ -2127,15 +2136,15 @@ div.toggle.toggle-sm.on::before {
     position: absolute;
     inset: -2px;
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--accent), #0d9488);
+    background: linear-gradient(135deg, var(--radial-item-accent), #0d9488);
     opacity: 0;
     z-index: -1;
     transition: opacity 0.3s;
 }
 
 .radial-trigger:hover {
-    border-color: var(--accent);
-    color: var(--text-primary);
+    border-color: var(--radial-item-accent);
+    color: var(--radial-item-text);
     transform: scale(1.06);
     box-shadow: 0 4px 20px rgba(45, 212, 191, 0.2);
 }
@@ -2181,10 +2190,10 @@ div.toggle.toggle-sm.on::before {
 
 /* Trigger open state → X morphing */
 .radial-menu.open .radial-trigger {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-dim);
-    box-shadow: 0 0 24px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.15);
+    border-color: var(--radial-item-accent);
+    color: var(--radial-item-accent);
+    background: var(--radial-item-accent-dim);
+    box-shadow: 0 0 24px var(--radial-item-accent-glow), 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .radial-menu.open .radial-trigger::before {
@@ -2264,6 +2273,13 @@ div.toggle.toggle-sm.on::before {
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer;
+    color: inherit;
+}
+
+.radial-item-button .radial-item-label,
+.radial-item-button .radial-item-icon {
+    background: var(--radial-item-surface);
+    border-color: var(--radial-item-border);
 }
 
 /* Vertical position for each item (below trigger: 32px + 8px gap, then 40px spacing) */
@@ -2331,12 +2347,12 @@ div.toggle.toggle-sm.on::before {
     height: 32px;
     min-width: 32px;
     border-radius: 10px;
-    background: var(--modal-surface);
-    border: 1px solid var(--border-subtle);
+    background: var(--radial-item-surface);
+    border: 1px solid var(--radial-item-border);
     display: grid;
     place-items: center;
     font-size: 1.1rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border-subtle);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--radial-item-border);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -2351,18 +2367,18 @@ div.toggle.toggle-sm.on::before {
 }
 
 .radial-item:hover .radial-item-icon {
-    border-color: var(--accent);
-    box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25), 0 0 0 1px var(--accent);
+    border-color: var(--radial-item-accent);
+    box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25), 0 0 0 1px var(--radial-item-accent);
     transform: scale(1.12);
 }
 
 .radial-item-label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--radial-item-text);
     padding: 0.3rem 0.7rem;
-    background: var(--modal-surface);
-    border: 1px solid var(--border-subtle);
+    background: var(--radial-item-surface);
+    border: 1px solid var(--radial-item-border);
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     letter-spacing: 0.02em;
@@ -2380,20 +2396,20 @@ div.toggle.toggle-sm.on::before {
 }
 
 .radial-item:hover .radial-item-label {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--radial-item-accent);
+    color: var(--radial-item-accent);
 }
 
 /* Active page indicator */
 .radial-item.active .radial-item-icon {
-    border-color: var(--accent);
-    background: var(--accent-dim);
-    box-shadow: 0 0 16px var(--accent-glow), 0 4px 16px rgba(0, 0, 0, 0.15);
+    border-color: var(--radial-item-accent);
+    background: var(--radial-item-accent-dim);
+    box-shadow: 0 0 16px var(--radial-item-accent-glow), 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .radial-item.active .radial-item-label {
-    color: var(--accent);
-    border-color: var(--border-accent);
+    color: var(--radial-item-accent);
+    border-color: var(--radial-item-border-accent);
 }
 
 /* Stagger delays per item (set via inline --i variable) */

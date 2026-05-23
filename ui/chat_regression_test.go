@@ -438,6 +438,29 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 	}
 }
 
+func TestRadialMenuButtonsKeepSurfaceBackground(t *testing.T) {
+	t.Parallel()
+
+	sharedContent, err := os.ReadFile("shared-components.css")
+	if err != nil {
+		t.Fatalf("read shared-components.css: %v", err)
+	}
+
+	sharedCSS := string(sharedContent)
+	for _, marker := range []string{
+		"--radial-item-surface: var(--modal-surface, #1e293b);",
+		"--radial-item-border: var(--border-subtle, rgba(148, 163, 184, 0.16));",
+		"background: var(--radial-item-surface);",
+		"border: 1px solid var(--radial-item-border);",
+		".radial-item-button .radial-item-label,\n.radial-item-button .radial-item-icon",
+		"color: inherit;",
+	} {
+		if !strings.Contains(sharedCSS, marker) {
+			t.Fatalf("shared-components.css missing radial button surface marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_LongBubbleTextWrapsWithinBubble(t *testing.T) {
 	t.Parallel()
 
