@@ -1182,6 +1182,10 @@
         root.updateMatrixWorld(true);
 
         const scaledBox = new THREE.Box3().setFromObject(root);
+        const localBoxSize = scaledBox.getSize(new THREE.Vector3());
+        if (config) {
+            config.localBoxSize = localBoxSize.clone();
+        }
         const center = scaledBox.getCenter(new THREE.Vector3());
         root.position.set(-center.x, -scaledBox.min.y, -center.z);
         if (config) config.modelBaseY = root.position.y;
@@ -1946,14 +1950,40 @@
 
         const root = target && (target.model || target.group);
         if (!root) return { position: source, normal };
-        const box = new THREE.Box3().setFromObject(root);
-        const height = box.max.y - box.min.y;
-        if (!Number.isFinite(height) || height <= 0.001) return { position: source, normal };
 
-        const center = box.getCenter(new THREE.Vector3());
-        center.y = box.min.y + height * 0.52;
-        const position = intersectRobotDamageBox(box, center, normal);
-        position.y = clamp(position.y, box.min.y + height * 0.24, box.max.y - height * 0.1);
+        // Ensure current frame's matrixWorld is up to date
+        if (target.group) {
+            target.group.updateMatrixWorld(true);
+        }
+
+        // Get local size of the robot. If not stored, compute a fallback.
+        let localBoxSize = target.localBoxSize;
+        if (!localBoxSize) {
+            const targetSize = target.id === 'red' ? ROBOT_RED_TARGET_SIZE : 1.45;
+            localBoxSize = new THREE.Vector3(targetSize * 0.75, targetSize, targetSize * 0.75);
+        }
+
+        // Convert world source and normal into target.group's local space
+        const localSource = target.group.worldToLocal(source.clone());
+        const localNormalEnd = target.group.worldToLocal(source.clone().add(normal));
+        const localNormal = localNormalEnd.clone().sub(localSource).normalize();
+
+        // Build the local bounding box in target.group's coordinate space
+        const modelY = target.model ? target.model.position.y : 0;
+        const localBox = new THREE.Box3(
+            new THREE.Vector3(-localBoxSize.x * 0.5, modelY, -localBoxSize.z * 0.5),
+            new THREE.Vector3(localBoxSize.x * 0.5, modelY + localBoxSize.y, localBoxSize.z * 0.5)
+        );
+
+        const localCenter = localBox.getCenter(new THREE.Vector3());
+        localCenter.y = localBox.min.y + localBoxSize.y * 0.52;
+
+        const localIntersection = intersectRobotDamageBox(localBox, localCenter, localNormal);
+        localIntersection.y = clamp(localIntersection.y, localBox.min.y + localBoxSize.y * 0.24, localBox.max.y - localBoxSize.y * 0.1);
+
+        // Convert the local intersection position back to world space
+        const position = target.group.localToWorld(localIntersection.clone());
+
         return { position, normal };
     }
 
