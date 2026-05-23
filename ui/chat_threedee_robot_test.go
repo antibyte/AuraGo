@@ -158,6 +158,35 @@ func TestThreeDeeRobotsRequireCloseRangeAndReactToHits(t *testing.T) {
 	}
 }
 
+func TestThreeDeeRobotHitsCreateMeshDentsAndScorchMarks(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const ROBOT_DAMAGE_DENT_RADIUS =",
+		"const ROBOT_DAMAGE_DENT_DEPTH =",
+		"const ROBOT_DAMAGE_MAX_SCORCH_MARKS =",
+		"damageMeshes: []",
+		"damageScorchMarks: []",
+		"node.geometry = node.geometry.clone();",
+		"robotDamageBasePositions",
+		"position.setUsage(THREE.DynamicDrawUsage)",
+		"function applyRobotDamage",
+		"function applyRobotMeshDent",
+		"function spawnRobotScorchMarks",
+		"new THREE.SpriteMaterial",
+		"robot-damage-scorch",
+		"target.damageScorchMarks.push(scorch);",
+		"position.needsUpdate = true;",
+		"mesh.geometry.computeVertexNormals();",
+		"applyRobotDamage(target, impactPosition, recoil, isSuper);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing robot damage marker %q", marker)
+		}
+	}
+}
+
 func TestThreeDeeRobotsLiftAndDampenMatrixWaves(t *testing.T) {
 	t.Parallel()
 

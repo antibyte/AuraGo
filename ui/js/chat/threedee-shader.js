@@ -98,6 +98,10 @@
     const ROBOT_FLIGHT_HEIGHT = 1.12;
     const ROBOT_FLIGHT_MAX_HEIGHT = 3.35;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
+    const ROBOT_DAMAGE_DENT_RADIUS = 0.38;
+    const ROBOT_DAMAGE_DENT_DEPTH = 0.055;
+    const ROBOT_DAMAGE_DENT_NOISE = 0.014;
+    const ROBOT_DAMAGE_MAX_SCORCH_MARKS = 14;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
     const ROBOT_THRUSTER_RIPPLE_MIN_GAP = 3.05;
@@ -1095,7 +1099,9 @@
             projectileHex: options.projectileHex,
             accentColor: new THREE.Color(options.accentHex),
             headingOffset: options.headingOffset || 0,
-            opponent: null
+            opponent: null,
+            damageMeshes: [],
+            damageScorchMarks: []
         };
     }
 
@@ -1159,7 +1165,10 @@
 
     function normalizeFloatingRobot(root, bot) {
         const config = bot || robotFleet[0] || null;
-        if (config) config.materials = [];
+        if (config) {
+            config.materials = [];
+            config.damageMeshes = [];
+        }
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const maxAxis = Math.max(size.x, size.y, size.z);
@@ -1182,6 +1191,13 @@
             node.frustumCulled = false;
             node.castShadow = true;
             node.receiveShadow = true;
+            if (node.geometry && node.geometry.attributes && node.geometry.attributes.position) {
+                node.geometry = node.geometry.clone();
+                const position = node.geometry.attributes.position;
+                if (position.setUsage && THREE.DynamicDrawUsage) position.setUsage(THREE.DynamicDrawUsage);
+                node.geometry.userData.robotDamageBasePositions = new Float32Array(position.array);
+                if (config) config.damageMeshes.push(node);
+            }
             if (!node.material) return;
             node.material = Array.isArray(node.material)
                 ? node.material.map(function (material) { return material.clone(); })
@@ -1864,6 +1880,119 @@
         });
     }
 
+    function ensureRobotScorchTexture() {
+        if (window.robotScorchTexture) return window.robotScorchTexture;
+        if (typeof document === 'undefined') return null;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        const gradient = ctx.createRadialGradient(32, 32, 3, 32, 32, 31);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.82)');
+        gradient.addColorStop(0.42, 'rgba(0, 0, 0, 0.58)');
+        gradient.addColorStop(0.78, 'rgba(0, 0, 0, 0.18)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        window.robotScorchTexture = new THREE.CanvasTexture(canvas);
+        window.robotScorchTexture.needsUpdate = true;
+        return window.robotScorchTexture;
+    }
+
+    function applyRobotDamage(target, impactPosition, impactDirection, isSuper) {
+        if (!target || !target.group) return;
+        const damagePosition = impactPosition ? impactPosition.clone() : target.group.position.clone();
+        applyRobotMeshDent(target, damagePosition, impactDirection, isSuper);
+        spawnRobotScorchMarks(target, damagePosition, isSuper);
+    }
+
+    function applyRobotMeshDent(target, impactPosition, impactDirection, isSuper) {
+        if (!target || !target.damageMeshes || !impactPosition) return;
+        const worldDirection = impactDirection && impactDirection.lengthSq && impactDirection.lengthSq() > 0.001
+            ? impactDirection.clone().normalize()
+            : new THREE.Vector3(0, -1, 0);
+        const radius = ROBOT_DAMAGE_DENT_RADIUS * (isSuper ? 1.62 : 1);
+        const depth = ROBOT_DAMAGE_DENT_DEPTH * (isSuper ? 2.15 : 1);
+
+        target.damageMeshes.forEach(function (mesh) {
+            if (!mesh || !mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
+            const position = mesh.geometry.attributes.position;
+            const localImpact = mesh.worldToLocal(impactPosition.clone());
+            const localEnd = mesh.worldToLocal(impactPosition.clone().addScaledVector(worldDirection, depth));
+            const dentVector = localEnd.sub(localImpact);
+            const vertex = new THREE.Vector3();
+            const worldVertex = new THREE.Vector3();
+            let changed = false;
+
+            for (let i = 0; i < position.count; i++) {
+                vertex.fromBufferAttribute(position, i);
+                worldVertex.copy(vertex).applyMatrix4(mesh.matrixWorld);
+                const dist = worldVertex.distanceTo(impactPosition);
+                if (dist > radius) continue;
+
+                const falloff = 1 - smoothstep(0, radius, dist);
+                const dentNoise = (Math.random() - 0.5) * ROBOT_DAMAGE_DENT_NOISE * falloff;
+                position.setXYZ(
+                    i,
+                    vertex.x + dentVector.x * falloff + dentNoise,
+                    vertex.y + dentVector.y * falloff + dentNoise * 0.35,
+                    vertex.z + dentVector.z * falloff + dentNoise * 0.7
+                );
+                changed = true;
+            }
+
+            if (changed) {
+                position.needsUpdate = true;
+                mesh.geometry.computeVertexNormals();
+                if (mesh.geometry.attributes.normal) mesh.geometry.attributes.normal.needsUpdate = true;
+            }
+        });
+    }
+
+    function spawnRobotScorchMarks(target, impactPosition, isSuper) {
+        if (!target || !target.group || !impactPosition) return;
+        const texture = ensureRobotScorchTexture();
+        if (!texture) return;
+
+        const markCount = isSuper ? 3 + Math.floor(Math.random() * 2) : 1 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < markCount; i++) {
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                color: 0x050403,
+                transparent: true,
+                opacity: isSuper ? 0.62 + Math.random() * 0.16 : 0.42 + Math.random() * 0.18,
+                depthTest: true,
+                depthWrite: false
+            });
+            material.rotation = Math.random() * Math.PI * 2;
+
+            const scorch = new THREE.Sprite(material);
+            scorch.name = 'robot-damage-scorch';
+            const localPos = target.group.worldToLocal(impactPosition.clone());
+            const jitter = isSuper ? 0.22 : 0.12;
+            localPos.x += (Math.random() - 0.5) * jitter;
+            localPos.y += (Math.random() - 0.5) * jitter * 0.7;
+            localPos.z += (Math.random() - 0.5) * jitter;
+            scorch.position.copy(localPos);
+
+            const size = (isSuper ? 0.16 : 0.095) + Math.random() * (isSuper ? 0.09 : 0.055);
+            scorch.scale.set(size * (0.8 + Math.random() * 0.45), size, 1);
+            scorch.renderOrder = 18;
+            target.group.add(scorch);
+            target.damageScorchMarks.push(scorch);
+        }
+
+        while (target.damageScorchMarks.length > ROBOT_DAMAGE_MAX_SCORCH_MARKS) {
+            const oldMark = target.damageScorchMarks.shift();
+            if (oldMark && oldMark.parent) oldMark.parent.remove(oldMark);
+            if (oldMark && oldMark.material) oldMark.material.dispose();
+        }
+    }
+
     function applyRobotHitRecoil(projectile, impactPosition) {
         const target = projectile && projectile.target;
         if (!target || !target.velocity || !target.state) return;
@@ -1892,6 +2021,7 @@
         target.state.recoil = Math.max(target.state.recoil || 0, isSuper ? 1.2 : 0.5);
         target.state.hitFlash = Math.max(target.state.hitFlash || 0, isSuper ? 1.8 : 1.0);
         target.state.hits = (target.state.hits || 0) + 1;
+        applyRobotDamage(target, impactPosition, recoil, isSuper);
         bounceFloatingRobotWithinBounds(globalTime, target);
     }
 
