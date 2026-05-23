@@ -942,7 +942,7 @@
                 if (!bot || !bot.state) continue;
                 const botOwner = bot.id || 'robot';
                 if (ignoreRobotOwner && botOwner === ignoreRobotOwner) continue;
-                const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
+                const distToRobot = Math.hypot(x - (bot.state.px || bot.state.x), z - (bot.state.pz || bot.state.z));
                 // Skip far-away robots (Gaussian is negligible beyond ~2.5 units)
                 if (distToRobot > 2.5) continue;
                 const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
@@ -1074,7 +1074,9 @@
                 lastThrusterRippleAt: -999,
                 thrusterRipplePrimed: false,
                 flightWasActive: false,
-                pendingThrusterRipple: 0
+                pendingThrusterRipple: 0,
+                px: options.x,
+                pz: options.z
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -1546,6 +1548,8 @@
         bot.state.x += bot.velocity.x * dt;
         bot.state.z += bot.velocity.y * dt;
         bounceFloatingRobotWithinBounds(t, bot);
+        bot.state.px = bot.state.x;
+        bot.state.pz = bot.state.z;
     }
 
     function updateRobotVisualsPhase(bot, dt, t, index) {
