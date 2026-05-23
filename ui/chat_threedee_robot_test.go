@@ -204,7 +204,7 @@ func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T)
 		"const ignoreRobotOwner = options && options.ignoreRobotOwner;",
 		"const hoverDepression = -0.2 * Math.exp",
 		"height += hoverDepression * flightWaveInfluence;",
-		"if (ignoreRobotOwner && botOwner === ignoreRobotOwner) return;",
+		"if (ignoreRobotOwner && botOwner === ignoreRobotOwner) continue;",
 		"height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);",
 		"if (ignoreOwner && ripple.owner === ignoreOwner) continue;",
 		"const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id } : null;",

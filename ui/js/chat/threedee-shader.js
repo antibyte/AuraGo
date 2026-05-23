@@ -13,6 +13,9 @@
     let basePositions;
     let nextImpulseAt = 0;
     const impulses = [];
+    let heightCache = null;
+    let normalFrameToggle = 0;
+    const _preImpulse = { ages: new Float64Array(64), fades: new Float64Array(64), strengths: new Float64Array(64), radii: new Float64Array(64), alive: 0 };
 
     let currentMode = 0;
     let previousMode = -1;
@@ -40,9 +43,10 @@
         rows: 42
     };
 
-    const IMPULSE_LIFETIME = 4.8;
+    const IMPULSE_LIFETIME = 3.6;
     const MAX_IMPULSES = 48;
     const FRAME_INTERVAL = 1000 / 30;
+    const IMPULSE_FADE_CUTOFF = 0.005;
 
     let colorLow;
     let colorMid;
@@ -187,12 +191,15 @@
     }
 
     function addImpulse(x, z, strength) {
-        // Prune expired impulses first to reclaim slots
-        for (let i = impulses.length - 1; i >= 0; i--) {
-            if (globalTime - impulses[i].start > IMPULSE_LIFETIME) {
-                impulses.splice(i, 1);
+        // Compact expired impulses in-place (avoids splice shifting)
+        let write = 0;
+        for (let read = 0; read < impulses.length; read++) {
+            if (globalTime - impulses[read].start <= IMPULSE_LIFETIME) {
+                if (write !== read) impulses[write] = impulses[read];
+                write++;
             }
         }
+        impulses.length = write;
 
         impulses.push({
             x,
@@ -478,11 +485,14 @@
     }
 
     function pruneImpulses(t) {
-        for (let i = impulses.length - 1; i >= 0; i--) {
-            if (t - impulses[i].start > IMPULSE_LIFETIME) {
-                impulses.splice(i, 1);
+        let write = 0;
+        for (let read = 0; read < impulses.length; read++) {
+            if (t - impulses[read].start <= IMPULSE_LIFETIME) {
+                if (write !== read) impulses[write] = impulses[read];
+                write++;
             }
         }
+        impulses.length = write;
     }
 
     function updateParticles(dt, t) {
@@ -891,35 +901,54 @@
         let height = slowWave + crossWave + diagonalWave;
         const ignoreRobotOwner = options && options.ignoreRobotOwner;
 
-        for (const impulse of impulses) {
-            const age = t - impulse.start;
-            if (age < 0 || age > IMPULSE_LIFETIME) continue;
+        // Use pre-computed impulse invariants when available (bulk surface pass)
+        const pre = _preImpulse;
+        const aliveCount = pre.alive;
+        if (aliveCount > 0) {
+            for (let idx = 0; idx < aliveCount; idx++) {
+                const dist = Math.hypot(x - impulses[idx].x, z - impulses[idx].z);
+                const radius = pre.radii[idx];
+                const ring = Math.sin((dist - radius) * 3.65);
+                const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
+                height += softClip(ring * envelope * pre.fades[idx] * pre.strengths[idx], 0.72);
+            }
+        } else {
+            // Fallback for isolated calls (robot normal sampling, collision checks)
+            for (const impulse of impulses) {
+                const age = t - impulse.start;
+                if (age < 0 || age > IMPULSE_LIFETIME) continue;
+                const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
+                if (fade < IMPULSE_FADE_CUTOFF) continue;
 
-            const dist = Math.hypot(x - impulse.x, z - impulse.z);
-            const radius = age * 3.05;
-            const ring = Math.sin((dist - radius) * 3.65);
-            const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
-            const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
-            const strength = softClip(impulse.strength, 1.08);
-            height += softClip(ring * envelope * fade * strength, 0.72);
+                const dist = Math.hypot(x - impulse.x, z - impulse.z);
+                const radius = age * 3.05;
+                const ring = Math.sin((dist - radius) * 3.65);
+                const envelope = Math.exp(-Math.abs(dist - radius) * 0.78);
+                const strength = softClip(impulse.strength, 1.08);
+                height += softClip(ring * envelope * fade * strength, 0.72);
+            }
         }
 
-        height += textHeightAt(x, z, t);
-        height += mouseHeightAt(x, z, t);
-        height += vortexHeightAt(x, z, t);
+        // Only evaluate mode-specific height contributions when that mode is active
+        if (currentMode === 0 || previousMode === 0) height += textHeightAt(x, z, t);
+        if (currentMode === 1 || previousMode === 1) height += mouseHeightAt(x, z, t);
+        if (currentMode === 4 || previousMode === 4) height += vortexHeightAt(x, z, t);
 
         // Robot thruster downdraft and ripples under the robot
         if (robotState) {
             const activeRobots = robotFleet.length ? robotFleet : [{ id: 'blue', state: robotState }];
-            activeRobots.forEach(function (bot) {
-                if (!bot || !bot.state) return;
+            for (let ri = 0; ri < activeRobots.length; ri++) {
+                const bot = activeRobots[ri];
+                if (!bot || !bot.state) continue;
                 const botOwner = bot.id || 'robot';
-                if (ignoreRobotOwner && botOwner === ignoreRobotOwner) return;
+                if (ignoreRobotOwner && botOwner === ignoreRobotOwner) continue;
                 const distToRobot = Math.hypot(x - bot.state.x, z - bot.state.z);
+                // Skip far-away robots (Gaussian is negligible beyond ~2.5 units)
+                if (distToRobot > 2.5) continue;
                 const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
                 const hoverDepression = -0.2 * Math.exp(-(distToRobot * distToRobot) / 0.72);
                 height += hoverDepression * flightWaveInfluence;
-            });
+            }
         }
 
         height += robotThrusterRippleHeightAt(x, z, t, ignoreRobotOwner);
@@ -1461,11 +1490,14 @@
     }
 
     function updateRobotThrusterRipples(t) {
-        for (let i = robotThrusterRipples.length - 1; i >= 0; i--) {
-            if (t - robotThrusterRipples[i].start > ROBOT_THRUSTER_RIPPLE_LIFETIME) {
-                robotThrusterRipples.splice(i, 1);
+        let write = 0;
+        for (let read = 0; read < robotThrusterRipples.length; read++) {
+            if (t - robotThrusterRipples[read].start <= ROBOT_THRUSTER_RIPPLE_LIFETIME) {
+                if (write !== read) robotThrusterRipples[write] = robotThrusterRipples[read];
+                write++;
             }
         }
+        robotThrusterRipples.length = write;
     }
 
     function updateRobotPositionPhase(bot, dt, t, index) {
@@ -1601,7 +1633,7 @@
 
         const normal = sampleSurfaceNormal(bot.state.x, bot.state.z, t, bot);
         normal.lerp(bot.up, 1 - flightWaveInfluence).normalize();
-        const targetForward = new THREE.Vector3();
+        const targetForward = _scratchVec3.set(0, 0, 0);
         if (bot.velocity.lengthSq() > 0.0001) {
             targetForward.set(bot.velocity.x, 0, bot.velocity.y).normalize();
         } else {
@@ -1630,7 +1662,7 @@
             targetQuaternion.setFromUnitVectors(robotUp, normal);
             targetQuaternion.multiply(robotHeadingQuaternion);
 
-            robotSwayQuaternion.setFromEuler(new THREE.Euler(
+            robotSwayQuaternion.setFromEuler(_scratchEuler.set(
                 Math.sin(t * 2.1 + robotState.seed) * 0.075 + normal.z * 0.22,
                 0,
                 -normal.x * 0.28 + Math.sin(t * 1.6 + robotState.seed) * 0.055,
@@ -1643,7 +1675,7 @@
             bot.headingQuaternion.setFromAxisAngle(bot.up, heading);
             bot.targetQuaternion.setFromUnitVectors(bot.up, normal);
             bot.targetQuaternion.multiply(bot.headingQuaternion);
-            bot.swayQuaternion.setFromEuler(new THREE.Euler(
+            bot.swayQuaternion.setFromEuler(_scratchEuler.set(
                 Math.sin(t * 2.1 + bot.state.seed) * 0.075 + normal.z * 0.22,
                 0,
                 -normal.x * 0.28 + Math.sin(t * 1.6 + bot.state.seed) * 0.055,
@@ -2446,18 +2478,72 @@
         camera.updateProjectionMatrix();
     }
 
+    // Module-scoped scratch objects to avoid per-frame GC allocation
+    const _colorScratch = typeof THREE !== 'undefined' ? new THREE.Color() : null;
+    const _scratchVec3 = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+    const _scratchEuler = typeof THREE !== 'undefined' ? new THREE.Euler(0, 0, 0, 'XYZ') : null;
+
     function updateSurface(t) {
         if (!surfaceGeometry || !gridGeometry) return;
 
+        // Pre-compute impulse invariants once per frame (Fix 3)
+        const pre = _preImpulse;
+        let alive = 0;
+        for (let i = 0; i < impulses.length; i++) {
+            const age = t - impulses[i].start;
+            if (age < 0 || age > IMPULSE_LIFETIME) continue;
+            const fade = Math.pow(1 - age / IMPULSE_LIFETIME, 1.4);
+            if (fade < IMPULSE_FADE_CUTOFF) continue;
+            // Compact alive impulses to front of arrays
+            if (alive !== i && alive < impulses.length) {
+                // We don't reorder the impulses array itself — just store indices into pre arrays
+            }
+            // Ensure typed arrays are large enough
+            if (alive >= pre.ages.length) {
+                const newLen = pre.ages.length * 2;
+                const newAges = new Float64Array(newLen);
+                newAges.set(pre.ages);
+                pre.ages = newAges;
+                const newFades = new Float64Array(newLen);
+                newFades.set(pre.fades);
+                pre.fades = newFades;
+                const newStr = new Float64Array(newLen);
+                newStr.set(pre.strengths);
+                pre.strengths = newStr;
+                const newRad = new Float64Array(newLen);
+                newRad.set(pre.radii);
+                pre.radii = newRad;
+            }
+            pre.ages[alive] = age;
+            pre.fades[alive] = fade;
+            pre.strengths[alive] = softClip(impulses[i].strength, 1.08);
+            pre.radii[alive] = age * 3.05;
+            // Move alive impulse to front of impulses array for contiguous access
+            if (alive !== i) {
+                const tmp = impulses[alive];
+                impulses[alive] = impulses[i];
+                impulses[i] = tmp;
+            }
+            alive++;
+        }
+        pre.alive = alive;
+
         const position = surfaceGeometry.getAttribute('position');
         const color = surfaceGeometry.getAttribute('color');
-        const colorScratch = new THREE.Color();
+        const colorScratch = _colorScratch || new THREE.Color();
 
-        for (let i = 0; i < position.count; i++) {
+        // Build height cache indexed by vertex index for grid reuse (Fix 2)
+        const vertexCount = position.count;
+        if (!heightCache || heightCache.length < vertexCount) {
+            heightCache = new Float32Array(vertexCount);
+        }
+
+        for (let i = 0; i < vertexCount; i++) {
             const x = basePositions[i * 3];
             const z = basePositions[i * 3 + 2];
             const height = heightAt(x, z, t);
 
+            heightCache[i] = height;
             position.array[i * 3 + 1] = height;
             colorForHeight(height, colorScratch);
             if (currentMode === 3 || previousMode === 3) {
@@ -2472,15 +2558,42 @@
             color.array[i * 3 + 2] = colorScratch.b;
         }
 
+        // Clear pre-computed flag so isolated heightAt calls use fallback path
+        pre.alive = 0;
+
         position.needsUpdate = true;
         color.needsUpdate = true;
-        surfaceGeometry.computeVertexNormals();
-        surfaceGeometry.attributes.normal.needsUpdate = true;
+        // Throttle normal recomputation to every 2nd frame (Fix 6)
+        normalFrameToggle++;
+        if (normalFrameToggle & 1) {
+            surfaceGeometry.computeVertexNormals();
+            surfaceGeometry.attributes.normal.needsUpdate = true;
+        }
 
+        // Reuse cached surface heights for grid line vertices (Fix 2)
+        // Grid vertices lie on the same grid as the surface mesh, so we
+        // look up heights from the cache by mapping (x, z) → vertex index.
         const gridPosition = gridGeometry.getAttribute('position');
         const gridArray = gridPosition.array;
+        const stepX = GRID.width / GRID.cols;
+        const stepZ = GRID.depth / GRID.rows;
+        const halfW = GRID.width * 0.5;
+        const halfD = GRID.depth * 0.5;
+        const invStepX = 1 / stepX;
+        const invStepZ = 1 / stepZ;
+        const colsP1 = GRID.cols + 1;
         for (let i = 0; i < gridArray.length; i += 3) {
-            gridArray[i + 1] = heightAt(gridArray[i], gridArray[i + 2], t) + 0.012;
+            const gx = gridArray[i];
+            const gz = gridArray[i + 2];
+            // Map grid position to surface vertex col/row indices
+            const col = Math.round((gx + halfW) * invStepX);
+            const row = Math.round((gz + halfD) * invStepZ);
+            const vi = row * colsP1 + col;
+            if (vi >= 0 && vi < vertexCount) {
+                gridArray[i + 1] = heightCache[vi] + 0.012;
+            } else {
+                gridArray[i + 1] = 0.012;
+            }
         }
         gridPosition.needsUpdate = true;
     }
