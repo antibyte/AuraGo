@@ -657,7 +657,8 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 func TestInstallOliveTinMountsEditableWorkspaceConfigBeforeStart(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
-	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19189))
+	desktopAdapter := &fakeDesktopAdapter{}
+	svc := newTestService(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19189))
 
 	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "olivetin", BindMode: BindModeLocal})
 	if err != nil {
@@ -691,6 +692,12 @@ func TestInstallOliveTinMountsEditableWorkspaceConfigBeforeStart(t *testing.T) {
 	}
 	if _, copied := docker.copiedFiles["aurago-store-olivetin:/config"]; copied {
 		t.Fatalf("olivetin workspace config should be seeded on host, not docker-copied: %#v", docker.copiedFiles)
+	}
+	note := desktopAdapter.writtenFiles["Desktop/olivetin.txt"]
+	for _, want := range []string{"Shared/OliveTin/config.yaml", "/config/config.yaml", "Open Files"} {
+		if !strings.Contains(note, want) {
+			t.Fatalf("olivetin desktop note missing %q: %q", want, note)
+		}
 	}
 	createIndex := indexOfString(docker.events, "create:aurago-store-olivetin")
 	startIndex := indexOfString(docker.events, "start:aurago-store-olivetin")
@@ -1746,6 +1753,7 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 type fakeDesktopAdapter struct {
 	installed     desktop.AppManifest
 	files         map[string]string
+	writtenFiles  map[string]string
 	dockVisible   *bool
 	startVisible  *bool
 	shortcutAppID string
@@ -1760,6 +1768,14 @@ func (f *fakeDesktopAdapter) InstallApp(_ context.Context, manifest desktop.AppM
 	}
 	f.installed = manifest
 	f.files = files
+	return nil
+}
+
+func (f *fakeDesktopAdapter) WriteFile(_ context.Context, path, content, _ string) error {
+	if f.writtenFiles == nil {
+		f.writtenFiles = map[string]string{}
+	}
+	f.writtenFiles[path] = content
 	return nil
 }
 

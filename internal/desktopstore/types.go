@@ -281,6 +281,7 @@ type DockerAdapter interface {
 // DesktopAdapter isolates virtual desktop mutations.
 type DesktopAdapter interface {
 	InstallApp(ctx context.Context, manifest desktop.AppManifest, files map[string]string, source string) error
+	WriteFile(ctx context.Context, path, content, source string) error
 	SetAppVisibility(ctx context.Context, id string, dockVisible, startVisible *bool, source string) error
 	AddDesktopAppShortcut(ctx context.Context, appID, source string) error
 	DeleteApp(ctx context.Context, appID, source string) error

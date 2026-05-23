@@ -25,6 +25,18 @@ import (
 
 const storeSource = "desktop-store"
 
+const oliveTinDesktopNote = `OliveTin configuration
+
+The editable OliveTin configuration file is available in the virtual desktop workspace at:
+
+Shared/OliveTin/config.yaml
+
+Open Files, then Shared, then OliveTin to edit config.yaml.
+Inside the OliveTin container this file is mounted as /config/config.yaml.
+
+After changing the configuration, restart OliveTin from the Software Store if it does not reload automatically.
+`
+
 var storeAppIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 
 // ErrOperationInProgress is returned when an app already has an active
@@ -1743,6 +1755,11 @@ func (s *Service) installDesktopApp(ctx context.Context, entry CatalogEntry, app
 	}
 	if err := s.cfg.Desktop.AddDesktopAppShortcut(ctx, app.DesktopAppID, storeSource); err != nil {
 		return fmt.Errorf("add desktop shortcut: %w", err)
+	}
+	if entry.ID == "olivetin" {
+		if err := s.cfg.Desktop.WriteFile(ctx, "Desktop/olivetin.txt", oliveTinDesktopNote, storeSource); err != nil {
+			return fmt.Errorf("write OliveTin desktop note: %w", err)
+		}
 	}
 	return nil
 }
