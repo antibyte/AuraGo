@@ -1139,8 +1139,8 @@
             const blueRobot = createRobotConfig({
                 id: 'blue',
                 url: '/3d/robot.glb',
-                x: -8.0,
-                z: -2.5,
+                x: -10.0,
+                z: -3.0,
                 vx: 0.72,
                 vz: 0.46,
                 accentHex: 0x22d3ee,
@@ -1150,8 +1150,8 @@
             const redRobot = createRobotConfig({
                 id: 'red',
                 url: '/3d/redrobot.glb',
-                x: 8.0,
-                z: 2.5,
+                x: 10.0,
+                z: 3.0,
                 vx: -0.68,
                 vz: -0.42,
                 accentHex: 0xff3b6d,
@@ -2116,7 +2116,9 @@
         if (!target || !target.group) return;
         const damage = resolveRobotDamageImpact(target, impactPosition, impactDirection);
         applyRobotMeshDent(target, damage, isSuper);
-        paintRobotDamageTexture(target, impactPosition, impactDirection, isSuper);
+        if (isSuper) {
+            paintRobotDamageTexture(target, impactPosition, impactDirection, isSuper);
+        }
         spawnRobotScorchMarks(target, damage, isSuper);
     }
 
@@ -2126,8 +2128,8 @@
         const worldDirection = damage.normal && damage.normal.lengthSq && damage.normal.lengthSq() > 0.001
             ? damage.normal.clone().multiplyScalar(-1).normalize()
             : new THREE.Vector3(0, -1, 0);
-        const radius = ROBOT_DAMAGE_DENT_RADIUS * (isSuper ? 1.62 : 1);
-        const depth = ROBOT_DAMAGE_DENT_DEPTH * (isSuper ? 2.15 : 1);
+        const radius = ROBOT_DAMAGE_DENT_RADIUS * (isSuper ? 2.2 : 1);
+        const depth = ROBOT_DAMAGE_DENT_DEPTH * (isSuper ? 3.0 : 1);
 
         target.damageMeshes.forEach(function (mesh) {
             if (!mesh || !mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
