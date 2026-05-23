@@ -85,6 +85,44 @@ func TestDesktopStoreAppLogosNormalizeSizeAndDisableNativeDrag(t *testing.T) {
 	}
 }
 
+func TestDesktopShortcutAppLogosStayInsideFixedGlyphBox(t *testing.T) {
+	t.Parallel()
+
+	css := rawDesktopAssetText(t, "css/desktop-icons.css")
+	iconRule := desktopStoreCSSRuleBody(t, css, ".vd-icon")
+	for _, want := range []string{
+		"grid-template-rows: var(--vd-icon-glyph-size) minmax(0, auto);",
+		"align-content: center;",
+	} {
+		if !desktopStoreCSSRuleHasDeclaration(iconRule, want) {
+			t.Fatalf("desktop icon grid CSS missing fixed glyph box marker %q", want)
+		}
+	}
+
+	logoRule := desktopStoreCSSRuleBody(t, css, ".vd-icon > .vd-app-logo-icon")
+	for _, want := range []string{
+		"padding: clamp(3px, 12%, 7px);",
+		"overflow: visible;",
+	} {
+		if !desktopStoreCSSRuleHasDeclaration(logoRule, want) {
+			t.Fatalf("desktop shortcut logo frame CSS missing marker %q", want)
+		}
+	}
+
+	imageRule := desktopStoreCSSRuleBody(t, css, ".vd-icon > .vd-app-logo-icon > img")
+	for _, want := range []string{
+		"width: 100%;",
+		"height: 100%;",
+		"min-width: 0;",
+		"min-height: 0;",
+		"object-fit: contain;",
+	} {
+		if !desktopStoreCSSRuleHasDeclaration(imageRule, want) {
+			t.Fatalf("desktop shortcut logo image CSS missing scaling marker %q", want)
+		}
+	}
+}
+
 func desktopStoreCSSRuleBody(t *testing.T, source, selector string) string {
 	t.Helper()
 
