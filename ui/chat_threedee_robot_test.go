@@ -252,6 +252,50 @@ func TestThreeDeeRobotFlightsUseRandomHighAltitude(t *testing.T) {
 	}
 }
 
+func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	baseRange := extractJSConstFloat(t, shader, "ROBOT_SUPERWEAPON_EVASION_RANGE")
+	minRange := extractJSConstFloat(t, shader, "ROBOT_SUPERWEAPON_EVASION_MIN_RANGE")
+	if minRange >= baseRange {
+		t.Fatalf("damaged robots should detect superweapons later: min %.2f base %.2f", minRange, baseRange)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_SUPERWEAPON_EVASION_RANGE =",
+		"const ROBOT_SUPERWEAPON_EVASION_MIN_RANGE =",
+		"const ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY =",
+		"evasionUntil: -999",
+		"evasionVector: new THREE.Vector2(0, 0)",
+		"evasionThreat: null",
+		"function robotSuperweaponDetectionRange",
+		"Math.max(ROBOT_SUPERWEAPON_EVASION_MIN_RANGE",
+		"(bot.state.hits || 0) * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY",
+		"function projectileClosingSpeedToRobot",
+		"projectile.direction.dot(toRobot)",
+		"projectile.velocity3D.dot(toRobot)",
+		"function tryRobotSuperweaponEvasion",
+		"if (!projectile.isSuper || projectile.target !== bot)",
+		"const detectionRange = robotSuperweaponDetectionRange(bot);",
+		"if (distance > detectionRange || closingSpeed <= ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED)",
+		"state.evasionUntil = t + ROBOT_SUPERWEAPON_EVASION_DURATION",
+		"state.evasionThreat = projectile",
+		"state.evasionVector.set(sideX, sideZ).normalize();",
+		"state.flightStartedAt = t - ROBOT_SUPERWEAPON_EVASION_FLIGHT_PHASE",
+		"state.flightPeak = Math.max(state.flightPeak || 0, ROBOT_SUPERWEAPON_EVASION_FLIGHT_HEIGHT);",
+		"bot.state.pendingThrusterRipple = Math.max(bot.state.pendingThrusterRipple || 0, 1.18);",
+		"tryRobotSuperweaponEvasion(projectile, t);",
+		"if (bot.state.evasionUntil > t)",
+		"bot.velocity.x += bot.state.evasionVector.x * ROBOT_SUPERWEAPON_EVASION_FORCE * dt",
+		"bot.velocity.y += bot.state.evasionVector.y * ROBOT_SUPERWEAPON_EVASION_FORCE * dt",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing robot superweapon evasion marker %q", marker)
+		}
+	}
+}
+
 func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T) {
 	t.Parallel()
 

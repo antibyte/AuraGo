@@ -99,6 +99,14 @@
     const ROBOT_FLIGHT_HEIGHT = 1.12;
     const ROBOT_FLIGHT_MAX_HEIGHT = 3.35;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
+    const ROBOT_SUPERWEAPON_EVASION_RANGE = 5.4;
+    const ROBOT_SUPERWEAPON_EVASION_MIN_RANGE = 1.15;
+    const ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY = 0.62;
+    const ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED = 1.15;
+    const ROBOT_SUPERWEAPON_EVASION_DURATION = 0.92;
+    const ROBOT_SUPERWEAPON_EVASION_FORCE = 7.2;
+    const ROBOT_SUPERWEAPON_EVASION_FLIGHT_HEIGHT = 2.85;
+    const ROBOT_SUPERWEAPON_EVASION_FLIGHT_PHASE = 0.18;
     const ROBOT_DAMAGE_DENT_RADIUS = 0.38;
     const ROBOT_DAMAGE_DENT_DEPTH = 0.035;
     const ROBOT_DAMAGE_DENT_NOISE = 0.006;
@@ -1253,6 +1261,9 @@
                 thrusterRipplePrimed: false,
                 flightWasActive: false,
                 pendingThrusterRipple: 0,
+                evasionUntil: -999,
+                evasionVector: new THREE.Vector2(0, 0),
+                evasionThreat: null,
                 px: options.x,
                 pz: options.z
             },
@@ -1841,7 +1852,7 @@
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         if (!bot.group) return;
         const wasFlightActive = bot.state.flightWasActive === true;
-        let pendingThrusterRipple = 0;
+        let pendingThrusterRipple = Math.max(0, bot.state.pendingThrusterRipple || 0);
         updateRobotFlight(bot, t);
         const isFlightActive = (bot.state.flightLift || 0) > 0.06 || bot.state.flightStartedAt >= 0;
         if (!bot.state.thrusterRipplePrimed) {
@@ -1861,6 +1872,17 @@
         bot.velocity.x += driftX * dt;
         bot.velocity.y += driftZ * dt;
         steerRobotTowardDuel(bot, dt, t);
+
+        if (bot.state.evasionUntil > t) {
+            const evasionFade = clamp((bot.state.evasionUntil - t) / ROBOT_SUPERWEAPON_EVASION_DURATION, 0, 1);
+            bot.velocity.x += bot.state.evasionVector.x * ROBOT_SUPERWEAPON_EVASION_FORCE * dt * (0.55 + evasionFade * 0.45);
+            bot.velocity.y += bot.state.evasionVector.y * ROBOT_SUPERWEAPON_EVASION_FORCE * dt * (0.55 + evasionFade * 0.45);
+            pendingThrusterRipple = Math.max(pendingThrusterRipple, 1.18);
+        } else if (bot.state.evasionThreat) {
+            bot.state.evasionThreat = null;
+            if (bot.state.evasionVector) bot.state.evasionVector.set(0, 0);
+        }
+        bot.state.pendingThrusterRipple = pendingThrusterRipple;
 
         const speed = bot.velocity.length();
         const maxSpeed = 1.34;
@@ -2204,6 +2226,68 @@
             fadePower: 1.5,
             kind: 'energyMuzzle'
         });
+    }
+
+    function robotSuperweaponDetectionRange(bot) {
+        const hits = bot && bot.state ? Math.max(0, bot.state.hits || 0) : 0;
+        const hitPenalty = bot && bot.state
+            ? (bot.state.hits || 0) * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY
+            : hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY;
+        return Math.max(ROBOT_SUPERWEAPON_EVASION_MIN_RANGE, ROBOT_SUPERWEAPON_EVASION_RANGE - hitPenalty);
+    }
+
+    function projectileClosingSpeedToRobot(projectile, bot) {
+        if (!projectile || !projectile.mesh || !bot || !bot.group) return 0;
+        const toRobot = robotAimPoint(bot).sub(projectile.mesh.position);
+        if (toRobot.lengthSq() < 0.001) return Infinity;
+        toRobot.normalize();
+        if (projectile.velocity3D && projectile.velocity3D.lengthSq && projectile.velocity3D.lengthSq() > 0.001) {
+            return projectile.velocity3D.dot(toRobot);
+        }
+        if (!projectile.direction || !projectile.direction.dot) return 0;
+        const speed = projectile.currentSpeed || projectile.speed || ROBOT_PROJECTILE_SPEED;
+        return projectile.direction.dot(toRobot) * speed;
+    }
+
+    function tryRobotSuperweaponEvasion(projectile, t) {
+        const bot = projectile && projectile.target;
+        if (!bot || !bot.state || !bot.group || !projectile || !projectile.mesh) return;
+        if (!projectile.isSuper || projectile.target !== bot) return;
+
+        const state = bot.state;
+        if (state.evasionThreat === projectile && state.evasionUntil > t) return;
+
+        const targetPosition = robotAimPoint(bot);
+        const toRobot = targetPosition.clone().sub(projectile.mesh.position);
+        const distance = toRobot.length();
+        const closingSpeed = projectileClosingSpeedToRobot(projectile, bot);
+        const detectionRange = robotSuperweaponDetectionRange(bot);
+        if (distance > detectionRange || closingSpeed <= ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED) {
+            return;
+        }
+
+        const approach = projectile.direction && projectile.direction.lengthSq && projectile.direction.lengthSq() > 0.001
+            ? projectile.direction
+            : toRobot.normalize();
+        let sideX = -approach.z;
+        let sideZ = approach.x;
+        if (Math.hypot(sideX, sideZ) < 0.001) {
+            sideX = bot.id === 'red' ? -1 : 1;
+            sideZ = 0;
+        }
+        const sideSign = Math.sin((state.seed || 0) + t * 1.7 + distance * 0.31) >= 0 ? 1 : -1;
+        sideX *= sideSign;
+        sideZ *= sideSign;
+
+        state.evasionUntil = t + ROBOT_SUPERWEAPON_EVASION_DURATION;
+        state.evasionThreat = projectile;
+        state.evasionVector.set(sideX, sideZ).normalize();
+        state.flightStartedAt = t - ROBOT_SUPERWEAPON_EVASION_FLIGHT_PHASE;
+        state.flightDuration = Math.max(ROBOT_FLIGHT_DURATION * 0.72, state.flightDuration || 0);
+        state.flightPeak = Math.max(state.flightPeak || 0, ROBOT_SUPERWEAPON_EVASION_FLIGHT_HEIGHT);
+        state.nextFlightAt = Math.max(state.nextFlightAt || 0, t + ROBOT_FLIGHT_MAX_INTERVAL);
+        bot.state.pendingThrusterRipple = Math.max(bot.state.pendingThrusterRipple || 0, 1.18);
+        state.recoil = Math.max(state.recoil || 0, 0.42);
     }
 
     function ensureRobotScorchTexture() {
@@ -2693,6 +2777,10 @@
                     }
                 }
                 projectile.mesh.position.addScaledVector(projectile.direction, projectile.speed * dt);
+            }
+
+            if (isSuper) {
+                tryRobotSuperweaponEvasion(projectile, t);
             }
 
             const pulse = 0.88 + Math.sin(t * 26 + projectile.pulseSeed) * 0.24;
