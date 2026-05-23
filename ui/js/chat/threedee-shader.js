@@ -5,6 +5,7 @@
     let animationId = null;
     let active = false;
     let lastFrame = 0;
+    let globalTime = 0;
     let surface;
     let surfaceGeometry;
     let gridLines;
@@ -162,7 +163,7 @@
             x,
             z,
             strength,
-            start: performance.now() / 1000
+            start: globalTime
         });
 
         while (impulses.length > MAX_IMPULSES) {
@@ -319,7 +320,7 @@
         const localNormal = new THREE.Vector3(0, 1, 0);
         if (surface) {
             const eps = 0.22;
-            const t = performance.now() / 1000;
+            const t = globalTime;
             const left = heightAt(clamp(localPos.x - eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
             const right = heightAt(clamp(localPos.x + eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
             const back = heightAt(localPos.x, clamp(localPos.z - eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
@@ -798,7 +799,7 @@
         if (!active) return;
         const nextMode = ((mode % MODE_COUNT) + MODE_COUNT) % MODE_COUNT;
         if (nextMode === currentMode) return;
-        const now = typeof t === 'number' ? t : performance.now() / 1000;
+        const now = typeof t === 'number' ? t : globalTime;
         exitMode(currentMode);
         previousMode = currentMode;
         previousModeStartTime = modeStartTime;
@@ -1666,9 +1667,9 @@
         target.state.x += recoil.x * 0.14;
         target.state.z += recoil.z * 0.14;
         target.state.recoil = Math.max(target.state.recoil || 0, 0.5);
-        target.state.hitFlash = Math.max(target.state.hitFlash || 0, 0.42);
+        target.state.hitFlash = Math.max(target.state.hitFlash || 0, 1.0);
         target.state.hits = (target.state.hits || 0) + 1;
-        bounceFloatingRobotWithinBounds(performance.now() / 1000, target);
+        bounceFloatingRobotWithinBounds(globalTime, target);
     }
 
     function spawnEnergyExplosion(projectile, hitTarget) {
@@ -1681,7 +1682,7 @@
             const localPos = pos.clone();
             surface.worldToLocal(localPos);
             const eps = 0.22;
-            const t = performance.now() / 1000;
+            const t = globalTime;
             const left = heightAt(clamp(localPos.x - eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
             const right = heightAt(clamp(localPos.x + eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
             const back = heightAt(localPos.x, clamp(localPos.z - eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
@@ -2090,6 +2091,7 @@
 
         const dt = FRAME_INTERVAL * 0.001;
         const t = time * 0.001;
+        globalTime = t;
         updateMode(dt, t);
         if (currentMode === 2) {
             spawnImpulse(t, false);
@@ -2120,9 +2122,10 @@
         if (!initScene()) return;
         active = true;
         lastFrame = 0;
+        globalTime = performance.now() / 1000;
         canvas.style.display = 'block';
         currentMode = 0;
-        resetModeTransition(performance.now() / 1000);
+        resetModeTransition(globalTime);
         enterMode(currentMode, modeStartTime);
 
         if (currentMode === 2 && impulses.length === 0) {
