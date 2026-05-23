@@ -1891,12 +1891,22 @@
         if (!blueRobot.group || !redRobot.group) return;
 
         if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > 0.42) {
-            spawnEnergyProjectile(blueRobot, redRobot, t);
-            blueRobot.state.isAiming = false;
+            const dx = redRobot.state.x - blueRobot.state.x;
+            const dz = redRobot.state.z - blueRobot.state.z;
+            const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
+            if (blueRobot.forward.dot(toOpponent) > 0.96) {
+                spawnEnergyProjectile(blueRobot, redRobot, t);
+                blueRobot.state.isAiming = false;
+            }
         }
         if (redRobot.state.isAiming && t - redRobot.state.aimStart > 0.42) {
-            spawnEnergyProjectile(redRobot, blueRobot, t);
-            redRobot.state.isAiming = false;
+            const dx = blueRobot.state.x - redRobot.state.x;
+            const dz = blueRobot.state.z - redRobot.state.z;
+            const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
+            if (redRobot.forward.dot(toOpponent) > 0.96) {
+                spawnEnergyProjectile(redRobot, blueRobot, t);
+                redRobot.state.isAiming = false;
+            }
         }
 
         const dx = redRobot.state.x - blueRobot.state.x;
@@ -2134,11 +2144,15 @@
         animationId = requestAnimationFrame(render);
 
         if (time - lastFrame < FRAME_INTERVAL) return;
-        lastFrame = time;
+        
+        if (lastFrame === 0 || time - lastFrame > 1000) {
+            lastFrame = time - FRAME_INTERVAL;
+        }
+        lastFrame += FRAME_INTERVAL;
 
         const dt = FRAME_INTERVAL * 0.001;
-        const t = time * 0.001;
-        globalTime = t;
+        globalTime += dt;
+        const t = globalTime;
         updateMode(dt, t);
         if (currentMode === 2) {
             spawnImpulse(t, false);
@@ -2169,7 +2183,7 @@
         if (!initScene()) return;
         active = true;
         lastFrame = 0;
-        globalTime = performance.now() / 1000;
+        globalTime = 0;
         canvas.style.display = 'block';
         currentMode = 0;
         resetModeTransition(globalTime);
