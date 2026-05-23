@@ -107,6 +107,31 @@
     const robotFleet = [];
     const robotThrusterRipples = [];
 
+    const AURA_VERTEX_SHADER = [
+        'varying vec3 vNormal;',
+        'varying vec3 vViewPosition;',
+        'void main() {',
+        '    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);',
+        '    vNormal = normalize(normalMatrix * normal);',
+        '    vViewPosition = -mvPosition.xyz;',
+        '    gl_Position = projectionMatrix * mvPosition;',
+        '}'
+    ].join('\n');
+
+    const AURA_FRAGMENT_SHADER = [
+        'uniform vec3 color;',
+        'uniform float intensity;',
+        'uniform float glowPower;',
+        'varying vec3 vNormal;',
+        'varying vec3 vViewPosition;',
+        'void main() {',
+        '    vec3 normal = normalize(vNormal);',
+        '    vec3 viewDir = normalize(vViewPosition);',
+        '    float intensityFactor = pow(1.0 - abs(dot(normal, viewDir)), glowPower);',
+        '    gl_FragColor = vec4(color, intensityFactor * intensity);',
+        '}'
+    ].join('\n');
+
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
@@ -1052,6 +1077,7 @@
 
     function normalizeFloatingRobot(root, bot) {
         const config = bot || robotFleet[0] || null;
+        if (config) config.materials = [];
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const maxAxis = Math.max(size.x, size.y, size.z);
@@ -1090,6 +1116,7 @@
                     material.emissiveIntensity = Math.max(config && config.id === 'red' ? 0.24 : 0.18, material.emissiveIntensity || 0);
                 }
                 material.needsUpdate = true;
+                if (config) config.materials.push(material);
             });
         });
     }
@@ -1146,6 +1173,27 @@
             }
             bot.model = model;
             normalizeFloatingRobot(model, bot);
+
+            const auraMat = new THREE.ShaderMaterial({
+                vertexShader: AURA_VERTEX_SHADER,
+                fragmentShader: AURA_FRAGMENT_SHADER,
+                uniforms: {
+                    color: { value: new THREE.Color(bot.projectileHex) },
+                    intensity: { value: 0.0 },
+                    glowPower: { value: 2.2 }
+                },
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const targetSize = bot.id === 'red' ? ROBOT_RED_TARGET_SIZE : 1.45;
+            const auraRadius = (targetSize / 2.0) * 1.25;
+            const auraGeom = new THREE.SphereGeometry(auraRadius, 32, 32);
+            bot.auraMesh = new THREE.Mesh(auraGeom, auraMat);
+            bot.auraMesh.position.set(0, targetSize * 0.46, 0);
+            group.add(bot.auraMesh);
+
             group.add(model);
             group.visible = true;
             bot.loaded = true;
@@ -1395,6 +1443,10 @@
             bot.velocity.y += Math.cos(t * 0.8 + bot.state.seed) * dt * 0.22;
         }
 
+        if (bot.state.isAiming) {
+            bot.velocity.multiplyScalar(Math.max(0, 1 - dt * 5.0));
+        }
+
         bot.state.x += bot.velocity.x * dt;
         bot.state.z += bot.velocity.y * dt;
         bounceFloatingRobotWithinBounds(t, bot);
@@ -1404,7 +1456,47 @@
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
-        bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 2.8);
+        bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 1.5);
+
+        if (bot.materials) {
+            const baseEmissive = bot.id === 'red' ? 0.24 : 0.18;
+            bot.materials.forEach(function (mat) {
+                if ('emissiveIntensity' in mat) {
+                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8;
+                }
+            });
+        }
+
+        if (bot.auraMesh && bot.auraMesh.material.uniforms) {
+            const hitScale = 1.0 + bot.state.hitFlash * 0.22;
+            bot.auraMesh.scale.set(hitScale, hitScale, hitScale);
+            const pulse = Math.sin(t * 15) * 0.15;
+            bot.auraMesh.material.uniforms.intensity.value = bot.state.hitFlash * 0.95 + (bot.state.hitFlash > 0.01 ? pulse * bot.state.hitFlash : 0);
+        }
+
+        if (bot.state.isAiming && Math.random() < dt * 25 && bot.opponent && bot.opponent.group) {
+            const muzzle = robotMuzzlePosition(bot);
+            const opponentPos = bot.opponent.group.position.clone();
+            opponentPos.y += 0.12;
+            const dir = opponentPos.sub(muzzle).normalize();
+            const sparkOffset = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.45,
+                (Math.random() - 0.5) * 0.45,
+                (Math.random() - 0.5) * 0.45
+            ).addScaledVector(dir, 0.22);
+            const sparkPos = muzzle.clone().add(sparkOffset);
+            createSmokeSprite(sparkPos.x, sparkPos.y, sparkPos.z, bot.projectileHex, 0.05 + Math.random() * 0.05, 0.25, {
+                vx: -sparkOffset.x * 2.2,
+                vy: -sparkOffset.y * 2.2,
+                vz: -sparkOffset.z * 2.2,
+                spin: (Math.random() - 0.5) * 6,
+                opacity: 0.88,
+                expansion: 0.25,
+                fadePower: 1.15,
+                kind: 'energyCharge'
+            });
+        }
+
         bot.state.y = surface.position.y + waterY * flightWaveInfluence + 0.62 + (bot.state.flightLift || 0) + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
         bot.targetPosition.set(bot.state.x, bot.state.y, bot.state.z + surface.position.z);
         if (bot.id === 'blue') {
@@ -1422,7 +1514,10 @@
         if (bot.opponent && bot.opponent.state) {
             const duelVector = new THREE.Vector3(bot.opponent.state.x - bot.state.x, 0, bot.opponent.state.z - bot.state.z);
             const duelDistance = Math.max(0.001, duelVector.length());
-            if (duelDistance < ROBOT_DUEL_DISTANCE + 1.1) {
+            if (bot.state.isAiming) {
+                duelVector.normalize();
+                bot.forward.lerp(duelVector, clamp(dt * 15, 0, 1)).normalize();
+            } else if (duelDistance < ROBOT_DUEL_DISTANCE + 1.1) {
                 duelVector.normalize();
                 bot.forward.lerp(duelVector, clamp((ROBOT_DUEL_DISTANCE + 1.1 - duelDistance) / 2.8, 0, 0.78)).normalize();
             }
@@ -1747,16 +1842,37 @@
         const redRobot = robotFleet[1];
         if (!blueRobot.group || !redRobot.group) return;
 
+        if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > 0.42) {
+            spawnEnergyProjectile(blueRobot, redRobot, t);
+            blueRobot.state.isAiming = false;
+        }
+        if (redRobot.state.isAiming && t - redRobot.state.aimStart > 0.42) {
+            spawnEnergyProjectile(redRobot, blueRobot, t);
+            redRobot.state.isAiming = false;
+        }
+
         const dx = redRobot.state.x - blueRobot.state.x;
         const dz = redRobot.state.z - blueRobot.state.z;
         const distance = Math.hypot(dx, dz);
-        if (distance > ROBOT_DUEL_DISTANCE) return;
+        if (distance > ROBOT_DUEL_DISTANCE) {
+            if (distance > ROBOT_DUEL_DISTANCE + 1.5) {
+                blueRobot.state.isAiming = false;
+                redRobot.state.isAiming = false;
+            }
+            return;
+        }
 
         const proximity = 1 - clamp(distance / ROBOT_DUEL_DISTANCE, 0, 1);
         const blueCooldown = ROBOT_DUEL_COOLDOWN + Math.sin(t * 0.8) * 0.1;
         const redCooldown = ROBOT_DUEL_COOLDOWN * 1.12 + Math.cos(t * 0.7) * 0.08;
-        if (t - blueRobot.state.lastShot > blueCooldown) spawnEnergyProjectile(blueRobot, redRobot, t);
-        if (t - redRobot.state.lastShot > redCooldown) spawnEnergyProjectile(redRobot, blueRobot, t);
+        if (t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
+            blueRobot.state.isAiming = true;
+            blueRobot.state.aimStart = t;
+        }
+        if (t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
+            redRobot.state.isAiming = true;
+            redRobot.state.aimStart = t;
+        }
 
         if (!updateRobotDuel.lastPulse || t - updateRobotDuel.lastPulse > 0.2) {
             const midX = (blueRobot.state.x + redRobot.state.x) * 0.5;
