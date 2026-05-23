@@ -41,7 +41,7 @@
     };
 
     const IMPULSE_LIFETIME = 4.8;
-    const MAX_IMPULSES = 32;
+    const MAX_IMPULSES = 48;
     const FRAME_INTERVAL = 1000 / 30;
 
     let colorLow;
@@ -187,6 +187,13 @@
     }
 
     function addImpulse(x, z, strength) {
+        // Prune expired impulses first to reclaim slots
+        for (let i = impulses.length - 1; i >= 0; i--) {
+            if (globalTime - impulses[i].start > IMPULSE_LIFETIME) {
+                impulses.splice(i, 1);
+            }
+        }
+
         impulses.push({
             x,
             z,
@@ -194,6 +201,7 @@
             start: globalTime
         });
 
+        // Only evict if truly over capacity after pruning
         while (impulses.length > MAX_IMPULSES) {
             impulses.shift();
         }
@@ -2217,7 +2225,7 @@
             }
         }
 
-        if (!updateRobotDuel.lastPulse || t - updateRobotDuel.lastPulse > 0.2) {
+        if (!updateRobotDuel.lastPulse || t - updateRobotDuel.lastPulse > 0.35) {
             const midX = (blueRobot.state.x + redRobot.state.x) * 0.5;
             const midZ = (blueRobot.state.z + redRobot.state.z) * 0.5;
             addImpulse(midX, midZ, 0.035 + proximity * 0.07);
@@ -2433,14 +2441,15 @@
         if (!active) return;
         animationId = requestAnimationFrame(render);
 
-        if (time - lastFrame < FRAME_INTERVAL) return;
-        
-        if (lastFrame === 0 || time - lastFrame > 1000) {
-            lastFrame = time - FRAME_INTERVAL;
-        }
-        lastFrame += FRAME_INTERVAL;
+        if (lastFrame > 0 && time - lastFrame < FRAME_INTERVAL) return;
 
-        const dt = FRAME_INTERVAL * 0.001;
+        // Use actual elapsed wall-clock time for smooth animation
+        // regardless of monitor refresh rate
+        const elapsed = lastFrame > 0 ? (time - lastFrame) : FRAME_INTERVAL;
+        lastFrame = time;
+
+        // Clamp to prevent physics explosion after tab-switch or stall
+        const dt = Math.min(elapsed * 0.001, 0.1);
         globalTime += dt;
         const t = globalTime;
         updateMode(dt, t);
