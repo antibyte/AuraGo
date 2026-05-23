@@ -48,12 +48,13 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 		`const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');`,
 		`function storeFrameURL(src, storeAppId)`,
 		`if (storeAppId === 'uptime-kuma')`,
-		`if (shouldOpenStoreAppExternally(app)) {`,
-		`renderExternalStoreAppLaunch(id, app, storeAppId);`,
+		`const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;`,
+		`navigateExternalStoreWindow(pendingExternalWindow, body.url);`,
 		`function shouldOpenStoreAppExternally(app)`,
 		`app.metadata.open_external === 'true'`,
 		`app.metadata.store_app_id === 'romm'`,
-		`function renderExternalStoreAppLaunch(id, app, storeAppId)`,
+		`function openPendingExternalStoreWindow()`,
+		`function navigateExternalStoreWindow(pendingWindow, url)`,
 		`function cacheBustURL(src, paramName)`,
 		`const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });`,
 		`if (options && options.allowStorageAccess) sandboxFlags.push('allow-storage-access-by-user-activation');`,
@@ -70,6 +71,9 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderContainerWebApp(id, app)")
 	if strings.Contains(body, "allow-popups") {
 		t.Fatal("store app frames must not allow popups")
+	}
+	if strings.Contains(mainText, `data-action="open-external"`) {
+		t.Fatal("external store apps must open directly in a tab instead of rendering an intermediate desktop button")
 	}
 }
 

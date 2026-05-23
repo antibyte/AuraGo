@@ -566,18 +566,21 @@
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
             return;
         }
+        const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
-                renderExternalStoreAppLaunch(id, app, storeAppId);
+                navigateExternalStoreWindow(pendingExternalWindow, body.url);
+                host.innerHTML = `<div class="vd-store-frame-loading">${esc(appName(app))}</div>`;
                 return;
             }
             const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             host.replaceChildren(frame);
         } catch (err) {
+            closeExternalStoreWindow(pendingExternalWindow);
             if (!contentEl(id)) return;
             host.innerHTML = `<div class="vd-store-frame-error">
                 <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
@@ -602,40 +605,40 @@
         return !!(app && app.metadata && (app.metadata.open_external === 'true' || app.metadata.store_app_id === 'romm'));
     }
 
-    function renderExternalStoreAppLaunch(id, app, storeAppId) {
-        const host = contentEl(id);
-        if (!host) return;
-        host.innerHTML = `<div class="vd-store-frame-error vd-store-frame-external">
-            <div class="vd-store-frame-error-title">${esc(appName(app))}</div>
-            <button type="button" class="vd-store-btn vd-store-primary" data-action="open-external">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.open', 'Open'))}</span></button>
-        </div>`;
-        const open = host.querySelector('[data-action="open-external"]');
-        if (open) {
-            open.focus({ preventScroll: true });
-            open.addEventListener('click', () => openExternalStoreApp(storeAppId, appName(app)));
-        }
-    }
-
-    async function openExternalStoreApp(storeAppId, title) {
+    function openPendingExternalStoreWindow() {
         const pendingWindow = window.open('about:blank', '_blank');
         if (pendingWindow) {
             pendingWindow.opener = null;
         }
+        return pendingWindow;
+    }
+
+    function navigateExternalStoreWindow(pendingWindow, url) {
+        if (!url) {
+            closeExternalStoreWindow(pendingWindow);
+            return false;
+        }
+        if (pendingWindow && !pendingWindow.closed) {
+            pendingWindow.location.replace(url);
+            return true;
+        }
+        window.open(url, '_blank', 'noopener');
+        return true;
+    }
+
+    function closeExternalStoreWindow(pendingWindow) {
+        if (pendingWindow && !pendingWindow.closed) {
+            pendingWindow.close();
+        }
+    }
+
+    async function openExternalStoreApp(storeAppId, title) {
+        const pendingWindow = openPendingExternalStoreWindow();
         try {
             const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
-            if (body.url) {
-                if (pendingWindow && !pendingWindow.closed) {
-                    pendingWindow.location.replace(body.url);
-                } else {
-                    window.open(body.url, '_blank', 'noopener');
-                }
-            } else if (pendingWindow && !pendingWindow.closed) {
-                pendingWindow.close();
-            }
+            navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
-            if (pendingWindow && !pendingWindow.closed) {
-                pendingWindow.close();
-            }
+            closeExternalStoreWindow(pendingWindow);
             showDesktopNotification({ title: title || storeAppId, message: err.message });
         }
     }
