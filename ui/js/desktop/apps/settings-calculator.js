@@ -57,7 +57,7 @@
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'new-file', labelKey: 'desktop.new_file', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: () => openApp('editor', { path: joinPath(path || state.filesPath, 'untitled.txt'), content: '' }) },
+                    { id: 'new-file', labelKey: 'desktop.new_file', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: () => openApp('editor', { path: workspaceJoinPath(path || state.filesPath, 'untitled.txt'), content: '' }) },
                     { id: 'new-folder', labelKey: 'desktop.new_folder', icon: 'folder-plus', disabled: readonly, action: () => createFolderInPath(path || state.filesPath) }
                 ]
             },

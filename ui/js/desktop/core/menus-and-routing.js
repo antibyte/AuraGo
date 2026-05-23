@@ -288,7 +288,7 @@
     async function createFileInPath(basePath) {
         const name = await promptDialog(t('desktop.new_file'), 'untitled.txt');
         if (!name) return;
-        const path = joinPath(basePath, name);
+        const path = workspaceJoinPath(basePath, name);
         try {
             await api('/api/desktop/file', {
                 method: 'PUT',
@@ -311,7 +311,7 @@
             await api('/api/desktop/directory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: joinPath(basePath, name) })
+                body: JSON.stringify({ path: workspaceJoinPath(basePath, name) })
             });
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
@@ -330,7 +330,7 @@
             await api('/api/desktop/file', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_path: path, new_path: joinPath(pathDir(path), name) })
+                body: JSON.stringify({ old_path: path, new_path: workspaceJoinPath(pathDir(path), name) })
             });
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
@@ -1092,7 +1092,7 @@
             parts.pop();
             renderFiles(id, parts.join('/'));
         });
-        host.querySelector('[data-action="new-file"]').addEventListener('click', () => openApp('editor', { path: joinPath(state.filesPath, 'untitled.txt'), content: '' }));
+        host.querySelector('[data-action="new-file"]').addEventListener('click', () => openApp('editor', { path: workspaceJoinPath(state.filesPath, 'untitled.txt'), content: '' }));
         host.querySelector('[data-action="new-folder"]').addEventListener('click', () => createFolderInPath(state.filesPath));
         setFallbackFileMenus(id, state.filesPath);
         try {

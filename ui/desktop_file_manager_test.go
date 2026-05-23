@@ -163,6 +163,38 @@ func TestDesktopAndFileManagerShareCutCopyPaste(t *testing.T) {
 	}
 }
 
+func TestDesktopCoreFileCreationUsesLocalPathJoinHelper(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
+	for _, signature := range []string{
+		"async function createFileInPath(basePath)",
+		"async function createFolderInPath(basePath)",
+		"async function renamePath(path)",
+	} {
+		body := jsFunctionBodyInWindowMenuTest(t, source, signature)
+		if strings.Contains(body, "joinPath(") {
+			t.Fatalf("%s must not use the file-manager-local joinPath helper", signature)
+		}
+		if !strings.Contains(body, "workspaceJoinPath(") {
+			t.Fatalf("%s must use workspaceJoinPath from the desktop core runtime", signature)
+		}
+	}
+	if strings.Contains(source, "joinPath(state.filesPath, 'untitled.txt')") {
+		t.Fatal("desktop file toolbar must not reference the file-manager-local joinPath helper")
+	}
+	if !strings.Contains(source, "workspaceJoinPath(state.filesPath, 'untitled.txt')") {
+		t.Fatal("desktop file toolbar must use workspaceJoinPath for new file paths")
+	}
+	settings := rawDesktopAssetText(t, "js/desktop/apps/settings-calculator.js")
+	if strings.Contains(settings, "joinPath(path || state.filesPath, 'untitled.txt')") {
+		t.Fatal("desktop fallback file menu must not reference the file-manager-local joinPath helper")
+	}
+	if !strings.Contains(settings, "workspaceJoinPath(path || state.filesPath, 'untitled.txt')") {
+		t.Fatal("desktop fallback file menu must use workspaceJoinPath for new file paths")
+	}
+}
+
 func TestDesktopClipboardPastePreservesFileManagerRootPath(t *testing.T) {
 	t.Parallel()
 
