@@ -1165,15 +1165,16 @@
         aliasPrimaryRobot(robotFleet[0]);
     }
 
-    function setupCanvasTextureForMaterial(node, material, config) {
-        if (!node.geometry || !node.geometry.attributes || !node.geometry.attributes.uv) return;
+    function ensureCanvasTextureForMaterial(mesh, material) {
+        if (material.userData.damageCanvas) return true;
+        if (!mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.uv) return false;
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         let width = 512;
         let height = 512;
 
-        if (material.map && material.map.image && (material.map.image.complete || material.map.image.width > 0)) {
+        if (material.map && material.map.image) {
             const img = material.map.image;
             width = img.width || 512;
             height = img.height || 512;
@@ -1190,8 +1191,8 @@
             newTexture.center.copy(originalTexture.center);
             newTexture.rotation = originalTexture.rotation;
 
-            originalTexture.dispose();
             material.map = newTexture;
+            material.needsUpdate = true;
         } else {
             canvas.width = width;
             canvas.height = height;
@@ -1207,6 +1208,7 @@
         material.userData.damageCanvas = canvas;
         material.userData.damageCtx = ctx;
         material.userData.damageTexture = material.map;
+        return true;
     }
 
     function drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper) {
@@ -1257,19 +1259,21 @@
                     let textureUpdated = false;
 
                     materials.forEach(function (material) {
-                        const canvas = material.userData.damageCanvas;
-                        const ctx = material.userData.damageCtx;
-                        const texture = material.userData.damageTexture;
-                        if (canvas && ctx && texture) {
-                            const u = hit.uv.x;
-                            const v = hit.uv.y;
-                            const x = u * canvas.width;
-                            const y = (1 - v) * canvas.height;
+                        if (ensureCanvasTextureForMaterial(mesh, material)) {
+                            const canvas = material.userData.damageCanvas;
+                            const ctx = material.userData.damageCtx;
+                            const texture = material.userData.damageTexture;
+                            if (canvas && ctx && texture) {
+                                const u = hit.uv.x;
+                                const v = hit.uv.y;
+                                const x = u * canvas.width;
+                                const y = (1 - v) * canvas.height;
 
-                            const radius = isSuper ? 16 + Math.random() * 8 : 8 + Math.random() * 4;
-                            drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper);
-                            texture.needsUpdate = true;
-                            textureUpdated = true;
+                                const radius = isSuper ? 16 + Math.random() * 8 : 8 + Math.random() * 4;
+                                drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper);
+                                texture.needsUpdate = true;
+                                textureUpdated = true;
+                            }
                         }
                     });
 
@@ -1336,7 +1340,6 @@
                     material.emissiveIntensity = Math.max(config && config.id === 'red' ? 0.24 : 0.18, material.emissiveIntensity || 0);
                 }
                 material.needsUpdate = true;
-                setupCanvasTextureForMaterial(node, material, config);
                 if (config) config.materials.push(material);
             });
         });
