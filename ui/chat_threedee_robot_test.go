@@ -361,6 +361,30 @@ func TestThreeDeeRobotSamplingIgnoresFeedbackWaves(t *testing.T) {
 	}
 }
 
+func TestThreeDeeThemeDisposesSceneWhenInactive(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"let sceneGeneration = 0;",
+		"function disposeThreeDeeScene()",
+		"disposeThreeObject(scene);",
+		"renderer.dispose();",
+		"renderer.forceContextLoss",
+		"canvas.remove();",
+		"const loadGeneration = sceneGeneration;",
+		"loadGeneration !== sceneGeneration",
+		"disposeThreeObject(model);",
+		"disposeRobotLoader(bot, dracoLoader);",
+		"stop();",
+		"disposeThreeDeeScene();",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing theme-exit disposal marker %q", marker)
+		}
+	}
+}
+
 func readGLBJSONChunk(t *testing.T, asset string, data []byte) string {
 	t.Helper()
 

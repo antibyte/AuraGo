@@ -4,6 +4,7 @@
     let canvas, renderer, scene, camera;
     let animationId = null;
     let active = false;
+    let sceneGeneration = 0;
     let lastFrame = 0;
     let globalTime = 0;
     let surface;
@@ -195,6 +196,170 @@
             display: 'none'
         });
         document.body.appendChild(canvas);
+    }
+
+    function disposeThreeMaterial(material, seenTextures) {
+        if (!material) return;
+        const materials = Array.isArray(material) ? material : [material];
+        materials.forEach(function (mat) {
+            if (!mat) return;
+            [
+                'map',
+                'alphaMap',
+                'aoMap',
+                'bumpMap',
+                'displacementMap',
+                'emissiveMap',
+                'envMap',
+                'lightMap',
+                'metalnessMap',
+                'normalMap',
+                'roughnessMap'
+            ].forEach(function (key) {
+                const texture = mat[key];
+                if (texture && texture.dispose && !seenTextures.has(texture)) {
+                    seenTextures.add(texture);
+                    texture.dispose();
+                }
+            });
+            if (mat.userData && mat.userData.damageTexture && mat.userData.damageTexture.dispose && !seenTextures.has(mat.userData.damageTexture)) {
+                seenTextures.add(mat.userData.damageTexture);
+                mat.userData.damageTexture.dispose();
+            }
+            if (mat.dispose) mat.dispose();
+        });
+    }
+
+    function disposeThreeObject(root) {
+        if (!root) return;
+        const seenGeometries = new Set();
+        const seenTextures = new Set();
+        root.traverse(function (node) {
+            if (node.geometry && node.geometry.dispose && !seenGeometries.has(node.geometry)) {
+                seenGeometries.add(node.geometry);
+                node.geometry.dispose();
+            }
+            disposeThreeMaterial(node.material, seenTextures);
+        });
+    }
+
+    function disposeRobotLoader(bot, fallbackLoader) {
+        const loader = (bot && bot.dracoLoader) || fallbackLoader;
+        if (loader && typeof loader.dispose === 'function') {
+            loader.dispose();
+        }
+        if (bot) bot.dracoLoader = null;
+        if (loader === robotDracoLoader) robotDracoLoader = null;
+    }
+
+    function disposeWindowThreeAsset(name) {
+        const asset = window[name];
+        if (asset && typeof asset.dispose === 'function') asset.dispose();
+        window[name] = null;
+    }
+
+    function disposeCachedThreeDeeAssets() {
+        [
+            'sphereGeom',
+            'sphereMat',
+            'shockwaveGeom',
+            'shockwaveMat',
+            'energyProjectileGeom',
+            'superRocketGeom',
+            'superGrenadeGeom',
+            'robotScorchTexture',
+            'robotScorchGeometry'
+        ].forEach(disposeWindowThreeAsset);
+        if (smokeTexture && typeof smokeTexture.dispose === 'function') smokeTexture.dispose();
+        smokeTexture = null;
+    }
+
+    function resetRobotRuntime(bot) {
+        if (!bot) return;
+        bot.disposed = true;
+        bot.loadGeneration = -1;
+        bot.group = null;
+        bot.model = null;
+        bot.thrusterLight = null;
+        bot.loading = false;
+        bot.loaded = false;
+        bot.materials = [];
+        bot.damageMeshes = [];
+        bot.damageScorchMarks = [];
+        disposeRobotLoader(bot);
+    }
+
+    function clearThreeDeeRuntimeState() {
+        impulses.length = 0;
+        spheres.length = 0;
+        sprites.length = 0;
+        fogPlanes.length = 0;
+        impactLights.length = 0;
+        shockwaves.length = 0;
+        energyProjectiles.length = 0;
+        robotThrusterRipples.length = 0;
+        robotFleet.forEach(resetRobotRuntime);
+        robotFleet.length = 0;
+        _preImpulse.alive = 0;
+
+        surface = null;
+        surfaceGeometry = null;
+        gridLines = null;
+        gridGeometry = null;
+        basePositions = null;
+        heightCache = null;
+        textCanvas = null;
+        textMask = null;
+        textLetters.length = 0;
+        raycaster = null;
+        mousePlane = null;
+        mouseGlow = null;
+        robotGroup = null;
+        robotModel = null;
+        robotThrusterLight = null;
+        robotModelBaseY = 0;
+        robotLoading = false;
+        robotLoaded = false;
+        robotLoadWarned = false;
+        robotDracoLoader = null;
+        robotTargetPosition = null;
+        robotSurfaceNormal = null;
+        targetQuaternion = null;
+        composedRobotQuaternion = null;
+        robotHeadingQuaternion = null;
+        robotSwayQuaternion = null;
+        robotForward = null;
+        robotUp = null;
+        robotState = null;
+        robotVelocity = null;
+        robotBounds = null;
+        mouseActive = false;
+        mouseDown = false;
+        normalFrameToggle = 0;
+        cameraShake = 0;
+        previousMode = -1;
+        currentMode = 0;
+    }
+
+    function disposeThreeDeeScene() {
+        sceneGeneration++;
+        exitMode(currentMode);
+        clearEnergyProjectiles();
+        if (scene) disposeThreeObject(scene);
+        if (renderer) {
+            if (renderer.renderLists && typeof renderer.renderLists.dispose === 'function') renderer.renderLists.dispose();
+            renderer.dispose();
+            if (typeof renderer.forceContextLoss === 'function') renderer.forceContextLoss();
+        }
+        disposeCachedThreeDeeAssets();
+        if (canvas) {
+            canvas.remove();
+            canvas = null;
+        }
+        renderer = null;
+        scene = null;
+        camera = null;
+        clearThreeDeeRuntimeState();
     }
 
     function addImpulse(x, z, strength) {
@@ -1061,6 +1226,9 @@
             modelBaseY: 0,
             loading: false,
             loaded: false,
+            disposed: false,
+            loadGeneration: -1,
+            dracoLoader: null,
             loadWarned: false,
             state: {
                 x: options.x,
@@ -1359,6 +1527,7 @@
 
     function loadRobotAsset(bot) {
         if (!bot || bot.loaded || bot.loading || !scene) return;
+        bot.disposed = false;
         if (!THREE.GLTFLoader || !THREE.DRACOLoader) {
             if (!bot.loadWarned) {
                 console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for ' + bot.url);
@@ -1369,6 +1538,8 @@
         }
 
         bot.loading = true;
+        const loadGeneration = sceneGeneration;
+        bot.loadGeneration = loadGeneration;
         const group = new THREE.Group();
         group.name = 'threedee-floating-robot-' + bot.id;
         group.visible = false;
@@ -1383,6 +1554,7 @@
             dracoLoader.setDecoderConfig({ type: 'wasm' });
         }
         loader.setDRACOLoader(dracoLoader);
+        bot.dracoLoader = dracoLoader;
 
         if (bot.id === 'blue') {
             robotGroup = group;
@@ -1392,6 +1564,13 @@
 
         const onLoad = function (gltf) {
             const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            disposeRobotLoader(bot, dracoLoader);
+            if (bot.disposed || loadGeneration !== sceneGeneration || !scene || !group.parent) {
+                bot.loading = false;
+                if (bot.id === 'blue') robotLoading = false;
+                if (model) disposeThreeObject(model);
+                return;
+            }
             if (!model) {
                 bot.loading = false;
                 if (bot.id === 'blue') robotLoading = false;
@@ -1436,9 +1615,10 @@
             }
         };
         const onError = function (err) {
+            disposeRobotLoader(bot, dracoLoader);
             bot.loading = false;
             if (bot.id === 'blue') robotLoading = false;
-            scene.remove(group);
+            if (scene) scene.remove(group);
             bot.group = null;
             console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
         };
@@ -2743,6 +2923,7 @@
 
     function initScene() {
         if (scene) return true;
+        sceneGeneration++;
 
         colorLow = new THREE.Color(0x101626);
         colorMid = new THREE.Color(0x24324c);
@@ -3041,10 +3222,7 @@
             cancelAnimationFrame(animationId);
             animationId = null;
         }
-        exitMode(currentMode);
-        clearEnergyProjectiles();
-        robotThrusterRipples.length = 0;
-        if (canvas) canvas.style.display = 'none';
+        disposeThreeDeeScene();
     }
 
     function sync() {
