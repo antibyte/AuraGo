@@ -315,7 +315,16 @@
             });
         }
         $('vd-workspace').addEventListener('contextmenu', showDesktopContextMenu);
+        $('vd-workspace').addEventListener('pointerdown', startDesktopSelectionDrag);
+        $('vd-workspace').addEventListener('pointermove', updateDesktopSelectionDrag);
+        $('vd-workspace').addEventListener('pointerup', finishDesktopSelectionDrag);
+        $('vd-workspace').addEventListener('pointercancel', finishDesktopSelectionDrag);
         $('vd-workspace').addEventListener('click', event => {
+            if (desktopSelectionSuppressClick) {
+                desktopSelectionSuppressClick = false;
+                event.preventDefault();
+                return;
+            }
             if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
         });
         wireDesktopFileDrops();
@@ -460,8 +469,12 @@
     }
 
     function selectedDesktopIcon() {
-        if (!state.selectedIconId) return null;
-        return document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+        if (state.selectedIconId) {
+            const active = document.querySelector(`.vd-icon[data-id="${cssSel(state.selectedIconId)}"]`);
+            if (active && active.classList.contains('selected')) return active;
+        }
+        const icons = selectedDesktopIcons();
+        return icons.length ? icons[0] : null;
     }
 
     function selectedFileDirectoryIcon() {

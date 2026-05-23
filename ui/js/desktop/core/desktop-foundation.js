@@ -13,6 +13,7 @@
         iconThemeManifests: {},
         iconMap: new Map(),
         selectedIconId: '',
+        selectedIconIds: new Set(),
         contextMenu: null,
         contextMenuKeydown: null,
         windowMenus: new Map(),
@@ -807,20 +808,26 @@
             const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
             const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
-            return `<button class="vd-icon ${item.id === state.selectedIconId ? 'selected' : ''}" type="button" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
+            return `<button class="vd-icon ${state.selectedIconIds.has(item.id) ? 'selected' : ''}" type="button" aria-selected="${state.selectedIconIds.has(item.id) ? 'true' : 'false'}" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
                 ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;
         }).join('');
+        syncDesktopIconSelection();
         icons.querySelectorAll('.vd-icon').forEach(btn => {
             btn.addEventListener('dblclick', () => activateDesktopItem(btn));
             btn.addEventListener('click', event => {
+                if (btn.__vdSuppressNextClick) {
+                    btn.__vdSuppressNextClick = false;
+                    event.preventDefault();
+                    return;
+                }
                 if (shouldOpenOnTap(event)) {
                     event.preventDefault();
                     activateDesktopItem(btn);
                     return;
                 }
-                selectDesktopIcon(btn);
+                selectDesktopIcon(btn, { extend: event.ctrlKey || event.metaKey, toggle: event.ctrlKey || event.metaKey });
             });
             btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
             wireLongPress(btn, event => showIconContextMenu(event, btn));
@@ -868,11 +875,6 @@
         return [...shortcutItems, ...desktopEntries];
     }
 
-    function selectDesktopIcon(btn) {
-        state.selectedIconId = btn ? btn.dataset.id : '';
-        document.querySelectorAll('.vd-icon').forEach(icon => icon.classList.toggle('selected', icon === btn));
-    }
-
     function normalizeDesktopPath(path) {
         return String(path || '').replace(/\\/g, '/').split('/').filter(Boolean).join('/');
     }
@@ -917,6 +919,8 @@
             clearTrashDropTarget();
             document.body.classList.remove('vd-touch-drag-active');
             if (drag.moved) {
+                btn.__vdSuppressNextClick = true;
+                window.setTimeout(() => { btn.__vdSuppressNextClick = false; }, 0);
                 if (dropTarget && !isTrashIcon(btn)) {
                     btn.style.left = drag.left + 'px';
                     btn.style.top = drag.top + 'px';
@@ -932,7 +936,7 @@
             if (event.button !== 0) return;
             const touchDrag = isTouchLikePointer(event);
             closeContextMenu();
-            selectDesktopIcon(btn);
+            if (!btn.classList.contains('selected')) selectDesktopIcon(btn);
             drag = {
                 id: btn.dataset.id,
                 pointerId: event.pointerId,

@@ -54,6 +54,20 @@
     box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.18);
 }
 
+.vd-desktop-selection-marquee {
+    position: absolute;
+    z-index: calc(var(--vd-z-desktop) + 2);
+    pointer-events: none;
+    border: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.72);
+    border-radius: 6px;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.vd-desktop-selecting .vd-workspace {
+    cursor: crosshair;
+}
+
 .vd-workspace.vd-desktop-file-drop-target::after {
     content: "";
     position: absolute;

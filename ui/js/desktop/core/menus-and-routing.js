@@ -101,7 +101,7 @@
 
     function showIconContextMenu(event, btn) {
         event.preventDefault();
-        selectDesktopIcon(btn);
+        if (!btn.classList.contains('selected')) selectDesktopIcon(btn);
         const path = btn.dataset.path || '';
         const appId = btn.dataset.appId || '';
         const kind = btn.dataset.kind || '';
