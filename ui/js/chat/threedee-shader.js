@@ -1214,13 +1214,13 @@
     function drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper) {
         const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
         if (isSuper) {
-            grad.addColorStop(0, 'rgba(10, 8, 5, 0.95)');
-            grad.addColorStop(0.2, 'rgba(25, 18, 10, 0.9)');
-            grad.addColorStop(0.5, 'rgba(75, 45, 15, 0.7)');
+            grad.addColorStop(0, 'rgba(10, 8, 5, 0.42)');
+            grad.addColorStop(0.3, 'rgba(25, 18, 10, 0.28)');
+            grad.addColorStop(0.6, 'rgba(75, 45, 15, 0.15)');
             grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         } else {
-            grad.addColorStop(0, 'rgba(15, 12, 10, 0.9)');
-            grad.addColorStop(0.3, 'rgba(40, 30, 20, 0.75)');
+            grad.addColorStop(0, 'rgba(15, 12, 10, 0.22)');
+            grad.addColorStop(0.4, 'rgba(40, 30, 20, 0.12)');
             grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         }
         ctx.fillStyle = grad;
@@ -1228,12 +1228,12 @@
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        const detailsCount = isSuper ? 6 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4);
-        ctx.fillStyle = 'rgba(5, 4, 3, 0.85)';
+        const detailsCount = isSuper ? 4 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
+        ctx.fillStyle = isSuper ? 'rgba(5, 4, 3, 0.35)' : 'rgba(5, 4, 3, 0.22)';
         for (let i = 0; i < detailsCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * radius * 0.75;
-            const r = (isSuper ? 2.5 : 1.5) * (0.5 + Math.random() * 0.8);
+            const r = (isSuper ? 1.8 : 1.0) * (0.5 + Math.random() * 0.8);
             ctx.beginPath();
             ctx.arc(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, r, 0, Math.PI * 2);
             ctx.fill();
@@ -1269,7 +1269,7 @@
                                 const x = u * canvas.width;
                                 const y = (1 - v) * canvas.height;
 
-                                const radius = isSuper ? 16 + Math.random() * 8 : 8 + Math.random() * 4;
+                                const radius = isSuper ? 9 + Math.random() * 5 : 4.5 + Math.random() * 2.5;
                                 drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper);
                                 texture.needsUpdate = true;
                                 textureUpdated = true;
