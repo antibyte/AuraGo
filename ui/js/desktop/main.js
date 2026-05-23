@@ -5,7 +5,7 @@
         throw new Error('Aura desktop module loader is not available for main');
     }
     var v = window.BUILD_VERSION || 'dev';
-    var assetV = v + '-desktop-20260523-shortcut-logo-icons';
+    var assetV = v + '-desktop-20260523-store-logo-drag';
     window.AuraDesktopModules.loadScriptParts('main', [
         '/js/desktop/core/desktop-foundation.js?v=' + assetV,
         '/js/desktop/core/icon-selection-runtime.js?v=' + assetV,

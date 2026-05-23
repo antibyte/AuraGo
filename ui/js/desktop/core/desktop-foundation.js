@@ -368,7 +368,7 @@
         if (logoPath) {
             const pixels = Number(size || 42) || 42;
             const fallbackMarkup = iconMarkup('apps', fallback, className, size);
-            return `<span class="${esc(className)} vd-app-logo-icon" aria-hidden="true" style="width:${pixels}px;height:${pixels}px"><img src="${esc(logoPath)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallbackMarkup.replace('aria-hidden="true"', 'aria-hidden="true" hidden')}</span>`;
+            return `<span class="${esc(className)} vd-app-logo-icon" aria-hidden="true" style="width:${pixels}px;height:${pixels}px"><img src="${esc(logoPath)}" alt="" loading="lazy" draggable="false" data-vd-logo-img="true" ondragstart="return false" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallbackMarkup.replace('aria-hidden="true"', 'aria-hidden="true" hidden')}</span>`;
         }
         const source = resolveIconSource(key);
         if (source.type === 'theme') {
@@ -948,6 +948,7 @@
             }
             drag = null;
         }
+        btn.addEventListener('dragstart', event => event.preventDefault());
         btn.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             const touchDrag = isTouchLikePointer(event);
