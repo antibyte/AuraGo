@@ -1024,7 +1024,7 @@
                 seed: options.seed == null ? Math.random() * Math.PI * 2 : options.seed,
                 lastBounce: 0,
                 lastShot: -999,
-                lastSuperweaponAt: 3.0,
+                lastSuperweaponAt: options.id === 'blue' ? 3.0 : 7.5,
                 isSuperweaponCharging: false,
                 recoil: 0,
                 hitFlash: 0,
@@ -1724,6 +1724,7 @@
         const targetPosition = target.group.position.clone();
         targetPosition.y += 0.12;
         let direction = targetPosition.clone().sub(start);
+        const dist = direction.length();
         if (direction.lengthSq() < 0.001) direction.set(source.id === 'blue' ? 1 : -1, 0, 0);
         direction.normalize();
 
@@ -1744,11 +1745,11 @@
         if (isSuper) {
             life = 2.2;
             source.state.lastSuperweaponAt = t;
+            source.state.lastShot = t;
             source.state.recoil = 0.95;
             cameraShake = Math.max(cameraShake, 0.18);
 
             if (source.id === 'blue') {
-                const dist = direction.length();
                 const flightTime = Math.max(0.8, dist / 5.0);
                 const g = 4.5;
                 const horizontalVel = direction.clone().multiplyScalar(dist / flightTime);
