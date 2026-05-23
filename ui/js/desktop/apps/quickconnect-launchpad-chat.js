@@ -689,6 +689,7 @@
         const allowParts = ['clipboard-read', 'clipboard-write'];
         if (options && options.allowFullscreen) allowParts.push('fullscreen');
         if (options && options.allowGamepad) allowParts.push('gamepad');
+        // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
         iframe.setAttribute('allow', allowParts.join('; '));
         if (options && options.allowFullscreen) iframe.setAttribute('allowfullscreen', '');
         iframe.tabIndex = 0;

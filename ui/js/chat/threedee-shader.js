@@ -1495,7 +1495,13 @@
         steerRobotTowardDuel(bot, dt, t);
 
         const speed = bot.velocity.length();
-        if (speed > 1.34) bot.velocity.multiplyScalar(1.34 / speed);
+        const maxSpeed = 1.34;
+        if (speed > maxSpeed) {
+            // Smoothly decay velocity towards maxSpeed instead of hard clamping instantly
+            // This allows high-impulse hits to propel the robot far away and slide naturally.
+            const drag = 3.2;
+            bot.velocity.multiplyScalar(Math.max(maxSpeed / speed, 1 - dt * drag));
+        }
         if (speed < 0.42) {
             bot.velocity.x += Math.sin(t + bot.state.seed) * dt * 0.22;
             bot.velocity.y += Math.cos(t * 0.8 + bot.state.seed) * dt * 0.22;
@@ -1758,13 +1764,22 @@
             cameraShake = Math.max(cameraShake, 0.18);
 
             if (source.id === 'blue') {
-                const flightTime = Math.max(0.8, dist / 5.0);
-                const g = 4.5;
-                const horizontalVel = direction.clone().multiplyScalar(dist / flightTime);
+                const dx2D = targetPosition.x - start.x;
+                const dz2D = targetPosition.z - start.z;
+                const dist2D = Math.hypot(dx2D, dz2D);
+                const dir2DX = dist2D > 0.001 ? dx2D / dist2D : 1;
+                const dir2DZ = dist2D > 0.001 ? dz2D / dist2D : 0;
+
+                const flightTime = Math.max(0.9, dist2D / 4.5);
+                const g = 4.2;
+                const vx = dir2DX * (dist2D / flightTime);
+                const vz = dir2DZ * (dist2D / flightTime);
                 const vy = (targetPosition.y - start.y) / flightTime + 0.5 * g * flightTime;
-                velocity3D = new THREE.Vector3(horizontalVel.x, vy, horizontalVel.z);
+                velocity3D = new THREE.Vector3(vx, vy, vz);
+                life = flightTime + 0.5;
             } else {
                 currentSpeed = 2.0;
+                life = 3.2;
             }
         } else {
             source.state.lastShot = t;
@@ -1816,11 +1831,11 @@
         recoil.normalize();
 
         const isSuper = projectile.isSuper;
-        const pushScale = isSuper ? 0.46 : 0.14;
+        const pushScale = isSuper ? 1.2 : 0.14;
 
         if (isSuper) {
-            target.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 3.2;
-            target.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 3.2;
+            target.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 8.5;
+            target.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 8.5;
         } else {
             target.velocity.x += recoil.x * ROBOT_HIT_RECOIL;
             target.velocity.y += recoil.z * ROBOT_HIT_RECOIL;
@@ -2148,6 +2163,20 @@
 
             let hit = projectile.life <= 0;
             let hitTarget = false;
+
+            if (isSuper && superType === 'grenade') {
+                const waterH = heightAt(projectile.mesh.position.x, projectile.mesh.position.z, t);
+                if (projectile.mesh.position.y <= waterH) {
+                    hit = true;
+                    if (projectile.target && projectile.target.group) {
+                        const distToTarget = projectile.mesh.position.distanceTo(projectile.target.group.position);
+                        if (distToTarget < 1.35) {
+                            hitTarget = true;
+                        }
+                    }
+                }
+            }
+
             if (!hit && projectile.target && projectile.target.group) {
                 hitTarget = projectile.mesh.position.distanceTo(projectile.target.group.position) < 0.62;
                 hit = hitTarget;
@@ -2171,10 +2200,14 @@
         const redRobot = robotFleet[1];
         if (!blueRobot.group || !redRobot.group) return;
 
+        const dx = redRobot.state.x - blueRobot.state.x;
+        const dz = redRobot.state.z - blueRobot.state.z;
+        const distance = Math.hypot(dx, dz);
+
+        const ROBOT_SUPER_DISTANCE = 8.85;
+
         const blueAimTime = blueRobot.state.isSuperweaponCharging ? 0.85 : 0.42;
         if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
-            const dx = redRobot.state.x - blueRobot.state.x;
-            const dz = redRobot.state.z - blueRobot.state.z;
             const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
             if (blueRobot.forward.dot(toOpponent) > 0.96) {
                 spawnEnergyProjectile(blueRobot, redRobot, t, blueRobot.state.isSuperweaponCharging);
@@ -2184,9 +2217,7 @@
         }
         const redAimTime = redRobot.state.isSuperweaponCharging ? 0.85 : 0.42;
         if (redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
-            const dx = blueRobot.state.x - redRobot.state.x;
-            const dz = blueRobot.state.z - redRobot.state.z;
-            const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
+            const toOpponent = new THREE.Vector3(-dx, 0, -dz).normalize();
             if (redRobot.forward.dot(toOpponent) > 0.96) {
                 spawnEnergyProjectile(redRobot, blueRobot, t, redRobot.state.isSuperweaponCharging);
                 redRobot.state.isAiming = false;
@@ -2194,34 +2225,50 @@
             }
         }
 
-        const dx = redRobot.state.x - blueRobot.state.x;
-        const dz = redRobot.state.z - blueRobot.state.z;
-        const distance = Math.hypot(dx, dz);
-        if (distance > ROBOT_DUEL_DISTANCE) {
-            if (distance > ROBOT_DUEL_DISTANCE + 1.5) {
-                blueRobot.state.isAiming = false;
-                blueRobot.state.isSuperweaponCharging = false;
-                redRobot.state.isAiming = false;
-                redRobot.state.isSuperweaponCharging = false;
-            }
+        if (distance > ROBOT_SUPER_DISTANCE) {
+            blueRobot.state.isAiming = false;
+            blueRobot.state.isSuperweaponCharging = false;
+            redRobot.state.isAiming = false;
+            redRobot.state.isSuperweaponCharging = false;
             return;
+        }
+
+        const isFar = distance > ROBOT_DUEL_DISTANCE;
+
+        // Reset non-superweapon aiming if we drifted too far
+        if (isFar) {
+            if (blueRobot.state.isAiming && !blueRobot.state.isSuperweaponCharging) {
+                blueRobot.state.isAiming = false;
+            }
+            if (redRobot.state.isAiming && !redRobot.state.isSuperweaponCharging) {
+                redRobot.state.isAiming = false;
+            }
         }
 
         const proximity = 1 - clamp(distance / ROBOT_DUEL_DISTANCE, 0, 1);
         const blueCooldown = ROBOT_DUEL_COOLDOWN + Math.sin(t * 0.8) * 0.1;
         const redCooldown = ROBOT_DUEL_COOLDOWN * 1.12 + Math.cos(t * 0.7) * 0.08;
+
         if (t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
-            blueRobot.state.isAiming = true;
-            blueRobot.state.aimStart = t;
-            if (t - blueRobot.state.lastSuperweaponAt > 15.0) {
+            const superWeaponReady = (t - blueRobot.state.lastSuperweaponAt > 15.0);
+            if (superWeaponReady) {
+                blueRobot.state.isAiming = true;
+                blueRobot.state.aimStart = t;
                 blueRobot.state.isSuperweaponCharging = true;
+            } else if (!isFar) {
+                blueRobot.state.isAiming = true;
+                blueRobot.state.aimStart = t;
             }
         }
         if (t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
-            redRobot.state.isAiming = true;
-            redRobot.state.aimStart = t;
-            if (t - redRobot.state.lastSuperweaponAt > 15.0) {
+            const superWeaponReady = (t - redRobot.state.lastSuperweaponAt > 15.0);
+            if (superWeaponReady) {
+                redRobot.state.isAiming = true;
+                redRobot.state.aimStart = t;
                 redRobot.state.isSuperweaponCharging = true;
+            } else if (!isFar) {
+                redRobot.state.isAiming = true;
+                redRobot.state.aimStart = t;
             }
         }
 

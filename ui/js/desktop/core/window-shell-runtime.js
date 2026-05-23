@@ -1,4 +1,4 @@
-﻿    function renderBuiltinWidget(card, widget) {
+    function renderBuiltinWidget(card, widget) {
         const container = card.querySelector('.vd-widget-builtin');
         if (!container) return;
         if (widget.id === 'builtin-analog-clock') {
@@ -1079,18 +1079,15 @@
             state.contextMenuKeydown = null;
         }
     }
-
     function closeContextMenuOnEscape(event) {
         if (event.key === 'Escape') closeContextMenu();
     }
-
     function registerWindowCleanup(windowId, cleanup) {
         if (!windowId || typeof cleanup !== 'function') return;
         const items = state.windowCleanups.get(windowId) || [];
         items.push(cleanup);
         state.windowCleanups.set(windowId, items);
     }
-
     function normalizeWindowZIndexes() {
         const wins = [...state.windows.values()].sort((a, b) => Number(a.element.style.zIndex || 0) - Number(b.element.style.zIndex || 0));
         wins.forEach((win, i) => {
