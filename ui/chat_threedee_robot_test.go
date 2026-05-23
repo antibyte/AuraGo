@@ -296,6 +296,38 @@ func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) 
 	}
 }
 
+func TestThreeDeeRedRocketUsesSluggishTargetCorrection(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	if maxTurn := extractJSConstFloat(t, shader, "ROBOT_RED_ROCKET_MAX_TURN_STEP"); maxTurn > 0.18 {
+		t.Fatalf("red rocket turn correction should stay sluggish, got max turn %.2f", maxTurn)
+	}
+	if turnRate := extractJSConstFloat(t, shader, "ROBOT_RED_ROCKET_TURN_RATE"); turnRate > 1.6 {
+		t.Fatalf("red rocket turn rate should be much lower than the old aggressive homing, got %.2f", turnRate)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_RED_ROCKET_TURN_RATE =",
+		"const ROBOT_RED_ROCKET_MAX_TURN_STEP =",
+		"const ROBOT_RED_ROCKET_ACCELERATION =",
+		"const ROBOT_RED_ROCKET_MAX_SPEED =",
+		"function updateRedRocketGuidance",
+		"const targetDirection = toTarget.normalize();",
+		"const correction = clamp(dt * ROBOT_RED_ROCKET_TURN_RATE, 0, ROBOT_RED_ROCKET_MAX_TURN_STEP);",
+		"projectile.direction.lerp(targetDirection, correction).normalize();",
+		"projectile.currentSpeed = Math.min(ROBOT_RED_ROCKET_MAX_SPEED, projectile.currentSpeed + dt * ROBOT_RED_ROCKET_ACCELERATION);",
+		"updateRedRocketGuidance(projectile, dt);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing sluggish red rocket marker %q", marker)
+		}
+	}
+	if strings.Contains(shader, "projectile.direction.lerp(toTarget.normalize(), clamp(dt * 5.5, 0, 0.65)).normalize();") {
+		t.Fatal("red rocket must not use the old aggressive homing correction")
+	}
+}
+
 func TestThreeDeeRobotThrustersUseUndersideOffsetsAndFadingRipples(t *testing.T) {
 	t.Parallel()
 

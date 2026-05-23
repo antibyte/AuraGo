@@ -93,6 +93,10 @@
     const ROBOT_PROJECTILE_SPEED = 7.4;
     const ROBOT_HIT_RECOIL = 1.55;
     const ROBOT_RED_TARGET_SIZE = 1.62;
+    const ROBOT_RED_ROCKET_TURN_RATE = 1.18;
+    const ROBOT_RED_ROCKET_MAX_TURN_STEP = 0.12;
+    const ROBOT_RED_ROCKET_ACCELERATION = 8.2;
+    const ROBOT_RED_ROCKET_MAX_SPEED = 13.5;
     const ROBOT_FLIGHT_MIN_INTERVAL = 6.4;
     const ROBOT_FLIGHT_MAX_INTERVAL = 12.5;
     const ROBOT_FLIGHT_DURATION = 2.05;
@@ -2735,6 +2739,19 @@
         disposeEnergyProjectile(projectile);
     }
 
+    function updateRedRocketGuidance(projectile, dt) {
+        if (!projectile || !projectile.mesh) return;
+        const targetPosition = robotAimPoint(projectile.target);
+        projectile.currentSpeed = Math.min(ROBOT_RED_ROCKET_MAX_SPEED, projectile.currentSpeed + dt * ROBOT_RED_ROCKET_ACCELERATION);
+        const toTarget = targetPosition.clone().sub(projectile.mesh.position);
+        if (toTarget.lengthSq() > 0.001) {
+            const targetDirection = toTarget.normalize();
+            const correction = clamp(dt * ROBOT_RED_ROCKET_TURN_RATE, 0, ROBOT_RED_ROCKET_MAX_TURN_STEP);
+            projectile.direction.lerp(targetDirection, correction).normalize();
+        }
+        projectile.mesh.position.addScaledVector(projectile.direction, projectile.currentSpeed * dt);
+    }
+
     function updateEnergyProjectiles(dt, t) {
         for (let i = energyProjectiles.length - 1; i >= 0; i--) {
             const projectile = energyProjectiles[i];
@@ -2752,13 +2769,7 @@
                         projectile.direction.copy(projectile.velocity3D).normalize();
                     }
                 } else if (superType === 'rocket') {
-                    const targetPosition = robotAimPoint(projectile.target);
-                    projectile.currentSpeed = Math.min(13.5, projectile.currentSpeed + dt * 10.0);
-                    const toTarget = targetPosition.clone().sub(projectile.mesh.position);
-                    if (toTarget.lengthSq() > 0.001) {
-                        projectile.direction.lerp(toTarget.normalize(), clamp(dt * 5.5, 0, 0.65)).normalize();
-                    }
-                    projectile.mesh.position.addScaledVector(projectile.direction, projectile.currentSpeed * dt);
+                    updateRedRocketGuidance(projectile, dt);
                     const right = new THREE.Vector3(0, 1, 0).cross(projectile.direction).normalize();
                     const up = projectile.direction.clone().cross(right).normalize();
                     const spiralFreq = 16.0;
