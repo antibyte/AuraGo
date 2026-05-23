@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -156,6 +158,42 @@ func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
 	}
 	if results[0].MediaType != "document" {
 		t.Fatalf("media_type = %q, want %q", results[0].MediaType, "document")
+	}
+}
+
+func TestDispatchMediaRegistryTreatsFilesPathAsExistingWebPath(t *testing.T) {
+	root := t.TempDir()
+	workspaceDir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "data"), 0755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	db, err := InitMediaRegistryDB(filepath.Join(root, "data", "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	webPath := "/files/3d_printer_media/2026/05/23/snapshot_printer-1_145426.497378069.jpg"
+	id, _, err := RegisterMedia(db, MediaItem{
+		MediaType:  "image",
+		SourceTool: "three_d_printer",
+		Filename:   "snapshot_printer-1_145426.497378069.jpg",
+		FilePath:   filepath.Join(root, "data", "3d_printer_media", "2026", "05", "23", "snapshot_printer-1_145426.497378069.jpg"),
+		WebPath:    webPath,
+	})
+	if err != nil {
+		t.Fatalf("register existing media: %v", err)
+	}
+
+	resp := DispatchMediaRegistry(db, workspaceDir, "register", "", "image", "duplicate snapshot", nil, "", 0, 10, 0, "", webPath, "")
+	if !strings.Contains(resp, `"status":"duplicate"`) {
+		t.Fatalf("register response = %s", resp)
+	}
+	if !strings.Contains(resp, fmt.Sprintf(`"id":%d`, id)) {
+		t.Fatalf("register response should return existing id %d, got %s", id, resp)
 	}
 }
 

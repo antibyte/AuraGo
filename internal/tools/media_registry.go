@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -586,6 +588,27 @@ func DispatchMediaRegistryWithGallery(db, imageGalleryDB *sql.DB, workspaceDir, 
 		if strings.TrimSpace(filename) == "" && strings.TrimSpace(filePath) == "" && strings.TrimSpace(webPath) == "" {
 			return `{"status":"error","message":"filename, file_path, or web_path is required for register operation."}`
 		}
+		filePath = strings.TrimSpace(filePath)
+		webPath = strings.TrimSpace(webPath)
+		filename = strings.TrimSpace(filename)
+		if filesWebPath, ok := mediaRegistryFilesWebPath(filePath); ok {
+			if webPath == "" {
+				webPath = filesWebPath
+			}
+			if existingID, found, err := findMediaIDByWebPath(db, filesWebPath); err != nil {
+				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			} else if found {
+				return fmt.Sprintf(`{"status":"duplicate","id":%d,"message":"Entry already exists."}`, existingID)
+			}
+			resolved, inferredName, err := resolveMediaRegistryFilesWebPath(db, workspaceDir, filesWebPath)
+			if err != nil {
+				return fmt.Sprintf(`{"status":"error","message":%q}`, "invalid file_path: "+err.Error())
+			}
+			filePath = resolved
+			if filename == "" {
+				filename = inferredName
+			}
+		}
 		// Security: validate file_path stays inside the workspace
 		if filePath != "" && workspaceDir != "" {
 			resolved, err := secureResolve(workspaceDir, filePath)
@@ -688,4 +711,102 @@ func DispatchMediaRegistryWithGallery(db, imageGalleryDB *sql.DB, workspaceDir, 
 	default:
 		return fmt.Sprintf(`{"status":"error","message":"Unknown media_registry operation '%s'. Use: register, search, get, list, update, tag, delete, stats."}`, operation)
 	}
+}
+
+var mediaRegistryFilesPathDataSubdirs = []struct {
+	prefix string
+	subdir string
+}{
+	{prefix: "/files/3d_printer_media/", subdir: "3d_printer_media"},
+	{prefix: "/files/frigate_media/", subdir: "frigate_media"},
+	{prefix: "/files/generated_images/", subdir: "generated_images"},
+	{prefix: "/files/generated_videos/", subdir: "generated_videos"},
+	{prefix: "/files/audio/", subdir: "audio"},
+	{prefix: "/files/documents/", subdir: "documents"},
+	{prefix: "/files/downloads/", subdir: "downloads"},
+	{prefix: "/files/browser_screenshots/", subdir: "browser_screenshots"},
+	{prefix: "/files/browser_downloads/", subdir: "browser_downloads"},
+}
+
+func mediaRegistryFilesWebPath(rawPath string) (string, bool) {
+	webPath := strings.TrimSpace(rawPath)
+	if webPath == "" {
+		return "", false
+	}
+	if parsed, err := url.Parse(webPath); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		webPath = parsed.EscapedPath()
+	}
+	if i := strings.IndexAny(webPath, "?#"); i >= 0 {
+		webPath = webPath[:i]
+	}
+	return webPath, strings.HasPrefix(webPath, "/files/")
+}
+
+func findMediaIDByWebPath(db *sql.DB, webPath string) (int64, bool, error) {
+	if db == nil || strings.TrimSpace(webPath) == "" {
+		return 0, false, nil
+	}
+	var id int64
+	err := db.QueryRow("SELECT id FROM media_items WHERE web_path = ? AND deleted = 0 LIMIT 1", webPath).Scan(&id)
+	if err == nil {
+		return id, true, nil
+	}
+	if err == sql.ErrNoRows {
+		return 0, false, nil
+	}
+	return 0, false, fmt.Errorf("check existing media web_path: %w", err)
+}
+
+func resolveMediaRegistryFilesWebPath(db *sql.DB, workspaceDir, webPath string) (string, string, error) {
+	decodedPath, err := url.PathUnescape(webPath)
+	if err != nil {
+		return "", "", fmt.Errorf("decode web path %q: %w", webPath, err)
+	}
+	cleanPath := path.Clean(decodedPath)
+	for _, mapping := range mediaRegistryFilesPathDataSubdirs {
+		if !strings.HasPrefix(cleanPath, mapping.prefix) {
+			continue
+		}
+		relPath := strings.TrimPrefix(cleanPath, mapping.prefix)
+		if relPath == "" || relPath == "." {
+			return "", "", fmt.Errorf("web path %q does not name a file", webPath)
+		}
+		dataDir := mediaRegistryDataDir(db)
+		if dataDir == "" && strings.TrimSpace(workspaceDir) != "" {
+			_, projectRoot := filesystemRoots(workspaceDir)
+			dataDir = filepath.Join(projectRoot, "data")
+		}
+		if dataDir == "" {
+			return "", "", fmt.Errorf("cannot resolve %q without media registry database path or workspace", webPath)
+		}
+		root := filepath.Join(dataDir, mapping.subdir)
+		localPath := filepath.Clean(filepath.Join(root, filepath.FromSlash(relPath)))
+		if rel, relErr := filepath.Rel(root, localPath); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return "", "", fmt.Errorf("web path %q escapes media directory", webPath)
+		}
+		return localPath, filepath.Base(localPath), nil
+	}
+	return "", "", fmt.Errorf("unsupported media web path %q", webPath)
+}
+
+func mediaRegistryDataDir(db *sql.DB) string {
+	if db == nil {
+		return ""
+	}
+	rows, err := db.Query("PRAGMA database_list")
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var seq int
+		var name, file string
+		if err := rows.Scan(&seq, &name, &file); err != nil {
+			continue
+		}
+		if name == "main" && strings.TrimSpace(file) != "" {
+			return filepath.Dir(file)
+		}
+	}
+	return ""
 }
