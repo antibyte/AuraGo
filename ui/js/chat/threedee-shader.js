@@ -1165,6 +1165,122 @@
         aliasPrimaryRobot(robotFleet[0]);
     }
 
+    function setupCanvasTextureForMaterial(node, material, config) {
+        if (!node.geometry || !node.geometry.attributes || !node.geometry.attributes.uv) return;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        let width = 512;
+        let height = 512;
+
+        if (material.map && material.map.image && (material.map.image.complete || material.map.image.width > 0)) {
+            const img = material.map.image;
+            width = img.width || 512;
+            height = img.height || 512;
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0);
+
+            const originalTexture = material.map;
+            const newTexture = new THREE.CanvasTexture(canvas);
+            newTexture.wrapS = originalTexture.wrapS;
+            newTexture.wrapT = originalTexture.wrapT;
+            newTexture.repeat.copy(originalTexture.repeat);
+            newTexture.offset.copy(originalTexture.offset);
+            newTexture.center.copy(originalTexture.center);
+            newTexture.rotation = originalTexture.rotation;
+
+            originalTexture.dispose();
+            material.map = newTexture;
+        } else {
+            canvas.width = width;
+            canvas.height = height;
+            const colorHex = material.color ? material.color.getHexString() : 'ffffff';
+            ctx.fillStyle = '#' + colorHex;
+            ctx.fillRect(0, 0, width, height);
+
+            material.map = new THREE.CanvasTexture(canvas);
+            if (material.color) material.color.setHex(0xffffff);
+            material.needsUpdate = true;
+        }
+
+        material.userData.damageCanvas = canvas;
+        material.userData.damageCtx = ctx;
+        material.userData.damageTexture = material.map;
+    }
+
+    function drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper) {
+        const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+        if (isSuper) {
+            grad.addColorStop(0, 'rgba(10, 8, 5, 0.95)');
+            grad.addColorStop(0.2, 'rgba(25, 18, 10, 0.9)');
+            grad.addColorStop(0.5, 'rgba(75, 45, 15, 0.7)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        } else {
+            grad.addColorStop(0, 'rgba(15, 12, 10, 0.9)');
+            grad.addColorStop(0.3, 'rgba(40, 30, 20, 0.75)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        }
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        const detailsCount = isSuper ? 6 + Math.floor(Math.random() * 6) : 3 + Math.floor(Math.random() * 4);
+        ctx.fillStyle = 'rgba(5, 4, 3, 0.85)';
+        for (let i = 0; i < detailsCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * radius * 0.75;
+            const r = (isSuper ? 2.5 : 1.5) * (0.5 + Math.random() * 0.8);
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function paintRobotDamageTexture(target, impactPosition, impactDirection, isSuper) {
+        if (!target || !target.model || !impactPosition || !impactDirection) return;
+
+        const raycaster = new THREE.Raycaster();
+        const rayOrigin = impactPosition.clone().addScaledVector(impactDirection.clone().normalize(), -0.5);
+        const rayDir = impactDirection.clone().normalize();
+        raycaster.set(rayOrigin, rayDir);
+
+        const intersects = raycaster.intersectObject(target.model, true);
+        if (intersects.length > 0) {
+            for (let i = 0; i < intersects.length; i++) {
+                const hit = intersects[i];
+                if (hit.object && hit.object.isMesh && hit.uv) {
+                    const mesh = hit.object;
+                    const mat = mesh.material;
+                    const materials = Array.isArray(mat) ? mat : [mat];
+                    let textureUpdated = false;
+
+                    materials.forEach(function (material) {
+                        const canvas = material.userData.damageCanvas;
+                        const ctx = material.userData.damageCtx;
+                        const texture = material.userData.damageTexture;
+                        if (canvas && ctx && texture) {
+                            const u = hit.uv.x;
+                            const v = hit.uv.y;
+                            const x = u * canvas.width;
+                            const y = (1 - v) * canvas.height;
+
+                            const radius = isSuper ? 16 + Math.random() * 8 : 8 + Math.random() * 4;
+                            drawScorchMarkOnCanvas(ctx, x, y, radius, isSuper);
+                            texture.needsUpdate = true;
+                            textureUpdated = true;
+                        }
+                    });
+
+                    if (textureUpdated) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     function normalizeFloatingRobot(root, bot) {
         const config = bot || robotFleet[0] || null;
         if (config) {
@@ -1220,6 +1336,7 @@
                     material.emissiveIntensity = Math.max(config && config.id === 'red' ? 0.24 : 0.18, material.emissiveIntensity || 0);
                 }
                 material.needsUpdate = true;
+                setupCanvasTextureForMaterial(node, material, config);
                 if (config) config.materials.push(material);
             });
         });
@@ -1991,6 +2108,7 @@
         if (!target || !target.group) return;
         const damage = resolveRobotDamageImpact(target, impactPosition, impactDirection);
         applyRobotMeshDent(target, damage, isSuper);
+        paintRobotDamageTexture(target, impactPosition, impactDirection, isSuper);
         spawnRobotScorchMarks(target, damage, isSuper);
     }
 
@@ -2091,6 +2209,7 @@
             const size = ((isSuper ? 0.16 : 0.095) + Math.random() * (isSuper ? 0.09 : 0.055)) / modelScale;
             scorch.scale.set(size * (0.8 + Math.random() * 0.45), size, size);
             scorch.renderOrder = 18;
+            scorch.visible = false; // Hide legacy decals as we now paint directly on the texture
             attachParent.add(scorch);
             target.damageScorchMarks.push(scorch);
         }
