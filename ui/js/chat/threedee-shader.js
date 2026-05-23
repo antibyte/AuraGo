@@ -258,6 +258,13 @@
         if (!window.energyProjectileGeom) {
             window.energyProjectileGeom = new THREE.SphereGeometry(0.12, 24, 24);
         }
+        if (!window.superRocketGeom) {
+            window.superRocketGeom = new THREE.ConeGeometry(0.12, 0.46, 16);
+            window.superRocketGeom.rotateX(Math.PI / 2);
+        }
+        if (!window.superGrenadeGeom) {
+            window.superGrenadeGeom = new THREE.SphereGeometry(0.24, 24, 24);
+        }
     }
 
     function createSmokeTexture() {
@@ -1017,6 +1024,8 @@
                 seed: options.seed == null ? Math.random() * Math.PI * 2 : options.seed,
                 lastBounce: 0,
                 lastShot: -999,
+                lastSuperweaponAt: 3.0,
+                isSuperweaponCharging: false,
                 recoil: 0,
                 hitFlash: 0,
                 hits: 0,
@@ -1027,7 +1036,8 @@
                 nextFlightAt: NaN,
                 lastThrusterRippleAt: -999,
                 thrusterRipplePrimed: false,
-                flightWasActive: false
+                flightWasActive: false,
+                pendingThrusterRipple: 0
             },
             velocity: new THREE.Vector2(options.vx, options.vz),
             targetPosition: new THREE.Vector3(),
@@ -1450,7 +1460,7 @@
         }
     }
 
-    function updateRobotMotion(bot, dt, t, index) {
+    function updateRobotPositionPhase(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         if (!bot.group) return;
@@ -1468,6 +1478,7 @@
             pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.78);
         }
         bot.state.flightWasActive = isFlightActive;
+        bot.state.pendingThrusterRipple = pendingThrusterRipple;
 
         const driftX = Math.sin(t * 0.54 + bot.state.z * 0.72 + bot.state.seed) * 0.16;
         const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
@@ -1489,19 +1500,26 @@
         bot.state.x += bot.velocity.x * dt;
         bot.state.z += bot.velocity.y * dt;
         bounceFloatingRobotWithinBounds(t, bot);
+    }
+
+    function updateRobotVisualsPhase(bot, dt, t, index) {
+        if (!bot || !bot.group) return;
+        if (bot.id === 'blue') aliasPrimaryRobot(bot);
+        const pendingThrusterRipple = bot.state.pendingThrusterRipple || 0;
+        const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
 
         const sampleOptions = bot.id ? { ignoreRobotOwner: bot.id } : null;
         const waterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
-        const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
         bot.state.waterY = waterY;
         bot.state.recoil = Math.max(0, (bot.state.recoil || 0) - dt * 1.8);
         bot.state.hitFlash = Math.max(0, (bot.state.hitFlash || 0) - dt * 1.5);
 
         if (bot.materials) {
             const baseEmissive = bot.id === 'red' ? 0.24 : 0.18;
+            const superChargingIntensity = (bot.state.isAiming && bot.state.isSuperweaponCharging) ? 4.5 : 0.0;
             bot.materials.forEach(function (mat) {
                 if ('emissiveIntensity' in mat) {
-                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8;
+                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8 + superChargingIntensity;
                 }
             });
         }
@@ -1515,27 +1533,48 @@
             bot.auraMesh.material.uniforms.time.value = t;
         }
 
-        if (bot.state.isAiming && Math.random() < dt * 25 && bot.opponent && bot.opponent.group) {
-            const muzzle = robotMuzzlePosition(bot);
-            const opponentPos = bot.opponent.group.position.clone();
-            opponentPos.y += 0.12;
-            const dir = opponentPos.sub(muzzle).normalize();
-            const sparkOffset = new THREE.Vector3(
-                (Math.random() - 0.5) * 0.45,
-                (Math.random() - 0.5) * 0.45,
-                (Math.random() - 0.5) * 0.45
-            ).addScaledVector(dir, 0.22);
-            const sparkPos = muzzle.clone().add(sparkOffset);
-            createSmokeSprite(sparkPos.x, sparkPos.y, sparkPos.z, bot.projectileHex, 0.05 + Math.random() * 0.05, 0.25, {
-                vx: -sparkOffset.x * 2.2,
-                vy: -sparkOffset.y * 2.2,
-                vz: -sparkOffset.z * 2.2,
-                spin: (Math.random() - 0.5) * 6,
-                opacity: 0.88,
-                expansion: 0.25,
-                fadePower: 1.15,
-                kind: 'energyCharge'
-            });
+        if (bot.state.isAiming && bot.opponent && bot.opponent.group) {
+            const isSuper = bot.state.isSuperweaponCharging;
+            const spawnChance = isSuper ? (dt * 75) : (dt * 25);
+            if (Math.random() < spawnChance) {
+                const muzzle = robotMuzzlePosition(bot);
+                const opponentPos = bot.opponent.group.position.clone();
+                opponentPos.y += 0.12;
+                const dir = opponentPos.sub(muzzle).normalize();
+                let sparkOffset;
+                let sparkVel;
+                if (isSuper) {
+                    const elapsed = t - bot.state.aimStart;
+                    const angle = elapsed * 15.0 + Math.random() * Math.PI;
+                    const radius = 0.8 * (1.0 - elapsed / 0.85) + 0.1;
+                    const right = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+                    const up = dir.clone().cross(right).normalize();
+                    sparkOffset = right.clone().multiplyScalar(Math.sin(angle) * radius)
+                                      .add(up.clone().multiplyScalar(Math.cos(angle) * radius))
+                                      .addScaledVector(dir, 0.1);
+                    sparkVel = sparkOffset.clone().multiplyScalar(-3.0);
+                } else {
+                    sparkOffset = new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.45,
+                        (Math.random() - 0.5) * 0.45,
+                        (Math.random() - 0.5) * 0.45
+                    ).addScaledVector(dir, 0.22);
+                    sparkVel = sparkOffset.clone().multiplyScalar(-2.2);
+                }
+                const sparkPos = muzzle.clone().add(sparkOffset);
+                const scale = isSuper ? (0.09 + Math.random() * 0.08) : (0.05 + Math.random() * 0.05);
+                const life = isSuper ? 0.38 : 0.25;
+                createSmokeSprite(sparkPos.x, sparkPos.y, sparkPos.z, bot.projectileHex, scale, life, {
+                    vx: sparkVel.x,
+                    vy: sparkVel.y,
+                    vz: sparkVel.z,
+                    spin: (Math.random() - 0.5) * 12,
+                    opacity: 0.95,
+                    expansion: isSuper ? 0.15 : 0.25,
+                    fadePower: 1.15,
+                    kind: 'energyCharge'
+                });
+            }
         }
 
         bot.state.y = surface.position.y + waterY * flightWaveInfluence + 0.62 + (bot.state.flightLift || 0) + bot.state.recoil * 0.14 + Math.sin(t * 1.9 + bot.state.seed) * 0.06;
@@ -1641,34 +1680,88 @@
         }
     }
 
-    function spawnEnergyProjectile(source, target, t) {
+    function spawnEnergyProjectile(source, target, t, isSuper) {
         if (!scene || !source || !target || !source.group || !target.group) return;
         ensureImpactAssets();
         while (energyProjectiles.length >= MAX_ENERGY_PROJECTILES) {
             disposeEnergyProjectile(energyProjectiles.shift());
         }
 
-        const material = new THREE.MeshBasicMaterial({
-            color: source.projectileHex,
-            transparent: true,
-            opacity: 0.96,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        const mesh = new THREE.Mesh(window.energyProjectileGeom, material);
-        const projectileLight = new THREE.PointLight(source.projectileHex, 4.8, 8);
-        projectileLight.position.set(0, 0, 0);
-        mesh.add(projectileLight);
-
+        const color = source.projectileHex;
+        let mesh;
+        let projectileLight;
         const start = robotMuzzlePosition(source);
+
+        if (isSuper) {
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 3.5,
+                roughness: 0.1,
+                metalness: 0.9
+            });
+            if (source.id === 'blue') {
+                mesh = new THREE.Mesh(window.superGrenadeGeom, material);
+                projectileLight = new THREE.PointLight(color, 12.0, 15);
+            } else {
+                mesh = new THREE.Mesh(window.superRocketGeom, material);
+                projectileLight = new THREE.PointLight(color, 12.0, 15);
+            }
+            mesh.add(projectileLight);
+        } else {
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.96,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            mesh = new THREE.Mesh(window.energyProjectileGeom, material);
+            projectileLight = new THREE.PointLight(color, 4.8, 8);
+            mesh.add(projectileLight);
+        }
+
         const targetPosition = target.group.position.clone();
         targetPosition.y += 0.12;
-        const direction = targetPosition.sub(start);
+        let direction = targetPosition.clone().sub(start);
         if (direction.lengthSq() < 0.001) direction.set(source.id === 'blue' ? 1 : -1, 0, 0);
         direction.normalize();
+
         mesh.position.copy(start);
-        mesh.scale.setScalar(0.8);
+
+        if (isSuper) {
+            mesh.scale.setScalar(1.0);
+        } else {
+            mesh.scale.setScalar(0.8);
+        }
+
         scene.add(mesh);
+
+        let velocity3D = null;
+        let currentSpeed = 0;
+        let life = 1.1;
+
+        if (isSuper) {
+            life = 2.2;
+            source.state.lastSuperweaponAt = t;
+            source.state.recoil = 0.95;
+            cameraShake = Math.max(cameraShake, 0.18);
+
+            if (source.id === 'blue') {
+                const dist = direction.length();
+                const flightTime = Math.max(0.8, dist / 5.0);
+                const g = 4.5;
+                const horizontalVel = direction.clone().multiplyScalar(dist / flightTime);
+                const vy = (targetPosition.y - start.y) / flightTime + 0.5 * g * flightTime;
+                velocity3D = new THREE.Vector3(horizontalVel.x, vy, horizontalVel.z);
+            } else {
+                currentSpeed = 2.0;
+            }
+        } else {
+            source.state.lastShot = t;
+            source.state.recoil = 0.32;
+            cameraShake = Math.max(cameraShake, 0.045);
+        }
 
         energyProjectiles.push({
             mesh,
@@ -1676,24 +1769,27 @@
             source,
             target,
             direction,
-            speed: ROBOT_PROJECTILE_SPEED + Math.random() * 1.8,
-            life: 1.1,
-            maxLife: 1.1,
-            color: source.projectileHex,
-            pulseSeed: Math.random() * Math.PI * 2
+            speed: isSuper ? 0 : (ROBOT_PROJECTILE_SPEED + Math.random() * 1.8),
+            life,
+            maxLife: life,
+            color,
+            pulseSeed: Math.random() * Math.PI * 2,
+            isSuper: !!isSuper,
+            superType: isSuper ? (source.id === 'blue' ? 'grenade' : 'rocket') : null,
+            velocity3D,
+            currentSpeed
         });
-        source.state.lastShot = t;
-        source.state.recoil = 0.32;
-        cameraShake = Math.max(cameraShake, 0.045);
 
-        createSmokeSprite(start.x, start.y, start.z, source.projectileHex, 0.22, 0.26, {
-            vx: direction.x * 0.2,
-            vy: 0.12,
-            vz: direction.z * 0.2,
+        const muzzleScale = isSuper ? 0.48 : 0.22;
+        const muzzleLife = isSuper ? 0.42 : 0.26;
+        createSmokeSprite(start.x, start.y, start.z, color, muzzleScale, muzzleLife, {
+            vx: direction.x * 0.4,
+            vy: 0.18,
+            vz: direction.z * 0.4,
             spin: 7,
             opacity: 0.95,
-            expansion: 2.6,
-            fadePower: 1.7,
+            expansion: isSuper ? 3.8 : 2.6,
+            fadePower: 1.5,
             kind: 'energyMuzzle'
         });
     }
@@ -1709,12 +1805,22 @@
         }
         if (recoil.lengthSq() < 0.001) recoil.set(target.id === 'red' ? 1 : -1, 0, 0);
         recoil.normalize();
-        target.velocity.x += recoil.x * ROBOT_HIT_RECOIL;
-        target.velocity.y += recoil.z * ROBOT_HIT_RECOIL;
-        target.state.x += recoil.x * 0.14;
-        target.state.z += recoil.z * 0.14;
-        target.state.recoil = Math.max(target.state.recoil || 0, 0.5);
-        target.state.hitFlash = Math.max(target.state.hitFlash || 0, 1.0);
+
+        const isSuper = projectile.isSuper;
+        const pushScale = isSuper ? 0.46 : 0.14;
+
+        if (isSuper) {
+            target.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 3.2;
+            target.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 3.2;
+        } else {
+            target.velocity.x += recoil.x * ROBOT_HIT_RECOIL;
+            target.velocity.y += recoil.z * ROBOT_HIT_RECOIL;
+        }
+        target.state.x += recoil.x * pushScale;
+        target.state.z += recoil.z * pushScale;
+
+        target.state.recoil = Math.max(target.state.recoil || 0, isSuper ? 1.2 : 0.5);
+        target.state.hitFlash = Math.max(target.state.hitFlash || 0, isSuper ? 1.8 : 1.0);
         target.state.hits = (target.state.hits || 0) + 1;
         bounceFloatingRobotWithinBounds(globalTime, target);
     }
@@ -1810,16 +1916,120 @@
         }
     }
 
+    function spawnSuperExplosion(projectile, hitTarget) {
+        if (!scene || !projectile || !projectile.mesh) return;
+        ensureImpactAssets();
+        const pos = projectile.mesh.position.clone();
+        const color = projectile.color || 0x7dd3fc;
+        const worldNormal = new THREE.Vector3(0, 1, 0);
+        if (surface) {
+            const localPos = pos.clone();
+            surface.worldToLocal(localPos);
+            const eps = 0.22;
+            const t = globalTime;
+            const left = heightAt(clamp(localPos.x - eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const right = heightAt(clamp(localPos.x + eps, -GRID.width * 0.5, GRID.width * 0.5), localPos.z, t);
+            const back = heightAt(localPos.x, clamp(localPos.z - eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            const front = heightAt(localPos.x, clamp(localPos.z + eps, -GRID.depth * 0.5, GRID.depth * 0.5), t);
+            worldNormal.set(left - right, eps * 2, back - front).normalize().transformDirection(surface.matrixWorld);
+        }
+
+        const burstCenter = pos.clone().addScaledVector(worldNormal, 0.12);
+        const coreCount = hitTarget ? 15 : 10;
+        for (let i = 0; i < coreCount; i++) {
+            const coreColor = i === 0 ? 0xffffff : (Math.random() < 0.3 ? 0xffffff : color);
+            createSmokeSprite(
+                burstCenter.x + (Math.random() - 0.5) * 0.2,
+                burstCenter.y + (Math.random() - 0.5) * 0.1,
+                burstCenter.z + (Math.random() - 0.5) * 0.2,
+                coreColor,
+                0.35 + Math.random() * 0.35,
+                0.45 + Math.random() * 0.35,
+                {
+                    vx: (Math.random() - 0.5) * 0.95 + worldNormal.x * 0.3,
+                    vy: 0.32 + Math.random() * 0.65 + worldNormal.y * 0.5,
+                    vz: (Math.random() - 0.5) * 0.95 + worldNormal.z * 0.3,
+                    spin: (Math.random() - 0.5) * 6,
+                    opacity: 0.88,
+                    expansion: 2.2,
+                    fadePower: 1.5,
+                    kind: 'superExplosionCore'
+                }
+            );
+        }
+
+        const sparkCount = hitTarget ? 38 : 26;
+        for (let i = 0; i < sparkCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const lift = 0.25 + Math.random() * 0.95;
+            const speed = 1.2 + Math.random() * (hitTarget ? 3.5 : 2.2);
+            const sparkColor = Math.random() < 0.25 ? 0xffffff : (projectile.superType === 'rocket' ? 0xffaa00 : color);
+            createSmokeSprite(
+                burstCenter.x,
+                burstCenter.y + 0.04,
+                burstCenter.z,
+                sparkColor,
+                0.065 + Math.random() * 0.085,
+                0.34 + Math.random() * 0.36,
+                {
+                    vx: Math.cos(angle) * speed + worldNormal.x * lift,
+                    vy: lift + worldNormal.y * 0.5,
+                    vz: Math.sin(angle) * speed + worldNormal.z * lift,
+                    spin: (Math.random() - 0.5) * 12,
+                    opacity: 0.95,
+                    expansion: 0.45,
+                    fadePower: 1.65,
+                    kind: 'superExplosionSpark'
+                }
+            );
+        }
+
+        const flashIntensity = hitTarget ? 24.0 : 15.0;
+        const flashDistance = hitTarget ? 22.0 : 16.0;
+        const flash = new THREE.PointLight(color, flashIntensity, flashDistance);
+        flash.position.copy(burstCenter);
+        scene.add(flash);
+        impactLights.push({ light: flash, life: 0.55, maxLife: 0.55, baseIntensity: flashIntensity });
+
+        const ringCount = hitTarget ? 4 : 3;
+        for (let ring = 0; ring < ringCount; ring++) {
+            const material = window.shockwaveMat.clone();
+            material.color.setHex(color);
+            material.opacity = 0.65 - ring * 0.15;
+            const shock = new THREE.Mesh(window.shockwaveGeom, material);
+            shock.position.copy(burstCenter.clone().addScaledVector(worldNormal, 0.03 + ring * 0.022));
+            const normalAlign = new THREE.Quaternion();
+            normalAlign.setFromUnitVectors(new THREE.Vector3(0, 0, 1), worldNormal);
+            shock.quaternion.copy(normalAlign);
+            scene.add(shock);
+            shockwaves.push({
+                mesh: shock,
+                life: 0.45 + ring * 0.12,
+                maxLife: 0.45 + ring * 0.12,
+                maxScale: (hitTarget ? 5.2 : 3.8) + ring * 1.5,
+                baseOpacity: 0.65 - ring * 0.12,
+                kind: 'superExplosionRing'
+            });
+        }
+    }
+
     function explodeEnergyProjectile(projectile, hitTarget) {
         const pos = projectile.mesh.position.clone();
+        const isSuper = projectile.isSuper;
         if (surface) {
             const local = pos.clone();
             surface.worldToLocal(local);
-            addImpulse(clamp(local.x, -robotBounds.x, robotBounds.x), clamp(local.z, -robotBounds.z, robotBounds.z), hitTarget ? 0.34 : 0.18);
+            const waveStrength = isSuper ? 1.45 : (hitTarget ? 0.34 : 0.18);
+            addImpulse(clamp(local.x, -robotBounds.x, robotBounds.x), clamp(local.z, -robotBounds.z, robotBounds.z), waveStrength);
         }
         if (hitTarget) applyRobotHitRecoil(projectile, pos);
-        spawnEnergyExplosion(projectile, hitTarget);
-        cameraShake = Math.max(cameraShake, hitTarget ? 0.095 : 0.05);
+        if (isSuper) {
+            spawnSuperExplosion(projectile, hitTarget);
+        } else {
+            spawnEnergyExplosion(projectile, hitTarget);
+        }
+        const shakeVal = isSuper ? (hitTarget ? 0.38 : 0.22) : (hitTarget ? 0.095 : 0.05);
+        cameraShake = Math.max(cameraShake, shakeVal);
         disposeEnergyProjectile(projectile);
     }
 
@@ -1828,41 +2038,103 @@
             const projectile = energyProjectiles[i];
             projectile.life -= dt;
 
-            if (projectile.target && projectile.target.group) {
-                const targetPosition = projectile.target.group.position.clone();
-                targetPosition.y += 0.12;
-                const toTarget = targetPosition.sub(projectile.mesh.position);
-                if (toTarget.lengthSq() > 0.001) {
-                    projectile.direction.lerp(toTarget.normalize(), clamp(dt * 2.2, 0, 0.32)).normalize();
+            const isSuper = projectile.isSuper;
+            const superType = projectile.superType;
+
+            if (isSuper) {
+                if (superType === 'grenade') {
+                    const g = 4.5;
+                    projectile.velocity3D.y -= g * dt;
+                    projectile.mesh.position.addScaledVector(projectile.velocity3D, dt);
+                    if (projectile.velocity3D.lengthSq() > 0.001) {
+                        projectile.direction.copy(projectile.velocity3D).normalize();
+                    }
+                } else if (superType === 'rocket') {
+                    const targetPosition = projectile.target.group.position.clone();
+                    targetPosition.y += 0.12;
+                    projectile.currentSpeed = Math.min(13.5, projectile.currentSpeed + dt * 10.0);
+                    const toTarget = targetPosition.clone().sub(projectile.mesh.position);
+                    if (toTarget.lengthSq() > 0.001) {
+                        projectile.direction.lerp(toTarget.normalize(), clamp(dt * 5.5, 0, 0.65)).normalize();
+                    }
+                    projectile.mesh.position.addScaledVector(projectile.direction, projectile.currentSpeed * dt);
+                    const right = new THREE.Vector3(0, 1, 0).cross(projectile.direction).normalize();
+                    const up = projectile.direction.clone().cross(right).normalize();
+                    const spiralFreq = 16.0;
+                    const spiralAmp = 0.08 * (1.0 + (projectile.maxLife - projectile.life) * 0.5);
+                    const spiralOffset = right.clone().multiplyScalar(Math.sin(t * spiralFreq) * spiralAmp)
+                                      .add(up.clone().multiplyScalar(Math.cos(t * spiralFreq) * spiralAmp));
+                    projectile.mesh.position.addScaledVector(spiralOffset, dt * 12.0);
+                    projectile.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), projectile.direction);
                 }
+            } else {
+                if (projectile.target && projectile.target.group) {
+                    const targetPosition = projectile.target.group.position.clone();
+                    targetPosition.y += 0.12;
+                    const toTarget = targetPosition.sub(projectile.mesh.position);
+                    if (toTarget.lengthSq() > 0.001) {
+                        projectile.direction.lerp(toTarget.normalize(), clamp(dt * 2.2, 0, 0.32)).normalize();
+                    }
+                }
+                projectile.mesh.position.addScaledVector(projectile.direction, projectile.speed * dt);
             }
 
-            projectile.mesh.position.addScaledVector(projectile.direction, projectile.speed * dt);
             const pulse = 0.88 + Math.sin(t * 26 + projectile.pulseSeed) * 0.24;
             projectile.mesh.scale.setScalar(pulse);
             if (projectile.projectileLight) {
-                projectile.projectileLight.intensity = 3.8 + pulse * 2.8;
+                projectile.projectileLight.intensity = isSuper ? (8.0 + pulse * 4.0) : (3.8 + pulse * 2.8);
             }
 
-            if (Math.random() < 0.86 && active) {
-                createSmokeSprite(
-                    projectile.mesh.position.x - projectile.direction.x * 0.12,
-                    projectile.mesh.position.y,
-                    projectile.mesh.position.z - projectile.direction.z * 0.12,
-                    projectile.color,
-                    0.08 + Math.random() * 0.06,
-                    0.28 + Math.random() * 0.18,
-                    {
-                        vx: -projectile.direction.x * 0.22 + (Math.random() - 0.5) * 0.15,
-                        vy: (Math.random() - 0.5) * 0.08,
-                        vz: -projectile.direction.z * 0.22 + (Math.random() - 0.5) * 0.15,
-                        spin: (Math.random() - 0.5) * 7,
-                        opacity: 0.9,
-                        expansion: 1.9,
-                        fadePower: 1.35,
-                        kind: 'energyProjectile'
+            if (active) {
+                const spawnChance = isSuper ? 0.98 : 0.86;
+                if (Math.random() < spawnChance) {
+                    let pColor = projectile.color;
+                    let pScale = 0.08 + Math.random() * 0.06;
+                    let pLife = 0.28 + Math.random() * 0.18;
+                    let pVx = -projectile.direction.x * 0.22 + (Math.random() - 0.5) * 0.15;
+                    let pVy = (Math.random() - 0.5) * 0.08;
+                    let pVz = -projectile.direction.z * 0.22 + (Math.random() - 0.5) * 0.15;
+                    let pExpansion = 1.9;
+
+                    if (isSuper) {
+                        pScale = 0.16 + Math.random() * 0.12;
+                        pLife = 0.45 + Math.random() * 0.35;
+                        pExpansion = 2.8;
+
+                        if (superType === 'grenade') {
+                            pColor = Math.random() < 0.52 ? 0x00d2ff : projectile.color;
+                            pVx = -projectile.direction.x * 0.35 + (Math.random() - 0.5) * 0.3;
+                            pVy = -projectile.direction.y * 0.35 + 0.12 + (Math.random() - 0.5) * 0.3;
+                            pVz = -projectile.direction.z * 0.35 + (Math.random() - 0.5) * 0.3;
+                        } else if (superType === 'rocket') {
+                            pColor = Math.random() < 0.44 ? 0xffdd00 : (Math.random() < 0.62 ? 0xff4400 : 0xff9900);
+                            pScale = 0.12 + Math.random() * 0.1;
+                            pLife = 0.34 + Math.random() * 0.22;
+                            pVx = -projectile.direction.x * 3.2 + (Math.random() - 0.5) * 0.4;
+                            pVy = -projectile.direction.y * 3.2 + (Math.random() - 0.5) * 0.4;
+                            pVz = -projectile.direction.z * 3.2 + (Math.random() - 0.5) * 0.4;
+                        }
                     }
-                );
+
+                    createSmokeSprite(
+                        projectile.mesh.position.x - projectile.direction.x * 0.12,
+                        projectile.mesh.position.y,
+                        projectile.mesh.position.z - projectile.direction.z * 0.12,
+                        pColor,
+                        pScale,
+                        pLife,
+                        {
+                            vx: pVx,
+                            vy: pVy,
+                            vz: pVz,
+                            spin: (Math.random() - 0.5) * 9,
+                            opacity: isSuper ? 0.96 : 0.9,
+                            expansion: pExpansion,
+                            fadePower: isSuper ? 1.25 : 1.35,
+                            kind: isSuper ? 'superTrail' : 'energyProjectile'
+                        }
+                    );
+                }
             }
 
             let hit = projectile.life <= 0;
@@ -1890,22 +2162,26 @@
         const redRobot = robotFleet[1];
         if (!blueRobot.group || !redRobot.group) return;
 
-        if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > 0.42) {
+        const blueAimTime = blueRobot.state.isSuperweaponCharging ? 0.85 : 0.42;
+        if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
             const dx = redRobot.state.x - blueRobot.state.x;
             const dz = redRobot.state.z - blueRobot.state.z;
             const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
             if (blueRobot.forward.dot(toOpponent) > 0.96) {
-                spawnEnergyProjectile(blueRobot, redRobot, t);
+                spawnEnergyProjectile(blueRobot, redRobot, t, blueRobot.state.isSuperweaponCharging);
                 blueRobot.state.isAiming = false;
+                blueRobot.state.isSuperweaponCharging = false;
             }
         }
-        if (redRobot.state.isAiming && t - redRobot.state.aimStart > 0.42) {
+        const redAimTime = redRobot.state.isSuperweaponCharging ? 0.85 : 0.42;
+        if (redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
             const dx = blueRobot.state.x - redRobot.state.x;
             const dz = blueRobot.state.z - redRobot.state.z;
             const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
             if (redRobot.forward.dot(toOpponent) > 0.96) {
-                spawnEnergyProjectile(redRobot, blueRobot, t);
+                spawnEnergyProjectile(redRobot, blueRobot, t, redRobot.state.isSuperweaponCharging);
                 redRobot.state.isAiming = false;
+                redRobot.state.isSuperweaponCharging = false;
             }
         }
 
@@ -1915,7 +2191,9 @@
         if (distance > ROBOT_DUEL_DISTANCE) {
             if (distance > ROBOT_DUEL_DISTANCE + 1.5) {
                 blueRobot.state.isAiming = false;
+                blueRobot.state.isSuperweaponCharging = false;
                 redRobot.state.isAiming = false;
+                redRobot.state.isSuperweaponCharging = false;
             }
             return;
         }
@@ -1926,10 +2204,16 @@
         if (t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
             blueRobot.state.isAiming = true;
             blueRobot.state.aimStart = t;
+            if (t - blueRobot.state.lastSuperweaponAt > 15.0) {
+                blueRobot.state.isSuperweaponCharging = true;
+            }
         }
         if (t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
             redRobot.state.isAiming = true;
             redRobot.state.aimStart = t;
+            if (t - redRobot.state.lastSuperweaponAt > 15.0) {
+                redRobot.state.isSuperweaponCharging = true;
+            }
         }
 
         if (!updateRobotDuel.lastPulse || t - updateRobotDuel.lastPulse > 0.2) {
@@ -1943,8 +2227,13 @@
     function updateFloatingRobot(dt, t) {
         ensureRobotPhysicsState();
         loadFloatingRobot();
+        // Phase 1: Update all robot positions first so heightAt sees a consistent snapshot
         robotFleet.forEach(function (bot, index) {
-            updateRobotMotion(bot, dt, t, index);
+            updateRobotPositionPhase(bot, dt, t, index);
+        });
+        // Phase 2: Compute heights, visuals and rotations with synchronized positions
+        robotFleet.forEach(function (bot, index) {
+            updateRobotVisualsPhase(bot, dt, t, index);
         });
         updateRobotThrusterRipples(t);
         updateRobotDuel(dt, t);
