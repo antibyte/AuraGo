@@ -40,6 +40,7 @@ type Config struct {
 	DBPath        string
 	DockerHost    string
 	DataDir       string
+	WorkspaceDir  string
 	Catalog       []CatalogEntry
 	Docker        DockerAdapter
 	Desktop       DesktopAdapter
@@ -72,6 +73,13 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, fmt.Errorf("resolve desktop store database path: %w", err)
 	}
 	cfg.DBPath = filepath.Clean(dbPath)
+	if strings.TrimSpace(cfg.WorkspaceDir) != "" {
+		workspaceDir, err := filepath.Abs(cfg.WorkspaceDir)
+		if err != nil {
+			return nil, fmt.Errorf("resolve desktop store workspace directory: %w", err)
+		}
+		cfg.WorkspaceDir = filepath.Clean(workspaceDir)
+	}
 	catalog := cfg.Catalog
 	if len(catalog) == 0 {
 		catalog = DefaultCatalog()
@@ -115,6 +123,11 @@ func NewService(cfg Config) (*Service, error) {
 		for _, bind := range entry.HostBinds {
 			if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
 				return nil, fmt.Errorf("catalog app %s host bind paths are required", entry.ID)
+			}
+		}
+		for _, bind := range entry.WorkspaceBinds {
+			if strings.TrimSpace(bind.WorkspacePath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
+				return nil, fmt.Errorf("catalog app %s workspace bind paths are required", entry.ID)
 			}
 		}
 		for _, secret := range entry.GeneratedSecrets {
@@ -805,7 +818,14 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return fmt.Errorf("allocate ports: %w", err)
 	}
 	record.Ports = ports
-	record.HostBinds = resolveHostBinds(entry.HostBinds)
+	hostBinds, err := s.resolveCatalogHostBinds(entry)
+	if err != nil {
+		return fmt.Errorf("resolve host binds: %w", err)
+	}
+	record.HostBinds = hostBinds
+	if err := s.prepareManagedWorkspaceBinds(record); err != nil {
+		return fmt.Errorf("prepare workspace binds: %w", err)
+	}
 	env, secretRefs, err := s.installEnv(entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve install environment: %w", err)
@@ -887,7 +907,14 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		record.Protocol = strings.ToLower(ports[0].Protocol)
 	}
 	record.Volumes = resolveVolumes(entry)
-	record.HostBinds = resolveHostBinds(entry.HostBinds)
+	hostBinds, err := s.resolveCatalogHostBinds(entry)
+	if err != nil {
+		return fmt.Errorf("resolve host binds: %w", err)
+	}
+	record.HostBinds = hostBinds
+	if err := s.prepareManagedWorkspaceBinds(record); err != nil {
+		return fmt.Errorf("prepare workspace binds: %w", err)
+	}
 	record.ExtraHosts = append([]string(nil), entry.ExtraHosts...)
 	env, secretRefs, err := s.updateEnv(entry, record, previous)
 	if err != nil {
@@ -955,6 +982,10 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		return rollbackPrevious(fmt.Errorf("create updated container: %w", err))
 	}
 	record.ContainerID = containerID
+	if err := s.seedContainerFiles(ctx, entry, record); err != nil {
+		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
+		return rollbackPrevious(fmt.Errorf("seed updated container files: %w", err))
+	}
 	if previousWasRunning {
 		if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
 			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
@@ -1082,6 +1113,9 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 			}
 		}
 		if err := s.deleteStoreSecrets(ctx, app); err != nil {
+			return err
+		}
+		if err := s.removeManagedWorkspaceBinds(app); err != nil {
 			return err
 		}
 	}
@@ -1250,6 +1284,132 @@ func resolveHostBinds(templates []HostBindTemplate) []HostBinding {
 	return binds
 }
 
+func (s *Service) resolveCatalogHostBinds(entry CatalogEntry) ([]HostBinding, error) {
+	binds := resolveHostBinds(entry.HostBinds)
+	for _, template := range entry.WorkspaceBinds {
+		hostPath, workspacePath, err := resolveWorkspaceBindPath(s.cfg.WorkspaceDir, template.WorkspacePath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve workspace bind %s: %w", template.WorkspacePath, err)
+		}
+		containerPath := strings.TrimSpace(template.ContainerPath)
+		if containerPath == "" {
+			continue
+		}
+		binds = append(binds, HostBinding{
+			HostPath:      hostPath,
+			ContainerPath: containerPath,
+			ReadOnly:      template.ReadOnly,
+			Managed:       true,
+			WorkspacePath: workspacePath,
+		})
+	}
+	return binds, nil
+}
+
+func resolveWorkspaceBindPath(workspaceDir, workspacePath string) (string, string, error) {
+	root := strings.TrimSpace(workspaceDir)
+	if root == "" {
+		return "", "", fmt.Errorf("desktop workspace directory is required")
+	}
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve desktop workspace root: %w", err)
+	}
+	raw := strings.ReplaceAll(strings.TrimSpace(workspacePath), "\\", "/")
+	if raw == "" || raw == "/" || raw == "." {
+		return "", "", fmt.Errorf("workspace bind path is required")
+	}
+	if pathpkg.IsAbs(raw) || filepath.IsAbs(filepath.FromSlash(raw)) {
+		return "", "", fmt.Errorf("workspace bind path must be relative")
+	}
+	cleanSlash := pathpkg.Clean(raw)
+	if cleanSlash == "." || cleanSlash == ".." || strings.HasPrefix(cleanSlash, "../") {
+		return "", "", fmt.Errorf("workspace bind path escapes workspace")
+	}
+	hostPath := filepath.Join(rootAbs, filepath.FromSlash(cleanSlash))
+	hostAbs, err := filepath.Abs(hostPath)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve workspace bind path: %w", err)
+	}
+	if !isStorePathWithin(rootAbs, hostAbs) {
+		return "", "", fmt.Errorf("workspace bind path escapes workspace")
+	}
+	if err := validateStorePathComponentsWithinRoot(rootAbs, hostAbs); err != nil {
+		return "", "", err
+	}
+	return filepath.Clean(hostAbs), cleanSlash, nil
+}
+
+func isStorePathWithin(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel))
+}
+
+func validateStorePathComponentsWithinRoot(rootAbs, candidateAbs string) error {
+	rel, err := filepath.Rel(rootAbs, candidateAbs)
+	if err != nil {
+		return fmt.Errorf("resolve workspace bind relative path: %w", err)
+	}
+	if rel == "." {
+		return nil
+	}
+	current := rootAbs
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("inspect workspace bind path: %w", err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		target, err := os.Readlink(current)
+		if err != nil {
+			return fmt.Errorf("read workspace bind symlink: %w", err)
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(current), target)
+		}
+		targetAbs, err := filepath.Abs(target)
+		if err != nil {
+			return fmt.Errorf("resolve workspace bind symlink: %w", err)
+		}
+		if !isStorePathWithin(rootAbs, targetAbs) {
+			return fmt.Errorf("workspace bind follows symlink outside workspace")
+		}
+		evaluated, err := filepath.EvalSymlinks(targetAbs)
+		if err != nil {
+			return fmt.Errorf("workspace bind follows invalid symlink: %w", err)
+		}
+		if !isStorePathWithin(rootAbs, evaluated) {
+			return fmt.Errorf("workspace bind follows symlink outside workspace")
+		}
+		current = evaluated
+	}
+	return nil
+}
+
+func (s *Service) prepareManagedWorkspaceBinds(app InstalledApp) error {
+	for _, bind := range app.HostBinds {
+		if !bind.Managed {
+			continue
+		}
+		if err := os.MkdirAll(bind.HostPath, 0o755); err != nil {
+			return fmt.Errorf("create workspace bind %s: %w", bind.WorkspacePath, err)
+		}
+	}
+	return nil
+}
+
 func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, app InstalledApp) error {
 	if len(entry.SeedFiles) == 0 {
 		return nil
@@ -1257,6 +1417,14 @@ func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, ap
 	grouped := map[string]map[string]string{}
 	for _, seed := range entry.SeedFiles {
 		cleanPath := pathpkg.Clean("/" + strings.TrimLeft(strings.TrimSpace(seed.Path), "/"))
+		if hostPath, ok, err := managedWorkspaceSeedPath(app.HostBinds, cleanPath); err != nil {
+			return err
+		} else if ok {
+			if err := writeSeedFileIfMissing(hostPath, seed.Content); err != nil {
+				return fmt.Errorf("seed workspace file %s: %w", seed.Path, err)
+			}
+			continue
+		}
 		dir, name := pathpkg.Split(cleanPath)
 		dir = strings.TrimRight(dir, "/")
 		if dir == "" {
@@ -1276,6 +1444,48 @@ func (s *Service) seedContainerFiles(ctx context.Context, entry CatalogEntry, ap
 		}
 	}
 	return nil
+}
+
+func managedWorkspaceSeedPath(binds []HostBinding, seedPath string) (string, bool, error) {
+	for _, bind := range binds {
+		if !bind.Managed {
+			continue
+		}
+		containerPath := pathpkg.Clean("/" + strings.TrimLeft(strings.TrimSpace(bind.ContainerPath), "/"))
+		if containerPath == "." || containerPath == "" {
+			containerPath = "/"
+		}
+		rel := ""
+		switch {
+		case seedPath == containerPath:
+			return "", false, fmt.Errorf("seed path %q targets a workspace bind directory", seedPath)
+		case containerPath == "/":
+			rel = strings.TrimLeft(seedPath, "/")
+		case strings.HasPrefix(seedPath, containerPath+"/"):
+			rel = strings.TrimPrefix(seedPath, containerPath+"/")
+		default:
+			continue
+		}
+		rel = pathpkg.Clean(rel)
+		if rel == "." || rel == "" || strings.HasPrefix(rel, "../") || strings.Contains(rel, "/../") {
+			return "", false, fmt.Errorf("invalid workspace seed path %q", seedPath)
+		}
+		hostPath := filepath.Join(bind.HostPath, filepath.FromSlash(rel))
+		return hostPath, true, nil
+	}
+	return "", false, nil
+}
+
+func writeSeedFileIfMissing(hostPath, content string) error {
+	if err := os.MkdirAll(filepath.Dir(hostPath), 0o755); err != nil {
+		return err
+	}
+	if _, err := os.Stat(hostPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.WriteFile(hostPath, []byte(content), 0o644)
 }
 
 func (s *Service) installEnv(entry CatalogEntry, app InstalledApp) ([]string, []SecretRef, error) {
@@ -1635,6 +1845,7 @@ func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp)
 	}
 	_ = s.removePrivateStoreNetworks(ctx, app)
 	_ = s.deleteStoreSecrets(ctx, app)
+	_ = s.removeManagedWorkspaceBinds(app)
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
@@ -1654,6 +1865,25 @@ func (s *Service) deleteStoreArtifacts(ctx context.Context, app InstalledApp) er
 	if s.cfg.Launchpad != nil && app.LaunchpadLinkID != "" {
 		if err := s.cfg.Launchpad.DeleteStoreLink(ctx, app.LaunchpadLinkID); err != nil && !isMissingStoreArtifact(err) {
 			return fmt.Errorf("delete launchpad link: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) removeManagedWorkspaceBinds(app InstalledApp) error {
+	for _, bind := range app.HostBinds {
+		if !bind.Managed {
+			continue
+		}
+		hostPath, _, err := resolveWorkspaceBindPath(s.cfg.WorkspaceDir, bind.WorkspacePath)
+		if err != nil {
+			return fmt.Errorf("resolve managed workspace bind %s: %w", bind.WorkspacePath, err)
+		}
+		if filepath.Clean(hostPath) != filepath.Clean(bind.HostPath) {
+			return fmt.Errorf("managed workspace bind path changed for %s", bind.WorkspacePath)
+		}
+		if err := os.RemoveAll(hostPath); err != nil {
+			return fmt.Errorf("remove workspace bind %s: %w", bind.WorkspacePath, err)
 		}
 	}
 	return nil

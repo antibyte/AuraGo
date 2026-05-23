@@ -51,6 +51,7 @@ type CatalogEntry struct {
 	ExtraPorts       []PortSpec          `json:"extra_ports,omitempty"`
 	Volumes          []VolumeTemplate    `json:"volumes,omitempty"`
 	HostBinds        []HostBindTemplate  `json:"host_binds,omitempty"`
+	WorkspaceBinds   []WorkspaceBind     `json:"-"`
 	Env              []string            `json:"env,omitempty"`
 	ExtraHosts       []string            `json:"extra_hosts,omitempty"`
 	GeneratedSecrets []GeneratedSecret   `json:"generated_secrets,omitempty"`
@@ -86,11 +87,21 @@ type HostBindTemplate struct {
 	ReadOnly      bool   `json:"read_only,omitempty"`
 }
 
+// WorkspaceBind describes a Store-owned desktop workspace folder mounted into
+// a container. It is resolved to a managed HostBinding at install time.
+type WorkspaceBind struct {
+	WorkspacePath string `json:"workspace_path"`
+	ContainerPath string `json:"container_path"`
+	ReadOnly      bool   `json:"read_only,omitempty"`
+}
+
 // HostBinding is a resolved host path bind for a running Store app.
 type HostBinding struct {
 	HostPath      string `json:"host_path"`
 	ContainerPath string `json:"container_path"`
 	ReadOnly      bool   `json:"read_only,omitempty"`
+	Managed       bool   `json:"managed,omitempty"`
+	WorkspacePath string `json:"workspace_path,omitempty"`
 }
 
 // GeneratedSecret describes one generated or user-supplied Store secret.

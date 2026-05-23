@@ -125,8 +125,8 @@ func DefaultCatalog() []CatalogEntry {
 			LogoSlug:    "olivetin",
 			LogoURL:     logoURL("olivetin"),
 			PrimaryPort: PortSpec{ContainerPort: 1337, Protocol: "tcp"},
-			Volumes: []VolumeTemplate{
-				{NameSuffix: "config", ContainerPath: "/config"},
+			WorkspaceBinds: []WorkspaceBind{
+				{WorkspacePath: "Shared/OliveTin", ContainerPath: "/config"},
 			},
 			SeedFiles: []SeedFile{
 				{Path: "/config/config.yaml", Content: oliveTinDefaultConfig},

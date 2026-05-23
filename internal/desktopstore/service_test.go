@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -111,6 +112,14 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			}
 			if entry.Metadata["open_external"] != "true" {
 				t.Fatalf("romm must open outside the desktop iframe to avoid browser renderer crashes: %#v", entry.Metadata)
+			}
+		}
+		if entry.ID == "olivetin" {
+			if len(entry.Volumes) != 0 {
+				t.Fatalf("olivetin config must not be hidden in a named volume: %#v", entry.Volumes)
+			}
+			if len(entry.WorkspaceBinds) != 1 || entry.WorkspaceBinds[0].WorkspacePath != "Shared/OliveTin" || entry.WorkspaceBinds[0].ContainerPath != "/config" {
+				t.Fatalf("olivetin workspace bind = %#v, want Shared/OliveTin:/config", entry.WorkspaceBinds)
 			}
 		}
 		if entry.ID == "quakejs-rootless" {
@@ -645,7 +654,7 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 	assertVolumeBinding(t, agent.Volumes, "aurago_store_beszel_agent_data", "/var/lib/beszel-agent")
 }
 
-func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
+func TestInstallOliveTinMountsEditableWorkspaceConfigBeforeStart(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
 	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19189))
@@ -665,15 +674,58 @@ func TestInstallOliveTinSeedsDefaultConfigBeforeStart(t *testing.T) {
 	if spec.Image != "ghcr.io/olivetin/olivetin:latest" {
 		t.Fatalf("olivetin image = %q", spec.Image)
 	}
-	if len(spec.Volumes) != 1 || spec.Volumes[0].ContainerPath != "/config" {
-		t.Fatalf("unexpected olivetin volumes: %#v", spec.Volumes)
+	if len(spec.Volumes) != 0 {
+		t.Fatalf("olivetin should not use a hidden named config volume: %#v", spec.Volumes)
 	}
-	seeded := docker.copiedFiles["aurago-store-olivetin:/config"]
-	if !strings.Contains(seeded["config.yaml"], `title: "Hello world!"`) {
-		t.Fatalf("olivetin default config not seeded: %#v", seeded)
+	workspaceConfigDir := filepath.Join(svc.cfg.WorkspaceDir, "Shared", "OliveTin")
+	if len(spec.HostBinds) != 1 || spec.HostBinds[0].HostPath != workspaceConfigDir || spec.HostBinds[0].ContainerPath != "/config" || !spec.HostBinds[0].Managed {
+		t.Fatalf("unexpected olivetin host binds: %#v, want managed workspace config bind", spec.HostBinds)
 	}
-	if indexOfString(docker.events, "copy:aurago-store-olivetin:/config") > indexOfString(docker.events, "start:aurago-store-olivetin") {
-		t.Fatalf("olivetin config must be copied before start: %#v", docker.events)
+	seededConfigPath := filepath.Join(workspaceConfigDir, "config.yaml")
+	seededConfig, err := os.ReadFile(seededConfigPath)
+	if err != nil {
+		t.Fatalf("read seeded olivetin config: %v", err)
+	}
+	if !strings.Contains(string(seededConfig), `title: "Hello world!"`) {
+		t.Fatalf("olivetin default config not seeded: %s", string(seededConfig))
+	}
+	if _, copied := docker.copiedFiles["aurago-store-olivetin:/config"]; copied {
+		t.Fatalf("olivetin workspace config should be seeded on host, not docker-copied: %#v", docker.copiedFiles)
+	}
+	createIndex := indexOfString(docker.events, "create:aurago-store-olivetin")
+	startIndex := indexOfString(docker.events, "start:aurago-store-olivetin")
+	if createIndex > startIndex {
+		t.Fatalf("olivetin config mount must exist before start: %#v", docker.events)
+	}
+}
+
+func TestInstallOliveTinKeepsExistingWorkspaceConfig(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19189))
+	workspaceConfigDir := filepath.Join(svc.cfg.WorkspaceDir, "Shared", "OliveTin")
+	if err := os.MkdirAll(workspaceConfigDir, 0o755); err != nil {
+		t.Fatalf("create existing olivetin config dir: %v", err)
+	}
+	customConfigPath := filepath.Join(workspaceConfigDir, "config.yaml")
+	if err := os.WriteFile(customConfigPath, []byte("actions:\n  - title: Existing\n"), 0o644); err != nil {
+		t.Fatalf("write existing olivetin config: %v", err)
+	}
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "olivetin", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	kept, err := os.ReadFile(customConfigPath)
+	if err != nil {
+		t.Fatalf("read existing olivetin config: %v", err)
+	}
+	if string(kept) != "actions:\n  - title: Existing\n" {
+		t.Fatalf("existing olivetin config was overwritten: %q", string(kept))
 	}
 }
 
@@ -1472,6 +1524,7 @@ func newTestServiceAtPathWithSecrets(t *testing.T, dbPath string, docker DockerA
 	t.Helper()
 	svc, err := NewService(Config{
 		DBPath:        dbPath,
+		WorkspaceDir:  filepath.Join(t.TempDir(), "workspace"),
 		Docker:        docker,
 		Desktop:       desktopAdapter,
 		Launchpad:     launchpad,
