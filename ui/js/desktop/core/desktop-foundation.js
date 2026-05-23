@@ -915,18 +915,16 @@
             if (event && btn.hasPointerCapture && btn.hasPointerCapture(drag.pointerId)) {
                 btn.releasePointerCapture(drag.pointerId);
             }
-            btn.classList.remove('vd-dragging');
+            setDesktopDragItemsDragging(drag.items, false);
             clearTrashDropTarget();
             document.body.classList.remove('vd-touch-drag-active');
             if (drag.moved) {
-                btn.__vdSuppressNextClick = true;
-                window.setTimeout(() => { btn.__vdSuppressNextClick = false; }, 0);
+                suppressDesktopIconClicks(drag.items);
                 if (dropTarget && !isTrashIcon(btn)) {
-                    btn.style.left = drag.left + 'px';
-                    btn.style.top = drag.top + 'px';
-                    handleTrashDrop(btn);
+                    resetDesktopDragItems(drag.items);
+                    handleTrashDropForIcons(drag.items.map(item => item.icon));
                 } else {
-                    saveIconPosition(drag.id, parseInt(btn.style.left, 10) || 0, parseInt(btn.style.top, 10) || 0);
+                    saveDesktopDragItems(drag.items);
                 }
                 if (event) event.preventDefault();
             }
@@ -940,6 +938,7 @@
             drag = {
                 id: btn.dataset.id,
                 pointerId: event.pointerId,
+                items: desktopDragItemsForIcon(btn),
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(btn.style.left, 10) || 0,
@@ -968,11 +967,10 @@
             }
             if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
             drag.moved = true;
-            btn.classList.add('vd-dragging');
+            setDesktopDragItemsDragging(drag.items, true);
             if (drag.touchDrag) document.body.classList.add('vd-touch-drag-active');
-            const pos = clampToWorkspace(drag.left + dx, drag.top + dy, btn.offsetWidth, btn.offsetHeight);
-            btn.style.left = pos.x + 'px';
-            btn.style.top = pos.y + 'px';
+            const delta = clampDesktopDragDelta(drag.items, dx, dy);
+            moveDesktopDragItems(drag.items, delta.dx, delta.dy);
             drag.dropTarget = desktopTrashDropTargetAt(event.clientX, event.clientY, btn);
             clearTrashDropTarget();
             if (drag.dropTarget) drag.dropTarget.classList.add('vd-trash-drop-target');

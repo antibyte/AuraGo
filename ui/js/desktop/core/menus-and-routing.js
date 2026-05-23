@@ -101,13 +101,14 @@
 
     function showIconContextMenu(event, btn) {
         event.preventDefault();
+        const commandIcons = selectedDesktopCommandIcons(btn);
         if (!btn.classList.contains('selected')) selectDesktopIcon(btn);
         const path = btn.dataset.path || '';
         const appId = btn.dataset.appId || '';
         const kind = btn.dataset.kind || '';
         const isDesktopEntry = btn.dataset.desktopEntry === 'true';
         const items = [
-            { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => activateDesktopItem(btn) }
+            { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => activateDesktopItems(commandIcons) }
         ];
         if (isTrashIcon(btn)) {
             items.push(
@@ -120,17 +121,16 @@
         }
         if (isDesktopEntry || kind === 'file') {
             if (kind === 'file') {
-                const entry = { name: btn.querySelector('.vd-icon-label') ? btn.querySelector('.vd-icon-label').textContent : path, path, web_path: btn.dataset.webPath || '', media_kind: btn.dataset.mediaKind || '', mime_type: btn.dataset.mimeType || '' };
-                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => addFileContextToChat(entry) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => askAgentAboutFile(entry) });
+                items.push({ separator: true }, { label: t('desktop.fm.add_to_chat', 'Add to chat'), icon: 'chat', fallback: 'A', action: () => desktopBatchFileEntries(btn).forEach(addFileContextToChat) }, { label: t('desktop.fm.ask_agent', 'Ask Agent'), icon: 'agent', fallback: 'Q', action: () => desktopBatchFileEntries(btn).forEach(askAgentAboutFile) });
             }
             items.push(
                 { separator: true },
-                { label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', action: () => setDesktopFileClipboard('cut', [path]) },
-                { label: t('desktop.fm.copy'), icon: 'copy', fallback: 'C', action: () => setDesktopFileClipboard('copy', [path]) },
+                { label: t('desktop.fm.cut'), icon: 'scissors', fallback: 'X', action: () => setDesktopFileClipboard('cut', desktopBatchPaths(btn)) },
+                { label: t('desktop.fm.copy'), icon: 'copy', fallback: 'C', action: () => setDesktopFileClipboard('copy', desktopBatchPaths(btn)) },
                 { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', disabled: kind !== 'directory' || !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard(path) },
                 { separator: true },
                 { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(path) },
-                { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(path) }
+                { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deleteDesktopPaths(desktopBatchPaths(btn)) }
             );
             if (btn.dataset.webPath) {
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
@@ -138,11 +138,11 @@
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadDesktopPath(path, btn.querySelector('.vd-icon-label').textContent) });
             }
         } else {
-            items.push({ label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcut(btn.dataset.id) });
+            items.push({ label: t('desktop.context_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => removeDesktopShortcuts(desktopBatchShortcutIds(btn)) });
         }
         if (appId) {
             const appIsBuiltin = isBuiltinApp(appId);
-            items.push({ label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApp(appId) });
+            items.push({ label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
         }
         items.push(
             { separator: true },
