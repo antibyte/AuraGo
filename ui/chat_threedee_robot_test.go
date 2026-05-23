@@ -252,6 +252,36 @@ func TestThreeDeeRobotFlightsUseRandomHighAltitude(t *testing.T) {
 	}
 }
 
+func TestThreeDeeWhiteRobotRisesFasterAndFlightsAreHigher(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	if maxHeight := extractJSConstFloat(t, shader, "ROBOT_FLIGHT_MAX_HEIGHT"); maxHeight < 3.65 {
+		t.Fatalf("robot max flight height should be raised slightly, got %.2f", maxHeight)
+	}
+	whiteRise := extractJSConstFloat(t, shader, "ROBOT_WHITE_FLIGHT_RISE_SPEED")
+	redRise := extractJSConstFloat(t, shader, "ROBOT_RED_FLIGHT_RISE_SPEED")
+	if whiteRise <= redRise {
+		t.Fatalf("white robot should rise faster than red robot, got white %.2f red %.2f", whiteRise, redRise)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_WHITE_FLIGHT_RISE_SPEED =",
+		"const ROBOT_RED_FLIGHT_RISE_SPEED =",
+		"function robotFlightRiseProgress",
+		"const riseSpeed = bot && bot.id === 'blue'",
+		"? ROBOT_WHITE_FLIGHT_RISE_SPEED",
+		": ROBOT_RED_FLIGHT_RISE_SPEED;",
+		"return progress < 0.5 ? Math.min(0.5, progress * riseSpeed) : progress;",
+		"const riseProgress = robotFlightRiseProgress(bot, progress);",
+		"const rise = Math.sin(riseProgress * Math.PI);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing white faster flight marker %q", marker)
+		}
+	}
+}
+
 func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) {
 	t.Parallel()
 

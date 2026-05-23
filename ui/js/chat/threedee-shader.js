@@ -101,7 +101,9 @@
     const ROBOT_FLIGHT_MAX_INTERVAL = 12.5;
     const ROBOT_FLIGHT_DURATION = 2.05;
     const ROBOT_FLIGHT_HEIGHT = 1.12;
-    const ROBOT_FLIGHT_MAX_HEIGHT = 3.35;
+    const ROBOT_FLIGHT_MAX_HEIGHT = 3.75;
+    const ROBOT_WHITE_FLIGHT_RISE_SPEED = 1.18;
+    const ROBOT_RED_FLIGHT_RISE_SPEED = 1.0;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_SUPERWEAPON_EVASION_RANGE = 5.4;
     const ROBOT_SUPERWEAPON_EVASION_MIN_RANGE = 1.15;
@@ -1772,6 +1774,13 @@
         bot.state.nextFlightAt = t + firstDelay + ROBOT_FLIGHT_MIN_INTERVAL + Math.random() * span + stagger;
     }
 
+    function robotFlightRiseProgress(bot, progress) {
+        const riseSpeed = bot && bot.id === 'blue'
+            ? ROBOT_WHITE_FLIGHT_RISE_SPEED
+            : ROBOT_RED_FLIGHT_RISE_SPEED;
+        return progress < 0.5 ? Math.min(0.5, progress * riseSpeed) : progress;
+    }
+
     function updateRobotFlight(bot, t) {
         if (!bot || !bot.state) return;
         const state = bot.state;
@@ -1789,7 +1798,8 @@
 
         if (state.flightStartedAt >= 0) {
             const progress = clamp((t - state.flightStartedAt) / state.flightDuration, 0, 1);
-            const rise = Math.sin(progress * Math.PI);
+            const riseProgress = robotFlightRiseProgress(bot, progress);
+            const rise = Math.sin(riseProgress * Math.PI);
             const hoverBeat = 1 + Math.sin(progress * Math.PI * 4 + state.seed) * 0.035;
             state.flightLift = Math.max(0, rise * state.flightPeak * hoverBeat);
             if (progress >= 1) {
