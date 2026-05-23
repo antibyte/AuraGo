@@ -48,16 +48,69 @@ func TestDesktopStoreAppLogosNormalizeSizeAndDisableNativeDrag(t *testing.T) {
 		}
 	}
 
-	css := readAllDesktopCSS(t)
+	css := rawDesktopAssetText(t, "css/desktop-icons.css")
+	logoRule := desktopStoreCSSRuleBody(t, css, ".vd-app-logo-icon")
+	imageRule := desktopStoreCSSRuleBody(t, css, ".vd-app-logo-icon > img")
 	for _, want := range []string{
 		"padding: clamp(1px, 10%, 5px);",
-		"overflow: hidden;",
 		"pointer-events: none;",
 		"-webkit-user-drag: none;",
 		"user-select: none;",
 	} {
-		if !strings.Contains(css, want) {
+		if !desktopStoreCSSRuleHasDeclaration(logoRule, want) {
 			t.Fatalf("desktop store app logo normalization CSS missing marker %q", want)
 		}
 	}
+	if desktopStoreCSSRuleHasDeclaration(logoRule, "overflow: hidden;") {
+		t.Fatal("desktop store app logo wrapper must not clip oversized logos")
+	}
+	for _, want := range []string{
+		"width: auto;",
+		"height: auto;",
+		"max-width: 100%;",
+		"max-height: 100%;",
+		"object-fit: contain;",
+	} {
+		if !desktopStoreCSSRuleHasDeclaration(imageRule, want) {
+			t.Fatalf("desktop store app logo image scaling CSS missing marker %q", want)
+		}
+	}
+	for _, clipped := range []string{
+		"width: 100%;",
+		"height: 100%;",
+	} {
+		if desktopStoreCSSRuleHasDeclaration(imageRule, clipped) {
+			t.Fatalf("desktop store app logo image must scale by max size, not force %q", clipped)
+		}
+	}
+}
+
+func desktopStoreCSSRuleBody(t *testing.T, source, selector string) string {
+	t.Helper()
+
+	needle := "\n" + selector + " {"
+	start := strings.LastIndex(source, needle)
+	if start < 0 {
+		t.Fatalf("desktop store icon CSS missing selector %q", selector)
+	}
+	start++
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("desktop store icon CSS selector %q is missing opening brace", selector)
+	}
+	bodyStart := start + open + 1
+	close := strings.Index(source[bodyStart:], "}")
+	if close < 0 {
+		t.Fatalf("desktop store icon CSS selector %q is missing closing brace", selector)
+	}
+	return source[bodyStart : bodyStart+close]
+}
+
+func desktopStoreCSSRuleHasDeclaration(body, declaration string) bool {
+	for _, line := range strings.Split(body, "\n") {
+		if strings.TrimSpace(line) == declaration {
+			return true
+		}
+	}
+	return false
 }

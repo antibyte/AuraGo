@@ -64,7 +64,7 @@ func TestDesktopLooperStylesBustComponentCache(t *testing.T) {
 	}
 
 	desktopHTML := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(desktopHTML, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260523-store-logo-drag`) {
+	if !strings.Contains(desktopHTML, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260523-store-logo-scale`) {
 		t.Fatal("desktop.html must bust the desktop.css aggregator cache for Looper action button styling")
 	}
 }
