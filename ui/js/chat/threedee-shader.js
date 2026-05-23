@@ -2027,6 +2027,12 @@
             window.robotScorchGeometry = new THREE.PlaneGeometry(1, 1);
         }
 
+        const attachParent = target.model || target.group;
+        const modelScale = (target.model && target.model.scale) ? target.model.scale.x : 1.0;
+
+        // Force a matrixWorld update on target.group so that worldToLocal uses accurate current-frame transforms
+        target.group.updateMatrixWorld(true);
+
         const markCount = isSuper ? 3 + Math.floor(Math.random() * 2) : 1 + Math.floor(Math.random() * 2);
         for (let i = 0; i < markCount; i++) {
             const material = new THREE.MeshBasicMaterial({
@@ -2045,17 +2051,17 @@
             const scorch = new THREE.Mesh(window.robotScorchGeometry, material);
             scorch.name = 'robot-damage-scorch';
             scorch.position.copy(damage.position).addScaledVector(damage.normal, ROBOT_DAMAGE_DECAL_OFFSET);
-            target.group.worldToLocal(scorch.position);
-            const localNormalEnd = target.group.worldToLocal(damage.position.clone().add(damage.normal));
-            const localNormalStart = target.group.worldToLocal(damage.position.clone());
+            attachParent.worldToLocal(scorch.position);
+            const localNormalEnd = attachParent.worldToLocal(damage.position.clone().add(damage.normal));
+            const localNormalStart = attachParent.worldToLocal(damage.position.clone());
             const localNormal = localNormalEnd.sub(localNormalStart).normalize();
             scorch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), localNormal);
             scorch.rotateZ(Math.random() * Math.PI * 2);
 
-            const size = (isSuper ? 0.16 : 0.095) + Math.random() * (isSuper ? 0.09 : 0.055);
-            scorch.scale.set(size * (0.8 + Math.random() * 0.45), size, 1);
+            const size = ((isSuper ? 0.16 : 0.095) + Math.random() * (isSuper ? 0.09 : 0.055)) / modelScale;
+            scorch.scale.set(size * (0.8 + Math.random() * 0.45), size, size);
             scorch.renderOrder = 18;
-            target.group.add(scorch);
+            attachParent.add(scorch);
             target.damageScorchMarks.push(scorch);
         }
 
