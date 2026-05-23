@@ -165,16 +165,30 @@ func TestThreeDeeRobotHitsCreateMeshDentsAndScorchMarks(t *testing.T) {
 	for _, marker := range []string{
 		"const ROBOT_DAMAGE_DENT_RADIUS =",
 		"const ROBOT_DAMAGE_DENT_DEPTH =",
+		"const ROBOT_DAMAGE_MAX_DENT_OFFSET =",
+		"const ROBOT_DAMAGE_DECAL_OFFSET =",
 		"const ROBOT_DAMAGE_MAX_SCORCH_MARKS =",
 		"damageMeshes: []",
 		"damageScorchMarks: []",
 		"node.geometry = node.geometry.clone();",
 		"robotDamageBasePositions",
 		"position.setUsage(THREE.DynamicDrawUsage)",
+		"function robotAimPoint",
+		"function resolveRobotDamageImpact",
+		"function intersectRobotDamageBox",
 		"function applyRobotDamage",
 		"function applyRobotMeshDent",
 		"function spawnRobotScorchMarks",
-		"new THREE.SpriteMaterial",
+		"const targetPosition = robotAimPoint(target);",
+		"const targetPosition = robotAimPoint(projectile.target);",
+		"const damage = resolveRobotDamageImpact(target, impactPosition, impactDirection);",
+		"const basePositions = mesh.geometry.userData.robotDamageBasePositions;",
+		"const offsetLength = Math.hypot(currentOffsetX, currentOffsetY, currentOffsetZ);",
+		"const offsetScale = Math.min(1, ROBOT_DAMAGE_MAX_DENT_OFFSET / offsetLength);",
+		"new THREE.MeshBasicMaterial",
+		"new THREE.PlaneGeometry(1, 1)",
+		"scorch.quaternion.setFromUnitVectors",
+		"scorch.position.copy(damage.position).addScaledVector(damage.normal, ROBOT_DAMAGE_DECAL_OFFSET);",
 		"robot-damage-scorch",
 		"target.damageScorchMarks.push(scorch);",
 		"position.needsUpdate = true;",
@@ -184,6 +198,10 @@ func TestThreeDeeRobotHitsCreateMeshDentsAndScorchMarks(t *testing.T) {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing robot damage marker %q", marker)
 		}
+	}
+	if strings.Contains(shader, "const scorch = new THREE.Sprite") ||
+		strings.Contains(shader, "new THREE.SpriteMaterial({\n                map: texture,") {
+		t.Fatal("robot scorch marks should be surface-aligned decals, not camera-facing sprites")
 	}
 }
 

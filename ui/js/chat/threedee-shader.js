@@ -99,8 +99,10 @@
     const ROBOT_FLIGHT_MAX_HEIGHT = 3.35;
     const ROBOT_WAVE_DAMPING_HEIGHT = 1.35;
     const ROBOT_DAMAGE_DENT_RADIUS = 0.38;
-    const ROBOT_DAMAGE_DENT_DEPTH = 0.055;
-    const ROBOT_DAMAGE_DENT_NOISE = 0.014;
+    const ROBOT_DAMAGE_DENT_DEPTH = 0.035;
+    const ROBOT_DAMAGE_DENT_NOISE = 0.006;
+    const ROBOT_DAMAGE_MAX_DENT_OFFSET = 0.075;
+    const ROBOT_DAMAGE_DECAL_OFFSET = 0.018;
     const ROBOT_DAMAGE_MAX_SCORCH_MARKS = 14;
     const ROBOT_FOOT_JET_UNDERSIDE_Y = -0.2;
     const ROBOT_THRUSTER_RIPPLE_LIFETIME = 2.8;
@@ -1748,6 +1750,22 @@
         return start;
     }
 
+    function robotAimPoint(bot) {
+        if (!bot || !bot.group) return new THREE.Vector3();
+        const point = bot.group.position.clone();
+        if (bot.model) {
+            const box = new THREE.Box3().setFromObject(bot.model);
+            const height = box.max.y - box.min.y;
+            if (Number.isFinite(height) && height > 0.001) {
+                box.getCenter(point);
+                point.y = box.min.y + height * 0.52;
+                return point;
+            }
+        }
+        point.y += 0.58;
+        return point;
+    }
+
     function disposeEnergyProjectile(projectile) {
         if (!projectile || !projectile.mesh) return;
         if (scene) scene.remove(projectile.mesh);
@@ -1797,8 +1815,7 @@
             mesh.add(projectileLight);
         }
 
-        const targetPosition = target.group.position.clone();
-        targetPosition.y += 0.12;
+        const targetPosition = robotAimPoint(target);
         let direction = targetPosition.clone().sub(start);
         const dist = direction.length();
         if (direction.lengthSq() < 0.001) direction.set(source.id === 'blue' ? 1 : -1, 0, 0);
@@ -1903,17 +1920,55 @@
         return window.robotScorchTexture;
     }
 
-    function applyRobotDamage(target, impactPosition, impactDirection, isSuper) {
-        if (!target || !target.group) return;
-        const damagePosition = impactPosition ? impactPosition.clone() : target.group.position.clone();
-        applyRobotMeshDent(target, damagePosition, impactDirection, isSuper);
-        spawnRobotScorchMarks(target, damagePosition, isSuper);
+    function intersectRobotDamageBox(box, center, normal) {
+        const dir = normal && normal.lengthSq && normal.lengthSq() > 0.001
+            ? normal.clone().normalize()
+            : new THREE.Vector3(0, 0, 1);
+        const halfX = Math.max(0.001, (box.max.x - box.min.x) * 0.5);
+        const halfY = Math.max(0.001, (box.max.y - box.min.y) * 0.5);
+        const halfZ = Math.max(0.001, (box.max.z - box.min.z) * 0.5);
+        let distance = Infinity;
+        if (Math.abs(dir.x) > 0.001) distance = Math.min(distance, halfX / Math.abs(dir.x));
+        if (Math.abs(dir.y) > 0.001) distance = Math.min(distance, halfY / Math.abs(dir.y));
+        if (Math.abs(dir.z) > 0.001) distance = Math.min(distance, halfZ / Math.abs(dir.z));
+        if (!Number.isFinite(distance)) distance = Math.max(halfX, halfY, halfZ);
+        return center.clone().addScaledVector(dir, distance);
     }
 
-    function applyRobotMeshDent(target, impactPosition, impactDirection, isSuper) {
-        if (!target || !target.damageMeshes || !impactPosition) return;
-        const worldDirection = impactDirection && impactDirection.lengthSq && impactDirection.lengthSq() > 0.001
-            ? impactDirection.clone().normalize()
+    function resolveRobotDamageImpact(target, impactPosition, impactDirection) {
+        const fallback = target && target.group ? target.group.position.clone() : new THREE.Vector3();
+        const source = impactPosition ? impactPosition.clone() : fallback;
+        let normal = impactDirection && impactDirection.lengthSq && impactDirection.lengthSq() > 0.001
+            ? impactDirection.clone().multiplyScalar(-1)
+            : source.clone().sub(fallback);
+        if (normal.lengthSq() < 0.001) normal.set(target && target.id === 'red' ? 1 : -1, 0, 0);
+        normal.normalize();
+
+        const root = target && (target.model || target.group);
+        if (!root) return { position: source, normal };
+        const box = new THREE.Box3().setFromObject(root);
+        const height = box.max.y - box.min.y;
+        if (!Number.isFinite(height) || height <= 0.001) return { position: source, normal };
+
+        const center = box.getCenter(new THREE.Vector3());
+        center.y = box.min.y + height * 0.52;
+        const position = intersectRobotDamageBox(box, center, normal);
+        position.y = clamp(position.y, box.min.y + height * 0.24, box.max.y - height * 0.1);
+        return { position, normal };
+    }
+
+    function applyRobotDamage(target, impactPosition, impactDirection, isSuper) {
+        if (!target || !target.group) return;
+        const damage = resolveRobotDamageImpact(target, impactPosition, impactDirection);
+        applyRobotMeshDent(target, damage, isSuper);
+        spawnRobotScorchMarks(target, damage, isSuper);
+    }
+
+    function applyRobotMeshDent(target, damage, isSuper) {
+        if (!target || !target.damageMeshes || !damage || !damage.position) return;
+        const impactPosition = damage.position;
+        const worldDirection = damage.normal && damage.normal.lengthSq && damage.normal.lengthSq() > 0.001
+            ? damage.normal.clone().multiplyScalar(-1).normalize()
             : new THREE.Vector3(0, -1, 0);
         const radius = ROBOT_DAMAGE_DENT_RADIUS * (isSuper ? 1.62 : 1);
         const depth = ROBOT_DAMAGE_DENT_DEPTH * (isSuper ? 2.15 : 1);
@@ -1921,6 +1976,8 @@
         target.damageMeshes.forEach(function (mesh) {
             if (!mesh || !mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
             const position = mesh.geometry.attributes.position;
+            const basePositions = mesh.geometry.userData.robotDamageBasePositions;
+            if (!basePositions) return;
             const localImpact = mesh.worldToLocal(impactPosition.clone());
             const localEnd = mesh.worldToLocal(impactPosition.clone().addScaledVector(worldDirection, depth));
             const dentVector = localEnd.sub(localImpact);
@@ -1936,11 +1993,20 @@
 
                 const falloff = 1 - smoothstep(0, radius, dist);
                 const dentNoise = (Math.random() - 0.5) * ROBOT_DAMAGE_DENT_NOISE * falloff;
+                const nextX = vertex.x + dentVector.x * falloff + dentNoise;
+                const nextY = vertex.y + dentVector.y * falloff + dentNoise * 0.35;
+                const nextZ = vertex.z + dentVector.z * falloff + dentNoise * 0.7;
+                const baseIndex = i * 3;
+                const currentOffsetX = nextX - basePositions[baseIndex];
+                const currentOffsetY = nextY - basePositions[baseIndex + 1];
+                const currentOffsetZ = nextZ - basePositions[baseIndex + 2];
+                const offsetLength = Math.hypot(currentOffsetX, currentOffsetY, currentOffsetZ);
+                const offsetScale = Math.min(1, ROBOT_DAMAGE_MAX_DENT_OFFSET / offsetLength);
                 position.setXYZ(
                     i,
-                    vertex.x + dentVector.x * falloff + dentNoise,
-                    vertex.y + dentVector.y * falloff + dentNoise * 0.35,
-                    vertex.z + dentVector.z * falloff + dentNoise * 0.7
+                    basePositions[baseIndex] + currentOffsetX * offsetScale,
+                    basePositions[baseIndex + 1] + currentOffsetY * offsetScale,
+                    basePositions[baseIndex + 2] + currentOffsetZ * offsetScale
                 );
                 changed = true;
             }
@@ -1953,31 +2019,38 @@
         });
     }
 
-    function spawnRobotScorchMarks(target, impactPosition, isSuper) {
-        if (!target || !target.group || !impactPosition) return;
+    function spawnRobotScorchMarks(target, damage, isSuper) {
+        if (!target || !target.group || !damage || !damage.position || !damage.normal) return;
         const texture = ensureRobotScorchTexture();
         if (!texture) return;
+        if (!window.robotScorchGeometry) {
+            window.robotScorchGeometry = new THREE.PlaneGeometry(1, 1);
+        }
 
         const markCount = isSuper ? 3 + Math.floor(Math.random() * 2) : 1 + Math.floor(Math.random() * 2);
         for (let i = 0; i < markCount; i++) {
-            const material = new THREE.SpriteMaterial({
+            const material = new THREE.MeshBasicMaterial({
                 map: texture,
                 color: 0x050403,
                 transparent: true,
                 opacity: isSuper ? 0.62 + Math.random() * 0.16 : 0.42 + Math.random() * 0.18,
                 depthTest: true,
-                depthWrite: false
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                polygonOffset: true,
+                polygonOffsetFactor: -2,
+                polygonOffsetUnits: -2
             });
-            material.rotation = Math.random() * Math.PI * 2;
 
-            const scorch = new THREE.Sprite(material);
+            const scorch = new THREE.Mesh(window.robotScorchGeometry, material);
             scorch.name = 'robot-damage-scorch';
-            const localPos = target.group.worldToLocal(impactPosition.clone());
-            const jitter = isSuper ? 0.22 : 0.12;
-            localPos.x += (Math.random() - 0.5) * jitter;
-            localPos.y += (Math.random() - 0.5) * jitter * 0.7;
-            localPos.z += (Math.random() - 0.5) * jitter;
-            scorch.position.copy(localPos);
+            scorch.position.copy(damage.position).addScaledVector(damage.normal, ROBOT_DAMAGE_DECAL_OFFSET);
+            target.group.worldToLocal(scorch.position);
+            const localNormalEnd = target.group.worldToLocal(damage.position.clone().add(damage.normal));
+            const localNormalStart = target.group.worldToLocal(damage.position.clone());
+            const localNormal = localNormalEnd.sub(localNormalStart).normalize();
+            scorch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), localNormal);
+            scorch.rotateZ(Math.random() * Math.PI * 2);
 
             const size = (isSuper ? 0.16 : 0.095) + Math.random() * (isSuper ? 0.09 : 0.055);
             scorch.scale.set(size * (0.8 + Math.random() * 0.45), size, 1);
@@ -2250,8 +2323,7 @@
                         projectile.direction.copy(projectile.velocity3D).normalize();
                     }
                 } else if (superType === 'rocket') {
-                    const targetPosition = projectile.target.group.position.clone();
-                    targetPosition.y += 0.12;
+                    const targetPosition = robotAimPoint(projectile.target);
                     projectile.currentSpeed = Math.min(13.5, projectile.currentSpeed + dt * 10.0);
                     const toTarget = targetPosition.clone().sub(projectile.mesh.position);
                     if (toTarget.lengthSq() > 0.001) {
@@ -2269,8 +2341,7 @@
                 }
             } else {
                 if (projectile.target && projectile.target.group) {
-                    const targetPosition = projectile.target.group.position.clone();
-                    targetPosition.y += 0.12;
+                    const targetPosition = robotAimPoint(projectile.target);
                     const toTarget = targetPosition.sub(projectile.mesh.position);
                     if (toTarget.lengthSq() > 0.001) {
                         projectile.direction.lerp(toTarget.normalize(), clamp(dt * 2.2, 0, 0.32)).normalize();
@@ -2346,7 +2417,7 @@
                 if (projectile.mesh.position.y <= waterH) {
                     hit = true;
                     if (projectile.target && projectile.target.group) {
-                        const distToTarget = projectile.mesh.position.distanceTo(projectile.target.group.position);
+                        const distToTarget = projectile.mesh.position.distanceTo(robotAimPoint(projectile.target));
                         if (distToTarget < 1.35) {
                             hitTarget = true;
                         }
@@ -2355,7 +2426,7 @@
             }
 
             if (!hit && projectile.target && projectile.target.group) {
-                hitTarget = projectile.mesh.position.distanceTo(projectile.target.group.position) < 0.62;
+                hitTarget = projectile.mesh.position.distanceTo(robotAimPoint(projectile.target)) < 0.72;
                 hit = hitTarget;
             }
             if (hit) {
