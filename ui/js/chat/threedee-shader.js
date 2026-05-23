@@ -106,6 +106,7 @@
     const ROBOT_SUPERWEAPON_EVASION_RANGE = 5.4;
     const ROBOT_SUPERWEAPON_EVASION_MIN_RANGE = 1.15;
     const ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY = 0.62;
+    const ROBOT_WHITE_ROCKET_EVASION_BONUS = 2.45;
     const ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED = 1.15;
     const ROBOT_SUPERWEAPON_EVASION_DURATION = 0.92;
     const ROBOT_SUPERWEAPON_EVASION_FORCE = 7.2;
@@ -2232,12 +2233,15 @@
         });
     }
 
-    function robotSuperweaponDetectionRange(bot) {
+    function robotSuperweaponDetectionRange(bot, projectile) {
         const hits = bot && bot.state ? Math.max(0, bot.state.hits || 0) : 0;
         const hitPenalty = bot && bot.state
             ? (bot.state.hits || 0) * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY
             : hits * ROBOT_SUPERWEAPON_EVASION_HIT_PENALTY;
-        return Math.max(ROBOT_SUPERWEAPON_EVASION_MIN_RANGE, ROBOT_SUPERWEAPON_EVASION_RANGE - hitPenalty);
+        const rocketBonus = projectile && bot && projectile.superType === 'rocket' && bot.id === 'blue'
+            ? ROBOT_WHITE_ROCKET_EVASION_BONUS
+            : 0;
+        return Math.max(ROBOT_SUPERWEAPON_EVASION_MIN_RANGE, ROBOT_SUPERWEAPON_EVASION_RANGE + rocketBonus - hitPenalty);
     }
 
     function projectileClosingSpeedToRobot(projectile, bot) {
@@ -2265,7 +2269,7 @@
         const toRobot = targetPosition.clone().sub(projectile.mesh.position);
         const distance = toRobot.length();
         const closingSpeed = projectileClosingSpeedToRobot(projectile, bot);
-        const detectionRange = robotSuperweaponDetectionRange(bot);
+        const detectionRange = robotSuperweaponDetectionRange(bot, projectile);
         if (distance > detectionRange || closingSpeed <= ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED) {
             return;
         }

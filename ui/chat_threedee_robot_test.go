@@ -277,7 +277,7 @@ func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) 
 		"projectile.velocity3D.dot(toRobot)",
 		"function tryRobotSuperweaponEvasion",
 		"if (!projectile.isSuper || projectile.target !== bot)",
-		"const detectionRange = robotSuperweaponDetectionRange(bot);",
+		"const detectionRange = robotSuperweaponDetectionRange(bot, projectile);",
 		"if (distance > detectionRange || closingSpeed <= ROBOT_SUPERWEAPON_EVASION_MIN_CLOSING_SPEED)",
 		"state.evasionUntil = t + ROBOT_SUPERWEAPON_EVASION_DURATION",
 		"state.evasionThreat = projectile",
@@ -292,6 +292,32 @@ func TestThreeDeeRobotsDodgeApproachingSuperweaponsWorseAfterHits(t *testing.T) 
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing robot superweapon evasion marker %q", marker)
+		}
+	}
+}
+
+func TestThreeDeeWhiteRobotDetectsFastRedRocketsEarlier(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	bonus := extractJSConstFloat(t, shader, "ROBOT_WHITE_ROCKET_EVASION_BONUS")
+	if bonus < 2.0 {
+		t.Fatalf("white robot rocket detection bonus should be clearly visible, got %.2f", bonus)
+	}
+	if bonus > 3.4 {
+		t.Fatalf("white robot rocket detection bonus should stay a small balance edge, got %.2f", bonus)
+	}
+
+	for _, marker := range []string{
+		"const ROBOT_WHITE_ROCKET_EVASION_BONUS =",
+		"function robotSuperweaponDetectionRange(bot, projectile)",
+		"projectile.superType === 'rocket' && bot.id === 'blue'",
+		"const rocketBonus =",
+		"ROBOT_SUPERWEAPON_EVASION_RANGE + rocketBonus - hitPenalty",
+		"const detectionRange = robotSuperweaponDetectionRange(bot, projectile);",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing white robot rocket detection marker %q", marker)
 		}
 	}
 }
