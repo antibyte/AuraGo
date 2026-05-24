@@ -346,7 +346,7 @@
                 terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_disconnected'))}</span></div>`;
             });
             rfb.addEventListener('credentialsrequired', () => {
-                const pw = prompt(t('desktop.qc_vnc_password_prompt') || 'VNC password:');
+                const pw = prompt(t('desktop.qc_vnc_password_prompt'));
                 if (pw !== null) {
                     rfb.sendCredentials({ password: pw });
                 } else {

@@ -183,7 +183,7 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 func TestDesktopCalculatorGridKeepsEqualsButtonInRow(t *testing.T) {
 	t.Parallel()
 
-	css := rawDesktopAssetText(t, "css/desktop-apps.css")
+	css := strings.ReplaceAll(rawDesktopAssetText(t, "css/desktop-apps.css"), "\r\n", "\n")
 	eqRuleStart := strings.Index(css, ".vd-calc-keys button.eq {")
 	if eqRuleStart < 0 {
 		t.Fatal("desktop calculator CSS missing equals button rule")
