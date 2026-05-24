@@ -49,9 +49,9 @@
 [data-theme="ocean"] body {
     background:
         url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E"),
-        radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.18), transparent 24%),
-        radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.14), transparent 26%),
-        radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.15), transparent 32%),
+        radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.08), transparent 50%),
+        radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.06), transparent 50%),
+        radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.08), transparent 60%),
         linear-gradient(180deg, #020d12 0%, #04141b 36%, #061d27 100%);
     color: var(--text-primary);
 }
@@ -184,24 +184,16 @@
     z-index: 1;
     background:
         url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E"),
-        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.16), transparent 28%),
-        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.12), transparent 28%),
-        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.14), transparent 32%),
+        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.08), transparent 50%),
+        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.06), transparent 50%),
+        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.08), transparent 60%),
         linear-gradient(180deg, #03141d 0%, #051c27 50%, #031118 100%);
     background-size: auto, 112% 112%, 112% 112%, 112% 112%, 100% 100%;
     animation: oceanBackdropDrift 20s ease-in-out infinite alternate;
 }
 
 [data-theme="ocean"] #chat-box::before {
-    display: block;
-    background:
-        radial-gradient(ellipse 48px 42px at 22% 20%, rgba(61, 201, 232, 0.1) 0%, transparent 100%),
-        radial-gradient(ellipse 64px 50px at 72% 35%, rgba(93, 216, 240, 0.08) 0%, transparent 100%),
-        radial-gradient(ellipse 40px 56px at 42% 68%, rgba(61, 201, 232, 0.07) 0%, transparent 100%),
-        radial-gradient(circle, rgba(61, 201, 232, 0.05) 0 1px, transparent 1.1px);
-    background-size: auto, auto, auto, 18px 18px;
-    animation: oceanCausticDrift 14s ease-in-out infinite alternate;
-    opacity: 0.85;
+    display: none;
 }
 
 [data-theme="ocean"] #chat-box::after {

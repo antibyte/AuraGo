@@ -93,16 +93,6 @@
             return smoothstep(0.02, 0.38, c);
         }
 
-        float ripple(vec2 uv, vec2 center, float radius, float frequency, float speed, float phase) {
-            vec2 p = uv - center;
-            p.x *= u_res.x / max(u_res.y, 1.0);
-            float dist = length(p);
-            float envelope = exp(-dist * radius);
-            float wave = sin(dist * frequency - u_time * speed + phase);
-            float rings = smoothstep(0.3, 0.95, wave) + smoothstep(-1.0, -0.5, wave) * 0.5;
-            return rings * envelope;
-        }
-
         float lightShaft(vec2 uv, float angle, float width, float speed, float sway) {
             float c = cos(angle);
             float s = sin(angle);
@@ -210,19 +200,6 @@
             vec2 uv = v_uv;
             float t = u_time;
 
-            float mRipple = ripple(uv, u_mouse, 4.0, 48.0, 1.8, 0.0);
-            
-            vec2 c1 = vec2(0.24 + sin(t * 0.06) * 0.05, 0.22 + cos(t * 0.08) * 0.03);
-            vec2 c2 = vec2(0.76 + cos(t * 0.04) * 0.04, 0.54 + sin(t * 0.05) * 0.04);
-            vec2 c3 = vec2(0.48 + sin(t * 0.03) * 0.03, 0.82 + cos(t * 0.07) * 0.03);
-            vec2 c4 = vec2(0.58 + cos(t * 0.05) * 0.03, 0.34 + sin(t * 0.04) * 0.03);
-
-            float r1 = ripple(uv, c1, 4.8, 54.0, 0.85, 0.3);
-            float r2 = ripple(uv, c2, 4.2, 47.0, 0.68, 1.6);
-            float r3 = ripple(uv, c3, 5.0, 44.0, 0.76, 2.8);
-            float r4 = ripple(uv, c4, 5.2, 50.0, 0.62, 4.1);
-            float rippleField = r1 + r2 + r3 + r4 + mRipple * 0.45;
-
             // Caustics Chromatic Aberration
             float causticA_R = caustics(uv + vec2(0.003, 0.0), 3.8, 0.15);
             float causticA_G = caustics(uv, 3.8, 0.15);
@@ -230,7 +207,7 @@
 
             float causticB_R = caustics(uv + vec2(2.503, -1.8), 5.2, 0.10);
             float causticB_G = caustics(uv + vec2(2.5, -1.8), 5.2, 0.10);
-            float causticB_B = caustics(uv + vec2(2.497, -1.8), 5.2, 0.10);
+            float causticB_B = caustics(uv - vec2(2.497, -1.8), 5.2, 0.10);
 
             vec3 causticColor = vec3(
                 causticA_R * 0.65 + causticB_R * 0.35,
@@ -257,7 +234,7 @@
             float snow = marineSnow(uv);
             float trailField = getTrailField(uv);
 
-            float mouseGlow = smoothstep(0.24, 0.0, length((uv - u_mouse) * vec2(u_res.x / max(u_res.y, 1.0), 1.0)));
+            float mouseGlow = smoothstep(0.20, 0.0, length((uv - u_mouse) * vec2(u_res.x / max(u_res.y, 1.0), 1.0)));
 
             vec3 sapphire = vec3(0.02, 0.15, 0.28);
             vec3 neonAqua = vec3(0.18, 0.82, 0.94);
@@ -265,17 +242,14 @@
             vec3 indigo   = vec3(0.04, 0.08, 0.16);
             vec3 glowColor = vec3(0.24, 0.90, 0.82);
 
-            vec3 color = indigo * 0.3;
-            color += sapphire * (0.4 + currentField * 0.15) + causticColor * 0.04;
-            color += neonAqua * (0.05 + rippleField * 0.12) + causticColor * 0.18;
-            color += seafoam * (shimmer * 0.05 + rippleField * 0.08) + causticColor * 0.06;
-            color += glowColor * (shaftField * 0.28 + mouseGlow * 0.18 + bubbles * 0.45);
+            vec3 color = indigo * 0.15;
+            color += sapphire * (0.35 + currentField * 0.05) + causticColor * 0.05;
+            color += neonAqua * 0.04 + causticColor * 0.22;
+            color += seafoam * (shimmer * 0.04) + causticColor * 0.08;
+            color += glowColor * (shaftField * 0.25 + mouseGlow * 0.12 + bubbles * 0.35);
             
-            // Compose marine snow particles
-            color += vec3(0.7, 0.95, 0.92) * snow * 0.65;
-            
-            // Compose bioluminescent pointer trail
-            color += glowColor * trailField * 0.6;
+            color += vec3(0.7, 0.95, 0.92) * snow * 0.45;
+            color += glowColor * trailField * 0.5;
 
             // Waving Seaweed Silhouettes
             float sw1 = seaweed(uv, 0.06, 0.35, 12.0, 1.4, 0.0);
@@ -286,21 +260,19 @@
             vec3 seaweedColor = vec3(0.01, 0.06, 0.1) * (0.5 + 0.5 * uv.y);
             color = mix(color, seaweedColor, seaweedField * 0.85);
 
-            float alpha = 0.08 +
-                          causticColor.g * 0.15 +
-                          rippleField * 0.12 +
-                          currentField * 0.05 +
-                          shaftField * 0.12 +
-                          mouseGlow * 0.12 +
-                          bubbles * 0.32 +
-                          snow * 0.45 +
-                          trailField * 0.28 +
-                          seaweedField * 0.85;
+            float alpha = 0.03 +
+                          causticColor.g * 0.14 +
+                          shaftField * 0.10 +
+                          mouseGlow * 0.08 +
+                          bubbles * 0.16 +
+                          snow * 0.22 +
+                          trailField * 0.20 +
+                          seaweedField * 0.70;
 
             float horizon = smoothstep(0.0, 0.08, uv.y) * (1.0 - smoothstep(0.88, 1.00, uv.y));
             float sideFade = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, 1.0 - uv.x);
             alpha *= horizon * sideFade;
-            alpha = clamp(alpha, 0.0, 0.38);
+            alpha = clamp(alpha, 0.0, 0.22);
 
             gl_FragColor = vec4(color, alpha);
         }
@@ -461,8 +433,8 @@
         }
         if (turbEl) {
             const t = time * 0.0006;
-            const bfX = 0.012 + Math.sin(t) * 0.002;
-            const bfY = 0.018 + Math.cos(t * 0.8) * 0.003;
+            const bfX = 0.006 + Math.sin(t) * 0.001;
+            const bfY = 0.009 + Math.cos(t * 0.8) * 0.0015;
             turbEl.setAttribute('baseFrequency', `${bfX} ${bfY}`);
         }
 
