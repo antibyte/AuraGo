@@ -150,8 +150,16 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 		return
 	}
 	sessionID := strings.TrimSpace(payload.SessionID)
-	if sessionID == "" || sessionID != stateSessionID {
-		sessionID = stateSessionID
+	if sessionID == "" {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.message session_id is required")
+		return
+	}
+	if sessionID != stateSessionID {
+		if s != nil && s.Logger != nil {
+			s.Logger.Warn("agodesk chat session mismatch", "request_id", requestID, "payload_session_id", sessionID, "active_session_id", stateSessionID)
+		}
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorSessionNotFound, "chat.message session_id does not match the active agodesk session")
+		return
 	}
 	unlockSession := lockSessionRequest(sessionID)
 	defer unlockSession()

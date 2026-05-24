@@ -162,6 +162,52 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	}
 }
 
+func TestAgodeskWebSocketRejectsMismatchedChatSessionID(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	runnerCalled := make(chan struct{}, 1)
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+		runnerCalled <- struct{}{}
+		return "runner should not run", nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID + "-stale",
+		Text:      "hello",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	select {
+	case <-runnerCalled:
+		t.Fatal("agodesk runner should not be called for mismatched chat session")
+	default:
+	}
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatError)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorSessionNotFound {
+		t.Fatalf("error code = %q, want %q", payload.Code, agodesk.ErrorSessionNotFound)
+	}
+	if payload.RequestID != msg.ID {
+		t.Fatalf("request_id = %q, want %q", payload.RequestID, msg.ID)
+	}
+}
+
 func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	oldRunner := agodeskAgentChatRunner
