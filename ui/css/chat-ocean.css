@@ -44,66 +44,31 @@
     --ocean-button: linear-gradient(180deg, rgba(18, 56, 82, 0.98), rgba(10, 34, 52, 0.98));
     --ocean-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 40%, transparent 54%);
     --ocean-ripple: rgba(61, 201, 232, 0.16);
-    --ocean-caustic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cdefs%3E%3Cfilter id='g'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3C/defs%3E%3Crect fill='%23051a24' width='260' height='260'/%3E%3Cg filter='url(%23g)' opacity='0.35'%3E%3Cpath d='M40 20 Q65 55 40 90 Q15 125 50 140 Q85 155 80 120 Q75 85 110 70 Q145 55 130 30 Q115 5 80 15 Q45 25 40 20Z' fill='%233dc9e8'/%3E%3Cpath d='M150 60 Q185 45 210 75 Q235 105 200 130 Q165 155 155 120 Q145 85 150 60Z' fill='%235dd8f0'/%3E%3Cpath d='M30 160 Q60 145 90 170 Q120 195 95 220 Q70 245 45 225 Q20 205 30 180Z' fill='%233dc9e8'/%3E%3Cpath d='M170 170 Q200 155 225 180 Q250 205 220 230 Q190 255 170 230 Q150 205 170 170Z' fill='%235dd8f0'/%3E%3Cpath d='M90 95 Q120 80 145 105 Q170 130 140 155 Q110 180 90 155 Q70 130 90 95Z' fill='%237ae4f5'/%3E%3Ccircle cx='55' cy='55' r='4' fill='%237ae4f5' opacity='0.5'/%3E%3Ccircle cx='200' cy='100' r='5' fill='%23b8f0ff' opacity='0.4'/%3E%3Ccircle cx='120' cy='210' r='3.5' fill='%237ae4f5' opacity='0.5'/%3E%3Ccircle cx='220' cy='50' r='3' fill='%23b8f0ff' opacity='0.35'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 [data-theme="ocean"] body {
     background:
-        var(--ocean-caustic),
         radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.2), transparent 24%),
         radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.16), transparent 26%),
         radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.18), transparent 32%),
         linear-gradient(180deg, #031218 0%, #051a24 36%, #07222e 100%);
-    background-size: 260px 260px, auto, auto, auto, auto;
-    background-blend-mode: screen, normal, normal, normal, normal;
-    animation: oceanBodyCausticDrift 28s linear infinite;
     color: var(--text-primary);
 }
 
 [data-theme="ocean"] body::before {
-    display: block;
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.25;
-    background:
-        var(--ocean-caustic),
-        var(--ocean-caustic);
-    background-size: 200px 200px, 340px 340px;
-    background-position: 0 0, 120px 80px;
-    mix-blend-mode: screen;
-    animation: oceanBodyCausticDrift 22s linear infinite reverse;
+    display: none;
 }
 
 [data-theme="ocean"] body::after {
-    display: block;
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 38vh;
-    pointer-events: none;
-    z-index: 0;
-    background:
-        linear-gradient(180deg,
-            rgba(61, 201, 232, 0.06) 0%,
-            rgba(61, 201, 232, 0.03) 30%,
-            transparent 100%);
-    animation: oceanSurfaceShimmer 8s ease-in-out infinite alternate;
+    display: none;
 }
 
 [data-theme="ocean"] .app-header {
     position: relative;
     z-index: 120;
     background:
-        var(--ocean-caustic),
         linear-gradient(180deg, rgba(12, 38, 56, 0.94), rgba(6, 24, 36, 0.96)),
         var(--header-bg);
-    background-size: 200px 200px, auto, auto;
-    background-blend-mode: overlay, normal, normal;
     border-bottom: 1px solid rgba(61, 201, 232, 0.18);
     box-shadow:
         0 10px 28px rgba(2, 14, 22, 0.22),
@@ -231,15 +196,14 @@
 [data-theme="ocean"] #chat-box::before {
     display: block;
     background:
-        var(--ocean-caustic),
-        radial-gradient(ellipse 48px 42px at 22% 20%, rgba(61, 201, 232, 0.22) 0%, transparent 100%),
-        radial-gradient(ellipse 64px 50px at 72% 35%, rgba(93, 216, 240, 0.18) 0%, transparent 100%),
-        radial-gradient(ellipse 40px 56px at 42% 68%, rgba(61, 201, 232, 0.16) 0%, transparent 100%),
-        radial-gradient(ellipse 56px 44px at 85% 72%, rgba(40, 170, 210, 0.14) 0%, transparent 100%),
-        radial-gradient(ellipse 36px 48px at 15% 85%, rgba(93, 216, 240, 0.12) 0%, transparent 100%),
-        radial-gradient(ellipse 52px 38px at 58% 15%, rgba(61, 201, 232, 0.13) 0%, transparent 100%),
-        radial-gradient(circle, rgba(61, 201, 232, 0.10) 0 1px, transparent 1.1px);
-    background-size: 260px 260px, auto, auto, auto, auto, auto, auto, 18px 18px;
+        radial-gradient(ellipse 48px 42px at 22% 20%, rgba(61, 201, 232, 0.12) 0%, transparent 100%),
+        radial-gradient(ellipse 64px 50px at 72% 35%, rgba(93, 216, 240, 0.10) 0%, transparent 100%),
+        radial-gradient(ellipse 40px 56px at 42% 68%, rgba(61, 201, 232, 0.09) 0%, transparent 100%),
+        radial-gradient(ellipse 56px 44px at 85% 72%, rgba(40, 170, 210, 0.08) 0%, transparent 100%),
+        radial-gradient(ellipse 36px 48px at 15% 85%, rgba(93, 216, 240, 0.07) 0%, transparent 100%),
+        radial-gradient(ellipse 52px 38px at 58% 15%, rgba(61, 201, 232, 0.08) 0%, transparent 100%),
+        radial-gradient(circle, rgba(61, 201, 232, 0.06) 0 1px, transparent 1.1px);
+    background-size: auto, auto, auto, auto, auto, auto, 18px 18px;
     animation: oceanCausticDrift 14s ease-in-out infinite alternate;
     opacity: 0.95;
 }
@@ -415,10 +379,7 @@
     position: relative;
     z-index: 1;
     background:
-        var(--ocean-caustic),
         linear-gradient(180deg, rgba(10, 34, 52, 0.98), rgba(6, 24, 36, 0.99));
-    background-size: 200px 200px, auto;
-    background-blend-mode: overlay, normal;
     border-top: 1px solid rgba(61, 201, 232, 0.22);
     box-shadow:
         0 -12px 28px rgba(2, 14, 22, 0.22),
@@ -625,17 +586,6 @@
 
 /* ── Keyframes ─────────────────────────────────────────────────────────── */
 
-@keyframes oceanBodyCausticDrift {
-    from { background-position: 0px 0px; }
-    to { background-position: 260px 260px; }
-}
-
-@keyframes oceanSurfaceShimmer {
-    0% { opacity: 0.22; }
-    50% { opacity: 0.35; }
-    100% { opacity: 0.22; }
-}
-
 @keyframes oceanBackdropDrift {
     from {
         background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
@@ -721,9 +671,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    [data-theme="ocean"] body,
-    [data-theme="ocean"] body::before,
-    [data-theme="ocean"] body::after,
     [data-theme="ocean"] #chat-box,
     [data-theme="ocean"] #chat-box::before,
     [data-theme="ocean"] .msg-row,

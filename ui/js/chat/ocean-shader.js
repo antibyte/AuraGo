@@ -80,7 +80,7 @@
             float v1 = voronoi(p + vec2(t * 0.07, t * 0.05));
             float v2 = voronoi(p * 1.4 + vec2(-t * 0.04, t * 0.08) + 5.0);
             float c = sqrt(v1) * sqrt(v2);
-            return smoothstep(0.0, 0.55, c);
+            return smoothstep(0.0, 0.35, c);
         }
 
         float ripple(vec2 uv, vec2 center, float radius, float frequency, float speed, float phase) {
@@ -133,8 +133,8 @@
             float r4 = ripple(uv, c4, 5.4, 52.0, 0.72, 4.1);
             float rippleField = r1 + r2 + r3 + r4;
 
-            float causticA = caustics(uv, 6.0, 0.18);
-            float causticB = caustics(uv + 3.7, 9.0, 0.12);
+            float causticA = caustics(uv, 4.0, 0.18);
+            float causticB = caustics(uv + 3.7, 5.5, 0.12);
             float causticField = causticA * 0.6 + causticB * 0.4;
 
             float softBand = fbm(vec2(uv.x * 2.2 - t * 0.02, uv.y * 4.8 + t * 0.01));
@@ -146,41 +146,37 @@
             vec3 blue = vec3(0.28, 0.58, 0.82);
             vec3 mist = vec3(0.92, 1.0, 1.0);
             vec3 teal = vec3(0.3, 0.85, 0.78);
-            vec3 deep = vec3(0.15, 0.35, 0.55);
 
-            float s1 = lightShaft(uv, 0.32, 0.055, 0.3, 0.18);
-            float s2 = lightShaft(uv, 0.44, 0.035, 0.42, 0.25);
-            float s3 = lightShaft(uv, 0.52, 0.025, 0.35, 0.22);
+            float s1 = lightShaft(uv, 0.32, 0.04, 0.3, 0.18);
+            float s2 = lightShaft(uv, 0.44, 0.025, 0.42, 0.25);
+            float s3 = lightShaft(uv, 0.52, 0.018, 0.35, 0.22);
             float shaftField = s1 * 0.5 + s2 * 0.32 + s3 * 0.18;
 
-            float b1 = bubbleParticle(uv, vec2(0.12, 0.5), 0.009, 0.09, 0.0);
-            float b2 = bubbleParticle(uv, vec2(0.32, 0.3), 0.007, 0.11, 1.8);
-            float b3 = bubbleParticle(uv, vec2(0.55, 0.6), 0.008, 0.08, 3.5);
-            float b4 = bubbleParticle(uv, vec2(0.78, 0.4), 0.006, 0.12, 5.2);
-            float b5 = bubbleParticle(uv, vec2(0.45, 0.75), 0.007, 0.07, 2.3);
-            float b6 = bubbleParticle(uv, vec2(0.88, 0.65), 0.005, 0.1, 4.0);
-            float b7 = bubbleParticle(uv, vec2(0.22, 0.85), 0.006, 0.09, 1.0);
-            float bubbleField = b1 + b2 + b3 + b4 + b5 + b6 + b7;
+            float b1 = bubbleParticle(uv, vec2(0.15, 0.5), 0.007, 0.09, 0.0);
+            float b2 = bubbleParticle(uv, vec2(0.4, 0.3), 0.005, 0.11, 1.8);
+            float b3 = bubbleParticle(uv, vec2(0.65, 0.6), 0.006, 0.08, 3.5);
+            float b4 = bubbleParticle(uv, vec2(0.82, 0.4), 0.005, 0.12, 5.2);
+            float b5 = bubbleParticle(uv, vec2(0.5, 0.75), 0.005, 0.07, 2.3);
+            float bubbleField = b1 + b2 + b3 + b4 + b5;
 
             vec3 color =
-                aqua * (0.14 + causticField * 0.28 + rippleField * 0.18) +
-                blue * (0.08 + softBand * 0.12 + causticField * 0.06) +
-                mist * (shimmer * 0.06 + causticField * 0.1 + rippleField * 0.08) +
-                teal * (shaftField * 0.32) +
-                deep * (softBand * 0.04) +
-                vec3(0.9, 1.0, 1.0) * bubbleField * 0.55;
+                aqua * (0.10 + causticField * 0.18 + rippleField * 0.14) +
+                blue * (0.06 + softBand * 0.08 + causticField * 0.04) +
+                mist * (shimmer * 0.04 + causticField * 0.06 + rippleField * 0.06) +
+                teal * (shaftField * 0.22) +
+                vec3(0.9, 1.0, 1.0) * bubbleField * 0.4;
 
             float alpha =
-                0.08 +
-                causticField * 0.18 +
-                rippleField * 0.18 +
-                softBand * 0.06 +
-                shimmer * 0.04 +
-                shaftField * 0.14 +
-                bubbleField * 0.35;
+                0.06 +
+                causticField * 0.12 +
+                rippleField * 0.14 +
+                softBand * 0.04 +
+                shimmer * 0.03 +
+                shaftField * 0.08 +
+                bubbleField * 0.25;
 
             alpha *= horizon * sideFade;
-            alpha = clamp(alpha, 0.0, 0.5);
+            alpha = clamp(alpha, 0.0, 0.35);
 
             gl_FragColor = vec4(color, alpha);
         }
