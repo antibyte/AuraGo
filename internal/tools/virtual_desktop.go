@@ -1261,15 +1261,19 @@ type virtualDesktopReplacement struct {
 	Replace string `json:"replace"`
 }
 
+const virtualDesktopReplacementShape = `replacements must be an array of objects like [{"find":"old text","replace":"new text"}]`
+
 func virtualDesktopApplyTextPatch(content string, args map[string]interface{}) (string, int, int, error) {
 	next := content
 	replacementCount := 0
 	appliedOperations := 0
 	var replacements []virtualDesktopReplacement
 	if raw, ok := args["replacements"]; ok {
-		if err := mapToStruct(raw, &replacements); err != nil {
+		parsed, err := virtualDesktopParseReplacements(raw)
+		if err != nil {
 			return "", 0, 0, fmt.Errorf("invalid replacements: %w", err)
 		}
+		replacements = parsed
 	}
 	for _, repl := range replacements {
 		if repl.Find == "" {
@@ -1292,6 +1296,67 @@ func virtualDesktopApplyTextPatch(content string, args map[string]interface{}) (
 		appliedOperations++
 	}
 	return next, replacementCount, appliedOperations, nil
+}
+
+func virtualDesktopParseReplacements(raw interface{}) ([]virtualDesktopReplacement, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	switch typed := raw.(type) {
+	case string:
+		return virtualDesktopParseReplacementJSON(typed)
+	case map[string]interface{}, map[string]string:
+		return virtualDesktopParseReplacementItem(typed)
+	case []interface{}:
+		replacements := make([]virtualDesktopReplacement, 0, len(typed))
+		for _, item := range typed {
+			parsed, err := virtualDesktopParseReplacementItem(item)
+			if err != nil {
+				return nil, err
+			}
+			replacements = append(replacements, parsed...)
+		}
+		return replacements, nil
+	}
+
+	var replacements []virtualDesktopReplacement
+	if err := mapToStruct(raw, &replacements); err != nil {
+		return nil, fmt.Errorf("%s", virtualDesktopReplacementShape)
+	}
+	return replacements, nil
+}
+
+func virtualDesktopParseReplacementItem(raw interface{}) ([]virtualDesktopReplacement, error) {
+	switch typed := raw.(type) {
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+			return virtualDesktopParseReplacementJSON(trimmed)
+		}
+		return nil, fmt.Errorf("%s", virtualDesktopReplacementShape)
+	}
+	var replacement virtualDesktopReplacement
+	if err := mapToStruct(raw, &replacement); err != nil {
+		return nil, fmt.Errorf("%s", virtualDesktopReplacementShape)
+	}
+	return []virtualDesktopReplacement{replacement}, nil
+}
+
+func virtualDesktopParseReplacementJSON(raw string) ([]virtualDesktopReplacement, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	var replacements []virtualDesktopReplacement
+	if err := json.Unmarshal([]byte(trimmed), &replacements); err == nil {
+		return replacements, nil
+	}
+	var replacement virtualDesktopReplacement
+	if err := json.Unmarshal([]byte(trimmed), &replacement); err == nil {
+		return []virtualDesktopReplacement{replacement}, nil
+	}
+	return nil, fmt.Errorf("%s", virtualDesktopReplacementShape)
 }
 
 func normalizeVirtualDesktopCodeStudioOpenPath(rawPath string) (string, bool) {

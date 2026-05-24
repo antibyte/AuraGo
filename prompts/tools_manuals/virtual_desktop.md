@@ -15,7 +15,7 @@ Generated widgets are sandboxed. Do not navigate `window.top` or `window.parent`
 - `search_file`: search one desktop text/code file without returning the whole file. Use `path`, `query`, optional `context_lines`, `max_matches`, and `case_sensitive`.
 - `read_file_excerpt`: read a line window from one desktop text/code file. Use `path`, `line_start`, and `line_count`.
 - `write_file`: write one text file. Use `path` and `content`. For simple generated HTML apps, prefer `install_app`; if you write non-empty HTML to `Apps/<app_id>.html`, AuraGo also registers/updates a runnable generated app at `Apps/<app_id>/index.html`.
-- `patch_file`: edit one desktop text/code file without rereading or replacing the whole file. Use `path` plus `replacements:[{find,replace}]`, `prepend_text`, or `append_text`. Prefer this for files larger than 8 KB or when you already know the exact text to change.
+- `patch_file`: edit one desktop text/code file without rereading or replacing the whole file. Use `path` plus `replacements:[{find,replace}]`, `prepend_text`, or `append_text`. Prefer this for files larger than 8 KB or when you already know the exact text to change. Example: `"replacements":[{"find":"old text","replace":"new text"}]`; do not pass replacements as plain strings or `"old -> new"` entries.
 - `delete` / `delete_file` / `delete_path`: delete a workspace file or directory. Use `path`. If `path` is `Apps/<app_id>.html`, AuraGo also removes the generated app registration for `<app_id>`.
 - `delete_app`: delete a generated desktop app. Use `app_id`. Built-in apps cannot be deleted.
 - `read_document`: read `.docx`, `.html`, `.md`, or `.txt` through AuraGo's Office backend. Use `path`; returns `document` with `title`, `text`, `html`, `delta`, and `office_version`.
@@ -378,4 +378,3 @@ Then register the widget:
 | SDK bridge calls fail silently | Missing permission in manifest | Add the required permission to `manifest.permissions` and reinstall |
 | Widget fetches blocked by CSP | Widget tried to call an external API directly | Use same-origin requests or agent-mediated flows; do not fetch arbitrary third-party APIs from widgets |
 | `diagnose_app` reports entry file unreadable or empty | Entry file missing, unreadable, or has no content | Reinstall or rewrite the app entry file with non-empty HTML; check `entry_path` in the diagnosis output |
-

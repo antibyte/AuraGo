@@ -1179,6 +1179,77 @@ func TestExecuteVirtualDesktopPatchFileAppliesExactReplacements(t *testing.T) {
 	}
 }
 
+func TestExecuteVirtualDesktopPatchFileAcceptsJSONEncodedReplacements(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Documents/olivetin-config.yaml",
+		"content":   "actions:\n  - title: Witz anzeigen\n    shell: |\n      jokes=(\"One\" \"Two\")\n      echo \"${jokes[$((RANDOM % ${#jokes[@]}))]}\"\n",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	patch := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":    "patch_file",
+		"path":         "Documents/olivetin-config.yaml",
+		"replacements": `[{"find":"echo \"${jokes[$((RANDOM % ${#jokes[@]}))]}\"","replace":"idx=$((RANDOM % ${#jokes[@]}))\necho \"${jokes[$idx]}\""}]`,
+	})
+	if !strings.Contains(patch.Output, `"status":"ok"`) {
+		t.Fatalf("patch_file failed: %s", patch.Output)
+	}
+
+	read := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "read_file",
+		"path":      "Documents/olivetin-config.yaml",
+	})
+	var readPayload struct {
+		Data struct {
+			Content string `json:"content"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(read.Output), &readPayload); err != nil {
+		t.Fatalf("unmarshal read_file output: %v\n%s", err, read.Output)
+	}
+	if !strings.Contains(readPayload.Data.Content, "idx=$((RANDOM % ${#jokes[@]}))") || !strings.Contains(readPayload.Data.Content, "echo \"${jokes[$idx]}\"") {
+		t.Fatalf("patched content missing robust joke snippet: %s", read.Output)
+	}
+	if strings.Contains(readPayload.Data.Content, "echo \"${jokes[$((RANDOM % ${#jokes[@]}))]}\"") {
+		t.Fatalf("old fragile joke expression still present: %s", read.Output)
+	}
+}
+
+func TestExecuteVirtualDesktopPatchFileRejectsStringReplacementItemsWithHelpfulMessage(t *testing.T) {
+	t.Parallel()
+
+	cfg := testVirtualDesktopConfig(t)
+	write := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation": "write_file",
+		"path":      "Documents/example.txt",
+		"content":   "old\n",
+	})
+	if !strings.Contains(write.Output, `"status":"ok"`) {
+		t.Fatalf("write_file failed: %s", write.Output)
+	}
+
+	patch := ExecuteVirtualDesktop(context.Background(), cfg, map[string]interface{}{
+		"operation":    "patch_file",
+		"path":         "Documents/example.txt",
+		"replacements": []interface{}{"old -> new"},
+	})
+	if !strings.Contains(patch.Output, `"status":"error"`) {
+		t.Fatalf("patch_file should reject string replacement items: %s", patch.Output)
+	}
+	if !strings.Contains(patch.Output, "replacements must be an array of objects") {
+		t.Fatalf("patch_file error should explain the expected replacements shape: %s", patch.Output)
+	}
+	if strings.Contains(patch.Output, "cannot unmarshal") {
+		t.Fatalf("patch_file leaked low-level Go unmarshal error: %s", patch.Output)
+	}
+}
+
 func TestExecuteVirtualDesktopSearchFileReturnsContextForLargeFiles(t *testing.T) {
 	t.Parallel()
 
