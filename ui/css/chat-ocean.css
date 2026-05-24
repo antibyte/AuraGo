@@ -267,6 +267,7 @@
     -webkit-backdrop-filter: blur(12px);
     animation: bubbleFloat 8s ease-in-out infinite alternate;
     transition: border-radius 0.4s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+    filter: url(#ocean-refraction);
 }
 
 [data-theme="ocean"] .bubble::after {

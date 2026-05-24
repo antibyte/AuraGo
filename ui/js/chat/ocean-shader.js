@@ -10,6 +10,9 @@
     let chatBox;
     let resizeObserver = null;
     let mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
+    const maxTrail = 6;
+    let trail = Array.from({ length: maxTrail }, () => ({ x: 0.5, y: 0.5, age: 0.0 }));
+    let turbEl = null;
 
     const VERT = `
         attribute vec2 a_pos;
@@ -27,6 +30,7 @@
         uniform float u_time;
         uniform vec2 u_res;
         uniform vec2 u_mouse;
+        uniform vec3 u_mouseTrail[6];
 
         float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -145,6 +149,63 @@
             return field;
         }
 
+        float marineSnow(vec2 uv) {
+            float field = 0.0;
+            vec2 st = uv * vec2(18.0, 9.0);
+            vec2 ipos = floor(st);
+            vec2 fpos = fract(st);
+            
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
+                    vec2 neighbor = vec2(float(x), float(y));
+                    vec2 cellId = ipos + neighbor;
+                    vec2 r = hash2(cellId);
+                    
+                    float size = 0.003 + r.x * 0.005;
+                    float speed = 0.06 + r.y * 0.08;
+                    float phase = r.x * 6.28;
+                    
+                    float yOffset = mod(u_time * speed + r.y, 1.3) - 0.15;
+                    vec2 center = vec2(0.5 + 0.35 * sin(u_time * 0.25 + phase), yOffset);
+                    
+                    vec2 diff = fpos - neighbor - center;
+                    diff.x *= u_res.x / max(u_res.y, 1.0);
+                    
+                    float dist = length(diff);
+                    if (dist < size) {
+                        float glow = smoothstep(size, 0.0, dist) * (0.35 + 0.65 * sin(u_time * 2.5 + phase));
+                        float visible = smoothstep(0.0, 0.12, yOffset) * smoothstep(1.2, 1.0, yOffset);
+                        field += glow * visible;
+                    }
+                }
+            }
+            return field;
+        }
+
+        float seaweed(vec2 uv, float xPos, float height, float frequency, float speed, float phase) {
+            if (uv.y > height) return 0.0;
+            float factor = uv.y / height;
+            float wave = sin(uv.y * frequency - u_time * speed + phase) * 0.022 * factor;
+            float stemWidth = 0.016 * (1.0 - factor * 0.6);
+            float dist = abs(uv.x - xPos - wave);
+            float edge = smoothstep(stemWidth, stemWidth * 0.5, dist);
+            float fade = smoothstep(height, height * 0.8, uv.y);
+            return edge * (1.0 - fade);
+        }
+
+        float getTrailField(vec2 uv) {
+            float field = 0.0;
+            for (int i = 0; i < 6; i++) {
+                vec3 pt = u_mouseTrail[i];
+                vec2 diff = uv - pt.xy;
+                diff.x *= u_res.x / max(u_res.y, 1.0);
+                float dist = length(diff);
+                float glow = smoothstep(0.12, 0.0, dist) * pt.z;
+                field = max(field, glow);
+            }
+            return field;
+        }
+
         void main() {
             vec2 uv = v_uv;
             float t = u_time;
@@ -162,21 +223,39 @@
             float r4 = ripple(uv, c4, 5.2, 50.0, 0.62, 4.1);
             float rippleField = r1 + r2 + r3 + r4 + mRipple * 0.45;
 
-            float causticA = caustics(uv, 3.8, 0.15);
-            float causticB = caustics(uv + vec2(2.5, -1.8), 5.2, 0.10);
-            float causticField = causticA * 0.65 + causticB * 0.35;
+            // Caustics Chromatic Aberration
+            float causticA_R = caustics(uv + vec2(0.003, 0.0), 3.8, 0.15);
+            float causticA_G = caustics(uv, 3.8, 0.15);
+            float causticA_B = caustics(uv - vec2(0.003, 0.0), 3.8, 0.15);
+
+            float causticB_R = caustics(uv + vec2(2.503, -1.8), 5.2, 0.10);
+            float causticB_G = caustics(uv + vec2(2.5, -1.8), 5.2, 0.10);
+            float causticB_B = caustics(uv + vec2(2.497, -1.8), 5.2, 0.10);
+
+            vec3 causticColor = vec3(
+                causticA_R * 0.65 + causticB_R * 0.35,
+                causticA_G * 0.65 + causticB_G * 0.35,
+                causticA_B * 0.65 + causticB_B * 0.35
+            );
 
             float current1 = fbm(uv * 3.5 - vec2(t * 0.02, t * 0.015));
             float current2 = fbm(uv * 7.0 + vec2(t * 0.01, -t * 0.02));
             float currentField = current1 * 0.7 + current2 * 0.3;
 
-            float s1 = lightShaft(uv, 0.35, 0.05, 0.25, 0.15);
-            float s2 = lightShaft(uv, 0.42, 0.03, 0.35, 0.20);
-            float s3 = lightShaft(uv, 0.50, 0.02, 0.30, 0.18);
+            // Volumetric distorted god rays
+            float rayDistort1 = fbm(uv * 1.5 + vec2(t * 0.05, -t * 0.02));
+            float rayDistort2 = fbm(uv * 3.0 - vec2(t * 0.03, t * 0.04));
+            vec2 rD = vec2(rayDistort1, rayDistort2) * 0.04;
+
+            float s1 = lightShaft(uv + rD, 0.35, 0.05, 0.25, 0.15);
+            float s2 = lightShaft(uv + rD, 0.42, 0.03, 0.35, 0.20);
+            float s3 = lightShaft(uv + rD, 0.50, 0.02, 0.30, 0.18);
             float shaftField = s1 * 0.5 + s2 * 0.3 + s3 * 0.2;
 
-            float shimmer = sin((uv.y + causticField * 0.1) * 32.0 - t * 0.35) * 0.5 + 0.5;
+            float shimmer = sin((uv.y + causticColor.g * 0.1) * 32.0 - t * 0.35) * 0.5 + 0.5;
             float bubbles = bubbleField(uv);
+            float snow = marineSnow(uv);
+            float trailField = getTrailField(uv);
 
             float mouseGlow = smoothstep(0.24, 0.0, length((uv - u_mouse) * vec2(u_res.x / max(u_res.y, 1.0), 1.0)));
 
@@ -187,18 +266,36 @@
             vec3 glowColor = vec3(0.24, 0.90, 0.82);
 
             vec3 color = indigo * 0.3;
-            color += sapphire * (0.4 + currentField * 0.15 + causticField * 0.1);
-            color += neonAqua * (0.05 + causticField * 0.22 + rippleField * 0.12);
-            color += seafoam * (shimmer * 0.05 + causticField * 0.08 + rippleField * 0.08);
+            color += sapphire * (0.4 + currentField * 0.15) + causticColor * 0.04;
+            color += neonAqua * (0.05 + rippleField * 0.12) + causticColor * 0.18;
+            color += seafoam * (shimmer * 0.05 + rippleField * 0.08) + causticColor * 0.06;
             color += glowColor * (shaftField * 0.28 + mouseGlow * 0.18 + bubbles * 0.45);
+            
+            // Compose marine snow particles
+            color += vec3(0.7, 0.95, 0.92) * snow * 0.65;
+            
+            // Compose bioluminescent pointer trail
+            color += glowColor * trailField * 0.6;
+
+            // Waving Seaweed Silhouettes
+            float sw1 = seaweed(uv, 0.06, 0.35, 12.0, 1.4, 0.0);
+            float sw2 = seaweed(uv, 0.12, 0.25, 14.0, 1.8, 1.5);
+            float sw3 = seaweed(uv, 0.88, 0.40, 10.0, 1.2, 3.1);
+            float sw4 = seaweed(uv, 0.94, 0.30, 15.0, 1.6, 4.2);
+            float seaweedField = sw1 + sw2 + sw3 + sw4;
+            vec3 seaweedColor = vec3(0.01, 0.06, 0.1) * (0.5 + 0.5 * uv.y);
+            color = mix(color, seaweedColor, seaweedField * 0.85);
 
             float alpha = 0.08 +
-                          causticField * 0.15 +
+                          causticColor.g * 0.15 +
                           rippleField * 0.12 +
                           currentField * 0.05 +
                           shaftField * 0.12 +
                           mouseGlow * 0.12 +
-                          bubbles * 0.32;
+                          bubbles * 0.32 +
+                          snow * 0.45 +
+                          trailField * 0.28 +
+                          seaweedField * 0.85;
 
             float horizon = smoothstep(0.0, 0.08, uv.y) * (1.0 - smoothstep(0.88, 1.00, uv.y));
             float sideFade = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, 1.0 - uv.x);
@@ -300,6 +397,7 @@
         uniforms.time = gl.getUniformLocation(program, 'u_time');
         uniforms.resolution = gl.getUniformLocation(program, 'u_res');
         uniforms.mouse = gl.getUniformLocation(program, 'u_mouse');
+        uniforms.mouseTrail = gl.getUniformLocation(program, 'u_mouseTrail');
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -338,13 +436,36 @@
         mouse.x += (mouse.targetX - mouse.x) * 0.06;
         mouse.y += (mouse.targetY - mouse.y) * 0.06;
 
+        for (let i = 0; i < maxTrail; i++) {
+            trail[i].age *= 0.95;
+        }
+
+        const trailArray = new Float32Array(maxTrail * 3);
+        for (let i = 0; i < maxTrail; i++) {
+            trailArray[i * 3] = trail[i].x;
+            trailArray[i * 3 + 1] = trail[i].y;
+            trailArray[i * 3 + 2] = trail[i].age;
+        }
+
         gl.uniform1f(uniforms.time, time * 0.001);
         gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
         gl.uniform2f(uniforms.mouse, mouse.x, mouse.y);
+        gl.uniform3fv(uniforms.mouseTrail, trailArray);
         
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        if (!turbEl) {
+            turbEl = document.getElementById('ocean-refraction-turbulence');
+        }
+        if (turbEl) {
+            const t = time * 0.0006;
+            const bfX = 0.012 + Math.sin(t) * 0.002;
+            const bfY = 0.018 + Math.cos(t * 0.8) * 0.003;
+            turbEl.setAttribute('baseFrequency', `${bfX} ${bfY}`);
+        }
+
         animationId = window.requestAnimationFrame(render);
     }
 
@@ -396,8 +517,19 @@
                 if (!active) return;
                 const rect = chatBox.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                    mouse.targetX = (e.clientX - rect.left) / rect.width;
-                    mouse.targetY = 1.0 - (e.clientY - rect.top) / rect.height;
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const y = 1.0 - (e.clientY - rect.top) / rect.height;
+                    mouse.targetX = x;
+                    mouse.targetY = y;
+
+                    for (let i = maxTrail - 1; i > 0; i--) {
+                        trail[i].x = trail[i - 1].x;
+                        trail[i].y = trail[i - 1].y;
+                        trail[i].age = trail[i - 1].age;
+                    }
+                    trail[0].x = x;
+                    trail[0].y = y;
+                    trail[0].age = 1.0;
                 }
             });
             chatBox.addEventListener('mouseleave', () => {
@@ -434,4 +566,5 @@
     window.AuraGoOcean = { start, stop, sync };
     init();
 })();
+
 
