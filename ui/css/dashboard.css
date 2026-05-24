@@ -274,16 +274,24 @@
 
         #tab-agent .dash-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.2rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            row-gap: clamp(1.25rem, 2vw, 1.6rem);
+            column-gap: clamp(1.25rem, 2vw, 1.6rem);
+            align-items: start;
             columns: unset;
-            column-gap: unset;
         }
 
         #tab-agent .dash-grid > .dash-card {
             display: block;
             margin-bottom: 0;
             break-inside: unset;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #tab-agent .dash-card-body {
+            min-width: 0;
         }
 
         @media (max-width: 1024px) {
