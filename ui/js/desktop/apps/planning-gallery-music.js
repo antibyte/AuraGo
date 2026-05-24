@@ -1,4 +1,4 @@
-﻿            if (base === 8) return ch >= '0' && ch <= '7';
+            if (base === 8) return ch >= '0' && ch <= '7';
             if (base === 10) return ch >= '0' && ch <= '9';
             if (base === 16) return /[0-9A-Fa-f]/.test(ch);
             return false;
