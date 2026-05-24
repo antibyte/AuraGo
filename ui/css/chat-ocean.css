@@ -48,10 +48,11 @@
 
 [data-theme="ocean"] body {
     background:
-        radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.2), transparent 24%),
-        radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.16), transparent 26%),
-        radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.18), transparent 32%),
-        linear-gradient(180deg, #031218 0%, #051a24 36%, #07222e 100%);
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E"),
+        radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.18), transparent 24%),
+        radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.14), transparent 26%),
+        radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.15), transparent 32%),
+        linear-gradient(180deg, #020d12 0%, #04141b 36%, #061d27 100%);
     color: var(--text-primary);
 }
 
@@ -66,16 +67,13 @@
 [data-theme="ocean"] .app-header {
     position: relative;
     z-index: 120;
-    background:
-        linear-gradient(180deg, rgba(12, 38, 56, 0.94), rgba(6, 24, 36, 0.96)),
-        var(--header-bg);
-    border-bottom: 1px solid rgba(61, 201, 232, 0.18);
+    background: linear-gradient(180deg, rgba(10, 30, 44, 0.85), rgba(6, 20, 30, 0.9));
+    border-bottom: 1px solid rgba(61, 201, 232, 0.22);
     box-shadow:
         0 10px 28px rgba(2, 14, 22, 0.22),
-        inset 0 1px 0 rgba(61, 201, 232, 0.06),
-        inset 0 -1px 0 rgba(40, 140, 180, 0.08);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 [data-theme="ocean"] .app-header::before {
@@ -185,27 +183,25 @@
     position: relative;
     z-index: 1;
     background:
-        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.18), transparent 24%),
-        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.15), transparent 24%),
-        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.16), transparent 28%),
-        linear-gradient(180deg, #051a24 0%, #07222e 50%, #04161e 100%);
-    background-size: 112% 112%;
-    animation: oceanBackdropDrift 16s ease-in-out infinite alternate, oceanWaveMotion 22s ease-in-out infinite;
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E"),
+        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.16), transparent 28%),
+        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.12), transparent 28%),
+        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.14), transparent 32%),
+        linear-gradient(180deg, #03141d 0%, #051c27 50%, #031118 100%);
+    background-size: auto, 112% 112%, 112% 112%, 112% 112%, 100% 100%;
+    animation: oceanBackdropDrift 20s ease-in-out infinite alternate;
 }
 
 [data-theme="ocean"] #chat-box::before {
     display: block;
     background:
-        radial-gradient(ellipse 48px 42px at 22% 20%, rgba(61, 201, 232, 0.12) 0%, transparent 100%),
-        radial-gradient(ellipse 64px 50px at 72% 35%, rgba(93, 216, 240, 0.10) 0%, transparent 100%),
-        radial-gradient(ellipse 40px 56px at 42% 68%, rgba(61, 201, 232, 0.09) 0%, transparent 100%),
-        radial-gradient(ellipse 56px 44px at 85% 72%, rgba(40, 170, 210, 0.08) 0%, transparent 100%),
-        radial-gradient(ellipse 36px 48px at 15% 85%, rgba(93, 216, 240, 0.07) 0%, transparent 100%),
-        radial-gradient(ellipse 52px 38px at 58% 15%, rgba(61, 201, 232, 0.08) 0%, transparent 100%),
-        radial-gradient(circle, rgba(61, 201, 232, 0.06) 0 1px, transparent 1.1px);
-    background-size: auto, auto, auto, auto, auto, auto, 18px 18px;
+        radial-gradient(ellipse 48px 42px at 22% 20%, rgba(61, 201, 232, 0.1) 0%, transparent 100%),
+        radial-gradient(ellipse 64px 50px at 72% 35%, rgba(93, 216, 240, 0.08) 0%, transparent 100%),
+        radial-gradient(ellipse 40px 56px at 42% 68%, rgba(61, 201, 232, 0.07) 0%, transparent 100%),
+        radial-gradient(circle, rgba(61, 201, 232, 0.05) 0 1px, transparent 1.1px);
+    background-size: auto, auto, auto, 18px 18px;
     animation: oceanCausticDrift 14s ease-in-out infinite alternate;
-    opacity: 0.95;
+    opacity: 0.85;
 }
 
 [data-theme="ocean"] #chat-box::after {
@@ -261,10 +257,16 @@
 [data-theme="ocean"] .bubble {
     opacity: 1;
     visibility: visible;
-    border: 1px solid rgba(61, 201, 232, 0.3);
+    border: 1px solid rgba(61, 201, 232, 0.25);
+    border-radius: 20px 24px 18px 22px / 22px 18px 24px 20px;
     box-shadow:
-        inset 0 1px 0 rgba(61, 201, 232, 0.05),
-        0 14px 28px rgba(2, 14, 22, 0.2);
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 1px 0 0 rgba(255, 255, 255, 0.06),
+        0 14px 28px rgba(2, 14, 22, 0.22);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: bubbleFloat 8s ease-in-out infinite alternate;
+    transition: border-radius 0.4s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 [data-theme="ocean"] .bubble::after {
@@ -272,18 +274,19 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
+    border-radius: inherit;
     background:
-        linear-gradient(180deg, rgba(61, 201, 232, 0.04), transparent 24%),
-        linear-gradient(120deg, transparent 0%, transparent 68%, rgba(61, 201, 232, 0.05) 100%);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 40%, transparent 60%),
+        linear-gradient(180deg, rgba(61, 201, 232, 0.04), transparent 28%);
 }
 
 [data-theme="ocean"] .bubble.bot {
-    background: var(--bot-bubble);
+    background: linear-gradient(135deg, rgba(8, 30, 48, 0.85), rgba(4, 18, 30, 0.9));
     color: var(--text-primary);
 }
 
 [data-theme="ocean"] .bubble.bot::before {
-    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+    border-color: transparent transparent rgba(8, 30, 48, 0.85) transparent;
 }
 
 [data-theme="ocean"] .bubble.bot:hover {
@@ -295,15 +298,16 @@
 }
 
 [data-theme="ocean"] .bubble.user {
-    background: var(--user-bubble);
+    background: linear-gradient(135deg, rgba(16, 96, 128, 0.8), rgba(24, 120, 150, 0.7));
     color: #effffe;
+    border-color: rgba(93, 216, 240, 0.38);
     box-shadow:
-        inset 0 1px 0 rgba(93, 216, 240, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
         0 16px 30px rgba(10, 60, 90, 0.24);
 }
 
 [data-theme="ocean"] .bubble.user::before {
-    border-color: transparent transparent var(--user-bubble-tail) transparent;
+    border-color: transparent transparent rgba(24, 120, 150, 0.7) transparent;
 }
 
 [data-theme="ocean"] .bubble.technical,
@@ -378,13 +382,13 @@
 [data-theme="ocean"] .app-footer {
     position: relative;
     z-index: 1;
-    background:
-        linear-gradient(180deg, rgba(10, 34, 52, 0.98), rgba(6, 24, 36, 0.99));
+    background: linear-gradient(180deg, rgba(8, 28, 44, 0.85), rgba(5, 18, 28, 0.92));
     border-top: 1px solid rgba(61, 201, 232, 0.22);
     box-shadow:
         0 -12px 28px rgba(2, 14, 22, 0.22),
-        inset 0 1px 0 rgba(61, 201, 232, 0.05);
-    backdrop-filter: none;
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 [data-theme="ocean"] .input-row:focus-within .input-wrap {
@@ -396,11 +400,13 @@
 [data-theme="ocean"] .mood-feedback-row,
 [data-theme="ocean"] .attachment-chip,
 [data-theme="ocean"] .attachments-panel {
-    background: linear-gradient(180deg, rgba(12, 40, 60, 0.98), rgba(7, 28, 42, 0.99));
-    border: 1px solid rgba(61, 201, 232, 0.34);
+    background: linear-gradient(180deg, rgba(10, 32, 48, 0.8), rgba(6, 22, 34, 0.9));
+    border: 1px solid rgba(61, 201, 232, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(61, 201, 232, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
         0 12px 22px rgba(2, 14, 22, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 [data-theme="ocean"] .input-wrap textarea:hover,
@@ -495,11 +501,13 @@
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(12, 38, 58, 0.98), rgba(7, 26, 40, 0.99));
+    background: linear-gradient(180deg, rgba(8, 28, 44, 0.85), rgba(5, 18, 28, 0.92));
     border: 1px solid rgba(61, 201, 232, 0.28);
     box-shadow:
         0 26px 62px rgba(2, 14, 22, 0.3),
-        inset 0 1px 0 rgba(61, 201, 232, 0.05);
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 [data-theme="ocean"] .session-drawer {
@@ -586,33 +594,28 @@
 
 /* ── Keyframes ─────────────────────────────────────────────────────────── */
 
-@keyframes oceanBackdropDrift {
-    from {
-        background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
-    }
-    to {
-        background-position: 3% -4%, -3% 3%, 2% 4%, 0% 0%;
-    }
+@keyframes bubbleFloat {
+    0% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-2px) rotate(0.4deg); }
+    66% { transform: translateY(1px) rotate(-0.4deg); }
+    100% { transform: translateY(0) rotate(0deg); }
 }
 
-@keyframes oceanWaveMotion {
-    0% {
-        background-size: 112% 112%;
+@keyframes oceanBackdropDrift {
+    from {
+        background-position: 0px 0px, 0% 0%, 0% 0%, 0% 0%, 0% 0%;
     }
-    50% {
-        background-size: 116% 118%;
-    }
-    100% {
-        background-size: 112% 112%;
+    to {
+        background-position: 100px 50px, 3% -4%, -3% 3%, 2% 4%, 0% 0%;
     }
 }
 
 @keyframes oceanCausticDrift {
     from {
-        background-position: 0px 0px, 22% 20%, 72% 35%, 42% 68%, 85% 72%, 15% 85%, 58% 15%, 0 0;
+        background-position: 0px 0px, 22% 20%, 72% 35%, 42% 68%, 0 0;
     }
     to {
-        background-position: 80px 60px, 28% 26%, 66% 42%, 48% 74%, 78% 66%, 22% 78%, 52% 22%, 0 0;
+        background-position: 80px 60px, 28% 26%, 66% 42%, 48% 74%, 0 0;
     }
 }
 
@@ -737,15 +740,14 @@
 [data-theme="ocean"] .session-item:hover::after { transform: scaleX(1); }
 
 /* ── Bubble hover ──────────────────────────────────────────────────────── */
-[data-theme="ocean"] .bubble {
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-}
 [data-theme="ocean"] .msg-row:hover .bubble {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    border-color: rgba(61, 201, 232, 0.45);
+    border-radius: 24px 20px 22px 18px / 18px 22px 20px 24px;
     box-shadow:
-        inset 0 1px 0 rgba(61, 201, 232, 0.06),
-        0 18px 34px rgba(2, 14, 22, 0.26),
-        0 0 16px rgba(61, 201, 232, 0.1);
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 18px 38px rgba(2, 14, 22, 0.32),
+        0 0 20px rgba(61, 201, 232, 0.18);
 }
 
 /* ── Button active press ───────────────────────────────────────────────── */

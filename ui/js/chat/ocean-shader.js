@@ -9,6 +9,7 @@
     let uniforms = {};
     let chatBox;
     let resizeObserver = null;
+    let mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
 
     const VERT = `
         attribute vec2 a_pos;
@@ -25,6 +26,7 @@
         varying vec2 v_uv;
         uniform float u_time;
         uniform vec2 u_res;
+        uniform vec2 u_mouse;
 
         float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -49,9 +51,9 @@
         float fbm(vec2 p) {
             float v = 0.0;
             float a = 0.5;
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 4; i++) {
                 v += a * noise(p);
-                p = p * 2.02 + vec2(4.1, 7.3);
+                p = p * 2.05 + vec2(4.1, 7.3);
                 a *= 0.5;
             }
             return v;
@@ -65,7 +67,7 @@
                 for (int i = -1; i <= 1; i++) {
                     vec2 g = vec2(float(i), float(j));
                     vec2 o = hash2(n + g);
-                    o = 0.5 + 0.5 * sin(u_time * 0.22 + 6.2831 * o);
+                    o = 0.5 + 0.5 * sin(u_time * 0.3 + 6.2831 * o);
                     vec2 r = g + o - f;
                     float d = dot(r, r);
                     md = min(md, d);
@@ -75,12 +77,16 @@
         }
 
         float caustics(vec2 uv, float scale, float speed) {
-            vec2 p = uv * scale;
             float t = u_time * speed;
-            float v1 = voronoi(p + vec2(t * 0.07, t * 0.05));
-            float v2 = voronoi(p * 1.4 + vec2(-t * 0.04, t * 0.08) + 5.0);
+            vec2 flow = vec2(
+                fbm(uv * scale * 0.4 + vec2(t, -t * 0.5)),
+                fbm(uv * scale * 0.4 + vec2(-t * 0.5, t))
+            );
+            vec2 p = uv * scale + flow * 0.7;
+            float v1 = voronoi(p + vec2(t * 0.1, t * 0.07));
+            float v2 = voronoi(p * 1.3 - vec2(t * 0.05, t * 0.1) + 8.0);
             float c = sqrt(v1) * sqrt(v2);
-            return smoothstep(0.0, 0.35, c);
+            return smoothstep(0.02, 0.38, c);
         }
 
         float ripple(vec2 uv, vec2 center, float radius, float frequency, float speed, float phase) {
@@ -89,7 +95,7 @@
             float dist = length(p);
             float envelope = exp(-dist * radius);
             float wave = sin(dist * frequency - u_time * speed + phase);
-            float rings = smoothstep(0.36, 0.92, wave) + smoothstep(-1.0, -0.58, wave) * 0.65;
+            float rings = smoothstep(0.3, 0.95, wave) + smoothstep(-1.0, -0.5, wave) * 0.5;
             return rings * envelope;
         }
 
@@ -97,86 +103,107 @@
             float c = cos(angle);
             float s = sin(angle);
             vec2 ruv = vec2(uv.x * c - uv.y * s, uv.x * s + uv.y * c);
-            float swayAmt = sin(u_time * sway) * 0.04;
-            float ray = smoothstep(width, 0.0, abs(ruv.x - 0.25 + swayAmt));
-            float falloff = smoothstep(1.0, 0.15, ruv.y);
-            float shimmer = sin(ruv.y * 18.0 - u_time * speed) * 0.35 + 0.65;
-            float flicker = sin(u_time * speed * 1.7 + ruv.y * 6.0) * 0.15 + 0.85;
+            float swayAmt = sin(u_time * sway) * 0.05;
+            float ray = smoothstep(width, 0.0, abs(ruv.x - 0.2 + swayAmt));
+            float falloff = smoothstep(1.2, 0.1, ruv.y);
+            float shimmer = sin(ruv.y * 12.0 - u_time * speed) * 0.3 + 0.7;
+            float flicker = sin(u_time * speed * 1.5 + ruv.y * 5.0) * 0.15 + 0.85;
             return ray * falloff * shimmer * flicker;
         }
 
-        float bubbleParticle(vec2 uv, vec2 center, float size, float speed, float phase) {
-            vec2 p = uv - center;
-            p.x *= u_res.x / max(u_res.y, 1.0);
-            float floatY = mod(u_time * speed + phase, 1.6) - 0.3;
-            p.y -= floatY;
-            p.x += sin(floatY * 8.0 + phase) * 0.012;
-            float dist = length(p);
-            float outline = smoothstep(size, size * 0.7, dist) * (1.0 - smoothstep(size * 0.7, size * 0.3, dist));
-            float highlight = smoothstep(size * 0.55, 0.0, length(p - vec2(-size * 0.28, size * 0.28))) * 0.5;
-            float visible = step(-0.1, floatY) * step(floatY, 1.3);
-            return (outline * 0.6 + highlight) * visible;
+        float bubbleField(vec2 uv) {
+            float field = 0.0;
+            vec2 st = uv * vec2(10.0, 5.0);
+            vec2 ipos = floor(st);
+            vec2 fpos = fract(st);
+            
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
+                    vec2 neighbor = vec2(float(x), float(y));
+                    vec2 cellId = ipos + neighbor;
+                    vec2 r = hash2(cellId);
+                    
+                    float size = 0.008 + r.x * 0.022;
+                    float speed = 0.2 + r.y * 0.3;
+                    float phase = r.x * 6.28;
+                    
+                    float yOffset = mod(u_time * speed + r.y, 1.2) - 0.1;
+                    vec2 center = vec2(0.5 + 0.3 * sin(u_time * 0.5 + phase), yOffset);
+                    
+                    vec2 diff = fpos - neighbor - center;
+                    diff.x *= u_res.x / max(u_res.y, 1.0);
+                    
+                    float dist = length(diff);
+                    if (dist < size) {
+                        float outline = smoothstep(size, size * 0.8, dist) * (1.0 - smoothstep(size * 0.8, size * 0.3, dist));
+                        float highlight = smoothstep(size * 0.5, 0.0, length(diff - vec2(-size * 0.28, size * 0.28))) * 0.7;
+                        float visible = smoothstep(0.0, 0.15, yOffset) * smoothstep(1.1, 0.9, yOffset);
+                        field += (outline * 0.7 + highlight) * visible;
+                    }
+                }
+            }
+            return field;
         }
 
         void main() {
             vec2 uv = v_uv;
             float t = u_time;
 
-            vec2 c1 = vec2(0.24 + sin(t * 0.07) * 0.05, 0.22 + cos(t * 0.09) * 0.03);
-            vec2 c2 = vec2(0.76 + cos(t * 0.05) * 0.04, 0.54 + sin(t * 0.06) * 0.04);
-            vec2 c3 = vec2(0.48 + sin(t * 0.04) * 0.03, 0.82 + cos(t * 0.08) * 0.03);
-            vec2 c4 = vec2(0.58 + cos(t * 0.06) * 0.03, 0.34 + sin(t * 0.05) * 0.03);
+            float mRipple = ripple(uv, u_mouse, 4.0, 48.0, 1.8, 0.0);
+            
+            vec2 c1 = vec2(0.24 + sin(t * 0.06) * 0.05, 0.22 + cos(t * 0.08) * 0.03);
+            vec2 c2 = vec2(0.76 + cos(t * 0.04) * 0.04, 0.54 + sin(t * 0.05) * 0.04);
+            vec2 c3 = vec2(0.48 + sin(t * 0.03) * 0.03, 0.82 + cos(t * 0.07) * 0.03);
+            vec2 c4 = vec2(0.58 + cos(t * 0.05) * 0.03, 0.34 + sin(t * 0.04) * 0.03);
 
-            float r1 = ripple(uv, c1, 5.0, 56.0, 0.95, 0.3);
-            float r2 = ripple(uv, c2, 4.6, 49.0, 0.78, 1.6);
-            float r3 = ripple(uv, c3, 5.2, 46.0, 0.86, 2.8);
-            float r4 = ripple(uv, c4, 5.4, 52.0, 0.72, 4.1);
-            float rippleField = r1 + r2 + r3 + r4;
+            float r1 = ripple(uv, c1, 4.8, 54.0, 0.85, 0.3);
+            float r2 = ripple(uv, c2, 4.2, 47.0, 0.68, 1.6);
+            float r3 = ripple(uv, c3, 5.0, 44.0, 0.76, 2.8);
+            float r4 = ripple(uv, c4, 5.2, 50.0, 0.62, 4.1);
+            float rippleField = r1 + r2 + r3 + r4 + mRipple * 0.45;
 
-            float causticA = caustics(uv, 4.0, 0.18);
-            float causticB = caustics(uv + 3.7, 5.5, 0.12);
-            float causticField = causticA * 0.6 + causticB * 0.4;
+            float causticA = caustics(uv, 3.8, 0.15);
+            float causticB = caustics(uv + vec2(2.5, -1.8), 5.2, 0.10);
+            float causticField = causticA * 0.65 + causticB * 0.35;
 
-            float softBand = fbm(vec2(uv.x * 2.2 - t * 0.02, uv.y * 4.8 + t * 0.01));
-            float shimmer = sin((uv.y + causticField * 0.08) * 28.0 - t * 0.42) * 0.5 + 0.5;
-            float horizon = smoothstep(0.0, 0.06, uv.y) * (1.0 - smoothstep(0.9, 1.0, uv.y));
+            float current1 = fbm(uv * 3.5 - vec2(t * 0.02, t * 0.015));
+            float current2 = fbm(uv * 7.0 + vec2(t * 0.01, -t * 0.02));
+            float currentField = current1 * 0.7 + current2 * 0.3;
+
+            float s1 = lightShaft(uv, 0.35, 0.05, 0.25, 0.15);
+            float s2 = lightShaft(uv, 0.42, 0.03, 0.35, 0.20);
+            float s3 = lightShaft(uv, 0.50, 0.02, 0.30, 0.18);
+            float shaftField = s1 * 0.5 + s2 * 0.3 + s3 * 0.2;
+
+            float shimmer = sin((uv.y + causticField * 0.1) * 32.0 - t * 0.35) * 0.5 + 0.5;
+            float bubbles = bubbleField(uv);
+
+            float mouseGlow = smoothstep(0.24, 0.0, length((uv - u_mouse) * vec2(u_res.x / max(u_res.y, 1.0), 1.0)));
+
+            vec3 sapphire = vec3(0.02, 0.15, 0.28);
+            vec3 neonAqua = vec3(0.18, 0.82, 0.94);
+            vec3 seafoam  = vec3(0.62, 0.95, 0.90);
+            vec3 indigo   = vec3(0.04, 0.08, 0.16);
+            vec3 glowColor = vec3(0.24, 0.90, 0.82);
+
+            vec3 color = indigo * 0.3;
+            color += sapphire * (0.4 + currentField * 0.15 + causticField * 0.1);
+            color += neonAqua * (0.05 + causticField * 0.22 + rippleField * 0.12);
+            color += seafoam * (shimmer * 0.05 + causticField * 0.08 + rippleField * 0.08);
+            color += glowColor * (shaftField * 0.28 + mouseGlow * 0.18 + bubbles * 0.45);
+
+            float alpha = 0.08 +
+                          causticField * 0.15 +
+                          rippleField * 0.12 +
+                          currentField * 0.05 +
+                          shaftField * 0.12 +
+                          mouseGlow * 0.12 +
+                          bubbles * 0.32;
+
+            float horizon = smoothstep(0.0, 0.08, uv.y) * (1.0 - smoothstep(0.88, 1.00, uv.y));
             float sideFade = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, 1.0 - uv.x);
-
-            vec3 aqua = vec3(0.55, 0.88, 0.98);
-            vec3 blue = vec3(0.28, 0.58, 0.82);
-            vec3 mist = vec3(0.92, 1.0, 1.0);
-            vec3 teal = vec3(0.3, 0.85, 0.78);
-
-            float s1 = lightShaft(uv, 0.32, 0.04, 0.3, 0.18);
-            float s2 = lightShaft(uv, 0.44, 0.025, 0.42, 0.25);
-            float s3 = lightShaft(uv, 0.52, 0.018, 0.35, 0.22);
-            float shaftField = s1 * 0.5 + s2 * 0.32 + s3 * 0.18;
-
-            float b1 = bubbleParticle(uv, vec2(0.15, 0.5), 0.007, 0.09, 0.0);
-            float b2 = bubbleParticle(uv, vec2(0.4, 0.3), 0.005, 0.11, 1.8);
-            float b3 = bubbleParticle(uv, vec2(0.65, 0.6), 0.006, 0.08, 3.5);
-            float b4 = bubbleParticle(uv, vec2(0.82, 0.4), 0.005, 0.12, 5.2);
-            float b5 = bubbleParticle(uv, vec2(0.5, 0.75), 0.005, 0.07, 2.3);
-            float bubbleField = b1 + b2 + b3 + b4 + b5;
-
-            vec3 color =
-                aqua * (0.10 + causticField * 0.18 + rippleField * 0.14) +
-                blue * (0.06 + softBand * 0.08 + causticField * 0.04) +
-                mist * (shimmer * 0.04 + causticField * 0.06 + rippleField * 0.06) +
-                teal * (shaftField * 0.22) +
-                vec3(0.9, 1.0, 1.0) * bubbleField * 0.4;
-
-            float alpha =
-                0.06 +
-                causticField * 0.12 +
-                rippleField * 0.14 +
-                softBand * 0.04 +
-                shimmer * 0.03 +
-                shaftField * 0.08 +
-                bubbleField * 0.25;
-
             alpha *= horizon * sideFade;
-            alpha = clamp(alpha, 0.0, 0.35);
+            alpha = clamp(alpha, 0.0, 0.38);
 
             gl_FragColor = vec4(color, alpha);
         }
@@ -272,6 +299,7 @@
 
         uniforms.time = gl.getUniformLocation(program, 'u_time');
         uniforms.resolution = gl.getUniformLocation(program, 'u_res');
+        uniforms.mouse = gl.getUniformLocation(program, 'u_mouse');
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -307,8 +335,13 @@
     function render(time) {
         if (!active || !gl) return;
 
+        mouse.x += (mouse.targetX - mouse.x) * 0.06;
+        mouse.y += (mouse.targetY - mouse.y) * 0.06;
+
         gl.uniform1f(uniforms.time, time * 0.001);
         gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+        gl.uniform2f(uniforms.mouse, mouse.x, mouse.y);
+        
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -358,6 +391,21 @@
             resizeObserver.observe(chatBox);
         }
 
+        if (chatBox) {
+            chatBox.addEventListener('mousemove', (e) => {
+                if (!active) return;
+                const rect = chatBox.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    mouse.targetX = (e.clientX - rect.left) / rect.width;
+                    mouse.targetY = 1.0 - (e.clientY - rect.top) / rect.height;
+                }
+            });
+            chatBox.addEventListener('mouseleave', () => {
+                mouse.targetX = 0.5;
+                mouse.targetY = 0.5;
+            });
+        }
+
         window.addEventListener('aurago:themechange', sync);
         window.addEventListener('resize', () => {
             if (active) resize();
@@ -386,3 +434,4 @@
     window.AuraGoOcean = { start, stop, sync };
     init();
 })();
+
