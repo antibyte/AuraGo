@@ -162,6 +162,71 @@ func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
 	}
 }
 
+func TestAgodeskWebSocketPongsWhileChatMessageInFlight(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	runnerStarted := make(chan struct{})
+	releaseRunner := make(chan struct{})
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+		close(runnerStarted)
+		<-releaseRunner
+		return "slow answer", nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "slow hello",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	select {
+	case <-runnerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("agodesk chat runner did not start")
+	}
+
+	ping, err := agodesk.NewEnvelope(agodesk.TypeSystemPing, map[string]string{})
+	if err != nil {
+		t.Fatalf("NewEnvelope ping: %v", err)
+	}
+	if err := conn.WriteJSON(ping); err != nil {
+		t.Fatalf("write ping: %v", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	pong := readAgodeskTestEnvelope(t, conn)
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
+	if pong.Type != agodesk.TypeSystemPong {
+		t.Fatalf("response while chat in flight = %q, want %q", pong.Type, agodesk.TypeSystemPong)
+	}
+
+	close(releaseRunner)
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.RequestID != msg.ID || payload.Text != "slow answer" {
+		t.Fatalf("chat response payload = %+v", payload)
+	}
+}
+
 func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "remote_test_pairing_token"

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/agent"
@@ -35,6 +36,8 @@ type agodeskConnectionState struct {
 	paired    bool
 	readOnly  bool
 	devMode   bool
+	mu        sync.RWMutex
+	writeMu   sync.Mutex
 }
 
 func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
@@ -59,7 +62,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			state.paired = true
 		}
 
-		if err := writeAgodeskEnvelope(conn, agodesk.TypeSystemConnected, agodesk.SystemConnectedPayload{
+		if err := writeAgodeskEnvelopeLocked(conn, &state, agodesk.TypeSystemConnected, agodesk.SystemConnectedPayload{
 			ProtocolVersion: agodesk.ProtocolVersion,
 			ServerVersion:   "aurago",
 			SessionID:       state.sessionID,
@@ -77,7 +80,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			}
 			env, err := agodesk.DecodeEnvelope(data, agodeskMaxMessageBytes)
 			if err != nil {
-				_ = writeAgodeskEnvelope(conn, agodesk.TypeChatError, agodesk.ChatErrorPayload{
+				_ = writeAgodeskEnvelopeLocked(conn, &state, agodesk.TypeChatError, agodesk.ChatErrorPayload{
 					Code:    agodesk.ErrorInvalidMessage,
 					Message: "Invalid agodesk message: " + err.Error(),
 				})
@@ -93,30 +96,32 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, env agodesk.Envelope) bool {
 	switch env.Type {
 	case agodesk.TypeSystemPing:
-		_ = writeAgodeskEnvelope(conn, agodesk.TypeSystemPong, map[string]string{})
+		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSystemPong, map[string]string{})
 	case agodesk.TypeSessionStart:
 		payload, errPayload := decodeAgodeskPayload[agodesk.SessionStartPayload](env)
 		if errPayload != nil {
-			_ = writeAgodeskError(conn, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
 			return true
 		}
 		accepted, errCode, errMsg := acceptAgodeskSessionStart(s, r, env.ID, payload)
 		if errCode != "" {
-			_ = writeAgodeskError(conn, env.ID, errCode, errMsg)
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, errCode, errMsg)
 			return true
 		}
+		state.mu.Lock()
 		state.sessionID = accepted.SessionID
 		state.deviceID = accepted.DeviceID
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
-		_ = writeAgodeskEnvelope(conn, agodesk.TypeSessionAccepted, accepted)
+		state.mu.Unlock()
+		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
 	case agodesk.TypeChatMessage:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatMessagePayload](env)
 		if errPayload != nil {
-			_ = writeAgodeskError(conn, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
 			return true
 		}
-		handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
+		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
 	case agodesk.TypeDesktopResult:
 		// Desktop-control transport is defined in v1 but command routing is feature-gated.
 		return true
@@ -127,28 +132,36 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 }
 
 func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatMessagePayload) {
-	if state == nil || !state.paired {
-		_ = writeAgodeskError(conn, requestID, agodesk.ErrorPairingRequired, "Pairing is required before chat messages are accepted.")
+	paired := false
+	stateSessionID := ""
+	if state != nil {
+		state.mu.RLock()
+		paired = state.paired
+		stateSessionID = state.sessionID
+		state.mu.RUnlock()
+	}
+	if !paired {
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorPairingRequired, "Pairing is required before chat messages are accepted.")
 		return
 	}
 	message := strings.TrimSpace(payload.Text)
 	if message == "" {
-		_ = writeAgodeskError(conn, requestID, agodesk.ErrorInvalidMessage, "chat.message text is required")
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "chat.message text is required")
 		return
 	}
 	sessionID := strings.TrimSpace(payload.SessionID)
-	if sessionID == "" || sessionID != state.sessionID {
-		sessionID = state.sessionID
+	if sessionID == "" || sessionID != stateSessionID {
+		sessionID = stateSessionID
 	}
 	unlockSession := lockSessionRequest(sessionID)
 	defer unlockSession()
 
 	answer, err := agodeskAgentChatRunner(s, r, sessionID, message)
 	if err != nil {
-		_ = writeAgodeskError(conn, requestID, agodesk.ErrorInternal, err.Error())
+		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, err.Error())
 		return
 	}
-	_ = writeAgodeskEnvelope(conn, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatResponse, agodesk.ChatResponsePayload{
 		SessionID: sessionID,
 		RequestID: requestID,
 		Text:      strings.TrimSpace(answer),
@@ -324,12 +337,29 @@ func writeAgodeskError(conn *websocket.Conn, requestID, code, message string) er
 	})
 }
 
+func writeAgodeskErrorLocked(conn *websocket.Conn, state *agodeskConnectionState, requestID, code, message string) error {
+	return writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatError, agodesk.ChatErrorPayload{
+		RequestID: requestID,
+		Code:      code,
+		Message:   message,
+	})
+}
+
 func writeAgodeskEnvelope(conn *websocket.Conn, messageType agodesk.MessageType, payload interface{}) error {
 	env, err := agodesk.NewEnvelope(messageType, payload)
 	if err != nil {
 		return err
 	}
 	return conn.WriteJSON(env)
+}
+
+func writeAgodeskEnvelopeLocked(conn *websocket.Conn, state *agodeskConnectionState, messageType agodesk.MessageType, payload interface{}) error {
+	if state == nil {
+		return writeAgodeskEnvelope(conn, messageType, payload)
+	}
+	state.writeMu.Lock()
+	defer state.writeMu.Unlock()
+	return writeAgodeskEnvelope(conn, messageType, payload)
 }
 
 func isExplicitAgodeskLoopbackDev(r *http.Request) bool {
