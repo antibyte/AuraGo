@@ -448,7 +448,7 @@ var THEME_COLORS = {
     'cyberwar': '#071128',
     'lollipop': '#fff8fd',
     'dark-sun': '#140b09',
-    'ocean': '#091827',
+    'ocean': '#051a24',
     'sandstorm': '#1d140d',
     'papyrus': '#bca784',
     'threedee': '#070b14',

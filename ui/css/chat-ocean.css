@@ -1,57 +1,57 @@
 [data-theme="ocean"] {
     color-scheme: dark;
-    --accent: #5fa9cf;
-    --accent-secondary: #76c6df;
-    --accent-tertiary: #8cd6e8;
-    --accent-warm: #9ac2dd;
-    --accent-dim: rgba(95, 169, 207, 0.16);
-    --accent-glow: rgba(118, 198, 223, 0.2);
-    --bg-primary: #071523;
-    --bg-secondary: rgba(11, 27, 42, 0.95);
-    --bg-tertiary: rgba(15, 36, 56, 0.94);
-    --bg-glass: linear-gradient(180deg, rgba(17, 39, 60, 0.94), rgba(8, 23, 36, 0.96));
-    --header-bg: rgba(9, 22, 34, 0.9);
-    --modal-bg: rgba(3, 11, 19, 0.68);
-    --modal-surface: rgba(12, 28, 44, 0.96);
-    --modal-border: rgba(92, 145, 178, 0.24);
-    --sidebar-bg: rgba(10, 24, 39, 0.96);
-    --card-bg: rgba(13, 31, 49, 0.94);
-    --code-bg: rgba(8, 22, 35, 0.94);
-    --inline-code-bg: rgba(111, 173, 205, 0.12);
-    --input-bg: rgba(10, 25, 38, 0.98);
-    --input-border: rgba(99, 144, 171, 0.42);
-    --text-primary: #e9f3fa;
-    --text-secondary: #a7bccd;
-    --strong-color: #f4fbff;
-    --border-subtle: rgba(99, 144, 171, 0.18);
-    --border-accent: rgba(118, 198, 223, 0.36);
-    --user-bubble: linear-gradient(145deg, rgba(28, 79, 114, 0.98), rgba(41, 112, 148, 0.96));
-    --user-bubble-tail: rgba(41, 112, 148, 0.96);
-    --user-bubble-shadow: rgba(71, 132, 170, 0.18);
-    --bot-bubble: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(8, 23, 36, 0.98));
-    --bot-bubble-tail: rgba(9, 25, 39, 0.98);
-    --surface-shadow: 0 20px 46px rgba(2, 11, 18, 0.32);
-    --surface-shadow-strong: 0 28px 70px rgba(1, 10, 17, 0.42);
-    --surface-highlight: rgba(206, 232, 245, 0.08);
-    --page-orb-1: rgba(61, 112, 155, 0.2);
-    --page-orb-2: rgba(85, 151, 181, 0.16);
-    --page-orb-3: rgba(121, 198, 223, 0.12);
+    --accent: #3dc9e8;
+    --accent-secondary: #5dd8f0;
+    --accent-tertiary: #7ae4f5;
+    --accent-warm: #88d4ec;
+    --accent-dim: rgba(61, 201, 232, 0.16);
+    --accent-glow: rgba(61, 201, 232, 0.22);
+    --bg-primary: #051a24;
+    --bg-secondary: rgba(8, 30, 44, 0.95);
+    --bg-tertiary: rgba(12, 40, 58, 0.94);
+    --bg-glass: linear-gradient(180deg, rgba(14, 42, 62, 0.94), rgba(6, 24, 38, 0.96));
+    --header-bg: rgba(7, 26, 38, 0.9);
+    --modal-bg: rgba(3, 14, 22, 0.68);
+    --modal-surface: rgba(10, 32, 48, 0.96);
+    --modal-border: rgba(61, 201, 232, 0.24);
+    --sidebar-bg: rgba(8, 28, 42, 0.96);
+    --card-bg: rgba(10, 34, 52, 0.94);
+    --code-bg: rgba(6, 24, 38, 0.94);
+    --inline-code-bg: rgba(61, 201, 232, 0.12);
+    --input-bg: rgba(8, 28, 42, 0.98);
+    --input-border: rgba(61, 201, 232, 0.38);
+    --text-primary: #e4f7fb;
+    --text-secondary: #8ecfdf;
+    --strong-color: #f0fcff;
+    --border-subtle: rgba(61, 201, 232, 0.16);
+    --border-accent: rgba(61, 201, 232, 0.4);
+    --user-bubble: linear-gradient(145deg, rgba(20, 100, 130, 0.96), rgba(30, 140, 170, 0.94));
+    --user-bubble-tail: rgba(30, 140, 170, 0.94);
+    --user-bubble-shadow: rgba(40, 160, 200, 0.18);
+    --bot-bubble: linear-gradient(180deg, rgba(10, 38, 56, 0.98), rgba(6, 24, 38, 0.98));
+    --bot-bubble-tail: rgba(7, 28, 42, 0.98);
+    --surface-shadow: 0 20px 46px rgba(2, 14, 22, 0.32);
+    --surface-shadow-strong: 0 28px 70px rgba(1, 12, 20, 0.42);
+    --surface-highlight: rgba(61, 201, 232, 0.08);
+    --page-orb-1: rgba(40, 160, 200, 0.22);
+    --page-orb-2: rgba(61, 201, 232, 0.18);
+    --page-orb-3: rgba(100, 220, 240, 0.14);
     --page-orb-opacity: 1;
     --chat-image-opacity: 0.06;
-    --bg-logo-filter: saturate(0.78) brightness(0.78) contrast(1.06);
-    --ocean-panel: linear-gradient(180deg, rgba(18, 40, 61, 0.98), rgba(10, 24, 39, 0.98));
-    --ocean-panel-soft: linear-gradient(180deg, rgba(20, 46, 69, 0.96), rgba(11, 27, 42, 0.96));
-    --ocean-button: linear-gradient(180deg, rgba(23, 53, 78, 0.98), rgba(13, 31, 48, 0.98));
-    --ocean-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 40%, transparent 54%);
-    --ocean-ripple: rgba(123, 204, 227, 0.14);
+    --bg-logo-filter: saturate(0.82) brightness(0.76) contrast(1.06);
+    --ocean-panel: linear-gradient(180deg, rgba(14, 44, 66, 0.98), rgba(8, 28, 42, 0.98));
+    --ocean-panel-soft: linear-gradient(180deg, rgba(16, 50, 72, 0.96), rgba(9, 30, 46, 0.96));
+    --ocean-button: linear-gradient(180deg, rgba(18, 56, 82, 0.98), rgba(10, 34, 52, 0.98));
+    --ocean-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 40%, transparent 54%);
+    --ocean-ripple: rgba(61, 201, 232, 0.16);
 }
 
 [data-theme="ocean"] body {
     background:
-        radial-gradient(circle at 14% 18%, rgba(72, 123, 164, 0.18), transparent 22%),
-        radial-gradient(circle at 86% 12%, rgba(104, 181, 204, 0.14), transparent 24%),
-        radial-gradient(circle at 50% 112%, rgba(84, 140, 185, 0.16), transparent 30%),
-        linear-gradient(180deg, #040f1a 0%, #071523 36%, #0a1b2c 100%);
+        radial-gradient(circle at 14% 12%, rgba(40, 160, 200, 0.2), transparent 24%),
+        radial-gradient(circle at 86% 8%, rgba(61, 201, 232, 0.16), transparent 26%),
+        radial-gradient(circle at 50% 112%, rgba(30, 130, 170, 0.18), transparent 32%),
+        linear-gradient(180deg, #031218 0%, #051a24 36%, #07222e 100%);
     color: var(--text-primary);
 }
 
@@ -64,13 +64,13 @@
     position: relative;
     z-index: 120;
     background:
-        linear-gradient(180deg, rgba(16, 34, 53, 0.94), rgba(8, 21, 33, 0.96)),
+        linear-gradient(180deg, rgba(12, 38, 56, 0.94), rgba(6, 24, 36, 0.96)),
         var(--header-bg);
-    border-bottom: 1px solid rgba(98, 145, 174, 0.2);
+    border-bottom: 1px solid rgba(61, 201, 232, 0.18);
     box-shadow:
-        0 10px 28px rgba(2, 10, 18, 0.22),
-        inset 0 1px 0 rgba(221, 239, 248, 0.05),
-        inset 0 -1px 0 rgba(86, 133, 164, 0.08);
+        0 10px 28px rgba(2, 14, 22, 0.22),
+        inset 0 1px 0 rgba(61, 201, 232, 0.06),
+        inset 0 -1px 0 rgba(40, 140, 180, 0.08);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
@@ -81,22 +81,22 @@
 
 [data-theme="ocean"] .app-header::after {
     height: 2px;
-    opacity: 0.8;
+    opacity: 0.85;
     background: linear-gradient(90deg,
         transparent 0%,
-        rgba(112, 184, 220, 0.62) 18%,
-        rgba(142, 209, 229, 0.74) 50%,
-        rgba(95, 148, 188, 0.62) 82%,
+        rgba(61, 201, 232, 0.55) 18%,
+        rgba(93, 216, 240, 0.72) 50%,
+        rgba(61, 201, 232, 0.55) 82%,
         transparent 100%);
-    box-shadow: 0 0 20px rgba(118, 198, 223, 0.14);
+    box-shadow: 0 0 24px rgba(61, 201, 232, 0.18);
 }
 
 [data-theme="ocean"] .logo .logo-wordmark-accent {
-    background: linear-gradient(135deg, #c6e8f7 0%, #86c8e3 42%, #5e9dc2 100%);
+    background: linear-gradient(135deg, #b8f0ff 0%, #5dd8f0 42%, #3dc9e8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 18px rgba(116, 190, 217, 0.12);
+    text-shadow: 0 0 18px rgba(61, 201, 232, 0.15);
 }
 
 [data-theme="ocean"] .chat-theme-btn,
@@ -112,11 +112,11 @@
     background:
         var(--ocean-sheen),
         var(--ocean-button);
-    border: 1px solid rgba(91, 135, 162, 0.36);
+    border: 1px solid rgba(61, 201, 232, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(225, 241, 248, 0.06),
-        inset 0 -1px 0 rgba(6, 16, 26, 0.22),
-        0 8px 18px rgba(2, 10, 18, 0.18);
+        inset 0 1px 0 rgba(61, 201, 232, 0.07),
+        inset 0 -1px 0 rgba(4, 18, 28, 0.22),
+        0 8px 18px rgba(2, 14, 22, 0.18);
     color: var(--text-primary);
 }
 
@@ -130,12 +130,12 @@
 [data-theme="ocean"] .btn-header:hover,
 [data-theme="ocean"] .btn-header-link:hover,
 [data-theme="ocean"] #logout-btn:hover {
-    border-color: rgba(118, 198, 223, 0.48);
+    border-color: rgba(61, 201, 232, 0.5);
     box-shadow:
-        inset 0 1px 0 rgba(229, 243, 248, 0.08),
-        inset 0 -1px 0 rgba(8, 19, 29, 0.24),
-        0 12px 22px rgba(2, 10, 18, 0.22),
-        0 0 0 1px rgba(118, 198, 223, 0.06);
+        inset 0 1px 0 rgba(61, 201, 232, 0.09),
+        inset 0 -1px 0 rgba(6, 20, 32, 0.24),
+        0 12px 22px rgba(2, 14, 22, 0.22),
+        0 0 12px rgba(61, 201, 232, 0.08);
     color: var(--strong-color);
     transform: translateY(-1px);
 }
@@ -143,19 +143,19 @@
 [data-theme="ocean"] .chat-theme-icon,
 [data-theme="ocean"] .personality-chevron,
 [data-theme="ocean"] .mood-chevron {
-    color: #d8edf8;
+    color: #c8f0fa;
 }
 
 [data-theme="ocean"] .chat-theme-dropdown,
 [data-theme="ocean"] .personality-dropdown,
 [data-theme="ocean"] .mood-panel {
-    --theme-option-color: #def1fb;
-    border: 1px solid rgba(91, 135, 162, 0.36);
-    background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 35, 0.98));
+    --theme-option-color: #d0f4fc;
+    border: 1px solid rgba(61, 201, 232, 0.3);
+    background: linear-gradient(180deg, rgba(12, 38, 58, 0.98), rgba(7, 26, 40, 0.98));
     box-shadow:
-        0 18px 46px rgba(2, 10, 18, 0.28),
-        inset 0 1px 0 rgba(229, 243, 248, 0.04),
-        0 0 0 1px rgba(118, 198, 223, 0.05);
+        0 18px 46px rgba(2, 14, 22, 0.28),
+        inset 0 1px 0 rgba(61, 201, 232, 0.04),
+        0 0 0 1px rgba(61, 201, 232, 0.05);
 }
 
 [data-theme="ocean"] .chat-theme-option,
@@ -165,16 +165,16 @@
 
 [data-theme="ocean"] .chat-theme-option:hover,
 [data-theme="ocean"] .chat-theme-option.active {
-    background: linear-gradient(90deg, rgba(25, 66, 95, 0.94), rgba(16, 45, 68, 0.94));
+    background: linear-gradient(90deg, rgba(20, 72, 100, 0.94), rgba(14, 50, 72, 0.94));
 }
 
 [data-theme="ocean"] .app-header .pill {
-    background: linear-gradient(180deg, rgba(21, 48, 72, 0.92), rgba(11, 27, 42, 0.92));
-    border: 1px solid rgba(91, 135, 162, 0.32);
+    background: linear-gradient(180deg, rgba(16, 52, 76, 0.92), rgba(9, 30, 46, 0.92));
+    border: 1px solid rgba(61, 201, 232, 0.28);
     box-shadow:
-        inset 0 1px 0 rgba(221, 239, 248, 0.06),
-        0 6px 16px rgba(2, 10, 18, 0.16);
-    color: #eaf5fb;
+        inset 0 1px 0 rgba(61, 201, 232, 0.07),
+        0 6px 16px rgba(2, 14, 22, 0.16);
+    color: #def4fb;
 }
 
 [data-theme="ocean"] #chat-box {
@@ -182,25 +182,25 @@
     position: relative;
     z-index: 1;
     background:
-        radial-gradient(circle at 18% 14%, rgba(79, 128, 166, 0.14), transparent 22%),
-        radial-gradient(circle at 86% 18%, rgba(111, 180, 205, 0.11), transparent 22%),
-        radial-gradient(circle at 50% 105%, rgba(76, 138, 176, 0.12), transparent 26%),
-        linear-gradient(180deg, #071523 0%, #091b2d 100%);
-    background-size: 108% 108%;
-    animation: oceanBackdropDrift 18s ease-in-out infinite alternate;
+        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.16), transparent 24%),
+        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.13), transparent 24%),
+        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.14), transparent 28%),
+        linear-gradient(180deg, #051a24 0%, #07222e 50%, #04161e 100%);
+    background-size: 112% 112%;
+    animation: oceanBackdropDrift 16s ease-in-out infinite alternate, oceanWaveMotion 22s ease-in-out infinite;
 }
 
 [data-theme="ocean"] #chat-box::before {
     display: block;
     background:
-        radial-gradient(circle at 26% 24%, rgba(130, 205, 227, 0.14) 0, rgba(130, 205, 227, 0.1) 1px, transparent 2px, transparent 70px),
-        radial-gradient(circle at 74% 54%, rgba(113, 188, 214, 0.12) 0, rgba(113, 188, 214, 0.08) 1px, transparent 2px, transparent 92px),
-        radial-gradient(circle at 50% 82%, rgba(102, 170, 201, 0.11) 0, rgba(102, 170, 201, 0.07) 1px, transparent 2px, transparent 80px),
-        linear-gradient(180deg, rgba(6, 15, 25, 0.14) 0%, transparent 18%, transparent 82%, rgba(6, 15, 25, 0.12) 100%),
-        radial-gradient(circle, rgba(110, 183, 208, 0.08) 0 1px, transparent 1.1px);
+        radial-gradient(circle at 26% 24%, rgba(61, 201, 232, 0.16) 0, rgba(61, 201, 232, 0.12) 1px, transparent 2px, transparent 70px),
+        radial-gradient(circle at 74% 54%, rgba(93, 216, 240, 0.14) 0, rgba(93, 216, 240, 0.10) 1px, transparent 2px, transparent 92px),
+        radial-gradient(circle at 50% 82%, rgba(61, 201, 232, 0.12) 0, rgba(61, 201, 232, 0.08) 1px, transparent 2px, transparent 80px),
+        linear-gradient(180deg, rgba(4, 14, 22, 0.14) 0%, transparent 18%, transparent 82%, rgba(4, 14, 22, 0.12) 100%),
+        radial-gradient(circle, rgba(61, 201, 232, 0.10) 0 1px, transparent 1.1px);
     background-size: 220px 220px, 260px 260px, 240px 240px, auto, 18px 18px;
-    animation: oceanFallbackRipples 13s ease-in-out infinite alternate;
-    opacity: 0.9;
+    animation: oceanFallbackRipples 11s ease-in-out infinite alternate;
+    opacity: 0.95;
 }
 
 [data-theme="ocean"] #chat-box::after {
@@ -213,7 +213,7 @@
     z-index: 2 !important;
     opacity: 1 !important;
     mix-blend-mode: screen !important;
-    filter: saturate(1.18) brightness(1.12) !important;
+    filter: saturate(1.25) brightness(1.18) !important;
 }
 
 [data-theme="ocean"] #chat-content {
@@ -226,15 +226,15 @@
 [data-theme="ocean"] .greeting-icon,
 [data-theme="ocean"] .avatar.bot,
 [data-theme="ocean"] .avatar.human {
-    background: linear-gradient(180deg, rgba(23, 51, 76, 0.98), rgba(10, 24, 38, 0.98));
-    border: 1px solid rgba(96, 145, 174, 0.34);
+    background: linear-gradient(180deg, rgba(18, 56, 82, 0.98), rgba(8, 28, 42, 0.98));
+    border: 1px solid rgba(61, 201, 232, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(224, 241, 248, 0.06),
-        0 12px 22px rgba(2, 10, 18, 0.2);
+        inset 0 1px 0 rgba(61, 201, 232, 0.07),
+        0 12px 22px rgba(2, 14, 22, 0.2);
 }
 
 [data-theme="ocean"] .avatar.human {
-    border-color: rgba(86, 152, 188, 0.42);
+    border-color: rgba(61, 201, 232, 0.4);
 }
 
 [data-theme="ocean"] .greeting-text,
@@ -256,10 +256,10 @@
 [data-theme="ocean"] .bubble {
     opacity: 1;
     visibility: visible;
-    border: 1px solid rgba(92, 141, 171, 0.34);
+    border: 1px solid rgba(61, 201, 232, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.04),
-        0 14px 28px rgba(2, 10, 18, 0.2);
+        inset 0 1px 0 rgba(61, 201, 232, 0.05),
+        0 14px 28px rgba(2, 14, 22, 0.2);
 }
 
 [data-theme="ocean"] .bubble::after {
@@ -268,8 +268,8 @@
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(180deg, rgba(230, 243, 248, 0.02), transparent 24%),
-        linear-gradient(120deg, transparent 0%, transparent 68%, rgba(118, 198, 223, 0.03) 100%);
+        linear-gradient(180deg, rgba(61, 201, 232, 0.03), transparent 24%),
+        linear-gradient(120deg, transparent 0%, transparent 68%, rgba(61, 201, 232, 0.04) 100%);
 }
 
 [data-theme="ocean"] .bubble.bot {
@@ -281,12 +281,20 @@
     border-color: transparent transparent var(--bot-bubble-tail) transparent;
 }
 
+[data-theme="ocean"] .bubble.bot:hover {
+    border-color: rgba(61, 201, 232, 0.4);
+    box-shadow:
+        inset 0 1px 0 rgba(61, 201, 232, 0.06),
+        0 18px 34px rgba(2, 14, 22, 0.26),
+        0 0 16px rgba(61, 201, 232, 0.08);
+}
+
 [data-theme="ocean"] .bubble.user {
     background: var(--user-bubble);
-    color: #eff9ff;
+    color: #effffe;
     box-shadow:
-        inset 0 1px 0 rgba(232, 244, 249, 0.08),
-        0 16px 30px rgba(14, 58, 92, 0.22);
+        inset 0 1px 0 rgba(93, 216, 240, 0.1),
+        0 16px 30px rgba(10, 60, 90, 0.24);
 }
 
 [data-theme="ocean"] .bubble.user::before {
@@ -297,67 +305,67 @@
 [data-theme="ocean"] .tool-output-block .tool-output-content,
 [data-theme="ocean"] .code-block-wrapper,
 [data-theme="ocean"] .mermaid-container {
-    background: linear-gradient(180deg, rgba(11, 27, 41, 0.98), rgba(7, 18, 29, 0.98));
-    border-color: rgba(88, 133, 160, 0.36);
+    background: linear-gradient(180deg, rgba(8, 30, 46, 0.98), rgba(5, 20, 32, 0.98));
+    border-color: rgba(61, 201, 232, 0.28);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.04),
-        0 16px 28px rgba(2, 10, 18, 0.22);
+        inset 0 1px 0 rgba(61, 201, 232, 0.04),
+        0 16px 28px rgba(2, 14, 22, 0.22);
 }
 
 [data-theme="ocean"] .tool-output-block summary,
 [data-theme="ocean"] .copy-btn,
 [data-theme="ocean"] .mermaid-btn,
 [data-theme="ocean"] .session-item-count {
-    background: linear-gradient(180deg, rgba(23, 51, 76, 0.98), rgba(11, 27, 41, 0.98));
-    border: 1px solid rgba(91, 135, 162, 0.38);
+    background: linear-gradient(180deg, rgba(18, 56, 82, 0.98), rgba(9, 30, 46, 0.98));
+    border: 1px solid rgba(61, 201, 232, 0.32);
     color: var(--text-primary);
 }
 
 [data-theme="ocean"] .tool-output-block summary:hover,
 [data-theme="ocean"] .copy-btn:hover,
 [data-theme="ocean"] .mermaid-btn:hover {
-    background: linear-gradient(180deg, rgba(28, 64, 94, 0.98), rgba(13, 32, 49, 0.98));
-    box-shadow: 0 10px 18px rgba(2, 10, 18, 0.2);
+    background: linear-gradient(180deg, rgba(22, 68, 100, 0.98), rgba(10, 36, 54, 0.98));
+    box-shadow: 0 10px 18px rgba(2, 14, 22, 0.2);
 }
 
 [data-theme="ocean"] .code-header,
 [data-theme="ocean"] .line-numbers {
-    background: rgba(14, 32, 48, 0.84);
-    border-color: rgba(84, 126, 152, 0.32);
+    background: rgba(10, 36, 54, 0.84);
+    border-color: rgba(61, 201, 232, 0.26);
 }
 
 [data-theme="ocean"] .code-lang {
-    color: #85cfe6;
+    color: #6ae0f2;
 }
 
 [data-theme="ocean"] .hljs,
 [data-theme="ocean"] .code-content,
 [data-theme="ocean"] .code-content pre {
     background: transparent;
-    color: #dcebf5;
+    color: #d8f4fa;
 }
 
 [data-theme="ocean"] .hljs-keyword,
 [data-theme="ocean"] .hljs-selector-tag,
 [data-theme="ocean"] .hljs-literal {
-    color: #8ecae6;
+    color: #5dd8f0;
 }
 
 [data-theme="ocean"] .hljs-string,
 [data-theme="ocean"] .hljs-attr {
-    color: #93d2c5;
+    color: #7ae8d4;
 }
 
 [data-theme="ocean"] .hljs-title,
 [data-theme="ocean"] .hljs-function,
 [data-theme="ocean"] .hljs-section {
-    color: #79b3d8;
+    color: #68cce0;
 }
 
 [data-theme="ocean"] code:not(pre code) {
-    background: rgba(118, 198, 223, 0.1);
-    color: #bae1f0;
-    border: 1px solid rgba(118, 198, 223, 0.14);
+    background: rgba(61, 201, 232, 0.12);
+    color: #b0eaf8;
+    border: 1px solid rgba(61, 201, 232, 0.16);
     border-radius: 7px;
     padding: 0.08rem 0.35rem;
 }
@@ -366,11 +374,11 @@
     position: relative;
     z-index: 1;
     background:
-        linear-gradient(180deg, rgba(13, 30, 46, 0.98), rgba(8, 21, 33, 0.99));
-    border-top: 1px solid rgba(91, 135, 162, 0.26);
+        linear-gradient(180deg, rgba(10, 34, 52, 0.98), rgba(6, 24, 36, 0.99));
+    border-top: 1px solid rgba(61, 201, 232, 0.22);
     box-shadow:
-        0 -12px 28px rgba(2, 10, 18, 0.22),
-        inset 0 1px 0 rgba(224, 241, 248, 0.04);
+        0 -12px 28px rgba(2, 14, 22, 0.22),
+        inset 0 1px 0 rgba(61, 201, 232, 0.05);
     backdrop-filter: none;
 }
 
@@ -383,24 +391,25 @@
 [data-theme="ocean"] .mood-feedback-row,
 [data-theme="ocean"] .attachment-chip,
 [data-theme="ocean"] .attachments-panel {
-    background: linear-gradient(180deg, rgba(16, 37, 57, 0.98), rgba(9, 24, 37, 0.99));
-    border: 1px solid rgba(89, 132, 158, 0.4);
+    background: linear-gradient(180deg, rgba(12, 40, 60, 0.98), rgba(7, 28, 42, 0.99));
+    border: 1px solid rgba(61, 201, 232, 0.34);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.05),
-        0 12px 22px rgba(2, 10, 18, 0.2);
+        inset 0 1px 0 rgba(61, 201, 232, 0.06),
+        0 12px 22px rgba(2, 14, 22, 0.2);
 }
 
 [data-theme="ocean"] .input-wrap textarea:hover,
 [data-theme="ocean"] .input-wrap textarea:focus {
-    border-color: rgba(118, 198, 223, 0.56);
+    border-color: rgba(61, 201, 232, 0.56);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.06),
-        0 0 0 3px rgba(118, 198, 223, 0.06),
-        0 12px 24px rgba(2, 10, 18, 0.22);
+        inset 0 1px 0 rgba(61, 201, 232, 0.07),
+        0 0 0 3px rgba(61, 201, 232, 0.08),
+        0 0 16px rgba(61, 201, 232, 0.06),
+        0 12px 24px rgba(2, 14, 22, 0.22);
 }
 
 [data-theme="ocean"] .input-wrap textarea::placeholder {
-    color: rgba(167, 188, 205, 0.76);
+    color: rgba(142, 207, 223, 0.76);
 }
 
 [data-theme="ocean"] .btn-send,
@@ -410,30 +419,32 @@
 [data-theme="ocean"] .mood-btn,
 [data-theme="ocean"] .session-new-btn,
 [data-theme="ocean"] .session-drawer-close,
-    [data-theme="ocean"] .integrations-drawer-close,
+[data-theme="ocean"] .integrations-drawer-close,
 [data-theme="ocean"] #img-lightbox-close,
 [data-theme="ocean"] .modal-btn,
 [data-theme="ocean"] .scroll-to-bottom-btn {
     background:
         var(--ocean-sheen),
-        linear-gradient(180deg, rgba(22, 51, 76, 0.99), rgba(11, 28, 43, 0.98));
-    border: 1px solid rgba(91, 135, 162, 0.4);
+        linear-gradient(180deg, rgba(18, 54, 80, 0.99), rgba(9, 30, 48, 0.98));
+    border: 1px solid rgba(61, 201, 232, 0.34);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.06),
-        inset 0 -1px 0 rgba(6, 16, 26, 0.22),
-        0 10px 20px rgba(2, 10, 18, 0.2);
+        inset 0 1px 0 rgba(61, 201, 232, 0.07),
+        inset 0 -1px 0 rgba(4, 18, 28, 0.22),
+        0 10px 20px rgba(2, 14, 22, 0.2);
     color: var(--text-primary);
 }
 
 [data-theme="ocean"] .btn-send {
     background:
-        linear-gradient(180deg, rgba(235, 246, 250, 0.12), rgba(235, 246, 250, 0) 36%),
-        linear-gradient(135deg, rgba(45, 109, 150, 0.98), rgba(73, 148, 191, 0.96), rgba(111, 188, 215, 0.94));
-    border-color: rgba(102, 169, 199, 0.6);
-    color: #f8fdff;
+        linear-gradient(180deg, rgba(93, 216, 240, 0.14), rgba(93, 216, 240, 0) 36%),
+        linear-gradient(135deg, rgba(30, 130, 170, 0.98), rgba(50, 170, 210, 0.96), rgba(93, 216, 240, 0.94));
+    border-color: rgba(61, 201, 232, 0.55);
+    color: #f4feff;
     box-shadow:
-        inset 0 1px 0 rgba(240, 249, 252, 0.12),
-        0 14px 28px rgba(10, 52, 82, 0.26);
+        inset 0 1px 0 rgba(122, 228, 245, 0.14),
+        0 14px 28px rgba(10, 60, 90, 0.28),
+        0 0 20px rgba(61, 201, 232, 0.1);
+    animation: oceanSendGlow 3s ease-in-out infinite;
 }
 
 [data-theme="ocean"] .btn-send:hover,
@@ -443,17 +454,18 @@
 [data-theme="ocean"] .composer-tool-btn:hover,
 [data-theme="ocean"] .mood-btn:hover,
 [data-theme="ocean"] .session-new-btn:hover,
-[data-theme="ocean"] .session-drawer-close,
-    [data-theme="ocean"] .integrations-drawer-close:hover,
+[data-theme="ocean"] .session-drawer-close:hover,
+[data-theme="ocean"] .integrations-drawer-close:hover,
 [data-theme="ocean"] #img-lightbox-close:hover,
 [data-theme="ocean"] .modal-btn:hover,
 [data-theme="ocean"] .scroll-to-bottom-btn:hover {
     transform: translateY(-1px);
-    border-color: rgba(118, 198, 223, 0.5);
+    border-color: rgba(61, 201, 232, 0.52);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.08),
-        inset 0 -1px 0 rgba(6, 16, 26, 0.24),
-        0 12px 24px rgba(2, 10, 18, 0.22);
+        inset 0 1px 0 rgba(61, 201, 232, 0.09),
+        inset 0 -1px 0 rgba(6, 20, 32, 0.24),
+        0 12px 24px rgba(2, 14, 22, 0.22),
+        0 0 14px rgba(61, 201, 232, 0.08);
 }
 
 [data-theme="ocean"] .composer-tool-btn-danger,
@@ -464,33 +476,32 @@
 }
 
 [data-theme="ocean"] .session-backdrop,
-    [data-theme="ocean"] .integrations-backdrop,
+[data-theme="ocean"] .integrations-backdrop,
 [data-theme="ocean"] .mermaid-modal-overlay,
 [data-theme="ocean"] #img-lightbox,
 [data-theme="ocean"] .modal-overlay {
     background:
-        radial-gradient(circle at top, rgba(113, 188, 214, 0.08), transparent 28%),
-        rgba(4, 12, 20, 0.68);
+        radial-gradient(circle at top, rgba(61, 201, 232, 0.1), transparent 28%),
+        rgba(4, 14, 22, 0.68);
     backdrop-filter: blur(8px);
 }
 
-[data-theme="ocean"] .session-drawer
+[data-theme="ocean"] .session-drawer,
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 36, 0.99));
-    border: 1px solid rgba(91, 135, 162, 0.34);
+    background: linear-gradient(180deg, rgba(12, 38, 58, 0.98), rgba(7, 26, 40, 0.99));
+    border: 1px solid rgba(61, 201, 232, 0.28);
     box-shadow:
-        0 26px 62px rgba(2, 10, 18, 0.3),
-        inset 0 1px 0 rgba(226, 241, 248, 0.05);
+        0 26px 62px rgba(2, 14, 22, 0.3),
+        inset 0 1px 0 rgba(61, 201, 232, 0.05);
 }
 
-[data-theme="ocean"] .session-drawer,
+[data-theme="ocean"] .session-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
-
 
 [data-theme="ocean"] .modal-card,
 [data-theme="ocean"] .mermaid-modal-content {
@@ -506,14 +517,14 @@
     pointer-events: none;
     border-radius: inherit;
     background:
-        linear-gradient(180deg, rgba(232, 245, 251, 0.04), rgba(232, 245, 251, 0) 24%),
-        linear-gradient(90deg, rgba(117, 194, 220, 0.03), transparent 22%);
+        linear-gradient(180deg, rgba(61, 201, 232, 0.04), rgba(61, 201, 232, 0) 24%),
+        linear-gradient(90deg, rgba(61, 201, 232, 0.03), transparent 22%);
 }
 
 [data-theme="ocean"] .session-drawer-header,
-    [data-theme="ocean"] .integrations-drawer-header,
+[data-theme="ocean"] .integrations-drawer-header,
 [data-theme="ocean"] .modal-title {
-    border-bottom-color: rgba(91, 135, 162, 0.26);
+    border-bottom-color: rgba(61, 201, 232, 0.22);
 }
 
 [data-theme="ocean"] .session-item {
@@ -522,19 +533,19 @@
 }
 
 [data-theme="ocean"] .session-item:hover {
-    background: linear-gradient(90deg, rgba(18, 44, 66, 0.98), rgba(11, 30, 46, 0.98));
-    border-color: rgba(91, 135, 162, 0.24);
+    background: linear-gradient(90deg, rgba(14, 48, 72, 0.98), rgba(9, 34, 52, 0.98));
+    border-color: rgba(61, 201, 232, 0.2);
 }
 
 [data-theme="ocean"] .session-item.session-active {
-    background: linear-gradient(90deg, rgba(22, 53, 79, 0.98), rgba(13, 35, 54, 0.98));
-    border-color: rgba(118, 198, 223, 0.32);
-    box-shadow: 0 12px 22px rgba(2, 10, 18, 0.16);
+    background: linear-gradient(90deg, rgba(18, 60, 88, 0.98), rgba(10, 40, 60, 0.98));
+    border-color: rgba(61, 201, 232, 0.32);
+    box-shadow: 0 12px 22px rgba(2, 14, 22, 0.16);
 }
 
 [data-theme="ocean"] .session-item-preview,
 [data-theme="ocean"] .session-drawer-title,
-    [data-theme="ocean"] .integrations-drawer-title,
+[data-theme="ocean"] .integrations-drawer-title,
 [data-theme="ocean"] .modal-title,
 [data-theme="ocean"] .modal-body,
 [data-theme="ocean"] .mermaid-error .error-title,
@@ -544,36 +555,50 @@
 
 [data-theme="ocean"] .scroll-to-bottom-btn.has-new {
     background:
-        linear-gradient(180deg, rgba(236, 247, 251, 0.12), rgba(236, 247, 251, 0) 32%),
-        linear-gradient(135deg, rgba(47, 112, 152, 0.98), rgba(82, 154, 193, 0.96), rgba(132, 205, 226, 0.94));
-    color: #f7fdff;
+        linear-gradient(180deg, rgba(93, 216, 240, 0.14), rgba(93, 216, 240, 0) 32%),
+        linear-gradient(135deg, rgba(30, 130, 170, 0.98), rgba(61, 201, 232, 0.96), rgba(93, 216, 240, 0.94));
+    color: #f4feff;
     animation: oceanBeacon 2s ease-in-out infinite;
 }
 
 [data-theme="ocean"] #img-lightbox img {
-    border: 1px solid rgba(91, 135, 162, 0.36);
-    box-shadow: 0 24px 62px rgba(2, 10, 18, 0.28);
+    border: 1px solid rgba(61, 201, 232, 0.3);
+    box-shadow: 0 24px 62px rgba(2, 14, 22, 0.28);
 }
 
 [data-theme="ocean"] .drag-drop-overlay {
-    background: rgba(8, 21, 33, 0.84);
+    background: rgba(6, 24, 36, 0.84);
 }
 
 [data-theme="ocean"] .mermaid-diagram svg {
-    filter: drop-shadow(0 0 16px rgba(118, 198, 223, 0.06));
+    filter: drop-shadow(0 0 16px rgba(61, 201, 232, 0.08));
 }
 
 [data-theme="ocean"] ::selection,
 [data-theme="ocean"] ::-moz-selection {
-    background: rgba(118, 198, 223, 0.18);
+    background: rgba(61, 201, 232, 0.22);
 }
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
 
 @keyframes oceanBackdropDrift {
     from {
         background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
     }
     to {
-        background-position: 2% -3%, -2% 2%, 1% 3%, 0% 0%;
+        background-position: 3% -4%, -3% 3%, 2% 4%, 0% 0%;
+    }
+}
+
+@keyframes oceanWaveMotion {
+    0% {
+        background-size: 112% 112%;
+    }
+    50% {
+        background-size: 116% 118%;
+    }
+    100% {
+        background-size: 112% 112%;
     }
 }
 
@@ -591,14 +616,30 @@
 @keyframes oceanBeacon {
     0%, 100% {
         box-shadow:
-            inset 0 1px 0 rgba(236, 247, 251, 0.12),
-            0 12px 24px rgba(10, 52, 82, 0.18);
+            inset 0 1px 0 rgba(93, 216, 240, 0.14),
+            0 12px 24px rgba(10, 60, 90, 0.18);
     }
     50% {
         box-shadow:
-            inset 0 1px 0 rgba(236, 247, 251, 0.16),
-            0 14px 28px rgba(10, 52, 82, 0.22),
-            0 0 18px rgba(118, 198, 223, 0.12);
+            inset 0 1px 0 rgba(93, 216, 240, 0.2),
+            0 14px 28px rgba(10, 60, 90, 0.24),
+            0 0 22px rgba(61, 201, 232, 0.16);
+    }
+}
+
+@keyframes oceanSendGlow {
+    0%, 100% {
+        box-shadow:
+            inset 0 1px 0 rgba(122, 228, 245, 0.14),
+            0 14px 28px rgba(10, 60, 90, 0.28),
+            0 0 20px rgba(61, 201, 232, 0.1);
+    }
+    50% {
+        box-shadow:
+            inset 0 1px 0 rgba(122, 228, 245, 0.18),
+            0 14px 28px rgba(10, 60, 90, 0.28),
+            0 0 30px rgba(61, 201, 232, 0.18),
+            0 0 48px rgba(61, 201, 232, 0.06);
     }
 }
 
@@ -607,9 +648,11 @@
         background-position: 18% 10%, 82% 46%, 48% 78%, 0 0, 0 0;
     }
     to {
-        background-position: 24% 16%, 76% 52%, 52% 84%, 0 0, 0 0;
+        background-position: 26% 18%, 74% 54%, 54% 88%, 0 0, 0 0;
     }
 }
+
+/* ── Media queries ─────────────────────────────────────────────────────── */
 
 @media (max-width: 767px) {
     [data-theme="ocean"] #chat-box::before {
@@ -626,12 +669,13 @@
     [data-theme="ocean"] #chat-box,
     [data-theme="ocean"] #chat-box::before,
     [data-theme="ocean"] .msg-row,
-    [data-theme="ocean"] .scroll-to-bottom-btn.has-new {
+    [data-theme="ocean"] .scroll-to-bottom-btn.has-new,
+    [data-theme="ocean"] .btn-send {
         animation: none !important;
     }
 }
 
-/* Defensive foreground compositing for browsers that struggle with fixed layers. */
+/* ── Defensive foreground compositing ──────────────────────────────────── */
 [data-theme="ocean"] #chat-content,
 [data-theme="ocean"] .greeting-row,
 [data-theme="ocean"] .msg-row,
@@ -644,28 +688,28 @@
     filter: none !important;
 }
 
-/* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
 [data-theme="ocean"] #chat-content::-webkit-scrollbar,
-[data-theme="ocean"] .session-drawer ::-webkit-scrollbar {
-[data-theme="ocean"] .integrations-drawer,
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar,
+[data-theme="ocean"] .integrations-drawer ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 [data-theme="ocean"] #chat-content::-webkit-scrollbar-thumb,
-[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-thumb {
-[data-theme="ocean"] .integrations-drawer,
-    background: linear-gradient(180deg, rgba(91, 135, 162, 0.4), rgba(60, 100, 130, 0.55));
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-thumb,
+[data-theme="ocean"] .integrations-drawer ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(61, 201, 232, 0.4), rgba(30, 130, 170, 0.55));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 [data-theme="ocean"] #chat-content::-webkit-scrollbar-track,
-[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-track {
-[data-theme="ocean"] .integrations-drawer,
-    background: rgba(91, 135, 162, 0.08);
+[data-theme="ocean"] .session-drawer ::-webkit-scrollbar-track,
+[data-theme="ocean"] .integrations-drawer ::-webkit-scrollbar-track {
+    background: rgba(61, 201, 232, 0.06);
 }
 
-/* ── Polish: Session item hover sweep ──────────────────────────────────── */
+/* ── Session item hover sweep ──────────────────────────────────────────── */
 [data-theme="ocean"] .chat-theme-option,
 [data-theme="ocean"] .session-item {
     position: relative;
@@ -678,7 +722,7 @@
     right: 12px;
     bottom: 6px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(118, 198, 223, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(61, 201, 232, 0.5), transparent);
     transform: scaleX(0);
     transform-origin: left center;
     transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
@@ -687,19 +731,19 @@
 [data-theme="ocean"] .chat-theme-option:hover::after,
 [data-theme="ocean"] .session-item:hover::after { transform: scaleX(1); }
 
-/* ── Polish: Bubble hover ──────────────────────────────────────────────── */
+/* ── Bubble hover ──────────────────────────────────────────────────────── */
 [data-theme="ocean"] .bubble {
     transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 [data-theme="ocean"] .msg-row:hover .bubble {
     transform: translateY(-1px);
     box-shadow:
-        inset 0 1px 0 rgba(226, 241, 248, 0.06),
-        0 18px 34px rgba(2, 10, 18, 0.26),
-        0 0 12px rgba(118, 198, 223, 0.06);
+        inset 0 1px 0 rgba(61, 201, 232, 0.06),
+        0 18px 34px rgba(2, 14, 22, 0.26),
+        0 0 14px rgba(61, 201, 232, 0.08);
 }
 
-/* ── Polish: Button active press ───────────────────────────────────────── */
+/* ── Button active press ───────────────────────────────────────────────── */
 [data-theme="ocean"] .btn-send:active:not(:disabled),
 [data-theme="ocean"] .btn-voice:active:not(:disabled),
 [data-theme="ocean"] .btn-more:active:not(:disabled),
