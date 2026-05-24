@@ -43,7 +43,7 @@ func TestResolveDeviceSSHAccessUsesCredentialReference(t *testing.T) {
 		t.Fatalf("create credential: %v", err)
 	}
 
-	deviceID, err := inventory.CreateDevice(db, "legacy-device", "server", "192.168.1.10", 2222, "legacy", "legacy-secret", credentialID, "desc", nil, "")
+	deviceID, err := inventory.CreateDevice(db, "legacy-device", "server", "ssh", "192.168.1.10", 2222, "legacy", "legacy-secret", credentialID, "desc", nil, "")
 	if err != nil {
 		t.Fatalf("create device: %v", err)
 	}

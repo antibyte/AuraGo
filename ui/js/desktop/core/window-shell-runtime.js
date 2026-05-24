@@ -490,7 +490,7 @@
             radio: { width: 960, height: 680 },
             gallery: { width: 1040, height: 700 },
             calendar: { width: 950, height: 650 },
-            'quick-connect': { width: 920, height: 640 },
+            'quick-connect': { width: 960, height: 680 },
             'code-studio': { width: 1280, height: 850 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },

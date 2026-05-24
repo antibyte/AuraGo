@@ -478,6 +478,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		desktopSSHHandler(w, r)
 	})
+	desktopVNCHandler := desktop.HandleVNCProxy(s.InventoryDB, s.Vault, s.Logger)
+	mux.HandleFunc("/api/desktop/vnc", func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		desktopVNCHandler(w, r)
+	})
 	mux.HandleFunc("/api/desktop/looper/presets", handleLooperPresets(s))
 	mux.HandleFunc("/api/desktop/looper/presets/", handleLooperPresetByID(s))
 	mux.HandleFunc("/api/desktop/looper/examples", handleLooperExamples(s))

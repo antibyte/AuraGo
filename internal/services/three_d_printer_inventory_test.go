@@ -58,7 +58,7 @@ func TestSyncThreeDPrinterDevicesDoesNotOverwriteManualSameNameDevice(t *testing
 		t.Fatalf("InitDB() error = %v", err)
 	}
 	defer db.Close()
-	if _, err := inventory.CreateDevice(db, "Shared Name", "server", "10.0.0.5", 22, "", "", "", "manual device", []string{"manual"}, ""); err != nil {
+	if _, err := inventory.CreateDevice(db, "Shared Name", "server", "ssh", "10.0.0.5", 22, "", "", "", "manual device", []string{"manual"}, ""); err != nil {
 		t.Fatalf("CreateDevice() error = %v", err)
 	}
 

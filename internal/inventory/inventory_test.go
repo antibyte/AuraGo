@@ -19,6 +19,7 @@ func TestInventory(t *testing.T) {
 		ID:            "srv-1",
 		Name:          "web-01",
 		Type:          "server",
+		Protocol:      "ssh",
 		Port:          80,
 		Username:      "admin",
 		VaultSecretID: "vault/web-01",

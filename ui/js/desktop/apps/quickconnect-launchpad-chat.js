@@ -48,8 +48,14 @@
                             <input class="vd-qc-input" type="text" name="name" value="${esc(existingDevice ? existingDevice.name : '')}" required>
                         </label>
                         <div class="vd-qc-form-row">
-                            <label class="vd-qc-label vd-qc-flex-3">${esc(t('desktop.qc_host'))}
+                            <label class="vd-qc-label vd-qc-flex-2">${esc(t('desktop.qc_host'))}
                                 <input class="vd-qc-input" type="text" name="host" value="${esc(existingDevice ? (existingDevice.ip_address || '') : '')}" placeholder="192.168.1.1" required>
+                            </label>
+                            <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_protocol'))}
+                                <select class="vd-qc-input" name="protocol">
+                                    <option value="ssh" ${(existingDevice ? existingDevice.protocol : 'ssh') === 'ssh' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_ssh'))}</option>
+                                    <option value="vnc" ${(existingDevice ? existingDevice.protocol : '') === 'vnc' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_vnc'))}</option>
+                                </select>
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_port'))}
                                 <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || 22) : 22}" min="1" max="65535">
@@ -61,7 +67,7 @@
                     </div>
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
-                        <label class="vd-qc-label">${esc(t('desktop.qc_username'))}
+                        <label class="vd-qc-label vd-qc-username-row">${esc(t('desktop.qc_username'))}
                             <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required>
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
@@ -103,6 +109,22 @@
                 }
             });
 
+            const protocolSelect = overlay.querySelector('select[name="protocol"]');
+            const usernameRow = overlay.querySelector('.vd-qc-username-row');
+            const portInput = overlay.querySelector('input[name="port"]');
+            function updateModalForProtocol() {
+                const proto = protocolSelect.value;
+                if (proto === 'vnc') {
+                    usernameRow.style.display = 'none';
+                    if (!existingDevice || !existingDevice.port) portInput.value = 5900;
+                } else {
+                    usernameRow.style.display = '';
+                    if (!existingDevice || !existingDevice.port) portInput.value = 22;
+                }
+            }
+            protocolSelect.addEventListener('change', updateModalForProtocol);
+            updateModalForProtocol();
+
             overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
                 const pwInput = overlay.querySelector('input[name="password"]');
                 pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
@@ -138,41 +160,49 @@
                 const hostVal = overlay.querySelector('input[name="host"]').value.trim();
                 const port = parseInt(overlay.querySelector('input[name="port"]').value) || 22;
                 const description = overlay.querySelector('input[name="description"]').value.trim();
+                const protocol = overlay.querySelector('select[name="protocol"]').value;
                 const username = overlay.querySelector('input[name="username"]').value.trim();
                 const password = overlay.querySelector('input[name="password"]').value;
                 const certificateText = certTextarea.value.trim();
 
-                if (!name || !hostVal || !username) {
+                if (!name || !hostVal) {
                     showNotify(t('desktop.qc_validation_error'));
                     return;
                 }
+                if (protocol === 'ssh' && !username) {
+                    showNotify(t('desktop.qc_validation_error'));
+                    return;
+                }
+
+                const credType = protocol === 'vnc' ? 'login' : 'ssh';
+                const effectiveUsername = protocol === 'vnc' ? '' : username;
 
                 try {
                     if (isEdit) {
                         // Update credential if exists
                         if (existingCred) {
-                            const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                            const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
                             await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
-                            const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                            const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
                             const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
                     } else {
                         // Create credential first
-                        const credBody = { name: name, type: 'ssh', host: hostVal, username: username, description: description, certificate_mode: 'text' };
+                        const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                         if (password) credBody.password = password;
                         if (certificateText) credBody.certificate_text = certificateText;
                         const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
                     overlay.remove();
                     await loadAll();
@@ -192,7 +222,16 @@
             URL.revokeObjectURL(url);
         }
 
-        async function connectToDevice(deviceId) {
+        function connectToDevice(deviceId) {
+            const device = cachedDevices.find(d => d.id === deviceId);
+            if (device && device.protocol === 'vnc') {
+                connectVNC(deviceId);
+            } else {
+                connectSSH(deviceId);
+            }
+        }
+
+        function connectSSH(deviceId) {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -259,6 +298,66 @@
                 if (activeWS === ws) { term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n'); activeWS = null; }
             };
             ws.onerror = () => { term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n'); };
+        }
+
+        async function connectVNC(deviceId) {
+            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
+            if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
+            terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
+
+            const vncContainer = document.createElement('div');
+            vncContainer.className = 'vd-qc-vnc-container';
+            terminalArea.replaceChildren(vncContainer);
+            activeTerm = null;
+            activeFitAddon = null;
+
+            let password = '';
+            const device = cachedDevices.find(d => d.id === deviceId);
+            if (device && device.credential_id) {
+                try {
+                    const body = await api('/api/credentials/export/' + device.credential_id + '?type=password');
+                    if (body && body.content) password = body.content;
+                } catch(_) {}
+            }
+
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = proto + '//' + location.host + '/api/desktop/vnc?device_id=' + encodeURIComponent(deviceId);
+
+            if (!window.RFB) {
+                terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">noVNC not loaded</span></div>`;
+                return;
+            }
+
+            const rfb = new window.RFB(vncContainer, wsUrl, {
+                credentials: { password: password },
+                wsProtocols: ['binary']
+            });
+            rfb.viewOnly = false;
+            rfb.scaleViewport = true;
+            rfb.resizeSession = true;
+
+            rfb.addEventListener('connect', () => {
+                showNotify(t('desktop.qc_vnc_connected'));
+            });
+            rfb.addEventListener('disconnect', () => {
+                if (activeWS && activeWS.close) { activeWS = null; }
+                terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_disconnected'))}</span></div>`;
+            });
+            rfb.addEventListener('credentialsrequired', () => {
+                const pw = prompt(t('desktop.qc_vnc_password_prompt') || 'VNC password:');
+                if (pw !== null) {
+                    rfb.sendCredentials({ password: pw });
+                } else {
+                    rfb.disconnect();
+                }
+            });
+            rfb.addEventListener('securityfailure', (e) => {
+                showNotify(t('desktop.qc_vnc_connection_error') + ': ' + (e.detail.reason || ''));
+            });
+
+            activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
     }
 

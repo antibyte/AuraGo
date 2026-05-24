@@ -544,6 +544,7 @@ func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 		record := inventory.DeviceRecord{
 			Name:        name,
 			Type:        deviceType,
+			Protocol:    "ssh",
 			IPAddress:   ip,
 			Port:        dev.Port,
 			Description: desc,

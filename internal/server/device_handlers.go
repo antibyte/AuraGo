@@ -93,6 +93,13 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 		if req.Type == "" {
 			req.Type = "generic"
 		}
+		if req.Protocol == "" {
+			req.Protocol = "ssh"
+		}
+		if req.Protocol != "ssh" && req.Protocol != "vnc" {
+			jsonError(w, `{"error":"protocol must be ssh or vnc"}`, http.StatusBadRequest)
+			return
+		}
 		if req.Tags == nil {
 			req.Tags = []string{}
 		}
@@ -105,7 +112,7 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 			req.VaultSecretID = ""
 		}
 
-		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.CredentialID, req.Description, req.Tags, req.MACAddress)
+		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.Protocol, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.CredentialID, req.Description, req.Tags, req.MACAddress)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create device", "Failed to create device", err, "device_name", req.Name)
 			return
@@ -147,6 +154,13 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		}
 		if req.Type == "" {
 			req.Type = "generic"
+		}
+		if req.Protocol == "" {
+			req.Protocol = "ssh"
+		}
+		if req.Protocol != "ssh" && req.Protocol != "vnc" {
+			jsonError(w, `{"error":"protocol must be ssh or vnc"}`, http.StatusBadRequest)
+			return
 		}
 		if req.Tags == nil {
 			req.Tags = []string{}

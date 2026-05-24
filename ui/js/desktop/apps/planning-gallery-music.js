@@ -729,7 +729,7 @@
                     api('/api/devices'),
                     api('/api/credentials')
                 ]);
-                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
@@ -758,6 +758,7 @@
                 id: '__aurago-host__',
                 name: 'AuraGo Host',
                 type: 'server',
+                protocol: 'ssh',
                 ip_address: hostName,
                 port: 22,
                 description: 'Current AuraGo web host',
@@ -778,16 +779,18 @@
             }
             deviceList.innerHTML = filtered.map(d => {
                 const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
-                const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 ? ':' + d.port : ''}`;
+                const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
+                const protoLabel = d.protocol === 'vnc' ? 'VNC' : 'SSH';
+                const protoIcon = d.protocol === 'vnc' ? 'monitor' : 'terminal';
                 return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}">
-                    <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : 'server', 'S', 'vd-qc-device-papirus-icon', 22)}</span>
+                    <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : protoIcon, 'S', 'vd-qc-device-papirus-icon', 22)}</span>
                     <div class="vd-qc-device-main">
                         <div class="vd-qc-device-name">${esc(d.name)}</div>
                         <div class="vd-qc-device-meta">${esc(endpoint || '')}</div>
                         ${d.description ? `<div class="vd-qc-device-desc">${esc(d.description)}</div>` : ''}
                     </div>
                     <div class="vd-qc-device-badges">
-                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">Setup</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">SSH</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
+                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">Setup</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
                     </div>
                 </button>`;
             }).join('');
@@ -812,7 +815,7 @@
         function showDeviceContextMenu(x, y, device) {
             closeContextMenu();
             const items = [
-                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : 'terminal', fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
+                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : (device.protocol === 'vnc' ? 'monitor' : 'terminal'), fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
                 { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) }
             ];
             if (!device.is_template) {

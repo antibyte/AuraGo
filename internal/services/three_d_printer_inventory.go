@@ -74,6 +74,7 @@ func elegooPrinterDeviceRecord(printer config.ElegooCentauriCarbonPrinterConfig)
 	return inventory.DeviceRecord{
 		Name:        name,
 		Type:        "printer",
+		Protocol:    "",
 		IPAddress:   host,
 		Port:        port,
 		Description: "3D printer (Elegoo Centauri Carbon / SDCP)",
@@ -90,6 +91,7 @@ func klipperPrinterDeviceRecord(printer config.KlipperPrinterConfig) (inventory.
 	return inventory.DeviceRecord{
 		Name:        name,
 		Type:        "printer",
+		Protocol:    "",
 		IPAddress:   host,
 		Port:        port,
 		Description: "3D printer (Klipper / Moonraker)",
@@ -101,7 +103,7 @@ func syncThreeDPrinterDevice(db *sql.DB, byName map[string]inventory.DeviceRecor
 	key := strings.ToLower(strings.TrimSpace(record.Name))
 	existing, exists := byName[key]
 	if !exists {
-		id, err := inventory.CreateDevice(db, record.Name, record.Type, record.IPAddress, record.Port, record.Username, record.VaultSecretID, record.CredentialID, record.Description, record.Tags, record.MACAddress)
+		id, err := inventory.CreateDevice(db, record.Name, record.Type, record.Protocol, record.IPAddress, record.Port, record.Username, record.VaultSecretID, record.CredentialID, record.Description, record.Tags, record.MACAddress)
 		if err != nil {
 			return inventory.DeviceRecord{}, false, false, fmt.Errorf("create 3D printer device %q: %w", record.Name, err)
 		}

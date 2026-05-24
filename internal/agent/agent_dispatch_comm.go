@@ -1994,6 +1994,7 @@ func upnpAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 		record := inventory.DeviceRecord{
 			Name:        name,
 			Type:        dt,
+			Protocol:    "ssh",
 			IPAddress:   ip,
 			Port:        port,
 			Description: desc,
