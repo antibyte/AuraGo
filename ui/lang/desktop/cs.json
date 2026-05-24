@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "Přidat do chatu",
   "desktop.fm.ask_agent": "Zeptat se agenta",
   "desktop.chat_file_context": "Kontext souboru",
+  "desktop.chat_request_context": "Kontext požadavku",
+  "desktop.window_ai_context": "Zeptat se agenta na toto okno",
   "desktop.chat_ask_file_prompt": "Co mám vědět o {{name}}?",
   "desktop.fm.select_all": "Vybrat vše",
   "desktop.fm.sort_by": "Seřadit podle",

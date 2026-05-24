@@ -405,16 +405,35 @@ func sseWriteDone(w http.ResponseWriter) {
 }
 
 type desktopChatContext struct {
-	Source          string   `json:"source"`
-	OriginApp       string   `json:"origin_app,omitempty"`
-	CurrentFile     string   `json:"current_file"`
-	CurrentLanguage string   `json:"current_language"`
-	CurrentContent  string   `json:"current_content"`
-	CursorLine      int      `json:"cursor_line"`
-	CursorColumn    int      `json:"cursor_column"`
-	SelectedText    string   `json:"selected_text"`
-	OpenFiles       []string `json:"open_files"`
-	ImageBase64     string   `json:"image_base64,omitempty"`
+	Source          string                `json:"source"`
+	OriginApp       string                `json:"origin_app,omitempty"`
+	CurrentFile     string                `json:"current_file"`
+	CurrentLanguage string                `json:"current_language"`
+	CurrentContent  string                `json:"current_content"`
+	CursorLine      int                   `json:"cursor_line"`
+	CursorColumn    int                   `json:"cursor_column"`
+	SelectedText    string                `json:"selected_text"`
+	OpenFiles       []string              `json:"open_files"`
+	ImageBase64     string                `json:"image_base64,omitempty"`
+	WindowContext   *desktopWindowContext `json:"window_context,omitempty"`
+}
+
+type desktopWindowContext struct {
+	Source     string                         `json:"source,omitempty"`
+	AppID      string                         `json:"app_id,omitempty"`
+	StoreAppID string                         `json:"store_app_id,omitempty"`
+	WindowID   string                         `json:"window_id,omitempty"`
+	Label      string                         `json:"label,omitempty"`
+	Purpose    string                         `json:"purpose,omitempty"`
+	Guide      string                         `json:"guide,omitempty"`
+	Resources  []desktopWindowContextResource `json:"resources,omitempty"`
+}
+
+type desktopWindowContextResource struct {
+	Kind          string `json:"kind,omitempty"`
+	Label         string `json:"label,omitempty"`
+	Path          string `json:"path,omitempty"`
+	ContainerPath string `json:"container_path,omitempty"`
 }
 
 func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Config) llm.ChatClient {
@@ -720,6 +739,11 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	b.WriteString("\nFor existing desktop code files, prefer virtual_desktop search_file/read_file_excerpt plus patch_file. Use write_file only when replacing the whole file with complete, non-empty content; never call write_file with omitted or empty content.")
 	b.WriteString("\n\nIf the current user request is a short approval or continuation, infer the referenced task from the visible chat history and continue the previous Virtual Desktop task. Do not ask for confirmation again, do not ask the user to repeat the task, and start with the appropriate tool call when files, apps, widgets, documents, or spreadsheets must be changed or opened.")
 	b.WriteString("\n\nYou can open files in desktop apps using the virtual_desktop tool with operation \"open_in_app\". Available apps: editor (plain text workspace files), writer (word-processing documents, docx, html), sheets (spreadsheets, xlsx, csv), code-studio (code files, scripts). Code Studio mounts the virtual desktop workspace at /workspace, so Apps/<app_id>/game.js opens as /workspace/Apps/<app_id>/game.js. After editing a generated app, run it with open_app using the generated app id, or open_in_app with the entry path Apps/<app_id>/<entry> so AuraGo can infer the app. After creating or writing a file, proactively open it in the appropriate app so the user can see it immediately. Example: after writing a document, use open_in_app with app_id \"writer\" and path to the file.")
+	if windowContext := buildDesktopWindowContextPrompt(chatContext.WindowContext); windowContext != "" {
+		b.WriteString("\n\nThe user launched this chat turn from a Virtual Desktop window. Use this metadata only to understand the user's current app context; do not show the raw metadata back unless the user asks.")
+		b.WriteString("\n")
+		b.WriteString(desktopExternalData("desktop_window_context", windowContext, 12000))
+	}
 	if chatContext.Source == "code-studio" {
 		b.WriteString("\n\nThe user is coding in Code Studio.")
 		b.WriteString("\nImportant: Code Studio files live inside the virtual desktop workspace mounted at /workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
@@ -767,6 +791,64 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	}
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
 		b.WriteString("\n\nThe user attached a photo taken with the Camera app for this turn. If the provider supports multimodal input, the image is supplied separately as an image_url data URI. Do not store or request the raw image bytes.")
+	}
+	return b.String()
+}
+
+func buildDesktopWindowContextPrompt(windowContext *desktopWindowContext) string {
+	if windowContext == nil {
+		return ""
+	}
+	var b strings.Builder
+	appendLine := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(label)
+		b.WriteString(": ")
+		b.WriteString(value)
+	}
+	appendLine("Label", windowContext.Label)
+	appendLine("App ID", windowContext.AppID)
+	appendLine("Store app ID", windowContext.StoreAppID)
+	appendLine("Window ID", windowContext.WindowID)
+	appendLine("Purpose", windowContext.Purpose)
+	appendLine("Guide", windowContext.Guide)
+	for i, resource := range windowContext.Resources {
+		if i >= 8 {
+			break
+		}
+		if strings.TrimSpace(resource.Kind) == "" &&
+			strings.TrimSpace(resource.Label) == "" &&
+			strings.TrimSpace(resource.Path) == "" &&
+			strings.TrimSpace(resource.ContainerPath) == "" {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString("Resource")
+		if strings.TrimSpace(resource.Label) != "" {
+			b.WriteString(" ")
+			b.WriteString(strings.TrimSpace(resource.Label))
+		}
+		b.WriteString(":")
+		if strings.TrimSpace(resource.Kind) != "" {
+			b.WriteString("\nKind: ")
+			b.WriteString(strings.TrimSpace(resource.Kind))
+		}
+		if strings.TrimSpace(resource.Path) != "" {
+			b.WriteString("\nPath: ")
+			b.WriteString(strings.TrimSpace(resource.Path))
+		}
+		if strings.TrimSpace(resource.ContainerPath) != "" {
+			b.WriteString("\nContainer path: ")
+			b.WriteString(strings.TrimSpace(resource.ContainerPath))
+		}
 	}
 	return b.String()
 }

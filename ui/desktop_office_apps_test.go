@@ -221,7 +221,7 @@ func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 	chatSource := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	for _, marker := range []string{
 		"host.dataset.chatSourceApp",
-		"origin_app: sourceApp",
+		"payload.origin_app = sourceApp",
 	} {
 		if !strings.Contains(chatSource, marker) {
 			t.Fatalf("desktop chat launch context missing marker %q", marker)

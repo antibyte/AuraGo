@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "Lägg till i chatten",
   "desktop.fm.ask_agent": "Fråga agenten",
   "desktop.chat_file_context": "Filkontext",
+  "desktop.chat_request_context": "Förfrågningskontext",
+  "desktop.window_ai_context": "Fråga agenten om det här fönstret",
   "desktop.chat_ask_file_prompt": "Vad bör jag veta om {{name}}?",
   "desktop.fm.select_all": "Markera alla",
   "desktop.fm.sort_by": "Sortera efter",

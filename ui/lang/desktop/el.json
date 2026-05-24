@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "Προσθήκη στη συνομιλία",
   "desktop.fm.ask_agent": "Ρώτηση agent",
   "desktop.chat_file_context": "Πλαίσιο αρχείου",
+  "desktop.chat_request_context": "Πλαίσιο αιτήματος",
+  "desktop.window_ai_context": "Ρωτήστε τον agent για αυτό το παράθυρο",
   "desktop.chat_ask_file_prompt": "Τι πρέπει να ξέρω για το {{name}};",
   "desktop.fm.select_all": "Επιλογή όλων",
   "desktop.fm.sort_by": "Ταξινόμηση κατά",

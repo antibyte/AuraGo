@@ -12,6 +12,7 @@
 .vd-todo-action-icon.vd-papirus-icon,
 .vd-calendar-action-icon.vd-papirus-icon,
 .vd-modal-action-icon.vd-papirus-icon,
+.vd-window-ai-button-icon.vd-papirus-icon,
 .vd-chat-send-icon.vd-papirus-icon,
 .vd-qc-close-icon.vd-papirus-icon,
 .vd-qc-input-icon.vd-papirus-icon,
@@ -190,6 +191,15 @@
     width: 13px;
     height: 13px;
     background: linear-gradient(45deg, transparent 44%, currentColor 44%, currentColor 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, currentColor 44%, currentColor 56%, transparent 56%);
+}
+
+.vd-window-button[data-action="ai-context"]::before {
+    display: none;
+}
+
+.vd-window-ai-button-icon {
+    width: 14px;
+    height: 14px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button::before,

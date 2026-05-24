@@ -26,17 +26,17 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260524-novnc-protocol"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
 	}
 }
 
-func TestDesktopMainLoaderBumpsCacheAfterShortcutLogoIconFix(t *testing.T) {
+func TestDesktopMainLoaderBumpsCacheAfterWindowAIContext(t *testing.T) {
 	t.Parallel()
 
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(main, "var assetV = v + '-desktop-20260524-novnc-protocol';") {
-		t.Fatal("desktop main loader asset version must be bumped after shortcut logo icon fixes")
+	if !strings.Contains(main, "var assetV = v + '-desktop-20260525-window-ai-context';") {
+		t.Fatal("desktop main loader asset version must be bumped after window AI context changes")
 	}
 }
 
@@ -44,13 +44,13 @@ func TestDesktopCSSBumpsCacheAfterCalculatorLayoutFix(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260524-calculator-layout`) {
-		t.Fatal("desktop CSS link must be cache-busted after calculator layout fixes")
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260525-window-ai-context`) {
+		t.Fatal("desktop CSS link must be cache-busted after window AI context changes")
 	}
 
 	css := rawDesktopAssetText(t, "css/desktop.css")
-	if !strings.Contains(css, `@import url('desktop-apps.css?v=20260524-calculator-layout');`) {
-		t.Fatal("desktop apps CSS import must be cache-busted after calculator layout fixes")
+	if !strings.Contains(css, `@import url('desktop-windows.css?v=20260525-window-ai-context');`) {
+		t.Fatal("desktop windows CSS import must be cache-busted after window AI context changes")
 	}
 }
 

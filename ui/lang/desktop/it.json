@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "Aggiungi alla chat",
   "desktop.fm.ask_agent": "Chiedi all'agente",
   "desktop.chat_file_context": "Contesto file",
+  "desktop.chat_request_context": "Contesto della richiesta",
+  "desktop.window_ai_context": "Chiedi all'agente di questa finestra",
   "desktop.chat_ask_file_prompt": "Cosa dovrei sapere su {{name}}?",
   "desktop.fm.select_all": "Seleziona tutto",
   "desktop.fm.sort_by": "Ordina per",

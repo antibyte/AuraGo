@@ -636,7 +636,7 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
+                ${aiButtonMarkup('widget:' + safeWidgetId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
                 <button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>
                 <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
             </div>
@@ -728,7 +728,7 @@
                 <div class="vd-window-subtitle"></div>
             </div>
             <div class="vd-window-actions">
-                <button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
+                ${aiButtonMarkup(appId)}<button class="vd-window-button" type="button" data-action="minimize" title="${esc(t('desktop.minimize'))}" aria-label="${esc(t('desktop.minimize'))}"></button>
                 ${isResizable ? `<button class="vd-window-button" type="button" data-action="maximize" title="${esc(t('desktop.maximize'))}" aria-label="${esc(t('desktop.maximize'))}"></button>` : ''}
                 <button class="vd-window-button" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
             </div>
@@ -795,6 +795,7 @@
         wireWindowContextMenu(win, id);
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
+        const aiBtn = win.querySelector('[data-action="ai-context"]'); if (aiBtn) aiBtn.addEventListener('click', () => openAgentChatForWindow(id));
         const maximizeBtn = win.querySelector('[data-action="maximize"]');
         if (maximizeBtn) maximizeBtn.addEventListener('click', () => toggleMaximizeWindow(id));
         const bar = win.querySelector('.vd-window-titlebar');

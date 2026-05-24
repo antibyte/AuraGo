@@ -50,6 +50,8 @@
         } catch (err) {
             if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
         } finally {
+            delete host.dataset.chatWindowContext;
+            renderChatContextBar(host);
             state.chatBusy = false;
             host._desktopChatAbort = null;
             setDesktopChatBusy(host, false);
@@ -389,6 +391,40 @@
         return files;
     }
 
+    function limitChatContextString(value, maxLength) {
+        const text = String(value || '').replace(/[\r\n]+/g, ' ').trim();
+        if (!maxLength || text.length <= maxLength) return text;
+        return text.slice(0, maxLength).trim();
+    }
+
+    function normalizeChatLaunchWindowContext(context) {
+        const raw = context && (context.window_context || context.windowContext);
+        if (!raw || typeof raw !== 'object') return null;
+        const normalized = {
+            source: 'desktop-window',
+            app_id: limitChatContextString(raw.app_id, 128),
+            store_app_id: limitChatContextString(raw.store_app_id, 96),
+            window_id: limitChatContextString(raw.window_id, 160),
+            label: limitChatContextString(raw.label || raw.app_name || raw.app_id, 160),
+            purpose: limitChatContextString(raw.purpose, 500),
+            guide: limitChatContextString(raw.guide, 2000),
+            resources: []
+        };
+        const resources = Array.isArray(raw.resources) ? raw.resources.slice(0, 8) : [];
+        resources.forEach(resource => {
+            if (!resource || typeof resource !== 'object') return;
+            const item = {
+                kind: limitChatContextString(resource.kind, 80),
+                label: limitChatContextString(resource.label, 160),
+                path: limitChatContextString(resource.path, 512),
+                container_path: limitChatContextString(resource.container_path, 512)
+            };
+            if (item.kind || item.label || item.path || item.container_path) normalized.resources.push(item);
+        });
+        if (!normalized.label && !normalized.app_id && !normalized.purpose) return null;
+        return normalized;
+    }
+
     function chatAttachedFiles(host) {
         try {
             const files = JSON.parse((host && host.dataset.chatFiles) || '[]');
@@ -398,23 +434,42 @@
         }
     }
 
+    function chatAttachedWindowContext(host) {
+        try {
+            const context = JSON.parse((host && host.dataset.chatWindowContext) || 'null');
+            if (!context || typeof context !== 'object') return null;
+            return context.label || context.app_id || context.purpose ? context : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
     function renderChatContextBar(host) {
         const bar = host && host.querySelector('[data-chat-context]');
         if (!bar) return;
         const files = chatAttachedFiles(host);
-        if (!files.length) {
+        const windowContext = chatAttachedWindowContext(host);
+        if (!files.length && !windowContext) {
             bar.hidden = true;
             bar.innerHTML = '';
             return;
         }
-        const names = files.map(file => file.name || file.path).join(', ');
+        const pieces = [];
+        if (windowContext) {
+            pieces.push(`${desktopText('desktop.chat_request_context', 'Request context')}: ${windowContext.label || windowContext.app_id || windowContext.purpose}`);
+        }
+        if (files.length) {
+            const names = files.map(file => file.name || file.path).join(', ');
+            pieces.push(`${desktopText('desktop.chat_file_context', 'File context')}: ${names}`);
+        }
         bar.hidden = false;
-        bar.innerHTML = `<span>${esc(desktopText('desktop.chat_file_context', 'File context'))}: ${esc(names)}</span>
+        bar.innerHTML = `<span>${esc(pieces.join(' | '))}</span>
             <button type="button" data-chat-context-clear title="${esc(desktopText('desktop.clear', 'Clear'))}">${iconMarkup('x', 'X', 'vd-chat-context-icon', 12)}</button>`;
         const clear = bar.querySelector('[data-chat-context-clear]');
         if (clear) clear.addEventListener('click', () => {
             host.dataset.chatFiles = '[]';
             delete host.dataset.chatSourceApp;
+            delete host.dataset.chatWindowContext;
             renderChatContextBar(host);
         });
     }
@@ -429,6 +484,8 @@
             if (!merged.some(existingFile => existingFile.path === file.path)) merged.push(file);
         });
         host.dataset.chatFiles = JSON.stringify(merged);
+        const windowContext = normalizeChatLaunchWindowContext(context || {});
+        if (windowContext) host.dataset.chatWindowContext = JSON.stringify(windowContext);
         const sourceApp = String((context && (context.chat_source_app || context.source_app || context.origin_app)) || '').trim();
         if (sourceApp) host.dataset.chatSourceApp = sourceApp;
         else if (incoming.length) delete host.dataset.chatSourceApp;
@@ -451,14 +508,21 @@
 
     function chatContextPayload(host) {
         const files = chatAttachedFiles(host);
-        if (!files.length) return {};
+        const windowContext = chatAttachedWindowContext(host);
+        if (!files.length && !windowContext) return {};
+        const payload = {};
         const sourceApp = String((host && host.dataset.chatSourceApp) || '').trim();
-        return {
-            source: 'desktop-file',
-            origin_app: sourceApp,
-            current_file: files[0].path,
-            open_files: files.map(file => file.path)
-        };
+        if (files.length) {
+            payload.source = 'desktop-file';
+            payload.origin_app = sourceApp;
+            payload.current_file = files[0].path;
+            payload.open_files = files.map(file => file.path);
+        }
+        if (windowContext) {
+            if (!payload.source) payload.source = 'desktop-window';
+            payload.window_context = windowContext;
+        }
+        return payload;
     }
 
     async function sendDesktopChatStream(host, message, context) {

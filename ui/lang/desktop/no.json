@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "Legg til i chat",
   "desktop.fm.ask_agent": "Spør agenten",
   "desktop.chat_file_context": "Filkontekst",
+  "desktop.chat_request_context": "Forespørselskontekst",
+  "desktop.window_ai_context": "Spør agenten om dette vinduet",
   "desktop.chat_ask_file_prompt": "Hva bør jeg vite om {{name}}?",
   "desktop.fm.select_all": "Velg alle",
   "desktop.fm.sort_by": "Sorter etter",

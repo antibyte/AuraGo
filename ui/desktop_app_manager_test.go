@@ -96,11 +96,12 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	}
 	mainJS := string(mainBytes)
 	for _, want := range []string{
-		`var assetV = v + '-desktop-20260524-novnc-protocol';`,
+		`var assetV = v + '-desktop-20260525-window-ai-context';`,
 		`/js/desktop/core/desktop-foundation.js?v=' + assetV`,
 		`/js/desktop/core/icon-selection-runtime.js?v=' + assetV`,
 		`/js/desktop/core/widget-autosize-runtime.js?v=' + assetV`,
 		`/js/desktop/core/window-shell-runtime.js?v=' + assetV`,
+		`/js/desktop/core/window-ai-context.js?v=' + assetV`,
 		`/js/desktop/core/menus-and-routing.js?v=' + assetV`,
 		`/js/desktop/core/shortcut-runtime.js?v=' + assetV`,
 		`/js/desktop/apps/settings-calculator.js?v=' + assetV`,

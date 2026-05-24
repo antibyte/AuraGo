@@ -429,6 +429,8 @@
   "desktop.fm.add_to_chat": "添加到聊天",
   "desktop.fm.ask_agent": "询问代理",
   "desktop.chat_file_context": "文件上下文",
+  "desktop.chat_request_context": "请求上下文",
+  "desktop.window_ai_context": "询问智能体此窗口",
   "desktop.chat_ask_file_prompt": "我应该了解 {{name}} 的什么信息？",
   "desktop.fm.select_all": "全选",
   "desktop.fm.sort_by": "排序方式",
