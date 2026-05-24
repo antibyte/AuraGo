@@ -262,6 +262,17 @@
         }
     }
 
+    function getBubbleSurfaceY(b, x) {
+        const R = 20; // corner radius of the bubble
+        const r = Math.min(R, b.width / 2);
+        if (x < r) {
+            return b.top + r - Math.sqrt(r * r - Math.pow(r - x, 2));
+        } else if (b.width - x < r) {
+            return b.top + r - Math.sqrt(r * r - Math.pow(r - (b.width - x), 2));
+        }
+        return b.top;
+    }
+
     function drawBubbleSand() {
         ctx.save();
         for (let i = 0; i < cachedBubbles.length; i++) {
@@ -279,12 +290,14 @@
             
             // 1. Draw base/shadow layer
             ctx.beginPath();
-            ctx.moveTo(b.left, b.top);
+            ctx.moveTo(b.left, getBubbleSurfaceY(b, 0));
             for (let col = 0; col < map.length; col++) {
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
+                const x = col * b.bucketSize + b.bucketSize / 2;
+                const surfaceY = getBubbleSurfaceY(b, x);
                 
                 // Rounded corner tapering (first 14px and last 14px of bubble width)
-                const distFromLeft = col * b.bucketSize;
+                const distFromLeft = x;
                 const distFromRight = b.width - distFromLeft;
                 let taper = 1;
                 if (distFromLeft < 14) {
@@ -293,10 +306,17 @@
                     taper = distFromRight / 14;
                 }
                 
-                const py = b.top - map[col] * taper;
+                const py = surfaceY - map[col] * taper;
                 ctx.lineTo(px, py);
             }
-            ctx.lineTo(b.right, b.top);
+            ctx.lineTo(b.right, getBubbleSurfaceY(b, b.width));
+            
+            // Trace back along the curved bubble surface
+            for (let col = map.length - 1; col >= 0; col--) {
+                const px = b.left + col * b.bucketSize + b.bucketSize / 2;
+                const x = col * b.bucketSize + b.bucketSize / 2;
+                ctx.lineTo(px, getBubbleSurfaceY(b, x));
+            }
             ctx.closePath();
             
             // Base sand gradient
@@ -312,19 +332,29 @@
             
             // 2. Draw a beautiful golden peak highlight layer (gives 3D depth)
             ctx.beginPath();
-            ctx.moveTo(b.left, b.top);
+            ctx.moveTo(b.left, getBubbleSurfaceY(b, 0));
             for (let col = 0; col < map.length; col++) {
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
-                const distFromLeft = col * b.bucketSize;
+                const x = col * b.bucketSize + b.bucketSize / 2;
+                const surfaceY = getBubbleSurfaceY(b, x);
+                
+                const distFromLeft = x;
                 const distFromRight = b.width - distFromLeft;
                 let taper = 1;
                 if (distFromLeft < 14) taper = distFromLeft / 14;
                 else if (distFromRight < 14) taper = distFromRight / 14;
                 
-                const py = b.top - map[col] * taper * 0.7;
+                const py = surfaceY - map[col] * taper * 0.7;
                 ctx.lineTo(px, py);
             }
-            ctx.lineTo(b.right, b.top);
+            ctx.lineTo(b.right, getBubbleSurfaceY(b, b.width));
+            
+            // Trace back along curved bubble surface
+            for (let col = map.length - 1; col >= 0; col--) {
+                const px = b.left + col * b.bucketSize + b.bucketSize / 2;
+                const x = col * b.bucketSize + b.bucketSize / 2;
+                ctx.lineTo(px, getBubbleSurfaceY(b, x));
+            }
             ctx.closePath();
             
             const highlightGrad = ctx.createLinearGradient(0, b.top - 12, 0, b.top);
@@ -335,6 +365,9 @@
             
             // 3. Draw soft, organic sand speck grains
             for (let col = 0; col < map.length; col += 2) {
+                const x = col * b.bucketSize + b.bucketSize / 2;
+                const surfaceY = getBubbleSurfaceY(b, x);
+                
                 const distFromLeft = col * b.bucketSize;
                 const distFromRight = b.width - distFromLeft;
                 let taper = 1;
@@ -345,7 +378,7 @@
                 if (h > 0.8) {
                     ctx.fillStyle = `rgba(255, 245, 220, ${rand(0.3, 0.85)})`;
                     const px = b.left + col * b.bucketSize + rand(-1.2, 1.2);
-                    const py = b.top - h - rand(0, 1.0);
+                    const py = surfaceY - h - rand(0, 1.0);
                     ctx.fillRect(px, py, 1.0, 1.0);
                     
                     if (col % 4 === 0) {
@@ -743,7 +776,7 @@
                             } else if (distFromRight < 14) {
                                 taper = distFromRight / 14;
                             }
-                            const surfaceY = b.top - b.heightMap[col] * taper;
+                            const surfaceY = getBubbleSurfaceY(b, fx[i] - b.left) - b.heightMap[col] * taper;
                             if (fy[i] >= surfaceY - 4.5 && fy[i] <= surfaceY + 2.5) {
                                 b.heightMap[col] = Math.min(b.heightMap[col] + fs[i] * 0.45, 18);
                                 if (col > 0) b.heightMap[col - 1] = Math.min(b.heightMap[col - 1] + fs[i] * 0.15, 18);
