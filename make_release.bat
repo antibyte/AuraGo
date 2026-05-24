@@ -98,6 +98,9 @@ mkdir "%TMPSTAGE%\agent_workspace\skills"
 mkdir "%TMPSTAGE%\agent_workspace\tools"
 mkdir "%TMPSTAGE%\agent_workspace\workdir\attachments"
 mkdir "%TMPSTAGE%\assets\media_samples"
+mkdir "%TMPSTAGE%\assets\mission_samples"
+mkdir "%TMPSTAGE%\assets\cheatsheet_samples"
+mkdir "%TMPSTAGE%\assets\skill_samples"
 mkdir "%TMPSTAGE%\data\vectordb"
 mkdir "%TMPSTAGE%\log"
 
@@ -110,11 +113,20 @@ if exist "agent_workspace\skills" (
 if exist "assets\media_samples" (
     xcopy /e /i /q "assets\media_samples" "%TMPSTAGE%\assets\media_samples" >nul
 )
+if exist "assets\mission_samples" (
+    xcopy /e /i /q "assets\mission_samples" "%TMPSTAGE%\assets\mission_samples" >nul
+)
+if exist "assets\cheatsheet_samples" (
+    xcopy /e /i /q "assets\cheatsheet_samples" "%TMPSTAGE%\assets\cheatsheet_samples" >nul
+)
+if exist "assets\skill_samples" (
+    xcopy /e /i /q "assets\skill_samples" "%TMPSTAGE%\assets\skill_samples" >nul
+)
 del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secret.json"  2>nul
 del /f /q "%TMPSTAGE%\agent_workspace\skills\client_secrets.json" 2>nul
 del /f /q "%TMPSTAGE%\agent_workspace\skills\token.json"          2>nul
 
-powershell -nologo -noprofile -command "(Get-Content 'config_template.yaml') -replace 'api_key: \"sk-[^\"]*\"','api_key: \"\"' -replace 'bot_token: \"[^\"]*\"','bot_token: \"\"' | Set-Content '%TMPSTAGE%\config.yaml'"
+powershell -nologo -noprofile -command "(Get-Content 'config_template.yaml') -replace 'api_key: \"sk-[^\"]*\"','api_key: \"\"' -replace 'bot_token: \"[^\"]*\"','bot_token: \"\"' -replace 'access_token: \"[^\"]*\"','access_token: \"\"' | Set-Content '%TMPSTAGE%\config.yaml'"
 
 tar -czf "deploy\resources.dat" -C "%TMPSTAGE%" .
 rmdir /s /q "%TMPSTAGE%"

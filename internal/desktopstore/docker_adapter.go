@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -272,11 +273,11 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
 			continue
 		}
-		suffix := ":rw"
+		mode := "rw"
 		if bind.ReadOnly {
-			suffix = ":ro"
+			mode = "ro"
 		}
-		binds = append(binds, bind.HostPath+":"+bind.ContainerPath+suffix)
+		binds = append(binds, dockerutil.FormatBindMount(bind.HostPath, bind.ContainerPath, mode))
 	}
 	restart := strings.TrimSpace(spec.Restart)
 	if restart == "" {

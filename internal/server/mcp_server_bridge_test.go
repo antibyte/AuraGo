@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"strings"
@@ -28,6 +30,7 @@ func TestMCPBuildToolListRequiresExplicitAllowedTools(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.ToolsDir = t.TempDir()
 	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Tools.Memory.Enabled = true
 	cfg.MCPServer.Enabled = true
 
 	s := &Server{
@@ -37,6 +40,55 @@ func TestMCPBuildToolListRequiresExplicitAllowedTools(t *testing.T) {
 
 	if tools := mcpBuildToolList(s); len(tools) != 0 {
 		t.Fatalf("mcpBuildToolList with empty allowlist returned %d tools, want none", len(tools))
+	}
+}
+
+func TestMCPCallToolRejectsEmptyAllowedTools(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Tools.Memory.Enabled = true
+
+	s := &Server{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	params, err := json.Marshal(mcpCallToolParams{Name: "query_memory"})
+	if err != nil {
+		t.Fatalf("marshal params: %v", err)
+	}
+
+	got := mcpCallTool(context.Background(), s, params)
+	if !got.IsError {
+		t.Fatal("mcpCallTool with empty allowlist succeeded, want error")
+	}
+	if len(got.Content) == 0 || !strings.Contains(got.Content[0].Text, "not allowed") {
+		t.Fatalf("unexpected mcpCallTool error content: %#v", got.Content)
+	}
+}
+
+func TestMCPCallToolRejectsToolsOutsideAllowedList(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Tools.Memory.Enabled = true
+	cfg.MCPServer.AllowedTools = []string{"ask_aurago"}
+
+	s := &Server{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	params, err := json.Marshal(mcpCallToolParams{Name: "query_memory"})
+	if err != nil {
+		t.Fatalf("marshal params: %v", err)
+	}
+
+	got := mcpCallTool(context.Background(), s, params)
+	if !got.IsError {
+		t.Fatal("mcpCallTool outside allowlist succeeded, want error")
+	}
+	if len(got.Content) == 0 || !strings.Contains(got.Content[0].Text, "not allowed") {
+		t.Fatalf("unexpected mcpCallTool error content: %#v", got.Content)
 	}
 }
 

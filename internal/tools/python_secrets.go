@@ -44,6 +44,8 @@ var blockedSecretPrefixes = []string{
 	"space_agent_",
 	"manifest_",
 	"desktop_store_",
+	"oauth_",
+	"mcp_secret_",
 	"music_minimax_",
 	"music_google_lyria_",
 }
@@ -86,6 +88,10 @@ var blockedSecretExact = map[string]struct{}{
 	"grafana_api_key":             {},
 	"yepapi_api_key":              {},
 	"n8n_api_token":               {},
+	"mcp_server_token":            {},
+	"copilot_github_token":        {},
+	"onedrive_client_secret":      {},
+	"onedrive_device_code":        {},
 	"sudo_password":               {},
 }
 

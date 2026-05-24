@@ -2,7 +2,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  AuraGo Update Script (Linux)
 #
-#  Usage:  ./update.sh [--yes] [--no-restart]
+#  Usage:  ./update.sh [--yes] [--no-restart] [--force-reset]
 #
 #  What it does:
 #    1. Fetches the latest commit from GitHub (no clobber of user data)
@@ -39,16 +39,19 @@ section() { echo -e "\n${BOLD}${BLUE}--- $* ---${NC}"; }
 # ── CLI flags ──────────────────────────────────────────────────────────
 AUTO_YES=false
 NO_RESTART=false
+FORCE_RESET=false
 _AU_ESCAPED=""
 for arg in "$@"; do
     case "$arg" in
         --yes)        AUTO_YES=true ;;
         --no-restart) NO_RESTART=true ;;
+        --force-reset) FORCE_RESET=true ;;
         --escaped)    _AU_ESCAPED=1 ;;   # internal: already running in an independent scope
         --help|-h)
-            echo "Usage: $0 [--yes] [--no-restart]"
-            echo "  --yes         Skip confirmation prompts"
-            echo "  --no-restart  Do not restart the service after update"
+            echo "Usage: $0 [--yes] [--no-restart] [--force-reset]"
+            echo "  --yes          Skip confirmation prompts"
+            echo "  --no-restart   Do not restart the service after update"
+            echo "  --force-reset  Reset a diverged git install to origin/main"
             exit 0 ;;
         *) warn "Unknown argument: $arg" ;;
     esac
@@ -723,6 +726,7 @@ if $BINARY_ONLY; then
     # own, which produces spurious "Operation not permitted" warnings with cp -a.
     [ -d "$TMPEXT/prompts" ]           && cp -r "$TMPEXT/prompts"           "$DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -r "$TMPEXT/agent_workspace"   "$DIR/"
+    [ -d "$TMPEXT/assets" ]            && cp -r "$TMPEXT/assets"            "$DIR/"
     [ -d "$TMPEXT/ui" ]                && cp -r "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
 
     # Treat the extracted config.yaml as the new template for the merger below
@@ -766,9 +770,15 @@ else
                 REMOTE=$(git rev-parse origin/main)
                 BASE=$(git merge-base HEAD origin/main)
                 if [ "$LOCAL" != "$BASE" ] && [ "$REMOTE" != "$BASE" ]; then
-                    warn "Branches have diverged (force-push detected). Performing hard reset..."
-                    git reset --hard origin/main
-                    ok "Hard reset complete."
+                    if $FORCE_RESET; then
+                        warn "Branches have diverged. --force-reset was supplied; resetting tracked files to origin/main."
+                        git reset --hard origin/main
+                        ok "Hard reset complete."
+                    else
+                        warn "Branches have diverged. AuraGo will not discard local commits automatically."
+                        warn "Review local commits, merge/rebase manually, or rerun with --force-reset if you intentionally want origin/main to replace this checkout."
+                        die "Update aborted safely (no hard reset performed)."
+                    fi
                 else
                     warn "Could not fast-forward automatically."
                     warn "Please ensure repository files are writable and no manual merge is required."

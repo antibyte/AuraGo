@@ -4660,7 +4660,7 @@
 .vd-looper-field select:focus,
 .vd-looper-field input:focus {
     border-color: var(--vd-accent, #27c7a6);
-    box-shadow: 0 0 0 2px var(--vd-accent, #27c7a6)15;
+    box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.09);
 }
 
 .vd-looper-field-preset {
@@ -4709,7 +4709,7 @@
 .vd-looper-btn-save:hover {
     border-color: var(--vd-accent, #27c7a6);
     color: var(--vd-accent, #27c7a6);
-    background: var(--vd-accent, #27c7a6)10;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.06);
 }
 
 .vd-looper-btn-delete:hover {
@@ -4767,7 +4767,7 @@
 .vd-looper-step-btn--active {
     background: rgba(255,255,255,0.08);
     border-color: var(--step-color, var(--vd-accent, #27c7a6));
-    box-shadow: 0 0 0 1px var(--step-color, var(--vd-accent, #27c7a6))30;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--step-color, var(--vd-accent, #27c7a6)) 19%, transparent);
 }
 
 .vd-looper-step-btn--running {
@@ -4841,7 +4841,7 @@
 
 .vd-looper-editor textarea:focus {
     border-color: var(--vd-accent, #27c7a6);
-    box-shadow: 0 0 0 2px var(--vd-accent, #27c7a6)12;
+    box-shadow: 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.07);
 }
 
 .vd-looper-editor textarea::placeholder {
@@ -4934,7 +4934,7 @@
 }
 
 .vd-looper-monitor--running {
-    border-top-color: var(--vd-accent, #27c7a6)40;
+    border-top-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.25);
 }
 
 .vd-looper-monitor--error {
@@ -4992,12 +4992,12 @@
 
 .vd-looper-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--vd-accent, #27c7a6) 0%, var(--vd-accent, #27c7a6)dd 100%);
+    background: linear-gradient(90deg, var(--vd-accent, #27c7a6) 0%, color-mix(in srgb, var(--vd-accent, #27c7a6) 87%, transparent) 100%);
     border-radius: 3px;
     transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     width: 0%;
     position: relative;
-    box-shadow: 0 0 8px var(--vd-accent, #27c7a6)30;
+    box-shadow: 0 0 8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.19);
 }
 
 .vd-looper-progress-glow {
@@ -5009,7 +5009,7 @@
     background: var(--vd-accent, #27c7a6);
     transform: translateX(-50%);
     transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px var(--vd-accent, #27c7a6)60;
+    box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38);
     opacity: 0;
 }
 
@@ -5019,8 +5019,8 @@
 }
 
 @keyframes vd-looper-glow-pulse {
-    0%, 100% { box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px var(--vd-accent, #27c7a6)60; }
-    50% { box-shadow: 0 0 14px var(--vd-accent, #27c7a6), 0 0 28px var(--vd-accent, #27c7a6)90; }
+    0%, 100% { box-shadow: 0 0 10px var(--vd-accent, #27c7a6), 0 0 20px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38); }
+    50% { box-shadow: 0 0 14px var(--vd-accent, #27c7a6), 0 0 28px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.56); }
 }
 
 /* ── Logs ── */

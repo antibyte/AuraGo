@@ -200,7 +200,7 @@
         }
 
         function handleAction(appId, action, portId) {
-            if (busy.has(appId)) return;
+            if (isMutatingAction(action) && busy.has(appId)) return;
             const entry = catalog.find(item => item.id === appId);
             if (isMutatingAction(action) && !mutationsAllowed) {
                 notify({ title: t('desktop.store.title', 'Software Store'), message: mutationDisabledText() });
@@ -227,9 +227,6 @@
         }
 
         function mutationDisabledText() {
-            if (!dockerAvailable || mutationDisabledReason === 'docker_unavailable') {
-                return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
-            }
             switch (mutationDisabledReason) {
                 case 'desktop_readonly':
                     return t('desktop.store.desktop_readonly', 'Virtual Desktop is in read-only mode. Store actions are disabled.');
@@ -237,7 +234,12 @@
                     return t('desktop.store.docker_disabled', 'Docker integration is disabled. Store actions are disabled.');
                 case 'docker_readonly':
                     return t('desktop.store.docker_readonly', 'Docker is in read-only mode. Store actions are disabled.');
+                case 'docker_unavailable':
+                    return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
                 default:
+                    if (!dockerAvailable) {
+                        return t('desktop.store.docker_unavailable', 'Docker is not available. Install actions are disabled.');
+                    }
                     return t('desktop.store.mutations_disabled', 'Store actions are disabled.');
             }
         }

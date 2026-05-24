@@ -16,10 +16,6 @@ import (
 
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 	catalog := DefaultCatalog()
-	if len(catalog) != 17 {
-		t.Fatalf("expected 17 catalog apps, got %d", len(catalog))
-	}
-
 	expected := map[string]struct {
 		image string
 		port  int
@@ -42,6 +38,9 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor"},
 		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},
 		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("expected %d catalog apps, got %d", len(expected), len(catalog))
 	}
 
 	for _, entry := range catalog {
@@ -194,6 +193,23 @@ func TestDockerCreatePayloadSupportsMultiPortHostBindsAndHostNetwork(t *testing.
 	}
 	if _, ok := portBindings["80/tcp"]; !ok {
 		t.Fatalf("frontend port missing from %#v", portBindings)
+	}
+}
+
+func TestDockerCreatePayloadNormalizesWindowsHostBindPaths(t *testing.T) {
+	payload := dockerCreatePayload(ContainerSpec{
+		Name:  "aurago-store-demo",
+		Image: "ghcr.io/example/demo:latest",
+		HostBinds: []HostBinding{{
+			HostPath:      `C:\Users\andi\AuraGo\Shared\OliveTin`,
+			ContainerPath: "/config",
+			ReadOnly:      false,
+		}},
+	})
+	hostConfig := payload["HostConfig"].(map[string]any)
+	binds := hostConfig["Binds"].([]string)
+	if !containsString(binds, "C:/Users/andi/AuraGo/Shared/OliveTin:/config:rw") {
+		t.Fatalf("normalized Windows host bind missing from %#v", binds)
 	}
 }
 
@@ -516,6 +532,68 @@ func TestUpdateRomMRecreatesDatabaseCompanionFromVaultSecrets(t *testing.T) {
 	}
 	if !containsString(db.Env, "MYSQL_PASSWORD="+dbPassword) || !containsString(db.Env, "MYSQL_ROOT_PASSWORD="+rootPassword) {
 		t.Fatalf("recreated romm database env did not use preserved vault secrets: %#v", db.Env)
+	}
+}
+
+func TestUpdateRestoresPreviousAutoCompanionWhenMainStartFails(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	oldCatalog := DefaultCatalog()
+	newCatalog := DefaultCatalog()
+	setCatalogCompanionImage(t, oldCatalog, "romm", "db", "ghcr.io/example/romm-db:old")
+	setCatalogCompanionImage(t, newCatalog, "romm", "db", "ghcr.io/example/romm-db:new")
+
+	svc := newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), oldCatalog, secrets)
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "romm", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close service: %v", err)
+	}
+
+	docker.created = nil
+	docker.events = nil
+	docker.startErrors = []error{nil, errors.New("updated app start failed")}
+	svc = newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), newCatalog, secrets)
+
+	updateOp, err := svc.StartAppOperation(ctx, "romm", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, updateOp.ID); err == nil {
+		t.Fatal("run update succeeded, want start failure")
+	}
+
+	var sawNewCompanion, sawRestoredCompanion bool
+	for _, spec := range docker.created {
+		if spec.Name != "aurago-store-romm-db" {
+			continue
+		}
+		if spec.Image == "ghcr.io/example/romm-db:new" {
+			sawNewCompanion = true
+		}
+		if spec.Image == "ghcr.io/example/romm-db:old" {
+			sawRestoredCompanion = true
+		}
+	}
+	if !sawNewCompanion || !sawRestoredCompanion {
+		t.Fatalf("update did not recreate new and restored old companion specs: %#v", docker.created)
+	}
+	stored, ok, err := svc.GetInstalled(ctx, "romm")
+	if err != nil || !ok {
+		t.Fatalf("get installed romm: ok=%v err=%v", ok, err)
+	}
+	if stored.Status != AppStatusRunning || stored.LastOperationState != OperationFailed {
+		t.Fatalf("stored state = status %s operation %s, want running failed", stored.Status, stored.LastOperationState)
+	}
+	if len(stored.Companions) != 1 || stored.Companions[0].Image != "ghcr.io/example/romm-db:old" {
+		t.Fatalf("stored companion was not restored to previous spec: %#v", stored.Companions)
 	}
 }
 
@@ -1591,6 +1669,23 @@ func indexOfString(items []string, want string) int {
 		}
 	}
 	return len(items)
+}
+
+func setCatalogCompanionImage(t *testing.T, catalog []CatalogEntry, appID, companionID, image string) {
+	t.Helper()
+	for entryIndex := range catalog {
+		if catalog[entryIndex].ID != appID {
+			continue
+		}
+		for companionIndex := range catalog[entryIndex].Companions {
+			if catalog[entryIndex].Companions[companionIndex].ID == companionID {
+				catalog[entryIndex].Companions[companionIndex].Image = image
+				return
+			}
+		}
+		t.Fatalf("catalog entry %q missing companion %q", appID, companionID)
+	}
+	t.Fatalf("catalog missing entry %q", appID)
 }
 
 func fixedPorts(values ...int) PortAllocator {

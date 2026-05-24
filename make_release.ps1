@@ -94,6 +94,9 @@ $stagingDirs = @(
     "agent_workspace\tools",
     "agent_workspace\workdir\attachments",
     "assets\media_samples",
+    "assets\mission_samples",
+    "assets\cheatsheet_samples",
+    "assets\skill_samples",
     "data\vectordb",
     "log",
     "prompts"
@@ -135,6 +138,15 @@ if (Test-Path "agent_workspace\workdir\attachments") {
 # Copy bundled sample media
 if (Test-Path "assets\media_samples") {
     Copy-Item -Path "assets\media_samples" -Destination (Join-Path $tmpStage "assets\media_samples") -Recurse -Force
+}
+if (Test-Path "assets\mission_samples") {
+    Copy-Item -Path "assets\mission_samples" -Destination (Join-Path $tmpStage "assets\mission_samples") -Recurse -Force
+}
+if (Test-Path "assets\cheatsheet_samples") {
+    Copy-Item -Path "assets\cheatsheet_samples" -Destination (Join-Path $tmpStage "assets\cheatsheet_samples") -Recurse -Force
+}
+if (Test-Path "assets\skill_samples") {
+    Copy-Item -Path "assets\skill_samples" -Destination (Join-Path $tmpStage "assets\skill_samples") -Recurse -Force
 }
 
 # Copy data/vectordb and log (empty dirs already created)
@@ -234,12 +246,14 @@ Write-Host "[3/5] Pushing code to GitHub..." -ForegroundColor Yellow
 
 git add .
 $status = git diff-index --quiet HEAD 2>&1
-if ($LASTEXITCODE -ne 0) {
+$hasChanges = $LASTEXITCODE -ne 0
+if ($hasChanges) {
     git commit -m "build: release $Version [skip actions]"
     git push origin main
     Write-Host "    Code pushed." -ForegroundColor Green
-} else {
-    Write-Host "    Nothing to commit — working tree clean." -ForegroundColor Gray
+}
+if (-not $hasChanges) {
+    Write-Host "    Nothing to commit - working tree clean." -ForegroundColor Gray
 }
 
 Write-Host ""
@@ -278,26 +292,27 @@ foreach ($path in $assetPaths) {
     }
 }
 
-$notes = @"
-## AuraGo $Version
+$notes = @'
+## AuraGo {VERSION}
 
 ### Installation
 
 **One-liner (no Go required):**
-\`\`\`bash
+```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
-\`\`\`
+```
 
 **Update existing install:**
-\`\`\`bash
+```bash
 ./update.sh
-\`\`\`
+```
 
 ### Included binaries
 - Linux amd64 / arm64 (main, lifeboat, config-merger, aurago-remote)
 - macOS amd64 / arm64 (Apple Silicon)
 - Windows x64 / arm64
-"@
+'@
+$notes = $notes -replace '\{VERSION\}', $Version
 
 try {
     $ghArgs = @("release", "create", $Version, $assets, "--title", "AuraGo $Version", "--notes", $notes)

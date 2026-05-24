@@ -250,6 +250,12 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 			IsError: true,
 		}
 	}
+	if !mcpToolAllowed(s, p.Name) {
+		return mcpCallToolResult{
+			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Tool %q is not allowed by the MCP server configuration", p.Name)}},
+			IsError: true,
+		}
+	}
 
 	// Build a ToolCall from MCP arguments
 	tc := agent.ToolCall{
@@ -321,6 +327,18 @@ func mcpToolAvailable(s *Server, toolName string) bool {
 	// filter so the error message is accurate.
 	for _, tool := range mcpBuildToolCatalog(s) {
 		if tool.Name == toolName {
+			return true
+		}
+	}
+	return false
+}
+
+func mcpToolAllowed(s *Server, toolName string) bool {
+	s.CfgMu.RLock()
+	allowed := mcpEffectiveAllowedTools(s.Cfg)
+	s.CfgMu.RUnlock()
+	for _, name := range allowed {
+		if name == toolName {
 			return true
 		}
 	}

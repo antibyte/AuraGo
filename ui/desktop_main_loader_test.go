@@ -141,4 +141,12 @@ func TestDesktopModuleLoaderBypassesBrowserCacheForScriptParts(t *testing.T) {
 	if !strings.Contains(loader, "fetch(part, { credentials: 'same-origin', cache: 'no-store' })") {
 		t.Fatal("desktop module loader must fetch script parts with cache no-store to avoid mixed stale fragments")
 	}
+	if !strings.Contains(loader, "modulePromises.delete(cacheKey);") {
+		t.Fatal("desktop module loader must drop failed script bundle promises so retries can recover")
+	}
+
+	html := readDesktopAssetText(t, "desktop.html")
+	if !strings.Contains(html, `/js/desktop/core/module-loader.js?v={{.BuildVersion}}-desktop-20260524-audit-fixes`) {
+		t.Fatal("desktop module-loader.js script tag must be cache-busted after retry fix")
+	}
 }

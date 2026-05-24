@@ -592,6 +592,9 @@ func newTestDesktopChatServer(t *testing.T) *Server {
 	cfg.CircuitBreaker.MaxToolCalls = 10
 	cfg.CircuitBreaker.LLMTimeoutSeconds = 30
 	cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 10
+	cfg.MemoryAnalysis.Enabled = false
+	cfg.MemoryAnalysis.WeeklyReflection = false
+	cfg.MemoryAnalysis.ReflectionDay = "never"
 
 	return &Server{
 		Cfg:          cfg,

@@ -47,6 +47,22 @@ func TestIsPythonAccessibleSecret_BlocksExactKeys(t *testing.T) {
 	}
 }
 
+func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *testing.T) {
+	for _, key := range []string{
+		"mcp_server_token",
+		"copilot_github_token",
+		"onedrive_client_secret",
+		"onedrive_device_code",
+		"oauth_minimax_access_token",
+		"oauth_state_login",
+		"mcp_secret_remote_token",
+	} {
+		if IsPythonAccessibleSecret(key) {
+			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)
+		}
+	}
+}
+
 func TestIsPythonAccessibleSecret_BlocksExactKeysCaseInsensitive(t *testing.T) {
 	cases := []string{
 		"TELEGRAM_BOT_TOKEN",

@@ -54,6 +54,44 @@ func TestSoftwareStoreShowsInstallingAndDisablesActionsDuringInstallOperation(t 
 	}
 }
 
+func TestSoftwareStoreKeepsReadOnlyActionsAvailableWhileOperationIsBusy(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"if (isMutatingAction(action) && busy.has(appId)) return;",
+		"if (action === 'open') return openApp('store-' + appId);",
+		"if (action === 'credentials') return openCredentialsModal(appId);",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing non-mutating busy action marker %q", want)
+		}
+	}
+}
+
+func TestSoftwareStorePrefersSpecificMutationDisabledReason(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	switchIndex := strings.Index(source, "switch (mutationDisabledReason)")
+	dockerFallbackIndex := strings.Index(source, "if (!dockerAvailable)")
+	if switchIndex < 0 || dockerFallbackIndex < 0 {
+		t.Fatalf("software store mutation disabled text missing expected branches")
+	}
+	if dockerFallbackIndex < switchIndex {
+		t.Fatal("software store must check specific mutation_disabled_reason before generic docker availability fallback")
+	}
+	for _, want := range []string{
+		"case 'docker_disabled':",
+		"case 'docker_readonly':",
+		"case 'docker_unavailable':",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store mutation disabled text missing marker %q", want)
+		}
+	}
+}
+
 func TestSoftwareStoreIgnoresStaleInstallMarkersForRunningApps(t *testing.T) {
 	t.Parallel()
 

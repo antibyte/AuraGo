@@ -949,6 +949,31 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return err
 	}
+	companionsTouched := false
+	restorePreviousCompanions := func() error {
+		if len(record.Companions) == 0 && len(previous.Companions) == 0 {
+			return nil
+		}
+		for _, companion := range record.Companions {
+			if strings.TrimSpace(companion.ContainerName) == "" {
+				continue
+			}
+			_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
+			_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
+		}
+		restored := previous
+		for i := range restored.Companions {
+			if err := s.createCompanionAt(ctx, &restored, i); err != nil {
+				return err
+			}
+			if !previousWasRunning {
+				_ = s.requireDocker().StopContainer(ctx, restored.Companions[i].ContainerName)
+				restored.Companions[i].Status = AppStatusStopped
+			}
+		}
+		previous.Companions = restored.Companions
+		return nil
+	}
 	restorePrevious := func(runErr error) error {
 		previous.LastOperationID = op.ID
 		previous.LastOperationType = op.Type
@@ -956,7 +981,23 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		_ = s.saveInstalled(ctx, previous)
 		return runErr
 	}
+	restorePreviousWithCompanions := func(runErr error) error {
+		if companionsTouched {
+			if companionErr := restorePreviousCompanions(); companionErr != nil {
+				previous.Status = AppStatusError
+				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
+			}
+		}
+		return restorePrevious(runErr)
+	}
 	rollbackPrevious := func(runErr error) error {
+		if companionsTouched {
+			if companionErr := restorePreviousCompanions(); companionErr != nil {
+				previous.Status = AppStatusError
+				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
+				return restorePrevious(runErr)
+			}
+		}
 		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(previous))
 		if rollbackErr != nil {
 			previous.Status = AppStatusError
@@ -982,12 +1023,13 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 			return restorePrevious(err)
 		}
 	}
+	companionsTouched = len(autoCompanions) > 0
 	if err := s.recreateAutoCompanions(ctx, &record, autoCompanions); err != nil {
-		return restorePrevious(err)
+		return restorePreviousWithCompanions(err)
 	}
 	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
-		return restorePrevious(fmt.Errorf("remove old container: %w", err))
+		return restorePreviousWithCompanions(fmt.Errorf("remove old container: %w", err))
 	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, containerSpecFromRecord(record))
 	if err != nil {

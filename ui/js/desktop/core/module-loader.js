@@ -27,6 +27,7 @@
                 window.dispatchEvent(new CustomEvent('auradesktop:module-loaded', { detail: { label } }));
             })
             .catch(err => {
+                modulePromises.delete(cacheKey);
                 console.error('Failed to load desktop module', label, err);
                 window.dispatchEvent(new CustomEvent('auradesktop:module-load-error', { detail: { label, error: err } }));
                 throw err;

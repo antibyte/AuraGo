@@ -27,7 +27,7 @@ func TestDesktopHTMLBustsDesktopCSSAggregatorCache(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260523-store-logo-scale`) {
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260524-audit-fixes`) {
 		t.Fatalf("desktop.html must bust the desktop.css aggregator cache with the current desktop asset version")
 	}
 }
@@ -54,6 +54,52 @@ func TestDesktopCSSCarriesFinalFruityWindowControlOverride(t *testing.T) {
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop.css missing final Fruity window control override marker %q", want)
+		}
+	}
+}
+
+func TestDesktopCSSDefinesAccentRGBVariables(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/desktop-base.css")
+	for _, marker := range []string{
+		"--vd-accent-r: 39;",
+		"--vd-accent-g: 199;",
+		"--vd-accent-b: 166;",
+		".desktop-body[data-accent=\"orange\"]",
+		"--vd-accent-r: 255;",
+		"--vd-accent-g: 157;",
+		"--vd-accent-b: 77;",
+		".desktop-body[data-accent=\"blue\"]",
+		"--vd-accent-r: 99;",
+		"--vd-accent-g: 179;",
+		"--vd-accent-b: 255;",
+		".desktop-body[data-accent=\"violet\"]",
+		"--vd-accent-r: 183;",
+		"--vd-accent-g: 148;",
+		".desktop-body[data-accent=\"green\"]",
+		"--vd-accent-r: 72;",
+		"--vd-accent-g: 213;",
+		"--vd-accent-b: 151;",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop accent CSS missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCSSDoesNotAppendAlphaToCSSVariables(t *testing.T) {
+	t.Parallel()
+
+	invalidVarAlpha := regexp.MustCompile(`var\([^;]+\)[0-9A-Fa-f]{2}\b`)
+	for _, path := range []string{
+		"css/desktop-base.css",
+		"css/desktop-icons.css",
+		"css/desktop-apps.css",
+	} {
+		css := readDesktopAssetText(t, path)
+		if match := invalidVarAlpha.FindString(css); match != "" {
+			t.Fatalf("%s contains invalid CSS variable alpha suffix %q", path, match)
 		}
 	}
 }

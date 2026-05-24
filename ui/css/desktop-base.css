@@ -8,6 +8,9 @@
     --vd-text: #f6f7fb;
     --vd-muted: #a7b0c0;
     --vd-accent: #27c7a6;
+    --vd-accent-r: 39;
+    --vd-accent-g: 199;
+    --vd-accent-b: 166;
     --vd-coral: #ff8066;
     --vd-amber: #f2b84b;
     --vd-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
@@ -994,18 +997,30 @@
 
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
+    --vd-accent-r: 255;
+    --vd-accent-g: 157;
+    --vd-accent-b: 77;
 }
 
 .desktop-body[data-accent="blue"] {
     --vd-accent: #63b3ff;
+    --vd-accent-r: 99;
+    --vd-accent-g: 179;
+    --vd-accent-b: 255;
 }
 
 .desktop-body[data-accent="violet"] {
     --vd-accent: #b794ff;
+    --vd-accent-r: 183;
+    --vd-accent-g: 148;
+    --vd-accent-b: 255;
 }
 
 .desktop-body[data-accent="green"] {
     --vd-accent: #48d597;
+    --vd-accent-r: 72;
+    --vd-accent-g: 213;
+    --vd-accent-b: 151;
 }
 
 .desktop-body[data-density="compact"] .vd-topbar,

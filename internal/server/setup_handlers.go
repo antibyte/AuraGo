@@ -5,6 +5,7 @@ import (
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/setup"
 	"context"
 	"crypto/rand"
@@ -27,6 +28,8 @@ import (
 )
 
 const setupCSRFTokenTTL = 30 * time.Minute
+
+var validateSetupProviderSSRF = security.ValidateSSRF
 
 // setupCSRFTokens holds short-lived CSRF tokens for the setup wizard.
 // Multiple tokens may be valid at once so a second tab or status refresh does
@@ -626,6 +629,9 @@ func validateSetupTestBaseURL(providerType, rawURL string) error {
 		return fmt.Errorf("setup test does not allow local or private base_url hosts")
 	}
 	if providerType == "custom" {
+		if err := validateSetupProviderSSRF(rawURL); err != nil {
+			return fmt.Errorf("setup test does not allow local or private base_url hosts: %w", err)
+		}
 		return nil
 	}
 	if !isAllowedSetupProviderHost(host) {

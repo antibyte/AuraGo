@@ -212,6 +212,18 @@ func handleUpdateInstall(s *Server) http.HandlerFunc {
 			return
 		}
 
+		s.CfgMu.RLock()
+		allowed := s.Cfg.Agent.AllowSelfUpdate
+		s.CfgMu.RUnlock()
+		if !allowed {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Self-update is disabled in the agent safety settings.",
+			})
+			return
+		}
+
 		dir := appInstallDir(s)
 		scriptPath := filepath.Join(dir, "update.sh")
 		if _, err := os.Stat(scriptPath); err != nil {

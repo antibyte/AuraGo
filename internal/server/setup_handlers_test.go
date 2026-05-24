@@ -236,8 +236,32 @@ func TestValidateSetupTestBaseURLAllowsKnownProviderURL(t *testing.T) {
 }
 
 func TestValidateSetupTestBaseURLAllowsCustomPublicHTTPSURL(t *testing.T) {
+	oldValidate := validateSetupProviderSSRF
+	validateSetupProviderSSRF = func(rawURL string) error {
+		if rawURL != "https://llm.example.com/v1" {
+			t.Fatalf("SSRF validator got %q", rawURL)
+		}
+		return nil
+	}
+	t.Cleanup(func() { validateSetupProviderSSRF = oldValidate })
+
 	if err := validateSetupTestBaseURL("custom", "https://llm.example.com/v1"); err != nil {
 		t.Fatalf("expected custom public HTTPS URL to be allowed: %v", err)
+	}
+}
+
+func TestValidateSetupTestBaseURLRejectsCustomURLWhenSSRFValidatorBlocks(t *testing.T) {
+	oldValidate := validateSetupProviderSSRF
+	validateSetupProviderSSRF = func(rawURL string) error {
+		if rawURL != "https://internal.example/v1" {
+			t.Fatalf("SSRF validator got %q", rawURL)
+		}
+		return errors.New("access to internal address 127.0.0.1 is blocked")
+	}
+	t.Cleanup(func() { validateSetupProviderSSRF = oldValidate })
+
+	if err := validateSetupTestBaseURL("custom", "https://internal.example/v1"); err == nil {
+		t.Fatal("expected custom URL blocked by SSRF validator to be rejected")
 	}
 }
 
