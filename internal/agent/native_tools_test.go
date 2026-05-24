@@ -659,6 +659,36 @@ func TestNativeToolCallToToolCallDecodesJSONStringObjectArgs(t *testing.T) {
 	}
 }
 
+func TestNativeToolCallToToolCallIgnoresNonObjectPropertiesString(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_kg_search_with_bad_properties",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "knowledge_graph",
+			Arguments: `{"operation":"search","query":"Rosemarie","properties":"unused"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.NativeArgsMalformed {
+		t.Fatalf("did not expect malformed args: %s", tc.NativeArgsError)
+	}
+	if tc.Action != "knowledge_graph" {
+		t.Fatalf("Action = %q, want knowledge_graph", tc.Action)
+	}
+	if tc.Operation != "search" {
+		t.Fatalf("Operation = %q, want search", tc.Operation)
+	}
+	if tc.Query != "Rosemarie" {
+		t.Fatalf("Query = %q, want Rosemarie", tc.Query)
+	}
+	if len(tc.Properties) != 0 {
+		t.Fatalf("Properties = %#v, want empty map for non-object properties string", tc.Properties)
+	}
+}
+
 func TestNativeToolCallToToolCallHomepageSubOperationPreservesToolAction(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 

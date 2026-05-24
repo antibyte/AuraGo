@@ -911,6 +911,45 @@ func TestKGSearchForContextUsesSemanticIndex(t *testing.T) {
 	}
 }
 
+func TestKGSearchForContextPrefersExactTextMatchOverSemanticNoise(t *testing.T) {
+	kg := newTestKG(t)
+
+	db := chromem.NewDB()
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		lower := strings.ToLower(strings.TrimSpace(text))
+		switch {
+		case lower == "rosemarie":
+			return []float32{1, 0}, nil
+		case strings.Contains(lower, "assistant"):
+			return []float32{1, 0}, nil
+		default:
+			return []float32{0, 1}, nil
+		}
+	}
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("assistant", "assistant", map[string]string{"type": "activity_entity"}); err != nil {
+		t.Fatalf("AddNode assistant: %v", err)
+	}
+	if err := kg.AddNode("rosemarie_west", "Rosemarie West", map[string]string{
+		"type":       "person",
+		"collection": "file_index",
+		"source":     "file_sync",
+	}); err != nil {
+		t.Fatalf("AddNode Rosemarie: %v", err)
+	}
+
+	ctx := kg.SearchForContext("Rosemarie", 1, 800)
+	if !strings.Contains(ctx, "rosemarie_west") {
+		t.Fatalf("expected exact KG text match to win over semantic noise, got %q", ctx)
+	}
+	if strings.Contains(ctx, "assistant") {
+		t.Fatalf("expected semantic noise to be excluded when limit is tight, got %q", ctx)
+	}
+}
+
 func TestKGSemanticQuerySkipsShortInputs(t *testing.T) {
 	tests := []struct {
 		query string

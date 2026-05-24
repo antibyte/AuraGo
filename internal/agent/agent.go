@@ -691,6 +691,10 @@ var toolCallStringFields = map[string]struct{}{
 	"cc":          {},
 }
 
+var toolCallStringMapFields = map[string]struct{}{
+	"properties": {},
+}
+
 var toolCallBoolFields struct {
 	once sync.Once
 	set  map[string]struct{}
@@ -779,6 +783,78 @@ func coerceToolCallStringFields(data []byte) []byte {
 		return data
 	}
 	return out
+}
+
+func coerceToolCallStringMapFields(data []byte) []byte {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return data
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return data
+	}
+	changed := false
+	for key, val := range raw {
+		if _, ok := toolCallStringMapFields[key]; !ok {
+			continue
+		}
+		coerced, ok := coerceJSONStringMap(val)
+		if !ok {
+			continue
+		}
+		raw[key] = coerced
+		changed = true
+	}
+	if !changed {
+		return data
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return data
+	}
+	return out
+}
+
+func coerceJSONStringMap(raw json.RawMessage) (json.RawMessage, bool) {
+	value := bytes.TrimSpace(raw)
+	if len(value) == 0 || bytes.Equal(value, []byte("null")) {
+		return nil, false
+	}
+	if value[0] == '"' {
+		var rawString string
+		if err := json.Unmarshal(value, &rawString); err != nil {
+			return nil, false
+		}
+		trimmed := strings.TrimSpace(rawString)
+		if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
+			return json.RawMessage(`{}`), true
+		}
+		value = []byte(trimmed)
+	}
+	if value[0] != '{' {
+		return json.RawMessage(`{}`), true
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal(value, &obj); err != nil {
+		return json.RawMessage(`{}`), true
+	}
+	out := make(map[string]string, len(obj))
+	for key, val := range obj {
+		switch typed := val.(type) {
+		case string:
+			out[key] = typed
+		case nil:
+			out[key] = ""
+		default:
+			out[key] = fmt.Sprintf("%v", typed)
+		}
+	}
+	coerced, err := json.Marshal(out)
+	if err != nil {
+		return nil, false
+	}
+	return coerced, true
 }
 
 func coerceToolCallBoolFields(data []byte) []byte {
@@ -873,6 +949,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	// values for any tool-specific decoder that cares about the original type.
 	data = coerceToolCallStringFields(data)
 	data = coerceToolCallBoolFields(data)
+	data = coerceToolCallStringMapFields(data)
 
 	// Start from the current state so absent JSON fields do not zero-out values that
 	// were set programmatically (e.g. native-tool shortcut prefill).

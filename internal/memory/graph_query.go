@@ -193,7 +193,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 
 	semScores := kg.semanticSearchNodeScores(query, maxNodes*2)
 	for id, score := range semScores {
-		hits[id] += score * 0.5
+		hits[id] += score * 0.25
 	}
 
 	ftsQuery := escapeFTS5(query)
