@@ -52,6 +52,33 @@ func (m *mockRetryClient) CreateChatCompletionStream(ctx context.Context, req op
 	return nil, nil
 }
 
+type providerSwitchRetryClient struct {
+	callCount int
+}
+
+func (c *providerSwitchRetryClient) ActiveProviderAndModel() (string, string) {
+	if c.callCount > 0 {
+		return "fallback", "fallback-model"
+	}
+	return "primary", "primary-model"
+}
+
+func (c *providerSwitchRetryClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	c.callCount++
+	if c.callCount == 1 {
+		return openai.ChatCompletionResponse{}, errors.New("temporary upstream failure")
+	}
+	return openai.ChatCompletionResponse{}, nil
+}
+
+func (c *providerSwitchRetryClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	c.callCount++
+	if c.callCount == 1 {
+		return nil, errors.New("temporary upstream failure")
+	}
+	return nil, nil
+}
+
 type infiniteRetryClient struct {
 	mockRetryClient
 }
@@ -177,6 +204,20 @@ func TestExecuteWithRetry_TransientRetries(t *testing.T) {
 	}
 	if client.callCount != 3 {
 		t.Errorf("callCount = %d, want 3", client.callCount)
+	}
+}
+
+func TestExecuteWithRetryRetriesImmediatelyAfterProviderSwitch(t *testing.T) {
+	client := &providerSwitchRetryClient{}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err := ExecuteWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, []time.Duration{time.Hour}, time.Hour)
+	if err != nil {
+		t.Fatalf("ExecuteWithCustomRetry returned error after provider switch: %v", err)
+	}
+	if client.callCount != 2 {
+		t.Fatalf("callCount = %d, want 2", client.callCount)
 	}
 }
 
@@ -427,6 +468,21 @@ func TestExecuteStreamWithRetry_TransientRetries(t *testing.T) {
 	}
 	if client.callCount != 2 {
 		t.Errorf("callCount = %d, want 2", client.callCount)
+	}
+}
+
+func TestExecuteStreamWithRetryRetriesImmediatelyAfterProviderSwitch(t *testing.T) {
+	client := &providerSwitchRetryClient{}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, cancelStream, err := ExecuteStreamWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, []time.Duration{time.Hour}, time.Hour)
+	if err != nil {
+		t.Fatalf("ExecuteStreamWithCustomRetry returned error after provider switch: %v", err)
+	}
+	cancelStream()
+	if client.callCount != 2 {
+		t.Fatalf("callCount = %d, want 2", client.callCount)
 	}
 }
 

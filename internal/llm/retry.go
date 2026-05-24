@@ -139,6 +139,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 	for {
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
 
 		if logger != nil {
 			logger.Info("[LLM Retry] CreateChatCompletion starting",
@@ -213,10 +214,15 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
+		providerAfter, modelAfter := activeProviderAndModel(client, req.Model)
+		providerChanged := providerBefore != providerAfter || modelBefore != modelAfter
+		if providerChanged {
+			waitTime = 0
+		}
 
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			remaining := time.Until(deadline)
-			if remaining < waitTime {
+			if waitTime > 0 && remaining < waitTime {
 				waitTime = remaining
 			}
 		} else if waitTime > timeout {
@@ -239,6 +245,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 				"attempt_ctx_err", attemptCtxErr,
 				"parent_ctx_err", parentCtxErr,
 				"is_transport_timeout", isTransportTimeout,
+				"provider_changed", providerChanged,
 				"call_elapsed_ms", callElapsed.Milliseconds(),
 				"model", req.Model,
 				"messages", len(req.Messages),
@@ -267,6 +274,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 	for {
 		timeout := perAttemptTimeout()
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
 
 		if logger != nil {
 			logger.Info("[LLM Stream Retry] CreateChatCompletionStream starting",
@@ -341,10 +349,15 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
+		providerAfter, modelAfter := activeProviderAndModel(client, req.Model)
+		providerChanged := providerBefore != providerAfter || modelBefore != modelAfter
+		if providerChanged {
+			waitTime = 0
+		}
 
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			remaining := time.Until(deadline)
-			if remaining < waitTime {
+			if waitTime > 0 && remaining < waitTime {
 				waitTime = remaining
 			}
 		} else if waitTime > timeout {
@@ -364,6 +377,7 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 				"attempt_ctx_err", attemptCtxErr,
 				"parent_ctx_err", parentCtxErr,
 				"is_transport_timeout", isTransportTimeout,
+				"provider_changed", providerChanged,
 				"call_elapsed_ms", callElapsed.Milliseconds(),
 				"model", req.Model,
 				"messages", len(req.Messages),
