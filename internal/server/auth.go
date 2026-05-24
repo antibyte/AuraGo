@@ -605,6 +605,7 @@ var authBypassPrefixes = []string{
 	"/api/ui-language",
 	"/api/remote/ws",       // Remote agent WebSocket — has its own key-based auth
 	"/api/remote/download", // Personalized binary download — generates an enrollment token
+	"/api/agodesk/ws",      // agodesk WebSocket — performs pairing inside the socket protocol
 	"/api/invasion/ws",     // Egg WebSocket — has its own HMAC-based auth handshake
 	"/mcp",
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth

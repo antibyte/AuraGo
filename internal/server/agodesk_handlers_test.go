@@ -1,0 +1,363 @@
+package server
+
+import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"aurago/internal/agodesk"
+	"aurago/internal/config"
+	"aurago/internal/remote"
+	"aurago/internal/security"
+
+	"github.com/gorilla/websocket"
+)
+
+func TestAgodeskWebSocketSendsConnectedAndPong(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+
+	connected := readAgodeskTestEnvelope(t, conn)
+	if connected.Type != agodesk.TypeSystemConnected {
+		t.Fatalf("first message type = %q, want %q", connected.Type, agodesk.TypeSystemConnected)
+	}
+	var payload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &payload)
+	if payload.ProtocolVersion != agodesk.ProtocolVersion {
+		t.Fatalf("protocol_version = %q, want %q", payload.ProtocolVersion, agodesk.ProtocolVersion)
+	}
+	if !payload.AuthRequired || !payload.PairingRequired {
+		t.Fatalf("auth flags = auth:%v pairing:%v, want both true", payload.AuthRequired, payload.PairingRequired)
+	}
+	if payload.SessionID == "" {
+		t.Fatal("system.connected did not include a temporary session_id")
+	}
+
+	ping, err := agodesk.NewEnvelope(agodesk.TypeSystemPing, map[string]string{})
+	if err != nil {
+		t.Fatalf("NewEnvelope ping: %v", err)
+	}
+	if err := conn.WriteJSON(ping); err != nil {
+		t.Fatalf("write ping: %v", err)
+	}
+	pong := readAgodeskTestEnvelope(t, conn)
+	if pong.Type != agodesk.TypeSystemPong {
+		t.Fatalf("pong type = %q, want %q", pong.Type, agodesk.TypeSystemPong)
+	}
+}
+
+func TestAgodeskWebSocketRouteBypassesSessionAuthForPairingHandshake(t *testing.T) {
+	if !isAuthBypassed("/api/agodesk/ws") {
+		t.Fatal("/api/agodesk/ws must bypass session auth so agodesk can perform its own pairing handshake")
+	}
+}
+
+func TestAgodeskWebSocketInvalidJSONReturnsChatError(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"id":`)); err != nil {
+		t.Fatalf("write invalid json: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatError)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorInvalidMessage {
+		t.Fatalf("error code = %q, want %q", payload.Code, agodesk.ErrorInvalidMessage)
+	}
+}
+
+func TestAgodeskInsecureLoopbackDevRequiresLoopbackRemoteAddr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/agodesk/ws?insecure_loopback=1", nil)
+	req.RemoteAddr = "203.0.113.10:5555"
+	if isExplicitAgodeskLoopbackDev(req) {
+		t.Fatal("insecure_loopback=1 must not enable dev mode for non-loopback clients")
+	}
+}
+
+func TestAgodeskWebSocketRequiresPairingForNormalChat(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: "agodesk-temp",
+		Text:      "hello",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatError {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatError)
+	}
+	var payload agodesk.ChatErrorPayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.Code != agodesk.ErrorPairingRequired {
+		t.Fatalf("error code = %q, want %q", payload.Code, agodesk.ErrorPairingRequired)
+	}
+	if payload.RequestID != msg.ID {
+		t.Fatalf("request_id = %q, want %q", payload.RequestID, msg.ID)
+	}
+}
+
+func TestAgodeskWebSocketAllowsExplicitLoopbackDevChat(t *testing.T) {
+	s := newAgodeskHandlerTestServer()
+	oldRunner := agodeskAgentChatRunner
+	agodeskAgentChatRunner = func(_ *Server, _ *http.Request, sessionID, message string) (string, error) {
+		if !strings.HasPrefix(sessionID, "agodesk:dev:") {
+			t.Fatalf("sessionID = %q, want agodesk dev session", sessionID)
+		}
+		if message != "hello" {
+			t.Fatalf("message = %q, want hello", message)
+		}
+		return "agent says hello", nil
+	}
+	t.Cleanup(func() { agodeskAgentChatRunner = oldRunner })
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+	if connectedPayload.AuthRequired || connectedPayload.PairingRequired {
+		t.Fatalf("dev auth flags = auth:%v pairing:%v, want false/false", connectedPayload.AuthRequired, connectedPayload.PairingRequired)
+	}
+
+	msg, err := agodesk.NewEnvelope(agodesk.TypeChatMessage, agodesk.ChatMessagePayload{
+		SessionID: connectedPayload.SessionID,
+		Text:      "hello",
+		Role:      "user",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope chat: %v", err)
+	}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write chat: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeChatResponse {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeChatResponse)
+	}
+	var payload agodesk.ChatResponsePayload
+	decodeAgodeskTestPayload(t, resp, &payload)
+	if payload.RequestID != msg.ID || payload.Text != "agent says hello" || payload.Role != "assistant" {
+		t.Fatalf("chat response payload = %+v", payload)
+	}
+}
+
+func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "remote_test_pairing_token"
+	enrollID, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "desktop-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion: "0.1.0",
+		PairingToken:  token,
+		Host: agodesk.SessionStartHost{
+			Hostname: "DESKTOP-PC",
+			OS:       "windows",
+			Arch:     "amd64",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeSessionAccepted {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeSessionAccepted)
+	}
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, resp, &accepted)
+	if !accepted.Approved || accepted.DeviceID == "" || accepted.SessionID != "agodesk:"+accepted.DeviceID {
+		t.Fatalf("accepted payload = %+v", accepted)
+	}
+	if accepted.SharedKey == "" {
+		t.Fatal("fresh pairing did not return a shared key for client secure storage")
+	}
+
+	device, err := remote.GetDevice(s.RemoteHub.DB(), accepted.DeviceID)
+	if err != nil {
+		t.Fatalf("GetDevice: %v", err)
+	}
+	if device.Name != "desktop-pc" || device.Hostname != "DESKTOP-PC" || device.OS != "windows" || device.Arch != "amd64" {
+		t.Fatalf("device record = %+v", device)
+	}
+	if !agodeskTestContainsString(device.Tags, "agodesk") {
+		t.Fatalf("device tags = %v, want agodesk", device.Tags)
+	}
+	secret, err := s.Vault.ReadSecret("remote_shared_key_" + accepted.DeviceID)
+	if err != nil {
+		t.Fatalf("ReadSecret shared key: %v", err)
+	}
+	if secret != accepted.SharedKey {
+		t.Fatal("vault shared key does not match accepted payload")
+	}
+	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), hashSHA256(token))
+	if err != nil {
+		t.Fatalf("GetEnrollmentByTokenHash: %v", err)
+	}
+	if !enrollment.Used || enrollment.UsedByDevice != accepted.DeviceID || enrollment.ID != enrollID {
+		t.Fatalf("enrollment after pairing = %+v", enrollment)
+	}
+}
+
+func TestAgodeskSessionStartReconnectRequiresSharedKeyProof(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	sharedKey := "0123456789abcdef0123456789abcdef"
+	deviceID, err := remote.CreateDevice(s.RemoteHub.DB(), remote.DeviceRecord{
+		Name:          "desktop-pc",
+		Hostname:      "DESKTOP-PC",
+		OS:            "windows",
+		Arch:          "amd64",
+		Status:        "approved",
+		SharedKeyHash: hashSHA256(sharedKey),
+		Tags:          []string{"agodesk"},
+	})
+	if err != nil {
+		t.Fatalf("CreateDevice: %v", err)
+	}
+	if err := s.Vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+
+	startID := "session-start-reconnect"
+	proof, err := agodesk.NewSharedKeyProof(sharedKey, startID, deviceID, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("NewSharedKeyProof: %v", err)
+	}
+	startPayload := agodesk.SessionStartPayload{
+		ClientVersion:  "0.1.0",
+		DeviceID:       deviceID,
+		SharedKeyProof: &proof,
+		Host: agodesk.SessionStartHost{
+			Hostname: "DESKTOP-PC",
+			OS:       "windows",
+			Arch:     "amd64",
+		},
+	}
+	rawPayload, _ := json.Marshal(startPayload)
+	start := agodesk.Envelope{
+		ID:        startID,
+		Type:      agodesk.TypeSessionStart,
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Payload:   rawPayload,
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write reconnect session.start: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeSessionAccepted {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeSessionAccepted)
+	}
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, resp, &accepted)
+	if accepted.DeviceID != deviceID || accepted.SessionID != "agodesk:"+deviceID || !accepted.Approved {
+		t.Fatalf("accepted reconnect payload = %+v", accepted)
+	}
+	if accepted.SharedKey != "" {
+		t.Fatal("reconnect must not echo the existing shared key")
+	}
+}
+
+func newAgodeskHandlerTestServer() *Server {
+	return &Server{
+		Cfg:    &config.Config{},
+		Logger: slog.Default(),
+	}
+}
+
+func newAgodeskPairingTestServer(t *testing.T) *Server {
+	t.Helper()
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("remote InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	cfg := &config.Config{}
+	hub := remote.NewRemoteHub(db, vault, slog.Default())
+	return &Server{
+		Cfg:       cfg,
+		Logger:    slog.Default(),
+		Vault:     vault,
+		RemoteHub: hub,
+	}
+}
+
+func dialAgodeskTestWebSocket(t *testing.T, s *Server, path string) (*websocket.Conn, func()) {
+	t.Helper()
+	srv := httptest.NewServer(handleAgodeskWebSocket(s))
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + path
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		srv.Close()
+		t.Fatalf("dial agodesk websocket: %v", err)
+	}
+	return conn, func() {
+		_ = conn.Close()
+		srv.Close()
+	}
+}
+
+func readAgodeskTestEnvelope(t *testing.T, conn *websocket.Conn) agodesk.Envelope {
+	t.Helper()
+	var env agodesk.Envelope
+	if err := conn.ReadJSON(&env); err != nil {
+		t.Fatalf("read envelope: %v", err)
+	}
+	return env
+}
+
+func decodeAgodeskTestPayload(t *testing.T, env agodesk.Envelope, target interface{}) {
+	t.Helper()
+	if err := json.Unmarshal(env.Payload, target); err != nil {
+		t.Fatalf("decode %s payload: %v", env.Type, err)
+	}
+}
+
+func agodeskTestContainsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}

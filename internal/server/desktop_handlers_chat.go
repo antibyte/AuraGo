@@ -457,13 +457,34 @@ type preparedDesktopAgentTurn struct {
 	runCfg agent.RunConfig
 }
 
+type desktopAgentTurnOptions struct {
+	SessionID        string
+	MessageSource    string
+	AdditionalPrompt string
+}
+
 func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool) (preparedDesktopAgentTurn, error) {
+	return prepareDesktopAgentTurnWithOptions(ctx, s, message, chatContext, stream, desktopAgentTurnOptions{
+		SessionID:     desktopChatSessionID,
+		MessageSource: desktopChatMessageSource,
+	})
+}
+
+func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool, opts desktopAgentTurnOptions) (preparedDesktopAgentTurn, error) {
 	var turn preparedDesktopAgentTurn
 	if s == nil || s.Cfg == nil {
 		return turn, fmt.Errorf("server not configured")
 	}
 	if s.ShortTermMem == nil {
 		return turn, fmt.Errorf("short-term memory not configured")
+	}
+	sessionID := strings.TrimSpace(opts.SessionID)
+	if sessionID == "" {
+		sessionID = desktopChatSessionID
+	}
+	messageSource := strings.TrimSpace(opts.MessageSource)
+	if messageSource == "" {
+		messageSource = desktopChatMessageSource
 	}
 
 	s.CfgMu.RLock()
@@ -473,7 +494,10 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 
 	persistContext := chatContext
 	persistContext.ImageBase64 = ""
-	desktopPromptContext := buildDesktopAgentContext(persistContext)
+	desktopPromptContext := strings.TrimSpace(opts.AdditionalPrompt)
+	if desktopPromptContext == "" {
+		desktopPromptContext = buildDesktopAgentContext(persistContext)
+	}
 	cfg.Agent.AdditionalPrompt = appendDesktopAdditionalPrompt(cfg.Agent.AdditionalPrompt, desktopPromptContext)
 
 	persistedPrompt := message
@@ -489,12 +513,12 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 	if s.Guardian != nil {
 		s.Guardian.ScanUserInput(message)
 	}
-	if _, err := s.ShortTermMem.InsertMessage(desktopChatSessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false); err != nil {
+	if _, err := s.ShortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, persistedPrompt, false, false); err != nil {
 		return turn, fmt.Errorf("insert desktop user message: %w", err)
 	}
-	agent.NoteInnerVoiceUserTurn(desktopChatSessionID)
+	agent.NoteInnerVoiceUserTurn(sessionID)
 
-	sessionMessages, err := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	sessionMessages, err := s.ShortTermMem.GetSessionMessages(sessionID)
 	if err != nil {
 		return turn, fmt.Errorf("load desktop session messages: %w", err)
 	}
@@ -518,7 +542,7 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 		}
 	}
 
-	recentMessages := recentMessagesForRequest(desktopChatSessionID, "", []openai.ChatCompletionMessage{currentRequestMessage}, nil, sessionMessages)
+	recentMessages := recentMessagesForRequest(sessionID, "", []openai.ChatCompletionMessage{currentRequestMessage}, nil, sessionMessages)
 	recentMessages = replaceDesktopCurrentRequestMessage(recentMessages, persistedPrompt, currentRequestMessage)
 	if strings.TrimSpace(chatContext.ImageBase64) == "" {
 		for i, msg := range recentMessages {
@@ -528,7 +552,7 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 	sanitizedMessages, droppedToolMessages := agent.SanitizeToolMessages(recentMessages)
 	if droppedToolMessages > 0 && s.Logger != nil {
 		s.Logger.Warn("Sanitized orphaned desktop chat tool messages",
-			"session_id", desktopChatSessionID,
+			"session_id", sessionID,
 			"dropped", droppedToolMessages,
 			"before", len(recentMessages),
 			"after", len(sanitizedMessages))
@@ -539,7 +563,7 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 		Messages: sanitizedMessages,
 		Stream:   stream,
 	}
-	turn.runCfg = buildDesktopRunConfig(s, &cfg, llmClient)
+	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	return turn, nil
 }
 
@@ -567,8 +591,20 @@ func appendDesktopAdditionalPrompt(base, desktopContext string) string {
 }
 
 func buildDesktopRunConfig(s *Server, cfg *config.Config, llmClient llm.ChatClient) agent.RunConfig {
+	return buildDesktopRunConfigForSession(s, cfg, llmClient, desktopChatSessionID, desktopChatMessageSource)
+}
+
+func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient llm.ChatClient, sessionID, messageSource string) agent.RunConfig {
 	if cfg == nil {
 		cfg = &config.Config{}
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		sessionID = desktopChatSessionID
+	}
+	messageSource = strings.TrimSpace(messageSource)
+	if messageSource == "" {
+		messageSource = desktopChatMessageSource
 	}
 	return agent.RunConfig{
 		Config:             cfg,
@@ -599,8 +635,8 @@ func buildDesktopRunConfig(s *Server, cfg *config.Config, llmClient llm.ChatClie
 		DaemonSupervisor:   s.DaemonSupervisor,
 		LLMGuardian:        s.LLMGuardian,
 		PreparationService: s.PreparationService,
-		SessionID:          desktopChatSessionID,
-		MessageSource:      desktopChatMessageSource,
+		SessionID:          sessionID,
+		MessageSource:      messageSource,
 		VoiceOutputActive:  GetSpeakerMode(),
 	}
 }

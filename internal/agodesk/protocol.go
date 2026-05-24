@@ -1,0 +1,267 @@
+package agodesk
+
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+)
+
+const ProtocolVersion = "agodesk.v1"
+
+type MessageType string
+
+const (
+	TypeSystemConnected MessageType = "system.connected"
+	TypeSystemPing      MessageType = "system.ping"
+	TypeSystemPong      MessageType = "system.pong"
+	TypeSessionStart    MessageType = "session.start"
+	TypeSessionAccepted MessageType = "session.accepted"
+	TypeChatMessage     MessageType = "chat.message"
+	TypeChatResponse    MessageType = "chat.response"
+	TypeChatError       MessageType = "chat.error"
+	TypeChatChunk       MessageType = "chat.response.chunk"
+	TypeDesktopCommand  MessageType = "desktop.command"
+	TypeDesktopResult   MessageType = "desktop.result"
+)
+
+const (
+	ErrorAgentTimeout           = "AGENT_TIMEOUT"
+	ErrorInvalidMessage         = "INVALID_MESSAGE"
+	ErrorSessionNotFound        = "SESSION_NOT_FOUND"
+	ErrorInternal               = "INTERNAL_ERROR"
+	ErrorAuthRequired           = "AUTH_REQUIRED"
+	ErrorAuthFailed             = "AUTH_FAILED"
+	ErrorPairingRequired        = "PAIRING_REQUIRED"
+	ErrorDeviceNotApproved      = "DEVICE_NOT_APPROVED"
+	ErrorRemoteReadOnly         = "REMOTE_READ_ONLY"
+	ErrorRemotePermissionDenied = "REMOTE_PERMISSION_DENIED"
+	ErrorRemoteUnavailable      = "REMOTE_UNAVAILABLE"
+	ErrorUnsupportedCapability  = "UNSUPPORTED_CAPABILITY"
+	ErrorControlSessionActive   = "CONTROL_SESSION_ACTIVE"
+)
+
+var DefaultCapabilities = []string{
+	"chat.full_response",
+	"chat.streaming",
+	"pairing.remotehub",
+	"remote.desktop.capture.planned",
+	"remote.desktop.input.planned",
+}
+
+type Envelope struct {
+	ID        string          `json:"id"`
+	Type      MessageType     `json:"type"`
+	Timestamp string          `json:"timestamp"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+type SystemConnectedPayload struct {
+	ProtocolVersion string   `json:"protocol_version"`
+	ServerVersion   string   `json:"server_version"`
+	SessionID       string   `json:"session_id"`
+	AuthRequired    bool     `json:"auth_required"`
+	PairingRequired bool     `json:"pairing_required"`
+	Capabilities    []string `json:"capabilities"`
+}
+
+type SessionStartPayload struct {
+	ClientVersion      string            `json:"client_version"`
+	DeviceID           string            `json:"device_id,omitempty"`
+	PairingToken       string            `json:"pairing_token,omitempty"`
+	SharedKeyProof     *SharedKeyProof   `json:"shared_key_proof,omitempty"`
+	ClientCapabilities []string          `json:"client_capabilities,omitempty"`
+	Host               SessionStartHost  `json:"host"`
+	Metadata           map[string]string `json:"metadata,omitempty"`
+}
+
+type SessionStartHost struct {
+	Hostname string `json:"hostname"`
+	OS       string `json:"os"`
+	Arch     string `json:"arch"`
+	IP       string `json:"ip,omitempty"`
+}
+
+type SharedKeyProof struct {
+	Nonce     string `json:"nonce"`
+	Timestamp string `json:"timestamp"`
+	HMAC      string `json:"hmac"`
+}
+
+type SessionAcceptedPayload struct {
+	SessionID    string   `json:"session_id"`
+	DeviceID     string   `json:"device_id"`
+	Approved     bool     `json:"approved"`
+	ReadOnly     bool     `json:"read_only"`
+	Capabilities []string `json:"capabilities"`
+	SharedKey    string   `json:"shared_key,omitempty"`
+}
+
+type ChatMessagePayload struct {
+	SessionID string `json:"session_id"`
+	Text      string `json:"text"`
+	Role      string `json:"role"`
+}
+
+type ChatResponsePayload struct {
+	SessionID string                 `json:"session_id"`
+	RequestID string                 `json:"request_id"`
+	Text      string                 `json:"text"`
+	Role      string                 `json:"role"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type ChatErrorPayload struct {
+	RequestID string `json:"request_id,omitempty"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+}
+
+type ChatChunkPayload struct {
+	SessionID string `json:"session_id"`
+	RequestID string `json:"request_id"`
+	Delta     string `json:"delta"`
+	Done      bool   `json:"done"`
+	Sequence  int    `json:"sequence"`
+}
+
+type DesktopCommandPayload struct {
+	CommandID string                 `json:"command_id"`
+	Operation string                 `json:"operation"`
+	Params    map[string]interface{} `json:"params,omitempty"`
+}
+
+type DesktopResultPayload struct {
+	CommandID string                 `json:"command_id"`
+	OK        bool                   `json:"ok"`
+	Data      map[string]interface{} `json:"data,omitempty"`
+	Error     string                 `json:"error,omitempty"`
+}
+
+func NewEnvelope(messageType MessageType, payload interface{}) (Envelope, error) {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return Envelope{}, fmt.Errorf("marshal payload: %w", err)
+	}
+	return Envelope{
+		ID:        newMessageID(),
+		Type:      messageType,
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Payload:   raw,
+	}, nil
+}
+
+func DecodeEnvelope(data []byte, maxBytes int) (Envelope, error) {
+	if maxBytes > 0 && len(data) > maxBytes {
+		return Envelope{}, fmt.Errorf("message too large: %d bytes exceeds %d", len(data), maxBytes)
+	}
+	var env Envelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		return Envelope{}, fmt.Errorf("decode envelope: %w", err)
+	}
+	if strings.TrimSpace(env.ID) == "" {
+		return Envelope{}, fmt.Errorf("id is required")
+	}
+	if strings.TrimSpace(string(env.Type)) == "" {
+		return Envelope{}, fmt.Errorf("type is required")
+	}
+	if strings.TrimSpace(env.Timestamp) == "" {
+		return Envelope{}, fmt.Errorf("timestamp is required")
+	}
+	if _, err := time.Parse(time.RFC3339Nano, env.Timestamp); err != nil {
+		if _, fallbackErr := time.Parse(time.RFC3339, env.Timestamp); fallbackErr != nil {
+			return Envelope{}, fmt.Errorf("timestamp is invalid: %w", err)
+		}
+	}
+	if env.Payload == nil {
+		env.Payload = json.RawMessage(`{}`)
+	}
+	return env, nil
+}
+
+func NewSharedKeyProof(sharedKey, envelopeID, deviceID string, now time.Time) (SharedKeyProof, error) {
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return SharedKeyProof{}, fmt.Errorf("generate nonce: %w", err)
+	}
+	proof := SharedKeyProof{
+		Nonce:     hex.EncodeToString(nonceBytes),
+		Timestamp: now.UTC().Format(time.RFC3339Nano),
+	}
+	proof.HMAC = signSharedKeyProof(sharedKey, envelopeID, deviceID, proof.Nonce, proof.Timestamp)
+	return proof, nil
+}
+
+func VerifySharedKeyProof(sharedKey, envelopeID, deviceID string, proof SharedKeyProof, now time.Time, maxSkew time.Duration) bool {
+	if strings.TrimSpace(sharedKey) == "" ||
+		strings.TrimSpace(envelopeID) == "" ||
+		strings.TrimSpace(deviceID) == "" ||
+		strings.TrimSpace(proof.Nonce) == "" ||
+		strings.TrimSpace(proof.Timestamp) == "" ||
+		strings.TrimSpace(proof.HMAC) == "" {
+		return false
+	}
+	proofTime, err := time.Parse(time.RFC3339Nano, proof.Timestamp)
+	if err != nil {
+		proofTime, err = time.Parse(time.RFC3339, proof.Timestamp)
+		if err != nil {
+			return false
+		}
+	}
+	if maxSkew > 0 {
+		delta := now.Sub(proofTime)
+		if delta < 0 {
+			delta = -delta
+		}
+		if delta > maxSkew {
+			return false
+		}
+	}
+	want := signSharedKeyProof(sharedKey, envelopeID, deviceID, proof.Nonce, proof.Timestamp)
+	return hmac.Equal([]byte(strings.ToLower(want)), []byte(strings.ToLower(strings.TrimSpace(proof.HMAC))))
+}
+
+func signSharedKeyProof(sharedKey, envelopeID, deviceID, nonce, timestamp string) string {
+	mac := hmac.New(sha256.New, sharedKeyProofBytes(sharedKey))
+	mac.Write([]byte(ProtocolVersion))
+	mac.Write([]byte("\nsession.start\n"))
+	mac.Write([]byte(envelopeID))
+	mac.Write([]byte("\n"))
+	mac.Write([]byte(deviceID))
+	mac.Write([]byte("\n"))
+	mac.Write([]byte(nonce))
+	mac.Write([]byte("\n"))
+	mac.Write([]byte(timestamp))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func sharedKeyProofBytes(sharedKey string) []byte {
+	if decoded, err := hex.DecodeString(strings.TrimSpace(sharedKey)); err == nil && len(decoded) > 0 {
+		return decoded
+	}
+	return []byte(sharedKey)
+}
+
+func newMessageID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("msg-%d", time.Now().UnixNano())
+	}
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	buf := make([]byte, 36)
+	hex.Encode(buf[0:8], b[0:4])
+	buf[8] = '-'
+	hex.Encode(buf[9:13], b[4:6])
+	buf[13] = '-'
+	hex.Encode(buf[14:18], b[6:8])
+	buf[18] = '-'
+	hex.Encode(buf[19:23], b[8:10])
+	buf[23] = '-'
+	hex.Encode(buf[24:36], b[10:16])
+	return string(buf)
+}

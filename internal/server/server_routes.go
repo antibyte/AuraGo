@@ -469,6 +469,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/chat", handleDesktopChat(s))
 	mux.HandleFunc("/api/desktop/chat/stream", handleDesktopChatStream(s))
 	mux.HandleFunc("/api/desktop/ws", handleDesktopWS(s))
+	mux.HandleFunc("/api/agodesk/ws", handleAgodeskWebSocket(s))
 	registerDesktopStoreRoutes(mux, s)
 	desktopSSHHandler := desktop.HandleSSHProxy(s.InventoryDB, s.Vault, s.Logger)
 	mux.HandleFunc("/api/desktop/ssh", func(w http.ResponseWriter, r *http.Request) {
