@@ -122,12 +122,13 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.15;
+    opacity: 0.18;
     background-image: url("/img/circuit.jpg");
-    background-size: cover;
+    background-size: auto 100%;
     background-position: center;
+    background-repeat: repeat-x;
     mix-blend-mode: screen;
-    filter: hue-rotate(180deg) saturate(1.4) brightness(0.9);
+    filter: hue-rotate(180deg) saturate(1.6) brightness(0.85) contrast(1.1);
 }
 
 [data-theme="cyberwar"] .app-header::after {
@@ -593,13 +594,13 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.12;
+    opacity: 0.15;
     background-image: url("/img/circuit.jpg");
-    background-size: cover;
+    background-size: auto 100%;
     background-position: center;
-    background-repeat: no-repeat;
+    background-repeat: repeat-x;
     mix-blend-mode: screen;
-    filter: hue-rotate(180deg) saturate(1.4) brightness(0.9);
+    filter: hue-rotate(180deg) saturate(1.6) brightness(0.85) contrast(1.1);
 }
 
 [data-theme="cyberwar"] .input-wrap textarea,
