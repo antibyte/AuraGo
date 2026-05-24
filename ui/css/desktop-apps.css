@@ -1605,7 +1605,11 @@
 }
 
 .vd-calc.scientific-on .vd-calc-keys {
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.vd-calc.programmer-on .vd-calc-keys {
+    grid-template-columns: repeat(5, 1fr);
 }
 
 .vd-calc-keys button {
@@ -1693,6 +1697,11 @@
     animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+.vd-calc.programmer-on .vd-calc-keys button.fn {
+    display: block;
+    animation: calcFnFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 @keyframes calcFnFadeIn {
     from {
         opacity: 0;
@@ -1705,7 +1714,6 @@
 }
 
 .vd-calc-keys button.eq {
-    grid-column: span 2;
     background:
         linear-gradient(145deg, rgba(39, 199, 166, 0.55), rgba(30, 160, 135, 0.4));
     color: #ffffff;

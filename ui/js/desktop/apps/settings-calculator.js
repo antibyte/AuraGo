@@ -631,27 +631,7 @@
                 tokens.push({ type: 'identifier', value: expression.slice(start, index) });
                 continue;
             }
-            if (char === 'p') {
-                tokens.push({ type: 'identifier', value: 'PI' });
-                index += 1;
-                continue;
-            }
-            if (char === 'v') {
-                tokens.push({ type: 'identifier', value: 'sqrt' });
-                index += 1;
-                continue;
-            }
-            if (char === '×') {
-                tokens.push({ type: 'operator', value: '*' });
-                index += 1;
-                continue;
-            }
-            if (char === '÷') {
-                tokens.push({ type: 'operator', value: '/' });
-                index += 1;
-                continue;
-            }
-            if ('+-*/%^()!²'.includes(char)) {
+            if ('+-*/%^()!'.includes(char)) {
                 tokens.push({ type: 'operator', value: char });
                 index += 1;
                 continue;
@@ -750,9 +730,9 @@
         };
         const parsePostfixExpression = () => {
             let value = parsePrimaryExpression();
-            while (peek().type === 'operator' && (peek().value === '!' || peek().value === '²')) {
-                const operator = consume().value;
-                value = operator === '!' ? calculatorFactorial(value) : Math.pow(value, 2);
+            while (peek().type === 'operator' && peek().value === '!') {
+                consume();
+                value = calculatorFactorial(value);
             }
             return value;
         };
@@ -798,12 +778,12 @@
             standard: [
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: '?' },
-                { key: '÷', kind: 'op' },
+                { key: 'backspace', label: 'Back' },
+                { key: '/', kind: 'op' },
                 { key: '7' },
                 { key: '8' },
                 { key: '9' },
-                { key: '×', kind: 'op' },
+                { key: '*', kind: 'op' },
                 { key: '4' },
                 { key: '5' },
                 { key: '6' },
@@ -812,80 +792,82 @@
                 { key: '2' },
                 { key: '3' },
                 { key: '+', kind: 'op' },
-                { key: '±' },
+                { key: 'negate', label: '+/-' },
                 { key: '0' },
                 { key: '.' },
                 { key: '=', kind: 'eq' }
             ],
             scientific: [
                 { key: 'sin', kind: 'fn' },
-                { key: 'cos', kind: 'fn' },
-                { key: 'tan', kind: 'fn' },
-                { key: 'log', kind: 'fn' },
-                { key: 'ln', kind: 'fn' },
-                { key: 'p', kind: 'fn' },
-                { key: 'e', kind: 'fn' },
-                { key: 'x²', kind: 'fn' },
-                { key: 'x?', kind: 'fn' },
-                { key: 'n!', kind: 'fn' },
-                { key: 'v', kind: 'fn' },
-                { key: '(', kind: 'fn' },
-                { key: ')', kind: 'fn' },
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: '?' },
-                { key: '%', kind: 'op' },
+                { key: 'backspace', label: 'Back' },
+                { key: '/', kind: 'op' },
+                { key: 'cos', kind: 'fn' },
                 { key: '7' },
                 { key: '8' },
                 { key: '9' },
-                { key: '÷', kind: 'op' },
+                { key: '*', kind: 'op' },
+                { key: 'tan', kind: 'fn' },
                 { key: '4' },
                 { key: '5' },
                 { key: '6' },
-                { key: '×', kind: 'op' },
+                { key: '-', kind: 'op' },
+                { key: 'log', kind: 'fn' },
                 { key: '1' },
                 { key: '2' },
                 { key: '3' },
-                { key: '-', kind: 'op' },
-                { key: '0' },
-                { key: '00' },
-                { key: '.' },
                 { key: '+', kind: 'op' },
-                { key: '±' },
-                { key: '=', kind: 'eq' }
+                { key: 'ln', kind: 'fn' },
+                { key: 'negate', label: '+/-' },
+                { key: '0' },
+                { key: '.' },
+                { key: '=', kind: 'eq' },
+                { key: 'pi', label: 'pi', kind: 'fn' },
+                { key: 'e', kind: 'fn' },
+                { key: 'square', label: 'x^2', kind: 'fn' },
+                { key: 'power', label: 'x^y', kind: 'fn' },
+                { key: 'n!', kind: 'fn' },
+                { key: 'sqrt', kind: 'fn' },
+                { key: '(', kind: 'fn' },
+                { key: ')', kind: 'fn' },
+                { key: '%', kind: 'op' },
+                { key: '00' }
             ],
             programmer: [
+                { key: 'AND', kind: 'fn' },
                 { key: 'C', kind: 'danger' },
                 { key: 'CE', kind: 'danger' },
-                { key: '?' },
-                { key: 'AND', kind: 'fn' },
+                { key: 'backspace', label: 'Back' },
+                { key: '/', kind: 'op' },
                 { key: 'OR', kind: 'fn' },
                 { key: '7' },
                 { key: '8' },
                 { key: '9' },
+                { key: '*', kind: 'op' },
                 { key: 'XOR', kind: 'fn' },
-                { key: 'NOT', kind: 'fn' },
                 { key: '4' },
                 { key: '5' },
                 { key: '6' },
-                { key: 'SHL', kind: 'fn' },
-                { key: 'SHR', kind: 'fn' },
+                { key: '-', kind: 'op' },
+                { key: 'NOT', kind: 'fn' },
                 { key: '1' },
                 { key: '2' },
                 { key: '3' },
+                { key: '+', kind: 'op' },
                 { key: 'MOD', kind: 'fn' },
-                { key: '÷', kind: 'op' },
                 { key: '0' },
                 { key: 'A', kind: 'fn' },
                 { key: 'B', kind: 'fn' },
+                { key: '=', kind: 'eq' },
+                { key: 'SHL', kind: 'fn' },
+                { key: 'SHR', kind: 'fn' },
                 { key: 'HEX_C', label: 'C', kind: 'fn' },
-                { key: '×', kind: 'op' },
                 { key: 'D', kind: 'fn' },
                 { key: 'E', kind: 'fn' },
                 { key: 'F', kind: 'fn' },
-                { key: '+', kind: 'op' },
-                { key: '-', kind: 'op' },
-                { key: '=', kind: 'eq', className: 'wide' }
+                { key: '(', kind: 'fn' },
+                { key: ')', kind: 'fn' }
             ]
         };
         host.innerHTML = `<div class="vd-calc" tabindex="0">
@@ -995,7 +977,7 @@
             try {
                 if (key === 'C') expression = '';
                 else if (key === 'CE') expression = '';
-                else if (key === '?') expression = expression.slice(0, -1);
+                else if (key === 'backspace') expression = expression.slice(0, -1);
                 else if (key === '=') {
                     evaluate();
                     animateButton('=');
@@ -1010,13 +992,13 @@
                     else if (/^[0-9A-Fa-f]$/.test(key)) {
                         if (validDigitForBase(key)) expression += key;
                     }
-                    else if (['+','-','×','÷','(',')'].includes(key)) expression += key;
+                    else if (['+','-','*','/','(',')'].includes(key)) expression += key;
                 }
-                else if (key === '±') expression = expression ? `(-1*(${expression}))` : '-';
-                else if (key === 'x²') expression += '²';
-                else if (key === 'x?') expression += '^';
+                else if (key === 'negate') expression = expression ? `(-1*(${expression}))` : '-';
+                else if (key === 'square') expression += '^2';
+                else if (key === 'power') expression += '^';
                 else if (key === 'n!') expression += '!';
-                else if (['sin', 'cos', 'tan', 'log', 'ln', 'v'].includes(key)) expression += `${key}(`;
+                else if (['sin', 'cos', 'tan', 'log', 'ln', 'sqrt'].includes(key)) expression += `${key}(`;
                 else expression += key;
                 update();
                 flashDisplay();
@@ -1054,18 +1036,18 @@
             update();
         }));
         root.addEventListener('keydown', event => {
-            const map = { Enter: '=', Backspace: '?', Escape: 'C', '*': '×', '/': '÷' };
+            const map = { Enter: '=', Backspace: 'backspace', Escape: 'C', '*': '*', '/': '/' };
             const key = map[event.key] || event.key;
             if (mode === 'programmer') {
-                const programmerKey = key === 'c' || key === 'C' ? 'HEX_C' : key.toUpperCase();
-                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','(',')','=','?','×','÷'].includes(key)) {
+                const programmerKey = key === 'backspace' ? 'backspace' : (key === 'c' || key === 'C' ? 'HEX_C' : key.toUpperCase());
+                if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','*','/','(',')','=','backspace'].includes(key)) {
                     event.preventDefault();
                     animateButton(programmerKey);
                     press(programmerKey);
                     return;
                 }
             }
-            if (/^[0-9.+\-()%]$/.test(key) || ['=', '?', 'C', '×', '÷'].includes(key)) {
+            if (/^[0-9.+\-()%*/]$/.test(key) || ['=', 'backspace', 'C'].includes(key)) {
                 event.preventDefault();
                 animateButton(key);
                 press(key);
