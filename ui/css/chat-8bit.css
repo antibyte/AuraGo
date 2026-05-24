@@ -61,6 +61,11 @@
     --chat-input-font-size: 0.85rem;
     font-family: var(--font-ui);
     font-size: 0.88rem;
+    
+    /* Disable anti-aliasing for pixel-perfect 8-bit text rendering */
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    font-smooth: never;
 }
 
 /* ── Body & Background ─────────────────────────────────────────── */
@@ -71,7 +76,8 @@
         radial-gradient(circle at 18% 18%, rgba(74, 158, 255, 0.06) 0 2px, transparent 3px 100%),
         radial-gradient(circle at 82% 28%, rgba(126, 200, 227, 0.06) 0 2px, transparent 3px 100%),
         linear-gradient(180deg, #2c3e50 0%, #243442 52%, #1a252f 100%);
-    text-shadow: 1px 0 0 rgba(74, 158, 255, 0.18), -1px 0 0 rgba(126, 200, 227, 0.12);
+    /* Remove blurry ghosting text shadow for crisp readable font */
+    text-shadow: none;
 }
 
 [data-theme="8bit"] body::before {
