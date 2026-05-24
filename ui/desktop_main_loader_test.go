@@ -40,6 +40,20 @@ func TestDesktopMainLoaderBumpsCacheAfterShortcutLogoIconFix(t *testing.T) {
 	}
 }
 
+func TestDesktopCSSBumpsCacheAfterCalculatorLayoutFix(t *testing.T) {
+	t.Parallel()
+
+	html := readDesktopAssetText(t, "desktop.html")
+	if !strings.Contains(html, `/css/desktop.css?v={{.BuildVersion}}-desktop-20260524-calculator-layout`) {
+		t.Fatal("desktop CSS link must be cache-busted after calculator layout fixes")
+	}
+
+	css := rawDesktopAssetText(t, "css/desktop.css")
+	if !strings.Contains(css, `@import url('desktop-apps.css?v=20260524-calculator-layout');`) {
+		t.Fatal("desktop apps CSS import must be cache-busted after calculator layout fixes")
+	}
+}
+
 func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	t.Parallel()
 
