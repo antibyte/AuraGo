@@ -1,16 +1,57 @@
 package server
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
 	"aurago/internal/remote"
 )
+
+func TestRemoteEnrollmentCreateReturnsOneTimeToken(t *testing.T) {
+	s, cleanup := newRemoteDownloadTestServer(t, nil)
+	defer cleanup()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/remote/enroll", strings.NewReader(`{"device_name":"agodesk-desktop"}`))
+	req.Header.Set("Content-Type", "application/json")
+	handleRemoteEnrollmentCreate(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		EnrollmentID string `json:"enrollment_id"`
+		Token        string `json:"token"`
+		ExpiresAt    string `json:"expires_at"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.EnrollmentID == "" || payload.Token == "" || payload.ExpiresAt == "" {
+		t.Fatalf("payload missing required fields: %+v", payload)
+	}
+	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), hashSHA256(payload.Token))
+	if err != nil {
+		t.Fatalf("GetEnrollmentByTokenHash: %v", err)
+	}
+	if enrollment.ID != payload.EnrollmentID || enrollment.DeviceName != "agodesk-desktop" || enrollment.Used {
+		t.Fatalf("stored enrollment = %+v, response = %+v", enrollment, payload)
+	}
+	var rawCount int
+	if err := s.RemoteHub.DB().QueryRow(`SELECT COUNT(*) FROM remote_enrollments WHERE token_hash = ?`, payload.Token).Scan(&rawCount); err != nil {
+		t.Fatalf("query raw token count: %v", err)
+	}
+	if rawCount != 0 {
+		t.Fatal("raw enrollment token must not be stored in remote_enrollments")
+	}
+}
 
 func TestRemoteDownloadUsesTailscaleSupervisorURL(t *testing.T) {
 	s, cleanup := newRemoteDownloadTestServer(t, func(cfg *config.Config) {

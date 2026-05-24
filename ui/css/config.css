@@ -2900,6 +2900,44 @@ select.cfg-input option {
     font-size: 0.8rem;
 }
 
+.rc-token-result {
+    margin-top: 0.6rem;
+}
+
+.rc-token-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.rc-token-ready {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--success);
+}
+
+.rc-token-value {
+    display: block;
+    padding: 0.5rem;
+    border-radius: 5px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+    user-select: all;
+}
+
+.rc-token-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
 .rc-device-list {
     display: flex;
     flex-direction: column;

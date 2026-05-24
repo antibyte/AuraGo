@@ -87,5 +87,15 @@
   "config.updates.installing": "Installerar…",
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
-  "config.webdav.secret_empty": "Värdet är tomt"
+  "config.webdav.secret_empty": "Värdet är tomt",
+  "config.remote_control.pairing_token_title": "Parkopplingstoken",
+  "config.remote_control.pairing_token_desc": "Skapa en engångstoken för att parkoppla agodesk eller en annan fjärrklient manuellt.",
+  "config.remote_control.pairing_token_generate": "Generera parkopplingstoken",
+  "config.remote_control.pairing_token_generating": "Genererar…",
+  "config.remote_control.pairing_token_copy": "Kopiera token",
+  "config.remote_control.pairing_token_copied": "Kopierad",
+  "config.remote_control.pairing_token_failed": "Kunde inte skapa token",
+  "config.remote_control.pairing_token_ready": "Parkopplingstoken är klar",
+  "config.remote_control.pairing_token_expires": "Går ut:",
+  "config.remote_control.pairing_token_hint": "Token är giltig i en timme och kan bara användas en gång."
 }

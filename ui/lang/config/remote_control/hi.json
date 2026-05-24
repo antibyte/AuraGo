@@ -87,5 +87,15 @@
   "config.updates.installing": "इंस्टॉल हो रहा है…",
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
-  "config.webdav.secret_empty": "मान खाली है"
+  "config.webdav.secret_empty": "मान खाली है",
+  "config.remote_control.pairing_token_title": "पेयरिंग टोकन",
+  "config.remote_control.pairing_token_desc": "agodesk या किसी अन्य रिमोट क्लाइंट को मैन्युअल रूप से पेयर करने के लिए एक बार इस्तेमाल होने वाला टोकन बनाएं।",
+  "config.remote_control.pairing_token_generate": "पेयरिंग टोकन बनाएं",
+  "config.remote_control.pairing_token_generating": "बनाया जा रहा है…",
+  "config.remote_control.pairing_token_copy": "टोकन कॉपी करें",
+  "config.remote_control.pairing_token_copied": "कॉपी हो गया",
+  "config.remote_control.pairing_token_failed": "टोकन नहीं बनाया जा सका",
+  "config.remote_control.pairing_token_ready": "पेयरिंग टोकन तैयार है",
+  "config.remote_control.pairing_token_expires": "समाप्ति:",
+  "config.remote_control.pairing_token_hint": "टोकन एक घंटे के लिए मान्य है और केवल एक बार इस्तेमाल किया जा सकता है।"
 }

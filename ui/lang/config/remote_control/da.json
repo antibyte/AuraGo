@@ -87,5 +87,15 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.webdav.secret_empty": "Værdien er tom"
+  "config.webdav.secret_empty": "Værdien er tom",
+  "config.remote_control.pairing_token_title": "Parringstoken",
+  "config.remote_control.pairing_token_desc": "Opret et engangstoken til manuel parring af agodesk eller en anden fjernklient.",
+  "config.remote_control.pairing_token_generate": "Generer parringstoken",
+  "config.remote_control.pairing_token_generating": "Genererer…",
+  "config.remote_control.pairing_token_copy": "Kopier token",
+  "config.remote_control.pairing_token_copied": "Kopieret",
+  "config.remote_control.pairing_token_failed": "Kunne ikke oprette token",
+  "config.remote_control.pairing_token_ready": "Parringstoken er klar",
+  "config.remote_control.pairing_token_expires": "Udløber:",
+  "config.remote_control.pairing_token_hint": "Tokenet er gyldigt i én time og kan kun bruges én gang."
 }

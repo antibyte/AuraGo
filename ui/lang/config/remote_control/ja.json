@@ -87,5 +87,15 @@
   "config.updates.installing": "インストール中…",
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.webdav.secret_empty": "値が空です",
+  "config.remote_control.pairing_token_title": "ペアリングトークン",
+  "config.remote_control.pairing_token_desc": "agodesk または別のリモートクライアントを手動でペアリングするためのワンタイムトークンを作成します。",
+  "config.remote_control.pairing_token_generate": "ペアリングトークンを生成",
+  "config.remote_control.pairing_token_generating": "生成中…",
+  "config.remote_control.pairing_token_copy": "トークンをコピー",
+  "config.remote_control.pairing_token_copied": "コピーしました",
+  "config.remote_control.pairing_token_failed": "トークンを作成できませんでした",
+  "config.remote_control.pairing_token_ready": "ペアリングトークンの準備ができました",
+  "config.remote_control.pairing_token_expires": "有効期限:",
+  "config.remote_control.pairing_token_hint": "トークンは1時間有効で、一度だけ使用できます。"
 }

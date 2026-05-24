@@ -87,5 +87,15 @@
   "config.updates.installing": "安装中…",
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
-  "config.webdav.secret_empty": "值为空"
+  "config.webdav.secret_empty": "值为空",
+  "config.remote_control.pairing_token_title": "配对令牌",
+  "config.remote_control.pairing_token_desc": "创建一次性令牌，用于手动配对 agodesk 或其他远程客户端。",
+  "config.remote_control.pairing_token_generate": "生成配对令牌",
+  "config.remote_control.pairing_token_generating": "正在生成…",
+  "config.remote_control.pairing_token_copy": "复制令牌",
+  "config.remote_control.pairing_token_copied": "已复制",
+  "config.remote_control.pairing_token_failed": "无法创建令牌",
+  "config.remote_control.pairing_token_ready": "配对令牌已就绪",
+  "config.remote_control.pairing_token_expires": "过期时间:",
+  "config.remote_control.pairing_token_hint": "令牌有效期为一小时且只能使用一次。"
 }

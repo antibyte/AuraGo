@@ -87,5 +87,15 @@
   "config.updates.installing": "Instaluji…",
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
-  "config.webdav.secret_empty": "Hodnota je prázdná"
+  "config.webdav.secret_empty": "Hodnota je prázdná",
+  "config.remote_control.pairing_token_title": "Párovací token",
+  "config.remote_control.pairing_token_desc": "Vytvořte jednorázový token pro ruční spárování agodesk nebo jiného vzdáleného klienta.",
+  "config.remote_control.pairing_token_generate": "Vygenerovat párovací token",
+  "config.remote_control.pairing_token_generating": "Generuji…",
+  "config.remote_control.pairing_token_copy": "Kopírovat token",
+  "config.remote_control.pairing_token_copied": "Zkopírováno",
+  "config.remote_control.pairing_token_failed": "Token se nepodařilo vytvořit",
+  "config.remote_control.pairing_token_ready": "Párovací token je připraven",
+  "config.remote_control.pairing_token_expires": "Vyprší:",
+  "config.remote_control.pairing_token_hint": "Token platí jednu hodinu a lze jej použít pouze jednou."
 }

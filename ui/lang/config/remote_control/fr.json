@@ -87,5 +87,15 @@
   "config.updates.installing": "Installation…",
   "config.updates.running": "En cours…",
   "config.web_scraper.summary_mode": "Mode résumé",
-  "config.webdav.secret_empty": "La valeur est vide"
+  "config.webdav.secret_empty": "La valeur est vide",
+  "config.remote_control.pairing_token_title": "Jeton d’appairage",
+  "config.remote_control.pairing_token_desc": "Créez un jeton à usage unique pour appairer manuellement agodesk ou un autre client distant.",
+  "config.remote_control.pairing_token_generate": "Générer un jeton d’appairage",
+  "config.remote_control.pairing_token_generating": "Génération…",
+  "config.remote_control.pairing_token_copy": "Copier le jeton",
+  "config.remote_control.pairing_token_copied": "Copié",
+  "config.remote_control.pairing_token_failed": "Impossible de créer le jeton",
+  "config.remote_control.pairing_token_ready": "Le jeton d’appairage est prêt",
+  "config.remote_control.pairing_token_expires": "Expire le :",
+  "config.remote_control.pairing_token_hint": "Le jeton est valable une heure et ne peut être utilisé qu’une seule fois."
 }

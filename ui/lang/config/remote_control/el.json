@@ -87,5 +87,15 @@
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.webdav.secret_empty": "Η τιμή είναι κενή",
+  "config.remote_control.pairing_token_title": "Διακριτικό σύζευξης",
+  "config.remote_control.pairing_token_desc": "Δημιουργήστε ένα εφάπαξ διακριτικό για χειροκίνητη σύζευξη του agodesk ή άλλου απομακρυσμένου πελάτη.",
+  "config.remote_control.pairing_token_generate": "Δημιουργία διακριτικού σύζευξης",
+  "config.remote_control.pairing_token_generating": "Δημιουργία…",
+  "config.remote_control.pairing_token_copy": "Αντιγραφή διακριτικού",
+  "config.remote_control.pairing_token_copied": "Αντιγράφηκε",
+  "config.remote_control.pairing_token_failed": "Αποτυχία δημιουργίας διακριτικού",
+  "config.remote_control.pairing_token_ready": "Το διακριτικό σύζευξης είναι έτοιμο",
+  "config.remote_control.pairing_token_expires": "Λήγει:",
+  "config.remote_control.pairing_token_hint": "Το διακριτικό ισχύει για μία ώρα και μπορεί να χρησιμοποιηθεί μόνο μία φορά."
 }

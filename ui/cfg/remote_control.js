@@ -129,6 +129,25 @@ async function renderRemoteControlSection(section) {
     </label>`;
     html += `</div>`;
 
+    // ── Pairing Token ──
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.remote_control.pairing_token_title')}</div>
+        <div class="field-group-desc">${t('config.remote_control.pairing_token_desc')}</div>
+        <div class="rc-download-name-wrap">
+            <label class="rc-download-name-label">
+                <span class="rc-label-text">${t('config.remote_control.download_name_label')}</span>
+                <input type="text" id="rc-enrollment-device-name" class="cfg-input rc-input-spaced" placeholder="${t('config.remote_control.download_name_placeholder')}">
+            </label>
+        </div>
+        <div class="rc-platform-grid">
+            <button id="rc-token-generate-btn" class="btn-save rc-platform-btn" onclick="rcCreateEnrollmentToken()">
+                ${t('config.remote_control.pairing_token_generate')}
+            </button>
+        </div>
+        <div id="rc-token-result" class="rc-token-result"></div>
+        <small class="cfg-help">${t('config.remote_control.pairing_token_hint')}</small>
+    </div>`;
+
     // ── Client Download ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.download_title')}</div>
@@ -200,6 +219,58 @@ function rcDownload(os, arch) {
     const name = nameEl ? nameEl.value.trim() : '';
     const qs = name ? `?name=${encodeURIComponent(name)}` : '';
     window.location.href = `/api/remote/download/${os}/${arch}${qs}`;
+}
+
+async function rcCreateEnrollmentToken() {
+    const btn = document.getElementById('rc-token-generate-btn');
+    const result = document.getElementById('rc-token-result');
+    const nameEl = document.getElementById('rc-enrollment-device-name');
+    if (!btn || !result) return;
+
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = t('config.remote_control.pairing_token_generating');
+    result.innerHTML = '';
+
+    try {
+        const resp = await fetch('/api/remote/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_name: nameEl ? nameEl.value.trim() : '' })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.token) {
+            throw new Error(data.error || data.message || t('config.remote_control.pairing_token_failed'));
+        }
+        const expires = data.expires_at ? new Date(data.expires_at).toLocaleString() : '';
+        result.innerHTML = `<div class="rc-token-card">
+            <div class="rc-token-ready">${t('config.remote_control.pairing_token_ready')}</div>
+            <code id="rc-token-value" class="rc-token-value">${escapeAttr(data.token)}</code>
+            <div class="rc-token-actions">
+                <button class="btn-save rc-platform-btn" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
+                <span id="rc-token-copy-state" class="rc-muted-text"></span>
+            </div>
+            <div class="rc-muted-text">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
+        </div>`;
+    } catch (e) {
+        result.innerHTML = `<span class="rc-error-text">${escapeAttr(t('config.remote_control.pairing_token_failed'))}: ${escapeAttr(e && e.message ? e.message : String(e))}</span>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+async function rcCopyEnrollmentToken() {
+    const tokenEl = document.getElementById('rc-token-value');
+    const stateEl = document.getElementById('rc-token-copy-state');
+    const token = tokenEl ? tokenEl.textContent.trim() : '';
+    if (!token) return;
+    try {
+        await navigator.clipboard.writeText(token);
+        if (stateEl) stateEl.textContent = t('config.remote_control.pairing_token_copied');
+    } catch (e) {
+        if (stateEl) stateEl.textContent = t('config.remote_control.pairing_token_failed');
+    }
 }
 
 async function loadRemoteDevices() {

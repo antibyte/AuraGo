@@ -87,5 +87,15 @@
   "config.updates.installing": "Instalowanie…",
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
-  "config.webdav.secret_empty": "Wartość jest pusta"
+  "config.webdav.secret_empty": "Wartość jest pusta",
+  "config.remote_control.pairing_token_title": "Token parowania",
+  "config.remote_control.pairing_token_desc": "Utwórz jednorazowy token do ręcznego sparowania agodesk lub innego klienta zdalnego.",
+  "config.remote_control.pairing_token_generate": "Wygeneruj token parowania",
+  "config.remote_control.pairing_token_generating": "Generowanie…",
+  "config.remote_control.pairing_token_copy": "Kopiuj token",
+  "config.remote_control.pairing_token_copied": "Skopiowano",
+  "config.remote_control.pairing_token_failed": "Nie można utworzyć tokenu",
+  "config.remote_control.pairing_token_ready": "Token parowania jest gotowy",
+  "config.remote_control.pairing_token_expires": "Wygasa:",
+  "config.remote_control.pairing_token_hint": "Token jest ważny przez godzinę i może być użyty tylko raz."
 }

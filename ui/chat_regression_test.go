@@ -1734,6 +1734,68 @@ func TestConfigFrontendRemoteControlConnectionModeKeysExist(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendRemoteControlPairingTokenUIExists(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "remote_control.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"rcCreateEnrollmentToken",
+		"rcCopyEnrollmentToken",
+		"/api/remote/enroll",
+		"navigator.clipboard.writeText",
+		"config.remote_control.pairing_token_title",
+		"config.remote_control.pairing_token_generate",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing Remote Control pairing token marker %q", modulePath, marker)
+		}
+	}
+
+	keys := []string{
+		"config.remote_control.pairing_token_title",
+		"config.remote_control.pairing_token_desc",
+		"config.remote_control.pairing_token_generate",
+		"config.remote_control.pairing_token_generating",
+		"config.remote_control.pairing_token_copy",
+		"config.remote_control.pairing_token_copied",
+		"config.remote_control.pairing_token_failed",
+		"config.remote_control.pairing_token_ready",
+		"config.remote_control.pairing_token_expires",
+		"config.remote_control.pairing_token_hint",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "remote_control", "*.json"))
+	if err != nil {
+		t.Fatalf("glob remote_control lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all remote_control language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			value, ok := lang[key]
+			if !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+			if text, ok := value.(string); !ok || strings.TrimSpace(text) == "" {
+				t.Fatalf("%s key %s must be a non-empty string", path, key)
+			}
+		}
+	}
+}
+
 func TestConfigFrontendManifestI18nKeysAndSecretHelpExist(t *testing.T) {
 	t.Parallel()
 

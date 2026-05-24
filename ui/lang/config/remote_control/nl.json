@@ -87,5 +87,15 @@
   "config.updates.installing": "Installeren…",
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.webdav.secret_empty": "Waarde is leeg"
+  "config.webdav.secret_empty": "Waarde is leeg",
+  "config.remote_control.pairing_token_title": "Koppelingstoken",
+  "config.remote_control.pairing_token_desc": "Maak een eenmalige token om agodesk of een andere externe client handmatig te koppelen.",
+  "config.remote_control.pairing_token_generate": "Koppelingstoken genereren",
+  "config.remote_control.pairing_token_generating": "Genereren…",
+  "config.remote_control.pairing_token_copy": "Token kopiëren",
+  "config.remote_control.pairing_token_copied": "Gekopieerd",
+  "config.remote_control.pairing_token_failed": "Token kon niet worden gemaakt",
+  "config.remote_control.pairing_token_ready": "Koppelingstoken is klaar",
+  "config.remote_control.pairing_token_expires": "Verloopt:",
+  "config.remote_control.pairing_token_hint": "De token is één uur geldig en kan maar één keer worden gebruikt."
 }
