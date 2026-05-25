@@ -410,14 +410,6 @@ func (s *Service) seedDesktopShortcutsLocked(ctx context.Context) error {
 }
 
 func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
-	var seeded string
-	err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'desktop_builtin_widgets_seeded'`).Scan(&seeded)
-	if err == nil && seeded == "true" {
-		return nil
-	}
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("read desktop builtin widgets seed state: %w", err)
-	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	defaults := []Widget{
 		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
