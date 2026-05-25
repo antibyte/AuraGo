@@ -291,8 +291,8 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if device.Status == "revoked" {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorDeviceNotApproved, "device has been revoked"
 	}
-	if device.Status != "approved" && device.Status != "connected" {
-		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorDeviceNotApproved, "device is not approved"
+	if device.Status != "approved" && device.Status != "connected" && device.Status != "offline" {
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorDeviceNotApproved, "device is not paired"
 	}
 	if payload.SharedKeyProof == nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthRequired, "shared_key_proof is required for reconnect"

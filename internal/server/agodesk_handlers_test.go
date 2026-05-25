@@ -405,6 +405,65 @@ func TestAgodeskSessionStartReconnectRequiresSharedKeyProof(t *testing.T) {
 	}
 }
 
+func TestAgodeskSessionStartReconnectAllowsOfflinePairedDevice(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	sharedKey := "fedcba9876543210fedcba9876543210"
+	deviceID, err := remote.CreateDevice(s.RemoteHub.DB(), remote.DeviceRecord{
+		Name:          "desktop-pc",
+		Hostname:      "DESKTOP-PC",
+		OS:            "windows",
+		Arch:          "amd64",
+		Status:        "offline",
+		SharedKeyHash: hashSHA256(sharedKey),
+		Tags:          []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("CreateDevice: %v", err)
+	}
+	if err := s.Vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+
+	startID := "session-start-offline-reconnect"
+	proof, err := agodesk.NewSharedKeyProof(sharedKey, startID, deviceID, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("NewSharedKeyProof: %v", err)
+	}
+	startPayload := agodesk.SessionStartPayload{
+		ClientVersion:  "0.1.0",
+		DeviceID:       deviceID,
+		SharedKeyProof: &proof,
+		Host: agodesk.SessionStartHost{
+			Hostname: "DESKTOP-PC",
+			OS:       "windows",
+			Arch:     "amd64",
+		},
+	}
+	rawPayload, _ := json.Marshal(startPayload)
+	start := agodesk.Envelope{
+		ID:        startID,
+		Type:      agodesk.TypeSessionStart,
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Payload:   rawPayload,
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write reconnect session.start: %v", err)
+	}
+	resp := readAgodeskTestEnvelope(t, conn)
+	if resp.Type != agodesk.TypeSessionAccepted {
+		t.Fatalf("response type = %q, want %q", resp.Type, agodesk.TypeSessionAccepted)
+	}
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, resp, &accepted)
+	if accepted.DeviceID != deviceID || accepted.SessionID != "agodesk:"+deviceID || !accepted.Approved {
+		t.Fatalf("accepted reconnect payload = %+v", accepted)
+	}
+}
+
 func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-pairing-token"
