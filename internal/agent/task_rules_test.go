@@ -89,6 +89,22 @@ func TestBuildTaskRulePromptContextSelectsPDFRuleByKeyword(t *testing.T) {
 	}
 }
 
+func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "erstelle im virtuellen Desktop eine App mit Widget", nil, nil, "")
+	if !strings.Contains(ctx.TaskRules, "Generated App And Widget Creation Workflow") {
+		t.Fatalf("TaskRules missing virtual desktop rule for app/widget request:\n%s", ctx.TaskRules)
+	}
+	if !strings.Contains(ctx.TaskRules, "Use `install_app` for generated apps") {
+		t.Fatalf("virtual desktop rule should include app creation guidance:\n%s", ctx.TaskRules)
+	}
+}
+
 func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {
 	t.Parallel()
 
@@ -109,6 +125,26 @@ func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testi
 	}
 	if !strings.Contains(state.flags.HomepageDesignSystem, "Atmospheric Glass") {
 		t.Fatalf("homepage tool did not inject design system:\n%s", state.flags.HomepageDesignSystem)
+	}
+}
+
+func TestEnsureTaskRulesBeforeVirtualDesktopToolLoadsRule(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{Config: cfg}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "virtual_desktop"}, "erstelle ein desktop widget")
+	if !blocked {
+		t.Fatal("expected virtual_desktop tool call to be blocked until required rules are injected")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Generated App And Widget Creation Workflow") {
+		t.Fatalf("virtual_desktop tool did not inject required rule:\n%s", state.flags.TaskRules)
 	}
 }
 

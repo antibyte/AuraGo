@@ -81,6 +81,41 @@ func TestLoadCatalogIncludesEmbeddedPDFRule(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogIncludesEmbeddedVirtualDesktopRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("virtual_desktop")
+	if !ok {
+		t.Fatal("expected embedded virtual_desktop rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded virtual_desktop rule should be enabled")
+	}
+	if !contains(rule.Tools, "virtual_desktop") {
+		t.Fatalf("virtual_desktop rule tools = %v, want virtual_desktop", rule.Tools)
+	}
+	for _, marker := range []string{
+		"Generated App And Widget Creation Workflow",
+		"Call `status` before creating",
+		"Use `install_app` for generated apps",
+		"diagnose_app",
+		"diagnose_widget",
+		"Do not store secrets",
+	} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("virtual_desktop rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
 func TestLoadCatalogUsesDiskOverrideBeforeEmbeddedRule(t *testing.T) {
 	t.Parallel()
 
@@ -139,6 +174,28 @@ func TestCatalogMatchSelectsPDFRuleByToolAndKeyword(t *testing.T) {
 	byKeyword := catalog.Match(MatchContext{Prompt: "Bitte ein PDF erstellen"})
 	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "pdf" {
 		t.Fatalf("PDF keyword should select pdf rule first, got %+v", byKeyword.Rules)
+	}
+}
+
+func TestCatalogMatchSelectsVirtualDesktopRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"virtual_desktop"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "virtual_desktop" {
+		t.Fatalf("virtual_desktop tool should select virtual_desktop rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Bitte im virtuellen Desktop eine App mit Widget erstellen"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "virtual_desktop" {
+		t.Fatalf("German virtual desktop keyword should select virtual_desktop rule first, got %+v", byKeyword.Rules)
 	}
 }
 
