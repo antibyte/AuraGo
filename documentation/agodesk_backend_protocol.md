@@ -74,7 +74,7 @@ Reconnect:
 
 ## Planned Remote Operations
 
-The existing RemoteHub command protocol reserves these operations for agodesk-capable clients:
+The existing RemoteHub comamand protocol reserves these operations for agodesk-capable clients:
 
 - `desktop_screenshot`
 - `desktop_stream_start`

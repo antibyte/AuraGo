@@ -180,8 +180,11 @@ func mediaFileEntry(mount mediaMount, absPath string, info os.FileInfo) FileEntr
 		Type:      itemType,
 		Size:      info.Size(),
 		ModTime:   info.ModTime(),
+		Modified:  info.ModTime(),
 		MediaKind: mediaKind,
 		Mount:     mount.Name,
+		Mode:      info.Mode().String(),
+		Created:   getCreationTime(info),
 	}
 	if itemType == "file" {
 		entry.WebPath = mediaWebPath(mount, rel)

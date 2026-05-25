@@ -103,10 +103,13 @@ type FileEntry struct {
 	Type      string    `json:"type"`
 	Size      int64     `json:"size"`
 	ModTime   time.Time `json:"mod_time"`
+	Modified  time.Time `json:"modified"` // UI compatibility field
 	WebPath   string    `json:"web_path,omitempty"`
 	MediaKind string    `json:"media_kind,omitempty"`
 	MIMEType  string    `json:"mime_type,omitempty"`
 	Mount     string    `json:"mount,omitempty"`
+	Mode      string    `json:"mode,omitempty"`
+	Created   time.Time `json:"created,omitempty"`
 }
 
 // AppManifest describes a browser-side desktop application.

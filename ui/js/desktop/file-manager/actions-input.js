@@ -20,10 +20,15 @@
         const selectedCount = fm.selectedPaths.size;
         const totalItems = files.length;
         const selectedSize = selectedCount > 0 ? ' (' + fmtBytes(getSelectedSize()) + ')' : '';
+        const clipboard = sharedFileClipboard();
+        const clipboardIndicator = clipboard && clipboard.paths && clipboard.paths.length
+            ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', '{{count}} cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', '{{count}} copied', { count: clipboard.paths.length }))}</span>`
+            : '';
         return `<div class="fm-statusbar">
             <div class="fm-status-left">
                 <span>${esc(t('desktop.fm.items', '{{count}} items', { count: totalItems }))}</span>
                 ${selectedCount > 0 ? `<span class="fm-status-sep">|</span><span>${esc(t('desktop.fm.selected', '{{count}} selected', { count: selectedCount }))}${esc(selectedSize)}</span>` : ''}
+                ${clipboardIndicator}
             </div>
             <div class="fm-status-right">
                 <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid', 'Grid View') : t('desktop.fm.view_list', 'List View'))}</span>
@@ -56,15 +61,50 @@
             btn.addEventListener('click', handleActionClick);
         });
 
+        // Tab click and drag-drop events
+        root.querySelectorAll('.fm-tab').forEach(tab => {
+            tab.addEventListener('click', e => {
+                if (e.target.closest('[data-action="close-tab"]')) return;
+                const idx = parseInt(tab.dataset.tabIndex);
+                if (typeof switchTab === 'function') switchTab(idx);
+            });
+            tab.addEventListener('dragstart', e => {
+                if (typeof handleTabDragStart === 'function') handleTabDragStart(e);
+            });
+            tab.addEventListener('dragover', e => {
+                if (typeof handleTabDragOver === 'function') handleTabDragOver(e);
+            });
+            tab.addEventListener('drop', e => {
+                if (typeof handleTabDrop === 'function') handleTabDrop(e);
+            });
+        });
+        const tabNewBtn = root.querySelector('.fm-tab-new');
+        if (tabNewBtn) {
+            tabNewBtn.addEventListener('click', () => {
+                if (typeof createNewTab === 'function') createNewTab();
+            });
+        }
+        root.querySelectorAll('[data-action="close-tab"]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                if (typeof closeTab === 'function') closeTab(parseInt(btn.dataset.tabIndex));
+            });
+        });
+
         // Breadcrumb segments
         root.querySelectorAll('[data-breadcrumb-path]').forEach(seg => {
             seg.addEventListener('click', () => navigate(seg.dataset.breadcrumbPath));
             seg.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(seg.dataset.breadcrumbPath); });
+            seg.addEventListener('dragover', handleBreadcrumbDragOver);
+            seg.addEventListener('dragenter', handleBreadcrumbDragEnter);
+            seg.addEventListener('dragleave', handleBreadcrumbDragLeave);
+            seg.addEventListener('drop', handleBreadcrumbDrop);
         });
 
         // Sidebar items
         root.querySelectorAll('[data-sidebar-path]').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', e => {
+                if (e.target.closest('[data-action="remove-favorite"]')) return;
                 fm.sidebarOpen = false;
                 navigate(item.dataset.sidebarPath);
             });
@@ -73,6 +113,36 @@
                     fm.sidebarOpen = false;
                     navigate(item.dataset.sidebarPath);
                 }
+            });
+        });
+
+        // Favorites drag & drop
+        root.querySelectorAll('.fm-favorite-item').forEach(item => {
+            item.addEventListener('dragstart', e => {
+                if (typeof handleFavDragStart === 'function') handleFavDragStart(e);
+            });
+            item.addEventListener('dragover', e => {
+                if (typeof handleFavDragOver === 'function') handleFavDragOver(e);
+            });
+            item.addEventListener('drop', e => {
+                if (typeof handleFavDrop === 'function') handleFavDrop(e);
+            });
+        });
+
+        const favSection = root.querySelector('.fm-favorites-section');
+        if (favSection) {
+            favSection.addEventListener('dragover', e => {
+                if (typeof handleFavoritesSectionDragOver === 'function') handleFavoritesSectionDragOver(e);
+            });
+            favSection.addEventListener('drop', e => {
+                if (typeof handleFavoritesSectionDrop === 'function') handleFavoritesSectionDrop(e);
+            });
+        }
+
+        root.querySelectorAll('[data-action="remove-favorite"]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                if (typeof toggleFavorite === 'function') toggleFavorite(btn.dataset.path);
             });
         });
 
@@ -107,6 +177,17 @@
             renameInput.addEventListener('blur', () => finishRename(renameInput));
         }
         attachMainAreaEvents(root, true);
+        
+        // Split pane pointerdown activation
+        root.querySelectorAll('.fm-pane').forEach(pane => {
+            pane.addEventListener('pointerdown', e => {
+                const paneName = pane.dataset.pane;
+                if (paneName && typeof switchActivePane === 'function') {
+                    switchActivePane(paneName);
+                }
+            });
+        });
+
         attachThumbnailEvents(root);
     }
 
@@ -192,6 +273,12 @@
         else if (action === 'new-file') createNewFile();
         else if (action === 'new-folder') createNewFolder();
         else if (action === 'sort-menu') showSortMenu(e);
+        else if (action === 'toggle-hidden') { fm.showHidden = !fm.showHidden; renderAll(); }
+        else if (action === 'toggle-split') { if (typeof toggleSplitView === 'function') toggleSplitView(); }
+        else if (action === 'calc-folder-size') {
+            const path = e.currentTarget.dataset.path;
+            calculateFolderSize(path);
+        }
     }
 
     function handleSidebarToggle() {
@@ -305,6 +392,12 @@
         const items = [
             { label: t('desktop.fm.open', 'Open'), action: 'open', icon: 'folder-open', shortcut: 'Enter', handler: () => { if (type === 'directory') navigate(path); else openFileEntry(file); } },
         ];
+        if (type === 'file') {
+            const openWithItems = buildOpenWithSubmenu(file);
+            if (openWithItems.length) {
+                items.push({ label: t('desktop.fm.open_with', 'Open with...'), action: 'open-with', icon: 'apps', items: openWithItems });
+            }
+        }
         if (type === 'file' && isViewerFile(file.name || '')) {
             items.push({ label: t('desktop.fm.view', 'View'), action: 'view', icon: 'eye', handler: () => { if (fm.callbacks && typeof fm.callbacks.openApp === 'function') fm.callbacks.openApp('viewer', { path: file.path }); else openFileEntry(file); } });
         }
@@ -319,11 +412,44 @@
             { separator: true },
             { label: t('desktop.fm.cut', 'Cut'), action: 'cut', icon: 'scissors', shortcut: 'Ctrl+X', handler: () => cutSelection() },
             { label: t('desktop.fm.copy', 'Copy'), action: 'copy', icon: 'copy', shortcut: 'Ctrl+C', handler: () => copySelection() },
+            { label: t('desktop.fm.copy_path', 'Copy Path'), action: 'copy-path', icon: 'text', shortcut: 'Ctrl+Shift+C', handler: () => copyPathToClipboard(path) },
             { label: t('desktop.fm.paste', 'Paste'), action: 'paste', icon: 'clipboard', shortcut: 'Ctrl+V', disabled: !hasClipboard, handler: () => pasteClipboard(type === 'directory' ? path : fm.currentPath) },
+            { label: t('desktop.fm.duplicate', 'Duplicate'), action: 'duplicate', icon: 'copy', shortcut: 'Ctrl+D', handler: () => duplicateSelected() },
+            { label: t('desktop.fm.create_symlink', 'Create Symlink'), action: 'create-symlink', icon: 'link', handler: () => createSymlink(file) },
+        );
+        const selected = getSelectedFiles();
+        if (selected.length > 1) {
+            items.push({ label: t('desktop.fm.batch_rename', 'Batch Rename'), action: 'batch-rename', icon: 'edit', handler: () => { if (typeof executeBatchRename === 'function') executeBatchRename(); } });
+        }
+        if (selected.length > 0) {
+            items.push({ label: t('desktop.fm.compress_zip', 'Compress to ZIP'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
+        }
+        if (type === 'file' && String(file.name).endsWith('.zip')) {
+            items.push(
+                { label: t('desktop.fm.extract_zip', 'Extract ZIP Here'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
+                { label: t('desktop.fm.extract_zip_to', 'Extract ZIP to...'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }
+            );
+        }
+        if (type === 'directory') {
+            const isFav = fm.favorites && fm.favorites.includes(path);
+            items.push({
+                label: isFav ? t('desktop.fm.remove_favorite', 'Remove from Favorites') : t('desktop.fm.add_favorite', 'Add to Favorites'),
+                action: isFav ? 'remove-favorite' : 'add-favorite',
+                icon: 'star',
+                handler: () => { if (typeof toggleFavorite === 'function') toggleFavorite(path); }
+            });
+        }
+        items.push(
             { separator: true },
             { label: t('desktop.fm.rename', 'Rename'), action: 'rename', icon: 'edit', shortcut: 'F2', handler: () => startRename(path) },
             { label: t('desktop.fm.delete', 'Delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() },
         );
+        if (type === 'directory') {
+            items.push(
+                { separator: true },
+                { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(path) }
+            );
+        }
         if (type === 'file' && file.web_path) {
             items.push({ label: t('desktop.fm.download', 'Download'), action: 'download', icon: 'download', handler: () => downloadFile(file) });
         } else if (type === 'file') {
@@ -345,6 +471,7 @@
             { separator: true },
             { label: t('desktop.fm.sort_by', 'Sort by') + ' >', action: 'sort-submenu', icon: 'sort', handler: () => showSortMenu(e) },
             { label: t('desktop.fm.refresh', 'Refresh'), action: 'refresh', icon: 'refresh', shortcut: 'F5', handler: () => refresh() },
+            { label: t('desktop.fm.open_terminal', 'Open Terminal Here'), action: 'open-terminal', icon: 'terminal', handler: () => openTerminalHere(fm.currentPath) },
             { separator: true },
             { label: t('desktop.fm.select_all', 'Select All'), action: 'select-all', icon: 'check-square', shortcut: 'Ctrl+A', handler: () => selectAll() },
         ];
@@ -389,6 +516,226 @@
             fm.selectedPaths.add(files[i].path);
         }
     }
+
+    function setExactRangeSelection(fromPath, toPath) {
+        const files = getDisplayFiles();
+        const fromIndex = files.findIndex(f => f.path === fromPath);
+        const toIndex = files.findIndex(f => f.path === toPath);
+        if (fromIndex < 0 || toIndex < 0) return;
+        fm.selectedPaths.clear();
+        const start = Math.min(fromIndex, toIndex);
+        const end = Math.max(fromIndex, toIndex);
+        for (let i = start; i <= end; i++) {
+            fm.selectedPaths.add(files[i].path);
+        }
+    }
+
+    function getGridColsCount() {
+        if (!fm.host) return 1;
+        const container = fm.host.querySelector('.fm-main');
+        if (!container) return 1;
+        const items = container.querySelectorAll('.fm-grid-item');
+        if (items.length <= 1) return 1;
+        const firstTop = items[0].getBoundingClientRect().top;
+        let count = 0;
+        for (const item of items) {
+            if (Math.abs(item.getBoundingClientRect().top - firstTop) < 5) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count || 1;
+    }
+
+    function showProgressOverlay(title, total) {
+        const overlay = document.createElement('div');
+        overlay.className = 'fm-upload-overlay';
+        overlay.innerHTML = `
+            <div class="fm-upload-panel">
+                <div class="fm-upload-title">${esc(title)}</div>
+                <div class="fm-upload-bar-bg"><div class="fm-upload-bar-fill" style="width:0%"></div></div>
+                <div class="fm-upload-percent">0%</div>
+                <div class="fm-upload-file"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const barFill = overlay.querySelector('.fm-upload-bar-fill');
+        const percentEl = overlay.querySelector('.fm-upload-percent');
+        const fileEl = overlay.querySelector('.fm-upload-file');
+        
+        return {
+            update(current, fileName) {
+                const pct = Math.round((current / total) * 100);
+                barFill.style.width = pct + '%';
+                percentEl.textContent = pct + '%';
+                fileEl.textContent = `${esc(fileName)} (${current}/${total})`;
+            },
+            close() {
+                overlay.remove();
+            }
+        };
+    }
+
+    const undoStack = [];
+    const redoStack = [];
+
+    function pushToUndo(action) {
+        undoStack.push(action);
+        if (undoStack.length > 20) {
+            undoStack.shift();
+        }
+        redoStack.length = 0;
+    }
+
+    async function undo() {
+        if (!undoStack.length) {
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo', 'Nothing to undo') });
+            return;
+        }
+        const action = undoStack.pop();
+        try {
+            let progress = null;
+            if (action.items.length > 1) {
+                progress = showProgressOverlay(t('desktop.fm.undoing', 'Undoing...'), action.items.length);
+            }
+            let count = 0;
+            for (const item of action.items) {
+                count++;
+                if (progress) progress.update(count, baseName(item.oldPath));
+                await api('/api/desktop/file', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ old_path: item.newPath, new_path: item.oldPath })
+                });
+            }
+            if (progress) progress.close();
+            
+            redoStack.push(action);
+            showNotification({ type: 'success', message: t('desktop.fm.undone', 'Operation undone') });
+            refresh();
+        } catch (err) {
+            showNotification({ type: 'error', message: t('desktop.fm.undo_error', 'Undo failed: {{error}}', { error: err.message || String(err) }) });
+        }
+    }
+
+    async function redo() {
+        if (!redoStack.length) {
+            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo', 'Nothing to redo') });
+            return;
+        }
+        const action = redoStack.pop();
+        try {
+            let progress = null;
+            if (action.items.length > 1) {
+                progress = showProgressOverlay(t('desktop.fm.redoing', 'Redoing...'), action.items.length);
+            }
+            let count = 0;
+            for (const item of action.items) {
+                count++;
+                if (progress) progress.update(count, baseName(item.newPath));
+                await api('/api/desktop/file', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ old_path: item.oldPath, new_path: item.newPath })
+                });
+            }
+            if (progress) progress.close();
+            
+            undoStack.push(action);
+            showNotification({ type: 'success', message: t('desktop.fm.redone', 'Operation redone') });
+            refresh();
+        } catch (err) {
+            showNotification({ type: 'error', message: t('desktop.fm.redo_error', 'Redo failed: {{error}}', { error: err.message || String(err) }) });
+        }
+    }
+
+    let quickLookOverlay = null;
+
+    function toggleQuickLook() {
+        if (quickLookOverlay) {
+            quickLookOverlay.remove();
+            quickLookOverlay = null;
+            return;
+        }
+        
+        const selected = getSelectedFiles();
+        if (selected.length !== 1) return;
+        
+        const file = selected[0];
+        const isImg = isPreviewableImage(file);
+        const isMedia = isMediaFile(file.name);
+        
+        const ext = String(file.name || '').split('.').pop().toLowerCase();
+        const textExts = new Set(['txt', 'log', 'md', 'json', 'yaml', 'yml', 'sh', 'py', 'go', 'js', 'css', 'html', 'xml', 'ini', 'conf']);
+        const isTxt = textExts.has(ext);
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'fm-modal-overlay fm-quick-look-overlay';
+        overlay.style.zIndex = '999999';
+        
+        let content = '';
+        if (isImg) {
+            content = `<img src="${previewURL(file)}" style="max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px;" />`;
+        } else if (isMedia) {
+            const mime = file.mime || '';
+            const isAudio = mime.startsWith('audio/') || ext === 'mp3' || ext === 'wav' || ext === 'ogg';
+            if (isAudio) {
+                content = `<audio src="${previewURL(file)}" controls style="width: min(400px, 90vw)"></audio>`;
+            } else {
+                content = `<video src="${previewURL(file)}" controls style="max-width: 90vw; max-height: 80vh; border-radius: 8px;"></video>`;
+            }
+        } else if (isTxt) {
+            content = `<div class="fm-quick-look-text" style="width: min(700px, 90vw); height: 60vh; background: var(--vd-surface-strong, #1a1a1a); border: 1px solid var(--vd-border); border-radius: 8px; padding: 16px; overflow: auto; text-align: left; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; color: var(--vd-text);">Loading preview...</div>`;
+            fetchTextPreview(file.path);
+        } else {
+            content = `
+                <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+                    <div style="font-size: 4rem;">📄</div>
+                    <div style="font-size: 1.1rem; font-weight: 600;">${esc(file.name)}</div>
+                    <div style="color: var(--vd-muted);">${esc(fmtBytes(file.size))}</div>
+                </div>
+            `;
+        }
+        
+        overlay.innerHTML = `
+            <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 10;">
+                <button class="fm-btn" data-close-ql style="padding: 6px 12px; font-size: 0.85rem;">Close (Space)</button>
+            </div>
+            <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+                <div class="fm-quick-look-panel" style="padding: 24px; background: rgba(0,0,0,0.85); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; flex-direction: column; min-width: 280px; max-width: 95vw;">
+                    ${content}
+                    <div style="margin-top: 16px; font-size: 0.8rem; color: var(--vd-muted);">${esc(file.path)}</div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        quickLookOverlay = overlay;
+        
+        overlay.querySelector('[data-close-ql]').addEventListener('click', () => {
+            overlay.remove();
+            quickLookOverlay = null;
+        });
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) {
+                overlay.remove();
+                quickLookOverlay = null;
+            }
+        });
+        
+        async function fetchTextPreview(path) {
+            try {
+                const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
+                if (!res.ok) throw new Error();
+                const text = await res.text();
+                const el = overlay.querySelector('.fm-quick-look-text');
+                if (el) el.textContent = text;
+            } catch (err) {
+                const el = overlay.querySelector('.fm-quick-look-text');
+                if (el) el.textContent = 'Cannot load preview.';
+            }
+        }
+    }
+
 
     function selectAll() {
         getDisplayFiles().forEach(f => fm.selectedPaths.add(f.path));
@@ -461,7 +808,20 @@
         const clipboard = sharedFileClipboard();
         if (!clipboard || !clipboard.paths.length) return;
         const targetBase = destBase || fm.currentPath;
+
+        let progress = null;
+        if (clipboard.paths.length > 1) {
+            const title = clipboard.mode === 'copy' 
+                ? t('desktop.fm.copying', 'Copying...') 
+                : t('desktop.fm.moving', 'Moving...');
+            progress = showProgressOverlay(title, clipboard.paths.length);
+        }
+
+        let count = 0;
+        const undoItems = [];
+
         for (const srcPath of clipboard.paths) {
+            count++;
             const name = baseName(srcPath);
             let destPath = joinPath(targetBase, name);
             const exists = fm.files.some(f => f.name === name);
@@ -472,6 +832,11 @@
                 const overwrite = await confirmDialog(t('desktop.fm.paste_exists', 'An item named "{{name}}" already exists. Overwrite?', { name: name }));
                 if (!overwrite) continue;
             }
+
+            if (progress) {
+                progress.update(count, name);
+            }
+
             try {
                 if (clipboard.mode === 'copy') {
                     await api('/api/desktop/copy', {
@@ -483,523 +848,24 @@
                         method: 'PATCH',
                         body: JSON.stringify({ old_path: srcPath, new_path: destPath })
                     });
+                    undoItems.push({ oldPath: srcPath, newPath: destPath });
                 }
             } catch (err) {
                 showNotification({ type: 'error', message: (err.message || String(err)) });
             }
         }
+
+        if (progress) {
+            progress.close();
+        }
+
+        if (undoItems.length > 0) {
+            pushToUndo({
+                type: 'move',
+                items: undoItems
+            });
+        }
+
         if (clipboard.mode === 'cut') fm.clipboard = null;
         refresh();
     }
-
-    // File operations
-    async function createNewFile() {
-        if (isReadonly()) return;
-        const name = await promptDialog(t('desktop.fm.new_file_prompt', 'File name'), 'new-file.txt');
-        if (!name) return;
-        const path = joinPath(fm.currentPath, name);
-        try {
-            await api('/api/desktop/file', {
-                method: 'PUT',
-                body: JSON.stringify({ path, content: '' })
-            });
-            refresh();
-            showNotification({ type: 'success', message: name });
-        } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-        }
-    }
-
-    async function createNewFolder() {
-        if (isReadonly()) return;
-        const name = await promptDialog(t('desktop.fm.new_folder_prompt', 'Folder name'), 'New Folder');
-        if (!name) return;
-        const path = joinPath(fm.currentPath, name);
-        try {
-            await api('/api/desktop/directory', {
-                method: 'POST',
-                body: JSON.stringify({ path })
-            });
-            refresh();
-            showNotification({ type: 'success', message: name });
-        } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-        }
-    }
-
-    function startRename(path) {
-        if (isReadonly()) return;
-        const file = fm.files.find(f => f.path === path);
-        if (!file) return;
-        fm.renamePath = path;
-        renderAll();
-        const input = fm.host.querySelector('[data-rename-input]');
-        if (input) {
-            input.focus();
-            input.select();
-        }
-    }
-
-    function finishRename(input) {
-        if (!input || !fm.renamePath) return;
-        const nextName = String(input.value || '').trim();
-        const path = fm.renamePath;
-        fm.renamePath = '';
-        if (!nextName) {
-            renderAll();
-            return;
-        }
-        renamePath(path, nextName);
-    }
-
-    function cancelRename() {
-        fm.renamePath = '';
-        renderAll();
-    }
-
-    async function renamePath(path, newName) {
-        if (isReadonly()) return;
-        const file = fm.files.find(f => f.path === path);
-        if (!file || newName === file.name || !newName.trim()) {
-            renderAll();
-            return;
-        }
-        const parent = parentPath(path);
-        const nextPath = joinPath(parent, newName.trim());
-        try {
-            await api('/api/desktop/file', {
-                method: 'PATCH',
-                body: JSON.stringify({ old_path: path, new_path: nextPath })
-            });
-            refresh();
-        } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-            renderAll();
-        }
-    }
-
-    async function deleteSelected() {
-        if (isReadonly()) return;
-        const selected = getSelectedFiles();
-        if (!selected.length) return;
-        let confirmed;
-        if (selected.length === 1) {
-            confirmed = await confirmDialog(t('desktop.fm.confirm_delete_single', 'Delete "{{name}}"?', { name: selected[0].name }), '');
-        } else {
-            confirmed = await confirmDialog(t('desktop.fm.confirm_delete', 'Delete {{count}} item(s)?', { count: selected.length }), '');
-        }
-        if (!confirmed) return;
-        for (const file of selected) {
-            try {
-                await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
-            } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
-            }
-        }
-        clearSelection();
-        refresh();
-    }
-
-    async function downloadFile(file) {
-        if (!file || file.type !== 'file') return;
-        if (file.web_path) {
-            const a = document.createElement('a');
-            a.href = file.web_path;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            return;
-        }
-        const a = document.createElement('a');
-        a.href = '/api/desktop/download?path=' + encodeURIComponent(file.path || '');
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-    }
-
-    function uploadFiles() {
-        if (isReadonly()) return;
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = true;
-        input.addEventListener('change', async () => {
-            if (!input.files || !input.files.length) return;
-            await uploadFileList(input.files);
-        }, { once: true });
-        input.click();
-    }
-
-    function uploadWithXHR(file, path, onProgress) {
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('path', path);
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    onProgress(Math.round((e.loaded / e.total) * 100));
-                }
-            });
-            xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve(xhr.response);
-                } else {
-                    let errMsg = t('desktop.fm.upload_error', 'Upload failed');
-                    try {
-                        const resp = JSON.parse(xhr.responseText);
-                        errMsg = resp.error || resp.message || errMsg;
-                    } catch (_) {
-                        errMsg = xhr.statusText || errMsg;
-                    }
-                    reject(new Error(errMsg));
-                }
-            });
-            xhr.addEventListener('error', () => reject(new Error(t('desktop.fm.upload_error', 'Upload failed'))));
-            xhr.addEventListener('abort', () => reject(new Error(t('desktop.fm.upload_aborted', 'Upload aborted'))));
-            xhr.open('POST', '/api/desktop/upload');
-            xhr.send(formData);
-        });
-    }
-
-    async function uploadFileList(files) {
-        if (isReadonly()) return;
-        const totalFiles = files.length;
-        let completedFiles = 0;
-
-        const overlay = document.createElement('div');
-        overlay.className = 'fm-upload-overlay';
-        overlay.innerHTML = `
-            <div class="fm-upload-panel">
-                <div class="fm-upload-title">${esc(t('desktop.fm.uploading', 'Uploading'))}</div>
-                <div class="fm-upload-bar-bg"><div class="fm-upload-bar-fill" style="width:0%"></div></div>
-                <div class="fm-upload-percent">0%</div>
-                <div class="fm-upload-file"></div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        const barFill = overlay.querySelector('.fm-upload-bar-fill');
-        const percentEl = overlay.querySelector('.fm-upload-percent');
-        const fileEl = overlay.querySelector('.fm-upload-file');
-
-        const limit = maxFileSize();
-        for (const file of Array.from(files)) {
-            completedFiles++;
-            if (limit > 0 && file.size > limit) {
-                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) });
-                continue;
-            }
-            fileEl.textContent = `${esc(file.name)} (${completedFiles}/${totalFiles})`;
-            try {
-                await uploadWithXHR(file, fm.currentPath, (pct) => {
-                    barFill.style.width = pct + '%';
-                    percentEl.textContent = pct + '%';
-                });
-            } catch (err) {
-                showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) });
-            }
-        }
-        overlay.remove();
-        refresh();
-    }
-
-    // Properties dialog
-    async function showProperties(file) {
-        if (!file) return;
-        const isDir = file.type === 'directory';
-        let itemCount = '';
-        if (isDir) {
-            try {
-                const result = await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
-                const count = Array.isArray(result.files) ? result.files.length : 0;
-                itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items', 'Items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
-            } catch (_) {}
-        }
-        const overlay = document.createElement('div');
-        overlay.className = 'fm-modal-overlay';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder', 'Folder') : t('desktop.fm.prop_file', 'File');
-        overlay.innerHTML = `<div class="fm-modal fm-properties">
-            <div class="fm-modal-title">${esc(t('desktop.fm.properties_title', 'Properties'))}</div>
-            <div class="fm-prop-body">
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_name', 'Name'))}</span><span class="fm-prop-value">${esc(file.name)}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_type', 'Type'))}</span><span class="fm-prop-value">${esc(typeLabel)}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_size', 'Size'))}</span><span class="fm-prop-value">${esc(isDir ? '\u2014' : fmtBytes(file.size))}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_location', 'Location'))}</span><span class="fm-prop-value">${esc(parentPath(file.path) || '/')}</span></div>
-                <div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_modified', 'Modified'))}</span><span class="fm-prop-value">${esc(formatDate(file.modified))}</span></div>
-                ${itemCount}
-            </div>
-            <div class="fm-modal-actions">
-                <button type="button" class="fm-btn primary" data-close>${esc(t('desktop.ok', 'OK'))}</button>
-            </div>
-        </div>`;
-        document.body.appendChild(overlay);
-        overlay.querySelector('[data-close]').addEventListener('click', () => overlay.remove());
-        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    }
-
-    // Drag and drop
-    let dragSrcPath = null;
-
-    function fileManagerDragPayload(path) {
-        const paths = fm.selectedPaths.has(path) ? Array.from(fm.selectedPaths) : [path];
-        return { source: 'file-manager', paths };
-    }
-
-    function fileManagerDragPayloadFromEvent(event) {
-        const dataTransfer = event && event.dataTransfer;
-        if (!dataTransfer || !Array.from(dataTransfer.types || []).includes(DESKTOP_FILE_DRAG_TYPE)) return null;
-        try {
-            const payload = JSON.parse(dataTransfer.getData(DESKTOP_FILE_DRAG_TYPE) || '{}');
-            const paths = Array.isArray(payload.paths) ? payload.paths.filter(Boolean) : [];
-            return paths.length ? { paths } : null;
-        } catch (_) {
-            const path = dataTransfer.getData('text/plain');
-            return path ? { paths: [path] } : null;
-        }
-    }
-
-    async function moveDroppedDesktopFilesToFolder(paths, destPath) {
-        if (isReadonly()) return;
-        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
-        if (!cleanPaths.length) return;
-        for (const src of cleanPaths) {
-            if (!src || src === destPath) continue;
-            const name = baseName(src);
-            const newPath = joinPath(destPath, name);
-            if (newPath === src) continue;
-            try {
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
-            } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
-            }
-        }
-        if (fm.callbacks && typeof fm.callbacks.refreshDesktop === 'function') await fm.callbacks.refreshDesktop();
-        clearSelection();
-        dragSrcPath = null;
-        refresh();
-    }
-
-    function handleDragStart(e) {
-        const path = e.currentTarget.dataset.path;
-        dragSrcPath = path;
-        if (!fm.selectedPaths.has(path)) {
-            clearSelection();
-            addSelection(path);
-        }
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', path);
-        e.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE, JSON.stringify(fileManagerDragPayload(path)));
-    }
-
-    function handleDragOver(e) {
-        e.preventDefault();
-        if (fileManagerDragPayloadFromEvent(e)) {
-            e.dataTransfer.dropEffect = 'move';
-            return;
-        }
-        if (e.dataTransfer.types.includes('Files')) {
-            showDropOverlay();
-        }
-    }
-
-    function handleDragLeave(e) {
-        if (e.dataTransfer.types.includes('Files')) {
-            hideDropOverlay();
-        }
-    }
-
-    function showDropOverlay() {
-        if (!fm.host) return;
-        const overlay = fm.host.querySelector('[data-fm-drop-overlay]');
-        if (overlay) overlay.classList.add('visible');
-    }
-
-    function hideDropOverlay() {
-        if (!fm.host) return;
-        const overlay = fm.host.querySelector('[data-fm-drop-overlay]');
-        if (overlay) overlay.classList.remove('visible');
-    }
-
-    function handleDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        hideDropOverlay();
-        const payload = fileManagerDragPayloadFromEvent(e);
-        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
-    }
-
-    function handleExternalDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        hideDropOverlay();
-        if (isReadonly()) return;
-        const files = e.dataTransfer.files;
-        if (files && files.length) {
-            uploadFileList(files);
-        }
-    }
-
-    function handleDragEnter(e) {
-        const target = e.currentTarget;
-        const type = target.dataset.type;
-        const payload = fileManagerDragPayloadFromEvent(e);
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
-            target.classList.add('drag-over');
-        }
-    }
-
-    function handleDragLeaveItem(e) {
-        e.currentTarget.classList.remove('drag-over');
-    }
-
-    function handleDragOverItem(e) {
-        e.preventDefault();
-        const target = e.currentTarget;
-        const type = target.dataset.type;
-        const payload = fileManagerDragPayloadFromEvent(e);
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
-            e.dataTransfer.dropEffect = 'move';
-        } else {
-            e.dataTransfer.dropEffect = 'none';
-        }
-    }
-
-    async function handleItemDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (isReadonly()) return;
-        const target = e.currentTarget;
-        target.classList.remove('drag-over');
-        const destPath = target.dataset.path;
-        const destType = target.dataset.type;
-        if (destType !== 'directory') return;
-        const payload = fileManagerDragPayloadFromEvent(e);
-        if (payload) {
-            await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
-            dragSrcPath = null;
-            return;
-        }
-        if (!dragSrcPath || dragSrcPath === destPath) return;
-        const srcFile = fm.files.find(f => f.path === dragSrcPath);
-        if (!srcFile) return;
-        // If the dragged item is selected, move all selected items
-        const pathsToMove = fm.selectedPaths.has(dragSrcPath) ? Array.from(fm.selectedPaths) : [dragSrcPath];
-        for (const src of pathsToMove) {
-            const name = baseName(src);
-            const newPath = joinPath(destPath, name);
-            try {
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
-            } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
-            }
-        }
-        clearSelection();
-        dragSrcPath = null;
-        refresh();
-    }
-
-    // Keyboard shortcuts
-    function bindKeyboard() {
-        if (fm.keyboardBound) return;
-        fm.keyboardBound = true;
-        document.addEventListener('keydown', handleGlobalKeyDown);
-    }
-
-    function activateKeyboardWindow() {
-        fm.activeKeyboardWindow = fm.windowId;
-    }
-
-    function handleGlobalKeyDown(e) {
-        if (!fm.host) return;
-        const root = fm.host.querySelector('.file-manager');
-        if (!root) return;
-        if (fm.activeKeyboardWindow !== fm.windowId || !root.contains(document.activeElement)) return;
-
-        const isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-        if (isInput && e.key !== 'Escape') return;
-
-        if (e.key === 'Delete' && !isInput) {
-            if (isReadonly()) return;
-            e.preventDefault();
-            deleteSelected();
-            return;
-        }
-        if (e.key === 'F2' && !isInput) {
-            if (isReadonly()) return;
-            e.preventDefault();
-            const selected = getSelectedFiles();
-            if (selected.length === 1) startRename(selected[0].path);
-            return;
-        }
-        if (e.key === 'Backspace' && !isInput) {
-            e.preventDefault();
-            goUp();
-            return;
-        }
-        if (e.key === 'Escape') {
-            if (fm.renamePath) {
-                fm.renamePath = null;
-                renderAll();
-                return;
-            }
-            if (fm.searchQuery) {
-                fm.searchQuery = '';
-                applyFilter();
-                renderAll();
-                return;
-            }
-            if (fm.selectedPaths.size) {
-                clearSelection();
-                renderAll();
-                return;
-            }
-            const searchBar = root.querySelector('[data-fm-search]');
-            if (searchBar && !searchBar.hidden) {
-                searchBar.hidden = true;
-                fm.searchQuery = '';
-                applyFilter();
-                renderAll();
-            }
-            return;
-        }
-        if (e.key === 'Enter' && !isInput) {
-            e.preventDefault();
-            const selected = getSelectedFiles();
-            if (selected.length === 1) {
-                if (selected[0].type === 'directory') navigate(selected[0].path);
-                else openFileEntry(selected[0]);
-            }
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && !isInput) {
-            e.preventDefault();
-            selectAll();
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isInput) {
-            e.preventDefault();
-            copySelection();
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && !isInput) {
-            if (isReadonly()) return;
-            e.preventDefault();
-            cutSelection();
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInput) {
-            if (isReadonly()) return;
-            e.preventDefault();
-            pasteClipboard();
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !isInput) {
-            e.preventDefault();

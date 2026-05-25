@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -58,8 +59,11 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 			Type:      itemType,
 			Size:      info.Size(),
 			ModTime:   info.ModTime(),
+			Modified:  info.ModTime(),
 			MIMEType:  MIMETypeForName(entry.Name()),
 			MediaKind: desktopMediaKindForName(entry.Name()),
+			Mode:      info.Mode().String(),
+			Created:   getCreationTime(info),
 		})
 	}
 	if cleanDesktopPathSlash(rawPath) == "." {
@@ -71,8 +75,11 @@ func (s *Service) ListFiles(ctx context.Context, rawPath string) ([]FileEntry, e
 					Type:      "directory",
 					Size:      info.Size(),
 					ModTime:   info.ModTime(),
+					Modified:  info.ModTime(),
 					MediaKind: mount.Kind,
 					Mount:     mount.Name,
+					Mode:      info.Mode().String(),
+					Created:   getCreationTime(info),
 				})
 			}
 		}
@@ -137,6 +144,9 @@ func (s *Service) ListFilesRecursive(ctx context.Context, rawPath string, offset
 			Type:    "file",
 			Size:    info.Size(),
 			ModTime: info.ModTime(),
+			Modified: info.ModTime(),
+			Mode:    info.Mode().String(),
+			Created: getCreationTime(info),
 		})
 		return nil
 	}); err != nil {
@@ -230,8 +240,11 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 			Type:      "file",
 			Size:      info.Size(),
 			ModTime:   info.ModTime(),
+			Modified:  info.ModTime(),
 			MIMEType:  MIMETypeForName(path),
 			MediaKind: desktopMediaKindForName(path),
+			Mode:      info.Mode().String(),
+			Created:   getCreationTime(info),
 		}, fmt.Errorf("desktop file is binary; use ReadFileBytes or download")
 	}
 	data, err := os.ReadFile(path)
@@ -244,6 +257,9 @@ func (s *Service) ReadFile(ctx context.Context, rawPath string) (string, FileEnt
 		Type:    "file",
 		Size:    info.Size(),
 		ModTime: info.ModTime(),
+		Modified: info.ModTime(),
+		Mode:    info.Mode().String(),
+		Created: getCreationTime(info),
 	}, nil
 }
 
@@ -304,8 +320,11 @@ func (s *Service) ReadFileBytes(ctx context.Context, rawPath string) ([]byte, Fi
 		Type:      "file",
 		Size:      info.Size(),
 		ModTime:   info.ModTime(),
+		Modified:  info.ModTime(),
 		MIMEType:  MIMETypeForName(path),
 		MediaKind: desktopMediaKindForName(path),
+		Mode:      info.Mode().String(),
+		Created:   getCreationTime(info),
 	}, nil
 }
 
@@ -353,7 +372,10 @@ func (s *Service) OpenPreviewFile(ctx context.Context, rawPath string) (*os.File
 		Type:     "file",
 		Size:     info.Size(),
 		ModTime:  info.ModTime(),
+		Modified: info.ModTime(),
 		MIMEType: MIMETypeForName(path),
+		Mode:     info.Mode().String(),
+		Created:  getCreationTime(info),
 	}, MIMETypeForName(path), nil
 }
 
@@ -756,3 +778,124 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	s.invalidateBootstrapCacheForFileMutation(s.relativePath(path))
 	return nil
 }
+
+// SearchFiles performs a recursive case-insensitive search for files and directories matching the query.
+func (s *Service) SearchFiles(ctx context.Context, rawPath, query string) ([]FileEntry, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return nil, err
+	}
+	dirPath, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return nil, err
+	}
+	searchTerm := strings.ToLower(strings.TrimSpace(query))
+	var result []FileEntry
+	err = filepath.WalkDir(dirPath, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip unreadable files/folders
+		}
+		if path == dirPath {
+			return nil
+		}
+		name := entry.Name()
+		if searchTerm != "" && !strings.Contains(strings.ToLower(name), searchTerm) {
+			return nil
+		}
+		info, statErr := entry.Info()
+		if statErr != nil {
+			return nil
+		}
+		itemType := "file"
+		if info.IsDir() {
+			itemType = "directory"
+		}
+		
+		result = append(result, FileEntry{
+			Name:      name,
+			Path:      s.relativePath(path),
+			Type:      itemType,
+			Size:      info.Size(),
+			ModTime:   info.ModTime(),
+			MIMEType:  MIMETypeForName(name),
+			MediaKind: desktopMediaKindForName(name),
+			Mode:      info.Mode().String(),
+			Created:   getCreationTime(info),
+		})
+		
+		if len(result) >= 1000 {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil && err != filepath.SkipDir {
+		return nil, err
+	}
+	sortFileEntries(result)
+	return result, nil
+}
+
+// CreateSymlink creates a symbolic link at linkPath pointing to targetPath.
+func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string) error {
+	if err := s.ensureReady(ctx); err != nil {
+		return err
+	}
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
+	}
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
+
+	resolvedLink, err := s.ResolvePath(linkPath)
+	if err != nil {
+		return fmt.Errorf("resolve symlink destination: %w", err)
+	}
+
+	resolvedTarget, err := s.ResolvePath(targetPath)
+	if err != nil {
+		return fmt.Errorf("resolve symlink target: %w", err)
+	}
+
+	relTarget, err := filepath.Rel(filepath.Dir(resolvedLink), resolvedTarget)
+	if err != nil {
+		return fmt.Errorf("calculate relative path for symlink: %w", err)
+	}
+
+	if _, err := os.Lstat(resolvedLink); err == nil {
+		return fmt.Errorf("file or directory already exists at link destination")
+	}
+
+	if err := os.Symlink(relTarget, resolvedLink); err != nil {
+		return fmt.Errorf("create symlink: %w", err)
+	}
+
+	s.invalidateBootstrapCacheForFileMutation(s.relativePath(resolvedLink))
+	return nil
+}
+
+// GetDirectorySize calculates the recursive size of a directory in bytes.
+func (s *Service) GetDirectorySize(ctx context.Context, rawPath string) (int64, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return 0, err
+	}
+	dirPath, err := s.ResolvePath(rawPath)
+	if err != nil {
+		return 0, err
+	}
+	var totalSize int64
+	err = filepath.WalkDir(dirPath, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip unreadable files/folders
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			totalSize += info.Size()
+		}
+		return nil
+	})
+	return totalSize, err
+}
+
+

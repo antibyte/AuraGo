@@ -720,8 +720,11 @@ func (s *Service) workspaceFileEntry(path string, info os.FileInfo) FileEntry {
 		Type:      "file",
 		Size:      info.Size(),
 		ModTime:   info.ModTime(),
+		Modified:  info.ModTime(),
 		MIMEType:  MIMETypeForName(path),
 		MediaKind: desktopMediaKindForName(path),
+		Mode:      info.Mode().String(),
+		Created:   getCreationTime(info),
 	}
 }
 
