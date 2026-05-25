@@ -116,6 +116,44 @@ func TestLoadCatalogIncludesEmbeddedVirtualDesktopRule(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogIncludesEmbeddedSkillCreationRule(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	rule, ok := catalog.Rule("skill_creation")
+	if !ok {
+		t.Fatal("expected embedded skill_creation rule")
+	}
+	if !rule.Enabled {
+		t.Fatal("embedded skill_creation rule should be enabled")
+	}
+	if !contains(rule.Tools, "create_skill_from_template") {
+		t.Fatalf("skill_creation rule tools = %v, want create_skill_from_template", rule.Tools)
+	}
+	for _, marker := range []string{
+		"Skill Creation Workflow",
+		"Check `list_skills` first",
+		"Use `list_skill_templates`",
+		"create_skill_from_template",
+		"internal_tools",
+		"tools.python_tool_bridge.enabled",
+		"tools.python_tool_bridge.allowed_tools",
+		"Assign Internal Tools",
+		"AuraGoTools.is_available()",
+	} {
+		if !strings.Contains(rule.Body, marker) {
+			t.Fatalf("skill_creation rule body missing marker %q:\n%s", marker, rule.Body)
+		}
+	}
+}
+
 func TestLoadCatalogUsesDiskOverrideBeforeEmbeddedRule(t *testing.T) {
 	t.Parallel()
 
@@ -196,6 +234,28 @@ func TestCatalogMatchSelectsVirtualDesktopRuleByToolAndKeyword(t *testing.T) {
 	byKeyword := catalog.Match(MatchContext{Prompt: "Bitte im virtuellen Desktop eine App mit Widget erstellen"})
 	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "virtual_desktop" {
 		t.Fatalf("German virtual desktop keyword should select virtual_desktop rule first, got %+v", byKeyword.Rules)
+	}
+}
+
+func TestCatalogMatchSelectsSkillCreationRuleByToolAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	catalog, err := LoadCatalog(LoadOptions{
+		PromptsDir: t.TempDir(),
+		EmbeddedFS: promptsembed.FS,
+	})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	byTool := catalog.Match(MatchContext{Tools: []string{"create_skill_from_template"}})
+	if len(byTool.Rules) == 0 || byTool.Rules[0].ID != "skill_creation" {
+		t.Fatalf("create_skill_from_template should select skill_creation rule first, got %+v", byTool.Rules)
+	}
+
+	byKeyword := catalog.Match(MatchContext{Prompt: "Bitte erstelle einen neuen Python Skill mit Zugriff auf interne Tools"})
+	if len(byKeyword.Rules) == 0 || byKeyword.Rules[0].ID != "skill_creation" {
+		t.Fatalf("German skill creation keyword should select skill_creation rule first, got %+v", byKeyword.Rules)
 	}
 }
 

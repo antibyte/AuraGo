@@ -105,6 +105,22 @@ func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing
 	}
 }
 
+func TestBuildTaskRulePromptContextSelectsSkillCreationRuleByKeyword(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	ctx := buildTaskRulePromptContext(cfg, "erstelle einen skill der docker als internes tool nutzt", nil, nil, "")
+	if !strings.Contains(ctx.TaskRules, "Skill Creation Workflow") {
+		t.Fatalf("TaskRules missing skill creation rule for skill request:\n%s", ctx.TaskRules)
+	}
+	if !strings.Contains(ctx.TaskRules, "tools.python_tool_bridge.allowed_tools") {
+		t.Fatalf("skill creation rule should include tool bridge allowlist guidance:\n%s", ctx.TaskRules)
+	}
+}
+
 func TestEnsureTaskRulesBeforeHomepageToolDoesNotDependOnIntentLanguage(t *testing.T) {
 	t.Parallel()
 
@@ -145,6 +161,29 @@ func TestEnsureTaskRulesBeforeVirtualDesktopToolLoadsRule(t *testing.T) {
 	}
 	if !strings.Contains(state.flags.TaskRules, "Generated App And Widget Creation Workflow") {
 		t.Fatalf("virtual_desktop tool did not inject required rule:\n%s", state.flags.TaskRules)
+	}
+}
+
+func TestEnsureTaskRulesBeforeCreateSkillToolLoadsRule(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = t.TempDir()
+
+	state := &agentLoopState{runCfg: RunConfig{Config: cfg}}
+	result, blocked := ensureTaskRulesBeforeToolExecution(state, ToolCall{Action: "create_skill_from_template"}, "erstelle einen skill")
+	if !blocked {
+		t.Fatal("expected create_skill_from_template call to be blocked until required rules are injected")
+	}
+	if !strings.Contains(result, `"status":"blocked"`) {
+		t.Fatalf("expected blocked result, got: %s", result)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Skill Creation Workflow") {
+		t.Fatalf("create_skill_from_template did not inject required rule:\n%s", state.flags.TaskRules)
+	}
+	if !strings.Contains(state.flags.TaskRules, "Assign Internal Tools") {
+		t.Fatalf("skill creation rule should tell the agent to mention user tool approval:\n%s", state.flags.TaskRules)
 	}
 }
 
