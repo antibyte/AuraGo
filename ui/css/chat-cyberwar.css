@@ -117,20 +117,7 @@
 }
 
 [data-theme="cyberwar"] .app-header::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.40;
-    background-image: url("/img/circuit.jpg");
-    background-size: 100% auto;
-    background-position: 0 0;
-    background-position-y: 0px;
-    background-repeat: repeat-y;
-    mix-blend-mode: lighten;
-    filter: hue-rotate(180deg) saturate(0.5) brightness(1.4) contrast(0.9);
-    animation: cyberwarPCBScrollHeader 30s ease-in-out alternate infinite;
+    display: none;
 }
 
 [data-theme="cyberwar"] .app-header::after {
@@ -590,22 +577,6 @@
     backdrop-filter: blur(16px);
 }
 
-[data-theme="cyberwar"] .app-footer::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.35;
-    background-image: url("/img/circuit.jpg");
-    background-size: 100% auto;
-    background-position: 0 0;
-    background-position-y: -200px;
-    background-repeat: repeat-y;
-    mix-blend-mode: lighten;
-    filter: hue-rotate(180deg) saturate(0.5) brightness(1.4) contrast(0.9);
-    animation: cyberwarPCBScrollFooter 30s ease-in-out alternate infinite;
-}
 
 [data-theme="cyberwar"] .input-wrap textarea,
 [data-theme="cyberwar"] .composer-panel,
@@ -916,24 +887,6 @@
     }
 }
 
-@keyframes cyberwarPCBScrollHeader {
-    0% {
-        background-position-y: 0px;
-    }
-    100% {
-        background-position-y: -200px;
-    }
-}
-
-@keyframes cyberwarPCBScrollFooter {
-    0% {
-        background-position-y: -200px;
-    }
-    100% {
-        background-position-y: 0px;
-    }
-}
-
 @media (max-width: 767px) {
     [data-theme="cyberwar"] .bubble {
         max-width: min(92%, 36rem);
@@ -946,9 +899,7 @@
     [data-theme="cyberwar"] #chat-box::before,
     [data-theme="cyberwar"] .greeting-icon,
     [data-theme="cyberwar"] .msg-row,
-    [data-theme="cyberwar"] .scroll-to-bottom-btn.has-new,
-    [data-theme="cyberwar"] .app-header::before,
-    [data-theme="cyberwar"] .app-footer::before {
+    [data-theme="cyberwar"] .scroll-to-bottom-btn.has-new {
         animation: none !important;
     }
 }
