@@ -974,6 +974,4 @@
         </div>`;
     }
 
-    function renderListRow(file) {
-        const isDir = file.type === 'directory';
-        const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
+
