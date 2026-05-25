@@ -405,6 +405,114 @@ func TestAgodeskSessionStartReconnectRequiresSharedKeyProof(t *testing.T) {
 	}
 }
 
+func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	token := "desktop-command-pairing-token"
+	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
+		TokenHash:  hashSHA256(token),
+		DeviceName: "desktop-pc",
+		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("CreateEnrollment: %v", err)
+	}
+
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
+	defer cleanup()
+	_ = readAgodeskTestEnvelope(t, conn)
+	start, err := agodesk.NewEnvelope(agodesk.TypeSessionStart, agodesk.SessionStartPayload{
+		ClientVersion: "0.1.0",
+		PairingToken:  token,
+		Host:          agodesk.SessionStartHost{Hostname: "DESKTOP-PC", OS: "windows", Arch: "amd64"},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope session.start: %v", err)
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		t.Fatalf("write session.start: %v", err)
+	}
+	acceptedEnvelope := readAgodeskTestEnvelope(t, conn)
+	var accepted agodesk.SessionAcceptedPayload
+	decodeAgodeskTestPayload(t, acceptedEnvelope, &accepted)
+	if accepted.DeviceID == "" {
+		t.Fatalf("accepted payload missing device id: %+v", accepted)
+	}
+	if !s.RemoteHub.IsConnected(accepted.DeviceID) {
+		t.Fatal("paired agodesk device should be connected through RemoteHub")
+	}
+
+	type commandResult struct {
+		result remote.ResultPayload
+		err    error
+	}
+	resultCh := make(chan commandResult, 1)
+	go func() {
+		result, err := s.RemoteHub.SendCommand(accepted.DeviceID, remote.CommandPayload{
+			Operation: remote.OpDesktopScreenshot,
+			Args:      map[string]interface{}{"display_id": "display-0", "format": "png"},
+		}, 2*time.Second)
+		resultCh <- commandResult{result: result, err: err}
+	}()
+
+	cmdEnvelope := readAgodeskTestEnvelope(t, conn)
+	if cmdEnvelope.Type != agodesk.TypeDesktopCommand {
+		t.Fatalf("command envelope type = %q, want %q", cmdEnvelope.Type, agodesk.TypeDesktopCommand)
+	}
+	var cmd agodesk.DesktopCommandPayload
+	decodeAgodeskTestPayload(t, cmdEnvelope, &cmd)
+	if cmd.CommandID == "" || cmd.Operation != remote.OpDesktopScreenshot {
+		t.Fatalf("desktop command payload = %+v", cmd)
+	}
+	resultEnvelope, err := agodesk.NewEnvelope(agodesk.TypeDesktopResult, agodesk.DesktopResultPayload{
+		CommandID: cmd.CommandID,
+		OK:        true,
+		Data: map[string]interface{}{
+			"source":     "display",
+			"display_id": "display-0",
+			"format":     "png",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope desktop.result: %v", err)
+	}
+	if err := conn.WriteJSON(resultEnvelope); err != nil {
+		t.Fatalf("write desktop.result: %v", err)
+	}
+
+	select {
+	case got := <-resultCh:
+		if got.err != nil {
+			t.Fatalf("SendCommand returned error: %v", got.err)
+		}
+		if got.result.Status != "ok" || !strings.Contains(got.result.Output, `"display_id":"display-0"`) {
+			t.Fatalf("desktop command result = %+v", got.result)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for routed desktop result")
+	}
+
+	unknown, err := agodesk.NewEnvelope(agodesk.TypeDesktopResult, agodesk.DesktopResultPayload{
+		CommandID: "unknown-command",
+		OK:        true,
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope unknown desktop.result: %v", err)
+	}
+	if err := conn.WriteJSON(unknown); err != nil {
+		t.Fatalf("write unknown desktop.result: %v", err)
+	}
+	ping, err := agodesk.NewEnvelope(agodesk.TypeSystemPing, map[string]string{})
+	if err != nil {
+		t.Fatalf("NewEnvelope ping: %v", err)
+	}
+	if err := conn.WriteJSON(ping); err != nil {
+		t.Fatalf("write ping after unknown result: %v", err)
+	}
+	pong := readAgodeskTestEnvelope(t, conn)
+	if pong.Type != agodesk.TypeSystemPong {
+		t.Fatalf("response after unknown desktop.result = %q, want pong", pong.Type)
+	}
+}
+
 func newAgodeskHandlerTestServer() *Server {
 	return &Server{
 		Cfg:    &config.Config{},

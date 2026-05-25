@@ -1013,12 +1013,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RemoteControlEnabled {
 		tools = append(tools, tool("remote_control",
 			"Manage and interact with remote devices connected to this AuraGo instance. "+
-				"List devices, check status, execute commands, transfer files, edit files precisely, edit JSON/YAML/XML files, search files, read file sections, and get system information from remote machines.",
+				"List devices, check status, execute commands, transfer files, edit files precisely, edit JSON/YAML/XML files, search files, read file sections, get system information, and use agodesk desktop screenshot/input operations when a desktop client is connected.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_devices", "device_status", "execute_command", "read_file", "write_file", "list_files", "sysinfo", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "file_search", "file_read_advanced"},
+					"enum":        []string{"list_devices", "device_status", "execute_command", "read_file", "write_file", "list_files", "sysinfo", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "file_search", "file_read_advanced", "desktop_screenshot", "desktop_permission_request", "desktop_input"},
 				},
 				"device_id":   prop("string", "Device ID (for all device-specific operations)"),
 				"device_name": prop("string", "Device name — alternative to device_id for lookup"),
@@ -1039,6 +1039,20 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"glob":        prop("string", "File glob pattern for file_search grep_recursive/find"),
 				"output_mode": prop("string", "Output mode for file_search: content (default) or count"),
 				"line_count":  prop("integer", "Number of lines for file_read_advanced head/tail or context lines for search_context"),
+				"display_id":  prop("string", "agodesk desktop display id for desktop_screenshot, e.g. display-0. Omit for primary display."),
+				"window_id":   prop("string", "agodesk desktop window id for desktop_screenshot when capturing a single window."),
+				"format":      prop("string", "Screenshot format for desktop_screenshot: png or jpeg."),
+				"quality":     prop("integer", "Screenshot quality 1-100 for jpeg/webp captures."),
+				"include_data_base64": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set true only when the raw screenshot base64 must be returned. Default false stores it to a workspace file and returns the path.",
+				},
+				"kind":   prop("string", "desktop_input event kind: mouse_move, mouse_click, key_down, key_up, or text. Input requires local approval in agodesk."),
+				"x":      prop("integer", "Desktop input x coordinate for mouse events."),
+				"y":      prop("integer", "Desktop input y coordinate for mouse events."),
+				"button": prop("string", "Mouse button for desktop_input mouse_click: left, right, or middle."),
+				"key":    prop("string", "Keyboard key for desktop_input key_down/key_up, e.g. enter."),
+				"code":   prop("integer", "Keyboard key code for desktop_input key_down/key_up."),
 			}, "operation"),
 		))
 	}

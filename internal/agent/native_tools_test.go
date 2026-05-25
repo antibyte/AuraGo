@@ -342,6 +342,37 @@ func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
+func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{RemoteControlEnabled: true})
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name != "remote_control" {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(schema.Function.Description), "screenshot") {
+			t.Fatalf("remote_control description should mention screenshots: %s", schema.Function.Description)
+		}
+		params, ok := schema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("remote_control parameters type = %T, want map[string]interface{}", schema.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("remote_control properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("remote_control operation property missing")
+		}
+		for _, want := range []string{"desktop_screenshot", "desktop_permission_request", "desktop_input"} {
+			if !containsInterfaceString(opProp["enum"], want) {
+				t.Fatalf("remote_control operation enum missing %s: %#v", want, opProp["enum"])
+			}
+		}
+		return
+	}
+	t.Fatal("remote_control schema not found")
+}
+
 func TestBuiltinToolSchemasExposeVercelDeleteProject(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
 	for _, schema := range schemas {

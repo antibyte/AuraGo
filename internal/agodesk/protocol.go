@@ -49,8 +49,9 @@ var DefaultCapabilities = []string{
 	"chat.full_response",
 	"chat.streaming",
 	"pairing.remotehub",
-	"remote.desktop.capture.planned",
-	"remote.desktop.input.planned",
+	"remote.desktop.capture",
+	"remote.desktop.permission_request",
+	"remote.desktop.input",
 }
 
 type Envelope struct {

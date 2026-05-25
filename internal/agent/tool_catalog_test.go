@@ -127,6 +127,33 @@ func TestDiscoverToolsReturnsStructuredHiddenNativeResult(t *testing.T) {
 	}
 }
 
+func TestToolCatalogSearchMatchesTermsAcrossToolFields(t *testing.T) {
+	schemas := []openai.Tool{
+		testToolSchema("remote_control", "Manage remote devices and capture desktop screenshots"),
+	}
+	catalog := BuildToolCatalog(schemas, nil, "")
+
+	results := catalog.Search("remote_control screenshot")
+	if len(results) == 0 {
+		t.Fatal("expected remote_control result")
+	}
+	if results[0].Name != "remote_control" {
+		t.Fatalf("top result = %q, want remote_control", results[0].Name)
+	}
+
+	results = catalog.Search("screenshot desktop capture screen")
+	found := false
+	for _, result := range results {
+		if result.Name == "remote_control" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("broad results did not include remote_control: %+v", results)
+	}
+}
+
 func TestDiscoverToolsReturnsSkillCallMethod(t *testing.T) {
 	resetToolCatalogForTest(t)
 	schemas := []openai.Tool{

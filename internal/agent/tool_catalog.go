@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -192,15 +193,93 @@ func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
 	if query == "" {
 		return nil
 	}
-	var out []*ToolCatalogEntry
+
+	tokens := tokenizeToolSearchQuery(query)
+	type scoredEntry struct {
+		entry *ToolCatalogEntry
+		score int
+	}
+	var scored []scoredEntry
 	for _, entry := range c.Entries() {
-		if strings.Contains(strings.ToLower(entry.Name), query) ||
-			strings.Contains(strings.ToLower(entry.Description), query) ||
-			strings.Contains(strings.ToLower(entry.Category), query) {
-			out = append(out, entry)
+		text := strings.ToLower(toolCatalogSearchText(entry))
+		score := 0
+		if strings.Contains(text, query) {
+			score += 100
+		}
+		for _, token := range tokens {
+			if strings.Contains(strings.ToLower(entry.Name), token) {
+				score += 20
+				continue
+			}
+			aliasMatched := false
+			for _, alias := range entry.Aliases {
+				if strings.Contains(strings.ToLower(alias), token) {
+					score += 15
+					aliasMatched = true
+					break
+				}
+			}
+			if aliasMatched {
+				continue
+			}
+			if strings.Contains(text, token) {
+				score += 5
+			}
+		}
+		if score > 0 {
+			scored = append(scored, scoredEntry{entry: entry, score: score})
 		}
 	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
+		return scored[i].entry.Name < scored[j].entry.Name
+	})
+
+	out := make([]*ToolCatalogEntry, 0, len(scored))
+	for _, item := range scored {
+		out = append(out, item.entry)
+	}
 	return out
+}
+
+func tokenizeToolSearchQuery(query string) []string {
+	fields := strings.FieldsFunc(query, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_'
+	})
+	out := make([]string, 0, len(fields))
+	seen := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		field = strings.ToLower(strings.TrimSpace(field))
+		if len(field) < 2 || seen[field] {
+			continue
+		}
+		seen[field] = true
+		out = append(out, field)
+	}
+	return out
+}
+
+func toolCatalogSearchText(entry *ToolCatalogEntry) string {
+	if entry == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(entry.Name)
+	b.WriteByte(' ')
+	b.WriteString(entry.Category)
+	b.WriteByte(' ')
+	b.WriteString(entry.Description)
+	for _, alias := range entry.Aliases {
+		b.WriteByte(' ')
+		b.WriteString(alias)
+	}
+	if entry.Schema.Function != nil {
+		b.WriteByte(' ')
+		b.WriteString(entry.Schema.Function.Description)
+	}
+	return b.String()
 }
 
 func (c *ToolCatalog) ByCategory(category string) []*ToolCatalogEntry {

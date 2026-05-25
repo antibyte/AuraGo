@@ -237,6 +237,8 @@ type Server struct {
 	MissionManagerV2   *tools.MissionManagerV2
 	EggHub             *bridge.EggHub
 	RemoteHub          *remote.RemoteHub
+	agodeskDesktopMu   sync.Mutex
+	agodeskDesktop     *agodeskDesktopBroker
 	ProxyManager       *proxy.Manager
 	TsNetManager       *tsnetnode.Manager
 	tsNetHandler       http.Handler // stored so the UI can restart tsnet without a full server restart

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -40,6 +41,26 @@ type agodeskConnectionState struct {
 	writeMu   sync.Mutex
 }
 
+type agodeskDesktopBroker struct {
+	hub      *remote.RemoteHub
+	logger   *slog.Logger
+	mu       sync.RWMutex
+	sessions map[string]*agodeskDesktopSession
+}
+
+type agodeskDesktopSession struct {
+	deviceID  string
+	conn      *websocket.Conn
+	state     *agodeskConnectionState
+	pendingMu sync.Mutex
+	pending   map[string]chan agodeskDesktopCommandResult
+}
+
+type agodeskDesktopCommandResult struct {
+	payload agodesk.DesktopResultPayload
+	err     error
+}
+
 func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
@@ -61,6 +82,7 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 			state.sessionID = "agodesk:dev:" + agodeskConnectionID()
 			state.paired = true
 		}
+		defer cleanupAgodeskConnection(s, &state)
 
 		if err := writeAgodeskEnvelopeLocked(conn, &state, agodesk.TypeSystemConnected, agodesk.SystemConnectedPayload{
 			ProtocolVersion: agodesk.ProtocolVersion,
@@ -114,6 +136,7 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.readOnly = accepted.ReadOnly
 		state.paired = accepted.Approved
 		state.mu.Unlock()
+		registerAgodeskDesktopSession(s, conn, state, accepted)
 		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
 	case agodesk.TypeChatMessage:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatMessagePayload](env)
@@ -123,7 +146,22 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		}
 		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
 	case agodesk.TypeDesktopResult:
-		// Desktop-control transport is defined in v1 but command routing is feature-gated.
+		payload, errPayload := decodeAgodeskPayload[agodesk.DesktopResultPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		deviceID, paired := agodeskStateDevice(state)
+		if !paired || deviceID == "" {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorPairingRequired, "Pairing is required before desktop results are accepted.")
+			return true
+		}
+		broker := ensureAgodeskDesktopBroker(s)
+		if broker == nil || !broker.HandleResult(deviceID, payload) {
+			if s != nil && s.Logger != nil {
+				s.Logger.Warn("Unknown agodesk desktop result", "device_id", deviceID, "command_id", payload.CommandID)
+			}
+		}
 		return true
 	default:
 		return true
@@ -325,8 +363,223 @@ func buildAgodeskAgentContext() string {
 	return strings.Join([]string{
 		"The user is chatting from agodesk, a paired desktop companion running on a remote PC.",
 		"When the user asks about that remote PC, prefer the remote_control tool for available device operations and respect read-only policy.",
-		"Desktop capture and desktop input are planned agodesk capabilities. Do not claim they are available unless the connected client advertises and successfully executes those commands.",
+		"Desktop screenshots are available through remote_control desktop_screenshot when the agodesk client is connected.",
+		"Desktop input requires local approval in the agodesk remote-control banner; the backend cannot approve or bypass that local control session.",
+		"Desktop streaming is not available in this backend version.",
 	}, "\n")
+}
+
+func ensureAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
+	if s == nil || s.RemoteHub == nil {
+		return nil
+	}
+	s.agodeskDesktopMu.Lock()
+	defer s.agodeskDesktopMu.Unlock()
+	if s.agodeskDesktop != nil {
+		return s.agodeskDesktop
+	}
+	broker := &agodeskDesktopBroker{
+		hub:      s.RemoteHub,
+		logger:   s.Logger,
+		sessions: make(map[string]*agodeskDesktopSession),
+	}
+	s.agodeskDesktop = broker
+	s.RemoteHub.RegisterCommandTransport("agodesk", broker)
+	return broker
+}
+
+func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agodeskConnectionState, accepted agodesk.SessionAcceptedPayload) {
+	if !accepted.Approved || strings.TrimSpace(accepted.DeviceID) == "" {
+		return
+	}
+	broker := ensureAgodeskDesktopBroker(s)
+	if broker == nil {
+		return
+	}
+	broker.RegisterSession(accepted.DeviceID, conn, state)
+	if s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
+		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), accepted.DeviceID, "connected")
+	}
+}
+
+func cleanupAgodeskConnection(s *Server, state *agodeskConnectionState) {
+	deviceID, paired := agodeskStateDevice(state)
+	if !paired || deviceID == "" {
+		return
+	}
+	removed := false
+	if broker := ensureAgodeskDesktopBroker(s); broker != nil {
+		removed = broker.UnregisterSession(deviceID, state)
+	}
+	if removed && s != nil && s.RemoteHub != nil && s.RemoteHub.DB() != nil {
+		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), deviceID, "offline")
+	}
+}
+
+func agodeskStateDevice(state *agodeskConnectionState) (string, bool) {
+	if state == nil {
+		return "", false
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.deviceID, state.paired
+}
+
+func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.Conn, state *agodeskConnectionState) {
+	if b == nil || strings.TrimSpace(deviceID) == "" || conn == nil || state == nil {
+		return
+	}
+	session := &agodeskDesktopSession{
+		deviceID: deviceID,
+		conn:     conn,
+		state:    state,
+		pending:  make(map[string]chan agodeskDesktopCommandResult),
+	}
+	var old *agodeskDesktopSession
+	b.mu.Lock()
+	if b.sessions == nil {
+		b.sessions = make(map[string]*agodeskDesktopSession)
+	}
+	old = b.sessions[deviceID]
+	b.sessions[deviceID] = session
+	b.mu.Unlock()
+	if old != nil && old != session {
+		old.failPending(fmt.Errorf("agodesk session replaced"))
+		if old.conn != nil && old.conn != conn {
+			_ = old.conn.Close()
+		}
+	}
+}
+
+func (b *agodeskDesktopBroker) UnregisterSession(deviceID string, state *agodeskConnectionState) bool {
+	if b == nil || strings.TrimSpace(deviceID) == "" {
+		return false
+	}
+	var session *agodeskDesktopSession
+	b.mu.Lock()
+	current := b.sessions[deviceID]
+	if current != nil && (state == nil || current.state == state) {
+		session = current
+		delete(b.sessions, deviceID)
+	}
+	b.mu.Unlock()
+	if session != nil {
+		session.failPending(fmt.Errorf("agodesk session disconnected"))
+		return true
+	}
+	return false
+}
+
+func (b *agodeskDesktopBroker) IsConnected(deviceID string) bool {
+	return b.session(deviceID) != nil
+}
+
+func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
+	session := b.session(deviceID)
+	if session == nil {
+		return remote.ResultPayload{}, fmt.Errorf("no active agodesk session for device %s", deviceID)
+	}
+	resultCh := make(chan agodeskDesktopCommandResult, 1)
+	session.pendingMu.Lock()
+	session.pending[cmd.CommandID] = resultCh
+	session.pendingMu.Unlock()
+	defer session.removePending(cmd.CommandID)
+
+	if err := writeAgodeskEnvelopeLocked(session.conn, session.state, agodesk.TypeDesktopCommand, agodesk.DesktopCommandPayload{
+		CommandID: cmd.CommandID,
+		Operation: cmd.Operation,
+		Params:    cmd.Args,
+	}); err != nil {
+		return remote.ResultPayload{}, fmt.Errorf("send agodesk desktop command: %w", err)
+	}
+
+	select {
+	case result := <-resultCh:
+		if result.err != nil {
+			return remote.ResultPayload{CommandID: cmd.CommandID, Status: "error", Error: result.err.Error()}, nil
+		}
+		return agodeskDesktopResultToRemoteResult(cmd.CommandID, result.payload), nil
+	case <-time.After(timeout):
+		return remote.ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "timeout",
+			Error:     fmt.Sprintf("command timed out after %v", timeout),
+		}, nil
+	}
+}
+
+func (b *agodeskDesktopBroker) HandleResult(deviceID string, payload agodesk.DesktopResultPayload) bool {
+	session := b.session(deviceID)
+	if session == nil || strings.TrimSpace(payload.CommandID) == "" {
+		return false
+	}
+	session.pendingMu.Lock()
+	ch, ok := session.pending[payload.CommandID]
+	session.pendingMu.Unlock()
+	if !ok {
+		return false
+	}
+	select {
+	case ch <- agodeskDesktopCommandResult{payload: payload}:
+	default:
+	}
+	return true
+}
+
+func (b *agodeskDesktopBroker) session(deviceID string) *agodeskDesktopSession {
+	if b == nil || strings.TrimSpace(deviceID) == "" {
+		return nil
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.sessions[deviceID]
+}
+
+func (s *agodeskDesktopSession) removePending(commandID string) {
+	if s == nil || strings.TrimSpace(commandID) == "" {
+		return
+	}
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	delete(s.pending, commandID)
+}
+
+func (s *agodeskDesktopSession) failPending(err error) {
+	if s == nil {
+		return
+	}
+	s.pendingMu.Lock()
+	pending := s.pending
+	s.pending = make(map[string]chan agodeskDesktopCommandResult)
+	s.pendingMu.Unlock()
+	for _, ch := range pending {
+		select {
+		case ch <- agodeskDesktopCommandResult{err: err}:
+		default:
+		}
+	}
+}
+
+func agodeskDesktopResultToRemoteResult(commandID string, payload agodesk.DesktopResultPayload) remote.ResultPayload {
+	status := "ok"
+	if !payload.OK {
+		status = "error"
+	}
+	output := ""
+	if payload.Data != nil {
+		if data, err := json.Marshal(payload.Data); err == nil {
+			output = string(data)
+		}
+	}
+	if payload.CommandID != "" {
+		commandID = payload.CommandID
+	}
+	return remote.ResultPayload{
+		CommandID: commandID,
+		Status:    status,
+		Output:    output,
+		Error:     payload.Error,
+	}
 }
 
 func decodeAgodeskPayload[T any](env agodesk.Envelope) (T, error) {

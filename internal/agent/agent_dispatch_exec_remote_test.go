@@ -1,10 +1,16 @@
 package agent
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
 	"aurago/internal/remote"
@@ -90,5 +96,117 @@ func TestRemoteRevokeDeviceFailsWhenStatusPersistenceFails(t *testing.T) {
 	}
 	if !strings.Contains(out, "failed to persist revoked status") {
 		t.Fatalf("expected persistence error, got %s", out)
+	}
+}
+
+func TestRemoteDesktopScreenshotStoresImageDataByDefault(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	imageBytes := []byte("fake-png")
+	outputPayload := map[string]interface{}{
+		"source":      "display",
+		"display_id":  "display-0",
+		"format":      "png",
+		"mime":        "image/png",
+		"width":       640,
+		"height":      480,
+		"data_base64": base64.StdEncoding.EncodeToString(imageBytes),
+	}
+	outputJSON, _ := json.Marshal(outputPayload)
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    string(outputJSON),
+	})
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "desktop_screenshot",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"format": "png",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if strings.Contains(out, "fake-png") || strings.Contains(out, "data_base64") {
+		t.Fatalf("screenshot output should not expose base64 by default: %s", out)
+	}
+
+	var payload struct {
+		Status         string `json:"status"`
+		ScreenshotPath string `json:"screenshot_path"`
+	}
+	decodeToolOutputJSONForRemoteTest(t, out, &payload)
+	if payload.ScreenshotPath == "" {
+		t.Fatalf("missing screenshot_path in output: %s", out)
+	}
+	data, err := os.ReadFile(payload.ScreenshotPath)
+	if err != nil {
+		t.Fatalf("read stored screenshot: %v", err)
+	}
+	if string(data) != string(imageBytes) {
+		t.Fatalf("stored screenshot bytes = %q, want %q", string(data), string(imageBytes))
+	}
+}
+
+func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	cfg.RemoteControl.ReadOnly = true
+	hub := remote.NewRemoteHub(nil, nil, slog.Default())
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "desktop_input",
+		DeviceID:  "agodesk-1",
+		Params: map[string]interface{}{
+			"kind": "mouse_click",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "read-only") {
+		t.Fatalf("expected read-only error, got %s", out)
+	}
+}
+
+type agentRecordingTransport struct {
+	connected map[string]bool
+	output    string
+	calls     []remote.CommandPayload
+}
+
+func (t *agentRecordingTransport) IsConnected(deviceID string) bool {
+	return t.connected[deviceID]
+}
+
+func (t *agentRecordingTransport) SendCommand(deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
+	t.calls = append(t.calls, cmd)
+	return remote.ResultPayload{CommandID: cmd.CommandID, Status: "ok", Output: t.output}, nil
+}
+
+func decodeToolOutputJSONForRemoteTest(t *testing.T, out string, target interface{}) {
+	t.Helper()
+	raw := strings.TrimPrefix(out, "Tool Output: ")
+	if err := json.Unmarshal([]byte(raw), target); err != nil {
+		t.Fatalf("decode tool output %q: %v", out, err)
 	}
 }

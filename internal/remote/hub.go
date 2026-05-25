@@ -33,6 +33,13 @@ type RemoteConnection struct {
 	mu            sync.Mutex
 }
 
+// CommandTransport dispatches RemoteHub commands over non-RemoteMessage
+// transports such as the agodesk desktop companion WebSocket.
+type CommandTransport interface {
+	IsConnected(deviceID string) bool
+	SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error)
+}
+
 // RemoteAuditEvent is a normalized remote-control event emitted to the supervisor audit sink.
 type RemoteAuditEvent struct {
 	DeviceID   string
@@ -71,6 +78,7 @@ type RemoteHub struct {
 	mu          sync.RWMutex
 	connections map[string]*RemoteConnection   // device_id → conn
 	connIndex   map[*websocket.Conn]string     // websocket conn → device_id
+	transports  map[string]CommandTransport    // name → alternate command transport
 	pending     map[string]chan *RemoteMessage // cmd_id → result channel
 	pendingMu   sync.Mutex
 	db          *sql.DB
@@ -97,6 +105,7 @@ func NewRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger) *Remot
 	return &RemoteHub{
 		connections:     make(map[string]*RemoteConnection),
 		connIndex:       make(map[*websocket.Conn]string),
+		transports:      make(map[string]CommandTransport),
 		pending:         make(map[string]chan *RemoteMessage),
 		db:              db,
 		vault:           vault,
@@ -202,9 +211,12 @@ func (h *RemoteHub) GetConnection(deviceID string) *RemoteConnection {
 // IsConnected checks if a device has an active connection.
 func (h *RemoteHub) IsConnected(deviceID string) bool {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
 	_, ok := h.connections[deviceID]
-	return ok
+	h.mu.RUnlock()
+	if ok {
+		return true
+	}
+	return h.hasConnectedCommandTransport(deviceID)
 }
 
 // ConnectedDevices returns all connected device IDs.
@@ -241,22 +253,47 @@ func (h *RemoteHub) ConnectionCount() int {
 	return len(h.connections)
 }
 
+// RegisterCommandTransport adds an alternate command transport.
+func (h *RemoteHub) RegisterCommandTransport(name string, transport CommandTransport) {
+	if h == nil || strings.TrimSpace(name) == "" || transport == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.transports == nil {
+		h.transports = make(map[string]CommandTransport)
+	}
+	h.transports[name] = transport
+}
+
+// UnregisterCommandTransport removes an alternate command transport.
+func (h *RemoteHub) UnregisterCommandTransport(name string) {
+	if h == nil || strings.TrimSpace(name) == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.transports, name)
+}
+
 // ── Command dispatch ────────────────────────────────────────────────────────
 
 // SendCommand sends a command to a remote and waits for the result.
 func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
+	cmd = prepareCommandPayload(cmd, timeout)
 	conn := h.GetConnection(deviceID)
-	if conn == nil {
-		return ResultPayload{}, fmt.Errorf("no active connection for device %s", deviceID)
-	}
-
-	// Enforce read-only
-	if conn.ReadOnly && !ReadOnlySafe(cmd.Operation) {
+	if h.commandBlockedByReadOnly(deviceID, conn, cmd.Operation) {
 		return ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "denied",
 			Error:     "device is in read-only mode",
 		}, nil
+	}
+	if conn == nil {
+		if transport := h.connectedCommandTransport(deviceID); transport != nil {
+			return transport.SendCommand(deviceID, cmd, timeout)
+		}
+		return ResultPayload{}, fmt.Errorf("no active connection for device %s", deviceID)
 	}
 
 	msg, err := NewMessage(MsgCommand, deviceID, conn.SharedKey, conn.NextSeq(), cmd)
@@ -295,6 +332,58 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 			Error:     fmt.Sprintf("command timed out after %v", timeout),
 		}, nil
 	}
+}
+
+func prepareCommandPayload(cmd CommandPayload, timeout time.Duration) CommandPayload {
+	if strings.TrimSpace(cmd.CommandID) == "" {
+		if nonce, err := GenerateNonce(); err == nil {
+			cmd.CommandID = "cmd-" + nonce
+		} else {
+			cmd.CommandID = fmt.Sprintf("cmd-%d", time.Now().UnixNano())
+		}
+	}
+	if timeout > 0 && cmd.TimeoutSec <= 0 {
+		cmd.TimeoutSec = int((timeout + time.Second - time.Nanosecond) / time.Second)
+	}
+	return cmd
+}
+
+func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnection, operation string) bool {
+	if ReadOnlySafe(operation) {
+		return false
+	}
+	if conn != nil {
+		return conn.ReadOnly
+	}
+	if h == nil || h.db == nil {
+		return false
+	}
+	device, err := GetDevice(h.db, deviceID)
+	return err == nil && device.ReadOnly
+}
+
+func (h *RemoteHub) hasConnectedCommandTransport(deviceID string) bool {
+	return h.connectedCommandTransport(deviceID) != nil
+}
+
+func (h *RemoteHub) connectedCommandTransport(deviceID string) CommandTransport {
+	if h == nil {
+		return nil
+	}
+	h.mu.RLock()
+	transports := make([]CommandTransport, 0, len(h.transports))
+	for _, transport := range h.transports {
+		if transport != nil {
+			transports = append(transports, transport)
+		}
+	}
+	h.mu.RUnlock()
+	for _, transport := range transports {
+		if transport.IsConnected(deviceID) {
+			return transport
+		}
+	}
+	return nil
 }
 
 // SendConfigUpdate pushes config changes to a remote device and updates the

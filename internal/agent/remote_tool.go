@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -17,7 +20,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	}
 	if cfg.RemoteControl.ReadOnly {
 		switch tc.Operation {
-		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit":
+		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "desktop_input":
 			return `Tool Output: {"status":"error","message":"Remote Control is in read-only mode. Disable remote_control.read_only to allow changes."}`
 		}
 	}
@@ -51,8 +54,14 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 		return remoteFileSearch(hub, tc, logger)
 	case "file_read_advanced":
 		return remoteFileReadAdvanced(hub, tc, logger)
+	case "desktop_screenshot":
+		return remoteDesktopScreenshot(cfg, hub, tc, logger)
+	case "desktop_permission_request":
+		return remoteDesktopPermissionRequest(hub, tc, logger)
+	case "desktop_input":
+		return remoteDesktopInput(hub, tc, logger)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input"}`, tc.Operation)
 	}
 }
 
@@ -342,6 +351,191 @@ func remoteSysinfo(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		"sysinfo": result.Output,
 	})
 	return "Tool Output: " + string(data)
+}
+
+func remoteDesktopScreenshot(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	args := map[string]interface{}{}
+	if displayID := strings.TrimSpace(toolArgString(tc.Params, "display_id")); displayID != "" {
+		args["display_id"] = displayID
+	}
+	if windowID := strings.TrimSpace(toolArgString(tc.Params, "window_id")); windowID != "" {
+		args["window_id"] = windowID
+	}
+	if format := strings.TrimSpace(toolArgString(tc.Params, "format")); format != "" {
+		args["format"] = format
+	}
+	if quality := toolArgInt(tc.Params, 0, "quality"); quality > 0 {
+		args["quality"] = quality
+	}
+	includeData, _ := toolArgBool(tc.Params, "include_data_base64")
+
+	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopScreenshot, args, 30*time.Second)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data, err := parseRemoteDesktopOutput(result.Output)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	if err := storeRemoteDesktopScreenshot(cfg, result.CommandID, data, includeData); err != nil {
+		return remoteToolError(err.Error())
+	}
+	data["status"] = "ok"
+	respData, _ := json.Marshal(data)
+	return "Tool Output: " + string(respData)
+}
+
+func remoteDesktopPermissionRequest(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopPermissionRequest, copyRemoteDesktopParams(tc.Params), 15*time.Second)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data, err := parseRemoteDesktopOutput(result.Output)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data["status"] = "ok"
+	respData, _ := json.Marshal(data)
+	return "Tool Output: " + string(respData)
+}
+
+func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	args := copyRemoteDesktopParams(tc.Params)
+	if strings.TrimSpace(toolArgString(args, "kind")) == "" {
+		return `Tool Output: {"status":"error","message":"'kind' is required for desktop_input"}`
+	}
+	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopInput, args, 10*time.Second)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data, err := parseRemoteDesktopOutput(result.Output)
+	if err != nil {
+		return remoteToolError(err.Error())
+	}
+	data["status"] = "ok"
+	respData, _ := json.Marshal(data)
+	return "Tool Output: " + string(respData)
+}
+
+func remoteDesktopCommand(hub *remote.RemoteHub, tc ToolCall, operation string, args map[string]interface{}, timeout time.Duration) (remote.ResultPayload, error) {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return remote.ResultPayload{}, err
+	}
+	if !hub.IsConnected(deviceID) {
+		return remote.ResultPayload{}, fmt.Errorf("device %s is not connected", deviceID)
+	}
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: operation,
+		Args:      args,
+	}, timeout)
+	if err != nil {
+		return remote.ResultPayload{}, err
+	}
+	if result.Status != "" && result.Status != "ok" {
+		message := result.Error
+		if message == "" {
+			message = "desktop command returned status " + result.Status
+		}
+		return result, fmt.Errorf("%s", message)
+	}
+	if result.Error != "" {
+		return result, fmt.Errorf("%s", result.Error)
+	}
+	return result, nil
+}
+
+func parseRemoteDesktopOutput(output string) (map[string]interface{}, error) {
+	if strings.TrimSpace(output) == "" {
+		return map[string]interface{}{}, nil
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &data); err != nil {
+		return nil, fmt.Errorf("invalid desktop result payload: %w", err)
+	}
+	return data, nil
+}
+
+func storeRemoteDesktopScreenshot(cfg *config.Config, commandID string, data map[string]interface{}, includeData bool) error {
+	encoded, _ := data["data_base64"].(string)
+	if strings.TrimSpace(encoded) == "" {
+		return nil
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("invalid desktop screenshot data: %w", err)
+	}
+	root := ""
+	if cfg != nil {
+		root = strings.TrimSpace(cfg.Directories.WorkspaceDir)
+	}
+	if root == "" {
+		root = filepath.Join("agent_workspace", "workdir")
+	}
+	dir := filepath.Join(root, "agodesk_screenshots")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create screenshot directory: %w", err)
+	}
+	ext := remoteDesktopScreenshotExt(data)
+	filename := sanitizeRemoteDesktopFilename(commandID)
+	if filename == "" {
+		filename = fmt.Sprintf("screenshot-%d", time.Now().UnixNano())
+	}
+	path := filepath.Join(dir, filename+ext)
+	if err := os.WriteFile(path, decoded, 0600); err != nil {
+		return fmt.Errorf("write screenshot: %w", err)
+	}
+	if !includeData {
+		delete(data, "data_base64")
+	}
+	data["screenshot_path"] = path
+	data["bytes"] = len(decoded)
+	return nil
+}
+
+func remoteDesktopScreenshotExt(data map[string]interface{}) string {
+	format := strings.ToLower(strings.TrimSpace(fmt.Sprint(data["format"])))
+	mime := strings.ToLower(strings.TrimSpace(fmt.Sprint(data["mime"])))
+	switch {
+	case format == "jpeg" || format == "jpg" || mime == "image/jpeg":
+		return ".jpg"
+	case format == "webp" || mime == "image/webp":
+		return ".webp"
+	default:
+		return ".png"
+	}
+}
+
+func sanitizeRemoteDesktopFilename(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func copyRemoteDesktopParams(params map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	for key, value := range params {
+		switch key {
+		case "operation", "device_id", "device_name", "include_data_base64":
+			continue
+		default:
+			out[key] = value
+		}
+	}
+	return out
+}
+
+func remoteToolError(message string) string {
+	return `Tool Output: {"status":"error","message":"` + escapeJSONMessage(message) + `"}`
 }
 
 func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
