@@ -5,6 +5,8 @@
             renderAnalogClockWidget(container);
         } else if (widget.id === 'builtin-quickchat') {
             renderQuickChatWidget(container);
+        } else if (widget.id === 'builtin-weather') {
+            renderWeatherWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widget.title)}</div>`;
         }
@@ -152,6 +154,240 @@
                 }
                 processChunk();
             }).catch(doReject);
+        });
+    }
+
+    const WMO_WEATHER = {
+        0:  { icon: '\u2600\ufe0f', label: 'Clear sky' },
+        1:  { icon: '\ud83c\udf24\ufe0f', label: 'Mainly clear' },
+        2:  { icon: '\u26c5', label: 'Partly cloudy' },
+        3:  { icon: '\u2601\ufe0f', label: 'Overcast' },
+        45: { icon: '\ud83c\udf2b\ufe0f', label: 'Foggy' },
+        48: { icon: '\ud83c\udf2b\ufe0f', label: 'Rime fog' },
+        51: { icon: '\ud83c\udf26\ufe0f', label: 'Light drizzle' },
+        53: { icon: '\ud83c\udf26\ufe0f', label: 'Moderate drizzle' },
+        55: { icon: '\ud83c\udf27\ufe0f', label: 'Dense drizzle' },
+        56: { icon: '\ud83c\udf27\ufe0f', label: 'Freezing drizzle' },
+        57: { icon: '\ud83c\udf27\ufe0f', label: 'Dense freezing drizzle' },
+        61: { icon: '\ud83c\udf27\ufe0f', label: 'Slight rain' },
+        63: { icon: '\ud83c\udf27\ufe0f', label: 'Moderate rain' },
+        65: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy rain' },
+        66: { icon: '\ud83c\udf27\ufe0f', label: 'Freezing rain' },
+        67: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy freezing rain' },
+        71: { icon: '\ud83c\udf28\ufe0f', label: 'Slight snow' },
+        73: { icon: '\ud83c\udf28\ufe0f', label: 'Moderate snow' },
+        75: { icon: '\u2744\ufe0f', label: 'Heavy snow' },
+        77: { icon: '\u2744\ufe0f', label: 'Snow grains' },
+        80: { icon: '\ud83c\udf26\ufe0f', label: 'Slight showers' },
+        81: { icon: '\ud83c\udf27\ufe0f', label: 'Moderate showers' },
+        82: { icon: '\ud83c\udf27\ufe0f', label: 'Heavy showers' },
+        85: { icon: '\ud83c\udf28\ufe0f', label: 'Slight snow showers' },
+        86: { icon: '\ud83c\udf28\ufe0f', label: 'Heavy snow showers' },
+        95: { icon: '\u26c8\ufe0f', label: 'Thunderstorm' },
+        96: { icon: '\u26c8\ufe0f', label: 'Thunderstorm + hail' },
+        99: { icon: '\u26c8\ufe0f', label: 'Thunderstorm + heavy hail' }
+    };
+
+    function wmoInfo(code) {
+        return WMO_WEATHER[code] || { icon: '\ud83c\udf21\ufe0f', label: 'Unknown' };
+    }
+
+    async function renderWeatherWidget(container) {
+        const WEATHER_REFRESH_MS = 30 * 60 * 1000;
+        const STORAGE_KEY = 'vd-weather-location';
+
+        container.innerHTML = `<div class="vd-weather">
+            <div class="vd-weather-location-row">
+                <div class="vd-weather-location-name">${esc('\u2014')}</div>
+                <button class="vd-weather-geo-btn" type="button" title="Use my location">\ud83d\udccd</button>
+                <button class="vd-weather-edit-btn" type="button" title="Change location">\u270f\ufe0f</button>
+            </div>
+            <div class="vd-weather-search-row" hidden>
+                <input class="vd-weather-search-input" type="text" placeholder="Search city\u2026" autocomplete="off" spellcheck="false">
+                <button class="vd-weather-search-btn" type="button">Set</button>
+            </div>
+            <div class="vd-weather-suggestions" hidden></div>
+            <div class="vd-weather-main">
+                <div class="vd-weather-loading">Loading weather\u2026</div>
+            </div>
+            <div class="vd-weather-forecast"></div>
+            <div class="vd-weather-updated"></div>
+        </div>`;
+
+        const $ = sel => container.querySelector(sel);
+        const root = $('.vd-weather');
+        const locationName = $('.vd-weather-location-name');
+        const searchRow = $('.vd-weather-search-row');
+        const searchInput = $('.vd-weather-search-input');
+        const searchBtn = $('.vd-weather-search-btn');
+        const suggestions = $('.vd-weather-suggestions');
+        const mainArea = $('.vd-weather-main');
+        const forecastArea = $('.vd-weather-forecast');
+        const editBtn = $('.vd-weather-edit-btn');
+        const geoBtn = $('.vd-weather-geo-btn');
+        const updatedEl = $('.vd-weather-updated');
+
+        let location = null;
+        let refreshTimer = null;
+        let searchDebounce = null;
+
+        function saveLocation(loc) {
+            location = loc;
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(loc)); } catch (_) {}
+            locationName.textContent = loc.name + (loc.country && loc.country !== loc.name ? ', ' + loc.country : '');
+        }
+
+        async function fetchWeather() {
+            if (!location) return;
+            const url = 'https://api.open-meteo.com/v1/forecast?latitude=' +
+                encodeURIComponent(location.lat) + '&longitude=' + encodeURIComponent(location.lon) +
+                '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m' +
+                '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=6';
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                renderWeatherData(data);
+            } catch (err) {
+                mainArea.innerHTML = '<div class="vd-weather-error">Could not load weather: ' + esc(err.message || 'network error') + '</div>';
+            }
+        }
+
+        function renderWeatherData(data) {
+            const c = data.current;
+            const d = data.daily;
+            if (!c || !d) return;
+            const wmo = wmoInfo(c.weather_code);
+            mainArea.innerHTML = '<div class="vd-weather-icon">' + wmo.icon + '</div>' +
+                '<div class="vd-weather-info">' +
+                    '<div class="vd-weather-temp">' + Math.round(c.temperature_2m) + '\u00b0</div>' +
+                    '<div class="vd-weather-condition">' + esc(wmo.label) + '</div>' +
+                    '<div class="vd-weather-meta">' +
+                        '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83c\udf21\ufe0f</span>' + Math.round(c.apparent_temperature) + '\u00b0</div>' +
+                        '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83d\udca7</span>' + Math.round(c.relative_humidity_2m) + '%</div>' +
+                        '<div class="vd-weather-meta-item"><span class="vd-weather-meta-icon">\ud83d\udca8</span>' + Math.round(c.wind_speed_10m) + ' km/h</div>' +
+                    '</div>' +
+                '</div>';
+            const days = (d.time || []).slice(0, 6);
+            forecastArea.innerHTML = days.map((date, i) => {
+                const dt = new Date(date + 'T12:00:00');
+                const dayName = dt.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2).toUpperCase();
+                const dwm = wmoInfo(d.weather_code[i]);
+                return '<div class="vd-weather-day' + (i === 0 ? ' is-today' : '') + '">' +
+                    '<div class="vd-weather-day-name">' + esc(dayName) + '</div>' +
+                    '<div class="vd-weather-day-icon">' + dwm.icon + '</div>' +
+                    '<div class="vd-weather-day-temps">' +
+                        '<div class="vd-weather-day-temp-high">' + Math.round(d.temperature_2m_max[i]) + '\u00b0</div>' +
+                        '<div class="vd-weather-day-temp-low">' + Math.round(d.temperature_2m_min[i]) + '\u00b0</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            updatedEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            root.classList.add('is-ready');
+        }
+
+        async function searchLocations(query) {
+            if (!query || query.length < 2) {
+                suggestions.hidden = true;
+                suggestions.innerHTML = '';
+                return;
+            }
+            try {
+                const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+                    encodeURIComponent(query) + '&count=6&language=en&format=json';
+                const res = await fetch(url);
+                const data = await res.json();
+                const results = (data.results || []).slice(0, 6);
+                suggestions.innerHTML = results.map(r =>
+                    '<button class="vd-weather-suggestion" type="button" data-lat="' + esc(String(r.latitude)) + '" data-lon="' + esc(String(r.longitude)) + '" data-name="' + esc(r.name) + '" data-country="' + esc(r.country || '') + '">' +
+                        esc(r.name) + (r.admin1 ? ', ' + esc(r.admin1) : '') + (r.country ? ', ' + esc(r.country) : '') +
+                    '</button>'
+                ).join('');
+                suggestions.hidden = results.length === 0;
+                suggestions.querySelectorAll('.vd-weather-suggestion').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        saveLocation({
+                            lat: parseFloat(btn.dataset.lat),
+                            lon: parseFloat(btn.dataset.lon),
+                            name: btn.dataset.name,
+                            country: btn.dataset.country
+                        });
+                        searchRow.hidden = true;
+                        suggestions.hidden = true;
+                        searchInput.value = '';
+                        fetchWeather();
+                    });
+                });
+            } catch (_) {
+                suggestions.hidden = true;
+            }
+        }
+
+        async function geolocate() {
+            if (!navigator.geolocation) {
+                showDesktopNotification({ title: t('desktop.notification'), message: 'Geolocation not available' });
+                return;
+            }
+            geoBtn.disabled = true;
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                geoBtn.disabled = false;
+                const lat = pos.coords.latitude.toFixed(3);
+                const lon = pos.coords.longitude.toFixed(3);
+                saveLocation({ lat: parseFloat(lat), lon: parseFloat(lon), name: lat + ', ' + lon, country: '' });
+                fetchWeather();
+            }, () => {
+                geoBtn.disabled = false;
+            }, { timeout: 10000, maximumAge: 300000 });
+        }
+
+        editBtn.addEventListener('click', () => {
+            const opening = searchRow.hidden;
+            searchRow.hidden = !opening;
+            if (opening) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 10);
+                suggestions.hidden = true;
+            } else {
+                suggestions.hidden = true;
+            }
+        });
+
+        geoBtn.addEventListener('click', geolocate);
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => searchLocations(searchInput.value.trim()), 300);
+        });
+
+        searchBtn.addEventListener('click', () => searchLocations(searchInput.value.trim()));
+
+        searchInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                searchLocations(searchInput.value.trim());
+            } else if (event.key === 'Escape') {
+                searchRow.hidden = true;
+                suggestions.hidden = true;
+            }
+        });
+
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) location = JSON.parse(saved);
+        } catch (_) {}
+
+        if (!location) {
+            location = { lat: 52.52, lon: 13.41, name: 'Berlin', country: 'Germany' };
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(location)); } catch (_) {}
+        }
+
+        locationName.textContent = location.name + (location.country && location.country !== location.name ? ', ' + location.country : '');
+        fetchWeather();
+
+        refreshTimer = setInterval(fetchWeather, WEATHER_REFRESH_MS);
+        registerWidgetCleanup(() => {
+            if (refreshTimer) clearInterval(refreshTimer);
+            clearTimeout(searchDebounce);
         });
     }
 
