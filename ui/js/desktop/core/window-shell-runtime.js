@@ -304,20 +304,6 @@
                     '</button>'
                 ).join('');
                 suggestions.hidden = results.length === 0;
-                suggestions.querySelectorAll('.vd-weather-suggestion').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        saveLocation({
-                            lat: parseFloat(btn.dataset.lat),
-                            lon: parseFloat(btn.dataset.lon),
-                            name: btn.dataset.name,
-                            country: btn.dataset.country
-                        });
-                        searchRow.hidden = true;
-                        suggestions.hidden = true;
-                        searchInput.value = '';
-                        fetchWeather();
-                    });
-                });
             } catch (_) {
                 suggestions.hidden = true;
             }
@@ -340,19 +326,34 @@
             }, { timeout: 10000, maximumAge: 300000 });
         }
 
-        editBtn.addEventListener('click', () => {
-            const opening = searchRow.hidden;
-            searchRow.hidden = !opening;
-            if (opening) {
+        root.addEventListener('click', function (event) {
+            const btn = event.target.closest('button');
+            if (!btn) return;
+            if (btn.classList.contains('vd-weather-edit-btn')) {
+                const opening = searchRow.hidden;
+                searchRow.hidden = !opening;
+                if (opening) {
+                    searchInput.value = '';
+                    setTimeout(function () { searchInput.focus(); }, 10);
+                }
+                suggestions.hidden = true;
+            } else if (btn.classList.contains('vd-weather-geo-btn')) {
+                geolocate();
+            } else if (btn.classList.contains('vd-weather-search-btn')) {
+                searchLocations(searchInput.value.trim());
+            } else if (btn.classList.contains('vd-weather-suggestion')) {
+                saveLocation({
+                    lat: parseFloat(btn.dataset.lat),
+                    lon: parseFloat(btn.dataset.lon),
+                    name: btn.dataset.name,
+                    country: btn.dataset.country
+                });
+                searchRow.hidden = true;
+                suggestions.hidden = true;
                 searchInput.value = '';
-                setTimeout(() => searchInput.focus(), 10);
-                suggestions.hidden = true;
-            } else {
-                suggestions.hidden = true;
+                fetchWeather();
             }
         });
-
-        geoBtn.addEventListener('click', geolocate);
 
         searchInput.addEventListener('input', () => {
             clearTimeout(searchDebounce);
