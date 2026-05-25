@@ -124,10 +124,10 @@
     pointer-events: none;
     opacity: 0.18;
     background-image: url("/img/circuit.jpg");
-    background-size: auto 100%;
-    background-position: center 0;
-    background-position-x: 0px;
-    background-repeat: repeat-x;
+    background-size: 100% auto;
+    background-position: 0 0;
+    background-position-y: 0px;
+    background-repeat: repeat-y;
     mix-blend-mode: screen;
     filter: hue-rotate(180deg) saturate(1.6) brightness(0.85) contrast(1.1);
     animation: cyberwarPCBScrollHeader 30s ease-in-out alternate infinite;
@@ -598,10 +598,10 @@
     pointer-events: none;
     opacity: 0.15;
     background-image: url("/img/circuit.jpg");
-    background-size: auto 100%;
-    background-position: center 0;
-    background-position-x: -400px;
-    background-repeat: repeat-x;
+    background-size: 100% auto;
+    background-position: 0 0;
+    background-position-y: -200px;
+    background-repeat: repeat-y;
     mix-blend-mode: screen;
     filter: hue-rotate(180deg) saturate(1.6) brightness(0.85) contrast(1.1);
     animation: cyberwarPCBScrollFooter 30s ease-in-out alternate infinite;
@@ -918,19 +918,19 @@
 
 @keyframes cyberwarPCBScrollHeader {
     0% {
-        background-position-x: 0px;
+        background-position-y: 0px;
     }
     100% {
-        background-position-x: -400px;
+        background-position-y: -200px;
     }
 }
 
 @keyframes cyberwarPCBScrollFooter {
     0% {
-        background-position-x: -400px;
+        background-position-y: -200px;
     }
     100% {
-        background-position-x: 0px;
+        background-position-y: 0px;
     }
 }
 
