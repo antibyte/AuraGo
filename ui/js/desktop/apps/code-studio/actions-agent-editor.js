@@ -114,6 +114,7 @@
     function toggleSearch() {
         state.searchVisible = !state.searchVisible;
         renderSearchPanel();
+        renderActivityBar();
     }
 
     async function runSearch(formData) {
@@ -203,6 +204,7 @@
         state.agentVisible = !state.agentVisible;
         ensureShellRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         renderAgentPanel();
+        renderActivityBar();
         renderWindowMenus();
     }
 
@@ -541,11 +543,20 @@
         return root ? root.querySelector(selector) : null;
     }
 
+    function toggleSidebar() {
+        state.sidebarVisible = !state.sidebarVisible;
+        ensureShellRoot().dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
+        saveState();
+        renderActivityBar();
+        renderWindowMenus();
+    }
+
     function toggleTerminal() {
         state.terminalVisible = !state.terminalVisible;
         ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
         saveState();
+        renderActivityBar();
         renderWindowMenus();
     }
 
@@ -600,6 +611,23 @@
 
     function baseName(path) {
         return String(path || '').split('/').filter(Boolean).pop() || WORKSPACE_ROOT;
+    }
+
+    function cursorPositionText(tab) {
+        if (!tab || !tab.view) return '';
+        let line = 1, col = 1;
+        if (tab.view.state && tab.view.state.doc) {
+            const head = tab.view.state.selection.main.head;
+            const ln = tab.view.state.doc.lineAt(head);
+            line = ln.number;
+            col = head - ln.from + 1;
+        } else if (tab.view.textarea) {
+            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
+            const lines = value.split('\n');
+            line = lines.length;
+            col = lines[lines.length - 1].length + 1;
+        }
+        return 'Ln ' + line + ', Col ' + col;
     }
 
     function formatBytes(size) {
@@ -698,9 +726,13 @@
                 event.preventDefault();
                 if (!state.searchVisible) state.searchVisible = true;
                 renderSearchPanel();
+                renderActivityBar();
             } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
+            } else if ((event.ctrlKey || event.metaKey) && key === 'b') {
+                event.preventDefault();
+                toggleSidebar();
             } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
                 event.preventDefault();
                 createNewFile();

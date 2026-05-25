@@ -398,9 +398,25 @@
             <div class="code-studio-toolbar" data-toolbar></div>
             <div class="code-studio-search" data-search hidden></div>
             <div class="code-studio-body">
+                <nav class="code-studio-activity-bar" data-activity-bar>
+                    <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.title', 'Explorer'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    </button>
+                    <button type="button" class="cs-activity-btn" data-activity="search" title="${esc(tr('codeStudio.search', 'Search'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    </button>
+                    <button type="button" class="cs-activity-btn" data-activity="agent" title="${esc(tr('codeStudio.agentChat', 'Agent'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    </button>
+                    <span class="cs-activity-spacer"></span>
+                    <button type="button" class="cs-activity-btn" data-activity="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Terminal'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    </button>
+                </nav>
                 <aside class="code-studio-sidebar" data-sidebar></aside>
                 <main class="code-studio-main">
                     <div class="code-studio-tabs" data-tabs></div>
+                    <div class="code-studio-breadcrumbs" data-breadcrumbs></div>
                     <div class="code-studio-editor" data-editor></div>
                     <div class="code-studio-terminal" data-terminal></div>
                 </main>
@@ -423,11 +439,13 @@
         renderSearchPanel();
         renderSidebar();
         renderTabs();
+        renderBreadcrumbs();
         renderEditor();
         renderTerminal();
         renderAgentPanel();
         renderStatus();
         renderWindowMenus();
+        renderActivityBar();
         wireShortcuts();
     }
 
@@ -458,6 +476,7 @@
                 id: 'view',
                 labelKey: 'desktop.menu_view',
                 items: [
+                    { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
                     { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { type: 'separator' },
@@ -484,22 +503,16 @@
             <button type="button" class="cs-button" data-action="new-folder">${buttonIcon('folder-plus', '+')}<span>${esc(tr('codeStudio.newFolder', 'New Folder'))}</span></button>
             <button type="button" class="cs-button primary" data-action="save">${buttonIcon('save', 'S')}<span>${esc(tr('codeStudio.save', 'Save'))}</span></button>
             <button type="button" class="cs-button" data-action="run">${buttonIcon('run', 'R')}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
-            <button type="button" class="cs-button" data-action="search">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
-            <button type="button" class="cs-button" data-action="agent">${buttonIcon('chat', 'A')}<span>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</span></button>
             <button type="button" class="cs-button" data-action="upload">${buttonIcon('upload', 'U')}<span>${esc(tr('codeStudio.upload', 'Upload'))}</span></button>
             <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 16)}</button>
-            <button type="button" class="cs-icon-button" data-action="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('terminal', 'T', 'cs-icon-button-icon', 16)}</button>
             <span class="cs-toolbar-spacer"></span>
             <span class="cs-pill">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic editor'))}</span>`;
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
         toolbar.querySelector('[data-action="save"]').addEventListener('click', bind(saveCurrentFile));
         toolbar.querySelector('[data-action="run"]').addEventListener('click', bind(runCurrentFile));
-        toolbar.querySelector('[data-action="search"]').addEventListener('click', bind(toggleSearch));
-        toolbar.querySelector('[data-action="agent"]').addEventListener('click', bind(toggleAgentPanel));
         toolbar.querySelector('[data-action="upload"]').addEventListener('click', bind(uploadFile));
         toolbar.querySelector('[data-action="refresh"]').addEventListener('click', bind(() => refreshFiles(state.currentPath)));
-        toolbar.querySelector('[data-action="terminal"]').addEventListener('click', bind(toggleTerminal));
     }
 
     function renderSearchPanel() {
@@ -702,6 +715,70 @@
         renderWindowMenus();
     }
 
+    function renderBreadcrumbs() {
+        const bar = shellPart('[data-breadcrumbs]');
+        if (!bar) return;
+        const tab = activeTab();
+        if (!tab) {
+            bar.innerHTML = '';
+            return;
+        }
+        const relPath = tab.path.replace(WORKSPACE_ROOT + '/', '').replace(WORKSPACE_ROOT, '');
+        if (!relPath) {
+            bar.innerHTML = `<span class="cs-breadcrumb-item current">${esc(tr('codeStudio.title', 'Code Studio'))}</span>`;
+            return;
+        }
+        const parts = relPath.split('/').filter(Boolean);
+        const items = [];
+        items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(WORKSPACE_ROOT)}">${esc(tr('codeStudio.title', 'Code Studio'))}</button>`);
+        let buildPath = WORKSPACE_ROOT;
+        parts.forEach((part, i) => {
+            buildPath += '/' + part;
+            const isLast = i === parts.length - 1;
+            items.push(`<span class="cs-breadcrumb-sep">›</span>`);
+            if (isLast) {
+                items.push(`<span class="cs-breadcrumb-item current">${esc(part)}</span>`);
+            } else {
+                items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(buildPath)}">${esc(part)}</button>`);
+            }
+        });
+        bar.innerHTML = items.join('');
+        bar.querySelectorAll('[data-bc-path]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const path = btn.dataset.bcPath;
+                if (path === WORKSPACE_ROOT) refreshFiles(WORKSPACE_ROOT);
+                else refreshFiles(path);
+            }));
+        });
+    }
+
+    function renderActivityBar() {
+        const bar = shellPart('[data-activity-bar]');
+        if (!bar) return;
+        bar.querySelectorAll('.cs-activity-btn').forEach(btn => {
+            const activity = btn.dataset.activity;
+            if (activity === 'explorer') {
+                btn.classList.toggle('active', state.sidebarVisible);
+            } else if (activity === 'search') {
+                btn.classList.toggle('active', state.searchVisible);
+            } else if (activity === 'agent') {
+                btn.classList.toggle('active', state.agentVisible);
+            } else if (activity === 'terminal') {
+                btn.classList.toggle('active', state.terminalVisible);
+            }
+            if (!btn._wired) {
+                btn._wired = true;
+                btn.addEventListener('click', bind(() => {
+                    const act = btn.dataset.activity;
+                    if (act === 'explorer') toggleSidebar();
+                    else if (act === 'search') toggleSearch();
+                    else if (act === 'agent') toggleAgentPanel();
+                    else if (act === 'terminal') toggleTerminal();
+                }));
+            }
+        });
+    }
+
     function renderEditor() {
         const editor = shellPart('[data-editor]');
         if (!editor) return;
@@ -728,10 +805,48 @@
     function renderTerminal() {
         const terminal = shellPart('[data-terminal]');
         if (!terminal) return;
-        terminal.innerHTML = `<div class="cs-terminal-head">
-            <strong>${esc(tr('codeStudio.terminal', 'Terminal'))}</strong>
-            <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
-        </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
+        terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
+            <div class="cs-terminal-head">
+                <strong>${esc(tr('codeStudio.terminal', 'Terminal'))}</strong>
+                <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+            </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
+        wireTerminalResize();
+    }
+
+    function wireTerminalResize() {
+        const handle = shellPart('[data-terminal-resize]');
+        if (!handle) return;
+        let startY = 0;
+        let startHeight = 0;
+        const onPointerDown = bind(event => {
+            event.preventDefault();
+            const root = studioRoot();
+            if (!root) return;
+            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
+            startY = event.clientY;
+            handle.classList.add('dragging');
+            handle.setPointerCapture(event.pointerId);
+            handle.addEventListener('pointermove', onPointerMove);
+            handle.addEventListener('pointerup', onPointerUp);
+            handle.addEventListener('pointercancel', onPointerUp);
+        });
+        const onPointerMove = bind(event => {
+            const delta = startY - event.clientY;
+            const newHeight = Math.max(80, Math.min(600, startHeight + delta));
+            const root = studioRoot();
+            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
+            state.terminalHeight = newHeight;
+        });
+        const onPointerUp = bind(event => {
+            handle.classList.remove('dragging');
+            handle.releasePointerCapture(event.pointerId);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+            saveState();
+            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
+        });
+        handle.addEventListener('pointerdown', onPointerDown);
     }
 
     function applyEditorZoom() {
@@ -783,8 +898,12 @@
         const status = shellPart('[data-statusbar]');
         if (!status) return;
         const tab = activeTab();
+        const lang = tab ? tab.language || '' : '';
+        const lineInfo = tab ? cursorPositionText(tab) : '';
         status.innerHTML = `<span>${esc(message || state.containerStatus)}</span>
-            <span>${esc(tab ? tab.path : tr('codeStudio.noFiles', 'No files open'))}</span>
+            <span>${esc(tab ? (tab.modified ? '● ' : '') + baseName(tab.path) : tr('codeStudio.noFiles', 'No files open'))}</span>
+            ${lang ? '<span>' + esc(lang) + '</span>' : ''}
+            ${lineInfo ? '<span>' + esc(lineInfo) + '</span>' : ''}
             <span>${esc(state.editorType || '')}</span>`;
     }
 
@@ -882,6 +1001,7 @@
     function activateTab(index, persist) {
         state.activeTabIndex = index;
         renderTabs();
+        renderBreadcrumbs();
         renderEditor();
         renderStatus();
         if (persist !== false) saveState();
@@ -894,6 +1014,7 @@
         state.openTabs.splice(index, 1);
         if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
         renderTabs();
+        renderBreadcrumbs();
         renderEditor();
         renderStatus();
         saveState();
