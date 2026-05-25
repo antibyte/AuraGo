@@ -19,7 +19,7 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, marker := range []string{
 		"default-src 'self'",
-		"connect-src 'self' blob: ws: wss: https://de1.api.radio-browser.info",
+		"connect-src 'self' blob: ws: wss: https://api.open-meteo.com https://geocoding-api.open-meteo.com https://de1.api.radio-browser.info",
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' data: blob: http: https:",
 		"worker-src 'self' blob:",
@@ -35,6 +35,27 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	}
 	if got := rec.Header().Get("X-Frame-Options"); got != "DENY" {
 		t.Fatalf("X-Frame-Options = %q, want DENY", got)
+	}
+}
+
+func TestSecurityHeadersAllowFirstPartyDesktopWidgetConnectOrigins(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), false, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/desktop", nil)
+	handler.ServeHTTP(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	for _, marker := range []string{
+		"https://api.open-meteo.com",
+		"https://geocoding-api.open-meteo.com",
+		"https://de1.api.radio-browser.info",
+	} {
+		if !strings.Contains(csp, marker) {
+			t.Fatalf("Content-Security-Policy missing first-party desktop connect origin %q: %s", marker, csp)
+		}
 	}
 }
 
@@ -131,7 +152,7 @@ func TestSecurityHeadersDoNotCacheVersionlessDesktopSDK(t *testing.T) {
 }
 
 func TestDesktopWorkspaceCSPAllowsWeatherWidgets(t *testing.T) {
-	if !strings.Contains(desktopWidgetWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com") {
+	if !strings.Contains(desktopWidgetWorkspaceCSP, "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com") {
 		t.Fatalf("desktop workspace CSP does not allow Open-Meteo weather widgets: %s", desktopWidgetWorkspaceCSP)
 	}
 	for _, field := range strings.Fields(strings.ReplaceAll(desktopWidgetWorkspaceCSP, ";", " ")) {

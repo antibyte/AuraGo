@@ -54,6 +54,28 @@ func TestDesktopWidgetAutoResizeInjectionServesWidgetHTML(t *testing.T) {
 	}
 }
 
+func TestDesktopWidgetAutoResizeServesAppBackedWidgetHTMLWithWidgetCSP(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	appDir := filepath.Join(root, "Apps", "weather")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		t.Fatalf("mkdir app widget dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "widget.html"), []byte("<!doctype html><html><body><main>Weather</main></body></html>"), 0644); err != nil {
+		t.Fatalf("write widget: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/weather/widget.html?widget_id=weather", nil)
+	rec := httptest.NewRecorder()
+	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, nil) {
+		t.Fatal("expected app-backed widget HTML to be served with auto-resize injection")
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != desktopWidgetWorkspaceCSP {
+		t.Fatalf("Content-Security-Policy = %q, want widget CSP %q", got, desktopWidgetWorkspaceCSP)
+	}
+}
+
 func TestDesktopWidgetAutoResizeRewritesPrinterCameraURLToProxy(t *testing.T) {
 	t.Parallel()
 

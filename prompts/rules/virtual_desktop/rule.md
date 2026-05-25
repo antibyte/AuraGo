@@ -38,7 +38,7 @@ Prefer the first-party Aura Desktop SDK for generated apps and app-backed widget
 
 Keep widgets compact, readable, and resilient at their pinned size. Do not navigate `window.top` or `window.parent`, do not reload the desktop shell from widget code, and call `AuraDesktop.widgets.resize()` after substantial async layout changes when SDK access is available.
 
-Generated app and widget code must respect the virtual desktop CSP. Widgets should not fetch arbitrary third-party APIs directly from the iframe. For external or sensitive data, use same-origin routes, configured backend integrations, or an agent-mediated flow, then write only the minimum safe result into the desktop workspace.
+Generated app and widget code must respect the virtual desktop CSP. Widgets may use the approved public Open-Meteo weather/geocoding endpoints, but should not fetch arbitrary third-party APIs directly from the iframe. For other external or sensitive data, use same-origin routes, configured backend integrations, or an agent-mediated flow, then write only the minimum safe result into the desktop workspace.
 
 Do not store secrets, vault values, API keys, passwords, tokens, or private infrastructure details in generated app or widget source, manifests, config, local storage, logs, file names, or comments. If sensitive access is required, design a backend or agent-mediated action that returns only safe display data.
 

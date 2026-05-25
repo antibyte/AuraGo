@@ -494,6 +494,7 @@ func TestVirtualDesktopManualDocumentsGeneratedAppAndWidgetAPIs(t *testing.T) {
 		"`tools`",
 		"`workflow`",
 		"https://api.open-meteo.com",
+		"https://geocoding-api.open-meteo.com",
 		"connect-src",
 		"window.top",
 		"window.parent",
