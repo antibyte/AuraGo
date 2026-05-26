@@ -219,11 +219,16 @@
             state.agentMessages.push({ role: 'user', text: message });
             state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
             state.agentBusy = true;
+            state.agentAbortController = new AbortController();
             context = codeStudioAgentContext();
             renderAgentPanel();
         });
         try {
-            const response = await apiClient.agentChat(message, context);
+            const response = await api('/api/desktop/chat', {
+                method: 'POST',
+                body: JSON.stringify({ message, context }),
+                signal: state.agentAbortController && state.agentAbortController.signal
+            });
             if (!isLiveInstance(target)) return;
             const answer = response.answer || tr('desktop.done', 'Done');
             runWithInstance(target, () => {
@@ -232,7 +237,7 @@
                 if (suggestion) state.pendingSuggestion = suggestion;
             });
         } catch (err) {
-            if (isLiveInstance(target)) {
+            if (isLiveInstance(target) && err.name !== 'AbortError') {
                 runWithInstance(target, () => {
                     state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
                 });
@@ -241,6 +246,7 @@
             if (isLiveInstance(target)) {
                 runWithInstance(target, () => {
                     state.agentBusy = false;
+                    state.agentAbortController = null;
                     renderAgentPanel();
                 });
             }
@@ -906,7 +912,7 @@
             } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
                 event.preventDefault();
                 createNewFile();
-            } else if ((event.ctrlKey || event.metaKey) && key === 'k' && event.shiftKey && key === 'z') {
+            } else if ((event.ctrlKey || event.metaKey) && key === 'k' && !event.shiftKey) {
                 event.preventDefault();
                 toggleZenMode();
             } else if (event.key === 'F5') {
@@ -917,6 +923,9 @@
                     event.preventDefault();
                     toggleZenMode();
                 }
+            } else if (event.key === '?' && !event.ctrlKey && !event.metaKey) {
+                event.preventDefault();
+                showShortcutOverlay();
             }
         });
         document.addEventListener('keydown', onKeydown);
@@ -952,7 +961,7 @@
                 { label: tr('codeStudio.sidebar', 'Toggle Sidebar'), keys: 'Ctrl+B' },
                 { label: tr('codeStudio.agentChat', 'Toggle Agent'), keys: 'Ctrl+Shift+A' },
                 { label: tr('codeStudio.commandPalette', 'Command Palette'), keys: 'Ctrl+Shift+P' },
-                { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K Z' }
+                { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' }
             ]}
         ];
         const bodyHtml = sections.map(section => `

@@ -36,7 +36,8 @@
             searchResults: [],
             agentVisible: false,
             agentMessages: [],
-            agentBusy: false,
+agentBusy: false,
+            agentAbortController: null,
             pendingSuggestion: null,
             shortcutsWired: false,
             zenMode: false,
@@ -418,9 +419,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                     </button>
                 </nav>
-                <aside class="code-studio-sidebar" data-sidebar>
-                    <div class="cs-sidebar-resize" data-sidebar-resize></div>
-                </aside>
+<aside class="code-studio-sidebar" data-sidebar></aside>
                 <main class="code-studio-main">
                     <div class="code-studio-tabs" data-tabs></div>
                     <div class="code-studio-breadcrumbs" data-breadcrumbs></div>
@@ -633,7 +632,11 @@
             sendAgentMessage(message);
         }));
         const stopBtn = panel.querySelector('[data-agent-stop]');
-        if (stopBtn) stopBtn.addEventListener('click', bind(() => {
+if (stopBtn) stopBtn.addEventListener('click', bind(() => {
+            if (state.agentAbortController) {
+                state.agentAbortController.abort();
+                state.agentAbortController = null;
+            }
             state.agentBusy = false;
             renderAgentPanel();
         }));
@@ -699,19 +702,22 @@
     function renderSidebar(errorMessage) {
         const sidebar = shellPart('[data-sidebar]');
         if (!sidebar) return;
-        if (errorMessage) {
+if (errorMessage) {
             sidebar.innerHTML = `<div class="cs-sidebar-head"><strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong></div>
-                <div class="code-studio-error compact">${esc(errorMessage)}</div>`;
+                <div class="code-studio-error compact">${esc(errorMessage)}</div>
+                <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
+            wireSidebarResize();
             return;
         }
         const rows = state.files.length ? state.files.map(file => treeItemRow(file, 0)).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
-        sidebar.innerHTML = `<div class="cs-sidebar-head">
+sidebar.innerHTML = `<div class="cs-sidebar-head">
             <strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong>
             <span>${esc(state.currentPath)}</span>
         </div><div class="cs-file-tree">${rows}</div>
         <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
         wireSidebarTreeEvents(sidebar);
         wireSidebarDragDrop(sidebar);
+        wireSidebarResize();
     }
 
     function treeItemRow(file, depth) {
