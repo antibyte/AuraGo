@@ -563,12 +563,27 @@ type Config struct {
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 
 		OutputCompression struct {
-			Enabled           bool `yaml:"enabled"`            // master toggle for command-aware output compression (default: true)
-			MinChars          int  `yaml:"min_chars"`          // only compress outputs exceeding this size (default: 500)
-			PreserveErrors    bool `yaml:"preserve_errors"`    // never compress outputs that contain error markers (default: true)
-			ShellCompression  bool `yaml:"shell_compression"`  // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
-			PythonCompression bool `yaml:"python_compression"` // enable python traceback filtering and output dedup (default: true)
-			APICompression    bool `yaml:"api_compression"`    // enable JSON compaction and null-field removal (default: true)
+			Enabled                bool `yaml:"enabled"`            // master toggle for command-aware output compression (default: true)
+			MinChars               int  `yaml:"min_chars"`          // only compress outputs exceeding this size (default: 500)
+			PreserveErrors         bool `yaml:"preserve_errors"`    // never compress outputs that contain error markers (default: true)
+			ShellCompression       bool `yaml:"shell_compression"`  // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
+			PythonCompression      bool `yaml:"python_compression"` // enable python traceback filtering and output dedup (default: true)
+			APICompression         bool `yaml:"api_compression"`    // enable JSON compaction and null-field removal (default: true)
+			RepetitiveSubstitution struct {
+				Enabled              bool `yaml:"enabled"`                // enable dictionary substitution for repetitive log-like output (default: false)
+				LZWEnabled           bool `yaml:"lzw_enabled"`            // enable long repeated phrase substitution when parent is enabled (default: true)
+				LTSCLiteEnabled      bool `yaml:"ltsc_lite_enabled"`      // reserved LTSC-lite toggle, disabled by default
+				MinPhraseChars       int  `yaml:"min_phrase_chars"`       // minimum repeated phrase length (default: 15)
+				MinOccurrences       int  `yaml:"min_occurrences"`        // minimum occurrences before substitution (default: 3)
+				MinSavingsPercent    int  `yaml:"min_savings_percent"`    // minimum net savings after dictionary overhead (default: 15)
+				MaxInputChars        int  `yaml:"max_input_chars"`        // maximum input size for substitution (default: 50000)
+				MaxDictionaryEntries int  `yaml:"max_dictionary_entries"` // maximum dictionary entries per output (default: 16)
+			} `yaml:"repetitive_substitution"`
+			TOONJSON struct {
+				Enabled           bool `yaml:"enabled"`             // enable TOON-style JSON array conversion for known API tools (default: false)
+				MinSavingsPercent int  `yaml:"min_savings_percent"` // minimum net savings after table overhead (default: 10)
+				MaxRows           int  `yaml:"max_rows"`            // maximum homogeneous rows converted (default: 200)
+			} `yaml:"toon_json"`
 		} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {

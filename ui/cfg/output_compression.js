@@ -92,6 +92,33 @@
                 <div class="toggle ${apiOn ? 'on' : ''}" data-path="agent.output_compression.api_compression" onclick="toggleBool(this)"></div>
             </div>`;
 
+            html += `</div>`;
+
+            const repetitiveCfg = compCfg.repetitive_substitution || {};
+            const toonCfg = compCfg.toon_json || {};
+            const repetitiveOn = repetitiveCfg.enabled === true;
+            const toonOn = toonCfg.enabled === true;
+
+            html += `<div class="field-group">
+                <div class="field-group-title">${t('config.output_compression.advanced_title')}</div>
+                <div class="field-group-desc">${t('config.output_compression.advanced_desc')}</div>
+                <div class="cfg-toggle-row">
+                    <div>
+                        <span class="cfg-toggle-label">${t('config.output_compression.repetitive_label')}</span>
+                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.repetitive_desc')}</div>
+                    </div>
+                    <div class="toggle ${repetitiveOn ? 'on' : ''}" data-path="agent.output_compression.repetitive_substitution.enabled" onclick="toggleBool(this)"></div>
+                </div>
+                <div class="cfg-toggle-row">
+                    <div>
+                        <span class="cfg-toggle-label">${t('config.output_compression.toon_label')}</span>
+                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.toon_desc')}</div>
+                    </div>
+                    <div class="toggle ${toonOn ? 'on' : ''}" data-path="agent.output_compression.toon_json.enabled" onclick="toggleBool(this)"></div>
+                </div>
+                <div class="field-help" style="margin-top:.65rem">${t('config.output_compression.advanced_note')}</div>
+            </div>`;
+
             // Relationship note
             html += `<div class="wh-notice" style="margin-top:1rem;border-left-color:var(--text-secondary);">
                 <span>💡</span>
@@ -99,8 +126,6 @@
                     <small>${t('config.output_compression.note_limit')}</small>
                 </div>
             </div>`;
-
-            html += `</div>`;
 
             html += '</div>';
             document.getElementById('content').innerHTML = html;

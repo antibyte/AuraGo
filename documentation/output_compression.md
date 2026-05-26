@@ -25,6 +25,19 @@ agent:
         shell_compression: true      # shell-specific filters
         python_compression: true     # Python traceback filtering
         api_compression: true        # JSON compaction for API responses
+        repetitive_substitution:     # optional, disabled by default
+            enabled: false
+            lzw_enabled: true
+            ltsc_lite_enabled: false
+            min_phrase_chars: 15
+            min_occurrences: 3
+            min_savings_percent: 15
+            max_input_chars: 50000
+            max_dictionary_entries: 16
+        toon_json:                   # optional, disabled by default
+            enabled: false
+            min_savings_percent: 10
+            max_rows: 200
 ```
 
 ### Fields
@@ -37,6 +50,10 @@ agent:
 | `shell_compression` | bool | `true` | Enable domain-specific filters for shell commands (git, docker, kubectl, go test, pytest, grep, find, ls/tree). |
 | `python_compression` | bool | `true` | Enable Python traceback frame filtering (keeps user-code frames, omits library frames) and output deduplication. |
 | `api_compression` | bool | `true` | Enable JSON compaction: removes null/empty fields from API responses. |
+| `repetitive_substitution.enabled` | bool | `false` | Enable dictionary substitution for repetitive log-like outputs only. Skips errors, diffs, source/code reads, JSON documents, and exact-copy-sensitive tools. |
+| `repetitive_substitution.lzw_enabled` | bool | `true` | Replace long repeated phrases when the parent toggle is enabled. |
+| `repetitive_substitution.ltsc_lite_enabled` | bool | `false` | Reserved for stricter LTSC-lite behavior; kept off by default. |
+| `toon_json.enabled` | bool | `false` | Enable TOON-style conversion for homogeneous arrays returned by known API tools. |
 
 ### Relationship to `tool_output_limit`
 
@@ -129,6 +146,16 @@ agent:
 | Generic API | JSON compaction | Removes `null`, `""`, `[]`, `{}` fields from multi-line JSON |
 | Generic API | Generic pipeline | ANSI strip → whitespace collapse → dedup → tail focus |
 
+### Advanced Safe Compressors
+
+These filters are disabled by default and only run after the existing domain-specific compressors. They always use a conservative rollback: if the final result is not shorter after dictionary/table overhead, AuraGo feeds the original output into context.
+
+| Filter | Scope | Safety behavior |
+|--------|-------|-----------------|
+| LZW repetition substitution | Log-like shell/process output | Replaces repeated phrases of at least 15 characters and 3 occurrences with collision-checked ASCII markers plus a small dictionary. Skips diffs, source reads, JSON documents, tool-call JSON, and error outputs. |
+| LTSC-lite | Reserved | Configured off by default; no aggressive short-span replacement is enabled. |
+| TOON JSON | Known API tools only | Converts homogeneous arrays of scalar objects to a compact table. Skips arbitrary `api_request`, file-reader outputs, code/config content, nested objects, and arrays that do not meet the savings threshold. |
+
 ### Generic Fallback
 
 When no domain-specific filter matches, the generic pipeline runs:
@@ -211,6 +238,8 @@ internal/tools/outputcompress/
 ├── smart_file.go      # smart_file_read compressors (analyze, structure, sample/summarize)
 ├── process.go         # Process tool compressors (list_processes, read_process_logs)
 ├── agent_status.go    # Agent status compressors (manage_daemon, manage_plan)
+├── repetitive_substitution.go # Optional dictionary substitution for repetitive log-like output
+├── toon.go            # Optional TOON-style conversion for known homogeneous API arrays
 ├── github.go          # GitHub API compressors (repos, issues, PRs, commits, workflows)
 ├── sql.go             # SQL query result compressors
 ├── koofr.go           # Koofr cloud storage compressors (directory lists)

@@ -852,6 +852,30 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "output_compression", "api_compression") {
 		cfg.Agent.OutputCompression.APICompression = true
 	}
+	if !yamlHasPath(data, "agent", "output_compression", "repetitive_substitution", "lzw_enabled") {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.LZWEnabled = true
+	}
+	if cfg.Agent.OutputCompression.RepetitiveSubstitution.MinPhraseChars <= 0 {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.MinPhraseChars = 15
+	}
+	if cfg.Agent.OutputCompression.RepetitiveSubstitution.MinOccurrences <= 0 {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.MinOccurrences = 3
+	}
+	if cfg.Agent.OutputCompression.RepetitiveSubstitution.MinSavingsPercent <= 0 {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.MinSavingsPercent = 15
+	}
+	if cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxInputChars <= 0 {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxInputChars = 50000
+	}
+	if cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxDictionaryEntries <= 0 {
+		cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxDictionaryEntries = 16
+	}
+	if cfg.Agent.OutputCompression.TOONJSON.MinSavingsPercent <= 0 {
+		cfg.Agent.OutputCompression.TOONJSON.MinSavingsPercent = 10
+	}
+	if cfg.Agent.OutputCompression.TOONJSON.MaxRows <= 0 {
+		cfg.Agent.OutputCompression.TOONJSON.MaxRows = 200
+	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
 	if cfg.Personality.EngineV2 && !cfg.Personality.Engine {

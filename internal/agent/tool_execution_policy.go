@@ -119,6 +119,21 @@ func finalizeToolExecution(
 			ShellCompression:  cfg.Agent.OutputCompression.ShellCompression,
 			PythonCompression: cfg.Agent.OutputCompression.PythonCompression,
 			APICompression:    cfg.Agent.OutputCompression.APICompression,
+			RepetitiveSubstitution: outputcompress.RepetitiveSubstitutionConfig{
+				Enabled:              cfg.Agent.OutputCompression.RepetitiveSubstitution.Enabled,
+				LZWEnabled:           cfg.Agent.OutputCompression.RepetitiveSubstitution.LZWEnabled,
+				LTSCLiteEnabled:      cfg.Agent.OutputCompression.RepetitiveSubstitution.LTSCLiteEnabled,
+				MinPhraseChars:       cfg.Agent.OutputCompression.RepetitiveSubstitution.MinPhraseChars,
+				MinOccurrences:       cfg.Agent.OutputCompression.RepetitiveSubstitution.MinOccurrences,
+				MinSavingsPercent:    cfg.Agent.OutputCompression.RepetitiveSubstitution.MinSavingsPercent,
+				MaxInputChars:        cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxInputChars,
+				MaxDictionaryEntries: cfg.Agent.OutputCompression.RepetitiveSubstitution.MaxDictionaryEntries,
+			},
+			TOONJSON: outputcompress.TOONJSONConfig{
+				Enabled:           cfg.Agent.OutputCompression.TOONJSON.Enabled,
+				MinSavingsPercent: cfg.Agent.OutputCompression.TOONJSON.MinSavingsPercent,
+				MaxRows:           cfg.Agent.OutputCompression.TOONJSON.MaxRows,
+			},
 		}
 		var compStats outputcompress.CompressionStats
 		rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
@@ -132,7 +147,7 @@ func finalizeToolExecution(
 			)
 			outputcompress.RecordCompressionStats(compStats)
 			RecordScopedToolResultForTool(scope, "output_compression_used", true)
-		} else if compStats.FilterUsed == "none" || compStats.FilterUsed == "skipped-error" {
+		} else if compStats.FilterUsed == "none" || strings.HasPrefix(compStats.FilterUsed, "skipped-") {
 			outputcompress.RecordCompressionSkipped()
 		}
 	}

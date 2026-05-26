@@ -174,6 +174,98 @@ docker:
 	}
 }
 
+func TestLoadOutputCompressionAdvancedDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	rs := cfg.Agent.OutputCompression.RepetitiveSubstitution
+	if rs.Enabled {
+		t.Fatal("repetitive_substitution.enabled must default to false")
+	}
+	if !rs.LZWEnabled {
+		t.Fatal("repetitive_substitution.lzw_enabled must default to true")
+	}
+	if rs.LTSCLiteEnabled {
+		t.Fatal("repetitive_substitution.ltsc_lite_enabled must default to false")
+	}
+	if rs.MinPhraseChars != 15 {
+		t.Fatalf("min_phrase_chars = %d, want 15", rs.MinPhraseChars)
+	}
+	if rs.MinOccurrences != 3 {
+		t.Fatalf("min_occurrences = %d, want 3", rs.MinOccurrences)
+	}
+	if rs.MinSavingsPercent != 15 {
+		t.Fatalf("min_savings_percent = %d, want 15", rs.MinSavingsPercent)
+	}
+	if rs.MaxInputChars != 50000 {
+		t.Fatalf("max_input_chars = %d, want 50000", rs.MaxInputChars)
+	}
+	if rs.MaxDictionaryEntries != 16 {
+		t.Fatalf("max_dictionary_entries = %d, want 16", rs.MaxDictionaryEntries)
+	}
+
+	toon := cfg.Agent.OutputCompression.TOONJSON
+	if toon.Enabled {
+		t.Fatal("toon_json.enabled must default to false")
+	}
+	if toon.MinSavingsPercent != 10 {
+		t.Fatalf("toon_json.min_savings_percent = %d, want 10", toon.MinSavingsPercent)
+	}
+	if toon.MaxRows != 200 {
+		t.Fatalf("toon_json.max_rows = %d, want 200", toon.MaxRows)
+	}
+}
+
+func TestLoadOutputCompressionAdvancedExplicitValues(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+agent:
+  output_compression:
+    repetitive_substitution:
+      enabled: true
+      lzw_enabled: false
+      ltsc_lite_enabled: true
+      min_phrase_chars: 24
+      min_occurrences: 5
+      min_savings_percent: 30
+      max_input_chars: 12345
+      max_dictionary_entries: 7
+    toon_json:
+      enabled: true
+      min_savings_percent: 22
+      max_rows: 42
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	rs := cfg.Agent.OutputCompression.RepetitiveSubstitution
+	if !rs.Enabled || rs.LZWEnabled || !rs.LTSCLiteEnabled {
+		t.Fatalf("repetitive_substitution bools = %+v, want enabled true, lzw false, ltsc true", rs)
+	}
+	if rs.MinPhraseChars != 24 || rs.MinOccurrences != 5 || rs.MinSavingsPercent != 30 ||
+		rs.MaxInputChars != 12345 || rs.MaxDictionaryEntries != 7 {
+		t.Fatalf("repetitive_substitution values not preserved: %+v", rs)
+	}
+
+	toon := cfg.Agent.OutputCompression.TOONJSON
+	if !toon.Enabled || toon.MinSavingsPercent != 22 || toon.MaxRows != 42 {
+		t.Fatalf("toon_json values not preserved: %+v", toon)
+	}
+}
+
 func TestGetSpecialist(t *testing.T) {
 	cfg := &Config{}
 	cfg.CoAgents.Specialists.Coder.Enabled = true

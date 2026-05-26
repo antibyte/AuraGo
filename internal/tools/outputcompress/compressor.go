@@ -26,15 +26,36 @@ type CompressionStats struct {
 
 // Config controls compression behaviour.
 type Config struct {
-	Enabled           bool // master toggle (default: true)
-	MinChars          int  // only compress if output exceeds this many characters (default: 500)
-	PreserveErrors    bool // never compress outputs that contain error markers (default: true)
-	ShellCompression  bool // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
-	PythonCompression bool // enable python traceback filtering and output dedup (default: true)
-	APICompression    bool // enable JSON compaction and null-field removal (default: true)
+	Enabled                bool                         // master toggle (default: true)
+	MinChars               int                          // only compress if output exceeds this many characters (default: 500)
+	PreserveErrors         bool                         // never compress outputs that contain error markers (default: true)
+	ShellCompression       bool                         // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
+	PythonCompression      bool                         // enable python traceback filtering and output dedup (default: true)
+	APICompression         bool                         // enable JSON compaction and null-field removal (default: true)
+	RepetitiveSubstitution RepetitiveSubstitutionConfig // optional dictionary substitution for repetitive log-like outputs
+	TOONJSON               TOONJSONConfig               // optional tabular JSON-array conversion for known API tools
 }
 
-// DefaultConfig returns the recommended configuration with all compressors enabled.
+// RepetitiveSubstitutionConfig controls optional dictionary substitution.
+type RepetitiveSubstitutionConfig struct {
+	Enabled              bool
+	LZWEnabled           bool
+	LTSCLiteEnabled      bool
+	MinPhraseChars       int
+	MinOccurrences       int
+	MinSavingsPercent    int
+	MaxInputChars        int
+	MaxDictionaryEntries int
+}
+
+// TOONJSONConfig controls optional JSON-array-to-table conversion.
+type TOONJSONConfig struct {
+	Enabled           bool
+	MinSavingsPercent int
+	MaxRows           int
+}
+
+// DefaultConfig returns the recommended configuration with baseline compressors enabled.
 func DefaultConfig() Config {
 	return Config{
 		Enabled:           true,
@@ -43,6 +64,21 @@ func DefaultConfig() Config {
 		ShellCompression:  true,
 		PythonCompression: true,
 		APICompression:    true,
+		RepetitiveSubstitution: RepetitiveSubstitutionConfig{
+			Enabled:              false,
+			LZWEnabled:           true,
+			LTSCLiteEnabled:      false,
+			MinPhraseChars:       15,
+			MinOccurrences:       3,
+			MinSavingsPercent:    15,
+			MaxInputChars:        50000,
+			MaxDictionaryEntries: 16,
+		},
+		TOONJSON: TOONJSONConfig{
+			Enabled:           false,
+			MinSavingsPercent: 10,
+			MaxRows:           200,
+		},
 	}
 }
 
@@ -93,7 +129,15 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	result := output
 	filter := "generic"
 
+	if isAPITool(toolName) && cfg.APICompression && cfg.TOONJSON.Enabled {
+		if toon, ok := compressTOONJSON(toolName, output, cfg.TOONJSON); ok {
+			result = toon
+			filter = "toon-json"
+		}
+	}
+
 	switch {
+	case filter == "toon-json":
 	case isShellTool(toolName) && cfg.ShellCompression:
 		result, filter = compressShellOutput(command, output)
 	case isPythonTool(toolName) && cfg.PythonCompression:
@@ -103,6 +147,18 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	default:
 		result = compressGeneric(output)
 		filter = "generic"
+	}
+
+	if cfg.RepetitiveSubstitution.Enabled {
+		if substituted, ok := compressRepetitiveSubstitution(toolName, command, output, result, cfg.RepetitiveSubstitution); ok {
+			result = substituted
+			filter += "+repetitive-substitution"
+		}
+	}
+
+	if result != output && len(result) >= rawLen {
+		result = output
+		filter = "skipped-expanded"
 	}
 
 	stats.CompressedChars = len(result)

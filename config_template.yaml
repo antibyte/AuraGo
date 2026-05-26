@@ -37,6 +37,19 @@ agent:
         shell_compression: true      # git, docker, kubectl, go test, pytest, grep, find, ls/tree filters
         python_compression: true     # Python traceback frame filtering and output dedup
         api_compression: true        # JSON null-field removal and compaction for API responses
+        repetitive_substitution:     # optional dictionary substitution for repetitive log-like output
+            enabled: false           # disabled by default; exact/code-like outputs are skipped
+            lzw_enabled: true         # replace long repeated phrases when enabled
+            ltsc_lite_enabled: false  # reserved for stricter LTSC-lite, off by default
+            min_phrase_chars: 15
+            min_occurrences: 3
+            min_savings_percent: 15
+            max_input_chars: 50000
+            max_dictionary_entries: 16
+        toon_json:                   # optional TOON-style conversion for known homogeneous API arrays
+            enabled: false           # disabled by default; api_request/file reads are skipped
+            min_savings_percent: 10
+            max_rows: 200
 
     # ── Danger Zone ── disabled by default for fresh installs
     allow_shell: false
