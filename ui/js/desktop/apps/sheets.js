@@ -578,8 +578,42 @@
             renderWorkbook();
         }
 
+        async function openWorkbookFromDialog() {
+            if (typeof ctx.openFileDialog !== 'function') return;
+            const result = await ctx.openFileDialog({
+                title: t('desktop.file_dialog_open', 'Open'),
+                initialPath: pathDir(currentPath),
+                filters: [{ label: t('desktop.app_sheets', 'Sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
+            });
+            if (!result || result.canceled || !result.path) return;
+            setPath(result.path);
+            await load();
+        }
+
         async function saveAs() {
             if (readonly) return;
+            if (typeof ctx.saveFileDialog === 'function') {
+                const result = await ctx.saveFileDialog({
+                    title: t('desktop.sheets_save_as', 'Save as'),
+                    initialPath: pathDir(pathInput.value.trim() || currentPath || DEFAULT_PATH),
+                    defaultName: currentFileEntry().name,
+                    defaultExtension: '.xlsx',
+                    filters: [{ label: t('desktop.app_sheets', 'Sheets'), extensions: ['.xlsx', '.xlsm', '.csv'] }]
+                });
+                if (!result || result.canceled || !result.path) return;
+                const previousPath = currentPath;
+                const previousVersion = officeVersion;
+                setPath(result.path);
+                officeVersion = null;
+                try {
+                    await save();
+                } catch (err) {
+                    officeVersion = previousVersion;
+                    setPath(previousPath);
+                    throw err;
+                }
+                return;
+            }
             const prompt = ctx.promptDialog || (async () => null);
             const nextPath = await prompt(t('desktop.sheets_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
             if (nextPath == null) return;
@@ -605,6 +639,12 @@
 
         async function openExport(format) {
             if (!pathInput.value.trim() && !readonly) await save();
+            if (typeof ctx.exportDesktopFile === 'function') {
+                const entry = currentFileEntry();
+                const base = entry.name.replace(/\.[^.]+$/, '') || 'workbook';
+                await ctx.exportDesktopFile({ path: entry.path, name: base + '.' + format, url: exportURL(format) });
+                return;
+            }
             window.open(exportURL(format), '_blank', 'noopener');
         }
 
@@ -638,6 +678,7 @@
                     labelKey: 'desktop.menu_file',
                     items: [
                         { id: 'new-workbook', labelKey: 'desktop.sheets_new', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: newWorkbook },
+                        { id: 'open-workbook', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: () => openWorkbookFromDialog().catch(err => setStatus(err.message || String(err))) },
                         { id: 'save', labelKey: 'desktop.sheets_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => setStatus(err.message || String(err))) },
                         { id: 'save-as', labelKey: 'desktop.sheets_save_as', icon: 'save', disabled: readonly, action: () => saveAs().catch(err => setStatus(err.message || String(err))) },
                         { type: 'separator' },
@@ -755,6 +796,12 @@
     function nextUntitledPath(ext) {
         const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
         return 'Documents/untitled-' + stamp + ext;
+    }
+
+    function pathDir(path) {
+        const parts = String(path || '').split('/').filter(Boolean);
+        parts.pop();
+        return parts.join('/') || 'Documents';
     }
 
     function normalizeWorkbook(raw, path) {

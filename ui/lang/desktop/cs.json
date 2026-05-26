@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Zadejte nazev souboru.",
   "desktop.file_dialog_select_folder": "Vybrat slozku",
   "desktop.file_dialog_error": "Dialog souboru selhal.",
-  "desktop.file_dialog_upload_error": "Import se nezdaril."
+  "desktop.file_dialog_upload_error": "Import se nezdaril.",
+  "desktop.fm.select_none": "Zrusit vyber"
 }

@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Voer een bestandsnaam in.",
   "desktop.file_dialog_select_folder": "Map selecteren",
   "desktop.file_dialog_error": "Bestandsdialoog mislukt.",
-  "desktop.file_dialog_upload_error": "Import mislukt."
+  "desktop.file_dialog_upload_error": "Import mislukt.",
+  "desktop.fm.select_none": "Selectie opheffen"
 }

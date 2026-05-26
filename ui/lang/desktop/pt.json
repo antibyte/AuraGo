@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Digite um nome de arquivo.",
   "desktop.file_dialog_select_folder": "Selecionar pasta",
   "desktop.file_dialog_error": "Falha no dialogo de arquivo.",
-  "desktop.file_dialog_upload_error": "Falha na importacao."
+  "desktop.file_dialog_upload_error": "Falha na importacao.",
+  "desktop.fm.select_none": "Limpar selecao"
 }

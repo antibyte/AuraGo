@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Gib einen Dateinamen ein.",
   "desktop.file_dialog_select_folder": "Ordner auswaehlen",
   "desktop.file_dialog_error": "Dateidialog fehlgeschlagen.",
-  "desktop.file_dialog_upload_error": "Import fehlgeschlagen."
+  "desktop.file_dialog_upload_error": "Import fehlgeschlagen.",
+  "desktop.fm.select_none": "Auswahl aufheben"
 }

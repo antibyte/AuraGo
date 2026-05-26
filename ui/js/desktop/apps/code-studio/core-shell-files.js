@@ -200,6 +200,18 @@ agentBusy: false,
         return '/' + parts.join('/');
     }
 
+    function codeStudioDesktopPath(rawPath) {
+        const path = normalizeCodeStudioPath(rawPath);
+        return path === WORKSPACE_ROOT ? '' : path.slice(WORKSPACE_ROOT.length + 1);
+    }
+
+    function desktopToCodeStudioPath(rawPath) {
+        const value = String(rawPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        if (!value) return WORKSPACE_ROOT;
+        if (value === 'workspace' || value.startsWith('workspace/')) return normalizeCodeStudioPath(value);
+        return normalizeCodeStudioPath(WORKSPACE_ROOT + '/' + value);
+    }
+
     function codeStudioParentPath(rawPath) {
         const path = normalizeCodeStudioPath(rawPath);
         if (path === WORKSPACE_ROOT) return WORKSPACE_ROOT;
@@ -473,6 +485,7 @@ agentBusy: false,
                 items: [
                     { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
                     { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
+                    { id: 'open-file-dialog', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: bind(openFileFromDialog) },
                     { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
                     { id: 'upload', label: tr('codeStudio.upload', 'Upload'), icon: 'upload', action: bind(uploadFile) },
                     { type: 'separator' },
@@ -518,6 +531,7 @@ agentBusy: false,
             <span class="cs-toolbar-group">
                 <button type="button" class="cs-icon-button" data-action="new-file" title="${esc(tr('codeStudio.newFile', 'New File'))} (Ctrl+N)">${iconMarkup('file-plus', '+', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-icon-button" data-action="new-folder" title="${esc(tr('codeStudio.newFolder', 'New Folder'))}">${iconMarkup('folder-plus', '+', 'cs-icon-button-icon', 16)}</button>
+                <button type="button" class="cs-icon-button" data-action="open-file-dialog" title="${esc(tr('desktop.file_dialog_open', 'Open'))} (Ctrl+O)">${iconMarkup('folder-open', 'O', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-icon-button" data-action="save" title="${esc(tr('codeStudio.save', 'Save'))} (Ctrl+S)">${iconMarkup('save', 'S', 'cs-icon-button-icon', 16)}</button>
             </span>
             <span class="cs-toolbar-separator"></span>
@@ -532,6 +546,7 @@ agentBusy: false,
             </span>`;
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
+        toolbar.querySelector('[data-action="open-file-dialog"]').addEventListener('click', bind(openFileFromDialog));
         toolbar.querySelector('[data-action="save"]').addEventListener('click', bind(saveCurrentFile));
         toolbar.querySelector('[data-action="run"]').addEventListener('click', bind(runCurrentFile));
         toolbar.querySelector('[data-action="upload"]').addEventListener('click', bind(uploadFile));

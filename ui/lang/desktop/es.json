@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Introduce un nombre de archivo.",
   "desktop.file_dialog_select_folder": "Seleccionar carpeta",
   "desktop.file_dialog_error": "Fallo el dialogo de archivo.",
-  "desktop.file_dialog_upload_error": "Fallo la importacion."
+  "desktop.file_dialog_upload_error": "Fallo la importacion.",
+  "desktop.fm.select_none": "Deseleccionar todo"
 }

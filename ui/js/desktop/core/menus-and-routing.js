@@ -264,6 +264,18 @@
         return Object.assign({}, context || {}, desktopFileDialogContext(), extras || {});
     }
 
+    function desktopReadonly() {
+        return !!((state.bootstrap || {}).readonly);
+    }
+
+    function officeAppContext(context) {
+        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog });
+    }
+
+    function viewerAppContext(context) {
+        return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp });
+    }
+
     function modalDialog(options) {
         closeContextMenu();
         const overlay = document.createElement('div');
@@ -949,34 +961,10 @@
         }
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
-            return window.WriterApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
-                esc,
-                api,
-                t,
-                iconMarkup,
-                notify: showDesktopNotification,
-                readonly: !!((state.bootstrap || {}).readonly),
-                loadBootstrap,
-                updateWindowContext: updateWindowContext, openAgentChatForFile,
-                setWindowMenus,
-                clearWindowMenus,
-                wireContextMenuBoundary, promptDialog
-            }));
+            return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
-            return window.SheetsApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
-                esc,
-                api,
-                t,
-                iconMarkup,
-                notify: showDesktopNotification,
-                readonly: !!((state.bootstrap || {}).readonly),
-                loadBootstrap,
-                updateWindowContext: updateWindowContext, openAgentChatForFile,
-                setWindowMenus,
-                clearWindowMenus,
-                wireContextMenuBoundary, promptDialog
-            }));
+            return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'settings') return renderSettings(id);
         if (appId === 'calendar') return renderCalendar(id);
@@ -992,19 +980,7 @@
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, context || {}) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
-            return window.ViewerApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
-                esc,
-                api,
-                t,
-                iconMarkup,
-                notify: showDesktopNotification,
-                readonly: !!((state.bootstrap || {}).readonly),
-                loadBootstrap,
-                setWindowMenus,
-                clearWindowMenus,
-                wireContextMenuBoundary,
-                openApp
-            }));
+            return window.ViewerApp.render(contentEl(id), id, viewerAppContext(context));
         }
         if (appId === 'viewer-3d' && window.Viewer3DApp && typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {

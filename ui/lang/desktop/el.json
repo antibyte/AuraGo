@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Eisagagete onoma arxeiou.",
   "desktop.file_dialog_select_folder": "Epilexte fakelo",
   "desktop.file_dialog_error": "O dialogos arxeiou apetixe.",
-  "desktop.file_dialog_upload_error": "I eisagogi apetixe."
+  "desktop.file_dialog_upload_error": "I eisagogi apetixe.",
+  "desktop.fm.select_none": "Akyrwsi epilogis"
 }

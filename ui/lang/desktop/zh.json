@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Qing shuru wenjian ming.",
   "desktop.file_dialog_select_folder": "Xuanze wenjianjia",
   "desktop.file_dialog_error": "Wenjian duihua kuang shibai.",
-  "desktop.file_dialog_upload_error": "Daoru shibai."
+  "desktop.file_dialog_upload_error": "Daoru shibai.",
+  "desktop.fm.select_none": "Quxiao xuanze"
 }

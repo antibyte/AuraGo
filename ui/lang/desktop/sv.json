@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Ange ett filnamn.",
   "desktop.file_dialog_select_folder": "Valj mapp",
   "desktop.file_dialog_error": "Fildialogen misslyckades.",
-  "desktop.file_dialog_upload_error": "Importen misslyckades."
+  "desktop.file_dialog_upload_error": "Importen misslyckades.",
+  "desktop.fm.select_none": "Avmarkera allt"
 }

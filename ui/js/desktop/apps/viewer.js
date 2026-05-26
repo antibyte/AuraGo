@@ -119,6 +119,10 @@
         }
 
         function downloadFile() {
+            if (typeof ctx.exportDesktopFile === 'function') {
+                ctx.exportDesktopFile({ path: currentPath, name: fileName }).catch(err => notify(err.message || String(err)));
+                return;
+            }
             const link = document.createElement('a');
             link.href = '/api/desktop/download?path=' + encodeURIComponent(currentPath);
             link.download = fileName;

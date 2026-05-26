@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Podaj nazwe pliku.",
   "desktop.file_dialog_select_folder": "Wybierz folder",
   "desktop.file_dialog_error": "Dialog pliku nie powiodl sie.",
-  "desktop.file_dialog_upload_error": "Import nie powiodl sie."
+  "desktop.file_dialog_upload_error": "Import nie powiodl sie.",
+  "desktop.fm.select_none": "Odznacz wszystko"
 }

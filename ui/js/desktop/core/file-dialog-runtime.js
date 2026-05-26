@@ -465,11 +465,23 @@
         input.accept = fileDialogAcceptFromFilters(filters, options.accept);
         document.body.appendChild(input);
         return new Promise(resolve => {
+            let settled = false;
+            const finish = result => {
+                if (settled) return;
+                settled = true;
+                window.removeEventListener('focus', onFocus);
+                input.remove();
+                resolve(result);
+            };
+            const onFocus = () => {
+                window.setTimeout(() => {
+                    if (!settled && (!input.files || !input.files.length)) finish({ canceled: true });
+                }, 400);
+            };
             input.addEventListener('change', async () => {
                 const files = Array.from(input.files || []);
-                input.remove();
                 if (!files.length) {
-                    resolve({ canceled: true });
+                    finish({ canceled: true });
                     return;
                 }
                 try {
@@ -482,12 +494,13 @@
                         uploaded.push({ name: file.name, path: fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name), size: file.size, type: file.type });
                     }
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
-                    resolve({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
+                    finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
                 } catch (err) {
                     fileDialogNotify(err.message || fileDialogText('desktop.file_dialog_upload_error', 'Import failed.'));
-                    resolve({ canceled: true, error: err.message || String(err) });
+                    finish({ canceled: true, error: err.message || String(err) });
                 }
             }, { once: true });
+            window.addEventListener('focus', onFocus);
             input.click();
         });
     }

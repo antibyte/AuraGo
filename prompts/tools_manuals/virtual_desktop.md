@@ -100,8 +100,8 @@ Generated apps and widgets declare permissions in their `manifest.permissions` o
 | Permission | Scope |
 |---|---|
 | `apps:open` | Open other apps via `AuraDesktop.desktop.openApp` |
-| `files:read` | Read workspace files via `AuraDesktop.fs.read` |
-| `files:write` | Write workspace files via `AuraDesktop.fs.write` |
+| `files:read` | Read workspace files via `AuraDesktop.fs.read`, open workspace file dialogs, and export workspace files |
+| `files:write` | Write workspace files via `AuraDesktop.fs.write`, save workspace file dialogs, and import host files into the workspace |
 | `filesystem:read` | Alias for `files:read`; workspace file read via SDK bridge |
 | `filesystem:write` | Alias for `files:write`; workspace file write via SDK bridge |
 | `notifications` | Show desktop notifications via `AuraDesktop.notifications.show` |
@@ -137,6 +137,11 @@ AuraDesktop.ui.toast(message)
 AuraDesktop.fs.list(path)
 AuraDesktop.fs.read(path)
 AuraDesktop.fs.write(path, content)
+
+AuraDesktop.dialogs.openFile(options?)
+AuraDesktop.dialogs.saveFile(options?)
+AuraDesktop.dialogs.importFiles(options?)
+AuraDesktop.dialogs.exportFile(pathOrOptions)
 
 AuraDesktop.widgets.register(definition)
 AuraDesktop.widgets.resize(options?)
@@ -238,6 +243,7 @@ Generated browser apps should use the first-party Aura Desktop SDK:
 - Build controls with `AuraDesktop.ui` (`icon`, `button`, `toolbar`, `panel`, `card`, `list`, `tabs`, `field`, `input`, `textarea`, `select`, `toggle`, `emptyState`, `toast`) instead of custom per-app styling. Pass semantic icon names to `icon`, `button`, `card`, and `emptyState`; do not use emoji as app or tool icons.
 - Use `await AuraDesktop.icons.catalog()` when an app needs to choose icons dynamically. It returns the same `icon_catalog` object from desktop bootstrap, including the active theme, preferred semantic names, aliases, and the legacy `sprite:` prefix.
 - Use `AuraDesktop.fs`, `AuraDesktop.widgets.register`, `AuraDesktop.widgets.resize`, `AuraDesktop.notifications.show`, and `AuraDesktop.desktop.openApp` for desktop actions. The SDK talks to the desktop shell through a safe iframe bridge. Widget HTML served with `widget_id` also gets a small auto-resize bridge injected by the desktop shell; call `AuraDesktop.widgets.resize()` after large async layout changes if the widget content changes outside normal DOM resize observation.
+- Use `AuraDesktop.dialogs.openFile(options)`, `saveFile(options)`, `importFiles(options)`, and `exportFile(options)` for OS-like file picking, saving, host import, and host export instead of building custom upload/download controls. Dialog options may include `initialPath`, `defaultName`, `defaultExtension`, `multiple`, `accept`, and `filters`. Filter entries use `{ label, extensions:[".png"], mimeTypes:["image/png"] }`; folders always remain visible. These dialog APIs return workspace paths/metadata only; read or write content separately through `AuraDesktop.fs.read/write`. `openFile` and `exportFile` require `files:read`; `saveFile` and `importFiles` require `files:write`.
 - Use `AuraDesktop.menu.set(menus)` to register optional window menus for generated app windows, `AuraDesktop.menu.clear()` during cleanup when needed, and `AuraDesktop.menu.onAction(handler)` when menu items use string action IDs. Menu items support separators, submenus, icons, shortcuts, disabled/checked/hidden states, and direct function actions.
 - Use `AuraDesktop.contextMenu.set(itemsOrFactory)` for right-click behavior inside generated apps and app-backed widgets. Return menu items when the target has meaningful actions, or return an empty list to suppress the Browser context menu on inert UI chrome. You can also call `AuraDesktop.contextMenu.show(items, eventOrPoint)` from your own `contextmenu` handler, remove the listener with `AuraDesktop.contextMenu.clear()`, and subscribe to string action IDs with `AuraDesktop.contextMenu.onAction(handler)`.
 - Use `AuraDesktop.clipboard.readText()` and `AuraDesktop.clipboard.writeText(text)` for text copy/paste in sandboxed apps and widgets. Keep copy/paste on fields, editors, selected rows/cells, or useful result displays; do not add paste actions to destructive or ambiguous surfaces.

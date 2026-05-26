@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Enter a file name.",
   "desktop.file_dialog_select_folder": "Select folder",
   "desktop.file_dialog_error": "File dialog failed.",
-  "desktop.file_dialog_upload_error": "Import failed."
+  "desktop.file_dialog_upload_error": "Import failed.",
+  "desktop.fm.select_none": "Select none"
 }

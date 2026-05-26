@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "File mei o nyuryoku shite kudasai.",
   "desktop.file_dialog_select_folder": "Folder o sentaku",
   "desktop.file_dialog_error": "File dialog ni shippai shimashita.",
-  "desktop.file_dialog_upload_error": "Import ni shippai shimashita."
+  "desktop.file_dialog_upload_error": "Import ni shippai shimashita.",
+  "desktop.fm.select_none": "Sentaku kaijo"
 }

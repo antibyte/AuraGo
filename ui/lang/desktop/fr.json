@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Saisissez un nom de fichier.",
   "desktop.file_dialog_select_folder": "Selectionner un dossier",
   "desktop.file_dialog_error": "Le dialogue de fichier a echoue.",
-  "desktop.file_dialog_upload_error": "Import echoue."
+  "desktop.file_dialog_upload_error": "Import echoue.",
+  "desktop.fm.select_none": "Tout deselectionner"
 }

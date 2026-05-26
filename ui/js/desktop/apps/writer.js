@@ -110,6 +110,12 @@
 
         async function openExport(format) {
             if (!pathInput.value.trim() && !readonly) await save();
+            if (typeof ctx.exportDesktopFile === 'function') {
+                const entry = currentFileEntry();
+                const base = entry.name.replace(/\.[^.]+$/, '') || 'document';
+                await ctx.exportDesktopFile({ path: entry.path, name: base + '.' + format, url: exportURL(format) });
+                return;
+            }
             window.open(exportURL(format), '_blank', 'noopener');
         }
 
@@ -145,8 +151,42 @@
             setStatus('');
         }
 
+        async function openDocumentFromDialog() {
+            if (typeof ctx.openFileDialog !== 'function') return;
+            const result = await ctx.openFileDialog({
+                title: t('desktop.file_dialog_open', 'Open'),
+                initialPath: pathDir(currentPath),
+                filters: [{ label: t('desktop.app_writer', 'Writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
+            });
+            if (!result || result.canceled || !result.path) return;
+            setPath(result.path);
+            await load();
+        }
+
         async function saveAs() {
             if (readonly) return;
+            if (typeof ctx.saveFileDialog === 'function') {
+                const result = await ctx.saveFileDialog({
+                    title: t('desktop.writer_save_as', 'Save as'),
+                    initialPath: pathDir(pathInput.value.trim() || currentPath || DEFAULT_PATH),
+                    defaultName: currentFileEntry().name,
+                    defaultExtension: '.docx',
+                    filters: [{ label: t('desktop.app_writer', 'Writer'), extensions: ['.docx', '.html', '.htm', '.md', '.txt'] }]
+                });
+                if (!result || result.canceled || !result.path) return;
+                const previousPath = currentPath;
+                const previousVersion = officeVersion;
+                setPath(result.path);
+                officeVersion = null;
+                try {
+                    await save();
+                } catch (err) {
+                    officeVersion = previousVersion;
+                    setPath(previousPath);
+                    throw err;
+                }
+                return;
+            }
             const prompt = ctx.promptDialog || (async () => null);
             const nextPath = await prompt(t('desktop.writer_save_as', 'Save as'), pathInput.value.trim() || DEFAULT_PATH);
             if (nextPath == null) return;
@@ -210,6 +250,7 @@
                     labelKey: 'desktop.menu_file',
                     items: [
                         { id: 'new-document', labelKey: 'desktop.writer_new', icon: 'file-plus', shortcut: 'Ctrl+N', disabled: readonly, action: newDocument },
+                        { id: 'open-document', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: () => openDocumentFromDialog().catch(err => setStatus(err.message || String(err), 'save-error')) },
                         { id: 'save', labelKey: 'desktop.writer_save', icon: 'save', shortcut: 'Ctrl+S', disabled: readonly, action: () => save().catch(err => {
                             setStatus(err.message || String(err), 'save-error');
                             setTimeout(() => clearSaveError(statusNode), 6000);
@@ -324,6 +365,12 @@
     function nextUntitledPath(ext) {
         const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
         return 'Documents/untitled-' + stamp + ext;
+    }
+
+    function pathDir(path) {
+        const parts = String(path || '').split('/').filter(Boolean);
+        parts.pop();
+        return parts.join('/') || 'Documents';
     }
 
     function escapeHTML(value) {

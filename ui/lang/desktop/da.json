@@ -855,5 +855,6 @@
   "desktop.file_dialog_name_required": "Indtast et filnavn.",
   "desktop.file_dialog_select_folder": "Valg mappe",
   "desktop.file_dialog_error": "Fildialogen mislykkedes.",
-  "desktop.file_dialog_upload_error": "Import mislykkedes."
+  "desktop.file_dialog_upload_error": "Import mislykkedes.",
+  "desktop.fm.select_none": "Fravalg alle"
 }

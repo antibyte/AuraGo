@@ -88,10 +88,35 @@
 
     function downloadFile(file) {
         if (!file || file.type !== 'file') return;
+        const target = state;
+        const ctx = target && target.context || {};
+        if (typeof ctx.exportDesktopFile === 'function') {
+            ctx.exportDesktopFile({
+                path: file.path,
+                name: file.name || baseName(file.path),
+                url: '/api/code-studio/download?path=' + encodeURIComponent(file.path)
+            }).catch(err => {
+                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            });
+            return;
+        }
         window.location.href = '/api/code-studio/download?path=' + encodeURIComponent(file.path);
     }
 
-    function uploadFile() {
+    async function uploadFile() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const ctx = target.context || {};
+        if (typeof ctx.importFilesFromHost === 'function') {
+            const currentPath = target.currentPath;
+            const result = await ctx.importFilesFromHost({
+                path: currentPath,
+                multiple: false,
+                uploadURL: '/api/code-studio/upload'
+            });
+            if (result && !result.canceled && isLiveInstance(target)) await runAsyncStep(target, () => refreshFiles(currentPath));
+            return;
+        }
         const input = document.createElement('input');
         input.type = 'file';
         input.addEventListener('change', bind(async () => {
@@ -109,6 +134,23 @@
             }
         }), { once: true });
         input.click();
+    }
+
+    async function openFileFromDialog() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const ctx = target.context || {};
+        if (typeof ctx.openFileDialog !== 'function') return;
+        const result = await ctx.openFileDialog({
+            title: tr('desktop.file_dialog_open', 'Open'),
+            initialPath: codeStudioDesktopPath(target.currentPath),
+            filters: [{
+                label: tr('codeStudio.files', 'Files'),
+                extensions: ['.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
+            }]
+        });
+        if (!result || result.canceled || !result.path || !isLiveInstance(target)) return;
+        await runAsyncStep(target, () => openFile(desktopToCodeStudioPath(result.path)));
     }
 
     function toggleSearch() {
@@ -912,6 +954,9 @@
             } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
                 event.preventDefault();
                 createNewFile();
+            } else if ((event.ctrlKey || event.metaKey) && key === 'o') {
+                event.preventDefault();
+                openFileFromDialog();
             } else if ((event.ctrlKey || event.metaKey) && key === 'k' && !event.shiftKey) {
                 event.preventDefault();
                 toggleZenMode();
@@ -1005,6 +1050,18 @@
         return runOnWindow(windowId, saveCurrentFile);
     }
 
+    function exposedOpenFileFromDialog(windowId) {
+        return runOnWindow(windowId, openFileFromDialog);
+    }
+
+    function exposedUploadFile(windowId) {
+        return runOnWindow(windowId, uploadFile);
+    }
+
+    function exposedDownloadFile(file, windowId) {
+        return runOnWindow(windowId, () => downloadFile(file));
+    }
+
     window.CodeStudioApp = {
         render,
         dispose,
@@ -1015,7 +1072,10 @@
         saveState: exposedSaveState,
         refreshFiles: exposedRefreshFiles,
         openFile: exposedOpenFile,
-        saveCurrentFile: exposedSaveCurrentFile
+        openFileFromDialog: exposedOpenFileFromDialog,
+        saveCurrentFile: exposedSaveCurrentFile,
+        uploadFile: exposedUploadFile,
+        downloadFile: exposedDownloadFile
     };
     window.CodeStudioApp.dispose = dispose;
     window.CodeStudio = window.CodeStudioApp;

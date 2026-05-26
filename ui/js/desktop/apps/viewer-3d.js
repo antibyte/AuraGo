@@ -162,6 +162,10 @@
         }
 
         function downloadFile() {
+            if (typeof ctx.exportDesktopFile === 'function') {
+                ctx.exportDesktopFile({ path: currentPath, name: fileName, url: fileUrl }).catch(err => notify(t('viewer.error', 'Failed to load file') + ': ' + (err.message || String(err))));
+                return;
+            }
             const link = document.createElement('a');
             link.href = fileUrl;
             link.download = fileName;
