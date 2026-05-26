@@ -15,7 +15,7 @@
         const openApp = ctx.openApp || (() => {});
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
-        const zipPath = ctx.path || '';
+        let zipPath = ctx.path || '';
         let entries = [];
         let filteredEntries = [];
         let currentDir = '';
@@ -25,9 +25,9 @@
 
         host.innerHTML = `<div class="zipper-app">
             <div class="vd-toolbar zipper-toolbar">
-                <button class="vd-tool-button" type="button" data-action="extract-here">${iconMarkup('download', 'Extract', 'vd-tool-icon', 15)}<span>${esc(t('zipper.extract_here', 'Extract Here'))}</span></button>
-                <button class="vd-tool-button" type="button" data-action="extract-to">${iconMarkup('folder', 'Extract To', 'vd-tool-icon', 15)}<span>${esc(t('zipper.extract_to', 'Extract To...'))}</span></button>
-                <button class="vd-tool-button" type="button" data-action="new-archive">${iconMarkup('archive', 'New', 'vd-tool-icon', 15)}<span>${esc(t('zipper.new_archive', 'New Archive'))}</span></button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-here" title="${esc(t('zipper.extract_here', 'Extract Here'))}">${iconMarkup('download', 'Extract', 'vd-tool-icon', 15)}</button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-to" title="${esc(t('zipper.extract_to', 'Extract To...'))}">${iconMarkup('folder', 'Extract To', 'vd-tool-icon', 15)}</button>
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="new-archive" title="${esc(t('zipper.new_archive', 'New Archive'))}">${iconMarkup('archive', 'New', 'vd-tool-icon', 15)}</button>
                 <span class="zipper-path vd-path">${esc(zipPath || t('zipper.no_archive', 'No archive open'))}</span>
             </div>
             <div class="zipper-breadcrumb" data-breadcrumb></div>
@@ -189,6 +189,15 @@
             setStatus((selected.size > 0 ? selected.size + ' selected  ·  ' : '') + msg);
         }
 
+        function openZipPath(newPath) {
+            zipPath = newPath;
+            currentDir = '';
+            selected.clear();
+            const pathSpan = host.querySelector('.zipper-path');
+            if (pathSpan) pathSpan.textContent = zipPath;
+            load();
+        }
+
         async function load() {
             if (!zipPath) { setStatus(t('zipper.no_archive', 'No archive open')); return; }
             setStatus(t('zipper.extracting', 'Loading...'));
@@ -325,6 +334,43 @@
         }
 
         load();
+
+        const appEl = host.querySelector('.zipper-app');
+        if (appEl) {
+            appEl.addEventListener('dragover', event => {
+                if (!event.dataTransfer) return;
+                const hasFileDrag = Array.from(event.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
+                const hasPlainFile = event.dataTransfer.types.includes('Files');
+                if (hasFileDrag || hasPlainFile) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                    appEl.classList.add('zipper-drop-target');
+                }
+            });
+            appEl.addEventListener('dragleave', event => {
+                if (event.currentTarget === event.target || !appEl.contains(event.relatedTarget)) {
+                    appEl.classList.remove('zipper-drop-target');
+                }
+            });
+            appEl.addEventListener('drop', event => {
+                appEl.classList.remove('zipper-drop-target');
+                event.preventDefault();
+                let paths = [];
+                try {
+                    const raw = event.dataTransfer.getData('application/x-aurago-desktop-files');
+                    if (raw) {
+                        const payload = JSON.parse(raw);
+                        if (Array.isArray(payload.paths)) paths = payload.paths;
+                    }
+                } catch (_) {}
+                if (!paths.length) {
+                    const text = event.dataTransfer.getData('text/plain');
+                    if (text) paths = [text];
+                }
+                const droppedZipPath = paths.find(p => /\.zip$/i.test(p));
+                if (droppedZipPath) openZipPath(droppedZipPath);
+            });
+        }
     }
 
     function dispose(windowId) {

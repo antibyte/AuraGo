@@ -251,6 +251,19 @@
         return modalDialog({ title, message, confirmOnly: true });
     }
 
+    function desktopFileDialogContext() {
+        return {
+            openFileDialog: options => openDesktopFileDialog(options || {}),
+            saveFileDialog: options => saveDesktopFileDialog(options || {}),
+            importFilesFromHost: options => importHostFiles(options || {}),
+            exportDesktopFile: options => exportWorkspaceFile(options || {})
+        };
+    }
+
+    function withDesktopFileDialogs(context, extras) {
+        return Object.assign({}, context || {}, desktopFileDialogContext(), extras || {});
+    }
+
     function modalDialog(options) {
         closeContextMenu();
         const overlay = document.createElement('div');
@@ -936,7 +949,7 @@
         }
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
-            return window.WriterApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+            return window.WriterApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                 esc,
                 api,
                 t,
@@ -951,7 +964,7 @@
             }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
-            return window.SheetsApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+            return window.SheetsApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                 esc,
                 api,
                 t,
@@ -979,7 +992,7 @@
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, context || {}) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
-            return window.ViewerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+            return window.ViewerApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                 esc,
                 api,
                 t,
@@ -993,9 +1006,9 @@
                 openApp
             }));
         }
-        if (appId === 'viewer-3d' && window.Viewer3DApp && typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); if (appId === 'quick-connect') return renderQuickConnect(id);
+        if (appId === 'viewer-3d' && window.Viewer3DApp && typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
-            return window.CodeStudio.render(contentEl(id), id, Object.assign({}, context || {}, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+            return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
         if (appId === 'launchpad') return renderLaunchpad(id); if (appId === 'software-store' && window.SoftwareStoreApp && typeof window.SoftwareStoreApp.render === 'function') return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
@@ -1042,7 +1055,7 @@
         if (!host) return;
         state.filesPath = path || '';
         if (window.FileManager && typeof window.FileManager.render === 'function') {
-            window.FileManager.render(host, id, state.filesPath, {
+            window.FileManager.render(host, id, state.filesPath, Object.assign(desktopFileDialogContext(), {
                 esc,
                 api,
                 t,
@@ -1082,7 +1095,7 @@
                     }
                 },
                 directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []
-            });
+            }));
             return;
         }
         // Fallback: old file browser if FileManager module is not loaded

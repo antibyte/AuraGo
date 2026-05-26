@@ -27,6 +27,14 @@
     flex-wrap: wrap;
 }
 
+.vd-tool-button-icon {
+    padding: 5px 8px;
+}
+
+.vd-tool-button-icon span:not(.vd-tool-icon) {
+    display: none;
+}
+
 .zipper-path {
     margin-left: auto;
     overflow: hidden;
@@ -172,4 +180,9 @@
     .zipper-col-size {
         width: 80px;
     }
+}
+
+.zipper-drop-target {
+    outline: 2px dashed var(--vd-accent, #59d4c8);
+    outline-offset: -2px;
 }

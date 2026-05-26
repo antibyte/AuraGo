@@ -167,6 +167,251 @@
     background: rgba(39, 199, 166, 0.2);
 }
 
+.vd-file-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--vd-z-modal);
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(4, 7, 12, 0.62);
+    backdrop-filter: blur(9px);
+}
+
+.vd-file-dialog {
+    width: min(820px, calc(100vw - 24px));
+    max-height: min(680px, calc(100vh - 24px));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    border: 1px solid var(--vd-border);
+    border-radius: 12px;
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+}
+
+.vd-file-dialog-header,
+.vd-file-dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--vd-border);
+}
+
+.vd-file-dialog-footer {
+    border-top: 1px solid var(--vd-border);
+    border-bottom: 0;
+}
+
+.vd-file-dialog-title {
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.vd-file-dialog-status {
+    min-height: 18px;
+    margin-top: 3px;
+    color: var(--vd-muted);
+    font-size: 0.82rem;
+}
+
+.vd-file-dialog-close {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-file-dialog-layout {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+}
+
+.vd-file-dialog-sidebar {
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+    border-right: 1px solid var(--vd-border);
+}
+
+.vd-file-dialog-sidebar-item {
+    width: 100%;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-file-dialog-sidebar-item:hover,
+.vd-file-dialog-sidebar-item.active {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.vd-file-dialog-main {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    padding: 12px;
+}
+
+.vd-file-dialog-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    overflow-x: auto;
+    color: var(--vd-muted);
+    white-space: nowrap;
+}
+
+.vd-file-dialog-breadcrumbs button {
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-file-dialog-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.vd-file-dialog-search,
+.vd-file-dialog-filter,
+.vd-file-dialog-name input {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-file-dialog-search,
+.vd-file-dialog-name input {
+    padding: 0 11px;
+}
+
+.vd-file-dialog-filter {
+    padding: 0 9px;
+}
+
+.vd-file-dialog-list {
+    min-height: 260px;
+    overflow: auto;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.14);
+}
+
+.vd-file-dialog-row {
+    width: 100%;
+    min-height: 42px;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) minmax(88px, 140px) 72px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-file-dialog-row:hover,
+.vd-file-dialog-row.selected {
+    background: rgba(39, 199, 166, 0.15);
+}
+
+.vd-file-dialog-entry-icon,
+.vd-file-dialog-entry-type,
+.vd-file-dialog-entry-size {
+    color: var(--vd-muted);
+}
+
+.vd-file-dialog-entry-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-file-dialog-empty {
+    display: grid;
+    place-items: center;
+    min-height: 220px;
+    color: var(--vd-muted);
+}
+
+.vd-file-dialog-name {
+    flex: 1 1 auto;
+    min-width: min(320px, 100%);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    color: var(--vd-muted);
+}
+
+.vd-file-dialog-name.is-hidden {
+    display: none;
+}
+
+.vd-file-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+@media (max-width: 680px) {
+    .vd-file-dialog-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .vd-file-dialog-sidebar {
+        display: none;
+    }
+
+    .vd-file-dialog-tools,
+    .vd-file-dialog-row,
+    .vd-file-dialog-name {
+        grid-template-columns: 1fr;
+    }
+
+    .vd-file-dialog-entry-type,
+    .vd-file-dialog-entry-size {
+        display: none;
+    }
+
+    .vd-file-dialog-footer,
+    .vd-file-dialog-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 .vd-lightbox-overlay {
     position: fixed;
     inset: 0;

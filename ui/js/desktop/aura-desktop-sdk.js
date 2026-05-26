@@ -654,6 +654,12 @@
     fs.read = path => parentRequest('fs:read', { path: path || '' });
     fs.write = (path, content) => parentRequest('fs:write', { path: path || '', content: content || '' });
 
+    const dialogs = {};
+    dialogs.openFile = options => parentRequest('dialog:open-file', options || {});
+    dialogs.saveFile = options => parentRequest('dialog:save-file', options || {});
+    dialogs.importFiles = options => parentRequest('dialog:import-files', options || {});
+    dialogs.exportFile = options => parentRequest('dialog:export-file', typeof options === 'string' ? { path: options } : (options || {}));
+
     const widgets = {};
     widgets.register = definition => parentRequest('widget:upsert', definition || {});
     widgets.resize = options => parentRequest('desktop:widget:resize', normalizeWidgetResizePayload(options));
@@ -702,6 +708,7 @@
         contextMenu: ui.contextMenu,
         clipboard: ui.clipboard,
         fs,
+        dialogs,
         widgets,
         notifications,
         desktop,

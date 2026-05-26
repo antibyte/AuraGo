@@ -118,6 +118,10 @@
 
     async function downloadFile(file) {
         if (!file || file.type !== 'file') return;
+        if (fm.callbacks && typeof fm.callbacks.exportDesktopFile === 'function') {
+            await fm.callbacks.exportDesktopFile({ path: file.path || '', name: file.name || '', url: file.web_path || '' });
+            return;
+        }
         if (file.web_path) {
             const a = document.createElement('a');
             a.href = file.web_path;
@@ -135,8 +139,13 @@
         a.remove();
     }
 
-    function uploadFiles() {
+    async function uploadFiles() {
         if (isReadonly()) return;
+        if (fm.callbacks && typeof fm.callbacks.importFilesFromHost === 'function') {
+            const result = await fm.callbacks.importFilesFromHost({ path: fm.currentPath, multiple: true });
+            if (result && !result.canceled) refresh();
+            return;
+        }
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;

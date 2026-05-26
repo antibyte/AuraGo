@@ -139,6 +139,18 @@
                 });
                 await loadBootstrap();
                 return { status: 'ok' };
+            case 'dialog:open-file':
+                requirePermission(client, ['files:read', 'filesystem:read']);
+                return openDesktopFileDialog(payload || {});
+            case 'dialog:save-file':
+                requirePermission(client, ['files:write', 'filesystem:write']);
+                return saveDesktopFileDialog(payload || {});
+            case 'dialog:import-files':
+                requirePermission(client, ['files:write', 'filesystem:write']);
+                return importHostFiles(payload || {});
+            case 'dialog:export-file':
+                requirePermission(client, ['files:read', 'filesystem:read']);
+                return exportWorkspaceFile(payload || {});
             case 'app:open':
                 requirePermission(client, ['apps:open']);
                 openApp(payload.app_id || payload.id || client.appId);

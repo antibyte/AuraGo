@@ -15,6 +15,7 @@
         '/js/desktop/core/lifecycle-cleanup.js?v=' + assetV,
         '/js/desktop/core/widget-autosize-runtime.js?v=' + assetV,
         '/js/desktop/core/shortcut-runtime.js?v=' + assetV,
+        '/js/desktop/core/file-dialog-runtime.js?v=' + assetV,
         '/js/desktop/core/desktop-file-drops.js?v=' + assetV,
         '/js/desktop/apps/agent-chat.js?v=' + assetV,
         '/js/desktop/apps/software-store.js?v=' + assetV,
