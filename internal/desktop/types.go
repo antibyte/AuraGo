@@ -606,6 +606,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "software-store", Name: "Software Store", Version: "1.0.0", Icon: "package", Entry: "builtin://software-store", Runtime: BuiltinRuntime, Description: "Install allowlisted Docker web apps on the virtual desktop."},
 		{ID: "looper", Name: "Looper", Version: "1.0.0", Icon: "looper", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Iterative agent loop with prepare, plan, action, test and exit condition.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "camera", Name: "Camera", Version: "1.0.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Description: "Capture photos with your camera and save or analyze them.", Permissions: []string{"files:write", "notifications"}},
+		{ID: "zipper", Name: "Zipper", Version: "1.0.0", Icon: "archive", Entry: "builtin://zipper", Runtime: BuiltinRuntime, Description: "ZIP archive manager — browse, extract, and create archives.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
 	}
 	for i := range apps {

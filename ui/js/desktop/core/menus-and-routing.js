@@ -1026,6 +1026,13 @@
                 clearWindowMenus
             }));
         }
+        if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.render === 'function') {
+            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp,
+                loadBootstrap
+            }));
+        }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }
@@ -1054,6 +1061,7 @@
                 clearWindowMenus,
                 wireContextMenuBoundary,
                 openFile: (entry) => {
+                    if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });

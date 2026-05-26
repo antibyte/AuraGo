@@ -241,6 +241,64 @@ func handleDesktopExtract(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleDesktopArchiveList(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		svc, _, err := s.getDesktopService(r.Context())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+
+		zipPath := r.URL.Query().Get("path")
+		if zipPath == "" {
+			jsonError(w, "Missing path parameter", http.StatusBadRequest)
+			return
+		}
+
+		srcResolved, err := svc.ResolvePath(zipPath)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		reader, err := zip.OpenReader(srcResolved)
+		if err != nil {
+			jsonError(w, fmt.Sprintf("Failed to open zip file: %v", err), http.StatusBadRequest)
+			return
+		}
+		defer reader.Close()
+
+		type zipEntry struct {
+			Name           string `json:"name"`
+			Size           int64  `json:"size"`
+			CompressedSize int64  `json:"compressed_size"`
+			IsDir          bool   `json:"is_dir"`
+			ModTime        string `json:"mod_time"`
+		}
+
+		entries := make([]zipEntry, 0, len(reader.File))
+		for _, f := range reader.File {
+			entries = append(entries, zipEntry{
+				Name:           f.Name,
+				Size:           int64(f.UncompressedSize64),
+				CompressedSize: int64(f.CompressedSize64),
+				IsDir:          f.FileInfo().IsDir(),
+				ModTime:        f.Modified.Format(time.RFC3339),
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"entries": entries})
+	}
+}
+
 func handleDesktopBatchRename(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {

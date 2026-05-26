@@ -443,7 +443,8 @@
             sheets: 'SheetsApp',
             'code-studio': 'CodeStudioApp',
             looper: 'LooperApp',
-            camera: 'CameraApp'
+            camera: 'CameraApp',
+            zipper: 'ZipperApp'
         }[appId] || '';
     }
 

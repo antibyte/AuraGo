@@ -522,6 +522,8 @@
                 apps.push({ label: t('desktop.app_sheets', 'Sheets'), appId: 'sheets' });
             }
             apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
+        } else if (String(file.name || '').toLowerCase().endsWith('.zip')) {
+            apps.push({ label: t('desktop.app_zipper', 'Zipper'), appId: 'zipper' });
         } else {
             apps.push({ label: t('desktop.app_viewer', 'Viewer'), appId: 'viewer' });
             apps.push({ label: t('desktop.app_code_studio', 'Code Studio'), appId: 'code-studio' });
