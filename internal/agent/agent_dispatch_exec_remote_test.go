@@ -168,6 +168,105 @@ func TestRemoteDesktopScreenshotStoresImageDataByDefault(t *testing.T) {
 	}
 }
 
+func TestRemoteDesktopScreenshotErrorsWhenImageDataMissing(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	outputJSON, _ := json.Marshal(map[string]interface{}{
+		"source":     "display",
+		"display_id": "display-0",
+		"format":     "png",
+		"mime":       "image/png",
+		"width":      640,
+		"height":     480,
+	})
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    string(outputJSON),
+	})
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "desktop_screenshot",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"format": "png",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "missing desktop screenshot data_base64") {
+		t.Fatalf("expected missing data_base64 error, got %s", out)
+	}
+}
+
+func TestRemoteDesktopInputMapsInputActionToClientAction(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{
+		Name:   "agodesk",
+		Status: "approved",
+		Tags:   []string{"agodesk", "desktop-client"},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		output:    `{"accepted":true}`,
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	out := handleRemoteControl(ToolCall{
+		Operation: "desktop_input",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"kind":         "mouse_click",
+			"x":            100,
+			"y":            200,
+			"button":       "left",
+			"input_action": "click",
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected ok output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	if got := transport.calls[0].Args["action"]; got != "click" {
+		t.Fatalf("desktop_input action = %#v, want click", got)
+	}
+	if _, ok := transport.calls[0].Args["input_action"]; ok {
+		t.Fatalf("desktop_input should not forward input_action alias: %#v", transport.calls[0].Args)
+	}
+}
+
 func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	t.Parallel()
 

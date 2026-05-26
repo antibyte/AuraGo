@@ -57,15 +57,19 @@ func TestDesktopCSSBumpsCacheAfterCalculatorLayoutFix(t *testing.T) {
 func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	t.Parallel()
 
-	windowRuntime := rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	windowInteractions := rawDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
 	menuRuntime := strings.TrimLeft(rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js"), "\ufeff\r\n\t ")
+	if !strings.Contains(main, "'/js/desktop/core/window-interactions-runtime.js?v=' + assetV") {
+		t.Fatal("desktop main loader must load the window interaction runtime chunk")
+	}
 	for _, marker := range []string{
 		"function normalizeWindowZIndexes()",
 		"wins.forEach((win, i) =>",
 		"state.z = wins.length * 10;",
 	} {
-		if !strings.Contains(windowRuntime, marker) {
-			t.Fatalf("window shell runtime missing normalize z-index marker %q", marker)
+		if !strings.Contains(windowInteractions, marker) {
+			t.Fatalf("window interaction runtime missing normalize z-index marker %q", marker)
 		}
 	}
 	if strings.HasPrefix(menuRuntime, "state.z =") || strings.HasPrefix(menuRuntime, "wins.forEach") {

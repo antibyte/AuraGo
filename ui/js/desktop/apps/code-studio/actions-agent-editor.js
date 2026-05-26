@@ -386,9 +386,17 @@
             if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
             return;
         }
+        state.terminalSessions = [{ name: 'Shell 1', term: null, ws: null }];
+        state.activeTerminalSession = 0;
+        connectTerminalSession(0, screen, label);
+    }
+
+    function connectTerminalSession(index, screen, label) {
+        if (!screen) screen = shellPart('[data-terminal-screen]');
+        if (!label) label = shellPart('[data-terminal-state]');
+        if (!screen || !window.Terminal) return;
         try {
-            const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: 'Consolas, monospace', fontSize: 13 });
-            state.terminal = term;
+            const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
             const instance = state;
             let terminalDisposed = false;
             instance.disposers.push(() => {
@@ -397,18 +405,24 @@
                 if (term && typeof term.dispose === 'function') term.dispose();
             });
             if (window.FitAddon && window.FitAddon.FitAddon) {
-                state.fitAddon = new window.FitAddon.FitAddon();
-                term.loadAddon(state.fitAddon);
+                const fitAddon = new window.FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+                if (index === 0) state.fitAddon = fitAddon;
+                if (state.terminalSessions[index]) state.terminalSessions[index].fitAddon = fitAddon;
             }
             term.open(screen);
-            if (state.fitAddon) state.fitAddon.fit();
-            term.writeln('Code Studio');
+            if (state.terminalSessions[index]) state.terminalSessions[index].term = term;
+            if (index === 0) state.terminal = term;
+            const fitTarget = state.terminalSessions[index]?.fitAddon || state.fitAddon;
+            if (fitTarget) fitTarget.fit();
+            term.writeln('Code Studio - Shell ' + (index + 1));
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws.binaryType = 'arraybuffer';
-            state.ws = ws;
+            if (state.terminalSessions[index]) state.terminalSessions[index].ws = ws;
+            if (index === 0) state.ws = ws;
             ws.onopen = bindInstance(instance, () => {
-                label.textContent = tr('codeStudio.running', 'Running...');
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.running', 'Running...');
                 const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
                     instance.disposers.push(() => termDataDispose.dispose());
@@ -418,10 +432,65 @@
                 if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
                 else term.write(String(event.data));
             });
-            ws.onerror = bindInstance(instance, () => label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable'));
-            ws.onclose = bindInstance(instance, () => label.textContent = tr('codeStudio.stopped', 'Stopped'));
+            ws.onerror = bindInstance(instance, () => {
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+            });
+            ws.onclose = bindInstance(instance, () => {
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.stopped', 'Stopped');
+            });
         } catch (err) {
             screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+        }
+    }
+
+    function switchTerminalSession(index) {
+        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
+        state.activeTerminalSession = index;
+        const screen = shellPart('[data-terminal-screen]');
+        if (screen) screen.innerHTML = '';
+        const session = state.terminalSessions[index];
+        if (session && session.term) {
+            const screen = shellPart('[data-terminal-screen]');
+            if (screen) session.term.open(screen);
+            if (session.fitAddon) session.fitAddon.fit();
+            else if (state.fitAddon) state.fitAddon.fit();
+        }
+        state.terminal = session?.term || null;
+        state.ws = session?.ws || null;
+        renderTerminal();
+    }
+
+    function addTerminalSession() {
+        if (!state.terminalSessions) state.terminalSessions = [];
+        const index = state.terminalSessions.length;
+        state.terminalSessions.push({ name: 'Shell ' + (index + 1), term: null, ws: null });
+        state.activeTerminalSession = index;
+        renderTerminal();
+        const screen = shellPart('[data-terminal-screen]');
+        const label = shellPart('[data-terminal-state]');
+        if (screen) screen.innerHTML = '';
+        connectTerminalSession(index, screen, label);
+    }
+
+    function closeTerminalSession(index) {
+        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
+        const session = state.terminalSessions[index];
+        if (session) {
+            if (session.ws && session.ws.readyState !== WebSocket.CLOSED) session.ws.close();
+            if (session.term && typeof session.term.dispose === 'function') session.term.dispose();
+        }
+        state.terminalSessions.splice(index, 1);
+        if (!state.terminalSessions.length) {
+            state.terminalSessions.push({ name: 'Shell 1', term: null, ws: null });
+            state.activeTerminalSession = 0;
+            renderTerminal();
+            const screen = shellPart('[data-terminal-screen]');
+            const label = shellPart('[data-terminal-state]');
+            if (screen) screen.innerHTML = '';
+            connectTerminalSession(0, screen, label);
+        } else {
+            state.activeTerminalSession = Math.min(index, state.terminalSessions.length - 1);
+            switchTerminalSession(state.activeTerminalSession);
         }
     }
 
@@ -431,23 +500,69 @@
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
+            cm.highlightSpecialChars && cm.highlightSpecialChars(),
             cm.history && cm.history(),
             cm.drawSelection && cm.drawSelection(),
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
+            cm.EditorState.allowMultipleSelections && cm.EditorState.allowMultipleSelections.of(true),
+            cm.indentUnit && cm.indentUnit.of('    '),
             cm.EditorView.lineWrapping,
             cm.oneDark,
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
+            cm.rectangularSelection && cm.rectangularSelection(),
+            cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
             cm.syntaxHighlighting && cm.defaultHighlightStyle && cm.syntaxHighlighting(cm.defaultHighlightStyle),
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
+                ...(cm.closeBracketsKeymap || []),
+                ...(cm.defaultKeymap || []),
+                ...(cm.searchKeymap || []),
+                ...(cm.historyKeymap || []),
+                ...(cm.completionKeymap || []),
+                ...(cm.lintKeymap || []),
                 { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
-                { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) },
-                ...(cm.searchKeymap || [])
+                { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) }
             ].filter(Boolean)),
+            cm.EditorView.theme({
+                '&': {
+                    fontSize: 'var(--cs-editor-font-size, 13px)',
+                    fontFamily: 'var(--cs-mono-font)'
+                },
+                '.cm-scroller': {
+                    fontFamily: 'var(--cs-mono-font)'
+                },
+                '.cm-gutters': {
+                    background: 'var(--cs-panel)',
+                    borderRight: '1px solid var(--cs-border-subtle)'
+                },
+                '.cm-activeLineGutter': {
+                    background: 'var(--cs-accent-soft)'
+                },
+                '.cm-activeLine': {
+                    background: 'rgba(62, 198, 181, 0.04)'
+                },
+                '.cm-matchingBracket': {
+                    background: 'var(--cs-accent-soft)',
+                    outline: '1px solid var(--cs-accent-glow)'
+                },
+                '.cm-selectionBackground': {
+                    background: 'rgba(62, 198, 181, 0.18) !important'
+                },
+                '&.cm-focused .cm-selectionBackground': {
+                    background: 'rgba(62, 198, 181, 0.22) !important'
+                },
+                '.cm-cursor': {
+                    borderLeftColor: 'var(--cs-accent)',
+                    borderLeftWidth: '2px'
+                },
+                '.cm-indentGuide': {
+                    borderLeft: '1px solid var(--cs-border-subtle)'
+                }
+            }),
             cm.EditorView.updateListener.of(bind(update => {
                 if (!update.docChanged) return;
                 tab.modified = true;
@@ -549,6 +664,51 @@
         saveState();
         renderActivityBar();
         renderWindowMenus();
+    }
+
+    function toggleZenMode() {
+        state.zenMode = !state.zenMode;
+        const root = ensureShellRoot();
+        root.dataset.zen = state.zenMode ? 'true' : 'false';
+        if (state.zenMode) {
+            root.querySelector('[data-zen-exit]')?.addEventListener('click', bind(() => toggleZenMode()));
+        }
+    }
+
+    function wireSidebarResize() {
+        const handle = shellPart('[data-sidebar-resize]');
+        if (!handle) return;
+        let startX = 0;
+        let startWidth = 0;
+        const onPointerDown = bind(event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const root = studioRoot();
+            if (!root) return;
+            startWidth = parseInt(root.style.getPropertyValue('--cs-sidebar-width')) || state.sidebarWidth || 280;
+            startX = event.clientX;
+            handle.classList.add('dragging');
+            handle.setPointerCapture(event.pointerId);
+            handle.addEventListener('pointermove', onPointerMove);
+            handle.addEventListener('pointerup', onPointerUp);
+            handle.addEventListener('pointercancel', onPointerUp);
+        });
+        const onPointerMove = bind(event => {
+            const delta = event.clientX - startX;
+            const newWidth = Math.max(180, Math.min(500, startWidth + delta));
+            const root = studioRoot();
+            if (root) root.style.setProperty('--cs-sidebar-width', newWidth + 'px');
+            state.sidebarWidth = newWidth;
+        });
+        const onPointerUp = bind(event => {
+            handle.classList.remove('dragging');
+            handle.releasePointerCapture(event.pointerId);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+            saveState();
+        });
+        handle.addEventListener('pointerdown', onPointerDown);
     }
 
     function toggleTerminal() {
@@ -719,7 +879,17 @@
             const activeElement = document.activeElement;
             if (activeElement && !state.root.contains(activeElement)) return;
             const key = event.key.toLowerCase();
-            if ((event.ctrlKey || event.metaKey) && key === 's') {
+            if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'p') {
+                event.preventDefault();
+                if (typeof window.CodeStudioCommandPalette === 'object' && window.CodeStudioCommandPalette.toggle) {
+                    window.CodeStudioCommandPalette.toggle();
+                }
+            } else if ((event.ctrlKey || event.metaKey) && key === 'p') {
+                event.preventDefault();
+                if (typeof window.CodeStudioCommandPalette === 'object' && window.CodeStudioCommandPalette.toggle) {
+                    window.CodeStudioCommandPalette.toggle();
+                }
+            } else if ((event.ctrlKey || event.metaKey) && key === 's') {
                 event.preventDefault();
                 saveCurrentFile();
             } else if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'f') {
@@ -736,9 +906,17 @@
             } else if ((event.ctrlKey || event.metaKey) && key === 'n') {
                 event.preventDefault();
                 createNewFile();
+            } else if ((event.ctrlKey || event.metaKey) && key === 'k' && event.shiftKey && key === 'z') {
+                event.preventDefault();
+                toggleZenMode();
             } else if (event.key === 'F5') {
                 event.preventDefault();
                 runCurrentFile();
+            } else if (event.key === 'Escape') {
+                if (state.zenMode) {
+                    event.preventDefault();
+                    toggleZenMode();
+                }
             }
         });
         document.addEventListener('keydown', onKeydown);
@@ -750,6 +928,52 @@
         if (!instance) return undefined;
         latestWindowId = instance.windowId;
         return runWithInstance(instance, fn);
+    }
+
+    function showShortcutOverlay() {
+        const existing = document.querySelector('.cs-shortcut-overlay');
+        if (existing) { existing.remove(); return; }
+        const overlay = document.createElement('div');
+        overlay.className = 'cs-shortcut-overlay';
+        const sections = [
+            { title: tr('codeStudio.shortcutsFile', 'File'), items: [
+                { label: tr('codeStudio.newFile', 'New File'), keys: 'Ctrl+N' },
+                { label: tr('codeStudio.save', 'Save'), keys: 'Ctrl+S' },
+                { label: tr('codeStudio.upload', 'Upload'), keys: '' }
+            ]},
+            { title: tr('codeStudio.shortcutsEditor', 'Editor'), items: [
+                { label: tr('codeStudio.search', 'Search in Files'), keys: 'Ctrl+Shift+F' },
+                { label: tr('codeStudio.run', 'Run'), keys: 'F5' },
+                { label: tr('codeStudio.zoomIn', 'Zoom In'), keys: 'Ctrl+=' },
+                { label: tr('codeStudio.zoomOut', 'Zoom Out'), keys: 'Ctrl+-' },
+                { label: tr('codeStudio.zoomReset', 'Reset Zoom'), keys: 'Ctrl+0' }
+            ]},
+            { title: tr('codeStudio.shortcutsView', 'View'), items: [
+                { label: tr('codeStudio.sidebar', 'Toggle Sidebar'), keys: 'Ctrl+B' },
+                { label: tr('codeStudio.agentChat', 'Toggle Agent'), keys: 'Ctrl+Shift+A' },
+                { label: tr('codeStudio.commandPalette', 'Command Palette'), keys: 'Ctrl+Shift+P' },
+                { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K Z' }
+            ]}
+        ];
+        const bodyHtml = sections.map(section => `
+            <div class="cs-shortcut-section">
+                <h4>${esc(section.title)}</h4>
+                ${section.items.map(item => `
+                    <div class="cs-shortcut-row">
+                        <span>${esc(item.label)}</span>
+                        ${item.keys ? `<kbd>${esc(item.keys)}</kbd>` : ''}
+                    </div>`).join('')}
+            </div>`).join('');
+        overlay.innerHTML = `<div class="cs-shortcut-modal">
+            <div class="cs-shortcut-modal-head">
+                <h3>${esc(tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'))}</h3>
+                <button type="button" class="cs-icon-button" data-close-overlay>${esc('×')}</button>
+            </div>
+            <div class="cs-shortcut-modal-body">${bodyHtml}</div>
+        </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-close-overlay]').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('mousedown', event => { if (event.target === overlay) overlay.remove(); });
     }
 
     function exposedLoadState(windowId) {

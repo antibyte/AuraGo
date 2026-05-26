@@ -35,6 +35,12 @@ Manage remote machines running the AuraGo Remote agent or a paired agodesk deskt
 | `quality` | integer | optional for desktop_screenshot | Image quality 1-100 for lossy formats |
 | `include_data_base64` | boolean | optional for desktop_screenshot | Default false stores image data to a workspace file and returns the path |
 | `kind` | string | for desktop_input | `mouse_move`, `mouse_click`, `key_down`, `key_up`, or `text` |
+| `x`, `y` | integer | for mouse desktop_input | Mouse coordinates |
+| `absolute` | boolean | optional for mouse_move | Set true for absolute mouse coordinates |
+| `button` | string | for mouse_click | `left`, `right`, or `middle` |
+| `input_action` | string | optional for mouse_click | Preferred click action field, e.g. `click`, `down`, or `up`; forwarded to agodesk as protocol `action` |
+| `key`, `code` | string/integer | for key_down/key_up | Keyboard key name or numeric key code |
+| `text` | string | for text input | Text to type |
 
 ## Examples
 
@@ -75,7 +81,7 @@ Manage remote machines running the AuraGo Remote agent or a paired agodesk deskt
 
 **Send approved desktop input:**
 ```json
-{"action": "remote_control", "operation": "desktop_input", "device_name": "office-pc", "kind": "mouse_click", "x": 100, "y": 200, "button": "left", "action": "click"}
+{"action": "remote_control", "operation": "desktop_input", "device_name": "office-pc", "kind": "mouse_click", "x": 100, "y": 200, "button": "left", "input_action": "click"}
 ```
 
 ## Architecture

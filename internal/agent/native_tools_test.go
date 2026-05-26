@@ -368,6 +368,11 @@ func TestBuiltinToolSchemasExposeDesktopRemoteControlOperations(t *testing.T) {
 				t.Fatalf("remote_control operation enum missing %s: %#v", want, opProp["enum"])
 			}
 		}
+		for _, want := range []string{"display_id", "window_id", "format", "quality", "include_data_base64", "kind", "x", "y", "absolute", "button", "input_action", "key", "code", "text"} {
+			if _, ok := props[want]; !ok {
+				t.Fatalf("remote_control properties missing desktop field %s", want)
+			}
+		}
 		return
 	}
 	t.Fatal("remote_control schema not found")

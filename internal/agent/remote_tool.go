@@ -404,6 +404,12 @@ func remoteDesktopInput(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 	if strings.TrimSpace(toolArgString(args, "kind")) == "" {
 		return `Tool Output: {"status":"error","message":"'kind' is required for desktop_input"}`
 	}
+	if inputAction := strings.TrimSpace(toolArgString(args, "input_action")); inputAction != "" {
+		if strings.TrimSpace(toolArgString(args, "action")) == "" {
+			args["action"] = inputAction
+		}
+		delete(args, "input_action")
+	}
 	result, err := remoteDesktopCommand(hub, tc, remote.OpDesktopInput, args, 10*time.Second)
 	if err != nil {
 		return remoteToolError(err.Error())
@@ -459,7 +465,7 @@ func parseRemoteDesktopOutput(output string) (map[string]interface{}, error) {
 func storeRemoteDesktopScreenshot(cfg *config.Config, commandID string, data map[string]interface{}, includeData bool) error {
 	encoded, _ := data["data_base64"].(string)
 	if strings.TrimSpace(encoded) == "" {
-		return nil
+		return fmt.Errorf("missing desktop screenshot data_base64")
 	}
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {

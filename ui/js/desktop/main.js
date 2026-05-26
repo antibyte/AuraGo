@@ -10,6 +10,7 @@
         '/js/desktop/core/desktop-foundation.js?v=' + assetV,
         '/js/desktop/core/icon-selection-runtime.js?v=' + assetV,
         '/js/desktop/core/window-shell-runtime.js?v=' + assetV,
+        '/js/desktop/core/window-interactions-runtime.js?v=' + assetV,
         '/js/desktop/core/window-ai-context.js?v=' + assetV,
         '/js/desktop/core/lifecycle-cleanup.js?v=' + assetV,
         '/js/desktop/core/widget-autosize-runtime.js?v=' + assetV,

@@ -85,7 +85,7 @@ func TestCodeStudioAgentPanelGetsVisibleColumn(t *testing.T) {
 	}
 	css := string(cssBytes)
 	for _, marker := range []string{
-		`grid-template-columns: var(--cs-sidebar-width) minmax(0, 1fr) minmax(320px, 360px);`,
+		`grid-template-columns: 48px var(--cs-sidebar-width) minmax(0, 1fr) minmax(320px, 360px);`,
 		".code-studio-main {\n    position: relative;\n    z-index: 1;",
 		".code-studio-chat {\n    position: relative;\n    z-index: 2;",
 		`min-width: 320px;`,

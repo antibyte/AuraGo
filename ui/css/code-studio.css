@@ -2,18 +2,37 @@
     --cs-bg: #12161d;
     --cs-panel: #171d26;
     --cs-panel-soft: #1d2530;
+    --cs-panel-glass: rgba(23, 29, 38, 0.72);
+    --cs-panel-elevated: #212a36;
     --cs-border: rgba(172, 185, 204, 0.18);
+    --cs-border-subtle: rgba(172, 185, 204, 0.08);
     --cs-text: #edf2f8;
     --cs-muted: #9baabc;
     --cs-accent: #3ec6b5;
+    --cs-accent-soft: rgba(62, 198, 181, 0.12);
+    --cs-accent-glow: rgba(62, 198, 181, 0.25);
     --cs-danger: #ff6b7a;
+    --cs-danger-soft: rgba(255, 107, 122, 0.12);
+    --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
+    --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
+    --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
+    --cs-radius-sm: 6px;
+    --cs-radius-md: 8px;
+    --cs-radius-lg: 12px;
+    --cs-radius-xl: 16px;
+    --cs-mono-font: 'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, 'Liberation Mono', monospace;
+    --cs-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     --cs-sidebar-width: 280px;
     --cs-terminal-height: 220px;
+    --cs-transition-fast: 0.12s ease;
+    --cs-transition-normal: 0.2s ease;
+    --cs-transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
     min-height: 0;
+    font-family: var(--cs-ui-font);
     color: var(--cs-text);
     background: var(--cs-bg);
     overflow: hidden;
@@ -24,10 +43,18 @@
     --cs-bg: #f7fafc;
     --cs-panel: #ffffff;
     --cs-panel-soft: #eef3f8;
+    --cs-panel-glass: rgba(255, 255, 255, 0.78);
+    --cs-panel-elevated: #ffffff;
     --cs-border: rgba(51, 65, 85, 0.18);
+    --cs-border-subtle: rgba(51, 65, 85, 0.08);
     --cs-text: #172033;
     --cs-muted: #64748b;
     --cs-accent: var(--vd-accent);
+    --cs-accent-soft: rgba(62, 198, 181, 0.08);
+    --cs-accent-glow: rgba(62, 198, 181, 0.18);
+    --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+    --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
     background: var(--cs-bg);
 }
 
@@ -36,10 +63,18 @@
         --cs-bg: #12161d;
         --cs-panel: #171d26;
         --cs-panel-soft: #1d2530;
+        --cs-panel-glass: rgba(23, 29, 38, 0.72);
+        --cs-panel-elevated: #212a36;
         --cs-border: rgba(172, 185, 204, 0.18);
+        --cs-border-subtle: rgba(172, 185, 204, 0.08);
         --cs-text: #edf2f8;
         --cs-muted: #9baabc;
         --cs-accent: #3ec6b5;
+        --cs-accent-soft: rgba(62, 198, 181, 0.12);
+        --cs-accent-glow: rgba(62, 198, 181, 0.25);
+        --cs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
+        --cs-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
+        --cs-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
     }
 }
 
@@ -58,22 +93,58 @@
 }
 
 .code-studio-toolbar {
-    padding: 5px 10px;
-    gap: 5px;
-    flex-wrap: wrap;
-    background: #0f1318;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 2px;
+    min-height: 40px;
+    background: var(--cs-panel);
+    border-bottom: 1px solid var(--cs-border);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+.code-studio-toolbar .cs-toolbar-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.code-studio-toolbar .cs-toolbar-separator {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: var(--cs-border);
+}
+
+.code-studio-toolbar .cs-toolbar-filename {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--cs-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.code-studio-toolbar .cs-toolbar-filename strong {
+    color: var(--cs-text);
+    font-weight: 600;
 }
 
 .code-studio-statusbar {
     justify-content: space-between;
-    min-height: 28px;
-    font-size: 12px;
+    min-height: 26px;
+    font-size: 11px;
+    font-family: var(--cs-ui-font);
     color: var(--cs-muted);
     border-top: 1px solid var(--cs-border);
     border-bottom: 0;
-    padding: 0 12px;
-    background: #0d1017;
-    gap: 16px;
+    padding: 0 10px;
+    background: var(--cs-panel);
+    gap: 12px;
 }
 
 .code-studio-statusbar > span {
@@ -176,7 +247,7 @@
 }
 
 .cs-search-result code {
-    font: 12px/1.4 Consolas, "Liberation Mono", monospace;
+    font: 12px/1.4 var(--cs-mono-font);
     color: var(--cs-text);
 }
 
@@ -339,7 +410,7 @@
     flex-direction: column;
     width: 48px;
     min-width: 48px;
-    background: #0d1017;
+    background: var(--cs-panel);
     border-right: 1px solid var(--cs-border);
     padding: 6px 0;
     gap: 2px;
@@ -493,7 +564,9 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
-    background: #0f1318;
+    background: var(--cs-panel);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
 }
 
 .cs-sidebar-head strong {
@@ -601,7 +674,17 @@
     min-width: 0;
     overflow-x: auto;
     border-bottom: 1px solid var(--cs-border);
-    background: #111820;
+    background: var(--cs-panel);
+    scrollbar-width: thin;
+}
+
+.code-studio-tabs::-webkit-scrollbar {
+    height: 3px;
+}
+
+.code-studio-tabs::-webkit-scrollbar-thumb {
+    background: var(--cs-border);
+    border-radius: 3px;
 }
 
 .cs-tab {
@@ -666,7 +749,7 @@
 }
 
 .code-studio-editor .cm-scroller {
-    font-family: Consolas, "Liberation Mono", monospace;
+    font-family: var(--cs-mono-font);
 }
 
 .cs-editor-empty,
@@ -733,7 +816,7 @@
     resize: none;
     color: var(--cs-text);
     background: var(--cs-panel-soft);
-    font: var(--cs-editor-font-size, 13px)/1.5 Consolas, "Liberation Mono", monospace;
+    font: var(--cs-editor-font-size, 13px)/1.5 var(--cs-mono-font);
     white-space: pre;
     overflow: auto;
 }
@@ -746,7 +829,7 @@
 .code-studio-terminal {
     min-height: 0;
     border-top: 1px solid var(--cs-border);
-    background: #080b10;
+    background: var(--cs-panel);
     display: flex;
     flex-direction: column;
 }
@@ -766,7 +849,7 @@
 .cs-terminal-screen {
     padding: 8px;
     color: var(--cs-muted);
-    font: 13px/1.5 Consolas, "Liberation Mono", monospace;
+    font: 13px/1.5 var(--cs-mono-font);
     white-space: pre-wrap;
 }
 
@@ -872,7 +955,7 @@
     padding: 10px;
     overflow: auto;
     color: var(--cs-text);
-    font: 12px/1.45 Consolas, "Liberation Mono", monospace;
+    font: 12px/1.45 var(--cs-mono-font);
     white-space: pre;
 }
 
@@ -996,4 +1079,856 @@
     .code-studio-preview {
         display: none;
     }
+}
+
+/* ── Panel Transitions ── */
+.code-studio-sidebar {
+    transition: width var(--cs-transition-slow), opacity var(--cs-transition-normal);
+}
+
+.code-studio[data-sidebar="hidden"] .code-studio-sidebar {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    border-right: 0;
+}
+
+.code-studio-chat {
+    transition: width var(--cs-transition-slow), opacity var(--cs-transition-normal), transform var(--cs-transition-slow);
+    transform: translateX(8px);
+}
+
+.code-studio[data-agent="visible"] .code-studio-chat {
+    transform: translateX(0);
+}
+
+.code-studio-terminal {
+    transition: height var(--cs-transition-slow);
+}
+
+/* ── Sidebar Resize Handle ── */
+.cs-sidebar-resize {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 5;
+    transition: background var(--cs-transition-fast);
+}
+
+.cs-sidebar-resize:hover,
+.cs-sidebar-resize.dragging {
+    background: var(--cs-accent-glow);
+}
+
+/* ── Sidebar Tree View ── */
+.cs-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 28px;
+    padding: 2px 6px 2px 0;
+    border: 1px solid transparent;
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-text);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--cs-transition-fast), background var(--cs-transition-fast);
+    font-size: 13px;
+}
+
+.cs-tree-item:hover {
+    border-color: var(--cs-accent-soft);
+    background: var(--cs-accent-soft);
+}
+
+.cs-tree-item.active {
+    background: var(--cs-accent-soft);
+    border-color: var(--cs-accent-glow);
+}
+
+.cs-tree-item .cs-tree-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: transform var(--cs-transition-fast);
+    color: var(--cs-muted);
+    font-size: 10px;
+}
+
+.cs-tree-item .cs-tree-chevron.expanded {
+    transform: rotate(90deg);
+}
+
+.cs-tree-item .cs-tree-indent {
+    flex-shrink: 0;
+}
+
+.cs-tree-children {
+    overflow: hidden;
+    transition: max-height var(--cs-transition-normal);
+}
+
+.cs-tree-children.collapsed {
+    max-height: 0 !important;
+}
+
+/* ── Command Palette ── */
+.cs-command-palette-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--vd-z-modal) + 10);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: min(20vh, 120px);
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    animation: cs-fade-in 0.12s ease;
+}
+
+@keyframes cs-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes cs-slide-down {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.cs-command-palette {
+    width: min(560px, calc(100vw - 40px));
+    max-height: min(420px, 60vh);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-lg);
+    background: var(--cs-panel);
+    box-shadow: var(--cs-shadow-lg);
+    animation: cs-slide-down 0.15s ease;
+    overflow: hidden;
+}
+
+.cs-command-palette-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.cs-command-palette-input .cs-cp-icon {
+    color: var(--cs-muted);
+    flex-shrink: 0;
+    font-size: 15px;
+}
+
+.cs-command-palette-input input {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: 14px/1 var(--cs-ui-font);
+}
+
+.cs-command-palette-input input::placeholder {
+    color: var(--cs-muted);
+    opacity: 0.7;
+}
+
+.cs-command-palette-results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px;
+    scrollbar-width: thin;
+}
+
+.cs-command-palette-results::-webkit-scrollbar {
+    width: 4px;
+}
+
+.cs-command-palette-results::-webkit-scrollbar-thumb {
+    background: var(--cs-border);
+    border-radius: 4px;
+}
+
+.cs-cp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 34px;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-text);
+    font: 13px/1.3 var(--cs-ui-font);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--cs-transition-fast);
+}
+
+.cs-cp-item:hover,
+.cs-cp-item.selected {
+    background: var(--cs-accent-soft);
+}
+
+.cs-cp-item.selected {
+    outline: 1px solid var(--cs-accent-glow);
+}
+
+.cs-cp-item .cs-cp-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--cs-muted);
+    font-size: 14px;
+}
+
+.cs-cp-item .cs-cp-item-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-cp-item .cs-cp-item-label mark {
+    background: var(--cs-accent-soft);
+    color: var(--cs-accent);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.cs-cp-item .cs-cp-item-shortcut {
+    flex-shrink: 0;
+    color: var(--cs-muted);
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.cs-cp-item .cs-cp-item-path {
+    flex-shrink: 0;
+    color: var(--cs-muted);
+    font-size: 11px;
+    opacity: 0.55;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-cp-section-label {
+    padding: 6px 10px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cs-muted);
+    opacity: 0.7;
+}
+
+.cs-cp-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: var(--cs-muted);
+    font-size: 13px;
+}
+
+/* ── Tab Drag & Drop ── */
+.cs-tab {
+    position: relative;
+    transition: opacity var(--cs-transition-fast), transform var(--cs-transition-fast);
+}
+
+.cs-tab.dragging {
+    opacity: 0.5;
+}
+
+.cs-tab.drag-over-left::before,
+.cs-tab.drag-over-right::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: var(--cs-accent);
+    border-radius: 1px;
+    z-index: 3;
+}
+
+.cs-tab.drag-over-left::before {
+    left: -1px;
+}
+
+.cs-tab.drag-over-right::after {
+    right: -1px;
+}
+
+/* ── Tab Modified Dot ── */
+.cs-tab .cs-tab-modified {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cs-accent);
+    flex-shrink: 0;
+}
+
+/* ── Tab Close Visibility ── */
+.cs-tab .cs-tab-close {
+    opacity: 0;
+    transition: opacity var(--cs-transition-fast);
+}
+
+.cs-tab:hover .cs-tab-close,
+.cs-tab.active .cs-tab-close {
+    opacity: 1;
+}
+
+/* ── Zen Mode ── */
+.code-studio[data-zen="true"] .code-studio-toolbar,
+.code-studio[data-zen="true"] .code-studio-activity-bar,
+.code-studio[data-zen="true"] .code-studio-sidebar,
+.code-studio[data-zen="true"] .code-studio-tabs,
+.code-studio[data-zen="true"] .code-studio-breadcrumbs,
+.code-studio[data-zen="true"] .code-studio-terminal,
+.code-studio[data-zen="true"] .code-studio-chat,
+.code-studio[data-zen="true"] .code-studio-statusbar {
+    display: none !important;
+}
+
+.code-studio[data-zen="true"] .code-studio-body {
+    grid-template-columns: 0 0 minmax(0, 1fr) 0;
+}
+
+.code-studio[data-zen="true"] .code-studio-main {
+    grid-template-rows: 0 0 minmax(0, 1fr) 0;
+}
+
+.cs-zen-exit {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    z-index: 10;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--cs-panel-glass);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    color: var(--cs-muted);
+    font: 12px var(--cs-ui-font);
+    cursor: pointer;
+    transition: opacity var(--cs-transition-normal);
+    opacity: 0.6;
+}
+
+.code-studio[data-zen="true"] .cs-zen-exit {
+    display: inline-flex;
+}
+
+.cs-zen-exit:hover {
+    opacity: 1;
+    color: var(--cs-text);
+    border-color: var(--cs-accent-glow);
+}
+
+/* ── Split Editor ── */
+.code-studio-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.code-studio-split-pane {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.code-studio-split-divider {
+    width: 4px;
+    cursor: col-resize;
+    background: var(--cs-border);
+    transition: background var(--cs-transition-fast);
+    z-index: 3;
+}
+
+.code-studio-split-divider:hover,
+.code-studio-split-divider.dragging {
+    background: var(--cs-accent-glow);
+}
+
+/* ── Agent Chat Markdown ── */
+.cs-agent-message .cs-md-content {
+    line-height: 1.55;
+    word-break: break-word;
+}
+
+.cs-agent-message .cs-md-content h1,
+.cs-agent-message .cs-md-content h2,
+.cs-agent-message .cs-md-content h3 {
+    margin: 12px 0 6px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.cs-agent-message .cs-md-content h1 { font-size: 16px; }
+.cs-agent-message .cs-md-content h2 { font-size: 14px; }
+.cs-agent-message .cs-md-content h3 { font-size: 13px; }
+
+.cs-agent-message .cs-md-content p {
+    margin: 6px 0;
+}
+
+.cs-agent-message .cs-md-content ul,
+.cs-agent-message .cs-md-content ol {
+    margin: 6px 0;
+    padding-left: 20px;
+}
+
+.cs-agent-message .cs-md-content li {
+    margin: 2px 0;
+}
+
+.cs-agent-message .cs-md-content code {
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.18);
+    font: 12px var(--cs-mono-font);
+}
+
+.desktop-body[data-theme="light"] .cs-agent-message .cs-md-content code {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.cs-agent-message .cs-md-content pre {
+    position: relative;
+    margin: 8px 0;
+    border-radius: var(--cs-radius-md);
+    overflow: hidden;
+}
+
+.cs-agent-message .cs-md-content pre code {
+    display: block;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    font: 12px/1.5 var(--cs-mono-font);
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.desktop-body[data-theme="light"] .cs-agent-message .cs-md-content pre code {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.cs-md-code-copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-panel-glass);
+    color: var(--cs-muted);
+    font: 11px var(--cs-ui-font);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--cs-transition-fast);
+    z-index: 2;
+}
+
+.cs-agent-message .cs-md-content pre:hover .cs-md-code-copy {
+    opacity: 1;
+}
+
+.cs-md-code-copy:hover {
+    color: var(--cs-text);
+    border-color: var(--cs-accent-glow);
+}
+
+.cs-agent-message .cs-md-content blockquote {
+    margin: 8px 0;
+    padding: 4px 12px;
+    border-left: 3px solid var(--cs-accent-glow);
+    color: var(--cs-muted);
+}
+
+.cs-agent-message .cs-md-content hr {
+    margin: 12px 0;
+    border: 0;
+    border-top: 1px solid var(--cs-border);
+}
+
+.cs-agent-message .cs-md-content table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    width: 100%;
+    font-size: 12px;
+}
+
+.cs-agent-message .cs-md-content th,
+.cs-agent-message .cs-md-content td {
+    padding: 4px 8px;
+    border: 1px solid var(--cs-border);
+    text-align: left;
+}
+
+.cs-agent-message .cs-md-content th {
+    background: var(--cs-accent-soft);
+    font-weight: 600;
+}
+
+/* ── Diff Preview ── */
+.cs-diff-line {
+    display: block;
+    padding: 0 8px;
+    font: 12px/1.5 var(--cs-mono-font);
+    white-space: pre;
+}
+
+.cs-diff-line.added {
+    background: rgba(62, 198, 181, 0.12);
+    color: var(--cs-accent);
+}
+
+.cs-diff-line.removed {
+    background: var(--cs-danger-soft);
+    color: var(--cs-danger);
+}
+
+.cs-diff-line.context {
+    color: var(--cs-muted);
+}
+
+/* ── Terminal Tabs ── */
+.cs-terminal-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.cs-terminal-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.cs-terminal-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--cs-radius-sm) var(--cs-radius-sm) 0 0;
+    background: transparent;
+    color: var(--cs-muted);
+    font: 11px var(--cs-ui-font);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--cs-transition-fast), color var(--cs-transition-fast);
+}
+
+.cs-terminal-tab:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--cs-text);
+}
+
+.cs-terminal-tab.active {
+    background: var(--cs-panel-soft);
+    color: var(--cs-text);
+}
+
+.cs-terminal-tab .cs-terminal-tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity var(--cs-transition-fast), background var(--cs-transition-fast);
+    font-size: 10px;
+}
+
+.cs-terminal-tab:hover .cs-terminal-tab-close {
+    opacity: 0.7;
+}
+
+.cs-terminal-tab .cs-terminal-tab-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cs-terminal-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-muted);
+    cursor: pointer;
+    font-size: 14px;
+    transition: background var(--cs-transition-fast), color var(--cs-transition-fast);
+}
+
+.cs-terminal-add:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--cs-text);
+}
+
+/* ── Status Bar Clickable Items ── */
+.code-studio-statusbar > span[data-clickable] {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background var(--cs-transition-fast);
+}
+
+.code-studio-statusbar > span[data-clickable]:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Activity Bar Badges ── */
+.cs-activity-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--cs-accent);
+    color: #061b1a;
+    font: 10px/16px var(--cs-ui-font);
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ── Keyboard Shortcut Overlay ── */
+.cs-shortcut-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--vd-z-modal) + 5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    animation: cs-fade-in 0.12s ease;
+}
+
+.cs-shortcut-modal {
+    width: min(520px, calc(100vw - 40px));
+    max-height: min(500px, 70vh);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-lg);
+    background: var(--cs-panel);
+    box-shadow: var(--cs-shadow-lg);
+    overflow: hidden;
+    animation: cs-slide-down 0.15s ease;
+}
+
+.cs-shortcut-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.cs-shortcut-modal-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cs-shortcut-modal-body {
+    flex: 1;
+    min-height: 0;
+    padding: 12px 16px;
+    overflow-y: auto;
+}
+
+.cs-shortcut-section {
+    margin-bottom: 16px;
+}
+
+.cs-shortcut-section h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cs-muted);
+}
+
+.cs-shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.cs-shortcut-row kbd {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 6px;
+    border: 1px solid var(--cs-border);
+    border-radius: 4px;
+    background: var(--cs-panel-soft);
+    font: 11px var(--cs-mono-font);
+    color: var(--cs-muted);
+}
+
+/* ── Empty States ── */
+.cs-editor-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 180px;
+    gap: 12px;
+    color: var(--cs-muted);
+    text-align: center;
+}
+
+.cs-editor-empty .cs-empty-icon {
+    font-size: 48px;
+    opacity: 0.25;
+    margin-bottom: 4px;
+}
+
+.cs-editor-empty .cs-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--cs-text);
+    opacity: 0.6;
+}
+
+.cs-editor-empty .cs-empty-hint {
+    font-size: 12px;
+    opacity: 0.55;
+    max-width: 260px;
+    line-height: 1.5;
+}
+
+/* ── Improved Breadcrumbs ── */
+.cs-breadcrumb-item .cs-bc-icon {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+}
+
+/* ── Agent Typing Indicator ── */
+.cs-agent-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+}
+
+.cs-agent-typing .cs-typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cs-muted);
+    animation: cs-typing 1.2s infinite;
+}
+
+.cs-agent-typing .cs-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.cs-agent-typing .cs-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes cs-typing {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Quick Actions Chips ── */
+.cs-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 0;
+}
+
+.cs-quick-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--cs-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--cs-muted);
+    font: 11px var(--cs-ui-font);
+    cursor: pointer;
+    transition: border-color var(--cs-transition-fast), background var(--cs-transition-fast), color var(--cs-transition-fast);
+}
+
+.cs-quick-action:hover {
+    border-color: var(--cs-accent-glow);
+    background: var(--cs-accent-soft);
+    color: var(--cs-text);
+}
+
+/* ── Agent Stop Button ── */
+.cs-agent-stop {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--cs-danger);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-danger-soft);
+    color: var(--cs-danger);
+    font: 12px var(--cs-ui-font);
+    cursor: pointer;
+    transition: background var(--cs-transition-fast);
+}
+
+.cs-agent-stop:hover {
+    background: rgba(255, 107, 122, 0.22);
 }

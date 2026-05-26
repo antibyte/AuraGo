@@ -10,20 +10,26 @@ func TestDesktopWindowAIContextAssets(t *testing.T) {
 	t.Parallel()
 
 	windowRuntime := rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	windowInteractions := rawDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
 	windowAI := rawDesktopAssetText(t, "js/desktop/core/window-ai-context.js")
 	agentChat := rawDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	css := readAllDesktopCSS(t)
 
+	if !strings.Contains(windowRuntime, "aiButtonMarkup(appId)") {
+		t.Fatal("desktop window shell runtime missing AI button markup hook")
+	}
+
 	for _, marker := range []string{
-		`data-action="ai-context"`,
+		`[data-action="ai-context"]`,
 		"openAgentChatForWindow(id)",
 	} {
-		if !strings.Contains(windowRuntime, marker) {
-			t.Fatalf("desktop window AI context runtime missing marker %q", marker)
+		if !strings.Contains(windowInteractions, marker) {
+			t.Fatalf("desktop window interaction runtime missing AI context marker %q", marker)
 		}
 	}
 
 	for _, marker := range []string{
+		`data-action="ai-context"`,
 		"function aiButtonMarkup(",
 		"function buildWindowAIContext(",
 		"function oliveTinWindowAIContext(",
