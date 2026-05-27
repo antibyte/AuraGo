@@ -2,7 +2,7 @@
 
 AuraGo provides a comprehensive REST API for programmatic access to all features. The API follows REST principles and uses JSON for data transfer.
 
-> 📅 **Updated:** April 2026
+> 📅 **Updated:** May 27, 2026
 > 🔌 **Base URL:** `http://localhost:8088` (default)
 
 ---
@@ -21,6 +21,9 @@ AuraGo provides a comprehensive REST API for programmatic access to all features
 10. [Skills API](#skills-api)
 11. [Webhook API](#webhook-api)
 12. [SSE Events](#sse-events)
+13. [Config Rules API](#config-rules-api)
+14. [Desktop API](#desktop-api)
+15. [Pixel Image Editor API](#pixel-image-editor-api)
 
 ---
 
@@ -269,6 +272,51 @@ Content-Type: application/json
 
 ---
 
+## Config Rules API
+
+Task rules are editable Markdown guardrails stored under `prompts/rules/<id>/rule.md`. All endpoints require admin access.
+
+### List Rules
+```http
+GET /api/config/rules
+```
+
+Returns the enabled state, rule metadata, and candidate tools/workflows for the rule editor.
+
+### Create Rule
+```http
+POST /api/config/rules
+Content-Type: application/json
+
+{
+  "id": "homepage",
+  "title": "Homepage rules",
+  "enabled": true,
+  "priority": 50,
+  "tools": ["homepage"],
+  "workflows": ["website"],
+  "keywords": ["landing page"],
+  "body": "Markdown rule body",
+  "design": "Optional DESIGN.md content"
+}
+```
+
+### Get / Update / Delete Rule
+```http
+GET /api/config/rules/{id}
+PUT /api/config/rules/{id}
+DELETE /api/config/rules/{id}
+```
+
+### Restore Built-In Rule
+```http
+POST /api/config/rules/{id}/restore
+```
+
+Removes the disk override so the embedded rule is used again.
+
+---
+
 ## Vault API
 
 ### Vault Status
@@ -452,6 +500,132 @@ DELETE /api/containers/{id}
 ```http
 GET /api/runtime
 ```
+
+---
+
+## Desktop API
+
+Desktop endpoints use the same session/auth model as the Web UI. Mutating operations require desktop admin/write permissions and respect `virtual_desktop.readonly`.
+
+### Desktop State
+```http
+GET /api/desktop/apps
+GET /api/desktop/shortcuts
+GET /api/desktop/widgets
+GET /api/desktop/settings
+POST /api/desktop/settings
+GET /api/desktop/embed-token
+```
+
+### Desktop Chat and Streams
+```http
+POST /api/desktop/chat
+GET /api/desktop/chat/stream
+GET /api/desktop/ws
+GET /api/agodesk/ws
+```
+
+### Remote Desktop Proxies
+```http
+GET /api/desktop/ssh
+GET /api/desktop/vnc
+```
+
+### Desktop Software Store
+```http
+GET /api/desktop/store/catalog
+GET /api/desktop/store/apps
+POST /api/desktop/store/install
+GET /api/desktop/store/operations/{operation_id}
+POST /api/desktop/store/apps/{app_id}/{start|stop|restart|update}
+DELETE /api/desktop/store/apps/{app_id}?delete_data=false
+GET /api/desktop/store/apps/{app_id}/open-url?port_id=web
+GET /api/desktop/store/apps/{app_id}/credentials
+POST /api/desktop/store/apps/beszel/companions/agent/config
+```
+
+Install request:
+```json
+{
+  "app_id": "termix",
+  "bind_mode": "local"
+}
+```
+
+Store mutations return `202 Accepted` with an operation object. Poll `/api/desktop/store/operations/{operation_id}` until the operation reaches a terminal state.
+
+### Code Studio
+```http
+GET /api/code-studio/status
+GET /api/code-studio/files?path=/workspace
+GET /api/code-studio/file?path=/workspace/main.go
+PUT /api/code-studio/file
+PATCH /api/code-studio/file
+DELETE /api/code-studio/file?path=/workspace/main.go
+POST /api/code-studio/directory
+POST /api/code-studio/upload
+GET /api/code-studio/download?path=/workspace/main.go
+POST /api/code-studio/exec
+GET /api/code-studio/search?q=needle&path=/workspace
+GET /api/code-studio/terminal
+```
+
+Code Studio paths are sanitized inside the container workspace and mounted at `/workspace`.
+
+---
+
+## Pixel Image Editor API
+
+Pixel is the desktop image editor. It can save canvas data to the virtual desktop workspace and optionally use the configured image-generation provider.
+
+### Capabilities
+```http
+GET /api/pixel/config
+```
+
+Returns whether image generation is enabled, the resolved provider/model, default size/quality/style, and image-to-image support.
+
+### Generate Image
+```http
+POST /api/pixel/generate
+Content-Type: application/json
+
+{
+  "prompt": "A clean product photo of a brass lamp",
+  "size": "1024x1024",
+  "quality": "standard",
+  "style": "natural"
+}
+```
+
+### Enhance Image
+```http
+POST /api/pixel/enhance
+Content-Type: application/json
+
+{
+  "source_path": "agent_workspace/virtual_desktop/image.png",
+  "prompt": "Improve sharpness and lighting",
+  "strength": 0.7
+}
+```
+
+`source_data` may be provided instead of `source_path` as a base64 data URL.
+
+### Save Canvas
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/edited.png",
+  "data": "data:image/png;base64,...",
+  "format": "png",
+  "quality": 92
+}
+```
+
+Relative paths are stored under the configured data workspace.
 
 ---
 

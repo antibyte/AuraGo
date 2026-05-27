@@ -2,7 +2,7 @@
 
 This documentation lists all internal tools that AuraGo makes available to the agent. These tools are invoked by the LLM via native function calling.
 
-> 📅 **Updated:** April 2026
+> 📅 **Updated:** May 27, 2026
 > 🔢 **Count:** 100+ Tools
 
 ---

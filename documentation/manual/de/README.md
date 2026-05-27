@@ -2,9 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 26. April 2026
+> 📅 **Stand:** 27. Mai 2026
 > 🔄 **Version:** 2.x kompatibel  
-> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Chat-Commands, Tools, Integrationen, Config)
+> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Desktop-Apps, Virtual Desktop, Output Compression, APIs)
 
 ---
 
@@ -36,6 +36,8 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **📦 Browser Automation** | Headless Chrome für Formulare und Screenshots |
 | **📝 Obsidian** | Anbindung an deinen persönlichen Knowledge Vault |
 | **🔧 Output Compression** | Token-sparende Deduplizierung von Tool-Ausgaben |
+| **🖥️ Virtual Desktop** | Workspace-basierte Desktop-Apps, Code Studio, Pixel, Zipper und App-Launch-Workflows |
+| **🛒 Desktop Software Store** | Verwaltete Docker-Apps wie Termix, code-server, Dozzle, Beszel und Node-RED |
 
 ---
 
@@ -172,6 +174,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-04 | Dokumentations-Sync mit aktuellem Code-Stand: Chat-Commands ergänzt (/voice, /warnings), interne Tools bereinigt, Integrationen korrigiert, Config-Referenzen aktualisiert |
 | 2026-04 | Video Generation, send_video, LDAP, A2A-Nutzung, Web Push, Managed Ollama, File KG Sync, Backup/Restore, Mission Preparation und Security-Proxy-API dokumentiert |
 | 2026-04 | YepAPI, Inventar/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression zu Integrations-Kapitel hinzugefügt |
+| 2026-05 | Virtual Desktop, Desktop Software Store, Pixel-Bildeditor, Code Studio, Task-Rules-API und erweiterte Output Compression aktualisiert |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
 
 ---

@@ -1561,8 +1561,15 @@ Reduces token consumption by filtering and deduplicating tool outputs before the
 1. Open **Config → Agent → Output Compression**.
 2. Enable the integration.
 3. Adjust thresholds (minimum characters, preserve errors).
-4. Toggle compression for Shell, Python, and API outputs.
+4. Toggle compression for Shell, Python, API outputs, and advanced filters.
 5. Save and restart.
+
+### Advanced Modes
+
+| Mode | Default | Use case |
+|------|---------|----------|
+| `repetitive_substitution` | disabled | Replaces repeated long phrases in log-like output with a small dictionary. It skips errors, diffs, code/source reads, JSON documents, and exact-copy-sensitive tools. |
+| `toon_json` | disabled | Converts known homogeneous API arrays to a compact TOON-style representation when it saves enough tokens. It skips `api_request` and file-read outputs. |
 
 ### YAML Reference
 ```yaml
@@ -1574,6 +1581,19 @@ agent:
         shell_compression: true
         python_compression: true
         api_compression: true
+        repetitive_substitution:
+            enabled: false
+            lzw_enabled: true
+            ltsc_lite_enabled: false
+            min_phrase_chars: 15
+            min_occurrences: 3
+            min_savings_percent: 15
+            max_input_chars: 50000
+            max_dictionary_entries: 16
+        toon_json:
+            enabled: false
+            min_savings_percent: 10
+            max_rows: 200
 ```
 
 ---
@@ -1642,15 +1662,47 @@ space_agent:
 
 ## Virtual Desktop Integration
 
-Connection to virtual desktop infrastructure for remote access and management.
+Workspace-backed browser desktop for local apps, generated apps, file work, Code Studio, and managed Docker software.
 
-**Web UI:** Config → Integrations → Virtual Desktop → Configure URL and credentials.
+**Web UI:** Config → Integrations → Virtual Desktop → Enable the workspace, configure agent control, and adjust Code Studio limits.
+
+### Related Tool Toggles
+
+The `virtual_desktop` tool is exposed only when both `tools.virtual_desktop.enabled` and `virtual_desktop.allow_agent_control` are true. Office document/workbook tools also require the virtual desktop to be enabled.
+
+### Desktop Software Store
+
+The Software Store installs AuraGo-managed Docker apps into the virtual desktop environment. Current catalog entries include Node-RED, Dozzle, code-server, Beszel, RomM, OliveTin, Manifest, and Termix. Termix starts with a `guacd` companion container so its Web UI can manage SSH, RDP, VNC, and Telnet sessions.
 
 ### YAML Reference
 ```yaml
+tools:
+  virtual_desktop:
+    enabled: false
+  office_document:
+    enabled: false
+    readonly: false
+  office_workbook:
+    enabled: false
+    readonly: false
+
 virtual_desktop:
-  enabled: true
-  url: "https://vdi.example.com"
+  enabled: false
+  readonly: false
+  allow_agent_control: false
+  allow_generated_apps: true
+  allow_python_jobs: false
+  workspace_dir: agent_workspace/virtual_desktop
+  max_file_size_mb: 50
+  control_level: confirm_destructive
+  max_ws_clients: 8
+  code_studio:
+    enabled: true
+    image: ghcr.io/antibyte/aurago-code-studio:latest
+    auto_start: false
+    auto_stop_minutes: 30
+    max_memory_mb: 4096
+    max_cpu_cores: 2
 ```
 
 ## Shell Sandbox Integration

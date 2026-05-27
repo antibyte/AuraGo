@@ -1,6 +1,6 @@
 # Chapter 23: Internals – The Architecture of AuraGo
 
-> 📅 **Updated:** April 2026  
+> 📅 **Updated:** May 27, 2026
 > 🎯 **Audience:** Developers, contributors, and advanced users  
 > 🔧 **Prerequisites:** Basic understanding of Go, SQLite, and REST APIs
 
@@ -97,7 +97,7 @@ AuraGo makes extensive use of Go's concurrency primitives:
 
 ## 2. Startup Process and Initialization
 
-The startup process is implemented in [`cmd/aurago/main.go`](../../cmd/aurago/main.go) and follows a strict sequence:
+The startup process is implemented in [`cmd/aurago/main.go`](../../../cmd/aurago/main.go) and follows a strict sequence:
 
 ```mermaid
 sequenceDiagram
@@ -153,7 +153,7 @@ Secrets are loaded in the following priority order (each step only sets values n
 
 ### 2.3 Database Initialization
 
-All SQLite databases are opened and migrated via [`internal/dbutil`](../../internal/dbutil/):
+All SQLite databases are opened and migrated via [`internal/dbutil`](../../../internal/dbutil/):
 
 | Database | Purpose |
 |----------|---------|
@@ -174,7 +174,7 @@ Migrations run automatically on startup – the schema is updated as needed, wit
 
 ## 3. The Agent Loop
 
-The agent loop is the heart of AuraGo, implemented in [`internal/agent/agent_loop.go`](../../internal/agent/agent_loop.go) (~2500 lines). The central function is `ExecuteAgentLoop()`.
+The agent loop is the heart of AuraGo, implemented in [`internal/agent/agent_loop.go`](../../../internal/agent/agent_loop.go) (~2500 lines). The central function is `ExecuteAgentLoop()`.
 
 ### 3.1 Flow
 
@@ -200,7 +200,7 @@ flowchart TD
 
 ### 3.2 RunConfig
 
-[`RunConfig`](../../internal/agent/agent_loop.go) bundles all dependencies the agent loop needs:
+[`RunConfig`](../../../internal/agent/agent_loop.go) bundles all dependencies the agent loop needs:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -236,7 +236,7 @@ Responses are streamed to the client via **Server-Sent Events (SSE)**. The `Feed
 
 ### 3.5 Recovery and Error Handling
 
-The [`RecoveryPolicy`](../../internal/agent/recovery_policy.go) system controls error and retry behavior:
+The [`RecoveryPolicy`](../../../internal/agent/recovery_policy.go) system controls error and retry behavior:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -250,7 +250,7 @@ Additionally, a `RecoveryClassifier` categorizes errors and initiates appropriat
 
 ### 3.6 Emotional Behavior
 
-The [`emotionBehavior`](../../internal/agent/emotion_behavior.go) system adjusts agent behavior based on the current emotional state:
+The [`emotionBehavior`](../../../internal/agent/emotion_behavior.go) system adjusts agent behavior based on the current emotional state:
 
 - **EmotionState**: Primary/secondary mood, valence, arousal, confidence
 - **EmotionSynthesizer**: Computes emotions from conversation history
@@ -282,7 +282,7 @@ flowchart LR
 
 ### 4.2 Tool Categories
 
-Tools are organized into 7 categories (defined in [`tool_categories.go`](../../internal/agent/tool_categories.go)):
+Tools are organized into 7 categories (defined in [`tool_categories.go`](../../../internal/agent/tool_categories.go)):
 
 | Category | Label | Tool Count |
 |----------|-------|-----------|
@@ -296,7 +296,7 @@ Tools are organized into 7 categories (defined in [`tool_categories.go`](../../i
 
 ### 4.3 Native Function Calling
 
-AuraGo uses **OpenAI-compatible function calling** (defined in [`native_tools.go`](../../internal/agent/native_tools.go)):
+AuraGo uses **OpenAI-compatible function calling** (defined in [`native_tools.go`](../../../internal/agent/native_tools.go)):
 
 - Each tool is defined as a JSON schema with `name`, `description`, and `parameters`
 - `ToolFeatureFlags` control which tools are available based on configuration
@@ -304,7 +304,7 @@ AuraGo uses **OpenAI-compatible function calling** (defined in [`native_tools.go
 
 ### 4.4 Tool-Call Pipeline
 
-The [`ToolCallPipeline`](../../internal/agent/tool_call_pipeline.go) processes LLM responses and extracts tool calls:
+The [`ToolCallPipeline`](../../../internal/agent/tool_call_pipeline.go) processes LLM responses and extracts tool calls:
 
 | Parse Source | Description |
 |-------------|-------------|
@@ -319,7 +319,7 @@ The pipeline also detects:
 
 ### 4.5 Tooling Policy
 
-The [`ToolingPolicy`](../../internal/agent/tooling_policy.go) determines runtime behavior:
+The [`ToolingPolicy`](../../../internal/agent/tooling_policy.go) determines runtime behavior:
 
 - **ModelCapabilities**: Provider-specific quirks (Ollama, DeepSeek, Anthropic, etc.)
 - **Adaptive Tools**: Usage-based tool filtering saves tokens
@@ -328,7 +328,7 @@ The [`ToolingPolicy`](../../internal/agent/tooling_policy.go) determines runtime
 
 ### 4.6 Dispatch Context
 
-The [`DispatchContext`](../../internal/agent/dispatch_context.go) bundles all dependencies needed for tool execution. It replaces the previous 30+ individual function parameters:
+The [`DispatchContext`](../../../internal/agent/dispatch_context.go) bundles all dependencies needed for tool execution. It replaces the previous 30+ individual function parameters:
 
 ```go
 type DispatchContext struct {
@@ -384,10 +384,10 @@ flowchart TB
 
 ### 5.1 Short-Term Memory (STM)
 
-STM is implemented in [`internal/memory/short_term.go`](../../internal/memory/short_term.go) and uses SQLite as its storage backend:
+STM is implemented in [`internal/memory/short_term.go`](../../../internal/memory/short_term.go) and uses SQLite as its storage backend:
 
 - **Sliding Window**: Only the last N messages are kept in context
-- **HistoryManager** ([`history.go`](../../internal/memory/history.go)): Manages conversation history with:
+- **HistoryManager** ([`history.go`](../../../internal/memory/history.go)): Manages conversation history with:
   - `HistoryMessage`: Extends `openai.ChatCompletionMessage` with `Pinned`, `IsInternal`, `ID`
   - **Pinned Messages**: Important messages are not removed by the sliding window
   - **Ephemeral Mode**: Co-agents use a separate HistoryManager with `maxEphemeralMessages = 200`
@@ -396,7 +396,7 @@ STM is implemented in [`internal/memory/short_term.go`](../../internal/memory/sh
 
 ### 5.2 Long-Term Memory (LTM)
 
-LTM uses **chromem-go** as an embedded vector database ([`long_term.go`](../../internal/memory/long_term.go)):
+LTM uses **chromem-go** as an embedded vector database ([`long_term.go`](../../../internal/memory/long_term.go)):
 
 - **Collections**: Documents are stored in named collections (`aurago_memories`, `tool_guides`, `documentation`, etc.)
 - **Embeddings**: Generated via Ollama or OpenAI, with batch processing
@@ -412,11 +412,11 @@ The `VectorDB` interface provides:
 
 ### 5.3 Knowledge Graph
 
-The Knowledge Graph ([`graph_sqlite.go`](../../internal/memory/graph_sqlite.go)) stores structured facts:
+The Knowledge Graph ([`graph_sqlite.go`](../../../internal/memory/graph_sqlite.go)) stores structured facts:
 
 - **SQLite + FTS5**: Full-text search over entities and relations
-- **Semantic Graph** ([`graph_semantic.go`](../../internal/memory/graph_semantic.go)): Semantic relationships
-- **Explore** ([`graph_explore.go`](../../internal/memory/graph_explore.go)): Graph traversal
+- **Semantic Graph** ([`graph_semantic.go`](../../../internal/memory/graph_semantic.go)): Semantic relationships
+- **Explore** ([`graph_explore.go`](../../../internal/memory/graph_explore.go)): Graph traversal
 
 ### 5.4 Core Memory
 
@@ -426,19 +426,19 @@ Core Memory stores permanent facts that are **always** included in the system pr
 
 The system continuously analyzes memory quality:
 
-- [`memory_effectiveness.go`](../../internal/agent/memory_effectiveness.go) – Measures effectiveness of stored memories
-- [`memory_conflicts.go`](../../internal/agent/memory_conflicts.go) – Detects contradictory memories
-- [`memory_priority.go`](../../internal/agent/memory_priority.go) – Prioritizes memories by importance
-- [`memory_ranking.go`](../../internal/agent/memory_ranking.go) – Ranking with ranking cache
-- [`memory_retrieval_policy.go`](../../internal/agent/memory_retrieval_policy.go) – Controls retrieval strategy
+- [`memory_effectiveness.go`](../../../internal/agent/memory_effectiveness.go) – Measures effectiveness of stored memories
+- [`memory_conflicts.go`](../../../internal/agent/memory_conflicts.go) – Detects contradictory memories
+- [`memory_priority.go`](../../../internal/agent/memory_priority.go) – Prioritizes memories by importance
+- [`memory_ranking.go`](../../../internal/agent/memory_ranking.go) – Ranking with ranking cache
+- [`memory_retrieval_policy.go`](../../../internal/agent/memory_retrieval_policy.go) – Controls retrieval strategy
 
 ### 5.6 Predictive Memory
 
-[`predictive_memory.go`](../../internal/agent/predictive_memory.go) proactively pre-loads relevant memories before they are needed – based on the current conversation context.
+[`predictive_memory.go`](../../../internal/agent/predictive_memory.go) proactively pre-loads relevant memories before they are needed – based on the current conversation context.
 
 ### 5.7 Context Compression
 
-[`context_compression.go`](../../internal/agent/context_compression.go) compresses the conversation context when the token budget is exceeded. Older messages are summarized while important ones are retained.
+[`context_compression.go`](../../../internal/agent/context_compression.go) compresses the conversation context when the token budget is exceeded. Older messages are summarized while important ones are retained.
 
 ---
 
@@ -446,7 +446,7 @@ The system continuously analyzes memory quality:
 
 ### 6.1 ChatClient Interface
 
-The central interface in [`internal/llm/interface.go`](../../internal/llm/interface.go):
+The central interface in [`internal/llm/interface.go`](../../../internal/llm/interface.go):
 
 ```go
 type ChatClient interface {
@@ -461,7 +461,7 @@ All components that communicate with the LLM use this interface – allowing the
 
 ### 6.2 FailoverManager
 
-The [`FailoverManager`](../../internal/llm/failover.go) manages primary/fallback LLM connections:
+The [`FailoverManager`](../../../internal/llm/failover.go) manages primary/fallback LLM connections:
 
 - **Health Probes**: Checks primary availability every 60 seconds
 - **Error Threshold**: Switches to fallback after 3 consecutive errors
@@ -470,7 +470,7 @@ The [`FailoverManager`](../../internal/llm/failover.go) manages primary/fallback
 
 ### 6.3 Retry Logic
 
-The retry logic in [`retry.go`](../../internal/llm/retry.go) implements:
+The retry logic in [`retry.go`](../../../internal/llm/retry.go) implements:
 
 - **Exponential Backoff**: Growing wait time between attempts
 - **Error Classification**: Distinguishes between transient and permanent errors
@@ -484,13 +484,13 @@ AuraGo supports multiple provider types:
 |----------|-----------|-----------------|
 | `openrouter` | Standard OpenAI API | Credit system, many models |
 | `openai` | OpenAI API directly | DALL-E, GPT-4, etc. |
-| `anthropic` | Custom transport | [`anthropic_transport.go`](../../internal/llm/anthropic_transport.go) |
+| `anthropic` | Custom transport | [`anthropic_transport.go`](../../../internal/llm/anthropic_transport.go) |
 | `ollama` | Local API | Embedding provider, model management |
 | `custom` | Any OpenAI-compatible API | Configurable base URL |
 
 ### 6.5 Model Capabilities
 
-[`ModelCapabilities`](../../internal/agent/tooling_policy.go) centralizes provider-specific quirks:
+[`ModelCapabilities`](../../../internal/agent/tooling_policy.go) centralizes provider-specific quirks:
 
 | Capability | Description |
 |-----------|-------------|
@@ -502,9 +502,9 @@ AuraGo supports multiple provider types:
 
 ### 6.6 Token Tracking
 
-- [`token_accounting.go`](../../internal/agent/token_accounting.go) – Track token consumption per round
-- [`token_count_cache.go`](../../internal/agent/token_count_cache.go) – Cache for token counts
-- [`pricing.go`](../../internal/llm/pricing.go) – Cost calculation per provider/model
+- [`token_accounting.go`](../../../internal/agent/token_accounting.go) – Track token consumption per round
+- [`token_count_cache.go`](../../../internal/agent/token_count_cache.go) – Cache for token counts
+- [`pricing.go`](../../../internal/llm/pricing.go) – Cost calculation per provider/model
 
 ---
 
@@ -512,7 +512,7 @@ AuraGo supports multiple provider types:
 
 ### 7.1 Prompt Builder
 
-The [`PromptBuilder`](../../internal/prompts/builder.go) (~1345 lines) dynamically assembles the system prompt:
+The [`PromptBuilder`](../../../internal/prompts/builder.go) (~1345 lines) dynamically assembles the system prompt:
 
 1. **Load modules**: Identity, rules, personality, tool guides, context
 2. **Caching**: File-based cache with ModTime invalidation
@@ -521,7 +521,7 @@ The [`PromptBuilder`](../../internal/prompts/builder.go) (~1345 lines) dynamical
 
 ### 7.2 Prompt Modules
 
-The system in [`builder_modules.go`](../../internal/prompts/builder_modules.go) manages individual prompt building blocks:
+The system in [`builder_modules.go`](../../../internal/prompts/builder_modules.go) manages individual prompt building blocks:
 
 | Module | Source | Description |
 |--------|--------|-------------|
@@ -537,7 +537,7 @@ The tiktoken library is used for token counting:
 
 - **BPE Encoder**: Initialized once (`sync.Once`)
 - **Fallback**: If the encoder cannot be loaded, `len(text) / 4` is used as an estimate
-- **Budget Control**: [`prompt_budget.go`](../../internal/config/prompt_budget.go) distributes token budgets across modules
+- **Budget Control**: [`prompt_budget.go`](../../../internal/config/prompt_budget.go) distributes token budgets across modules
 
 ### 7.4 Dynamic Guide Strategy
 
@@ -553,7 +553,7 @@ Tool guides are dynamically adapted:
 
 ### 8.1 Vault
 
-The [`Vault`](../../internal/security/vault.go) stores secrets in encrypted form:
+The [`Vault`](../../../internal/security/vault.go) stores secrets in encrypted form:
 
 - **Algorithm**: AES-256-GCM (Authenticated Encryption)
 - **Master Key**: 32 bytes (64 hex characters), loaded from `AURAGO_MASTER_KEY`
@@ -563,7 +563,7 @@ The [`Vault`](../../internal/security/vault.go) stores secrets in encrypted form
 
 ### 8.2 LLM Guardian
 
-The [`LLMGuardian`](../../internal/security/llm_guardian.go) is an AI-powered security monitor:
+The [`LLMGuardian`](../../../internal/security/llm_guardian.go) is an AI-powered security monitor:
 
 ```mermaid
 flowchart LR
@@ -592,7 +592,7 @@ flowchart LR
 
 ### 8.3 Regex Guardian
 
-The [`Guardian`](../../internal/security/guardian.go) uses pattern matching for fast pre-checks:
+The [`Guardian`](../../../internal/security/guardian.go) uses pattern matching for fast pre-checks:
 
 - **ThreatLevel**: Classification of threat level
 - **PromptSec**: Prompt injection detection (Preset, Spotlight, Canary)
@@ -600,7 +600,7 @@ The [`Guardian`](../../internal/security/guardian.go) uses pattern matching for 
 
 ### 8.4 SSRF Protection
 
-[`ssrf.go`](../../internal/security/ssrf.go) prevents Server-Side Request Forgery:
+[`ssrf.go`](../../../internal/security/ssrf.go) prevents Server-Side Request Forgery:
 
 - Internal network blocklist (127.0.0.0/8, 10.0.0.0/8, 192.168.0.0/16, etc.)
 - URL validation before HTTP requests
@@ -608,7 +608,7 @@ The [`Guardian`](../../internal/security/guardian.go) uses pattern matching for 
 
 ### 8.5 Scrubber
 
-[`scrubber.go`](../../internal/security/scrubber.go) removes sensitive data from logs and LLM outputs:
+[`scrubber.go`](../../../internal/security/scrubber.go) removes sensitive data from logs and LLM outputs:
 
 - `RegisterSensitive(value)` – Mark a value as sensitive
 - Automatic replacement in all outputs
@@ -616,7 +616,7 @@ The [`Guardian`](../../internal/security/guardian.go) uses pattern matching for 
 
 ### 8.6 Sandbox
 
-The sandbox in [`internal/sandbox/`](../../internal/sandbox/) isolates code execution:
+The sandbox in [`internal/sandbox/`](../../../internal/sandbox/) isolates code execution:
 
 - **Linux**: Landlock + rlimits for filesystem and resource isolation
 - **Other OS**: Process-based isolation with timeout
@@ -629,7 +629,7 @@ The sandbox in [`internal/sandbox/`](../../internal/sandbox/) isolates code exec
 
 ### 9.1 HTTP Server
 
-The server is implemented in [`internal/server/server.go`](../../internal/server/server.go) (~1040 lines):
+The server is implemented in [`internal/server/server.go`](../../../internal/server/server.go) (~1040 lines):
 
 - **Standard Library**: `net/http` with Gorilla mux patterns
 - **Embedded UI**: Web UI via `go:embed` directly into the binary
@@ -638,7 +638,7 @@ The server is implemented in [`internal/server/server.go`](../../internal/server
 
 ### 9.2 REST API
 
-API handlers are organized in [`internal/server/`](../../internal/server/) (~95 handler files):
+API handlers are organized in [`internal/server/`](../../../internal/server/) (~95 handler files):
 
 | Handler File | Responsible for |
 |-------------|----------------|
@@ -655,7 +655,7 @@ API handlers are organized in [`internal/server/`](../../internal/server/) (~95 
 
 ### 9.3 SSE (Server-Sent Events)
 
-[`sse.go`](../../internal/server/sse.go) implements streaming:
+[`sse.go`](../../../internal/server/sse.go) implements streaming:
 
 - **Broker Pattern**: Central broker distributes events to all connected clients
 - **Event Types**: `message`, `tool_call`, `tool_result`, `error`, `done`
@@ -663,7 +663,7 @@ API handlers are organized in [`internal/server/`](../../internal/server/) (~95 
 
 ### 9.4 i18n
 
-Internationalization is handled via [`internal/i18n/`](../../internal/i18n/):
+Internationalization is handled via [`internal/i18n/`](../../../internal/i18n/):
 
 - 15 languages: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh
 - JSON-based translation files in `ui/lang/`
@@ -677,7 +677,7 @@ Co-agents enable parallel agent execution for specialized tasks.
 
 ### 10.1 Architecture
 
-Implemented in [`internal/agent/coagent.go`](../../internal/agent/coagent.go) (~850 lines):
+Implemented in [`internal/agent/coagent.go`](../../../internal/agent/coagent.go) (~850 lines):
 
 - **CoAgentRegistry**: Manages active co-agents
 - **CoAgentRequest**: Task description with Specialist, Priority, ContextHints
@@ -721,14 +721,14 @@ flowchart TB
 
 | File | Purpose |
 |------|---------|
-| [`invasion.go`](../../internal/invasion/invasion.go) | Core logic |
-| [`connector.go`](../../internal/invasion/connector.go) | Connector interface |
-| [`connector_ssh.go`](../../internal/invasion/connector_ssh.go) | SSH connector |
-| [`connector_docker.go`](../../internal/invasion/connector_docker.go) | Docker connector |
-| [`eggconfig.go`](../../internal/invasion/eggconfig.go) | Egg configuration |
-| [`vault_export.go`](../../internal/invasion/vault_export.go) | Secure vault transfer |
-| [`bridge/hub.go`](../../internal/invasion/bridge/hub.go) | Communication hub |
-| [`bridge/protocol.go`](../../internal/invasion/bridge/protocol.go) | Bridge protocol |
+| [`invasion.go`](../../../internal/invasion/invasion.go) | Core logic |
+| [`connector.go`](../../../internal/invasion/connector.go) | Connector interface |
+| [`connector_ssh.go`](../../../internal/invasion/connector_ssh.go) | SSH connector |
+| [`connector_docker.go`](../../../internal/invasion/connector_docker.go) | Docker connector |
+| [`eggconfig.go`](../../../internal/invasion/eggconfig.go) | Egg configuration |
+| [`vault_export.go`](../../../internal/invasion/vault_export.go) | Secure vault transfer |
+| [`bridge/hub.go`](../../../internal/invasion/bridge/hub.go) | Communication hub |
+| [`bridge/protocol.go`](../../../internal/invasion/bridge/protocol.go) | Bridge protocol |
 
 ### 11.3 Bridge Protocol
 
@@ -744,7 +744,7 @@ The bridge protocol enables communication between nest and eggs:
 
 ### 12.1 RemoteHub
 
-[`internal/remote/`](../../internal/remote/) manages SSH connections to remote devices:
+[`internal/remote/`](../../../internal/remote/) manages SSH connections to remote devices:
 
 - **RemoteHub**: Central management of all SSH connections
 - **Protocol**: Binary protocol for remote commands
@@ -752,7 +752,7 @@ The bridge protocol enables communication between nest and eggs:
 
 ### 12.2 Remote Agent
 
-[`cmd/remote/`](../../cmd/remote/) is a standalone remote execution agent:
+[`cmd/remote/`](../../../cmd/remote/) is a standalone remote execution agent:
 
 - Receives commands via SSH
 - Executes them in isolation
@@ -765,7 +765,7 @@ The bridge protocol enables communication between nest and eggs:
 
 ### 13.1 File Indexer
 
-[`internal/services/indexer.go`](../../internal/services/indexer.go) indexes files for semantic search:
+[`internal/services/indexer.go`](../../../internal/services/indexer.go) indexes files for semantic search:
 
 - Scans configured directories
 - Creates embeddings and stores them in the vector DB
@@ -773,21 +773,21 @@ The bridge protocol enables communication between nest and eggs:
 
 ### 13.2 Knowledge Graph Extraction
 
-[`internal/kgextraction/`](../../internal/kgextraction/) automatically extracts entities and relationships:
+[`internal/kgextraction/`](../../../internal/kgextraction/) automatically extracts entities and relationships:
 
 - **Confidence Scoring**: Confidence rating for extracted facts
 - **File KG Sync**: Synchronizes file changes into the knowledge graph
 
 ### 13.3 Mission Preparation
 
-[`internal/services/mission_preparation.go`](../../internal/services/mission_preparation.go) prepares long-running missions:
+[`internal/services/mission_preparation.go`](../../../internal/services/mission_preparation.go) prepares long-running missions:
 
 - Database schema for missions
 - Type definitions for mission parameters
 
 ### 13.4 Optimizer
 
-[`internal/services/optimizer/`](../../internal/services/optimizer/) continuously optimizes:
+[`internal/services/optimizer/`](../../../internal/services/optimizer/) continuously optimizes:
 
 - Index quality
 - Embedding efficiency
@@ -797,7 +797,7 @@ The bridge protocol enables communication between nest and eggs:
 
 ## 14. A2A Protocol (Agent-to-Agent)
 
-The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent communication:
+The A2A protocol in [`internal/a2a/`](../../../internal/a2a/) enables inter-agent communication:
 
 | Component | File | Description |
 |-----------|------|-------------|
@@ -816,7 +816,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 15.1 Budget Tracker
 
-[`internal/budget/tracker.go`](../../internal/budget/tracker.go) tracks token consumption and costs:
+[`internal/budget/tracker.go`](../../../internal/budget/tracker.go) tracks token consumption and costs:
 
 - Per-session tracking
 - Cumulative costs across all sessions
@@ -824,7 +824,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 15.2 OpenRouter Credits
 
-[`openrouter_credits.go`](../../internal/llm/openrouter_credits.go) queries the current credit balance at OpenRouter.
+[`openrouter_credits.go`](../../../internal/llm/openrouter_credits.go) queries the current credit balance at OpenRouter.
 
 ---
 
@@ -832,16 +832,16 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 16.1 Planner
 
-[`internal/planner/planner.go`](../../internal/planner/planner.go) manages multi-step execution plans:
+[`internal/planner/planner.go`](../../../internal/planner/planner.go) manages multi-step execution plans:
 
 - Plans with individual steps
 - Dependencies between steps
 - Persistence in `data/planner.db`
-- Completion notifications ([`notifier.go`](../../internal/planner/notifier.go))
+- Completion notifications ([`notifier.go`](../../../internal/planner/notifier.go))
 
 ### 16.2 Cron Manager
 
-[`internal/tools/cron.go`](../../internal/tools/cron.go) manages scheduled tasks:
+[`internal/tools/cron.go`](../../../internal/tools/cron.go) manages scheduled tasks:
 
 - Built with `github.com/robfig/cron/v3`
 - CRUD operations for cron jobs
@@ -850,7 +850,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 16.3 Daemon Supervisor
 
-[`internal/tools/daemon_supervisor.go`](../../internal/tools/daemon_supervisor.go) manages background processes:
+[`internal/tools/daemon_supervisor.go`](../../../internal/tools/daemon_supervisor.go) manages background processes:
 
 - Start/stop daemons
 - Automatic restart on crash
@@ -858,8 +858,8 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 16.4 Follow-Up & Wait-for-Event
 
-- **Follow-Up** ([`background_tasks.go`](../../internal/tools/background_tasks.go)): Schedules autonomous background tasks
-- **Wait-for-Event** ([`background_process_supervisor.go`](../../internal/tools/background_process_supervisor.go)): Waits for process completion, HTTP endpoint, or file event
+- **Follow-Up** ([`background_tasks.go`](../../../internal/tools/background_tasks.go)): Schedules autonomous background tasks
+- **Wait-for-Event** ([`background_process_supervisor.go`](../../../internal/tools/background_process_supervisor.go)): Waits for process completion, HTTP endpoint, or file event
 
 ---
 
@@ -867,7 +867,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 17.1 Telegram Bot
 
-[`internal/telegram/`](../../internal/telegram/) – Full Telegram integration:
+[`internal/telegram/`](../../../internal/telegram/) – Full Telegram integration:
 
 - Text, voice, vision (image analysis)
 - Bot API via `github.com/go-telegram-bot-api/telegram-bot-api/v5`
@@ -875,18 +875,18 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 17.2 Discord Bot
 
-[`internal/discord/bot.go`](../../internal/discord/bot.go) – Discord integration:
+[`internal/discord/bot.go`](../../../internal/discord/bot.go) – Discord integration:
 
 - Gateway connection via `github.com/bwmarrin/discordgo`
 - Send/receive text messages
 
 ### 17.3 Rocket.Chat
 
-[`internal/rocketchat/`](../../internal/rocketchat/) – Rocket.Chat integration for team chat.
+[`internal/rocketchat/`](../../../internal/rocketchat/) – Rocket.Chat integration for team chat.
 
 ### 17.4 Telnyx
 
-[`internal/telnyx/`](../../internal/telnyx/) – SMS and voice via Telnyx API:
+[`internal/telnyx/`](../../../internal/telnyx/) – SMS and voice via Telnyx API:
 
 - Send/receive SMS
 - Make/manage calls
@@ -894,7 +894,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 17.5 Push Notifications
 
-[`internal/push/manager.go`](../../internal/push/manager.go) – Push notifications to mobile devices.
+[`internal/push/manager.go`](../../../internal/push/manager.go) – Push notifications to mobile devices.
 
 ---
 
@@ -902,7 +902,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 18.1 Fritz!Box
 
-[`internal/fritzbox/`](../../internal/fritzbox/) – Comprehensive Fritz!Box integration:
+[`internal/fritzbox/`](../../../internal/fritzbox/) – Comprehensive Fritz!Box integration:
 
 | Service | File | Description |
 |---------|------|-------------|
@@ -916,14 +916,14 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 18.2 Home Assistant
 
-[`internal/tools/homeassistant.go`](../../internal/tools/homeassistant.go) – Home Assistant integration:
+[`internal/tools/homeassistant.go`](../../../internal/tools/homeassistant.go) – Home Assistant integration:
 
 - Poller-based: Regular polling of device states
 - Control of lights, switches, sensors, etc.
 
 ### 18.3 MQTT
 
-[`internal/mqtt/client.go`](../../internal/mqtt/client.go) – MQTT publish/subscribe:
+[`internal/mqtt/client.go`](../../../internal/mqtt/client.go) – MQTT publish/subscribe:
 
 - Connection management with automatic reconnect
 - Manage topic subscriptions
@@ -931,7 +931,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 18.4 Wyoming
 
-[`internal/tools/wyoming.go`](../../internal/tools/wyoming.go) – Wyoming voice assistant protocol for local voice assistants.
+[`internal/tools/wyoming.go`](../../../internal/tools/wyoming.go) – Wyoming voice assistant protocol for local voice assistants.
 
 ---
 
@@ -939,7 +939,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 19.1 Docker
 
-[`internal/tools/docker.go`](../../internal/tools/docker.go) + [`docker_management.go`](../../internal/tools/docker_management.go):
+[`internal/tools/docker.go`](../../../internal/tools/docker.go) + [`docker_management.go`](../../../internal/tools/docker_management.go):
 
 - Container management (list, start, stop, logs, exec)
 - Docker Compose support
@@ -947,25 +947,25 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 19.2 Proxmox
 
-[`internal/tools/proxmox.go`](../../internal/tools/proxmox.go) – Proxmox VE integration:
+[`internal/tools/proxmox.go`](../../../internal/tools/proxmox.go) – Proxmox VE integration:
 
 - Manage VMs and containers
 - Start, stop, clone, snapshot
 
 ### 19.3 Tailscale
 
-[`internal/tsnetnode/tsnetnode.go`](../../internal/tsnetnode/tsnetnode.go) – Embedded Tailscale node:
+[`internal/tsnetnode/tsnetnode.go`](../../../internal/tsnetnode/tsnetnode.go) – Embedded Tailscale node:
 
 - tsnet-based VPN integration
 - No separate Tailscale client needed
 
 ### 19.4 Cloudflare Tunnel
 
-[`internal/tools/cloudflare_tunnel.go`](../../internal/tools/cloudflare_tunnel.go) – Secure remote access without public IP.
+[`internal/tools/cloudflare_tunnel.go`](../../../internal/tools/cloudflare_tunnel.go) – Secure remote access without public IP.
 
 ### 19.5 Homepage
 
-[`internal/tools/homepage.go`](../../internal/tools/homepage.go) – Homepage dashboard builder:
+[`internal/tools/homepage.go`](../../../internal/tools/homepage.go) – Homepage dashboard builder:
 
 - Project creation and management
 - Git integration for deployment
@@ -990,7 +990,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 20.1 Jellyfin
 
-[`internal/jellyfin/`](../../internal/jellyfin/) – Jellyfin media server:
+[`internal/jellyfin/`](../../../internal/jellyfin/) – Jellyfin media server:
 
 - Client connection (`client.go`)
 - Media libraries (`media.go`)
@@ -999,11 +999,11 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 20.2 Chromecast
 
-[`internal/tools/chromecast.go`](../../internal/tools/chromecast.go) – Send media to Cast devices.
+[`internal/tools/chromecast.go`](../../../internal/tools/chromecast.go) – Send media to Cast devices.
 
 ### 20.3 TTS / Piper
 
-[`internal/tools/tts.go`](../../internal/tools/tts.go) + [`piper_tts.go`](../../internal/tools/piper_tts.go):
+[`internal/tools/tts.go`](../../../internal/tools/tts.go) + [`piper_tts.go`](../../../internal/tools/piper_tts.go):
 
 - Text-to-speech with multiple backends
 - Piper as local TTS provider
@@ -1011,7 +1011,7 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 20.4 Image Generation
 
-[`internal/tools/image_generation.go`](../../internal/tools/image_generation.go) – Multi-provider image generation:
+[`internal/tools/image_generation.go`](../../../internal/tools/image_generation.go) – Multi-provider image generation:
 
 | Provider | File |
 |----------|------|
@@ -1024,11 +1024,11 @@ The A2A protocol in [`internal/a2a/`](../../internal/a2a/) enables inter-agent c
 
 ### 20.5 Music Generation
 
-[`internal/tools/music_generation.go`](../../internal/tools/music_generation.go) – AI-powered music generation.
+[`internal/tools/music_generation.go`](../../../internal/tools/music_generation.go) – AI-powered music generation.
 
 ### 20.6 Media Registry
 
-[`internal/tools/media_registry.go`](../../internal/tools/media_registry.go) – Local media file management with search and metadata.
+[`internal/tools/media_registry.go`](../../../internal/tools/media_registry.go) – Local media file management with search and metadata.
 
 ---
 

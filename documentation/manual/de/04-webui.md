@@ -218,6 +218,24 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 
 > ⚠️ **Achtung:** Einige Änderungen erfordern einen Neustart von AuraGo.
 
+## Virtual Desktop
+
+Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Desktop. Er ist für Dateiarbeit, Coding, Medienbearbeitung und verwaltete Docker-Apps gedacht, ohne die Web-UI verlassen zu müssen.
+
+### Enthaltene Apps
+
+| App | Zweck |
+|-----|-------|
+| **Files** | Virtuellen Desktop-Workspace durchsuchen und Dateien in der passenden App öffnen |
+| **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
+| **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
+| **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
+| **Software Store** | Verwaltete Docker-Apps wie Termix, code-server, Dozzle, Beszel und Node-RED installieren und bedienen |
+
+### Hinweise zum Software Store
+
+Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
+
 ## Mission Control
 
 Oberfläche für automatisierte Aufgaben (Cron-ähnliche Ausführung).

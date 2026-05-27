@@ -254,7 +254,7 @@ agent:
         provider_profiles_enabled: true
         session_tool_retention_turns: 8
         decay_half_life_days: 7
-        always_include: [filesystem, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop]
+        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request, ddg_search, virtual_desktop]
 
     # Recovery settings
     recovery:

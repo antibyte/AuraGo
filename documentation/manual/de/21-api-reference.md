@@ -2,7 +2,7 @@
 
 AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
 
-> 📅 **Stand:** April 2026
+> 📅 **Stand:** 27. Mai 2026
 > 🔌 **Basis-URL:** `http://localhost:8088` (Standard)
 
 ---
@@ -21,6 +21,9 @@ AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf all
 10. [Skills API](#skills-api)
 11. [Webhook API](#webhook-api)
 12. [SSE Events](#sse-events)
+13. [Config Rules API](#config-rules-api)
+14. [Desktop API](#desktop-api)
+15. [Pixel Bildeditor API](#pixel-bildeditor-api)
 
 ---
 
@@ -269,6 +272,51 @@ Content-Type: application/json
 
 ---
 
+## Config Rules API
+
+Task Rules sind editierbare Markdown-Leitplanken unter `prompts/rules/<id>/rule.md`. Alle Endpunkte benötigen Admin-Zugriff.
+
+### Regeln auflisten
+```http
+GET /api/config/rules
+```
+
+Gibt den Aktivstatus, Regel-Metadaten und Kandidaten für Tools/Workflows im Regeleditor zurück.
+
+### Regel erstellen
+```http
+POST /api/config/rules
+Content-Type: application/json
+
+{
+  "id": "homepage",
+  "title": "Homepage-Regeln",
+  "enabled": true,
+  "priority": 50,
+  "tools": ["homepage"],
+  "workflows": ["website"],
+  "keywords": ["landing page"],
+  "body": "Markdown-Regeltext",
+  "design": "Optionaler DESIGN.md-Inhalt"
+}
+```
+
+### Regel abrufen / aktualisieren / löschen
+```http
+GET /api/config/rules/{id}
+PUT /api/config/rules/{id}
+DELETE /api/config/rules/{id}
+```
+
+### Eingebaute Regel wiederherstellen
+```http
+POST /api/config/rules/{id}/restore
+```
+
+Entfernt den Disk-Override, sodass wieder die eingebettete Regel verwendet wird.
+
+---
+
 ## Vault API
 
 ### Vault-Status
@@ -452,6 +500,132 @@ DELETE /api/containers/{id}
 ```http
 GET /api/runtime
 ```
+
+---
+
+## Desktop API
+
+Desktop-Endpunkte verwenden dasselbe Session-/Auth-Modell wie die Web-UI. Schreibende Operationen benötigen Desktop-Admin-/Write-Rechte und beachten `virtual_desktop.readonly`.
+
+### Desktop-Status
+```http
+GET /api/desktop/apps
+GET /api/desktop/shortcuts
+GET /api/desktop/widgets
+GET /api/desktop/settings
+POST /api/desktop/settings
+GET /api/desktop/embed-token
+```
+
+### Desktop-Chat und Streams
+```http
+POST /api/desktop/chat
+GET /api/desktop/chat/stream
+GET /api/desktop/ws
+GET /api/agodesk/ws
+```
+
+### Remote-Desktop-Proxys
+```http
+GET /api/desktop/ssh
+GET /api/desktop/vnc
+```
+
+### Desktop Software Store
+```http
+GET /api/desktop/store/catalog
+GET /api/desktop/store/apps
+POST /api/desktop/store/install
+GET /api/desktop/store/operations/{operation_id}
+POST /api/desktop/store/apps/{app_id}/{start|stop|restart|update}
+DELETE /api/desktop/store/apps/{app_id}?delete_data=false
+GET /api/desktop/store/apps/{app_id}/open-url?port_id=web
+GET /api/desktop/store/apps/{app_id}/credentials
+POST /api/desktop/store/apps/beszel/companions/agent/config
+```
+
+Install-Request:
+```json
+{
+  "app_id": "termix",
+  "bind_mode": "local"
+}
+```
+
+Store-Mutationen geben `202 Accepted` mit einem Operation-Objekt zurück. Poll `/api/desktop/store/operations/{operation_id}`, bis die Operation einen finalen Status erreicht.
+
+### Code Studio
+```http
+GET /api/code-studio/status
+GET /api/code-studio/files?path=/workspace
+GET /api/code-studio/file?path=/workspace/main.go
+PUT /api/code-studio/file
+PATCH /api/code-studio/file
+DELETE /api/code-studio/file?path=/workspace/main.go
+POST /api/code-studio/directory
+POST /api/code-studio/upload
+GET /api/code-studio/download?path=/workspace/main.go
+POST /api/code-studio/exec
+GET /api/code-studio/search?q=needle&path=/workspace
+GET /api/code-studio/terminal
+```
+
+Code-Studio-Pfade werden im Container-Workspace sanitisiert und unter `/workspace` gemountet.
+
+---
+
+## Pixel Bildeditor API
+
+Pixel ist der Desktop-Bildeditor. Er kann Canvas-Daten in den Virtual-Desktop-Workspace speichern und optional den konfigurierten Image-Generation-Provider nutzen.
+
+### Fähigkeiten
+```http
+GET /api/pixel/config
+```
+
+Gibt zurück, ob Bildgenerierung aktiv ist, welchen Provider/welches Modell AuraGo nutzt, welche Standardgröße/-qualität/-style gesetzt sind und ob Image-to-Image unterstützt wird.
+
+### Bild generieren
+```http
+POST /api/pixel/generate
+Content-Type: application/json
+
+{
+  "prompt": "A clean product photo of a brass lamp",
+  "size": "1024x1024",
+  "quality": "standard",
+  "style": "natural"
+}
+```
+
+### Bild verbessern
+```http
+POST /api/pixel/enhance
+Content-Type: application/json
+
+{
+  "source_path": "agent_workspace/virtual_desktop/image.png",
+  "prompt": "Improve sharpness and lighting",
+  "strength": 0.7
+}
+```
+
+`source_data` kann statt `source_path` als Base64-Data-URL übergeben werden.
+
+### Canvas speichern
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/edited.png",
+  "data": "data:image/png;base64,...",
+  "format": "png",
+  "quality": 92
+}
+```
+
+Relative Pfade werden unter dem konfigurierten Data-Workspace gespeichert.
 
 ---
 

@@ -102,6 +102,19 @@ agent:
     shell_compression: true
     python_compression: true
     api_compression: true
+    repetitive_substitution:
+      enabled: false
+      lzw_enabled: true
+      ltsc_lite_enabled: false
+      min_phrase_chars: 15
+      min_occurrences: 3
+      min_savings_percent: 15
+      max_input_chars: 50000
+      max_dictionary_entries: 16
+    toon_json:
+      enabled: false
+      min_savings_percent: 10
+      max_rows: 200
 
 # Authentication
 # --------------

@@ -2,9 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** April 26, 2026
+> 📅 **Updated:** May 27, 2026
 > 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Documentation sync with current codebase (chat commands, tools, integrations, config)
+> 📝 **Last Update:** Documentation sync with current codebase (desktop apps, virtual desktop, output compression, APIs)
 
 ---
 
@@ -36,6 +36,8 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **📦 Browser Automation** | Headless Chrome for forms and screenshots |
 | **📝 Obsidian** | Connect to your personal knowledge vault |
 | **🔧 Output Compression** | Token-saving deduplication of tool outputs |
+| **🖥️ Virtual Desktop** | Workspace-backed desktop apps, Code Studio, Pixel, Zipper, and app launch workflows |
+| **🛒 Desktop Software Store** | Managed Docker apps such as Termix, code-server, Dozzle, Beszel, and Node-RED |
 
 ---
 
@@ -172,6 +174,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
 | 2026-04 | Video generation, send_video, LDAP, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
 | 2026-04 | Added YepAPI, Inventory/WOL, Heartbeat, Knowledge Graph Extraction, Browser Automation, Obsidian, Output Compression to Integrations chapter |
+| 2026-05 | Updated Virtual Desktop, Desktop Software Store, Pixel image editor, Code Studio, Task Rules API, and advanced Output Compression documentation |
 | 2026-03 | **Added Chat Command /sudopwd** |
 
 ---

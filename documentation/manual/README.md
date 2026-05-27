@@ -19,5 +19,5 @@ Diese Startseite bündelt alle gepflegten Handbücher und Einstiegslinks.
 - [Sicherheit](de/14-sicherheit.md) / [Security](en/14-security.md)
 
 ## Hinweise
-- Die Manuals wurden erneut gegen den aktuellen Repo-Stand geprüft.
-- Interne Verlinkungen und Übersetzungen wurden nachgeschärft.
+- Die Manuals wurden am 27. Mai 2026 erneut gegen den aktuellen Repo-Stand geprüft.
+- Interne Verlinkungen, Desktop-Dokumentation, API-Referenz und Konfigurationsbeispiele wurden nachgeschärft.
