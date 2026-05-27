@@ -37,8 +37,9 @@
     pointer-events: none;
     z-index: 1;
     background:
-        radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%);
-    box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
+        radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%);
+    box-shadow: inset 0 0 120px rgba(0,0,0,0.5);
+    border-radius: 8px;
 }
 
 .galaxa-crt::before {
@@ -52,17 +53,29 @@
     z-index: 2;
     background: repeating-linear-gradient(
         0deg,
-        rgba(0, 0, 0, 0.2) 0px,
-        rgba(0, 0, 0, 0.2) 1px,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
         transparent 1px,
-        transparent 2px
+        transparent 3px
     );
-    opacity: 0.5;
+    opacity: 0.4;
+    animation: galaxa-crt-flicker 0.05s infinite alternate;
+}
+
+@keyframes galaxa-crt-flicker {
+    from { opacity: 0.38; }
+    to { opacity: 0.42; }
 }
 
 .galaxa-powerup-active .galaxa-canvas {
     box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), 0 0 40px rgba(68, 136, 255, 0.15);
     transition: box-shadow 0.3s ease;
+    animation: galaxa-pu-glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-pu-glow {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.08); }
 }
 
 .galaxa-powerup-rapid .galaxa-canvas {

@@ -51,7 +51,7 @@
 
         const G = {
             st: 'TITLE', score: 0, lives: 3, stage: 1, hi: 10000, hiScores: [],
-            p: { x: W / 2, y: H - 50, alive: true, inv: 0, dual: false, cap: null },
+            p: { x: W / 2, y: H - 50, alive: true, inv: 0, dual: false, cap: null, reviveTimer: 0 },
             bul: [], ebul: [], enemies: [], exp: [], part: [],
             fX: 0, fTmr: 0, dTmr: 0, sTmr: 0, tIdle: 0,
             attract: false, aTmr: 0, ne: { ch: [65, 65, 65], pos: 0, done: false },
@@ -125,7 +125,9 @@
             bomb() { noise(0.5, 0.7, 800); beep('sawtooth', 100, 50, 0.4, 0.5); },
             combo(n) { beep('sine', 440 + n * 110, 440 + n * 110, 0.12, 0.25 + n * 0.05); },
             bossWarning() { beep('sawtooth', 440, 220, 0.5, 0.3); setTimeout(() => beep('sawtooth', 440, 220, 0.5, 0.3), 500); },
-            shieldHit() { beep('triangle', 2000, 4000, 0.05, 0.3); beep('sine', 3000, 1500, 0.08, 0.2); }
+            shieldHit() { beep('triangle', 2000, 4000, 0.05, 0.3); beep('sine', 3000, 1500, 0.08, 0.2); },
+            respawn() { beep('sine', 200, 800, 0.3, 0.25); setTimeout(() => beep('sine', 600, 1200, 0.2, 0.2), 80); },
+            shieldBreak() { noise(0.2, 0.5, 3000); beep('sawtooth', 200, 100, 0.15, 0.4); }
         };
 
         const MusicEngine = {
@@ -158,6 +160,13 @@
                     lead: { wave: 'sine', vol: 0.1, notes: [{ f: 262, d: 1 }, { f: 233, d: 1 }, { f: 207, d: 1 }, { f: 196, d: 1 }, { f: 175, d: 1 }, { f: 156, d: 2 }] },
                     harmony: { wave: 'sine', vol: 0.04, notes: [{ f: 311, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }, { f: 233, d: 1 }, { f: 207, d: 1 }, { f: 0, d: 2 }] },
                     percussion: { vol: 0.03, notes: [{ f: -1, d: 1 }, { f: 0, d: 2 }, { f: -1, d: 1 }, { f: 0, d: 3 }] }
+                },
+                challenge: {
+                    bpm: 170,
+                    bass: { wave: 'sawtooth', vol: 0.06, notes: [{ f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 110, d: 0.5 }, { f: 110, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 98, d: 0.5 }, { f: 98, d: 0.5 }, { f: 131, d: 0.5 }, { f: 131, d: 0.5 }, { f: 147, d: 0.5 }, { f: 147, d: 0.5 }, { f: 165, d: 0.5 }, { f: 165, d: 0.5 }] },
+                    lead: { wave: 'square', vol: 0.05, notes: [{ f: 196, d: 0.5 }, { f: 262, d: 0.5 }, { f: 330, d: 0.5 }, { f: 392, d: 0.5 }, { f: 440, d: 0.5 }, { f: 392, d: 0.5 }, { f: 330, d: 0.5 }, { f: 262, d: 0.5 }, { f: 220, d: 0.5 }, { f: 294, d: 0.5 }, { f: 349, d: 0.5 }, { f: 440, d: 0.5 }, { f: 523, d: 0.5 }, { f: 440, d: 0.5 }, { f: 349, d: 0.5 }, { f: 294, d: 0.5 }] },
+                    harmony: { wave: 'sine', vol: 0.03, notes: [{ f: 196, d: 1 }, { f: 262, d: 1 }, { f: 330, d: 1 }, { f: 392, d: 1 }, { f: 440, d: 1 }, { f: 349, d: 1 }, { f: 294, d: 1 }, { f: 262, d: 1 }] },
+                    percussion: { vol: 0.05, notes: [{ f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }, { f: -3, d: 0.5 }, { f: -2, d: 0.5 }, { f: -1, d: 0.5 }, { f: -2, d: 0.5 }] }
                 }
             },
             play(theme) {
@@ -216,6 +225,7 @@
         for (let i = 0; i < 40; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 10 + Math.random() * 20, br: 0.15 + Math.random() * 0.3, sz: 1, layer: 0 });
         for (let i = 0; i < 30; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 30 + Math.random() * 30, br: 0.3 + Math.random() * 0.4, sz: Math.random() > 0.7 ? 2 : 1, layer: 1 });
         for (let i = 0; i < 20; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 60 + Math.random() * 60, br: 0.5 + Math.random() * 0.5, sz: 2, layer: 2 });
+        for (let i = 0; i < 10; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 100 + Math.random() * 80, br: 0.7 + Math.random() * 0.3, sz: 2, layer: 3, twinkle: Math.random() * 6.28 });
         let nebulaCv = null, nebulaColors = [];
 
         function mkNebula() {
@@ -238,17 +248,85 @@
         function buildSprites() {
             const p = (s) => { const rows = s.trim().split('\n'); return rows.map(r => r.split('').map(ch => parseInt(ch, 16) || 0)); };
             return {
-                player: p('0000000110000000\n0000000110000000\n0000011110000000\n0000012110000000\n0000112111000000\n0000112111000000\n0001112111100000\n0001112111100000\n0011111111110000\n0013111111310000\n0013311113310000\n0113311113311000\n0113331133311000\n0113331133311000\n1113331133311100\n0000000000000000'),
-                pC: { 1: '#ffffff', 2: '#88bbff', 3: '#4488ff' },
-                bee: [p('0000004400000000\n0000044440000000\n0000444544400000\n0000455544400000\n0004445444440000\n0444444444444000\n0464444444464000\n0466444444664000\n0066444444660000\n0000644446000000\n0000040004000000\n0000040004000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000'),
-                    p('0000004400000000\n0000044440000000\n0000444544400000\n0000455544400000\n0004445444440000\n0444444444444000\n0464444444464000\n4466444444664400\n4006644446600400\n0000644446000000\n0000040004000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000')],
-                bC: { 4: '#ffcc00', 5: '#ff8800', 6: '#ff4444' },
-                bf: [p('0000000660000000\n0000006666000000\n0000066766600000\n0000667776660000\n0006667676666000\n0666666666666600\n6666666666666660\n6066666666666060\n0000666666660000\n0000006666000000\n0000006006000000\n0000006006000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000'),
-                    p('0000000660000000\n0000006666000000\n0000066766600000\n0000667776660000\n0006667676666000\n0666666666666600\n6666666666666660\n0600666666660060\n0000066666660000\n0000006666000000\n0000006006000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000')],
+                player: p([
+                    '00000000110000000000', '00000000110000000000', '00000001111000000000', '00000011221100000000',
+                    '00000111221110000000', '00000111221110000000', '00001111221111000000', '00001111221111000000',
+                    '00011111331111100000', '00011111331111100000', '00111111331111110000', '00111311111113110000',
+                    '01113311111113111000', '01113311111113111000', '01133331111133311000', '11133331111133311110',
+                    '11143333113333141110', '11144333311334441110', '11144433331134441110', '00000055000550000000'
+                ].join('\n')),
+                pC: { 1: '#ffffff', 2: '#88ccff', 3: '#4488ff', 4: '#2266cc', 5: '#ff8800' },
+                bee: [
+                    p([
+                        '00000000444000000000', '00000004455400000000', '00000044555440000000', '00000445555444000000',
+                        '00004445654444000000', '00044444664444400000', '00444444444444400000', '06444444444444460000',
+                        '66444444444444660000', '00664444444446600000', '00006444444600000000', '00006444444600000000',
+                        '00000440044000000000', '00000040004000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000444000000000', '00000004455400000000', '00000044555440000000', '00000445555444000000',
+                        '00004445654444000000', '00444444664444400000', '04444444444444440000', '46444444444444460000',
+                        '06644444444446600000', '00064444444600000000', '00006444444600000000', '00000440044000000000',
+                        '00000440044000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000444000000000', '00000004455400000000', '00000044555440000000', '00000445555444000000',
+                        '00004445654444000000', '00044444664444400000', '40444444444444400004', '46604444444446600040',
+                        '00066444444466000000', '00006444444600000000', '00006444444600000000', '00000440044000000000',
+                        '00000440044000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
+                bC: { 4: '#ffcc00', 5: '#ff9900', 6: '#ff4444' },
+                bf: [
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '00666666666666600000', '60666666666666060000',
+                        '66006666666666000060', '00006666666660000000', '00000066660000000000', '00000060060000000000',
+                        '00000060060000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '06666666666666660000', '06006666666660060000',
+                        '00006666666660000000', '00000066660000000000', '00000060060000000000', '00000060060000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n')),
+                    p([
+                        '00000000660000000000', '00000006666000000000', '00000066776600000000', '00000667776600000000',
+                        '00006667676660000000', '00066666666666000000', '60666666666666060000', '00060666666606000000',
+                        '00000666666600000000', '00000066660000000000', '00000060060000000000', '00000060060000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000',
+                        '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                    ].join('\n'))
+                ],
                 bfC: { 6: '#ff3366', 7: '#44bbff' },
-                boss: p('00000008888000000000\n00000088988800000000\n00000889998880000000\n00008899999888000000\n00088898889888800000\n00888888888888880000\n088a8888888888a88000\n088aa88888888aa88000\n0800aa888888aa008000\n000000aa8888aa0000000\n00000000aaaa000000000\n000000000a000a0000000\n000000000a000a0000000\n00000000000000000000\n00000000000000000000\n00000000000000000000'),
-                bossHit: p('0000000bbbb000000000\n000000bbbbbb00000000\n00000bbbbbbbbb0000000\n0000bbbbbbbbbb0000000\n000bbbbbbbbbbbbb00000\n00bbbbbbbbbbbbbbb0000\n0bbbbbbbbbbbbbbbbb000\n0bbbbbbbbbbbbbbbbb000\n0b00bbbbbbbbbbb00b000\n00000bbbbbbbbbb000000\n0000000bbbbbbb0000000\n000000000b000b0000000\n000000000b000b0000000\n00000000000000000000\n00000000000000000000\n00000000000000000000'),
-                bossC: { 8: '#44cc44', 9: '#88ff88', a: '#ff4444', b: '#88ccff' }
+                boss: p([
+                    '00000000088880000000', '00000000889888000000', '00000008899988000000', '00000088999988800000',
+                    '00000888989988880000', '00008888888888888000', '00088a88888888a88000', '00088aa888888aa88000',
+                    '000800aa888888aa8000', '0008000aa8888aa08000', '00080000aaaaa0080000', '00000000aaaa00000000',
+                    '000000000aaaa0000000', '000000000a00a0000000', '000000000a00a0000000', '000000000a00a0000000',
+                    '000000000b00b0000000', '000000000b00b0000000', '000000000b00b0000000', '00000000000000000000'
+                ].join('\n')),
+                bossHit: p([
+                    '000000000bbbb0000000', '0000000bbbbbbb000000', '000000bbbbbbbbb00000', '0000bbbbbbbbbbbbb000',
+                    '0000bbbbbbbbbbbbb000', '000bbbbbbbbbbbbbbbbb', '00bbbbbbbbbbbbbbbbb0', '0bbbbbbbbbbbbbbbbb00',
+                    '0b00bbbbbbbbbbb00b00', '0000bbbbbbbbbbbb0000', '00000bbbbbbbbbb00000', '000000bbbbbbbb000000',
+                    '0000000bbbbbbb000000', '000000000b00b0000000', '000000000b00b0000000', '00000000000000000000',
+                    '00000000000000000000', '00000000000000000000', '00000000000000000000', '00000000000000000000'
+                ].join('\n')),
+                bossC: { 8: '#44cc44', 9: '#88ff88', a: '#ff4444', b: '#88ccff' },
+                pwShield: p([
+                    '00000001111000000000', '00000111111100000000', '00001110001110000000', '00011100000111000000',
+                    '00110000000001100000', '00110000000001100000', '01100000000000110000', '01100000000000110000',
+                    '01100000000000110000', '01100000000000110000', '01100000000000110000', '01100000000000110000',
+                    '00110000000001100000', '00110000000001100000', '00001100000111000000', '00001110001110000000',
+                    '00000111001110000000', '00000011111100000000', '00000001111000000000', '00000000110000000000'
+                ].join('\n')),
+                pwC: { 1: '#4488ff' }
             };
         }
 
@@ -266,18 +344,26 @@
         function drawStars(cv, dt) {
             const warp = G.warpT > 0 ? 10 : 1;
             for (const s of STARS) {
-                const lm = s.layer === 0 ? 0.3 : s.layer === 1 ? 0.6 : 1;
+                const lm = s.layer === 0 ? 0.3 : s.layer === 1 ? 0.6 : s.layer === 2 ? 1 : 1.4;
                 s.y += s.sp * dt * warp * lm;
                 if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-                cv.fillStyle = 'rgba(255,255,255,' + (s.br * (0.6 + 0.4 * Math.sin(tick * 0.02 + s.x))) + ')';
-                cv.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, warp > 1 && s.layer === 2 ? s.sz + 4 : s.sz);
+                let brightness = s.br * (0.6 + 0.4 * Math.sin(tick * 0.02 + s.x));
+                if (s.layer === 3) { s.twinkle += dt * 3; brightness *= 0.5 + 0.5 * Math.sin(s.twinkle); }
+                cv.fillStyle = 'rgba(255,255,255,' + brightness + ')';
+                const stretch = warp > 1 && s.layer >= 2 ? s.sz + 4 : s.sz;
+                cv.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, stretch);
             }
         }
         function drawNebula(cv) {
             if (!nebulaCv) return;
-            cv.globalAlpha = 0.3;
+            const pulse = 0.25 + 0.1 * Math.sin(G.fTmr * 0.3);
+            cv.globalAlpha = pulse * (G.chal ? 1.3 : 1);
             const ny = (G.fTmr * 15) % H;
             cv.drawImage(nebulaCv, 0, ny - H); cv.drawImage(nebulaCv, 0, ny);
+            if (G.chal) {
+                cv.globalAlpha = Math.max(0, 0.08 + 0.05 * Math.sin(G.fTmr * 1.5));
+                cv.fillStyle = '#ff440015'; cv.fillRect(0, 0, W, H);
+            }
             cv.globalAlpha = 1;
         }
 
@@ -300,7 +386,7 @@
                 if (r === 0) { if (col < 3 || col > 6) continue; type = 'boss'; } else if (r <= 2) type = 'butterfly';
                 const fx = W / 2 + (col - FCOLS / 2 + 0.5) * ESP_X, fy = FTOP + r * ESP_Y;
                 const side = idx % 2 === 0 ? -1 : 1;
-                const diveDelay = G.chal ? 99999 : (1000 + Math.random() * 3000 + idx * 50);
+                const diveDelay = G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
                 const bossHP = G.stage >= 5 ? 2 + Math.floor((G.stage - 5) / 4) : 2;
                 G.enemies.push({ type, r, col, x: W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
                     fx, fy, hp: type === 'boss' ? bossHP : 1, maxHp: type === 'boss' ? bossHP : 1, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100, eProg: 0,
@@ -320,11 +406,11 @@
             G.combo = 0; G.comboTimer = 0; G.comboMult = 1; G.comboBanner = null;
             G.trails = []; G.timeScale = 1; G.timeSlowTimer = 0;
             G.bossWarningT = 0; G.bossWarningShown = false;
-            G.p.x = W / 2; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false;
+            G.p.x = W / 2; G.p.alive = true; G.p.inv = 2000; G.p.cap = null; G.p.dual = false; G.p.reviveTimer = 0;
             setPUClass(null);
             G.chal ? SFX.challenge() : SFX.stage();
             MusicEngine.setTempo(1 + G.stage * 0.05);
-            MusicEngine.play('gameplay');
+            MusicEngine.play(G.chal ? 'challenge' : 'gameplay');
         }
 
         let lastFireT = 0;
@@ -356,23 +442,42 @@
         }
 
         function boom(x, y, isBoss) {
-            const dur = isBoss ? 600 : 300;
-            const pCount = isBoss ? 24 : 12;
-            const smokeCount = isBoss ? 8 : 4;
+            const dur = isBoss ? 800 : 400;
+            const pCount = isBoss ? 36 : 14;
+            const sparkCount = isBoss ? 16 : 6;
+            const debrisCount = isBoss ? 10 : 4;
+            const smokeCount = isBoss ? 10 : 5;
             G.exp.push({ x, y, t: 0, dur, seed: Math.random(), isBoss });
+            if (isBoss) G.exp.push({ x, y, t: 0, dur: 600, seed: Math.random(), isBoss: false, shockwave: true });
             for (let i = 0; i < pCount; i++) {
-                const a = (i / pCount) * Math.PI * 2 + Math.random(), sp = 40 + (i * 17 % 120) * (isBoss ? 1.5 : 1);
+                const a = (i / pCount) * Math.PI * 2 + Math.random(), sp = 50 + (i * 17 % 140) * (isBoss ? 1.8 : 1);
                 const cols = ['#ffcc00', '#ff4444', '#ff8800', '#fff', '#ffee88'][i % 5];
-                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (200 + (i * 37 % 200)) * (isBoss ? 1.5 : 1), t: 0, col: cols, size: i % 3 === 0 ? 3 : 2 });
+                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: (250 + (i * 37 % 250)) * (isBoss ? 1.5 : 1), t: 0, col: cols, size: i % 3 === 0 ? 3 : 2 });
+            }
+            for (let i = 0; i < sparkCount; i++) {
+                const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 120;
+                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 100 + Math.random() * 150, t: 0, col: '#ffffff', size: 1, spark: true });
+            }
+            for (let i = 0; i < debrisCount; i++) {
+                const a = Math.random() * Math.PI * 2, sp = 20 + Math.random() * 40;
+                const sz = isBoss ? 3 + Math.random() * 3 : 2 + Math.random() * 2;
+                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, life: 500 + Math.random() * 400, t: 0, col: isBoss ? '#888' : '#666', size: sz, debris: true, rot: Math.random() * 6.28 });
             }
             for (let i = 0; i < smokeCount; i++) {
-                const a = Math.random() * Math.PI * 2, sp = 15 + Math.random() * 25;
-                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 10, life: 400 + Math.random() * 300, t: 0, col: '#555', size: 3, smoke: true });
+                const a = Math.random() * Math.PI * 2, sp = 10 + Math.random() * 20;
+                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 12, life: 500 + Math.random() * 400, t: 0, col: '#555', size: 3 + (isBoss ? 2 : 0), smoke: true });
             }
             if (isBoss) {
-                for (let i = 0; i < 3; i++) {
-                    setTimeout(() => { if (!state.disposed) boom(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 20, false); }, i * 150);
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => { if (!state.disposed) boom(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 30, false); }, i * 120);
                 }
+            }
+        }
+
+        function bulletImpact(x, y, col) {
+            for (let i = 0; i < 4; i++) {
+                const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 50;
+                G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 80 + Math.random() * 60, t: 0, col: col || '#ffff88', size: 1, spark: true });
             }
         }
 
@@ -433,17 +538,23 @@
 
         function killP() {
             if (!G.p.alive) return;
-            if (G.shieldHits > 0) { G.shieldHits--; SFX.shieldHit(); if (G.shieldHits <= 0) { G.activePU = null; G.puTimer = 0; setPUClass(null); } return; }
+            if (G.shieldHits > 0) { G.shieldHits--; if (G.shieldHits <= 0) { G.activePU = null; G.puTimer = 0; setPUClass(null); SFX.shieldBreak(); } else SFX.shieldHit(); return; }
             G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4; G.lives--;
             G.flashT = 50; G.activePU = null; G.shieldHits = 0; G.timeScale = 1; G.timeSlowTimer = 0;
             G.combo = 0; G.comboTimer = 0; G.comboMult = 1; G.comboBanner = null;
             setPUClass(null);
             if (G.lives < 0) { G.st = 'GAME_OVER'; G.sTmr = 3000; G.contTmr = 10; G.contCnt = 9; MusicEngine.play('gameover'); }
-            else setTimeout(() => { if (!state.disposed) { G.p.x = W / 2; G.p.alive = true; G.p.inv = 3000; } }, 1500);
+            else { G.p.reviveTimer = 1500; }
         }
 
         function updateP(dt, now) {
-            if (!G.p.alive) return;
+            if (!G.p.alive) {
+                if (G.p.reviveTimer > 0 && G.st === 'PLAYING') {
+                    G.p.reviveTimer -= dt * 1000;
+                    if (G.p.reviveTimer <= 0) { G.p.x = W / 2; G.p.alive = true; G.p.inv = 3000; G.p.reviveTimer = 0; SFX.respawn(); }
+                }
+                return;
+            }
             const inp = G.inp;
             const spd = G.activePU && G.activePU.type === 'speed' ? PLAYER_SPEED * 1.8 : PLAYER_SPEED;
             if (inp.l) G.p.x -= spd * dt; if (inp.r) G.p.x += spd * dt;
@@ -451,7 +562,7 @@
             if (G.p.inv > 0) G.p.inv -= dt * 1000;
             if (inp.f) fire(now);
             if (G.beam && G.beam.active && G.p.x > G.beam.x - 20 && G.p.x < G.beam.x + 20 && G.p.y > G.beam.y) {
-                G.p.alive = false; G.beam.cap = true; G.beam.capT = 0; SFX.beam();
+                if (G.p.alive) { killP(); G.beam.cap = true; G.beam.capT = 0; SFX.beam(); }
             }
             if (G.activePU && G.activePU.type !== 'shield') {
                 G.puTimer -= dt * 1000;
@@ -472,10 +583,12 @@
             }
             if (G.p.alive) {
                 const eg = 0.5 + Math.sin(tick * 0.15) * 0.3;
-                G.trails.push({ x: G.p.x - 2, y: G.p.y + 8, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
-                G.trails.push({ x: G.p.x, y: G.p.y + 10, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: 'rgba(255,200,80,0.4)', size: 1 });
+                G.trails.push({ x: G.p.x - 4, y: G.p.y + 10, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
+                G.trails.push({ x: G.p.x + 1, y: G.p.y + 10, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
+                G.trails.push({ x: G.p.x - 3, y: G.p.y + 12, vx: (Math.random() - 0.5) * 5, vy: 15 + Math.random() * 10, life: 100, t: 0, col: 'rgba(255,200,80,0.4)', size: 1 });
                 if (G.p.dual) {
-                    G.trails.push({ x: G.p.x + 22, y: G.p.y + 8, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
+                    G.trails.push({ x: G.p.x + 24, y: G.p.y + 10, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
+                    G.trails.push({ x: G.p.x + 29, y: G.p.y + 10, vx: (Math.random() - 0.5) * 10, vy: 20 + Math.random() * 15, life: 150, t: 0, col: 'rgba(255,150,50,' + eg + ')', size: 2 });
                 }
             }
             for (let i = G.powerups.length - 1; i >= 0; i--) {
@@ -555,7 +668,7 @@
                         if (G.p.alive && G.p.inv <= 0) {
                             const ew = e.type === 'boss' ? 16 : 12;
                             if (hit({ x: e.x - ew / 2, y: e.y - 8, w: ew, h: 16 }, { x: G.p.x - 6, y: G.p.y - 6, w: 12, h: 12 })) {
-                                registerKill(); addScore(PTS[e.type][1], e.x, e.y); boom(e.x, e.y, e.type === 'boss'); SFX.eExplode(); e.st = 'DEAD'; killP();
+                                registerKill(); addScore(PTS[e.type][1], e.x, e.y); boom(e.x, e.y, e.type === 'boss'); SFX.eExplode(); if (G.chal) G.chalHits++; e.st = 'DEAD'; killP();
                             }
                         }
                     }
@@ -567,6 +680,7 @@
             if (G.dTmr <= 0 && !G.chal) { const fe = G.enemies.filter(e => e.st === 'FORM'); if (fe.length) startDive(fe[Math.floor(Math.random() * fe.length)]); G.dTmr = Math.max(500, (2000 - G.stage * 100) / diffMod('diveRate')); }
             const alive = G.enemies.filter(e => e.st !== 'DEAD');
             if (alive.length === 0) {
+                if (G.st === 'GAME_OVER') return;
                 if (G.chal && G.chalHits === G.chalTot) { G.perfectT = 2000; addScore(5000, W / 2, H / 2 - 40, '#00ffcc'); SFX.perfect(); }
                 G.warpT = 1500; G.warpFlash = 50; G.stage++; startStage();
             }
@@ -578,7 +692,14 @@
 
         function updateExp(dt) {
             for (let i = G.exp.length - 1; i >= 0; i--) { G.exp[i].t += dt * 1000; if (G.exp[i].t >= G.exp[i].dur) G.exp.splice(i, 1); }
-            for (let i = G.part.length - 1; i >= 0; i--) { const p = G.part[i]; p.x += p.vx * dt; p.y += p.vy * dt; if (p.smoke) p.vy -= 5 * dt; p.t += dt * 1000; if (p.t >= p.life) G.part.splice(i, 1); }
+            for (let i = G.part.length - 1; i >= 0; i--) {
+                const p = G.part[i];
+                p.x += p.vx * dt; p.y += p.vy * dt;
+                if (p.debris) { p.vy += 60 * dt; p.vx *= 0.98; p.rot += dt * 3; }
+                else if (p.smoke) { p.vy -= 8 * dt; p.size += dt * 2; }
+                else if (p.spark) { p.vx *= 0.95; p.vy *= 0.95; }
+                p.t += dt * 1000; if (p.t >= p.life) G.part.splice(i, 1);
+            }
             for (let i = G.trails.length - 1; i >= 0; i--) { const tr = G.trails[i]; tr.x += tr.vx * dt; tr.y += tr.vy * dt; tr.t += dt * 1000; if (tr.t >= tr.life) G.trails.splice(i, 1); }
             for (let i = G.scorePopups.length - 1; i >= 0; i--) { G.scorePopups[i].y -= 40 * dt; G.scorePopups[i].t += dt * 1000; if (G.scorePopups[i].t >= G.scorePopups[i].dur) G.scorePopups.splice(i, 1); }
             if (G.flashT > 0) G.flashT -= dt * 1000;
@@ -587,8 +708,8 @@
             if (G.perfectT > 0) G.perfectT -= dt * 1000;
             if (G.bossWarningT > 0) G.bossWarningT -= dt * 1000;
             if (G.comboBanner) { G.comboBanner.t += dt * 1000; if (G.comboBanner.t >= G.comboBanner.dur) G.comboBanner = null; }
-            if (Math.random() < 0.003) {
-                G.trails.push({ x: Math.random() * W, y: 0, vx: -30 - Math.random() * 50, vy: 100 + Math.random() * 80, life: 400, t: 0, col: '#ffffff', size: 1 });
+            if (Math.random() < 0.008) {
+                G.trails.push({ x: Math.random() * W, y: 0, vx: -30 - Math.random() * 50, vy: 100 + Math.random() * 80, life: 400, t: 0, col: '#ffffff', size: 1, spark: true });
             }
         }
 
@@ -625,8 +746,9 @@
                 if (G.shkT > 0) G.shkT -= dt * 1000;
                 if (G.p.cap) { G.p.cap.y -= 100 * dt; if (G.p.cap.y < G.p.y - 20) { G.p.dual = true; G.p.cap = null; SFX.rescue(); } }
                 const bossAlive = G.enemies.some(e => e.type === 'boss' && e.st !== 'DEAD');
+                const baseTheme = G.chal ? 'challenge' : 'gameplay';
                 if (bossAlive && MusicEngine.playing !== 'boss') MusicEngine.play('boss');
-                else if (!bossAlive && MusicEngine.playing === 'boss') MusicEngine.play('gameplay');
+                else if (!bossAlive && MusicEngine.playing === 'boss') MusicEngine.play(baseTheme);
             }
         }
 
@@ -663,6 +785,16 @@
                 if (G.settingsSel === 1) { settings.diff = l ? (settings.diff === 'hard' ? 'normal' : settings.diff === 'normal' ? 'easy' : 'easy') : (settings.diff === 'easy' ? 'normal' : settings.diff === 'normal' ? 'hard' : 'hard'); saveSettings(); }
                 if (G.settingsSel === 2) { settings.vol = Math.max(0, Math.min(100, settings.vol + (l ? -10 : 10))); G.vol = settings.vol / 100; if (MusicEngine.masterGain) MusicEngine.masterGain.gain.value = G.muted ? 0 : G.vol * 0.35; saveSettings(); }
             }
+        }
+
+        function renderFlame(cv, fx, fy, intensity, tk) {
+            const flicker = Math.sin(tk * 0.3 + fx) * 2;
+            cv.fillStyle = 'rgba(255,100,30,' + intensity + ')';
+            cv.fillRect(Math.floor(fx), Math.floor(fy), 3, 2);
+            cv.fillStyle = 'rgba(255,180,60,' + (intensity * 0.8) + ')';
+            cv.fillRect(Math.floor(fx), Math.floor(fy + 2), 2, 2 + flicker);
+            cv.fillStyle = 'rgba(255,230,100,' + (intensity * 0.4) + ')';
+            cv.fillRect(Math.floor(fx), Math.floor(fy + 4), 1, 1 + flicker);
         }
 
         function renderFrame() {
@@ -728,34 +860,32 @@
 
             if (p.alive) {
                 if (p.inv > 0) {
-                    drawSp(c, SP.player, rainbowPC(), p.x - 8, p.y - 8, false);
-                    if (p.dual) drawSp(c, SP.player, rainbowPC(), p.x + 16, p.y - 8, false);
+                    drawSp(c, SP.player, rainbowPC(), p.x - 10, p.y - 10, false);
+                    if (p.dual) drawSp(c, SP.player, rainbowPC(), p.x + 14, p.y - 10, false);
                 } else {
-                    drawSp(c, SP.player, SP.pC, p.x - 8, p.y - 8, false);
-                    if (p.dual) drawSp(c, SP.player, SP.pC, p.x + 16, p.y - 8, false);
+                    drawSp(c, SP.player, SP.pC, p.x - 10, p.y - 10, false);
+                    if (p.dual) drawSp(c, SP.player, SP.pC, p.x + 14, p.y - 10, false);
                 }
                 if (p.alive) {
                     const eg = 0.5 + Math.sin(tick * 0.15) * 0.3;
-                    c.shadowBlur = 6; c.shadowColor = '#ff8800';
-                    c.fillStyle = 'rgba(255,150,50,' + eg + ')';
-                    c.fillRect(Math.floor(p.x - 2), Math.floor(p.y + 8), 4, 2);
-                    c.fillStyle = 'rgba(255,200,80,' + (eg * 0.6) + ')';
-                    c.fillRect(Math.floor(p.x - 1), Math.floor(p.y + 10), 2, 2);
+                    c.shadowBlur = 8; c.shadowColor = '#ff6600';
+                    renderFlame(c, p.x - 4, p.y + 9, eg, tick);
+                    renderFlame(c, p.x + 1, p.y + 9, eg, tick);
                     if (p.dual) {
-                        c.fillRect(Math.floor(p.x + 22), Math.floor(p.y + 8), 4, 2);
-                        c.fillRect(Math.floor(p.x + 23), Math.floor(p.y + 10), 2, 2);
+                        renderFlame(c, p.x + 24, p.y + 9, eg, tick);
+                        renderFlame(c, p.x + 29, p.y + 9, eg, tick);
                     }
                     c.shadowBlur = 0;
                 }
             }
-            if (p.cap) drawSp(c, SP.player, SP.pC, p.cap.x - 8, p.cap.y - 8, false);
+            if (p.cap) drawSp(c, SP.player, SP.pC, p.cap.x - 10, p.cap.y - 10, false);
             if (G.shieldHits > 0 && p.alive) {
-                c.strokeStyle = '#4488ff'; c.lineWidth = 1; c.globalAlpha = 0.5 + Math.sin(tick * 0.1) * 0.2;
-                c.shadowBlur = 8; c.shadowColor = '#4488ff';
-                c.beginPath(); c.arc(p.x, p.y, 14, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+                c.strokeStyle = '#4488ff'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + Math.sin(tick * 0.1) * 0.2;
+                c.shadowBlur = 10; c.shadowColor = '#4488ff';
+                c.beginPath(); c.arc(p.x, p.y, 16, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
                 for (let i = 0; i < G.shieldHits; i++) {
                     const a = tick * 0.05 + i * 2.1;
-                    c.fillStyle = '#4488ff'; c.fillRect(Math.floor(p.x + Math.cos(a) * 14 - 1), Math.floor(p.y + Math.sin(a) * 14 - 1), 3, 3);
+                    c.fillStyle = '#4488ff'; c.fillRect(Math.floor(p.x + Math.cos(a) * 16 - 1), Math.floor(p.y + Math.sin(a) * 16 - 1), 3, 3);
                 }
             }
 
@@ -787,14 +917,13 @@
                     c.globalAlpha = 0.15;
                     let sp, cols;
                     if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else { sp = e.hp < 2 ? SP.bossHit : SP.boss; cols = SP.bossC; }
-                    const ew = e.type === 'boss' ? 20 : 16;
-                    drawSp(c, sp, cols, e.x - ew / 2 - e.y * 0.02 * ew, e.y - 8 - 4, false);
-                    drawSp(c, sp, cols, e.x - ew / 2 + e.y * 0.01 * ew, e.y - 8 - 2, false);
+                    drawSp(c, sp, cols, e.x - 10 - e.y * 0.015 * 10, e.y - 14, false);
+                    drawSp(c, sp, cols, e.x - 10 + e.y * 0.008 * 10, e.y - 12, false);
                     c.globalAlpha = 1;
                 }
                 const fl = e.hitF > 0; let sp, cols;
                 if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else { sp = e.hp < 2 ? SP.bossHit : SP.boss; cols = SP.bossC; }
-                const ew = e.type === 'boss' ? 20 : 16; drawSp(c, sp, cols, e.x - ew / 2, e.y - 8, fl);
+                drawSp(c, sp, cols, e.x - 10, e.y - 10, fl);
             }
 
             for (const pu of G.powerups) {
@@ -830,20 +959,42 @@
             if (G.beam && G.beam.active) renderBeam(G.beam);
 
             for (const ex of G.exp) {
-                const pr = ex.t / ex.dur, sz = ex.isBoss ? 8 + Math.floor(pr * 12) : 4 + Math.floor(pr * 4) * 3;
-                c.globalAlpha = 1 - pr;
-                c.shadowBlur = ex.isBoss ? 10 : 6; c.shadowColor = '#ff8800';
-                for (let i = 0; i < sz; i++) {
-                    const a = (i / sz) * Math.PI * 2 + ex.seed, d = (ex.isBoss ? 6 : 3) * (1 + pr * 2);
-                    const ci = Math.floor(pr * 3); c.fillStyle = ['#ffcc00', '#ff8800', '#ff4444'][ci < 3 ? ci : 2];
-                    c.fillRect(Math.floor(ex.x + Math.cos(a) * d), Math.floor(ex.y + Math.sin(a) * d), ex.isBoss ? 3 : 2, ex.isBoss ? 3 : 2);
+                const pr = ex.t / ex.dur;
+                if (ex.shockwave) {
+                    c.globalAlpha = Math.max(0, 1 - pr) * 0.5;
+                    c.strokeStyle = '#ffcc00'; c.lineWidth = Math.max(1, 3 - pr * 3);
+                    c.shadowBlur = 8; c.shadowColor = '#ff8800';
+                    c.beginPath(); c.arc(ex.x, ex.y, pr * 50, 0, Math.PI * 2); c.stroke();
+                    c.shadowBlur = 0; c.globalAlpha = 1;
+                } else {
+                    const sz = ex.isBoss ? 10 + Math.floor(pr * 14) : 4 + Math.floor(pr * 4) * 3;
+                    c.globalAlpha = Math.max(0, 1 - pr);
+                    c.shadowBlur = ex.isBoss ? 12 : 6; c.shadowColor = '#ff8800';
+                    for (let i = 0; i < sz; i++) {
+                        const a = (i / sz) * Math.PI * 2 + ex.seed, d = (ex.isBoss ? 8 : 3) * (1 + pr * 2.5);
+                        const ci = Math.floor(pr * 3); c.fillStyle = ['#ffcc00', '#ff8800', '#ff4444'][ci < 3 ? ci : 2];
+                        c.fillRect(Math.floor(ex.x + Math.cos(a) * d), Math.floor(ex.y + Math.sin(a) * d), ex.isBoss ? 3 : 2, ex.isBoss ? 3 : 2);
+                    }
+                    c.shadowBlur = 0; c.globalAlpha = 1;
                 }
-                c.shadowBlur = 0; c.globalAlpha = 1;
             }
             for (const pt of G.part) {
-                c.globalAlpha = Math.max(0, 1 - pt.t / pt.life);
-                if (pt.smoke) { c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 3, pt.size || 3); }
-                else { c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2); }
+                const alpha = Math.max(0, 1 - pt.t / pt.life);
+                c.globalAlpha = alpha;
+                if (pt.spark) {
+                    c.shadowBlur = 4; c.shadowColor = pt.col;
+                    c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), 1, 1);
+                    c.shadowBlur = 0;
+                } else if (pt.debris) {
+                    c.save(); c.translate(pt.x, pt.y); c.rotate(pt.rot);
+                    c.fillStyle = pt.col; c.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
+                    c.restore();
+                } else if (pt.smoke) {
+                    c.globalAlpha = alpha * 0.4; c.fillStyle = pt.col;
+                    c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 3, pt.size || 3);
+                } else {
+                    c.fillStyle = pt.col; c.fillRect(Math.floor(pt.x), Math.floor(pt.y), pt.size || 2, pt.size || 2);
+                }
             } c.globalAlpha = 1;
             for (const sp of G.scorePopups) { c.globalAlpha = Math.max(0, 1 - sp.t / sp.dur); c.fillStyle = sp.col; c.font = 'bold 10px "Courier New",monospace'; c.textAlign = 'center'; c.fillText(sp.text, sp.x, sp.y); } c.globalAlpha = 1;
 
@@ -869,12 +1020,19 @@
 
             const boss = G.enemies.find(e => e.type === 'boss' && e.st !== 'DEAD');
             if (boss) {
-                const barW = 200, barH = 6, barX = W / 2 - barW / 2, barY = 40;
+                const barW = 220, barH = 8, barX = W / 2 - barW / 2, barY = 40;
+                c.fillStyle = '#222'; c.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
                 c.fillStyle = '#333'; c.fillRect(barX, barY, barW, barH);
-                c.shadowBlur = 6; c.shadowColor = '#ff4444';
-                c.fillStyle = '#ff4444'; c.fillRect(barX, barY, barW * (boss.hp / boss.maxHp), barH);
+                const hpRatio = boss.hp / boss.maxHp;
+                const grad = c.createLinearGradient(barX, barY, barX + barW * hpRatio, barY);
+                grad.addColorStop(0, hpRatio > 0.5 ? '#ff4444' : '#ff2222'); grad.addColorStop(1, hpRatio > 0.5 ? '#ff8844' : '#ff4444');
+                c.shadowBlur = 8; c.shadowColor = hpRatio > 0.3 ? '#ff4444' : '#ff0000';
+                c.fillStyle = grad; c.fillRect(barX, barY, barW * hpRatio, barH);
+                if (hpRatio <= 0.3 && Math.sin(tick * 0.15) > 0) {
+                    c.strokeStyle = '#ff0000'; c.lineWidth = 1; c.strokeRect(barX - 2, barY - 2, barW + 4, barH + 4);
+                }
                 c.shadowBlur = 0;
-                c.fillStyle = '#fff'; c.font = '10px "Courier New",monospace'; c.textAlign = 'center';
+                c.fillStyle = '#fff'; c.font = 'bold 11px "Courier New",monospace'; c.textAlign = 'center';
                 c.fillText('BOSS', W / 2, barY - 4);
             }
 
@@ -909,11 +1067,19 @@
             c.fillStyle = '#4488ff'; c.textAlign = 'right'; c.fillText(t('galaxa.high_score', 'HIGH SCORE'), W - 10, 16);
             c.fillStyle = '#ffcc00'; c.fillText(String(G.hi).padStart(8, '0'), W - 10, 32);
             c.fillStyle = '#4488ff'; c.textAlign = 'center'; c.fillText(t('galaxa.stage', 'STAGE') + ' ' + G.stage, W / 2, 16);
-            for (let i = 0; i < Math.min(G.lives, 5); i++) drawSp(c, SP.player, SP.pC, 10 + i * 18, H - 18, false);
+            if (G.chal) {
+                const remaining = G.enemies.filter(e => e.st !== 'DEAD').length;
+                c.fillStyle = '#ff8800'; c.font = 'bold 10px "Courier New",monospace';
+                c.fillText(t('galaxa.challenge_stage', 'CHALLENGE') + ' ' + remaining + '/' + G.chalTot, W / 2, 28);
+            }
+            for (let i = 0; i < Math.min(G.lives, 5); i++) drawSp(c, SP.player, SP.pC, 10 + i * 22, H - 22, false);
             if (G.activePU) {
                 const puIconX = W - 20, puIconY = H - 20;
-                c.fillStyle = PU_COL[G.activePU.type]; c.font = '8px monospace'; c.textAlign = 'right';
-                c.fillText(G.activePU.type.toUpperCase().substring(0, 4), puIconX, puIconY);
+                const expiring = G.activePU.type !== 'shield' && PU_DUR[G.activePU.type] && G.puTimer < 2000;
+                if (!expiring || Math.sin(tick * 0.2) > 0) {
+                    c.fillStyle = PU_COL[G.activePU.type]; c.font = 'bold 9px monospace'; c.textAlign = 'right';
+                    c.fillText(G.activePU.type.toUpperCase().substring(0, 4), puIconX, puIconY);
+                }
             }
         }
 
