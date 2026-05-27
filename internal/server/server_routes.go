@@ -502,6 +502,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))
 	registerCodeStudioRoutes(mux, s)
 
+	// Pixel image editor endpoints
+	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))
+	mux.HandleFunc("/api/pixel/generate", handlePixelGenerate(s))
+	mux.HandleFunc("/api/pixel/enhance", handlePixelEnhance(s))
+	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
+
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──

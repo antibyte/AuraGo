@@ -509,9 +509,9 @@ func TestSaveImageData(t *testing.T) {
 	dataDir := t.TempDir()
 	imgData := []byte("fake image data")
 
-	fullPath, err := saveImageData(imgData, "png", dataDir)
+	fullPath, err := SaveImageData(imgData, "png", dataDir)
 	if err != nil {
-		t.Fatalf("saveImageData failed: %v", err)
+		t.Fatalf("SaveImageData failed: %v", err)
 	}
 	if fullPath == "" {
 		t.Fatal("expected non-empty path")
@@ -532,7 +532,7 @@ func TestSaveImageData(t *testing.T) {
 
 func TestSaveImageData_CustomFormat(t *testing.T) {
 	dataDir := t.TempDir()
-	fullPath, err := saveImageData([]byte("test"), "jpeg", dataDir)
+	fullPath, err := SaveImageData([]byte("test"), "jpeg", dataDir)
 	if err != nil {
 		t.Fatal(err)
 	}

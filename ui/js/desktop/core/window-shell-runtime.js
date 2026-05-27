@@ -735,7 +735,8 @@
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
             viewer: { width: 900, height: 700 },
-            'viewer-3d': { width: 900, height: 700 }
+            'viewer-3d': { width: 900, height: 700 },
+            pixel: { width: 1100, height: 750 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
@@ -744,7 +745,7 @@
     function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 

@@ -106,6 +106,11 @@
         return ['stl'].includes(ext);
     }
 
+    function isPixelImageFile(file) {
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'].includes(ext);
+    }
+
     function entryLooksPlayableMedia(entry) {
         const kind = String((entry && entry.media_kind) || '').toLowerCase();
         const mimeType = String((entry && entry.mime_type) || '').toLowerCase();
@@ -127,6 +132,7 @@
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
+        if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
         if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
         if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
         openEditorFile(entry.path);

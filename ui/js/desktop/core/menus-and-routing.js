@@ -1022,6 +1022,19 @@
                 loadBootstrap
             }));
         }
+        if (appId === 'pixel' && window.PixelApp && typeof window.PixelApp.render === 'function') {
+            return window.PixelApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                esc, api, t, iconMarkup,
+                notify: showDesktopNotification,
+                readonly: desktopReadonly(),
+                loadBootstrap,
+                setWindowMenus,
+                clearWindowMenus,
+                wireContextMenuBoundary,
+                promptDialog,
+                openApp
+            }));
+        }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }
@@ -1053,6 +1066,7 @@
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
+                    if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
                     if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
                     if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
                     openEditorFile(entry.path);

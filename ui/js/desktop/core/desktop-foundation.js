@@ -123,7 +123,8 @@
         launchpad: 'launchpad',
         'software-store': 'package',
         looper: 'looper',
-        'system-info': 'monitor'
+        'system-info': 'monitor',
+        pixel: 'image'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -270,7 +271,8 @@
             'code-studio': 'CS',
             launchpad: 'LP',
             'software-store': 'SS',
-            looper: 'Lp'
+            looper: 'Lp',
+            pixel: 'Px'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -444,7 +446,8 @@
             'code-studio': 'CodeStudioApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
-            zipper: 'ZipperApp'
+            zipper: 'ZipperApp',
+            pixel: 'PixelApp'
         }[appId] || '';
     }
 

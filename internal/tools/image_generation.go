@@ -307,7 +307,7 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 		return nil, err
 	}
 
-	fullPath, err := saveImageData(imgData, format, cfg.DataDir)
+	fullPath, err := SaveImageData(imgData, format, cfg.DataDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save generated image: %w", err)
 	}
@@ -334,8 +334,8 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 	}, nil
 }
 
-// saveImageData writes raw image bytes to data/generated_images/ with a unique filename.
-func saveImageData(data []byte, format string, dataDir string) (string, error) {
+// SaveImageData writes raw image bytes to data/generated_images/ with a unique filename.
+func SaveImageData(data []byte, format string, dataDir string) (string, error) {
 	dir := filepath.Join(dataDir, "generated_images")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create generated_images directory: %w", err)
