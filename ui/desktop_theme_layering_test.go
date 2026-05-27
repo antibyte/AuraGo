@@ -68,7 +68,7 @@ func TestDesktopStandardThemeStaysDarkAndWriterSurfaceStaysWhite(t *testing.T) {
 
 	for _, marker := range []string{
 		"--vd-bg: #11151c;",
-		"--vd-surface: rgba(23, 28, 37, 0.88);",
+		"--vd-surface: rgba(18, 24, 36, 0.92);",
 		"--vd-text: #f6f7fb;",
 		"--vd-control-bg: rgba(255, 255, 255, 0.08);",
 		"--vd-control-hover: rgba(255, 255, 255, 0.12);",

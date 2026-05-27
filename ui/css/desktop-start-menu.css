@@ -54,10 +54,10 @@
     width: min(360px, calc(100vw - 36px));
     max-height: min(520px, calc(100vh - 120px));
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--vd-surface-strong);
-    box-shadow: var(--vd-shadow);
-    backdrop-filter: blur(24px);
+    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
+    backdrop-filter: blur(28px);
     z-index: var(--vd-z-menu);
     overflow: hidden;
 }

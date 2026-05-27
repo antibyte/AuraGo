@@ -18,11 +18,11 @@
 }
 
 .vd-taskbar {
-    background: rgba(10, 14, 20, 0.45);
+    background: rgba(10, 14, 20, 0.55);
     backdrop-filter: blur(36px) saturate(150%);
     -webkit-backdrop-filter: blur(36px) saturate(150%);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -8px 30px rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 -4px 24px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: visible;
 }
@@ -183,7 +183,8 @@
 .vd-agent-button:active,
 .vd-tool-button:active,
 .vd-chat-send:active {
-    transform: scale(0.96);
+    transform: scale(0.94);
+    filter: brightness(0.9);
 }
 
 .vd-window-button:hover,
@@ -192,7 +193,7 @@
 .vd-agent-button:hover,
 .vd-tool-button:hover,
 .vd-chat-send:hover {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.10);
 }
 
 .vd-start-button,
@@ -258,7 +259,7 @@
     gap: 8px;
     border-radius: 8px;
     border: 1px solid var(--vd-border);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--vd-text);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -279,6 +280,7 @@
 
 .vd-task-button.active {
     border-color: rgba(39, 199, 166, 0.5);
+    background: rgba(39, 199, 166, 0.1);
 }
 
 .vd-agent-dot {

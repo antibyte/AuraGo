@@ -42,11 +42,11 @@
     min-height: 280px;
     display: grid;
     grid-template-rows: 46px 1fr;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--vd-border);
     background: var(--vd-surface);
-    box-shadow: var(--vd-shadow);
-    backdrop-filter: blur(26px);
+    box-shadow: var(--vd-shadow), var(--vd-inner-glow);
+    backdrop-filter: blur(30px);
     overflow: visible;
     pointer-events: auto;
     transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
@@ -72,7 +72,8 @@
 }
 
 .vd-window.active {
-    border-color: rgba(39, 199, 166, 0.46);
+    border-color: rgba(39, 199, 166, 0.32);
+    box-shadow: var(--vd-shadow), var(--vd-inner-glow), 0 0 24px var(--vd-accent-glow);
 }
 
 .vd-window.vd-window-file-drop-target {
@@ -105,8 +106,8 @@
     justify-content: space-between;
     gap: 10px;
     padding: 0 12px;
-    background: rgba(10, 14, 20, 0.58);
-    border-bottom: 1px solid var(--vd-border);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -145,7 +146,7 @@
 }
 
 .vd-window-title {
-    font-weight: 800;
+    font-weight: 750;
     font-size: 0.88rem;
     min-width: 0;
     overflow: hidden;
@@ -177,6 +178,7 @@
     height: 28px;
     display: inline-grid;
     place-items: center;
+    border-radius: 7px;
 }
 
 .vd-window-button::before {
@@ -203,6 +205,11 @@
     background: linear-gradient(45deg, transparent 44%, currentColor 44%, currentColor 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, currentColor 44%, currentColor 56%, transparent 56%);
 }
 
+.vd-window-button[data-action="close"]:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
 .vd-window-button[data-action="ai-context"]::before {
     display: none;
 }
@@ -226,7 +233,7 @@
     min-width: 0;
     min-height: 28px;
     padding: 0 2px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
     cursor: default;
     touch-action: manipulation;
     user-select: none;

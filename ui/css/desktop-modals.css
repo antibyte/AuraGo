@@ -39,7 +39,7 @@
     padding: 7px;
     border: 1px solid var(--vd-border);
     border-radius: 10px;
-    background: rgba(13, 18, 26, 0.96);
+    background: rgba(14, 18, 28, 0.94);
     box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(24px);
     z-index: var(--vd-z-context-menu);
@@ -64,7 +64,7 @@
 }
 
 .vd-context-item:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(39, 199, 166, 0.12);
 }
 
 .vd-context-submenu {
@@ -80,7 +80,7 @@
     padding: 7px;
     border: 1px solid var(--vd-border);
     border-radius: 10px;
-    background: rgba(13, 18, 26, 0.96);
+    background: rgba(14, 18, 28, 0.94);
     box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(24px);
 }
@@ -128,7 +128,7 @@
     width: min(420px, calc(100vw - 32px));
     padding: 18px;
     border: 1px solid var(--vd-border);
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--vd-surface-strong);
     box-shadow: var(--vd-shadow);
 }
@@ -150,8 +150,8 @@
     margin: 8px 0 14px;
     padding: 0 11px;
     border: 1px solid var(--vd-border);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.24);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.18);
     color: var(--vd-text);
     font: inherit;
 }
