@@ -16,7 +16,7 @@
   "config.vercel.project_config_title": "サイト設定",
   "config.vercel.projects": "サイト",
   "config.vercel.readonly": "読み取り専用モード（変更なし）",
-  "config.vercel.save_token": "Vaultに保存",
+  "config.vercel.save_token": "Vault に保存",
   "config.vercel.saving": "保存中...",
   "config.vercel.status_connected": "Vercel 接続済み",
   "config.vercel.status_error": "接続エラー",

@@ -9,7 +9,7 @@
   "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "APIキー（Vault）",
   "config.jellyfin.apikey_placeholder": "APIキーを入力…",
-  "config.jellyfin.save_vault": "Vaultに保存",
+  "config.jellyfin.save_vault": "Vault に保存",
   "config.jellyfin.test_btn": "接続テスト",
   "config.jellyfin.checking": "接続を確認中…",
   "config.jellyfin.status_disabled": "Jellyfin統合は無効です",

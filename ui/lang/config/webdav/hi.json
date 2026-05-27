@@ -56,7 +56,7 @@
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.auth_type_basic": "Basic Auth",
-  "config.webdav.auth_type_bearer": "Bearer Token",
+  "config.webdav.auth_type_bearer": "Bearer टोकन",
   "config.webdav.auth_type_label": "प्रमाणीकरण प्रकार",
   "config.webdav.enabled_label": "सक्रिय",
   "config.webdav.password_label": "पासवर्ड / ऐप पासवर्ड (Vault)",

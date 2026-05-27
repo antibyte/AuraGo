@@ -14,7 +14,7 @@
   "config.ldap.port_label": "ポート",
   "config.ldap.readonly_label": "読み取り専用モード",
   "config.ldap.save_icon": "💾",
-  "config.ldap.save_vault": "Vaultに保存",
+  "config.ldap.save_vault": "Vault に保存",
   "config.ldap.status_error": "❌",
   "config.ldap.status_success": "✅",
   "config.ldap.test_btn": "接続テスト",

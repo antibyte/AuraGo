@@ -32,7 +32,7 @@
   "config.homepage.optional": "任意",
   "config.homepage.permissions_desc": "エージェントが実行できるホームページ操作を制御します。",
   "config.homepage.permissions_title": "権限",
-  "config.homepage.save_credentials": "Vaultに保存",
+  "config.homepage.save_credentials": "Vault に保存",
   "config.homepage.saving": "保存中...",
   "config.homepage.status_active": "ホームページツール稼働中",
   "config.homepage.status_inactive": "ホームページツール — コンテナ未起動",

@@ -108,7 +108,7 @@
   "config.yepapi.seo_hint": "Ricerca parole chiave, panoramica dominio, analisi competitor, backlink e audit on-page.",
   "config.yepapi.serp_label": "Ricerca SERP",
   "config.yepapi.serp_hint": "Risultati dei motori di ricerca da Google, Bing, Yahoo, Baidu e altri.",
-  "config.yepapi.scraping_label": "Web Scraping",
+  "config.yepapi.scraping_label": "Web scraping",
   "config.yepapi.scraping_hint": "Scraping standard, rendering JavaScript, modalità stealth, screenshot ed estrazione IA.",
   "config.yepapi.youtube_label": "Dati YouTube",
   "config.yepapi.youtube_hint": "Cerca video, ottieni dettagli, trascrizioni, commenti, canali, playlist e trending.",

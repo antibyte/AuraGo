@@ -46,7 +46,7 @@
   "config.remote_control.connection_mode_hint": "控制个性化远程代理下载中嵌入的 Supervisor WebSocket URL。",
   "config.remote_control.tailscale_address_label": "Tailscale 地址",
   "config.remote_control.tailscale_address_hint": "远程客户端可访问的 MagicDNS 名称或 Tailscale IP，例如 aurago.tailnet.ts.net 或 100.x.y.z:8090。",
-  "config.remote_control.supervisor_url_label": "Supervisor WebSocket URL",
+  "config.remote_control.supervisor_url_label": "Supervisor WebSocket 的 URL",
   "config.remote_control.supervisor_url_hint": "远程代理使用的完整 ws:// 或 wss:// URL，例如 wss://aurago.example.com/api/remote/ws。",
   "config.remote_control.download_desc": "下载预配置了此AuraGo实例注册令牌的个性化代理二进制文件。选择目标设备的平台。",
   "config.remote_control.download_name_label": "设备名称（可选）",

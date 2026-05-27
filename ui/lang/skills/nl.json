@@ -113,7 +113,7 @@
   "skills.placeholder_category": "automatisering",
   "skills.placeholder_dependencies": "requests, pyyaml",
   "skills.placeholder_description": "Wat doet deze skill?",
-  "skills.placeholder_prompt": "Create a skill that fetches JSON from an API and returns a filtered summary.",
+  "skills.placeholder_prompt": "Maak een vaardigheid die JSON ophaalt uit een API en een gefilterde samenvatting retourneert.",
   "skills.placeholder_skill_name": "mijn_skill",
   "skills.placeholder_skill_name_short": "api_summary",
   "skills.placeholder_tags": "api, automation",

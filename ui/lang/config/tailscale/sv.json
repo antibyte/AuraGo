@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Okänd status",
   "config.server.cert_status_error": "Laddningsfel",
   "config.server.cert_status_loading": "Laddar…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktygsbrygga",
   "config.tailscale.api_desc": "Anslut till Tailscale API för enhets- och nätverkshantering.",
   "config.tailscale.api_key_hint": "Din Tailscale API nyckel (tskey-api-…). Förvaras säkert i Secrets Vault.",
   "config.tailscale.api_key_label": "Svansvåg API Nyckel",

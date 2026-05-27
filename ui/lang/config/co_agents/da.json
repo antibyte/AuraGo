@@ -83,7 +83,7 @@
   "config.security_proxy.status_unknown": "Ukendt status",
   "config.server.cert_status_error": "Indlæsningsfejl",
   "config.server.cert_status_loading": "Indlæser…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-værktøjsbro",
   "config.tailscale.key_empty": "Nøglen er tom",
   "config.tailscale.key_save_failed": "Gemning mislykkedes",
   "config.tailscale.key_saved": "Nøgle gemt",

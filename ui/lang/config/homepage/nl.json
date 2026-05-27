@@ -49,7 +49,7 @@
   "config.homepage.webserver_internal_only": "Alleen intern toegankelijk (127.0.0.1)",
   "config.homepage.webserver_port": "Poort",
   "config.homepage.webserver_title": "Lokale webserver",
-  "config.homepage.workspace_autodetect_btn": "Auto-detect",
+  "config.homepage.workspace_autodetect_btn": "Automatisch detecteren",
   "config.homepage.workspace_autodetect_failed": "Automatische detectie mislukt — voer het pad handmatig in.",
   "config.homepage.workspace_autodetect_loading": "Detecteren…",
   "config.homepage.workspace_autodetect_success": "Werkruimtepad succesvol gedetecteerd.",

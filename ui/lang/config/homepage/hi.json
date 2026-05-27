@@ -32,7 +32,7 @@
   "config.homepage.optional": "वैकल्पिक",
   "config.homepage.permissions_desc": "नियंत्रित करें कि एजेंट को कौन सी होमपेज कार्रवाइयाँ करने की अनुमति है।",
   "config.homepage.permissions_title": "अनुमतियाँ",
-  "config.homepage.save_credentials": "तिजोरी में सहेजें",
+  "config.homepage.save_credentials": "Vault में सहेजें",
   "config.homepage.saving": "सहेज रहे हैं...",
   "config.homepage.status_active": "होमपेज टूल सक्रिय",
   "config.homepage.status_inactive": "होमपेज टूल — कंटेनर नहीं चल रहे",

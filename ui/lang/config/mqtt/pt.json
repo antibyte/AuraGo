@@ -4,7 +4,7 @@
   "config.fritzbox.test_ok": "Conexão bem-sucedida",
   "config.indexing.running": "Executando",
   "config.indexing.stopped": "Parado",
-  "config.mqtt.broker_label": "Broker URL",
+  "config.mqtt.broker_label": "URL do broker",
   "config.mqtt.buffer_max_messages_label": "Número máximo de mensagens",
   "config.mqtt.buffer_title": "Buffer de mensagens",
   "config.mqtt.ca_file_label": "Ficheiro de certificado CA",

@@ -37,7 +37,7 @@
   "config.shell_sandbox.disabled_desc": "Aktivera för att begränsa exekvering av skalkommandon med Landlock-filsystemisolering och resursbegränsningar.",
   "config.shell_sandbox.max_memory": "Max. minne (MB)",
   "config.shell_sandbox.max_cpu": "Max CPU tid (sekunder)",
-  "config.shell_sandbox.max_procs": "Max Processes",
+  "config.shell_sandbox.max_procs": "Max processer",
   "config.shell_sandbox.max_fsize": "Max. filstorlek (MB)",
   "config.shell_sandbox.system_caps": "Systemfunktioner",
   "config.shell_sandbox.in_docker": "Docker upptäckt",

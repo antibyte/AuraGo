@@ -83,7 +83,7 @@
   "config.security_proxy.status_unknown": "Ukjent status",
   "config.server.cert_status_error": "Lastingsfeil",
   "config.server.cert_status_loading": "Laster…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktøybro",
   "config.tailscale.key_empty": "Nøkkelen er tom",
   "config.tailscale.key_save_failed": "Lagring mislyktes",
   "config.tailscale.key_saved": "Nøkkel lagret",

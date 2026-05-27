@@ -30,7 +30,7 @@
   "config.cloudflare_tunnel.error_prefix": "Fel",
   "config.cloudflare_tunnel.restarting": "Startar om tunnel...",
   "config.cloudflare_tunnel.restart_success": "Tunnel startades om framgångsrikt",
-  "config.cloudflare_tunnel.mode_auto": "Auto (Docker → Native)",
+  "config.cloudflare_tunnel.mode_auto": "Automatiskt (Docker → native)",
   "config.cloudflare_tunnel.mode_docker": "Docker",
   "config.cloudflare_tunnel.mode_native": "Inbyggd binär",
   "config.cloudflare_tunnel.auth_connector_token": "Anslutningstoken",

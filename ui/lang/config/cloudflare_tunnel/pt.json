@@ -5,7 +5,7 @@
   "config.cloudflare_tunnel.mode": "Modo de execução",
   "config.cloudflare_tunnel.auth_method": "Método de autenticação",
   "config.cloudflare_tunnel.tunnel_name": "Nome do túnel",
-  "config.cloudflare_tunnel.account_id": "Account ID",
+  "config.cloudflare_tunnel.account_id": "ID da conta",
   "config.cloudflare_tunnel.metrics_port": "Porta de métricas",
   "config.cloudflare_tunnel.log_level": "Nível de log",
   "config.cloudflare_tunnel.exposure_heading": "Exposição de serviços",

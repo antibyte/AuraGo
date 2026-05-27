@@ -22,7 +22,7 @@
   "config.fritzbox.polling_interval": "अंतराल:",
   "config.fritzbox.polling_seconds": "सेकंड",
   "config.fritzbox.port_label": "TR-064 पोर्ट",
-  "config.fritzbox.save_vault": "वॉल्ट में सहेजें",
+  "config.fritzbox.save_vault": "Vault में सहेजें",
   "config.fritzbox.status_disabled": "Fritz!Box एकीकरण अक्षम है",
   "config.fritzbox.status_error": "कनेक्शन विफल",
   "config.fritzbox.status_not_configured": "कोई होस्ट कॉन्फ़िगर नहीं",

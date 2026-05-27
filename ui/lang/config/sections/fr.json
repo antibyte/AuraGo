@@ -113,7 +113,7 @@
   "config.section.cloudflare_tunnel.desc": "Exposer les services locaux via Cloudflare Tunnel",
   "config.section.cloudflare_tunnel.label": "Tunnels Cloudflare",
   "config.section.co_agents.desc": "Sous-agents parallèles",
-  "config.section.co_agents.label": "Co-Agents",
+  "config.section.co_agents.label": "Co-agents",
   "config.section.daemon_skills.desc": "Processus daemon en arrière-plan pour les tâches de skills de longue durée",
   "config.section.daemon_skills.label": "Skills Daemon",
   "config.section.danger_zone.desc": "Activer/désactiver les capacités agent en mode god-mode",

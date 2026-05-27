@@ -46,7 +46,7 @@
   "config.remote_control.connection_mode_hint": "個人化されたリモートエージェントのダウンロードに埋め込むSupervisor WebSocket URLを制御します。",
   "config.remote_control.tailscale_address_label": "Tailscaleアドレス",
   "config.remote_control.tailscale_address_hint": "リモートクライアントが到達できるMagicDNS名またはTailscale IP。例: aurago.tailnet.ts.net または 100.x.y.z:8090。",
-  "config.remote_control.supervisor_url_label": "Supervisor WebSocket URL",
+  "config.remote_control.supervisor_url_label": "Supervisor WebSocket の URL",
   "config.remote_control.supervisor_url_hint": "リモートエージェント用の完全なws://またはwss:// URL。例: wss://aurago.example.com/api/remote/ws。",
   "config.remote_control.download_desc": "このAuraGoインスタンスの登録トークンであらかじめ設定された個人化されたエージェントバイナリをダウンロードします。ターゲットデバイスのプラットフォームを選択してください。",
   "config.remote_control.download_name_label": "デバイス名（任意）",

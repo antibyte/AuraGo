@@ -1,6 +1,6 @@
 {
   "config.agentmail.api_key_empty": "Εισαγάγετε πρώτα ένα API key.",
-  "config.agentmail.api_key_label": "API key (Vault)",
+  "config.agentmail.api_key_label": "Κλειδί API (Vault)",
   "config.agentmail.api_key_placeholder": "Εισαγάγετε AgentMail API key…",
   "config.agentmail.api_key_save_failed": "Αποτυχία αποθήκευσης API key στο Vault.",
   "config.agentmail.api_key_saved": "Το AgentMail API key αποθηκεύτηκε στο Vault.",
@@ -18,7 +18,7 @@
   "config.agentmail.mode_readonly": "Μόνο ανάγνωση",
   "config.agentmail.no": "Όχι",
   "config.agentmail.poll_interval_label": "Διάστημα polling (δευτερόλεπτα)",
-  "config.agentmail.readonly_label": "Μόνο ανάγνωση",
+  "config.agentmail.readonly_label": "Μόνο για ανάγνωση",
   "config.agentmail.relay_label": "Προώθηση νέας αλληλογραφίας στον agent",
   "config.agentmail.relay_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμα cheatsheets",
   "config.agentmail.relay_cheatsheet_error": "Αδυναμία φόρτωσης cheatsheets",

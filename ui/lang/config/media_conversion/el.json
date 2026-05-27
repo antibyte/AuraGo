@@ -3,7 +3,7 @@
   "config.media_conversion.enabled_label": "Ενεργοποιημένο",
   "config.media_conversion.disabled_notice": "Η μετατροπή πολυμέσων είναι απενεργοποιημένη",
   "config.media_conversion.disabled_desc": "Ενεργοποιήστε αυτό το εργαλείο ώστε ο πράκτορας να μπορεί να μετατρέπει ήχο, βίντεο και εικόνες μέσα στο workspace.",
-  "config.media_conversion.readonly_label": "Μόνο ανάγνωση",
+  "config.media_conversion.readonly_label": "Μόνο για ανάγνωση",
   "config.media_conversion.ffmpeg_path_label": "Διαδρομή FFmpeg",
   "config.media_conversion.imagemagick_path_label": "Διαδρομή ImageMagick",
   "config.media_conversion.timeout_label": "Χρονικό όριο",

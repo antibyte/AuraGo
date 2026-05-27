@@ -14,7 +14,7 @@
   "config.a2a.api_key_placeholder": "Indtast nøglen API...",
   "config.a2a.auth_title": "Autentificering",
   "config.a2a.base_path": "Basissti",
-  "config.a2a.bearer_auth": "Bearer Token Authentication",
+  "config.a2a.bearer_auth": "Bearer-token-godkendelse",
   "config.a2a.bearer_placeholder": "Indtast bearer-hemmelighed…",
   "config.a2a.bindings_title": "Protokolbindinger",
   "config.a2a.capabilities_title": "Funktioner",

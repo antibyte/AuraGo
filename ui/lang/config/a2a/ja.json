@@ -39,7 +39,7 @@
   "config.a2a.ra_unavailable": "利用不可",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "保存に失敗しました",
-  "config.a2a.save_vault": "Vaultに保存",
+  "config.a2a.save_vault": "Vault に保存",
   "config.a2a.saved": "Vaultに保存しました",
   "config.a2a.server_enabled": "サーバー有効",
   "config.a2a.server_title": "A2Aサーバー",

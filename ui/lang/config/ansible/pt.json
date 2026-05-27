@@ -1,5 +1,5 @@
 {
-  "config.ansible.generate_token_btn": "Generate Token",
+  "config.ansible.generate_token_btn": "Gerar token",
   "config.ansible.generate_token_generating": "A gerar…",
   "config.ansible.generate_token_ok": "Token gerado e salvo no cofre. O contêiner será reiniciado.",
   "config.ansible.generate_token_fail": "Falha ao gerar token.",

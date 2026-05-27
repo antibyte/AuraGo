@@ -22,7 +22,7 @@
   "config.fritzbox.polling_interval": "間隔：",
   "config.fritzbox.polling_seconds": "秒",
   "config.fritzbox.port_label": "TR-064 ポート",
-  "config.fritzbox.save_vault": "ボルトに保存",
+  "config.fritzbox.save_vault": "Vault に保存",
   "config.fritzbox.status_disabled": "Fritz!Box統合は無効です",
   "config.fritzbox.status_error": "接続に失敗しました",
   "config.fritzbox.status_not_configured": "ホストが設定されていません",

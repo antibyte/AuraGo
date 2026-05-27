@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Ukjent status",
   "config.server.cert_status_error": "Lastingsfeil",
   "config.server.cert_status_loading": "Laster…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktøybro",
   "config.tailscale.api_desc": "Koble til Tailscale API for enhets- og nettverksadministrasjon.",
   "config.tailscale.api_key_hint": "Din Tailscale API nøkkel (tskey-api-...). Lagret trygt i Secrets Vault.",
   "config.tailscale.api_key_label": "Bakvekt API Nøkkel",

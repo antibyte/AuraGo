@@ -9,7 +9,7 @@
   "config.video_gen.test_desc": "वीडियो बनाए बिना provider connectivity जांचें.",
   "config.video_gen.timeout_label": "टाइमआउट (सेकंड)",
   "config.video_gen.provider_desc": "Provider Management में कॉन्फ़िगर किया गया provider चुनें. MiniMax और Google Veo समर्थित हैं.",
-  "config.video_gen.duration_label": "Duration (seconds)",
+  "config.video_gen.duration_label": "अवधि (सेकंड)",
   "config.video_gen.testing": "परीक्षण हो रहा है...",
   "config.video_gen.select_provider": "Provider चुनें",
   "config.video_gen.limits_title": "Limits और polling",
@@ -21,7 +21,7 @@
   "config.video_gen.disabled_notice": "वीडियो जनरेशन बंद है.",
   "config.video_gen.max_daily_label": "प्रतिदिन अधिकतम निर्माण",
   "config.video_gen.enabled_label": "वीडियो जनरेशन सक्षम:",
-  "config.video_gen.aspect_ratio_label": "Aspect ratio",
+  "config.video_gen.aspect_ratio_label": "आस्पेक्ट अनुपात",
   "config.video_gen.test_btn": "कनेक्शन परीक्षण",
   "config.video_gen.disabled_desc": "Agent को वीडियो बनाने देने के लिए ऊपर का स्विच चालू करें."
 }

@@ -4,7 +4,7 @@
   "config.uptime_kuma.api_key_placeholder": "输入 API 密钥…",
   "config.uptime_kuma.api_key_save_failed": "无法将 API 密钥保存到 Vault。",
   "config.uptime_kuma.api_key_saved": "API 密钥已保存到 Vault。",
-  "config.uptime_kuma.base_url_label": "Uptime Kuma URL",
+  "config.uptime_kuma.base_url_label": "Uptime Kuma 的 URL",
   "config.uptime_kuma.checking": "正在检查连接…",
   "config.uptime_kuma.connected": "已连接到 Uptime Kuma",
   "config.uptime_kuma.connection_failed": "连接失败",

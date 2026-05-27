@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Ukendt status",
   "config.server.cert_status_error": "Indlæsningsfejl",
   "config.server.cert_status_loading": "Indlæser…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-værktøjsbro",
   "config.tailscale.api_desc": "Tilslut til Tailscale API for enheds- og netværksadministration.",
   "config.tailscale.api_key_hint": "Din Tailscale API nøgle (tskey-api-...). Opbevares sikkert i Secrets Vault.",
   "config.tailscale.api_key_label": "Tailscale API Nøgle",

@@ -3,7 +3,7 @@
   "config.telnyx.read_only_label": "読み取り専用",
   "config.telnyx.api_key_label": "APIキー（Vault）",
   "config.telnyx.api_key_placeholder": "APIキーを入力…",
-  "config.telnyx.save_vault": "Vaultに保存",
+  "config.telnyx.save_vault": "Vault に保存",
   "config.telnyx.vault_empty": "先に値を入力してください。",
   "config.telnyx.vault_saved": "Vaultに保存しました。",
   "config.telnyx.vault_failed": "Vaultへの保存に失敗しました。",

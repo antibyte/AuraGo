@@ -51,7 +51,7 @@
   "config.tailscale.key_save_failed": "保存に失敗しました",
   "config.tailscale.key_saved": "キー保存済み",
   "config.tailscale.readonly_label": "読み取り専用モード",
-  "config.tailscale.save_vault": "ボールトに保存",
+  "config.tailscale.save_vault": "Vault に保存",
   "config.tailscale.tailnet_label": "Tailnet 名",
   "config.tailscale.tsnet_allow_http_fallback_hint": "HTTPSが利用できない場合、ポート80のHTTPにフォールバックします。デフォルトでは無効 — Tailscale HTTPSの証明書を取得できない場合にのみ有効にしてください。",
   "config.tailscale.tsnet_allow_http_fallback_label": "HTTPフォールバックを許可",

@@ -11,7 +11,7 @@
   "config.backup.encryption_placeholder": "Senha de criptografia…",
   "config.backup.import_button": "📥 Importovat zálohu",
   "config.backup.import_password_label": "🔒 Senha (apenas para backups criptografados)",
-  "config.backup.import_success": "Import successful",
+  "config.backup.import_success": "Importação bem-sucedida",
   "config.backup.import_warning": "<strong> Importante: </strong> A importação substitui os arquivos existentes. Configuração, prompts e dados serão substituídos. Recomenda-se reiniciar após a importação.",
   "config.backup.importing": "⏳ Importování…",
   "config.backup.include_vectordb": "Incluir VectorDB (embeddings — podem ser grandes)",

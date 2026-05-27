@@ -53,7 +53,7 @@
   "config.skill_manager.tool_bridge_allowed_sql_connections_label": "अनुमत डेटाबेस",
   "config.skill_manager.tool_bridge_search": "इंटीग्रेशन या टूल खोजें…",
   "config.skill_manager.tool_bridge_select_all": "सभी चुनें",
-  "config.skill_manager.tool_bridge_select_none": "कुछ भी न चुनें",
+  "config.skill_manager.tool_bridge_select_none": "कुछ न चुनें",
   "config.skill_manager.tool_bridge_selected_count": "चयनित: {n}",
   "config.skill_manager.tool_bridge_choose_dbs": "चुनें…",
   "config.skill_manager.tool_bridge_selected_dbs": "{n} चयनित",

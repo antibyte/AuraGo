@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "Δοκιμή σύνδεσης",
   "config.adguard.test_fail": "Αποτυχία σύνδεσης",
   "config.adguard.test_ok": "Επιτυχής σύνδεση",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "URL του AdGuard Home",
   "config.adguard.username_label": "Όνομα χρήστη",
   "help.adguard.enabled": "Ενεργοποιεί την ενσωμάτωση AdGuard Home. Ο πράκτορας μπορεί να ρωτά στατιστικά DNS, να διαχειρίζεται φίλτρα, επαναγραφές, αποκλεισμένες υπηρεσίες και άλλα.",
   "help.adguard.password": "Κωδικός για πιστοποίηση. Αποθηκεύεται με ασφάλεια στο κρυπτογραφημένο vault.",

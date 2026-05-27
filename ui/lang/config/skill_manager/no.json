@@ -67,7 +67,7 @@
   "config.skill_manager.tool_bridge_no_tools": "Ingen verktøy tilgjengelig",
   "config.skill_manager.tool_bridge_none_selected": "Ingen verktøy valgt. Python-skills kan ikke kalle noen native verktøy.",
   "config.skill_manager.tool_bridge_enabled_label": "Aktivert",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktøybro",
   "config.tailscale.key_empty": "Nøkkelen er tom",
   "config.tailscale.key_save_failed": "Lagring mislyktes",
   "config.tailscale.key_saved": "Nøkkel lagret",

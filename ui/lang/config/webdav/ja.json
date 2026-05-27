@@ -64,7 +64,7 @@
   "config.webdav.password_save_failed": "WebDAV パスワードを Vault に保存できませんでした。",
   "config.webdav.password_saved": "WebDAV パスワードを Vault に保存しました。",
   "config.webdav.readonly_label": "読み取り専用",
-  "config.webdav.save_vault": "Vaultに保存",
+  "config.webdav.save_vault": "Vault に保存",
   "config.webdav.secret_empty": "値が空です",
   "config.webdav.secret_label": "ログインシークレット（Vault）",
   "config.webdav.secret_placeholder": "パスワードまたはアプリトークンを入力…",

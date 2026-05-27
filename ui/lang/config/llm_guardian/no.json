@@ -10,7 +10,7 @@
   "config.llm_guardian.model_hint": "tom = leverandørstandard",
   "config.llm_guardian.level_title": "Beskyttelsesnivå",
   "config.llm_guardian.level_desc": "Kontrollerer hvilke verktøyanrop som sendes til Guardian for gjennomgang. Høyere nivåer sjekker flere operasjoner, men koster flere tokens.",
-  "config.llm_guardian.level_label": "Default level",
+  "config.llm_guardian.level_label": "Standardnivå",
   "config.llm_guardian.level_off": "Av — Ingen LLM-kontroller",
   "config.llm_guardian.level_low": "Lav — Kun høyrisikoverktøy (shell, sudo, python)",
   "config.llm_guardian.level_medium": "Medium — Alle verktøy + eksterne APIer",

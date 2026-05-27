@@ -35,7 +35,7 @@
   "config.homepage.save_credentials": "Save to Vault",
   "config.homepage.saving": "Saving...",
   "config.homepage.status_active": "Homepage tool active",
-  "config.homepage.status_inactive": "Homepage tool â€” dev container not running",
+  "config.homepage.status_inactive": "Homepage tool — dev container not running",
   "config.homepage.test_btn": "Test Connection",
   "config.homepage.test_desc": "Test the SFTP/SCP connection to the deploy target using current settings.",
   "config.homepage.test_failed": "Connection failed",

@@ -393,7 +393,7 @@
   "dashboard.memory_strategy_reason": "Hvorfor denne tilstand er aktiv",
   "dashboard.memory_strategy_reason_empty": "Ingen adaptiv grund tilgængelig endnu.",
   "dashboard.memory_title": "Hukommelse",
-  "dashboard.operations_api_tokens": "{{n}} API Tokens",
+  "dashboard.operations_api_tokens": "{{n}} API-tokens",
   "dashboard.operations_buffered": "{{n}} bufferet",
   "dashboard.operations_chars_count": "{{n}}k tegn",
   "dashboard.operations_cheatsheets": "Snydeark",

@@ -14,7 +14,7 @@
   "config.a2a.api_key_placeholder": "Skriv inn API nøkkel...",
   "config.a2a.auth_title": "Autentisering",
   "config.a2a.base_path": "Basissti",
-  "config.a2a.bearer_auth": "Bearer Token Authentication",
+  "config.a2a.bearer_auth": "Bearer-token-autentisering",
   "config.a2a.bearer_placeholder": "Skriv inn bearer-hemmelighet…",
   "config.a2a.bindings_title": "Protokollbindinger",
   "config.a2a.capabilities_title": "Funksjoner",

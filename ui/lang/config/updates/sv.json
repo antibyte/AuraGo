@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Okänd status",
   "config.server.cert_status_error": "Laddningsfel",
   "config.server.cert_status_loading": "Laddar…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktygsbrygga",
   "config.tailscale.key_empty": "Nyckeln är tom",
   "config.tailscale.key_save_failed": "Sparning misslyckades",
   "config.tailscale.key_saved": "Nyckel sparad",

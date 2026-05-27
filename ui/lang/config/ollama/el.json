@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Άγνωστη κατάσταση",
   "config.server.cert_status_error": "Σφάλμα φόρτωσης",
   "config.server.cert_status_loading": "Φόρτωση…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Γέφυρα εργαλείων Python",
   "config.tailscale.key_empty": "Το κλειδί είναι κενό",
   "config.tailscale.key_save_failed": "Η αποθήκευση απέτυχε",
   "config.tailscale.key_saved": "Κλειδί αποθηκεύτηκε",

@@ -314,7 +314,7 @@
   "missions.trigger_info_planner_todo_id_prefix": "TODO:",
   "missions.trigger_planner_todo_id_placeholder": "e.g. todo_abc123",
   "missions.trigger_planner_operational_issue_hint": "AuraGoが内部運用問題を記録したときにトリガーします。",
-  "missions.trigger_planner_todo_id_label": "TODO ID",
+  "missions.trigger_planner_todo_id_label": "ToDo の ID",
   "missions.trigger_planner_issue_severity_any": "任意の重大度",
   "missions.trigger_info_planner_any_todo": "任意の期限超過プランナーTODO",
   "missions.trigger_info_planner_any_issue": "任意の運用問題",

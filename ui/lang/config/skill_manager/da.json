@@ -67,7 +67,7 @@
   "config.skill_manager.tool_bridge_no_tools": "Ingen værktøjer tilgængelige",
   "config.skill_manager.tool_bridge_none_selected": "Ingen værktøjer valgt. Python-færdigheder kan ikke kalde nogen native værktøjer.",
   "config.skill_manager.tool_bridge_enabled_label": "Aktiveret",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-værktøjsbro",
   "config.tailscale.key_empty": "Nøglen er tom",
   "config.tailscale.key_save_failed": "Gemning mislykkedes",
   "config.tailscale.key_saved": "Nøgle gemt",

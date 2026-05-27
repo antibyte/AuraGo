@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "कनेक्शन परीक्षण",
   "config.adguard.test_fail": "कनेक्शन विफल",
   "config.adguard.test_ok": "कनेक्शन सफल",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "AdGuard Home का URL",
   "config.adguard.username_label": "उपयोगकर्ता नाम",
   "help.adguard.enabled": "AdGuard Home एकीकरण सक्षम करता है। एजेंट DNS आँकड़े, फ़िल्टर, रीराइट, अवरुद्ध सेवाएँ और अधिक प्रबंधित कर सकता है।",
   "help.adguard.password": "प्रमाणीकरण के लिए पासवर्ड। एन्क्रिप्टेड vault में सुरक्षित रूप से संग्रहीत।",

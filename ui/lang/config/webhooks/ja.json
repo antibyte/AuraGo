@@ -18,7 +18,7 @@
   "config.webhooks.deleted": "Webhookが削除されました",
   "config.webhooks.delivery_section": "配信",
   "config.webhooks.description_label": "説明",
-  "config.webhooks.disabled_desc": "아래의 웹훅 설정에서 webhooks.enabled를 활성화하세요.",
+  "config.webhooks.disabled_desc": "下の Webhook 設定で webhooks.enabled を有効にしてください。",
   "config.webhooks.disabled_notice": "Webhookが無効です",
   "config.webhooks.edit_webhook": "Webhookを編集",
   "config.webhooks.empty": "Webhookが設定されていません。",

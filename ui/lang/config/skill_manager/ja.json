@@ -53,7 +53,7 @@
   "config.skill_manager.tool_bridge_allowed_sql_connections_label": "許可されたデータベース",
   "config.skill_manager.tool_bridge_search": "統合またはツールを検索…",
   "config.skill_manager.tool_bridge_select_all": "すべて選択",
-  "config.skill_manager.tool_bridge_select_none": "選択解除",
+  "config.skill_manager.tool_bridge_select_none": "選択を解除",
   "config.skill_manager.tool_bridge_selected_count": "選択: {n}",
   "config.skill_manager.tool_bridge_choose_dbs": "選択…",
   "config.skill_manager.tool_bridge_selected_dbs": "{n} 件選択",

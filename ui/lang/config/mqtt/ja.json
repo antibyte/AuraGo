@@ -32,7 +32,7 @@
   "config.mqtt.readonly_label": "読み取り専用モード",
   "config.mqtt.refresh_btn": "更新",
   "config.mqtt.relay_to_agent_label": "エージェントにリレー",
-  "config.mqtt.save_vault": "ボールトに保存",
+  "config.mqtt.save_vault": "Vault に保存",
   "config.mqtt.status_connected": "接続済み",
   "config.mqtt.status_disabled": "MQTT統合は無効です",
   "config.mqtt.status_disconnected": "切断済み",

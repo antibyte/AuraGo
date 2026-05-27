@@ -4,7 +4,7 @@
   "config.uptime_kuma.api_key_placeholder": "Indtast API-nøgle…",
   "config.uptime_kuma.api_key_save_failed": "Kunne ikke gemme API-nøgle i vault.",
   "config.uptime_kuma.api_key_saved": "API-nøgle gemt i vault.",
-  "config.uptime_kuma.base_url_label": "Uptime Kuma URL",
+  "config.uptime_kuma.base_url_label": "Uptime Kuma-URL",
   "config.uptime_kuma.checking": "Kontrollerer forbindelse…",
   "config.uptime_kuma.connected": "Forbundet til Uptime Kuma",
   "config.uptime_kuma.connection_failed": "Forbindelse mislykkedes",

@@ -100,15 +100,15 @@
   "help.heartbeat.additional_prompt": "एजेंट के लिए कस्टम निर्देश जो हर heartbeat-जागरण पर विचार करे।",
   "help.heartbeat.day_time_window": "अपने स्वयं के जांच अंतराल के साथ दिन का समय।",
   "help.heartbeat.night_time_window": "अपने स्वयं के (आमतौर पर लंबे) जांच अंतराल के साथ रात का समय।",
-  "config.docker.managed_disabled_reason": "Docker integration band hai. Managed Ollama containers istemal karne se pahle Docker enabled karein.",
-  "config.docker.socket_missing_reason": "Docker socket nahi mila. Managed Ollama containers istemal karne se pahle /var/run/docker.sock mount karein ya docker.host configure karein.",
+  "config.docker.managed_disabled_reason": "Docker integration अक्षम है। प्रबंधित Ollama containers उपयोग करने से पहले Docker सक्षम करें।",
+  "config.docker.socket_missing_reason": "Docker socket नहीं मिला। प्रबंधित Ollama containers उपयोग करने से पहले /var/run/docker.sock mount करें या docker.host कॉन्फ़िगर करें।",
   "config.yepapi.enabled_label": "YepAPI सक्षम करें",
   "config.yepapi.enabled_hint": "SEO, SERP, स्क्रैपिंग और सोशल मीडिया टूल के लिए YepAPI एकीकरण सक्रिय करें।",
   "config.yepapi.seo_label": "SEO टूल्स",
   "config.yepapi.seo_hint": "Keyword research, domain overview, competitor analysis, backlinks और on-page audits।",
   "config.yepapi.serp_label": "SERP सर्च",
   "config.yepapi.serp_hint": "Google, Bing, Yahoo, Baidu और अन्य से search engine results।",
-  "config.yepapi.scraping_label": "Web Scraping",
+  "config.yepapi.scraping_label": "वेब स्क्रैपिंग",
   "config.yepapi.scraping_hint": "Standard scrape, JavaScript rendering, stealth mode, screenshots और AI extraction।",
   "config.yepapi.youtube_label": "YouTube डेटा",
   "config.yepapi.youtube_hint": "Videos खोजें, details, transcripts, comments, channels, playlists और trending प्राप्त करें।",
@@ -142,6 +142,6 @@
   "config.frigate_readonly": "केवल पढ़ें",
   "config.frigate_event_relay": "MQTT के जरिए इवेंट रिले करें",
   "config.frigate_test_connection": "कनेक्शन टेस्ट करें",
-  "config.section.optimizations.group.tool_context": "Tool Context",
-  "config.section.optimizations.group.tool_visibility": "Tool Visibility"
+  "config.section.optimizations.group.tool_context": "टूल संदर्भ",
+  "config.section.optimizations.group.tool_visibility": "टूल दृश्यता"
 }

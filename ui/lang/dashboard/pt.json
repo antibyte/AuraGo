@@ -393,7 +393,7 @@
   "dashboard.memory_strategy_reason": "Por que este modo está ativo",
   "dashboard.memory_strategy_reason_empty": "Nenhuma razão adaptativa disponível ainda.",
   "dashboard.memory_title": "Memória",
-  "dashboard.operations_api_tokens": "{{n}} API Tokens",
+  "dashboard.operations_api_tokens": "{{n}} tokens de API",
   "dashboard.operations_buffered": "{{n}} em buffer",
   "dashboard.operations_chars_count": "{{n}}k caracteres",
   "dashboard.operations_cheatsheets": "Folhas de Dicas",

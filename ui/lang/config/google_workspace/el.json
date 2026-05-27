@@ -42,7 +42,7 @@
   "config.google_workspace.oauth_failed": "Αποτυχία εξουσιοδότησης",
   "config.google_workspace.oauth_disconnected": "Αποσυνδεδεμένο",
   "config.google_workspace.oauth_not_connected": "Μη συνδεδεμένο — κάντε κλικ στη Σύνδεση για εξουσιοδότηση",
-  "config.google_workspace.token_expired": "token expired",
+  "config.google_workspace.token_expired": "το διακριτικό έληξε",
   "config.google_workspace.has_refresh": "refresh token διαθέσιμο",
   "config.google_workspace.oauth_manual_title": "Αποτυχία ανακατεύθυνσης προγράμματος περιήγησης; Επικολλήστε το URL εδώ",
   "config.google_workspace.oauth_manual_hint": "Αν το πρόγραμμα περιήγησής σας εμφανίζει ERR_CONNECTION_REFUSED, αντιγράψτε την πλήρη διεύθυνση URL από τη γραμμή διευθύνσεων και επικολλήστε την παρακάτω για να ολοκληρώσετε την εξουσιοδότηση.",

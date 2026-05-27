@@ -1,7 +1,7 @@
 {
   "config.a2a.active_tasks": "{{count}} actieve taken",
   "config.a2a.add_remote_agent": "Externe agent toevoegen",
-  "config.a2a.add_skill": "Add Skill",
+  "config.a2a.add_skill": "Skill toevoegen",
   "config.a2a.agent_description": "Agentbeschrijving",
   "config.a2a.agent_description_placeholder": "Beschrijf de mogelijkheden van je agent…",
   "config.a2a.agent_name": "Agentnaam",

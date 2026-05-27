@@ -25,7 +25,7 @@
   "config.netlify.permissions_desc": "エージェントが実行できるNetlify操作を制御します。",
   "config.netlify.permissions_title": "権限",
   "config.netlify.readonly": "読み取り専用モード（変更なし）",
-  "config.netlify.save_token": "Vaultに保存",
+  "config.netlify.save_token": "Vault に保存",
   "config.netlify.saving": "保存中...",
   "config.netlify.site_config_desc": "Netlify APIコールのオプションのデフォルト値。",
   "config.netlify.site_config_title": "サイト設定",

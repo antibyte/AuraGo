@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "测试连接",
   "config.adguard.test_fail": "连接失败",
   "config.adguard.test_ok": "连接成功",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "AdGuard Home 的 URL",
   "config.adguard.username_label": "用户名",
   "help.adguard.enabled": "启用 AdGuard Home 集成。代理可以查询 DNS 统计信息、管理过滤器、重写规则、被阻止的服务等。",
   "help.adguard.password": "认证密码。安全存储在加密的 vault 中。",

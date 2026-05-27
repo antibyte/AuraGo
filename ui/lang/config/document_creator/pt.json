@@ -13,7 +13,7 @@
   "config.document_creator.seconds": "segundos",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
-  "config.document_creator.test_degraded": "Service degraded",
+  "config.document_creator.test_degraded": "Serviço degradado",
   "config.document_creator.test_fail": "Falha na conexão",
   "config.document_creator.test_gotenberg": "Testar conexão",
   "config.document_creator.test_ok": "Conexão bem-sucedida",

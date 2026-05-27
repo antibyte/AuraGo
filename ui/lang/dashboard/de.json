@@ -137,7 +137,7 @@
   "dashboard.github_badge_tracked": "Verfolgt",
   "dashboard.github_no_repos": "Keine Repositories gefunden.",
   "dashboard.github_repositories_count": "{{n}} Repositories",
-  "dashboard.github_title": "GitHub Repositories",
+  "dashboard.github_title": "GitHub-Repositories",
   "dashboard.guardian_allowed": "Erlaubt",
   "dashboard.guardian_blocked": "Blockiert",
   "dashboard.guardian_cache_rate": "Cache-Rate",

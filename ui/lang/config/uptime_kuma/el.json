@@ -4,7 +4,7 @@
   "config.uptime_kuma.api_key_placeholder": "Εισαγάγετε κλειδί API…",
   "config.uptime_kuma.api_key_save_failed": "Αποτυχία αποθήκευσης κλειδιού API στο vault.",
   "config.uptime_kuma.api_key_saved": "Το κλειδί API αποθηκεύτηκε στο vault.",
-  "config.uptime_kuma.base_url_label": "URL Uptime Kuma",
+  "config.uptime_kuma.base_url_label": "URL του Uptime Kuma",
   "config.uptime_kuma.checking": "Έλεγχος σύνδεσης…",
   "config.uptime_kuma.connected": "Συνδέθηκε στο Uptime Kuma",
   "config.uptime_kuma.connection_failed": "Η σύνδεση απέτυχε",

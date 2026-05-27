@@ -1,5 +1,5 @@
 {
-  "config.ansible.generate_token_btn": "Generate Token",
+  "config.ansible.generate_token_btn": "Token genereren",
   "config.ansible.generate_token_generating": "Genereren…",
   "config.ansible.generate_token_ok": "Token gegenereerd en opgeslagen in de kluis. De container wordt opnieuw opgestart.",
   "config.ansible.generate_token_fail": "Kan token niet genereren.",

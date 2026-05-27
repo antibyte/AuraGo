@@ -24,7 +24,7 @@
   "config.sandbox.docker_host_label": "Docker-Host",
   "config.sandbox.timeout_label_full": "Timeout (Sekunden)",
   "config.sandbox.pool_size_label": "Pool Size",
-  "config.sandbox.auto_install_label": "Auto-Install llm-sandbox",
+  "config.sandbox.auto_install_label": "llm-sandbox automatisch installieren",
   "config.shell_sandbox.title": "Shell-Sandbox (Landlock)",
   "config.shell_sandbox.desc": "Shell-Befehle mit Linux-Landlock-Dateisystemisolierung und Ressourcenlimits einschränken. Nur Linux (Kernel 5.13+).",
   "config.shell_sandbox.active": "Shell-Sandbox aktiv",

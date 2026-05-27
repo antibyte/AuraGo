@@ -74,7 +74,7 @@
   "config.security_proxy.rate_limit_title": "Rate Limiting",
   "config.security_proxy.route_domain": "Domínio",
   "config.security_proxy.route_name": "Nome",
-  "config.security_proxy.route_upstream": "Upstream URL",
+  "config.security_proxy.route_upstream": "URL upstream",
   "config.security_proxy.routes_add": "Adicionar rota",
   "config.security_proxy.routes_desc": "Roteie domínios adicionais por meio do proxy para serviços locais.",
   "config.security_proxy.routes_title": "Rotas adicionais",

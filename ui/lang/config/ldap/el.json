@@ -1,5 +1,5 @@
 {
-  "config.ldap.base_dn_label": "Base DN",
+  "config.ldap.base_dn_label": "Βασικό DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Κωδικός Bind (Vault)",
   "config.ldap.password_placeholder": "Εισάγετε κωδικό bind…",

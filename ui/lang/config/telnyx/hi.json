@@ -1,6 +1,6 @@
 {
   "config.telnyx.enabled_label": "सक्रिय",
-  "config.telnyx.read_only_label": "केवल पढ़ें",
+  "config.telnyx.read_only_label": "केवल पढ़ने के लिए",
   "config.telnyx.api_key_label": "API कुंजी (Vault)",
   "config.telnyx.api_key_placeholder": "API कुंजी दर्ज करें…",
   "config.telnyx.save_vault": "Vault में सहेजें",

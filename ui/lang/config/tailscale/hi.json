@@ -51,7 +51,7 @@
   "config.tailscale.key_save_failed": "सेव विफल",
   "config.tailscale.key_saved": "कुंजी सेव हुई",
   "config.tailscale.readonly_label": "केवल पढ़ने का मोड",
-  "config.tailscale.save_vault": "वॉल्ट में सहेजें",
+  "config.tailscale.save_vault": "Vault में सहेजें",
   "config.tailscale.tailnet_label": "Tailnet नाम",
   "config.tailscale.tsnet_allow_http_fallback_hint": "यदि HTTPS अनुपलब्ध हो, तो पोर्ट 80 पर सामान्य HTTP पर वापस जाएँ। डिफ़ॉल्ट रूप से अक्षम — केवल तभी सक्षम करें जब Tailscale HTTPS प्रमाणपत्र प्राप्त नहीं हो सकता।",
   "config.tailscale.tsnet_allow_http_fallback_label": "HTTP फ़ॉलबैक की अनुमति दें",

@@ -37,7 +37,7 @@
   "config.rules.enabled": "Povoleno",
   "config.rules.rule_title": "Název",
   "config.rules.inactive": "Neaktivní",
-  "config.rules.markdown_editor": "Markdown editor",
+  "config.rules.markdown_editor": "Editor Markdownu",
   "config.rules.active": "Aktivní",
   "config.rules.total": "Celkem",
   "config.rules.rule_list": "Knihovna pravidel",

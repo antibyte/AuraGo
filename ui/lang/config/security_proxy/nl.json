@@ -74,7 +74,7 @@
   "config.security_proxy.rate_limit_title": "Snelheidsbeperking",
   "config.security_proxy.route_domain": "Domein",
   "config.security_proxy.route_name": "Naam",
-  "config.security_proxy.route_upstream": "Upstream URL",
+  "config.security_proxy.route_upstream": "Upstream-URL",
   "config.security_proxy.routes_add": "Route toevoegen",
   "config.security_proxy.routes_desc": "Leid extra domeinen via de proxy naar lokale services.",
   "config.security_proxy.routes_title": "Extra routes",

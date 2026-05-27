@@ -3,7 +3,7 @@
   "config.media_conversion.enabled_label": "सक्षम",
   "config.media_conversion.disabled_notice": "मीडिया रूपांतरण अक्षम है",
   "config.media_conversion.disabled_desc": "इस टूल को सक्षम करें ताकि एजेंट workspace के अंदर ऑडियो, वीडियो और छवियाँ रूपांतरित कर सके।",
-  "config.media_conversion.readonly_label": "केवल-पढ़ें",
+  "config.media_conversion.readonly_label": "केवल पढ़ने के लिए",
   "config.media_conversion.ffmpeg_path_label": "FFmpeg पथ",
   "config.media_conversion.imagemagick_path_label": "ImageMagick पथ",
   "config.media_conversion.timeout_label": "टाइमआउट",

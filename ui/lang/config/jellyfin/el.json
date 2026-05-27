@@ -4,7 +4,7 @@
   "config.jellyfin.destructive_label": "Επιτρέπονται Καταστροφικές Λειτουργίες",
   "config.jellyfin.https_label": "Χρήση HTTPS",
   "config.jellyfin.insecure_label": "Αποδοχή Αυτο-υπογεγραμμένων Πιστοποιητικών",
-  "config.jellyfin.host_label": "Jellyfin Host",
+  "config.jellyfin.host_label": "Host του Jellyfin",
   "config.jellyfin.port_label": "Θύρα",
   "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "Κλειδί API (Vault)",

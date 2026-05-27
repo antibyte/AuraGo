@@ -1,5 +1,5 @@
 {
-  "config.document_creator.backend_gotenberg": "Gotenberg (Docker sidecar)",
+  "config.document_creator.backend_gotenberg": "Gotenberg (λειτουργία Docker sidecar)",
   "config.document_creator.backend_label": "Backend",
   "config.document_creator.backend_maroto": "Maroto (ενσωματωμένη βιβλιοθήκη Go)",
   "config.document_creator.disabled_desc": "Ενεργοποιήστε αυτό το εργαλείο για να επιτρέψετε στον πράκτορα να δημιουργεί PDF και να μετατρέπει έγγραφα.",

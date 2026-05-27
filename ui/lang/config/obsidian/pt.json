@@ -28,8 +28,8 @@
   "help.obsidian.use_https": "Usar conexão HTTPS (recomendado, padrão: true)",
   "help.obsidian.insecure_ssl": "Aceitar certificados autoassinados (padrão: true)",
   "help.obsidian.api_key": "Chave API das configurações do plugin Obsidian Local REST API",
-  "config.obsidian.connect_timeout_label": "Connect Timeout",
-  "config.obsidian.request_timeout_label": "Request Timeout",
+  "config.obsidian.connect_timeout_label": "Tempo limite de ligação",
+  "config.obsidian.request_timeout_label": "Tempo limite do pedido",
   "help.obsidian.connect_timeout": "Tempo limite de conexão em segundos (padrão: 10)",
   "help.obsidian.request_timeout": "Tempo limite de solicitação em segundos (padrão: 30)"
 }

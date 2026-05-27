@@ -116,7 +116,7 @@
   "knowledge.devices_access_none": "参照なし",
   "knowledge.devices_access_missing": "リンクされたエントリがません",
   "knowledge.tab_appointments": "📅 予定",
-  "knowledge.tab_todos": "✅ To-Do",
+  "knowledge.tab_todos": "✅ ToDo一覧",
   "knowledge.appointments_search_placeholder": "予定を検索...",
   "knowledge.appointments_filter_all": "すべて",
   "knowledge.appointments_filter_upcoming": "今後",

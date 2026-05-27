@@ -4,7 +4,7 @@
   "config.uptime_kuma.api_key_placeholder": "APIキーを入力…",
   "config.uptime_kuma.api_key_save_failed": "APIキーをVaultに保存できませんでした。",
   "config.uptime_kuma.api_key_saved": "APIキーがVaultに保存されました。",
-  "config.uptime_kuma.base_url_label": "Uptime Kuma URL",
+  "config.uptime_kuma.base_url_label": "Uptime Kuma の URL",
   "config.uptime_kuma.checking": "接続を確認中…",
   "config.uptime_kuma.connected": "Uptime Kumaに接続済み",
   "config.uptime_kuma.connection_failed": "接続に失敗しました",

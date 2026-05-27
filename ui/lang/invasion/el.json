@@ -68,7 +68,7 @@
   "invasion.route_config": "Διαμόρφωση Διαδρομής (JSON, προαιρετικό)",
   "invasion.route_custom": "Προσαρμοσμένο",
   "invasion.route_direct": "Άμεσο",
-  "invasion.route_ssh_tunnel": "SSH Tunnel",
+  "invasion.route_ssh_tunnel": "Σήραγγα SSH",
   "invasion.route_tailscale": "Tailscale",
   "invasion.route_wireguard": "WireGuard",
   "invasion.save": "Αποθήκευση",

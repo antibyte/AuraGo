@@ -25,7 +25,7 @@
   "config.netlify.permissions_desc": "नियंत्रित करें कि एजेंट कौन सी Netlify ऑपरेशन कर सकता है।",
   "config.netlify.permissions_title": "अनुमतियाँ",
   "config.netlify.readonly": "केवल-पढ़ने योग्य मोड (कोई बदलाव नहीं)",
-  "config.netlify.save_token": "वॉल्ट में सेव करें",
+  "config.netlify.save_token": "Vault में सहेजें",
   "config.netlify.saving": "सेव हो रहा है...",
   "config.netlify.site_config_desc": "Netlify API कॉल्स के लिए वैकल्पिक डिफ़ॉल्ट मान।",
   "config.netlify.site_config_title": "साइट कॉन्फ़िगरेशन",

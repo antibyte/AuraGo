@@ -393,7 +393,7 @@
   "dashboard.memory_strategy_reason": "Varför detta läge är aktivt",
   "dashboard.memory_strategy_reason_empty": "Ingen adaptiv anledning tillgänglig ännu.",
   "dashboard.memory_title": "Minne",
-  "dashboard.operations_api_tokens": "{{n}} API Tokens",
+  "dashboard.operations_api_tokens": "{{n}} API-token",
   "dashboard.operations_buffered": "{{n}} buffrade",
   "dashboard.operations_chars_count": "{{n}}k tecken",
   "dashboard.operations_cheatsheets": "Snabbguider",

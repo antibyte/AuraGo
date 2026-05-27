@@ -59,7 +59,7 @@
   "config.truenas.insecure_label": "自己署名証明書を許可",
   "config.truenas.open_ui": "TrueNAS管理を開く",
   "config.truenas.readonly_label": "読み取り専用モード",
-  "config.truenas.save_vault": "Vaultに保存",
+  "config.truenas.save_vault": "Vault に保存",
   "config.truenas.status_disabled": "TrueNAS統合が無効になっています",
   "config.truenas.test_btn": "接続テスト",
   "config.truenas.test_fail": "失敗",

@@ -1,7 +1,7 @@
 {
   "config.telnyx.enabled_label": "Ενεργοποιημένο",
-  "config.telnyx.read_only_label": "Μόνο ανάγνωση",
-  "config.telnyx.api_key_label": "API Κλειδί (θησαυροφυλάκιο)",
+  "config.telnyx.read_only_label": "Μόνο για ανάγνωση",
+  "config.telnyx.api_key_label": "Κλειδί API (Vault)",
   "config.telnyx.api_key_placeholder": "Εισαγάγετε το κλειδί API…",
   "config.telnyx.save_vault": "Αποθήκευση στο Vault",
   "config.telnyx.vault_empty": "Εισάγετε πρώτα μια τιμή.",

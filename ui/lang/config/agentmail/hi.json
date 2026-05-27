@@ -18,7 +18,7 @@
   "config.agentmail.mode_readonly": "केवल पढ़ें",
   "config.agentmail.no": "नहीं",
   "config.agentmail.poll_interval_label": "पोल अंतराल (सेकंड)",
-  "config.agentmail.readonly_label": "केवल पढ़ें",
+  "config.agentmail.readonly_label": "केवल पढ़ने के लिए",
   "config.agentmail.relay_label": "नई मेल एजेंट को भेजें",
   "config.agentmail.relay_cheatsheet_empty": "कोई चीटशीट उपलब्ध नहीं",
   "config.agentmail.relay_cheatsheet_error": "चीटशीट लोड नहीं हो सके",

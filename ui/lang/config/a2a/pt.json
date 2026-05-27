@@ -16,7 +16,7 @@
   "config.a2a.base_path": "Caminho base",
   "config.a2a.bearer_auth": "Autenticação de token de portador",
   "config.a2a.bearer_placeholder": "Digite o bearer secret…",
-  "config.a2a.bindings_title": "Protocol Bindings",
+  "config.a2a.bindings_title": "Vinculações de protocolo",
   "config.a2a.capabilities_title": "Capacidades",
   "config.a2a.checking": "Verificando status do A2A…",
   "config.a2a.client_enabled": "Cliente habilitado",

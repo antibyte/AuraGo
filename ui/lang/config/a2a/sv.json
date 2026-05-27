@@ -14,7 +14,7 @@
   "config.a2a.api_key_placeholder": "Ange nyckeln API...",
   "config.a2a.auth_title": "Autentisering",
   "config.a2a.base_path": "Bassökväg",
-  "config.a2a.bearer_auth": "Bearer Token Authentication",
+  "config.a2a.bearer_auth": "Bearer-tokenautentisering",
   "config.a2a.bearer_placeholder": "Ange bearer-hemlighet…",
   "config.a2a.bindings_title": "Protokollbindningar",
   "config.a2a.capabilities_title": "Funktioner",

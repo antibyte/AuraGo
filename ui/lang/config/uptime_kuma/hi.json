@@ -4,7 +4,7 @@
   "config.uptime_kuma.api_key_placeholder": "API कुंजी दर्ज करें…",
   "config.uptime_kuma.api_key_save_failed": "API कुंजी को Vault में सहेजना विफल रहा।",
   "config.uptime_kuma.api_key_saved": "API कुंजी Vault में सहेजी गई।",
-  "config.uptime_kuma.base_url_label": "Uptime Kuma URL",
+  "config.uptime_kuma.base_url_label": "Uptime Kuma का URL",
   "config.uptime_kuma.checking": "कनेक्शन की जाँच हो रही है…",
   "config.uptime_kuma.connected": "Uptime Kuma से कनेक्ट किया गया",
   "config.uptime_kuma.connection_failed": "कनेक्शन विफल हुआ",

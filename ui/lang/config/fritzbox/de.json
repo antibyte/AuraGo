@@ -70,7 +70,7 @@
   "config.security_proxy.status_unknown": "Unbekannter Status",
   "config.server.cert_status_error": "Ladefehler",
   "config.server.cert_status_loading": "Laden…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-Tool-Brücke",
   "config.tailscale.key_empty": "Schlüssel ist leer",
   "config.tailscale.key_save_failed": "Speichern fehlgeschlagen",
   "config.tailscale.key_saved": "Schlüssel gespeichert",

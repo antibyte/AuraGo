@@ -16,7 +16,7 @@
   "config.vercel.project_config_title": "Ρύθμιση ιστότοπου",
   "config.vercel.projects": "ιστότοποι",
   "config.vercel.readonly": "Λειτουργία μόνο ανάγνωσης (χωρίς αλλαγές)",
-  "config.vercel.save_token": "Αποθήκευση στο vault",
+  "config.vercel.save_token": "Αποθήκευση στο Vault",
   "config.vercel.saving": "Αποθήκευση...",
   "config.vercel.status_connected": "Vercel συνδεδεμένο",
   "config.vercel.status_error": "Σφάλμα σύνδεσης",

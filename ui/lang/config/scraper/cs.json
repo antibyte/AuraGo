@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.server.cert_status_error": "Chyba načítání",
   "config.server.cert_status_loading": "Načítám…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Most Python nástrojů",
   "config.tailscale.key_empty": "Klíč je prázdný",
   "config.tailscale.key_save_failed": "Uložení selhalo",
   "config.tailscale.key_saved": "Klíč uložen",

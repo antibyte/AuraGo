@@ -89,7 +89,7 @@
   "config.server.port_label": "Port",
   "config.server.selfsigned_port_warning": "Port under 1024 krever root/admin-privilegier på Linux/macOS. For lokal tilgang uten forhøyede rettigheter, bruk port 8443 i stedet.",
   "config.server.ui_language_label": "UI-språk",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Python-verktøybro",
   "config.tailscale.key_empty": "Nøkkelen er tom",
   "config.tailscale.key_save_failed": "Lagring mislyktes",
   "config.tailscale.key_saved": "Nøkkel lagret",

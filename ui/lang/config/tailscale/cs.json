@@ -41,7 +41,7 @@
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.server.cert_status_error": "Chyba načítání",
   "config.server.cert_status_loading": "Načítám…",
-  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_header": "Most Python nástrojů",
   "config.tailscale.api_desc": "Připojení k Tailscale API pro správu zařízení a sítě.",
   "config.tailscale.api_key_hint": "Váš Tailscale API klíč (tskey-api-…). Bezpečně uložen v trezoru tajemství.",
   "config.tailscale.api_key_label": "Tailscale API klíč",

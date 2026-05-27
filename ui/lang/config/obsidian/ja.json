@@ -8,7 +8,7 @@
   "config.obsidian.insecure_label": "安全でないSSL",
   "config.obsidian.apikey_label": "APIキー",
   "config.obsidian.apikey_placeholder": "Obsidian REST APIキーを入力",
-  "config.obsidian.save_vault": "Vaultに保存",
+  "config.obsidian.save_vault": "Vault に保存",
   "config.obsidian.test_btn": "接続テスト",
   "config.obsidian.checking": "接続を確認中…",
   "config.obsidian.status_disabled": "Obsidian統合は無効です",
@@ -28,8 +28,8 @@
   "help.obsidian.use_https": "HTTPS接続を使用（推奨、デフォルト: true）",
   "help.obsidian.insecure_ssl": "自己署名証明書を許可（デフォルト: true）",
   "help.obsidian.api_key": "Obsidian Local REST APIプラグインの設定からのAPIキー",
-  "config.obsidian.connect_timeout_label": "Connect Timeout",
-  "config.obsidian.request_timeout_label": "Request Timeout",
+  "config.obsidian.connect_timeout_label": "接続タイムアウト",
+  "config.obsidian.request_timeout_label": "リクエストタイムアウト",
   "help.obsidian.connect_timeout": "接続タイムアウト（秒）（デフォルト: 10）",
   "help.obsidian.request_timeout": "リクエストタイムアウト（秒）（デフォルト: 30）"
 }

@@ -16,7 +16,7 @@
   "config.vercel.project_config_title": "साइट कॉन्फ़िगरेशन",
   "config.vercel.projects": "साइट्स",
   "config.vercel.readonly": "केवल-पढ़ने योग्य मोड (कोई बदलाव नहीं)",
-  "config.vercel.save_token": "वॉल्ट में सेव करें",
+  "config.vercel.save_token": "Vault में सहेजें",
   "config.vercel.saving": "सेव हो रहा है...",
   "config.vercel.status_connected": "Vercel कनेक्टेड",
   "config.vercel.status_error": "कनेक्शन त्रुटि",

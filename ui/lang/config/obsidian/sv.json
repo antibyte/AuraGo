@@ -28,8 +28,8 @@
   "help.obsidian.use_https": "Använd HTTPS-anslutning (rekommenderat, standard: true)",
   "help.obsidian.insecure_ssl": "Acceptera självsignerade certifikat (standard: true)",
   "help.obsidian.api_key": "API-nyckel från inställningarna för Obsidian Local REST API-plugin",
-  "config.obsidian.connect_timeout_label": "Connect Timeout",
-  "config.obsidian.request_timeout_label": "Request Timeout",
+  "config.obsidian.connect_timeout_label": "Anslutningstimeout",
+  "config.obsidian.request_timeout_label": "Begärantimeout",
   "help.obsidian.connect_timeout": "Anslutningstimeout i sekunder (standard: 10)",
   "help.obsidian.request_timeout": "Begäran timeout i sekunder (standard: 30)"
 }

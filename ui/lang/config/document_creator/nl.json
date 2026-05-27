@@ -13,7 +13,7 @@
   "config.document_creator.seconds": "seconden",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
-  "config.document_creator.test_degraded": "Service degraded",
+  "config.document_creator.test_degraded": "Service beperkt beschikbaar",
   "config.document_creator.test_fail": "Verbinding mislukt",
   "config.document_creator.test_gotenberg": "Verbinding testen",
   "config.document_creator.test_ok": "Verbinding geslaagd",
