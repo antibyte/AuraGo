@@ -120,6 +120,10 @@
     color: #ffcc00;
 }
 
+.galaxa-pause-overlay[hidden] {
+    display: none;
+}
+
 .galaxa-pause-overlay {
     position: absolute;
     top: 0;

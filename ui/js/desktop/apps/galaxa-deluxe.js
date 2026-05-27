@@ -32,6 +32,8 @@
             attract: false, aTmr: 0, ne: { ch: [65, 65, 65], pos: 0, done: false },
             chal: false, chalHits: 0, chalTot: 0, beam: null, shkT: 0, shkM: 0,
             inp: { l: false, r: false, f: false, fp: false, s: false, sp: false, p: false, pp: false, u: false, d: false, rp: false, lp: false, up: false, dp: false },
+            kb: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
+            gp: { l: false, r: false, u: false, d: false, f: false, s: false, p: false },
             muted: false, vol: 0.3, _prevSt: 'TITLE'
         };
 
@@ -230,16 +232,15 @@
         function updateExp(dt) { for (let i = G.exp.length - 1; i >= 0; i--) { G.exp[i].t += dt * 1000; if (G.exp[i].t >= G.exp[i].dur) G.exp.splice(i, 1); } for (let i = G.part.length - 1; i >= 0; i--) { const p = G.part[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.t += dt * 1000; if (p.t >= p.life) G.part.splice(i, 1); } }
 
         function update(dt) {
-            if (dt > 0.1) dt = 0.1; tick++; pollGP();
+            if (dt > 0.1) dt = 0.1; tick++;
             if (G.inp.p && !G.inp.pp) { if (G.st === 'PAUSED') { G.st = G._prevSt; pauseEl.hidden = true; } else if (G.st === 'PLAYING') { G._prevSt = G.st; G.st = 'PAUSED'; pauseEl.hidden = false; } }
-            G.inp.pp = G.inp.p;
             if (G.st === 'PAUSED') return;
             if (G.st === 'TITLE') {
                 G.tIdle += dt * 1000;
                 if (G.tIdle > TITLE_IDLE && !G.attract) { G.attract = true; G.aTmr = 0; G.score = 0; G.lives = 3; G.stage = 1; G.p.x = W / 2; G.p.alive = true; G.p.inv = 0; G.bul = []; G.ebul = []; G.exp = []; G.part = []; mkFormation(); }
                 if (G.attract) { updateAttract(dt); updateP(dt); updateBul(dt); updateE(dt); updateExp(dt); if (G.inp.s && !G.inp.sp) { G.attract = false; G.tIdle = 0; G.score = 0; G.lives = 3; G.stage = 1; G.p.dual = false; G.p.cap = null; startStage(); } }
                 else if (G.inp.s && !G.inp.sp) { G.score = 0; G.lives = 3; G.stage = 1; G.p.dual = false; G.p.cap = null; startStage(); }
-                G.inp.sp = G.inp.s; return;
+                return;
             }
             if (G.st === 'STAGE_INTRO') { G.sTmr -= dt * 1000; if (G.sTmr <= 0) { G.st = 'PLAYING'; mkFormation(); } return; }
             if (G.st === 'GAME_OVER') { G.sTmr -= dt * 1000; updateExp(dt); if (G.sTmr <= 0) { if (G.score > 0 && isHS(G.score)) { G.st = 'HIGH_SCORE'; G.ne = { ch: [65, 65, 65], pos: 0, done: false }; showHSOverlay(); } else { G.st = 'TITLE'; G.tIdle = 0; showTitle(); } } return; }
@@ -327,7 +328,6 @@
         function handleName() {
             const ne = G.ne; if (ne.done) return;
             const u = G.inp.u && !G.inp.up, d = G.inp.d && !G.inp.dp, l = G.inp.l && !G.inp.lp, f = G.inp.f && !G.inp.fp, r = G.inp.r && !G.inp.rp;
-            G.inp.up = G.inp.u; G.inp.dp = G.inp.d; G.inp.lp = G.inp.l; G.inp.rp = G.inp.r;
             if (u) ne.ch[ne.pos] = ne.ch[ne.pos] >= 90 ? 65 : ne.ch[ne.pos] + 1;
             if (d) ne.ch[ne.pos] = ne.ch[ne.pos] <= 65 ? 90 : ne.ch[ne.pos] - 1;
             if (l) ne.pos = Math.max(0, ne.pos - 1);
@@ -344,49 +344,61 @@
         }
 
         function pollGP() {
+            G.gp.l = false; G.gp.r = false; G.gp.u = false; G.gp.d = false; G.gp.f = false; G.gp.s = false; G.gp.p = false;
             try {
                 const gps = navigator.getGamepads ? navigator.getGamepads() : [];
                 for (const gp of gps) {
                     if (!gp) continue; const dz = 0.3, ax0 = gp.axes[0] || 0, ax1 = gp.axes[1] || 0;
-                    const gpL = ax0 < -dz || !!gp.buttons[14]?.pressed, gpR = ax0 > dz || !!gp.buttons[15]?.pressed;
-                    const gpU = ax1 < -dz || !!gp.buttons[12]?.pressed, gpD = ax1 > dz || !!gp.buttons[13]?.pressed;
-                    const gpF = !!gp.buttons[0]?.pressed, gpS = !!gp.buttons[9]?.pressed, gpP = !!gp.buttons[8]?.pressed;
-                    if (gpL || gpR || gpU || gpD || gpF || gpS || gpP) {
-                        G.inp.l = G.inp.l || gpL; G.inp.r = G.inp.r || gpR;
-                        G.inp.u = G.inp.u || gpU; G.inp.d = G.inp.d || gpD;
-                        G.inp.f = G.inp.f || gpF; G.inp.s = G.inp.s || gpS; G.inp.p = G.inp.p || gpP;
-                    }
+                    if (ax0 < -dz || !!gp.buttons[14]?.pressed) G.gp.l = true;
+                    if (ax0 > dz || !!gp.buttons[15]?.pressed) G.gp.r = true;
+                    if (ax1 < -dz || !!gp.buttons[12]?.pressed) G.gp.u = true;
+                    if (ax1 > dz || !!gp.buttons[13]?.pressed) G.gp.d = true;
+                    if (!!gp.buttons[0]?.pressed) G.gp.f = true;
+                    if (!!gp.buttons[9]?.pressed) G.gp.s = true;
+                    if (!!gp.buttons[8]?.pressed) G.gp.p = true;
                     break;
                 }
             } catch (e) {}
         }
 
-        function resetInp() { G.inp.l = false; G.inp.r = false; G.inp.u = false; G.inp.d = false; G.inp.f = false; G.inp.s = false; G.inp.p = false; }
+        function mergeInput() {
+            G.inp.l = G.kb.l || G.gp.l; G.inp.r = G.kb.r || G.gp.r;
+            G.inp.u = G.kb.u || G.gp.u; G.inp.d = G.kb.d || G.gp.d;
+            G.inp.f = G.kb.f || G.gp.f; G.inp.s = G.kb.s || G.gp.s; G.inp.p = G.kb.p || G.gp.p;
+        }
 
         function onKey(e) {
             if (state.disposed) return; const k = e.key;
-            if (k === 'ArrowLeft' || k === 'a') { G.inp.l = true; e.preventDefault(); }
-            if (k === 'ArrowRight' || k === 'd') { G.inp.r = true; e.preventDefault(); }
-            if (k === 'ArrowUp' || k === 'w') { G.inp.u = true; e.preventDefault(); }
-            if (k === 'ArrowDown' || k === 's') { G.inp.d = true; e.preventDefault(); }
-            if (k === ' ' || k === 'Enter') { G.inp.f = true; G.inp.s = true; e.preventDefault(); }
-            if (k === 'Escape') { G.inp.p = true; e.preventDefault(); }
+            if (k === 'ArrowLeft' || k === 'a') { G.kb.l = true; e.preventDefault(); }
+            if (k === 'ArrowRight' || k === 'd') { G.kb.r = true; e.preventDefault(); }
+            if (k === 'ArrowUp' || k === 'w') { G.kb.u = true; e.preventDefault(); }
+            if (k === 'ArrowDown' || k === 's') { G.kb.d = true; e.preventDefault(); }
+            if (k === ' ' || k === 'Enter') { G.kb.f = true; G.kb.s = true; e.preventDefault(); }
+            if (k === 'Escape') { G.kb.p = true; e.preventDefault(); }
             if (k === 'm' || k === 'M') G.muted = !G.muted;
         }
         function onKeyUp(e) {
             const k = e.key;
-            if (k === 'ArrowLeft' || k === 'a') G.inp.l = false;
-            if (k === 'ArrowRight' || k === 'd') G.inp.r = false;
-            if (k === 'ArrowUp' || k === 'w') G.inp.u = false;
-            if (k === 'ArrowDown' || k === 's') G.inp.d = false;
-            if (k === ' ' || k === 'Enter') { G.inp.f = false; G.inp.s = false; }
-            if (k === 'Escape') G.inp.p = false;
+            if (k === 'ArrowLeft' || k === 'a') G.kb.l = false;
+            if (k === 'ArrowRight' || k === 'd') G.kb.r = false;
+            if (k === 'ArrowUp' || k === 'w') G.kb.u = false;
+            if (k === 'ArrowDown' || k === 's') G.kb.d = false;
+            if (k === ' ' || k === 'Enter') { G.kb.f = false; G.kb.s = false; }
+            if (k === 'Escape') G.kb.p = false;
         }
+
+        function savePrev() { G.inp.fp = G.inp.f; G.inp.sp = G.inp.s; G.inp.pp = G.inp.p; G.inp.lp = G.inp.l; G.inp.rp = G.inp.r; G.inp.up = G.inp.u; G.inp.dp = G.inp.d; }
 
         function loop(now) {
             if (state.disposed) return;
             const dt = lastT ? Math.min((now - lastT) / 1000, 0.05) : 1 / 60;
-            lastT = now; resetInp(); pollGP(); update(dt); renderFrame(); rafId = requestAnimationFrame(loop);
+            lastT = now;
+            savePrev();
+            pollGP();
+            mergeInput();
+            update(dt);
+            renderFrame();
+            rafId = requestAnimationFrame(loop);
         }
 
         document.addEventListener('keydown', onKey);
