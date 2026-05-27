@@ -27,6 +27,86 @@
     display: block;
 }
 
+.galaxa-crt::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    background:
+        radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%);
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
+}
+
+.galaxa-crt::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.2) 0px,
+        rgba(0, 0, 0, 0.2) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    opacity: 0.5;
+}
+
+.galaxa-powerup-active .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), 0 0 40px rgba(68, 136, 255, 0.15);
+    transition: box-shadow 0.3s ease;
+}
+
+.galaxa-powerup-rapid .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), 0 0 40px rgba(0, 255, 204, 0.1);
+}
+
+.galaxa-powerup-spread .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 102, 0, 0.3), 0 0 40px rgba(255, 102, 0, 0.1);
+}
+
+.galaxa-powerup-shield .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(68, 136, 255, 0.3), 0 0 40px rgba(68, 136, 255, 0.1);
+}
+
+.galaxa-powerup-bomb .galaxa-canvas,
+.galaxa-powerup-multibomb .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3), 0 0 40px rgba(255, 68, 68, 0.1);
+}
+
+.galaxa-powerup-speed .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 238, 0, 0.3), 0 0 40px rgba(255, 238, 0, 0.1);
+}
+
+.galaxa-powerup-magnet .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 68, 255, 0.3), 0 0 40px rgba(255, 68, 255, 0.1);
+}
+
+.galaxa-powerup-laser .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(200, 220, 255, 0.4), 0 0 40px rgba(200, 220, 255, 0.15);
+}
+
+.galaxa-powerup-timeslow .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(170, 68, 255, 0.3), 0 0 40px rgba(170, 68, 255, 0.1);
+}
+
+.galaxa-boss-warning .galaxa-canvas {
+    animation: galaxa-boss-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes galaxa-boss-pulse {
+    from { box-shadow: 0 0 30px rgba(255, 0, 0, 0.2), 0 0 60px rgba(255, 0, 0, 0.1); }
+    to { box-shadow: 0 0 50px rgba(255, 0, 0, 0.5), 0 0 80px rgba(255, 0, 0, 0.3), inset 0 0 20px rgba(255, 0, 0, 0.1); }
+}
+
 .galaxa-overlay {
     position: absolute;
     top: 0;
@@ -38,7 +118,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    z-index: 2;
+    z-index: 3;
 }
 
 .galaxa-overlay.active {
@@ -118,35 +198,4 @@
 
 .galaxa-hs-table tr:first-child td {
     color: #ffcc00;
-}
-
-.galaxa-pause-overlay[hidden] {
-    display: none;
-}
-
-.galaxa-pause-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
-}
-
-.galaxa-pause-text {
-    color: #ffcc00;
-    font-family: 'Courier New', monospace;
-    font-size: 28px;
-    text-transform: uppercase;
-    letter-spacing: 4px;
-    animation: galaxa-blink 1s infinite;
-}
-
-@keyframes galaxa-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
 }
