@@ -346,11 +346,6 @@ func DefaultCatalog() []CatalogEntry {
 				"GUACD_PORT=4822",
 				"ENABLE_GUACAMOLE=true",
 			},
-			GeneratedSecrets: []GeneratedSecret{
-				{Key: "jwt_secret", Env: "JWT_SECRET", Label: "JWT secret"},
-				{Key: "database_key", Env: "DATABASE_KEY", Label: "Database encryption key"},
-				{Key: "internal_auth_token", Env: "INTERNAL_AUTH_TOKEN", Label: "Internal auth token"},
-			},
 			Companions: []CompanionTemplate{
 				{
 					ID:          "guacd",
