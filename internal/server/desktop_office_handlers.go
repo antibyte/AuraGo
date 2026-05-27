@@ -237,7 +237,7 @@ func handleDesktopOfficeExport(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(outputName, `"`, "")))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, sanitizeContentDisposition(outputName)))
 		http.ServeContent(w, r, outputName, entry.ModTime, bytes.NewReader(output))
 	}
 }

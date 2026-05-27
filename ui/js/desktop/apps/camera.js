@@ -236,7 +236,6 @@
             xhr.setRequestHeader('Content-Type', 'application/json');
 
             var responseText = '';
-            xhr.onreadystate = function () {};
 
             xhr.onreadystatechange = function () {
                 if (xhr.readyState >= 3) {

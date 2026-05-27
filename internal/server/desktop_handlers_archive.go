@@ -114,9 +114,8 @@ func handleDesktopArchive(s *Server) http.HandlerFunc {
 				if err != nil {
 					return err
 				}
-				defer file.Close()
-
 				_, err = io.Copy(writer, file)
+				file.Close()
 				return err
 			})
 
@@ -188,7 +187,12 @@ func handleDesktopExtract(s *Server) http.HandlerFunc {
 		defer reader.Close()
 
 		// Extraction
+		var totalExtracted int64
+		const maxExtractSize = 500 * 1024 * 1024 // 500MB limit
 		for _, f := range reader.File {
+			if f.Name == "" {
+				continue
+			}
 			fpath := filepath.Join(destResolved, f.Name)
 			if !strings.HasPrefix(filepath.Clean(fpath), filepath.Clean(destResolved)) {
 				jsonError(w, fmt.Sprintf("Illegal file path in zip: %s", f.Name), http.StatusBadRequest)
@@ -198,6 +202,12 @@ func handleDesktopExtract(s *Server) http.HandlerFunc {
 			if f.FileInfo().IsDir() {
 				_ = os.MkdirAll(fpath, os.ModePerm)
 				continue
+			}
+
+			totalExtracted += int64(f.UncompressedSize64)
+			if totalExtracted > maxExtractSize {
+				jsonError(w, "Extracted content exceeds maximum size limit (500MB)", http.StatusRequestEntityTooLarge)
+				return
 			}
 
 			if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {

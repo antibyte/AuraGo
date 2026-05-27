@@ -425,10 +425,26 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 		}
 		if client == nil {
 			client = s.LLMClient
+			if model == "" {
+				model = cfg.LLM.Model
+			}
 		}
 
+		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 		dispatchCtx := &agent.DispatchContext{
-			// same fields as in handleLooperRun
+			Cfg:                cfg,
+			Logger:             s.Logger,
+			LLMClient:          client,
+			Vault:              s.Vault,
+			Registry:           s.Registry,
+			Manifest:           manifest,
+			CronManager:        s.CronManager,
+			MissionManagerV2:   s.MissionManagerV2,
+			LongTermMem:        s.LongTermMem,
+			ShortTermMem:       s.ShortTermMem,
+			KG:                 s.KG,
+			InventoryDB:        s.InventoryDB,
+			InvasionDB:         s.InvasionDB,
 			CheatsheetDB:       s.CheatsheetDB,
 			ImageGalleryDB:     s.ImageGalleryDB,
 			MediaRegistryDB:    s.MediaRegistryDB,

@@ -795,13 +795,17 @@
     }
 
     function findExistingAppWindow(appId, context) {
+        const dead = [];
         state.windows.forEach((win, id) => {
             if (!win || !win.element || !win.element.isConnected) {
-                clearWindowMenus(id);
-                disposeAppWindow(win);
-                state.windows.delete(id);
-                if (state.activeWindowId === id) state.activeWindowId = '';
+                dead.push(id);
             }
+        });
+        dead.forEach(id => {
+            clearWindowMenus(id);
+            disposeAppWindow(state.windows.get(id));
+            state.windows.delete(id);
+            if (state.activeWindowId === id) state.activeWindowId = '';
         });
         return [...state.windows.values()].find(win => {
             if (win.appId !== appId) return false;

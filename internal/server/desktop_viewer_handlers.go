@@ -40,7 +40,7 @@ func handleDesktopViewerContent(s *Server) http.HandlerFunc {
 		case ".pdf":
 			w.Header().Set("Content-Type", "application/pdf")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, strings.ReplaceAll(entry.Name, `"`, "")))
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, sanitizeContentDisposition(entry.Name)))
 			http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(data))
 		case ".md":
 			content := string(data)

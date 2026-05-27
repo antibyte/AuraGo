@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -102,7 +103,11 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			content, entry, err := svc.ReadFile(r.Context(), r.URL.Query().Get("path"))
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				if os.IsPermission(err) {
+					jsonError(w, err.Error(), http.StatusForbidden)
+				} else {
+					jsonError(w, err.Error(), http.StatusBadRequest)
+				}
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -264,7 +269,7 @@ func handleDesktopPreview(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=120")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, strings.ReplaceAll(entry.Name, `"`, "")))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, sanitizeContentDisposition(entry.Name)))
 		http.ServeContent(w, r, entry.Name, entry.ModTime, file)
 	}
 }
@@ -330,9 +335,6 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 		}
 		defer file.Close()
 		destDir := r.FormValue("path")
-		if destDir == "" {
-			destDir = ""
-		}
 		content, readErr := io.ReadAll(file)
 		if readErr != nil {
 			jsonError(w, "Failed to read upload", http.StatusBadRequest)
@@ -383,7 +385,7 @@ func handleDesktopDownload(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, contentDisposition, strings.ReplaceAll(entry.Name, `"`, "")))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, contentDisposition, sanitizeContentDisposition(entry.Name)))
 		http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(data))
 	}
 }
@@ -391,4 +393,11 @@ func handleDesktopDownload(s *Server) http.HandlerFunc {
 func isDesktopDownloadInlineMIME(mimeType string) bool {
 	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
 	return strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/")
+}
+
+// sanitizeContentDisposition strips characters that could inject HTTP headers
+// from a Content-Disposition filename parameter.
+func sanitizeContentDisposition(name string) string {
+	replacer := strings.NewReplacer(`"`, ``, "\r", ``, "\n", ``, `\`, ``)
+	return replacer.Replace(name)
 }

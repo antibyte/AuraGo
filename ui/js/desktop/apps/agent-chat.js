@@ -46,7 +46,7 @@
         else appendChat(host, 'user', message);
         try {
             await sendDesktopChatStream(host, message, chatContextPayload(host));
-            await loadBootstrap();
+            try { await loadBootstrap(); } catch (_) { /* bootstrap refresh failed, chat still succeeded */ }
         } catch (err) {
             if (!isDesktopChatAbortError(err)) appendDesktopChatError(host, err);
         } finally {

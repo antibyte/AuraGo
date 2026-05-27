@@ -946,6 +946,7 @@
     }
 
     function renderAppContent(id, appId, context) {
+        if (!contentEl(id)) return;
         clearWindowMenus(id);
         try {
         if (appId === 'files') {

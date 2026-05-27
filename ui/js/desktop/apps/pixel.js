@@ -357,9 +357,10 @@
         function applyAdjustments() {
             if (!originalImage) return;
             applyAdjustmentsPreview();
+            const dataURL = canvas.toDataURL();
             const img = new Image();
-            img.src = canvas.toDataURL();
-            originalImage = img;
+            img.onload = function() { originalImage = img; };
+            img.src = dataURL;
             pushHistory();
             resetAdjustments();
         }
@@ -677,7 +678,8 @@
         host.querySelector('[data-action="resize"]').addEventListener('click', resizeImage);
         host.querySelector('[data-action="ai-generate"]').addEventListener('click', aiGenerate);
         host.querySelector('[data-action="ai-enhance"]').addEventListener('click', aiEnhance);
-        cropOverlay.addEventListener('mousedown', onCropMouseDown);
+        state._cropMouseDown = onCropMouseDown;
+        cropOverlay.addEventListener('mousedown', state._cropMouseDown);
 
         host.querySelectorAll('[data-adjust]').forEach(slider => {
             slider.addEventListener('input', () => {
@@ -781,6 +783,7 @@
             state.disposed = true;
             if (abortCtrl) abortCtrl.abort();
             if (state._keydown) document.removeEventListener('keydown', state._keydown);
+            if (state._cropMouseDown) cropOverlay.removeEventListener('mousedown', state._cropMouseDown);
             history = [];
             originalImage = null;
             canvas = null;

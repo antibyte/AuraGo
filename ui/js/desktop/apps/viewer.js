@@ -267,12 +267,26 @@
             contentEl.innerHTML = `<div class="vd-viewer-md vd-viewer-rendered">${rendered}</div>`;
         }
 
+        function sanitizeViewerHTML(html) {
+            var div = document.createElement('div');
+            div.innerHTML = html;
+            div.querySelectorAll('script, style, link, meta, base, iframe, object, embed, form, input, textarea, button, select').forEach(function(el) { el.remove(); });
+            div.querySelectorAll('*').forEach(function(el) {
+                Array.from(el.attributes).forEach(function(attr) {
+                    if (/^on/i.test(attr.name) || (/^href|^src|^action|^formaction|^data/i.test(attr.name) && /^javascript:/i.test(attr.value))) {
+                        el.removeAttribute(attr.name);
+                    }
+                });
+            });
+            return div.innerHTML;
+        }
+
         function renderDocument(html) {
             if (!html) {
                 contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content', 'No content to display'))}</div>`;
                 return;
             }
-            contentEl.innerHTML = `<div class="vd-viewer-docx vd-viewer-rendered">${html}</div>`;
+            contentEl.innerHTML = `<div class="vd-viewer-docx vd-viewer-rendered">${sanitizeViewerHTML(html)}</div>`;
         }
 
         function renderSpreadsheet(wb) {

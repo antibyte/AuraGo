@@ -390,6 +390,7 @@
 
         function connectStatus() {
             if (state.sse) { state.sse.close(); state.sse = null; }
+            if (state.disposed) return;
             const evtSource = new EventSource('/api/desktop/looper/status');
             state.sse = evtSource;
             evtSource.onmessage = (event) => {
@@ -397,7 +398,7 @@
             };
             evtSource.onerror = () => {
                 evtSource.close(); state.sse = null;
-                if (state.running) setTimeout(() => connectStatus(), 2000);
+                if (state.running && !state.disposed) setTimeout(() => connectStatus(), 2000);
             };
         }
 
@@ -536,6 +537,7 @@
     function dispose(windowId) {
         const state = instances.get(windowId);
         if (!state) return;
+        state.disposed = true;
         if (state.sse) { state.sse.close(); state.sse = null; }
         instances.delete(windowId);
     }
