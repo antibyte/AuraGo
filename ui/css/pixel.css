@@ -46,6 +46,8 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    box-sizing: border-box;
+    min-width: 0;
     padding: 4px 10px;
     border: 1px solid var(--pixel-line);
     border-radius: 6px;
@@ -99,22 +101,32 @@
 }
 
 .pixel-btn-group {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 8px;
 }
 
 .pixel-btn-group .pixel-btn {
-    flex: 1;
+    width: 100%;
     justify-content: center;
+    min-height: 34px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .pixel-tabs {
     display: flex;
     gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .pixel-tab {
+    flex: 0 0 auto;
     padding: 4px 12px;
     border: 1px solid transparent;
     border-radius: 6px;
@@ -195,12 +207,18 @@
 }
 
 .pixel-panel {
-    flex: 0 0 280px;
-    width: 280px;
+    flex: 0 0 clamp(320px, 24vw, 360px);
+    width: clamp(320px, 24vw, 360px);
+    box-sizing: border-box;
     overflow-y: auto;
+    overflow-x: hidden;
     border-left: 1px solid var(--pixel-line);
     background: var(--vd-surface, #1a1f2e);
     padding: 10px;
+}
+
+.pixel-panel-section[hidden] {
+    display: none;
 }
 
 .pixel-panel-section {
@@ -283,6 +301,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-width: 0;
     gap: 4px;
     padding: 8px 4px;
     border: 1px solid var(--pixel-line);
@@ -307,8 +326,12 @@
 }
 
 .pixel-filter-name {
+    max-width: 100%;
     font-size: 0.72rem;
     color: var(--pixel-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pixel-filter-grayscale .pixel-filter-preview { filter: grayscale(100%); }
@@ -450,10 +473,13 @@
 
 @media (max-width: 800px) {
     .pixel-panel {
-        flex: 0 0 220px;
-        width: 220px;
+        flex: 0 0 min(320px, 44vw);
+        width: min(320px, 44vw);
     }
     .pixel-filter-grid {
+        grid-template-columns: 1fr;
+    }
+    .pixel-btn-group {
         grid-template-columns: 1fr;
     }
 }

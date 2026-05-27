@@ -103,16 +103,16 @@
                 </div>
             </div>
             <div class="pixel-panel-section pixel-panel-transform" data-section="transform" hidden>
-                <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${iconMarkup('rotate-cw', 'CW')} ${esc(t('pixel.rotate_cw', 'Rotate CW'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${iconMarkup('rotate-ccw', 'CCW')} ${esc(t('pixel.rotate_ccw', 'Rotate CCW'))}</button></div>
-                <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${esc(t('pixel.flip_h', 'Flip H'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${esc(t('pixel.flip_v', 'Flip V'))}</button></div>
+                <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${iconMarkup('redo', 'CW')} ${esc(t('pixel.rotate_cw', 'Rotate CW'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${iconMarkup('undo', 'CCW')} ${esc(t('pixel.rotate_ccw', 'Rotate CCW'))}</button></div>
+                <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${iconMarkup('sort', 'H')} ${esc(t('pixel.flip_h', 'Flip H'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${iconMarkup('sort', 'V')} ${esc(t('pixel.flip_v', 'Flip V'))}</button></div>
                 <hr class="pixel-divider">
-                <button class="pixel-btn" type="button" data-action="crop">${iconMarkup('crop', 'C')} ${esc(t('pixel.crop', 'Crop'))}</button>
+                <button class="pixel-btn" type="button" data-action="crop">${iconMarkup('scissors', 'C')} ${esc(t('pixel.crop', 'Crop'))}</button>
                 <div class="pixel-crop-actions" data-crop-actions hidden>
                     <button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-crop">${esc(t('pixel.apply_crop', 'Apply Crop'))}</button>
                     <button class="pixel-btn" type="button" data-action="cancel-crop">${esc(t('pixel.cancel_crop', 'Cancel'))}</button>
                 </div>
                 <hr class="pixel-divider">
-                <button class="pixel-btn" type="button" data-action="resize">${iconMarkup('resize', 'R')} ${esc(t('pixel.resize', 'Resize'))}</button>
+                <button class="pixel-btn" type="button" data-action="resize">${iconMarkup('maximize', 'R')} ${esc(t('pixel.resize', 'Resize'))}</button>
             </div>
             <div class="pixel-panel-section pixel-panel-ai" data-section="ai" hidden>
                 <div class="pixel-ai-status" data-ai-status></div>
@@ -757,13 +757,13 @@
                     { id: 'zoom-100', labelKey: 'pixel.zoom_100', icon: 'zoom-in', action: () => zoomTo(1) }
                 ]},
                 { id: 'image', labelKey: 'pixel.menu_image', items: [
-                    { id: 'rotate-cw', labelKey: 'pixel.rotate_cw', icon: 'rotate-cw', action: () => rotateCanvas(90) },
-                    { id: 'rotate-ccw', labelKey: 'pixel.rotate_ccw', icon: 'rotate-ccw', action: () => rotateCanvas(-90) },
-                    { id: 'flip-h', labelKey: 'pixel.flip_h', action: () => flipCanvas(true) },
-                    { id: 'flip-v', labelKey: 'pixel.flip_v', action: () => flipCanvas(false) },
+                    { id: 'rotate-cw', labelKey: 'pixel.rotate_cw', icon: 'redo', action: () => rotateCanvas(90) },
+                    { id: 'rotate-ccw', labelKey: 'pixel.rotate_ccw', icon: 'undo', action: () => rotateCanvas(-90) },
+                    { id: 'flip-h', labelKey: 'pixel.flip_h', icon: 'sort', action: () => flipCanvas(true) },
+                    { id: 'flip-v', labelKey: 'pixel.flip_v', icon: 'sort', action: () => flipCanvas(false) },
                     { type: 'separator' },
-                    { id: 'crop', labelKey: 'pixel.crop', icon: 'crop', action: startCrop },
-                    { id: 'resize', labelKey: 'pixel.resize', icon: 'resize', action: resizeImage }
+                    { id: 'crop', labelKey: 'pixel.crop', icon: 'scissors', action: startCrop },
+                    { id: 'resize', labelKey: 'pixel.resize', icon: 'maximize', action: resizeImage }
                 ]},
                 { id: 'ai', labelKey: 'pixel.ai_generate', items: [
                     { id: 'generate', labelKey: 'pixel.generate', icon: 'image', action: () => { showPanel('ai'); } },
