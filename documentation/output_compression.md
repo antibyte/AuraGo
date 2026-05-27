@@ -148,13 +148,13 @@ agent:
 
 ### Advanced Safe Compressors
 
-These filters are disabled by default and only run after the existing domain-specific compressors. They always use a conservative rollback: if the final result is not shorter after dictionary/table overhead, AuraGo feeds the original output into context.
+These filters are disabled by default and only run after the existing domain-specific compressors. They always use a conservative rollback: if the final result is not at least 5% shorter after dictionary/table overhead, AuraGo feeds the original output into context.
 
 | Filter | Scope | Safety behavior |
 |--------|-------|-----------------|
 | LZW repetition substitution | Log-like shell/process output | Replaces repeated phrases of at least 15 characters and 3 occurrences with collision-checked ASCII markers plus a small dictionary. Skips diffs, source reads, JSON documents, tool-call JSON, and error outputs. |
 | LTSC-lite | Reserved | Configured off by default; no aggressive short-span replacement is enabled. |
-| TOON JSON | Known API tools only | Converts homogeneous arrays of scalar objects to a compact table. Skips arbitrary `api_request`, file-reader outputs, code/config content, nested objects, and arrays that do not meet the savings threshold. |
+| TOON JSON | Known API tools only | Converts complete homogeneous JSON arrays of scalar objects to a compact table. Skips arbitrary `api_request`, file-reader outputs, code/config content, nested objects, trailing non-JSON content, and arrays that do not meet the savings threshold. |
 
 ### Generic Fallback
 

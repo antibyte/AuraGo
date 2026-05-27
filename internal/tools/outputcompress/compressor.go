@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const conservativeRollbackMinSavingsPercent = 5
+
 // CompressionStats records how much a single compression pass saved.
 type CompressionStats struct {
 	ToolName         string    // tool that produced the output
@@ -156,7 +158,7 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 		}
 	}
 
-	if result != output && len(result) >= rawLen {
+	if result != output && !meetsSavingsThreshold(output, result, conservativeRollbackMinSavingsPercent) {
 		result = output
 		filter = "skipped-expanded"
 	}

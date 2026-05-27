@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -32,6 +33,10 @@ func compressTOONJSON(toolName, output string, cfg TOONJSONConfig) (string, bool
 	decoder.UseNumber()
 	var rows []map[string]interface{}
 	if err := decoder.Decode(&rows); err != nil {
+		return "", false
+	}
+	var trailing interface{}
+	if err := decoder.Decode(&trailing); err != io.EOF {
 		return "", false
 	}
 	if len(rows) < 2 || len(rows) > cfg.MaxRows {

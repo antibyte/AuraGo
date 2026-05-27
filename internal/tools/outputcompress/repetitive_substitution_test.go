@@ -177,6 +177,22 @@ func TestCompress_TOONJSONOnlyForKnownStructuredAPIOutputs(t *testing.T) {
 	}
 }
 
+func TestCompress_TOONJSONSkipsTrailingNonJSONContent(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.MinChars = 10
+	cfg.TOONJSON.Enabled = true
+	cfg.TOONJSON.MinSavingsPercent = 1
+
+	output := `[{"id":"1","name":"api"},{"id":"2","name":"worker"}] WARNING: partial payload`
+	result, stats := Compress("docker", "", output, cfg)
+	if result != output {
+		t.Fatalf("result = %q, want original with trailing content preserved", result)
+	}
+	if strings.Contains(stats.FilterUsed, "toon-json") {
+		t.Fatalf("filter = %q, want TOON skipped for trailing content", stats.FilterUsed)
+	}
+}
+
 func TestCompress_ConservativeRollbackReturnsOriginalWhenStageExpands(t *testing.T) {
 	cfg := Config{
 		Enabled:           true,
@@ -192,6 +208,28 @@ func TestCompress_ConservativeRollbackReturnsOriginalWhenStageExpands(t *testing
 	result, stats := Compress("docker", "", output, cfg)
 	if result != output {
 		t.Fatalf("result = %q, want original after conservative rollback", result)
+	}
+	if stats.FilterUsed != "skipped-expanded" {
+		t.Fatalf("filter = %q, want skipped-expanded", stats.FilterUsed)
+	}
+	if stats.Ratio != 1.0 {
+		t.Fatalf("ratio = %f, want 1.0", stats.Ratio)
+	}
+}
+
+func TestCompress_ConservativeRollbackRequiresMeaningfulSavings(t *testing.T) {
+	cfg := Config{
+		Enabled:           true,
+		MinChars:          10,
+		PreserveErrors:    true,
+		ShellCompression:  true,
+		PythonCompression: true,
+	}
+	output := strings.Repeat("a", 200) + " \n"
+
+	result, stats := Compress("unknown", "", output, cfg)
+	if result != output {
+		t.Fatalf("result = %q, want original when savings are not meaningful", result)
 	}
 	if stats.FilterUsed != "skipped-expanded" {
 		t.Fatalf("filter = %q, want skipped-expanded", stats.FilterUsed)
