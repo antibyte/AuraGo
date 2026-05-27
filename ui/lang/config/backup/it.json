@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 Importa Backup",
   "config.backup.import_password_label": "🔒 Password (solo per backup crittografati)",
   "config.backup.import_success": "Importazione riuscita",
-  "config.backup.import_warning": "Importante: L'importazione sovrascrive i file esistenti. Config, prompt e dati verranno sostituiti. Un riavvio è consigliato dopo l'importazione.",
+  "config.backup.import_warning": "<strong>Importante:</strong> L'importazione sovrascrive i file esistenti. Config, prompt e dati verranno sostituiti. Un riavvio è consigliato dopo l'importazione.",
   "config.backup.importing": "⏳ Importazione in corso…",
   "config.backup.include_vectordb": "Includi VectorDB (embeddings — potrebbe essere grande)",
   "config.backup.include_workdir": "Includi workdir (agent_workspace/workdir)",

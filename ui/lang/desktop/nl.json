@@ -951,5 +951,16 @@
   "galaxa.settings": "INSTELLINGEN",
   "galaxa.difficulty": "MOEILIJKHEIDSGRAAD",
   "galaxa.sound": "GELUID",
-  "galaxa.controls": "BESTURING"
+  "galaxa.controls": "BESTURING",
+  "galaxa.rapid_fire": "SNELVUUR",
+  "galaxa.spread_shot": "SPREIDSCHOT",
+  "galaxa.shield": "SCHILD",
+  "galaxa.bomb": "BOM",
+  "galaxa.perfect_bonus": "PERFECTE BONUS",
+  "galaxa.continue_prompt": "DOORGAAN?",
+  "galaxa.volume": "VOLUME",
+  "galaxa.easy": "MAKKELIJK",
+  "galaxa.normal": "NORMAL",
+  "galaxa.hard": "MOEILIJK",
+  "galaxa.restart": "HERSTART"
 }

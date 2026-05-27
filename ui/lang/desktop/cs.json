@@ -951,5 +951,16 @@
   "galaxa.settings": "NASTAVENÍ",
   "galaxa.difficulty": "OBTÍŽNOST",
   "galaxa.sound": "ZVUK",
-  "galaxa.controls": "OVLÁDÁNÍ"
+  "galaxa.controls": "OVLÁDÁNÍ",
+  "galaxa.rapid_fire": "RYCHLÁ PALBA",
+  "galaxa.spread_shot": "ROZPTYLOVÝ VÝSTŘEL",
+  "galaxa.shield": "ŠTÍT",
+  "galaxa.bomb": "BOMBA",
+  "galaxa.perfect_bonus": "PERFEKTNÍ BONUS",
+  "galaxa.continue_prompt": "POKRAČOVAT?",
+  "galaxa.volume": "HLASITOST",
+  "galaxa.easy": "SNADNÉ",
+  "galaxa.normal": "NORMÁLNÍ",
+  "galaxa.hard": "TĚŽKÉ",
+  "galaxa.restart": "RESTART"
 }

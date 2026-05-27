@@ -951,5 +951,16 @@
   "galaxa.settings": "INSTÄLLNINGAR",
   "galaxa.difficulty": "SVÅRIGHETSGRAD",
   "galaxa.sound": "LJUD",
-  "galaxa.controls": "KONTROLLER"
+  "galaxa.controls": "KONTROLLER",
+  "galaxa.rapid_fire": "SNABBELD",
+  "galaxa.spread_shot": "SPRIDNINGSSKOTT",
+  "galaxa.shield": "SKÖLD",
+  "galaxa.bomb": "BOMB",
+  "galaxa.perfect_bonus": "PERFEKT BONUS",
+  "galaxa.continue_prompt": "FORTSÄTT?",
+  "galaxa.volume": "VOLYM",
+  "galaxa.easy": "LÄTT",
+  "galaxa.normal": "NORMAL",
+  "galaxa.hard": "SVÅR",
+  "galaxa.restart": "OMSTART"
 }

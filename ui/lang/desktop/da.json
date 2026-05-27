@@ -951,5 +951,16 @@
   "galaxa.settings": "INDSTILLINGER",
   "galaxa.difficulty": "SVÆRHEDSGRAD",
   "galaxa.sound": "LYD",
-  "galaxa.controls": "KONTROL"
+  "galaxa.controls": "KONTROL",
+  "galaxa.rapid_fire": "HURTIGSKUD",
+  "galaxa.spread_shot": "SPREDNINGSSKUD",
+  "galaxa.shield": "SKJOLD",
+  "galaxa.bomb": "BOMBE",
+  "galaxa.perfect_bonus": "PERFEKT BONUS",
+  "galaxa.continue_prompt": "FORTSÆT?",
+  "galaxa.volume": "VOLUMEN",
+  "galaxa.easy": "LET",
+  "galaxa.normal": "NORMAL",
+  "galaxa.hard": "SVÆR",
+  "galaxa.restart": "GENSTART"
 }

@@ -951,5 +951,16 @@
   "galaxa.settings": "设置",
   "galaxa.difficulty": "难度",
   "galaxa.sound": "声音",
-  "galaxa.controls": "控制"
+  "galaxa.controls": "控制",
+  "galaxa.rapid_fire": "速射",
+  "galaxa.spread_shot": "散射",
+  "galaxa.shield": "护盾",
+  "galaxa.bomb": "炸弹",
+  "galaxa.perfect_bonus": "完美奖励",
+  "galaxa.continue_prompt": "继续?",
+  "galaxa.volume": "音量",
+  "galaxa.easy": "简单",
+  "galaxa.normal": "普通",
+  "galaxa.hard": "困难",
+  "galaxa.restart": "重新开始"
 }

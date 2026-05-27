@@ -27,7 +27,7 @@
   "config.auth.totp_desc": "Sicurezza aggiuntiva via app autenticatore (Google Authenticator, Authy, ecc.).",
   "config.auth.totp_disable": "Disabilita TOTP",
   "config.auth.totp_disable_confirm": "Disabilitare davvero la protezione TOTP?",
-  "config.auth.totp_instructions": "1. Scansiona il codice QR con la tua app autenticatore o inserisci la chiave manualmente. 2. Inserisci il codice a 6 cifre per confermare.",
+  "config.auth.totp_instructions": "1. Scansiona il codice QR con la tua app autenticatore o inserisci la chiave manualmente.<br>2. Inserisci il codice a 6 cifre per confermare.",
   "config.auth.totp_not_active": "non attivo",
   "config.auth.totp_setup": "Configura TOTP →",
   "config.auth.totp_title": "Autenticazione a Due Fattori (TOTP)",

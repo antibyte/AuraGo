@@ -951,5 +951,16 @@
   "galaxa.settings": "SETTINGS",
   "galaxa.difficulty": "DIFFICULTY",
   "galaxa.sound": "SOUND",
-  "galaxa.controls": "CONTROLS"
+  "galaxa.controls": "CONTROLS",
+  "galaxa.rapid_fire": "RAPID FIRE",
+  "galaxa.spread_shot": "SPREAD SHOT",
+  "galaxa.shield": "SHIELD",
+  "galaxa.bomb": "BOMB",
+  "galaxa.perfect_bonus": "PERFECT BONUS",
+  "galaxa.continue_prompt": "CONTINUE?",
+  "galaxa.volume": "VOLUME",
+  "galaxa.easy": "EASY",
+  "galaxa.normal": "NORMAL",
+  "galaxa.hard": "HARD",
+  "galaxa.restart": "RESTART"
 }

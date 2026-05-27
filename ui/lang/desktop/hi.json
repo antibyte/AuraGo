@@ -951,5 +951,16 @@
   "galaxa.settings": "सेटिंग्स",
   "galaxa.difficulty": "कठिनाई",
   "galaxa.sound": "ध्वनि",
-  "galaxa.controls": "नियंत्रण"
+  "galaxa.controls": "नियंत्रण",
+  "galaxa.rapid_fire": "तेज़ फायर",
+  "galaxa.spread_shot": "फैल शॉट",
+  "galaxa.shield": "शील्ड",
+  "galaxa.bomb": "बम",
+  "galaxa.perfect_bonus": "परफेक्ट बोनस",
+  "galaxa.continue_prompt": "जारी रखें?",
+  "galaxa.volume": "वॉल्यूम",
+  "galaxa.easy": "आसान",
+  "galaxa.normal": "सामान्य",
+  "galaxa.hard": "कठिन",
+  "galaxa.restart": "रीस्टार्ट"
 }

@@ -951,5 +951,16 @@
   "galaxa.settings": "ΡΥΘΜΙΣΕΙΣ",
   "galaxa.difficulty": "ΔΥΣΚΟΛΙΑ",
   "galaxa.sound": "ΗΧΟΣ",
-  "galaxa.controls": "ΕΛΕΓΧΟΣ"
+  "galaxa.controls": "ΕΛΕΓΧΟΣ",
+  "galaxa.rapid_fire": "ΤΑΧΕΙΑ ΒΟΛΗ",
+  "galaxa.spread_shot": "ΔΙΑΣΠΟΡΑ ΒΟΛΩΝ",
+  "galaxa.shield": "ΑΣΠΙΔΑ",
+  "galaxa.bomb": "ΒΟΜΒΑ",
+  "galaxa.perfect_bonus": "ΤΕΛΕΙΟ ΜΠΟΝΟΥΣ",
+  "galaxa.continue_prompt": "ΣΥΝΕΧΕΙΑ?",
+  "galaxa.volume": "ΕΝΤΑΣΗ",
+  "galaxa.easy": "ΕΥΚΟΛΟ",
+  "galaxa.normal": "ΚΑΝΟΝΙΚΟ",
+  "galaxa.hard": "ΔΥΣΚΟΛΟ",
+  "galaxa.restart": "ΕΠΑΝΕΚΙΝΗΣΗ"
 }

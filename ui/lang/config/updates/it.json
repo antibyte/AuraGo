@@ -66,7 +66,7 @@
   "config.updates.started": "✅ Aggiornamento avviato — AuraGo si sta riavviando. Ricarica tra 60s…",
   "config.updates.up_to_date": "Aggiornato",
   "config.updates.version": "Versione",
-  "config.updates.warning_banner": "L'aggiornamento sostituisce binari, prompt e file UI. La tua configurazione e i dati sono preservati. AuraGo si riavvierà dopo l'aggiornamento.",
+  "config.updates.warning_banner": "L'aggiornamento sostituisce binari, prompt e file UI. <strong>La tua configurazione e i dati sono preservati.</strong> AuraGo si riavvierà dopo l'aggiornamento.",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
   "config.webdav.secret_empty": "Il valore è vuoto"
 }

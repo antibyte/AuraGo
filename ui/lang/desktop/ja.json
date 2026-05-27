@@ -951,5 +951,16 @@
   "galaxa.settings": "設定",
   "galaxa.difficulty": "難易度",
   "galaxa.sound": "サウンド",
-  "galaxa.controls": "操作方法"
+  "galaxa.controls": "操作方法",
+  "galaxa.rapid_fire": "高速射撃",
+  "galaxa.spread_shot": "拡散射撃",
+  "galaxa.shield": "シールド",
+  "galaxa.bomb": "ボム",
+  "galaxa.perfect_bonus": "パーフェクトボーナス",
+  "galaxa.continue_prompt": "コンティニュー?",
+  "galaxa.volume": "音量",
+  "galaxa.easy": "イージー",
+  "galaxa.normal": "ノーマル",
+  "galaxa.hard": "ハード",
+  "galaxa.restart": "リスタート"
 }
