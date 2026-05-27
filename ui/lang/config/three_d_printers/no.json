@@ -31,7 +31,7 @@
   "help.three_d_printers.klipper_enabled": "Aktiverer Klipper-integrasjonen via Moonraker for standardstatus og utskriftskontroll.",
   "help.three_d_printers.klipper_printers": "Legg til Klipper-skrivere der Moonraker API er tilgjengelig fra AuraGo-verten eller Docker-containeren.",
   "help.three_d_printers.klipper_url": "Lokal Moonraker-URL, for eksempel http://192.168.6.60:7125.",
-  "help.three_d_printers.klipper_webcam_name": "Valgfritt webkameranavn fra Moonraker. Tomt bruker forste aktiverte kamera.",
+  "help.three_d_printers.klipper_webcam_name": "Valgfritt webkameranavn fra Moonraker. Tomt bruker første aktiverte kamera.",
   "help.three_d_printers.mainboard_id": "Valgfri SDCP mainboard-ID. La stå tomt med mindre skriveren krever det.",
   "help.three_d_printers.printer_id": "Stabil kort ID som agenten bruker, for eksempel lab-printer.",
   "help.three_d_printers.printer_name": "Vennlig navn vist i UI og verktøyresultater.",

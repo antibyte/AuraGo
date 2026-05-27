@@ -13,7 +13,7 @@
   "config.agentmail.enabled_label": "Aktivert",
   "config.agentmail.inbox_id_label": "Primær innboks-ID",
   "config.agentmail.loading": "Laster…",
-  "config.agentmail.max_attachment_label": "Maks vedleggsstørrelse (MB)",
+  "config.agentmail.max_attachment_label": "Maks. vedleggsstørrelse (MB)",
   "config.agentmail.mode_full": "Full tilgang",
   "config.agentmail.mode_readonly": "Skrivebeskyttet",
   "config.agentmail.no": "Nei",

@@ -1,13 +1,13 @@
 {
-  "config.danger.warning_title": "Varování",
-  "config.danger.warning_desc": "Aqui você decide quanto poder conceder ao seu agente. Lembre-se de que o agente <strong> pode cometer erros </strong> — ative apenas o que você realmente precisa!",
+  "config.danger.warning_title": "Atenção",
+  "config.danger.warning_desc": "Aqui você decide quanto poder conceder ao seu agente. Lembre-se de que o agente <strong>pode cometer erros</strong> — ative apenas o que você realmente precisa!",
   "config.danger.sudo.title": "Execução Sudo (execute_sudo)",
-  "config.danger.sudo.desc": "Permite que o agente execute comandos com privilégios sudo. A senha do Sudo deve ser armazenada no cofre.",
+  "config.danger.sudo.desc": "Permite que o agente execute comandos com privilégios sudo. A senha sudo deve ser armazenada no cofre.",
   "config.danger.shell.title": "Execução de shell (execute_shell)",
   "config.danger.shell.desc": "Permite que o agente execute comandos shell arbitrários no sistema host.",
-  "config.danger.python.title": "Execução de Python/habilidade (execute_python/execute_skill/save_tool)",
-  "config.danger.python.desc": "Permite que o agente execute código Python arbitrário e habilidades <strong> localmente sem sandbox </strong> e persista novas ferramentas. O código é executado diretamente no sistema host – em vez disso, use o sandbox para execução isolada.",
-  "config.danger.filesystem.title": "Acesso de gravação do sistema de arquivos (operações de gravação do sistema de arquivos)",
+  "config.danger.python.title": "Execução de Python / skills (execute_python / execute_skill / save_tool)",
+  "config.danger.python.desc": "Permite que o agente execute código Python arbitrário e skills <strong>localmente sem sandbox</strong> e salve novas ferramentas. O código é executado diretamente no sistema host — use o sandbox para execução isolada.",
+  "config.danger.filesystem.title": "Acesso de escrita ao sistema de arquivos (filesystem write ops)",
   "config.danger.filesystem.desc": "Permite que o agente grave, exclua, mova arquivos e crie diretórios por meio da ferramenta de sistema de arquivos.",
   "config.danger.network.title": "Solicitações de rede (api_request)",
   "config.danger.network.desc": "Permite que o agente envie solicitações HTTP arbitrárias para URLs externos.",
@@ -17,8 +17,8 @@
   "config.danger.self_update.desc": "Permite que o agente se atualize e reinicie o processo.",
   "config.danger.package_manager.title": "Gerenciamento de pacotes (package_manager)",
   "config.danger.package_manager.desc": "Permite que o agente instale, remova, atualize, pesquise e inspecione pacotes do sistema. Alterações no Linux usam sudo_password do cofre.",
-  "config.danger.mcp.title": "MCP Conexões do servidor (mcp_call)",
-  "config.danger.mcp.desc": "Permite que o agente se conecte a servidores MCP externos e use suas ferramentas.  <strong style=\"color:#f87171;\"> ⚠ Adicione apenas servidores confiáveis! </strong>",
-  "config.danger.sudo_unrestricted.title": "Acesso de Escrita Sudo em Todo o Sistema",
-  "config.danger.sudo_unrestricted.desc": "Permite ao agente escrever fora do diretório de instalação usando sudo (por ex. /etc.). Requer a remoção de ProtectSystem=strict da unidade de serviço systemd."
+  "config.danger.mcp.title": "Conexões de servidores MCP (mcp_call)",
+  "config.danger.mcp.desc": "Permite que o agente se conecte a servidores MCP externos e use suas ferramentas. <strong style=\"color:#f87171;\">⚠ Adicione apenas servidores confiáveis!</strong>",
+  "config.danger.sudo_unrestricted.title": "Acesso de escrita sudo em todo o sistema",
+  "config.danger.sudo_unrestricted.desc": "Permite que o agente escreva fora do diretório de instalação usando sudo (por ex. /etc.). Requer a remoção de ProtectSystem=strict da unidade de serviço systemd."
 }

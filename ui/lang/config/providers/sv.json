@@ -128,7 +128,7 @@
   "config.providers.workers_ai_url_auto": "URL genereras automatiskt från kontot ID.",
   "config.providers.manifest_url_auto": "URL hamtas fran Manifest-installningarna.",
   "config.providers.type_yepapi": "yepapi",
-  "config.providers.hint.manifest": "Anvander Manifest-integrationsinstallningarna. I hanterat lage pratar AuraGo med den interna sidecaren.",
+  "config.providers.hint.manifest": "Använder Manifest-integrationsinställningarna. I hanterat läge pratar AuraGo med den interna sidecaren.",
   "config.providers.hint.yepapi": "API-nyckel från YepAPI-dashboard. Bas-URL måste vara https://api.yepapi.com/v1/ai för LLM-chat.",
   "config.providers.type_deepseek": "deepseek",
   "config.providers.type_groq": "groq",
