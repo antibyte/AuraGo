@@ -232,15 +232,18 @@
                 connectWS();
             }, wsReconnectDelay);
         });
-        ws.addEventListener('message', async (event) => {
+        ws.addEventListener('message', (event) => {
             let msg;
             try { msg = JSON.parse(event.data); } catch (_) { return; }
-            handleDesktopEvent(msg.type === 'welcome' ? { type: 'welcome', payload: msg.payload } : msg);
+            try {
+                handleDesktopEvent(msg.type === 'welcome' ? { type: 'welcome', payload: msg.payload } : msg);
+            } catch (_) {}
         });
     }
 
     function setWSState(online, failed) {
         const dot = $('vd-ws-state');
+        if (!dot) return;
         if (online) {
             dot.dataset.state = 'online';
             dot.title = '';
@@ -290,12 +293,15 @@
         note.style.zIndex = '60';
         note.innerHTML = `<div class="vd-widget-title">${esc(payload.title || t('desktop.notification'))}</div>
             <div class="vd-widget-body">${esc(payload.message || '')}</div>`;
-        $('vd-workspace').appendChild(note);
+        const workspace = $('vd-workspace');
+        if (!workspace) return;
+        workspace.appendChild(note);
         setTimeout(() => note.remove(), 5500);
     }
 
     function updateClock() {
-        $('vd-clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const clock = $('vd-clock');
+        if (clock) clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function wireChrome() {
@@ -794,7 +800,9 @@
     }
 
     function calendarOptionalDateTime(value) {
-        return value ? new Date(value).toISOString() : '';
+        if (!value) return '';
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? '' : date.toISOString();
     }
 
     function shiftCalendarDate(value, repeat, amount) {
@@ -870,6 +878,8 @@
     }
 
     async function init() {
+        if (state._initialized) return;
+        state._initialized = true;
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         await loadIconManifest();
@@ -877,7 +887,7 @@
         wireChrome();
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
-        setInterval(updateClock, 15000);
+        state._clockTimer = setInterval(updateClock, 15000);
         await loadBootstrap();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
     }

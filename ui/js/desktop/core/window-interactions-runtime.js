@@ -127,7 +127,12 @@
             }
         });
         bar.addEventListener('pointercancel', event => {
-            if (gesture && gesture.pointerId === event.pointerId) gesture = null;
+            if (gesture && gesture.pointerId === event.pointerId) {
+                gesture = null;
+                if (bar.hasPointerCapture && bar.hasPointerCapture(event.pointerId)) {
+                    bar.releasePointerCapture(event.pointerId);
+                }
+            }
         });
     }
 
@@ -217,7 +222,10 @@
                 cancelWindowPointerFrame(resize, true);
                 resize = null;
             });
-            handle.addEventListener('pointercancel', () => {
+            handle.addEventListener('pointercancel', event => {
+                if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
+                    handle.releasePointerCapture(event.pointerId);
+                }
                 cancelWindowPointerFrame(resize);
                 resize = null;
             });

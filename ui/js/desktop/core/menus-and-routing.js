@@ -989,39 +989,13 @@
         }
         if (appId === 'launchpad') return renderLaunchpad(id); if (appId === 'software-store' && window.SoftwareStoreApp && typeof window.SoftwareStoreApp.render === 'function') return window.SoftwareStoreApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, loadBootstrap, openApp, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
-            return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc,
-                api,
-                t,
-                iconMarkup,
-                notify: showDesktopNotification,
-                readonly: !!((state.bootstrap || {}).readonly),
-                loadBootstrap,
-                updateWindowContext: updateWindowContext,
-                setWindowMenus,
-                clearWindowMenus,
-                wireContextMenuBoundary
-            }));
+            return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
         if (appId === 'camera' && window.CameraApp && typeof window.CameraApp.render === 'function') {
-            return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc,
-                api,
-                t,
-                iconMarkup,
-                notify: showDesktopNotification,
-                readonly: !!((state.bootstrap || {}).readonly),
-                loadBootstrap,
-                setWindowMenus,
-                clearWindowMenus
-            }));
+            return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.render === 'function') {
-            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, api, t, iconMarkup, notify: showDesktopNotification,
-                setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp,
-                loadBootstrap
-            }));
+            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap }));
         }
         if (appId === 'pixel' && window.PixelApp && typeof window.PixelApp.render === 'function') {
             return window.PixelApp.render(contentEl(id), id, withDesktopFileDialogs(context, {

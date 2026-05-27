@@ -3223,7 +3223,7 @@
 }
 
 .vd-media-preview-backdrop {
-    z-index: 5000;
+    z-index: var(--vd-z-media-preview);
 }
 
 .vd-media-preview {
@@ -4387,11 +4387,6 @@
     border-radius: 3px;
 }
 
-.vd-chat-bubble.agent pre code {
-    padding: 10px 12px;
-    background: rgba(0,0,0,0.3);
-}
-
 .vd-chat-bubble.agent table {
     width: 100%;
     border-collapse: collapse;
@@ -4705,7 +4700,6 @@
 
 .vd-looper-field-xs { flex: 0 0 100px; width: 100px; min-width: 100px; }
 .vd-looper-field-sm { flex: 0 0 175px; width: 175px; min-width: 175px; }
-.vd-looper-field-xs input { text-align: center; }
 .vd-looper-field-xs input { text-align: center; }
 
 .vd-looper-icon-btn {
