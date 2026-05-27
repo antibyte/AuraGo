@@ -422,6 +422,10 @@
         const target = e.currentTarget;
         const type = target.dataset.type;
         const payload = fileManagerDragPayloadFromEvent(e);
+        if (payload && type !== 'directory') {
+            e.dataTransfer.dropEffect = 'move';
+            return;
+        }
         if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             e.dataTransfer.dropEffect = 'move';
         } else {
@@ -437,8 +441,11 @@
         target.classList.remove('drag-over');
         const destPath = target.dataset.path;
         const destType = target.dataset.type;
-        if (destType !== 'directory') return;
         const payload = fileManagerDragPayloadFromEvent(e);
+        if (destType !== 'directory') {
+            if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
+            return;
+        }
         if (payload) {
             await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
             dragSrcPath = null;

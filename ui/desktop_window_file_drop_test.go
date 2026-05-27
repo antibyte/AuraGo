@@ -99,6 +99,33 @@ func TestFileManagerExportsMultiFileWindowDrop(t *testing.T) {
 	}
 }
 
+func TestFileManagerDropsOntoNonDirectoryItemsFallBackToCurrentFolder(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/file-manager.js")
+	dragOverBody := jsFunctionBodyInWindowMenuTest(t, source, "function handleDragOverItem(e)")
+	for _, marker := range []string{
+		"if (payload && type !== 'directory') {",
+		"e.dataTransfer.dropEffect = 'move';",
+		"return;",
+	} {
+		if !strings.Contains(dragOverBody, marker) {
+			t.Fatalf("file item dragover must keep desktop/file-manager payloads valid over non-directory items; missing %q", marker)
+		}
+	}
+
+	dropBody := jsFunctionBodyInWindowMenuTest(t, source, "async function handleItemDrop(e)")
+	for _, marker := range []string{
+		"if (destType !== 'directory') {",
+		"if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);",
+		"return;",
+	} {
+		if !strings.Contains(dropBody, marker) {
+			t.Fatalf("file item drop must fall back to the current folder for non-directory targets; missing %q", marker)
+		}
+	}
+}
+
 func TestPixelAndZipperUseSharedDesktopDropPayloadHelpers(t *testing.T) {
 	t.Parallel()
 
