@@ -328,6 +328,38 @@ func DefaultCatalog() []CatalogEntry {
 				{Key: "password", Env: "PASSWORD", Label: "Password", Expose: true},
 			},
 		},
+		{
+			ID:          "termix",
+			Name:        "Termix",
+			Description: "Self-hosted SSH and remote desktop management platform with RDP, VNC, and Telnet support.",
+			Image:       "ghcr.io/lukegus/termix:latest",
+			Icon:        "terminal",
+			LogoSlug:    "termix",
+			LogoURL:     logoURL("termix"),
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8080, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/app/data"},
+			},
+			Env: []string{
+				"PORT=8080",
+				"GUACD_HOST=aurago-store-termix-guacd",
+				"GUACD_PORT=4822",
+				"ENABLE_GUACAMOLE=true",
+			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: "jwt_secret", Env: "JWT_SECRET", Label: "JWT secret"},
+				{Key: "database_key", Env: "DATABASE_KEY", Label: "Database encryption key"},
+				{Key: "internal_auth_token", Env: "INTERNAL_AUTH_TOKEN", Label: "Internal auth token"},
+			},
+			Companions: []CompanionTemplate{
+				{
+					ID:          "guacd",
+					Name:        "Termix Guacamole (RDP/VNC)",
+					Image:       "guacamole/guacd:1.6.0",
+					NetworkMode: "aurago-store-termix-net",
+				},
+			},
+		},
 	}
 }
 

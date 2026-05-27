@@ -38,6 +38,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor"},
 		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "terminal"},
 		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code"},
+		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "terminal"},
 	}
 	if len(catalog) != len(expected) {
 		t.Fatalf("expected %d catalog apps, got %d", len(expected), len(catalog))
