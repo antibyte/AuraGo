@@ -508,6 +508,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/enhance", handlePixelEnhance(s))
 	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
 
+	// Galaxa Deluxe highscore endpoints
+	mux.HandleFunc("/api/desktop/galaxa/highscore", handleGalaxaHighscoreGet(s))
+	mux.HandleFunc("/api/desktop/galaxa/highscore/submit", handleGalaxaHighscorePost(s))
+
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──

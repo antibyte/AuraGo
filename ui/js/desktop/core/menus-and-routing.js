@@ -1010,6 +1010,9 @@
                 openApp
             }));
         }
+        if (appId === 'galaxa-deluxe' && window.GalaxaDeluxe && typeof window.GalaxaDeluxe.render === 'function') {
+            return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }

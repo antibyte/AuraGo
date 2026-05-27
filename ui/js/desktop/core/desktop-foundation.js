@@ -124,7 +124,8 @@
         'software-store': 'package',
         looper: 'looper',
         'system-info': 'monitor',
-        pixel: 'image'
+        pixel: 'image',
+        'galaxa-deluxe': 'run'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -272,7 +273,8 @@
             launchpad: 'LP',
             'software-store': 'SS',
             looper: 'Lp',
-            pixel: 'Px'
+            pixel: 'Px',
+            'galaxa-deluxe': 'Gx'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }

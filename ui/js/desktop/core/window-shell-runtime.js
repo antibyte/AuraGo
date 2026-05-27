@@ -736,7 +736,8 @@
             camera: { width: 720, height: 600 },
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
-            pixel: { width: 1100, height: 750 }
+            pixel: { width: 1100, height: 750 },
+            'galaxa-deluxe': { width: 600, height: 800 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
@@ -951,7 +952,7 @@
         win.style.top = position.top + 'px';
         win.style.width = size.width + 'px';
         win.style.height = size.height + 'px';
-        const isResizable = appId !== 'calculator';
+        const isResizable = appId !== 'calculator' && appId !== 'galaxa-deluxe';
         win.style.minWidth = Math.min(WINDOW_MIN_W, size.width) + 'px';
         win.style.minHeight = Math.min(WINDOW_MIN_H, size.height) + 'px';
         const minSize = appWindowMinSize(appId);
