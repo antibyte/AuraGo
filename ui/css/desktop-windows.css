@@ -75,6 +75,16 @@
     border-color: rgba(39, 199, 166, 0.46);
 }
 
+.vd-window.vd-window-file-drop-target {
+    border-color: rgba(39, 199, 166, 0.72);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(39, 199, 166, 0.25);
+}
+
+.vd-window.vd-window-file-drop-reject {
+    border-color: rgba(248, 113, 113, 0.68);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(248, 113, 113, 0.2);
+}
+
 .vd-window.no-titlebar {
     grid-template-rows: 1fr;
     border: 2px solid #181818;

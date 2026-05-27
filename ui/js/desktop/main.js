@@ -17,6 +17,7 @@
         '/js/desktop/core/shortcut-runtime.js?v=' + assetV,
         '/js/desktop/core/file-dialog-runtime.js?v=' + assetV,
         '/js/desktop/core/desktop-file-drops.js?v=' + assetV,
+        '/js/desktop/core/desktop-window-file-drops.js?v=' + assetV,
         '/js/desktop/apps/agent-chat.js?v=' + assetV,
         '/js/desktop/apps/software-store.js?v=' + assetV,
         '/js/desktop/core/menus-and-routing.js?v=' + assetV,

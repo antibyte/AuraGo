@@ -13,6 +13,7 @@
         const iconMarkup = ctx.iconMarkup || ((key, fallback) => `<span>${esc(fallback || key || '')}</span>`);
         const notify = ctx.notify || (() => {});
         const openApp = ctx.openApp || (() => {});
+        const fileOps = ctx.fileOps || window.AuraDesktopFileOps || null;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         let zipPath = ctx.path || '';
@@ -339,7 +340,9 @@
         if (appEl) {
             appEl.addEventListener('dragover', event => {
                 if (!event.dataTransfer) return;
-                const hasFileDrag = Array.from(event.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
+                const hasFileDrag = fileOps && typeof fileOps.hasDragPayload === 'function'
+                    ? fileOps.hasDragPayload(event)
+                    : Array.from(event.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
                 const hasPlainFile = event.dataTransfer.types.includes('Files');
                 if (hasFileDrag || hasPlainFile) {
                     event.preventDefault();
@@ -355,14 +358,10 @@
             appEl.addEventListener('drop', event => {
                 appEl.classList.remove('zipper-drop-target');
                 event.preventDefault();
+                event.stopPropagation();
                 let paths = [];
-                try {
-                    const raw = event.dataTransfer.getData('application/x-aurago-desktop-files');
-                    if (raw) {
-                        const payload = JSON.parse(raw);
-                        if (Array.isArray(payload.paths)) paths = payload.paths;
-                    }
-                } catch (_) {}
+                const payload = fileOps && typeof fileOps.readDragPayload === 'function' ? fileOps.readDragPayload(event) : null;
+                if (payload && Array.isArray(payload.paths)) paths = payload.paths;
                 if (!paths.length) {
                     const text = event.dataTransfer.getData('text/plain');
                     if (text) paths = [text];

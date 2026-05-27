@@ -11,6 +11,17 @@
         return parts.pop() || '';
     }
 
+    function desktopFilePathInfo(path) {
+        const cleanPath = normalizeDesktopPath(path);
+        const name = desktopDropBaseName(cleanPath);
+        const dot = name.lastIndexOf('.');
+        return {
+            path: cleanPath,
+            name,
+            ext: dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
+        };
+    }
+
     function desktopDropNameCandidate(name, index) {
         if (index <= 1) return name;
         const dot = name.lastIndexOf('.');
@@ -238,6 +249,9 @@
 
     window.AuraDesktopFileOps = {
         dragType: DESKTOP_FILE_DRAG_TYPE,
+        hasDragPayload: hasDesktopFileDragPayload,
+        readDragPayload: desktopFileDragPayload,
+        pathInfo: desktopFilePathInfo,
         setClipboard: setDesktopFileClipboard,
         getClipboard: desktopFileClipboard,
         hasClipboard: hasDesktopFileClipboard,

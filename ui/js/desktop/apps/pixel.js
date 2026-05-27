@@ -15,6 +15,7 @@
         const api = ctx.api || fetchJSON;
         const iconMarkup = ctx.iconMarkup || ((k, f) => `<span>${esc(f || k || '')}</span>`);
         const notify = ctx.notify || (() => {});
+        const fileOps = ctx.fileOps || window.AuraDesktopFileOps || null;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         let originalImage = null;
@@ -718,7 +719,9 @@
         // Drop support
         appEl.addEventListener('dragover', e => {
             if (!e.dataTransfer) return;
-            const hasFileDrag = Array.from(e.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
+            const hasFileDrag = fileOps && typeof fileOps.hasDragPayload === 'function'
+                ? fileOps.hasDragPayload(e)
+                : Array.from(e.dataTransfer.types || []).includes('application/x-aurago-desktop-files');
             const hasPlainFile = e.dataTransfer.types.includes('Files');
             if (hasFileDrag || hasPlainFile) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; appEl.classList.add('pixel-drop-target'); }
         });
@@ -726,8 +729,10 @@
         appEl.addEventListener('drop', e => {
             appEl.classList.remove('pixel-drop-target');
             e.preventDefault();
+            e.stopPropagation();
             let paths = [];
-            try { const raw = e.dataTransfer.getData('application/x-aurago-desktop-files'); if (raw) { const p = JSON.parse(raw); if (Array.isArray(p.paths)) paths = p.paths; } } catch (_) {}
+            const payload = fileOps && typeof fileOps.readDragPayload === 'function' ? fileOps.readDragPayload(e) : null;
+            if (payload && Array.isArray(payload.paths)) paths = payload.paths;
             if (!paths.length) { const text = e.dataTransfer.getData('text/plain'); if (text) paths = [text]; }
             const imgPath = paths.find(p => IMAGE_EXTS.some(ext => p.toLowerCase().endsWith('.' + ext)));
             if (imgPath) {

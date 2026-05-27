@@ -10,6 +10,14 @@
         }
     }
 
+    async function dropDesktopFiles(windowId, paths, destPath) {
+        const instance = instanceForWindow(windowId);
+        if (!instance || !instance.host) return false;
+        setActiveInstance(instance);
+        await moveDroppedDesktopFilesToFolder(paths, destPath == null ? fm.currentPath : destPath);
+        return true;
+    }
+
     function dispose(windowId) {
         const instance = instanceForWindow(windowId);
         if (!instance) return;
@@ -31,5 +39,5 @@
     }
 
     // Expose the module
-    window.FileManager = { render, navigateTo, dispose };
+    window.FileManager = { render, navigateTo, dropDesktopFiles, dispose };
 })();

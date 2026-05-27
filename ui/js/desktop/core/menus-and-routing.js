@@ -948,6 +948,8 @@
     function renderAppContent(id, appId, context) {
         if (!contentEl(id)) return;
         clearWindowMenus(id);
+        clearDesktopFileWindowDropState(id);
+        wireDesktopFileWindowDrop(id);
         try {
         if (appId === 'files') {
             const path = Object.prototype.hasOwnProperty.call(context || {}, 'path')
@@ -995,7 +997,7 @@
             return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus }));
         }
         if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.render === 'function') {
-            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap }));
+            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
         }
         if (appId === 'pixel' && window.PixelApp && typeof window.PixelApp.render === 'function') {
             return window.PixelApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
@@ -1007,7 +1009,8 @@
                 clearWindowMenus,
                 wireContextMenuBoundary,
                 promptDialog,
-                openApp
+                openApp,
+                fileOps: window.AuraDesktopFileOps
             }));
         }
         if (appId === 'galaxa-deluxe' && window.GalaxaDeluxe && typeof window.GalaxaDeluxe.render === 'function') {
