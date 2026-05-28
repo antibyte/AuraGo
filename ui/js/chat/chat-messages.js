@@ -60,11 +60,17 @@ function personaAvatarMarkup(role) {
 }
 
 function normalizeChatTimestamp(timestamp) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.normalizeTimestamp === 'function') {
+        return window.AuraChatCore.normalizeTimestamp(timestamp);
+    }
     const date = timestamp ? new Date(timestamp) : new Date();
     return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 function formatChatTimestamp(timestamp) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.formatTimestamp === 'function') {
+        return window.AuraChatCore.formatTimestamp(timestamp);
+    }
     const date = normalizeChatTimestamp(timestamp);
     try {
         return new Intl.DateTimeFormat(undefined, {
@@ -134,12 +140,17 @@ function appendMessage(role, text, timestamp) {
     } else {
         try {
             if (window.AuraMarkdown || typeof window.markdownit !== 'undefined') {
-                const md = window.AuraMarkdown
-                    ? window.AuraMarkdown.createMarkdownIt({
+                const md = (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function')
+                    ? window.AuraChatCore.createMarkdownRenderer({
                         enableCharts: true,
                         codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
                     })
-                    : window.markdownit({ html: false, breaks: true, linkify: true });
+                    : (window.AuraMarkdown
+                        ? window.AuraMarkdown.createMarkdownIt({
+                            enableCharts: true,
+                            codeBlockFactory: (str, lang) => window.CodeBlocks ? window.CodeBlocks.createCodeBlock(str, lang) : ''
+                        })
+                        : window.markdownit({ html: false, breaks: true, linkify: true }));
                 if (!md) throw new Error('Markdown renderer unavailable');
 
                 // Strip <external_data> wrapper tags — keep their inner content.
@@ -296,6 +307,9 @@ function isDebugOnlyHistoryMessage(msg) {
 }
 
 function escapeHtml(str) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.escapeHtml === 'function') {
+        return window.AuraChatCore.escapeHtml(str);
+    }
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -323,6 +337,9 @@ function replaceRedactedMarkers(html) {
 }
 
 function escapeAttr(s) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.escapeAttr === 'function') {
+        return window.AuraChatCore.escapeAttr(s);
+    }
     return String(s)
         .replace(/&/g, '&amp;')
         .replace(/"/g, '&quot;')

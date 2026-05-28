@@ -14,6 +14,9 @@
         _currentAudio: null,
 
         escapeHtml(str) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.escapeHtml === 'function') {
+                return window.AuraChatCore.escapeHtml(str);
+            }
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
@@ -22,6 +25,9 @@
         },
 
         escapeAttr(s) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.escapeAttr === 'function') {
+                return window.AuraChatCore.escapeAttr(s);
+            }
             return String(s)
                 .replace(/&/g, '&amp;')
                 .replace(/"/g, '&quot;')
@@ -37,11 +43,17 @@
         },
 
         normalizeChatTimestamp(timestamp) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.normalizeTimestamp === 'function') {
+                return window.AuraChatCore.normalizeTimestamp(timestamp);
+            }
             const date = timestamp ? new Date(timestamp) : new Date();
             return Number.isNaN(date.getTime()) ? new Date() : date;
         },
 
         formatChatTimestamp(timestamp) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.formatTimestamp === 'function') {
+                return window.AuraChatCore.formatTimestamp(timestamp);
+            }
             const date = this.normalizeChatTimestamp(timestamp);
             try {
                 return new Intl.DateTimeFormat(undefined, {
@@ -70,6 +82,10 @@
 
         getMarkdown() {
             if (this._md) return this._md;
+            if (window.AuraChatCore && typeof window.AuraChatCore.createMarkdownRenderer === 'function') {
+                this._md = window.AuraChatCore.createMarkdownRenderer();
+                return this._md;
+            }
             if (window.AuraMarkdown) {
                 this._md = window.AuraMarkdown.createMarkdownIt();
                 return this._md;

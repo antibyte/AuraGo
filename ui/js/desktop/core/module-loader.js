@@ -29,6 +29,7 @@
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
                 '/js/shared/render-markdown.js',
+                '/js/shared/chat-core.js',
                 '/js/chat/ui-icons.js',
                 '/js/chat/modules/voice-recorder.js',
                 '/js/chat/modules/speech-to-text.js',

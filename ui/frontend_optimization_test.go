@@ -43,6 +43,80 @@ func TestSharedLazyAssetsAPIIsEmbedded(t *testing.T) {
 	}
 }
 
+func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
+	t.Parallel()
+
+	core := readEmbeddedText(t, "js/shared/chat-core.js")
+	for _, want := range []string{
+		"window.AuraChatCore",
+		"escapeHtml(value)",
+		"escapeAttr(value)",
+		"normalizeTimestamp(timestamp)",
+		"formatTimestamp(timestamp)",
+		"createMarkdownRenderer(options)",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("shared chat core missing marker %q", want)
+		}
+	}
+
+	chatHTML := readEmbeddedText(t, "index.html")
+	chatCoreIndex := strings.Index(chatHTML, `/js/shared/chat-core.js?v={{.BuildVersion}}`)
+	chatMessagesIndex := strings.Index(chatHTML, `/js/chat/chat-messages.js`)
+	if chatCoreIndex < 0 {
+		t.Fatal("chat page must load shared chat core")
+	}
+	if chatMessagesIndex < 0 {
+		t.Fatal("chat page missing chat message renderer")
+	}
+	if chatCoreIndex > chatMessagesIndex {
+		t.Fatal("chat page must load shared chat core before chat message renderer")
+	}
+
+	desktopLoader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
+	desktopCoreIndex := strings.Index(desktopLoader, `/js/shared/chat-core.js`)
+	desktopRendererIndex := strings.Index(desktopLoader, `/js/desktop/chat-renderer.js`)
+	if desktopCoreIndex < 0 {
+		t.Fatal("desktop agent chat must lazy-load shared chat core")
+	}
+	if desktopRendererIndex < 0 {
+		t.Fatal("desktop agent chat missing chat renderer")
+	}
+	if desktopCoreIndex > desktopRendererIndex {
+		t.Fatal("desktop agent chat must load shared chat core before desktop chat renderer")
+	}
+}
+
+func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
+	t.Parallel()
+
+	chatJS := readEmbeddedText(t, "js/chat/chat-messages.js")
+	for _, want := range []string{
+		"window.AuraChatCore.normalizeTimestamp(timestamp)",
+		"window.AuraChatCore.formatTimestamp(timestamp)",
+		"window.AuraChatCore.escapeHtml(str)",
+		"window.AuraChatCore.escapeAttr(s)",
+		"window.AuraChatCore.createMarkdownRenderer({",
+	} {
+		if !strings.Contains(chatJS, want) {
+			t.Fatalf("chat renderer must delegate to AuraChatCore marker %q", want)
+		}
+	}
+
+	desktopChatJS := readEmbeddedText(t, "js/desktop/chat-renderer.js")
+	for _, want := range []string{
+		"window.AuraChatCore.escapeHtml(str)",
+		"window.AuraChatCore.escapeAttr(s)",
+		"window.AuraChatCore.normalizeTimestamp(timestamp)",
+		"window.AuraChatCore.formatTimestamp(timestamp)",
+		"window.AuraChatCore.createMarkdownRenderer()",
+	} {
+		if !strings.Contains(desktopChatJS, want) {
+			t.Fatalf("desktop chat renderer must delegate to AuraChatCore marker %q", want)
+		}
+	}
+}
+
 func TestChatInitialLoadDefersThemeEffectsAndThreeJS(t *testing.T) {
 	t.Parallel()
 
