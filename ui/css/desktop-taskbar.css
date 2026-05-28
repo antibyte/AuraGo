@@ -92,6 +92,7 @@
     background: rgba(255, 255, 255, 0.06);
     cursor: pointer;
     padding: 0;
+    margin-right: 8px;
     transition: background 0.15s;
 }
 

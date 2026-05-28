@@ -477,7 +477,7 @@
             if (state.activeWindowId) closeWindow(state.activeWindowId);
             return;
         }
-        if (event.altKey && event.key === 'Tab') {
+        if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
             event.preventDefault();
             showWindowSwitcher();
             return;
