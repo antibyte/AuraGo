@@ -111,6 +111,45 @@
     box-shadow: 0 0 20px rgba(170, 68, 255, 0.3), 0 0 40px rgba(170, 68, 255, 0.1);
 }
 
+.galaxa-powerup-pierce .galaxa-canvas,
+.galaxa-powerup-mega_pierce .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(136, 255, 170, 0.3), 0 0 40px rgba(136, 255, 170, 0.1);
+}
+
+.galaxa-powerup-homing .galaxa-canvas {
+    box-shadow: 0 0 20px rgba(255, 136, 170, 0.3), 0 0 40px rgba(255, 136, 170, 0.1);
+}
+
+.galaxa-powerup-supernova .galaxa-canvas {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.2);
+    animation: galaxa-supernova-flash 0.3s ease-out;
+}
+
+@keyframes galaxa-supernova-flash {
+    from { filter: brightness(2); }
+    to { filter: brightness(1); }
+}
+
+.galaxa-powerup-ultra_rapid .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(0, 255, 238, 0.4), 0 0 50px rgba(0, 255, 238, 0.15);
+}
+
+.galaxa-powerup-mega_spread .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(255, 136, 0, 0.4), 0 0 50px rgba(255, 136, 0, 0.15);
+}
+
+.galaxa-powerup-hyper_speed .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(255, 255, 68, 0.4), 0 0 50px rgba(255, 255, 68, 0.15);
+}
+
+.galaxa-powerup-super_magnet .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(255, 136, 255, 0.4), 0 0 50px rgba(255, 136, 255, 0.15);
+}
+
+.galaxa-powerup-mega_laser .galaxa-canvas {
+    box-shadow: 0 0 25px rgba(204, 221, 255, 0.5), 0 0 50px rgba(204, 221, 255, 0.2);
+}
+
 .galaxa-boss-warning .galaxa-canvas {
     animation: galaxa-boss-pulse 0.5s ease-in-out infinite alternate;
 }
