@@ -363,14 +363,14 @@
             }
             if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
         });
-wireDesktopFileDrops();
+        wireDesktopFileDrops();
         document.addEventListener('keydown', handleDesktopKeydown);
         document.addEventListener('keyup', handleDesktopKeyup);
         wireStartMenuSwipe();
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
-window.addEventListener('message', handleSDKMessage);
+        window.addEventListener('message', handleSDKMessage);
     }
 
     function toggleWidgetDrawer() {
@@ -391,15 +391,6 @@ window.addEventListener('message', handleSDKMessage);
         }, { once: true });
         const title = drawer.querySelector('.vd-widget-drawer-title');
         title.textContent = t('desktop.widget_drawer_title', 'Widgets');
-        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
-        const existingItems = drawer.querySelectorAll('.vd-widget');
-        existingItems.forEach(item => item.remove());
-        if (widgets.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'vd-empty';
-            empty.textContent = t('desktop.no_widgets', 'No widgets configured');
-            drawer.appendChild(empty);
-        }
     }
 
     function wireStartMenuSwipe() {
@@ -411,9 +402,6 @@ window.addEventListener('message', handleSDKMessage);
             if (event.target.closest('input, button, a')) return;
             swipe = { pointerId: event.pointerId, y: event.clientY };
             menu.setPointerCapture(event.pointerId);
-        });
-        menu.addEventListener('pointermove', event => {
-            if (!swipe || swipe.pointerId !== event.pointerId) return;
         });
         menu.addEventListener('pointerup', event => {
             if (!swipe || swipe.pointerId !== event.pointerId) return;
@@ -429,7 +417,9 @@ window.addEventListener('message', handleSDKMessage);
                 swipe = null;
                 if (menu.hasPointerCapture && menu.hasPointerCapture(event.pointerId)) {
                     menu.releasePointerCapture(event.pointerId);
-}
+                }
+            }
+        });
     }
 
     function showWindowSwitcher() {
@@ -459,26 +449,11 @@ window.addEventListener('message', handleSDKMessage);
             if (btn) focusWindow(btn.dataset.windowId);
             overlay.remove();
         });
-        overlay.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { overlay.remove(); return; }
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const items = overlay.querySelectorAll('.vd-switcher-item');
-                const current = overlay.querySelector('.vd-switcher-item.active');
-                const curIndex = items.indexOf(current);
-                items.forEach(item => item.classList.remove('active'));
-                const next = items[(curIndex + 1) % items.length];
-                next.classList.add('active');
-                next.focus();
-            }
-        });
         document.body.appendChild(overlay);
         setTimeout(() => overlay.remove(), 3000);
     }
-        });
-    }
 
-function handleDesktopKeydown(event) {
+    function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;

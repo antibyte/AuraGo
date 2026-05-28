@@ -717,11 +717,11 @@ themes: {
             const isUpgradeable = PU_UPGRADE[pu.type];
             const isSameType = G.activePU && G.activePU.type === pu.type;
             if (isUpgradeable && isSameType && !G.puUpgrade) {
-                G.puUpgrade = PU_UPGRADE[pu.type]; G.puTimer = PU_DUR[pu.type] || 0;
+                G.puUpgrade = PU_UPGRADE[pu.type]; G.activePU.type = G.puUpgrade; G.puTimer = PU_DUR[pu.type] || 0;
                 G.upgradeBanner = { text: 'POWER UP!', type: G.puUpgrade, t: 0, dur: 1500 };
                 SFX.puUpgrade(); setPUClass(G.puUpgrade);
             } else if (pu.type === 'homing') {
-                G.activePU = { type: 'homing', timer: 0, shots: 5 }; G.puTimer = 0; setPUClass('homing');
+                G.activePU = { type: 'homing', timer: 0, shots: 5 }; G.puTimer = 30000; setPUClass('homing');
             } else if (pu.type === 'shield') { G.shieldHits = 3; G.activePU = { type: 'shield', timer: 0 }; G.puTimer = 0; setPUClass('shield'); }
             else if (pu.type === 'pierce') {
                 G.activePU = { type: G.puUpgrade === 'mega_pierce' ? 'mega_pierce' : 'pierce', timer: PU_DUR.pierce }; G.puTimer = PU_DUR.pierce; setPUClass(G.activePU.type);
@@ -751,7 +751,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
                 G.deathParts.push({ x: G.p.x, y: G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20, life: 800, t: 0, col: SP.pC[1 + (i % 4)] || '#fff', sz: 3 + Math.random() * 3, rot: Math.random() * 6.28 });
             }
             setPUClass(null);
-            if (G.lives < 0) { G.st = 'GAME_OVER'; G.sTmr = 3000; G.contTmr = 10; G.contCnt = 9; MusicEngine.play('gameover'); }
+            if (G.lives < 0) { G.st = 'GAME_OVER'; G.sTmr = 3000; G.contTmr = 10; G.contCnt = 10; MusicEngine.play('gameover'); }
             else { G.p.reviveTimer = 1500; }
         }
 
@@ -1064,7 +1064,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
             c.fillStyle = '#4488ff'; c.font = '12px "Courier New",monospace'; c.fillText(t('galaxa.high_score', 'HIGH SCORE'), W / 2, 260);
             c.fillStyle = '#ffcc00'; c.fillText(String(G.hi).padStart(8, '0'), W / 2, 280);
             if (G.hiScores.length) { c.fillStyle = '#aaccee'; c.font = '11px "Courier New",monospace'; let y = 380; c.fillText('RANK   NAME    SCORE    STAGE', W / 2, y); y += 18; G.hiScores.forEach((h, i) => { c.fillText((i + 1) + '    ' + h.name.padEnd(3) + '   ' + String(h.score).padStart(8) + '   ' + String(h.stage).padStart(3), W / 2, y); y += 16; }); }
-            c.fillStyle = '#666'; c.font = '10px "Courier New",monospace'; c.fillText('ARROWS+SPACE  GAMEPAD  S=SETTINGS  M=MUTE', W / 2, H - 40);
+            c.fillStyle = '#666'; c.font = '10px "Courier New",monospace'; c.fillText('ARROWS+SPACE  GAMEPAD  SHIFT+S=SETTINGS  M=MUTE', W / 2, H - 40);
         }
 
         function renderStageIntro() {
@@ -1425,12 +1425,12 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
                 { label: t('galaxa.sound', 'SOUND'), val: G.muted ? 'OFF' : 'ON' },
                 { label: t('galaxa.difficulty', 'DIFFICULTY'), val: t('galaxa.' + settings.diff, settings.diff.toUpperCase()) },
                 { label: t('galaxa.volume', 'VOLUME'), val: settings.vol + '%' },
-                { label: t('galaxa.quit', 'QUIT') }
+                { label: t('galaxa.quit', 'QUIT'), val: '' }
             ];
             items.forEach((it, i) => {
                 const sel = i === G.settingsSel;
                 c.fillStyle = sel ? '#ffcc00' : '#888'; c.font = sel ? 'bold 14px "Courier New",monospace' : '12px "Courier New",monospace';
-                c.fillText(it.label + ': ' + it.val, W / 2, 180 + i * 40);
+                c.fillText(it.label + (it.val ? ': ' + it.val : ''), W / 2, 180 + i * 40);
                 if (i === 2) {
                     const bw = 200, bh = 8, bx = W / 2 - bw / 2, by = 200 + i * 40;
                     c.fillStyle = '#333'; c.fillRect(bx, by, bw, bh);
