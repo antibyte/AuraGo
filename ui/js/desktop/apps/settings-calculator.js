@@ -486,6 +486,9 @@
         host.innerHTML = `<div class="vd-settings-app">
             <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
+                <div class="vd-settings-search">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder', 'Search settings\u2026'))}" autocomplete="off" spellcheck="false">
+                </div>
                 ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                     ${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 18)}<span>${esc(t(section.title))}</span>
                 </button>`).join('')}
@@ -512,6 +515,36 @@
                 await saveDesktopSetting(key, value, host);
             });
         });
+        const searchInput = host.querySelector('.vd-settings-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim().toLowerCase();
+                const allItems = host.querySelectorAll('.vd-setting-row');
+                allItems.forEach(row => {
+                    const label = row.querySelector('.vd-setting-label');
+                    const help = row.querySelector('.vd-setting-help');
+                    const text = ((label ? label.textContent : '') + ' ' + (help ? help.textContent : '')).toLowerCase();
+                    row.hidden = query && !text.includes(query);
+                });
+                const navButtons = host.querySelectorAll('.vd-settings-nav');
+                const allSectionsHidden = {};
+                sections.forEach(section => { allSectionsHidden[section.id] = true; });
+                allItems.forEach(row => {
+                    if (!row.hidden) {
+                        const section = row.closest('.vd-settings-pane');
+                        if (section) allSectionsHidden[active.id] = false;
+                    }
+                });
+                navButtons.forEach(btn => {
+                    if (query && allSectionsHidden[btn.dataset.section]) btn.hidden = true;
+                    else btn.hidden = false;
+                });
+                if (!query) {
+                    allItems.forEach(row => row.hidden = false);
+                    navButtons.forEach(btn => btn.hidden = false);
+                }
+            });
+        }
     }
 
     function renderSettingItem(item) {

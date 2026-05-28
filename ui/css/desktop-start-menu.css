@@ -100,13 +100,13 @@
 .vd-app-health {
     display: inline-grid;
     place-items: center;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     margin-left: 6px;
     border-radius: 50%;
     background: var(--warning);
     color: #111827;
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 800;
     line-height: 1;
 }

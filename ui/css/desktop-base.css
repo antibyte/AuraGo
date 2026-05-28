@@ -7,7 +7,7 @@
     --vd-border: rgba(255, 255, 255, 0.08);
     --vd-border-bright: rgba(255, 255, 255, 0.14);
     --vd-text: #f6f7fb;
-    --vd-muted: #a7b0c0;
+    --vd-muted: #b8c4d4;
     --vd-accent: #27c7a6;
     --vd-accent-r: 39;
     --vd-accent-g: 199;
@@ -39,6 +39,94 @@
     --vd-z-context-menu: 900;
     --vd-z-media-preview: 950;
     --vd-z-toast: 1000;
+}
+
+.vd-toast-container {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: var(--vd-z-toast);
+    pointer-events: none;
+    max-width: min(380px, calc(100vw - 28px));
+}
+
+.vd-toast {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--vd-border);
+    background: var(--vd-surface-strong);
+    box-shadow: var(--vd-shadow);
+    backdrop-filter: blur(16px);
+    pointer-events: auto;
+    animation: vd-toast-in 160ms ease-out both;
+    color: var(--vd-text);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.vd-toast-title {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.vd-toast-message {
+    color: var(--vd-muted);
+}
+
+.vd-toast-close {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--vd-border);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 0;
+    pointer-events: auto;
+}
+
+.vd-toast-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--vd-text);
+}
+
+.vd-toast.vd-toast-closing {
+    animation: vd-toast-out 120ms ease-in both;
+}
+
+.desktop-body[data-animations="false"] .vd-toast,
+.desktop-body:not([data-animations="false"]) .vd-toast {
+}
+
+.desktop-body[data-animations="false"] .vd-toast {
+    animation: none;
+}
+
+@keyframes vd-toast-in {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vd-toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(30px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-toast {
+        animation: none;
+    }
 }
 
 .desktop-body {

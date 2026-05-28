@@ -287,6 +287,20 @@
     function handleSidebarToggle() {
         fm.sidebarOpen = !fm.sidebarOpen;
         renderAll();
+        const backdrop = fm.host.querySelector('.fm-sidebar-backdrop');
+        if (backdrop) {
+            backdrop.hidden = !fm.sidebarOpen || !isCompactViewportFM();
+            if (!backdrop.hidden) {
+                backdrop.addEventListener('click', () => {
+                    fm.sidebarOpen = false;
+                    renderAll();
+                }, { once: true });
+            }
+        }
+    }
+
+    function isCompactViewportFM() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
     }
 
     function readonlyGuardItems(items) {

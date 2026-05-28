@@ -592,6 +592,7 @@
         }
 
         return `<div class="file-manager" data-fm-window="${esc(fm.windowId)}" ${fm.sidebarOpen ? 'data-sidebar-open="true"' : ''} ${isReadonly() ? 'data-readonly="true"' : ''} tabindex="-1">
+            <div class="fm-sidebar-backdrop" hidden data-action="sidebar-backdrop-close"></div>
             ${tabHtml}
             ${renderToolbarHtml()}
             ${renderSearchHtml()}

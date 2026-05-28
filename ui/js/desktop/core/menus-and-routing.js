@@ -276,8 +276,9 @@
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp });
     }
 
-    function modalDialog(options) {
+function modalDialog(options) {
         closeContextMenu();
+        const previousFocus = document.activeElement;
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop';
         overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true">
@@ -292,13 +293,25 @@
         document.body.appendChild(overlay);
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
+        const primaryBtn = overlay.querySelector('[type="submit"]');
         if (input) {
             input.focus();
             input.select();
+        } else if (primaryBtn) {
+            primaryBtn.focus();
         }
+        function trapFocus(event) {
+            if (!overlay.contains(event.target)) {
+                event.preventDefault();
+                (input || primaryBtn || form).focus();
+            }
+        }
+        document.addEventListener('focusin', trapFocus);
         return new Promise(resolve => {
             const finish = value => {
+                document.removeEventListener('focusin', trapFocus);
                 overlay.remove();
+                if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 resolve(value);
             };
             overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
@@ -978,14 +991,24 @@
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
-        if (appId === 'system-info' && window.SystemInfoApp && typeof window.SystemInfoApp.render === 'function') {
-            return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup }));
+if (appId === 'system-info') {
+            if (!window.SystemInfoApp) {
+                window.AuraDesktopModules.loadAppScript('system-info').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SystemInfoApp.render === 'function') return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup}));
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, context || {}) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
             return window.ViewerApp.render(contentEl(id), id, viewerAppContext(context));
         }
-        if (appId === 'viewer-3d' && window.Viewer3DApp && typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); if (appId === 'quick-connect') return renderQuickConnect(id);
+        if (appId === 'viewer-3d') {
+            if (!window.Viewer3DApp) {
+                window.AuraDesktopModules.loadAppScript('viewer-3d').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp })); 
+        } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
             return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
@@ -993,14 +1016,26 @@
         if (appId === 'looper' && window.LooperApp && typeof window.LooperApp.render === 'function') {
             return window.LooperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
         }
-        if (appId === 'camera' && window.CameraApp && typeof window.CameraApp.render === 'function') {
-            return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus }));
+        if (appId === 'camera') {
+            if (!window.CameraApp) {
+                window.AuraDesktopModules.loadAppScript('camera').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.CameraApp.render === 'function') return window.CameraApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus}));
         }
-        if (appId === 'zipper' && window.ZipperApp && typeof window.ZipperApp.render === 'function') {
-            return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
+if (appId === 'zipper') {
+            if (!window.ZipperApp) {
+                window.AuraDesktopModules.loadAppScript('zipper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ZipperApp.render === 'function') return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
         }
-        if (appId === 'pixel' && window.PixelApp && typeof window.PixelApp.render === 'function') {
-            return window.PixelApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+if (appId === 'pixel') {
+            if (!window.PixelApp) {
+                window.AuraDesktopModules.loadAppScript('pixel').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.PixelApp.render === 'function') return window.PixelApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
                 esc, api, t, iconMarkup,
                 notify: showDesktopNotification,
                 readonly: desktopReadonly(),
@@ -1013,8 +1048,12 @@
                 fileOps: window.AuraDesktopFileOps
             }));
         }
-        if (appId === 'galaxa-deluxe' && window.GalaxaDeluxe && typeof window.GalaxaDeluxe.render === 'function') {
-            return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        if (appId === 'galaxa-deluxe') {
+            if (!window.GalaxaDeluxe) {
+                window.AuraDesktopModules.loadAppScript('galaxa-deluxe').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }

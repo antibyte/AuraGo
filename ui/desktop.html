@@ -37,6 +37,9 @@
 </head>
 
 <body class="desktop-body">
+    <div id="vd-toast-container" class="vd-toast-container"></div>
+    <div id="vd-widget-drawer-backdrop" class="vd-widget-drawer-backdrop" hidden></div>
+    <div id="vd-widget-drawer" class="vd-widget-drawer"><div class="vd-widget-drawer-title">Widgets</div></div>
     <main id="desktop-root" class="vd-shell" aria-live="polite">
         <section class="vd-workspace" id="vd-workspace">
             <div class="vd-icons" id="vd-icons"></div>
@@ -58,6 +61,9 @@
             </button>
             <div class="vd-taskbar-apps" id="vd-taskbar-apps"></div>
             <div class="vd-taskbar-system">
+                <button class="vd-shortcuts-trigger" id="vd-shortcuts-trigger" type="button" title="Keyboard Shortcuts" aria-label="Keyboard Shortcuts">⌨</button>
+                <button class="vd-taskbar-widget-btn" id="vd-widget-drawer-btn" type="button" title="Widgets" aria-label="Widgets">&#9638;</button>
+                <button class="vd-show-desktop-btn" id="vd-show-desktop-btn" type="button" title="Show Desktop" aria-label="Show Desktop">&#9603;</button>
                 <span id="vd-ws-state" class="vd-status-dot" data-state="offline"></span>
                 <span id="vd-clock" class="vd-clock"></span>
                 <button class="vd-agent-button" id="vd-agent-button" type="button" data-i18n-title="desktop.agent_chat">
@@ -101,21 +107,15 @@
     <script defer src="/js/vendor/quill.js"></script>
     <script defer src="/chart.min.js"></script>
     <script defer src="/js/desktop/core/module-loader.js?v={{.BuildVersion}}-desktop-20260524-audit-fixes"></script>
-    <script defer src="/js/desktop/apps/code-studio.js?v={{.BuildVersion}}"></script>
+<script defer src="/js/desktop/apps/code-studio.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/apps/writer.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/apps/sheets.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/system-info.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/file-manager.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/chat-renderer.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context"></script>
     <script defer src="/js/desktop/apps/radio.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/camera.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/apps/looper.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/zipper.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/pixel.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/galaxa-deluxe.js?v={{.BuildVersion}}"></script>
     <script defer src="/js/desktop/apps/viewer.js?v={{.BuildVersion}}"></script>
-    <script defer src="/js/desktop/apps/viewer-3d.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>

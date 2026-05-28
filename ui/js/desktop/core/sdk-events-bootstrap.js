@@ -285,18 +285,30 @@
     }
 
     function showDesktopNotification(payload) {
-        const note = document.createElement('div');
-        note.className = 'vd-widget';
-        note.style.position = 'absolute';
-        note.style.right = '18px';
-        note.style.bottom = '72px';
-        note.style.zIndex = '60';
-        note.innerHTML = `<div class="vd-widget-title">${esc(payload.title || t('desktop.notification'))}</div>
-            <div class="vd-widget-body">${esc(payload.message || '')}</div>`;
-        const workspace = $('vd-workspace');
-        if (!workspace) return;
-        workspace.appendChild(note);
-        setTimeout(() => note.remove(), 5500);
+        const container = document.getElementById('vd-toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = 'vd-toast';
+        const title = esc(payload.title || t('desktop.notification'));
+        const message = esc(payload.message || '');
+        toast.innerHTML = `<div><div class="vd-toast-title">${title}</div>${message ? `<div class="vd-toast-message">${message}</div>` : ''}</div><button class="vd-toast-close" type="button" aria-label="${esc(t('desktop.close'))}">✕</button>`;
+        container.appendChild(toast);
+        toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
+        const duration = Number(payload.duration) || 5500;
+        const timer = setTimeout(() => removeToast(toast), duration);
+        toast._toastTimer = timer;
+    }
+
+    function removeToast(toast) {
+        if (!toast || toast._toastRemoved) return;
+        toast._toastRemoved = true;
+        if (toast._toastTimer) clearTimeout(toast._toastTimer);
+        if (animationsEnabled()) {
+            toast.classList.add('vd-toast-closing');
+            setTimeout(() => toast.remove(), 150);
+        } else {
+            toast.remove();
+        }
     }
 
     function updateClock() {
@@ -307,6 +319,12 @@
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
+        const shortcutsTrigger = document.getElementById('vd-shortcuts-trigger');
+        if (shortcutsTrigger) shortcutsTrigger.addEventListener('click', toggleShortcutsHelp);
+        const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
+        if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
+        const showDesktopBtn = document.getElementById('vd-show-desktop-btn');
+        if (showDesktopBtn) showDesktopBtn.addEventListener('click', minimizeAllWindows);
         let startSearchTimer = null;
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
@@ -345,16 +363,122 @@
             }
             if (event.target === $('vd-workspace') || event.target === $('vd-icons')) selectDesktopIcon(null);
         });
-        wireDesktopFileDrops();
+wireDesktopFileDrops();
         document.addEventListener('keydown', handleDesktopKeydown);
         document.addEventListener('keyup', handleDesktopKeyup);
+        wireStartMenuSwipe();
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
-        window.addEventListener('message', handleSDKMessage);
+window.addEventListener('message', handleSDKMessage);
     }
 
-    function handleDesktopKeydown(event) {
+    function toggleWidgetDrawer() {
+        const drawer = document.getElementById('vd-widget-drawer');
+        const backdrop = document.getElementById('vd-widget-drawer-backdrop');
+        if (!drawer || !backdrop) return;
+        const isOpen = drawer.classList.contains('open');
+        if (isOpen) {
+            drawer.classList.remove('open');
+            backdrop.hidden = true;
+            return;
+        }
+        drawer.classList.add('open');
+        backdrop.hidden = false;
+        backdrop.addEventListener('click', () => {
+            drawer.classList.remove('open');
+            backdrop.hidden = true;
+        }, { once: true });
+        const title = drawer.querySelector('.vd-widget-drawer-title');
+        title.textContent = t('desktop.widget_drawer_title', 'Widgets');
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        const existingItems = drawer.querySelectorAll('.vd-widget');
+        existingItems.forEach(item => item.remove());
+        if (widgets.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'vd-empty';
+            empty.textContent = t('desktop.no_widgets', 'No widgets configured');
+            drawer.appendChild(empty);
+        }
+    }
+
+    function wireStartMenuSwipe() {
+        const menu = $('vd-start-menu');
+        if (!menu) return;
+        let swipe = null;
+        menu.addEventListener('pointerdown', event => {
+            if (!isCompactViewport() || !isTouchLikePointer(event) || event.button !== 0) return;
+            if (event.target.closest('input, button, a')) return;
+            swipe = { pointerId: event.pointerId, y: event.clientY };
+            menu.setPointerCapture(event.pointerId);
+        });
+        menu.addEventListener('pointermove', event => {
+            if (!swipe || swipe.pointerId !== event.pointerId) return;
+        });
+        menu.addEventListener('pointerup', event => {
+            if (!swipe || swipe.pointerId !== event.pointerId) return;
+            const dy = event.clientY - swipe.y;
+            if (menu.hasPointerCapture && menu.hasPointerCapture(event.pointerId)) {
+                menu.releasePointerCapture(event.pointerId);
+            }
+            swipe = null;
+            if (dy > 60) closeStartMenu();
+        });
+        menu.addEventListener('pointercancel', event => {
+            if (swipe && swipe.pointerId === event.pointerId) {
+                swipe = null;
+                if (menu.hasPointerCapture && menu.hasPointerCapture(event.pointerId)) {
+                    menu.releasePointerCapture(event.pointerId);
+}
+    }
+
+    function showWindowSwitcher() {
+        const wins = [...state.windows.values()];
+        if (wins.length === 0) return;
+        if (wins.length === 1) { focusWindow(wins[0].id); return; }
+        const existing = document.getElementById('vd-window-switcher');
+        if (existing) {
+            existing.remove();
+            const index = wins.findIndex(win => win.id === state.activeWindowId);
+            focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.id = 'vd-window-switcher';
+        overlay.className = 'vd-window-switcher';
+        const index = wins.findIndex(win => win.id === state.activeWindowId);
+        const nextIndex = (index + 1 + wins.length) % wins.length;
+        overlay.innerHTML = wins.map((win, i) => {
+            const app = appById(win.appId);
+            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
+            const isActive = i === nextIndex;
+            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
+        }).join('');
+        overlay.addEventListener('click', e => {
+            const btn = e.target.closest('[data-window-id]');
+            if (btn) focusWindow(btn.dataset.windowId);
+            overlay.remove();
+        });
+        overlay.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { overlay.remove(); return; }
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const items = overlay.querySelectorAll('.vd-switcher-item');
+                const current = overlay.querySelector('.vd-switcher-item.active');
+                const curIndex = items.indexOf(current);
+                items.forEach(item => item.classList.remove('active'));
+                const next = items[(curIndex + 1) % items.length];
+                next.classList.add('active');
+                next.focus();
+            }
+        });
+        document.body.appendChild(overlay);
+        setTimeout(() => overlay.remove(), 3000);
+    }
+        });
+    }
+
+function handleDesktopKeydown(event) {
         if (handleWindowMenuShortcut(event)) return;
         if (isEditableTarget(event.target)) return;
         if (relayGeneratedFrameKeyboardEvent(event)) return;
@@ -380,10 +504,13 @@
         }
         if (event.altKey && event.key === 'Tab') {
             event.preventDefault();
-            const wins = [...state.windows.values()];
-            if (!wins.length) return;
-            const index = wins.findIndex(win => win.id === state.activeWindowId);
-            focusWindow(wins[(index + 1 + wins.length) % wins.length].id);
+            showWindowSwitcher();
+            return;
+        }
+        if (event.key === 'F11') {
+            event.preventDefault();
+            if (state.activeWindowId) toggleMaximizeWindow(state.activeWindowId);
+            return;
         }
         switch (event.key) {
         case 'Escape': {

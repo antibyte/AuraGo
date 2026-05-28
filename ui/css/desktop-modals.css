@@ -95,7 +95,7 @@
 }
 
 .vd-context-item:disabled {
-    color: rgba(167, 176, 192, 0.48);
+    color: rgba(184, 196, 212, 0.62);
     cursor: not-allowed;
 }
 

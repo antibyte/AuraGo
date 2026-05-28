@@ -12,6 +12,10 @@
         });
     }
 
+    function minimizeAllWindows() {
+        state.windows.forEach((item, id) => minimizeWindow(id));
+    }
+
     function scheduleWindowPointerFrame(target, callback) {
         if (!target) return;
         target.pendingFrame = callback;
@@ -35,7 +39,7 @@
         if (flush && pending) pending();
     }
 
-    function wireWindow(win, id) {
+function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         wireWindowContextMenu(win, id);
         win.querySelector('[data-action="close"]').addEventListener('click', () => closeWindow(id));
@@ -55,7 +59,8 @@
                 left: parseInt(win.style.left, 10) || 0,
                 top: parseInt(win.style.top, 10) || 0,
                 raf: 0,
-                pendingFrame: null
+                pendingFrame: null,
+                snapZone: null
             };
             bar.setPointerCapture(event.pointerId);
         });
@@ -68,17 +73,23 @@
                 if (drag !== activeDrag) return;
                 const maxLeft = window.innerWidth - 80;
                 const maxTop = window.innerHeight - 120;
-                win.style.left = Math.min(maxLeft, Math.max(8, activeDrag.left + activeDrag.clientX - activeDrag.x)) + 'px';
-                win.style.top = Math.min(maxTop, Math.max(8, activeDrag.top + activeDrag.clientY - activeDrag.y)) + 'px';
+                const newLeft = Math.min(maxLeft, Math.max(8, activeDrag.left + activeDrag.clientX - activeDrag.x));
+                const newTop = Math.min(maxTop, Math.max(8, activeDrag.top + activeDrag.clientY - activeDrag.y));
+                win.style.left = newLeft + 'px';
+                win.style.top = newTop + 'px';
+                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
                 scheduleFruityDockOcclusionCheck();
             });
         });
         bar.addEventListener('pointerup', () => {
             cancelWindowPointerFrame(drag, true);
+            if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
+            hideSnapOverlay();
             drag = null;
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
+            hideSnapOverlay();
             drag = null;
         });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
@@ -91,6 +102,84 @@
         wireWindowTouchGestures(win, id);
         const winAppId = state.windows.get(id)?.appId;
         if (winAppId !== 'calculator') wireWindowResize(win, id);
+    }
+
+    const SNAP_THRESHOLD = 18;
+    const SNAP_ZONES = ['left-half', 'right-half', 'top-half', 'top-left', 'top-right'];
+
+    function updateSnapZone(drag, left, top, width, height) {
+        const workspace = $('vd-workspace') || document.body;
+        const ww = workspace.clientWidth;
+        const wh = workspace.clientHeight;
+        const cx = left + width / 2;
+        const cy = top + height / 2;
+        let zone = null;
+        if (left <= SNAP_THRESHOLD) zone = 'left-half';
+        else if (left + width >= ww - SNAP_THRESHOLD) zone = 'right-half';
+        else if (top <= SNAP_THRESHOLD && cx <= ww / 2) zone = 'top-left';
+        else if (top <= SNAP_THRESHOLD && cx > ww / 2) zone = 'top-right';
+        else if (top <= SNAP_THRESHOLD) zone = 'top-half';
+        drag.snapZone = zone;
+        showSnapOverlay(zone, ww, wh);
+    }
+
+    function showSnapOverlay(zone, ww, wh) {
+        if (!zone) { hideSnapOverlay(); return; }
+        let overlay = document.getElementById('vd-snap-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'vd-snap-overlay';
+            overlay.className = 'vd-snap-overlay';
+            $('vd-window-layer').appendChild(overlay);
+        }
+        overlay.hidden = false;
+        const positions = {
+            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
+            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
+            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
+            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
+            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
+        };
+        const p = positions[zone];
+        overlay.style.left = p.left + 'px';
+        overlay.style.top = p.top + 'px';
+        overlay.style.width = p.width + 'px';
+        overlay.style.height = p.height + 'px';
+        overlay.dataset.snapZone = zone;
+    }
+
+    function hideSnapOverlay() {
+        const overlay = document.getElementById('vd-snap-overlay');
+        if (overlay) overlay.hidden = true;
+    }
+
+    function applyWindowSnap(win, zone) {
+        const workspace = $('vd-workspace') || document.body;
+        const ww = workspace.clientWidth;
+        const wh = workspace.clientHeight;
+        const positions = {
+            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
+            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
+            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
+            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
+            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
+        };
+        const p = positions[zone];
+        if (!p) return;
+        const windowId = win.dataset.windowId;
+        const item = state.windows.get(windowId);
+        if (!item) return;
+        if (item.maximized) {
+            item.maximized = false;
+            win.classList.remove('maximized');
+        }
+        item.restoreBounds = windowBounds(win);
+        win.style.left = p.left + 'px';
+        win.style.top = p.top + 'px';
+        win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
+        win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
+        animateThen(win, 'vd-window-state-changing', 120);
+        scheduleFruityDockOcclusionCheck();
     }
 
     function wireWindowTouchGestures(win, id) {
@@ -123,7 +212,13 @@
             }
             if (dy > 80 && dy > Math.abs(dx) * 1.2 && dy / elapsed > 0.25) {
                 event.preventDefault();
-                minimizeWindow(id);
+                animateThen(win, 'vd-window-closing', 130, () => {
+                    disposeAppWindow(state.windows.get(id));
+                    win.remove();
+                    state.windows.delete(id);
+                    renderTaskbar();
+                    scheduleFruityDockOcclusionCheck();
+                });
             }
         });
         bar.addEventListener('pointercancel', event => {

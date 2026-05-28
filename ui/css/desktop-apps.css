@@ -579,6 +579,8 @@
     touch-action: manipulation;
     border: 1px solid transparent;
     transition: background 120ms ease, border-color 120ms ease;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 36px;
 }
 .fm-list-row:hover {
     background: rgba(255,255,255,0.06);
@@ -1278,6 +1280,28 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+.vd-settings-search {
+    padding: 4px 10px 10px;
+}
+
+.vd-settings-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-settings-search-input:focus {
+    border-color: var(--vd-accent);
 }
 
 .vd-settings-nav {
@@ -2228,13 +2252,13 @@
 .vd-calendar-month-wrap {
     display: grid;
     gap: 8px;
-    min-width: 700px;
+    min-width: 0;
 }
 
 .vd-calendar-weekdays,
 .vd-calendar-month {
     display: grid;
-    grid-template-columns: repeat(7, minmax(92px, 1fr));
+    grid-template-columns: repeat(7, minmax(48px, 1fr));
     gap: 7px;
 }
 
@@ -2887,6 +2911,16 @@
 .file-manager[data-sidebar-open="true"] .fm-sidebar {
         transform: translateX(0);
     }
+.fm-sidebar-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(4, 7, 12, 0.45);
+        z-index: 7;
+        pointer-events: auto;
+    }
+.fm-sidebar-backdrop[hidden] {
+        display: none;
+    }
 .fm-grid {
         grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
     }
@@ -3056,7 +3090,7 @@
 .vd-qc-device-desc {
     margin-top: 3px;
     font-size: 11px;
-    color: rgba(167, 176, 192, 0.72);
+    color: rgba(184, 196, 212, 0.85);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3723,6 +3757,37 @@
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+.vd-qc-placeholder.vd-qc-connecting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.vd-qc-spinner {
+    width: 28px;
+    height: 28px;
+}
+
+.vd-qc-placeholder.vd-qc-disconnected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.vd-qc-reconnect-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.vd-qc-credentials-modal {
+    width: 380px;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Launchpad
    ═══════════════════════════════════════════════════════════════ */
@@ -3899,6 +3964,14 @@
 .vd-launchpad-tile-btn:hover {
     background: var(--vd-accent);
     color: #000;
+}
+
+@media (pointer: coarse) {
+    .vd-launchpad-tile-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+    }
 }
 
 .vd-launchpad-empty {

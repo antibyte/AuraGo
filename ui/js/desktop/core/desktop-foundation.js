@@ -769,6 +769,24 @@
         </div>`;
     }
 
+    function trapFocus(element) {
+        const focusable = element.querySelectorAll('button, input, select, textarea, [tabindex]:not(-1)');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        element.addEventListener('keydown', event => {
+            if (event.key !== 'Tab') return;
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+        first.focus();
+    }
+
     async function loadBootstrap() {
         if (bootstrapReloadPromise) return bootstrapReloadPromise;
         bootstrapReloadPromise = (async () => {
@@ -832,7 +850,7 @@
             const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
             const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
             const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
-            return `<button class="vd-icon ${state.selectedIconIds.has(item.id) ? 'selected' : ''}" type="button" aria-selected="${state.selectedIconIds.has(item.id) ? 'true' : 'false'}" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
+            return `<button class="vd-icon ${state.selectedIconIds.has(item.id) ? 'selected' : ''}" type="button" role="button" aria-label="${esc(item.name)}" aria-selected="${state.selectedIconIds.has(item.id) ? 'true' : 'false'}" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
                 ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
                 <span class="vd-icon-label">${esc(item.name)}</span>
             </button>`;

@@ -231,11 +231,20 @@
             }
         }
 
+        function disconnectPlaceholderHTML(messageKey, deviceId, isVNC) {
+            const reconnectBtn = `<button class="vd-qc-btn vd-qc-btn-primary vd-qc-reconnect-btn" type="button" data-action="reconnect">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_reconnect'))}</span></button>`;
+            const newTermBtn = isVNC ? '' : `<button class="vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn" type="button" data-action="new-terminal">${iconMarkup('terminal', 'T', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_new_terminal'))}</span></button>`;
+            return `<div class="vd-qc-placeholder vd-qc-disconnected">
+                <span class="vd-qc-placeholder-text">${esc(t(messageKey))}</span>
+                <div class="vd-qc-reconnect-actions">${reconnectBtn}${newTermBtn}</div>
+            </div>`;
+        }
+
         function connectSSH(deviceId) {
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
-            terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
+            terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
 
             const term = new Terminal({
                 theme: {
@@ -295,9 +304,79 @@
                 }
             };
             ws.onclose = () => {
-                if (activeWS === ws) { term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n'); activeWS = null; }
+                if (activeWS === ws) {
+                    term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
+                    activeWS = null;
+                    const placeholder = document.createElement('div');
+                    placeholder.innerHTML = disconnectPlaceholderHTML('desktop.qc_disconnected', deviceId, false);
+                    const reconnectActions = placeholder.querySelector('.vd-qc-reconnect-actions');
+                    if (reconnectActions) {
+                        reconnectActions.querySelector('[data-action="reconnect"]').addEventListener('click', () => connectSSH(deviceId));
+                        const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
+                        if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
+                    }
+                    const termContainer = terminalArea.querySelector('.vd-qc-term-container');
+                    if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
+                    else terminalArea.appendChild(placeholder.firstElementChild);
+                }
             };
-            ws.onerror = () => { term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n'); };
+            ws.onerror = () => {
+                if (activeWS === ws) {
+                    term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
+                    activeWS = null;
+                    const placeholder = document.createElement('div');
+                    placeholder.innerHTML = disconnectPlaceholderHTML('desktop.qc_connection_error', deviceId, false);
+                    const reconnectActions = placeholder.querySelector('.vd-qc-reconnect-actions');
+                    if (reconnectActions) {
+                        reconnectActions.querySelector('[data-action="reconnect"]').addEventListener('click', () => connectSSH(deviceId));
+                        const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
+                        if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
+                    }
+                    const termContainer = terminalArea.querySelector('.vd-qc-term-container');
+                    if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
+                    else terminalArea.appendChild(placeholder.firstElementChild);
+                }
+            };
+        }
+
+        function showVNCCredentialsModal(rfb) {
+            const overlay = document.createElement('div');
+            overlay.className = 'vd-qc-modal-overlay';
+            overlay.innerHTML = `<div class="vd-qc-modal vd-qc-credentials-modal">
+                <div class="vd-qc-modal-header">
+                    <span class="vd-qc-modal-title">${esc(t('desktop.qc_vnc_password_prompt'))}</span>
+                    <button class="vd-qc-modal-close" type="button" data-action="close">${iconMarkup('x', 'X', 'vd-qc-close-icon', 14)}</button>
+                </div>
+                <div class="vd-qc-modal-body">
+                    <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
+                        <div class="vd-qc-input-group">
+                            <input class="vd-qc-input" type="password" name="vnc-password" autofocus required>
+                            <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw">${iconMarkup('key', 'K', 'vd-qc-input-icon', 14)}</button>
+                        </div>
+                    </label>
+                </div>
+                <div class="vd-qc-modal-footer">
+                    <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="connect">${iconMarkup('run', 'C', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_connect'))}</span></button>
+                </div>
+            </div>`;
+            host.querySelector('.vd-quick-connect').appendChild(overlay);
+            const pwInput = overlay.querySelector('input[name="vnc-password"]');
+            overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
+                pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+            });
+            overlay.querySelector('[data-action="close"]').addEventListener('click', () => { overlay.remove(); rfb.disconnect(); });
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); rfb.disconnect(); });
+            overlay.querySelector('[data-action="connect"]').addEventListener('click', () => {
+                const pw = pwInput.value;
+                overlay.remove();
+                rfb.sendCredentials({ password: pw });
+            });
+            pwInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('[data-action="connect"]').click(); }
+                if (e.key === 'Escape') { overlay.remove(); rfb.disconnect(); }
+            });
+            pwInput.focus();
         }
 
         async function connectVNC(deviceId) {
@@ -305,7 +384,7 @@
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
-            terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
+            terminalArea.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
             const vncContainer = document.createElement('div');
             vncContainer.className = 'vd-qc-vnc-container';
@@ -343,15 +422,12 @@
             });
             rfb.addEventListener('disconnect', () => {
                 if (activeWS && activeWS.close) { activeWS = null; }
-                terminalArea.innerHTML = `<div class="vd-qc-placeholder"><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_disconnected'))}</span></div>`;
+                terminalArea.innerHTML = disconnectPlaceholderHTML('desktop.qc_vnc_disconnected', deviceId, true);
+                const reconnectBtn = terminalArea.querySelector('[data-action="reconnect"]');
+                if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
-            rfb.addEventListener('credentialsrequired', () => {
-                const pw = prompt(t('desktop.qc_vnc_password_prompt'));
-                if (pw !== null) {
-                    rfb.sendCredentials({ password: pw });
-                } else {
-                    rfb.disconnect();
-                }
+rfb.addEventListener('credentialsrequired', () => {
+                showVNCCredentialsModal(rfb);
             });
             rfb.addEventListener('securityfailure', (e) => {
                 showNotify(t('desktop.qc_vnc_connection_error') + ': ' + (e.detail.reason || ''));
