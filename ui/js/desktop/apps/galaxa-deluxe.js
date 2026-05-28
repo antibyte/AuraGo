@@ -896,7 +896,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
         }
 
         function startDive(e) {
-            if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 30 + Math.random() * 40 }; e.dTmr = 3000; e.sTmr = 500 + Math.random() * 1000; SFX.dive();
+            if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 30 + Math.random() * 40, vx: (Math.random() - 0.5) * 130 }; e.dTmr = 3000; e.sTmr = 500 + Math.random() * 1000; SFX.dive();
             if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !G.beam && G.stage > 1 && Math.random() < 0.3) G.beam = { active: true, owner: e, x: e.x, y: e.y + 16, h: 0, t: 0, cap: false, capT: 0 };
         }
 
@@ -917,7 +917,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
                     e.dTmr -= dtMs;
                     if (e.dTmr <= 0 || e.y > H + 20) { e.st = 'RETURN'; e.y = -20; }
                     else {
-                        e.y += DIVE_SPD * eDt; if (e.dPath) { e.dPath.ph += eDt * 3; e.x += Math.sin(e.dPath.ph) * e.dPath.amp * eDt * 2; }
+                        e.y += DIVE_SPD * eDt; if (e.dPath) { e.dPath.ph += eDt * 3; e.x += Math.sin(e.dPath.ph) * e.dPath.amp * eDt * 2 + e.dPath.vx * eDt; }
                         if (G.beam && G.beam.owner === e) { G.beam.x = e.x; G.beam.y = e.y + 16; }
                         e.sTmr -= dtMs;
                         if (e.sTmr <= 0 && !G.chal) {
@@ -953,7 +953,7 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
         }
 
         function startChalDive(e) {
-            if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 50 + Math.random() * 30 }; e.dTmr = 4000; e.sTmr = 99999; SFX.dive();
+            if (e.st !== 'FORM') return; e.st = 'DIVING'; e.dPath = { ph: 0, amp: 50 + Math.random() * 30, vx: (Math.random() - 0.5) * 130 }; e.dTmr = 4000; e.sTmr = 99999; SFX.dive();
         }
 
         function updateExp(dt) {
