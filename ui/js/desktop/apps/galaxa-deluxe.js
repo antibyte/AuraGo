@@ -1274,11 +1274,11 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
             for (const e of G.enemies) {
                 if (e.st === 'DEAD') continue;
                 if (e.st === 'DIVING') {
-                    c.globalAlpha = 0.15;
+                    c.globalAlpha = 0.12;
                     let sp, cols;
 if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === 'butterfly') { sp = SP.bf[e.fr]; cols = SP.bfC; } else if (e.type === 'miniboss') { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = SP.bossC; } else { sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss; cols = SP.bossC; }
-                    drawSp(c, sp, cols, e.x - 10 - e.y * 0.015 * 10, e.y - 14, false);
-                    drawSp(c, sp, cols, e.x - 10 + e.y * 0.008 * 10, e.y - 12, false);
+                    drawSp(c, sp, cols, e.x - 12, e.y - 18, false);
+                    drawSp(c, sp, cols, e.x - 12, e.y - 10, false);
                     c.globalAlpha = 1;
                 }
                 const fl = e.hitF > 0; let sp, cols;
