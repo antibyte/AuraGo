@@ -960,5 +960,10 @@
   "galaxa.easy": "SNADNÉ",
   "galaxa.normal": "NORMÁLNÍ",
   "galaxa.hard": "TĚŽKÉ",
-  "galaxa.restart": "RESTART"
+  "galaxa.restart": "RESTART",
+  "desktop.qc_reconnect": "Znovu připojit",
+  "desktop.qc_new_terminal": "Nový terminál",
+  "desktop.settings_search_placeholder": "Hledat nastavení...",
+  "desktop.recent_apps": "Nedávné",
+  "desktop.widget_drawer_title": "Widgety"
 }

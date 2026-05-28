@@ -83,32 +83,31 @@ func TestDesktopAppManagerAssetVersionsBustCache(t *testing.T) {
 	for _, want := range []string{
 		`/css/desktop.css?v={{.BuildVersion}}`,
 		`/js/desktop/main.js?v={{.BuildVersion}}`,
-		`/js/desktop/apps/looper.js?v={{.BuildVersion}}`,
+		`/js/desktop/core/module-loader.js?v={{.BuildVersion}}`,
 	} {
 		if !strings.Contains(desktopHTML, want) {
 			t.Fatalf("desktop.html missing cache-busting asset version %q", want)
 		}
 	}
 
-	mainBytes, err := Content.ReadFile("js/desktop/main.js")
-	if err != nil {
-		t.Fatalf("read main.js: %v", err)
-	}
-	mainJS := string(mainBytes)
+	mainJS := rawDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
-		`var assetV = v + '-desktop-20260525-window-ai-context';`,
-		`/js/desktop/core/desktop-foundation.js?v=' + assetV`,
-		`/js/desktop/core/icon-selection-runtime.js?v=' + assetV`,
-		`/js/desktop/core/widget-autosize-runtime.js?v=' + assetV`,
-		`/js/desktop/core/window-shell-runtime.js?v=' + assetV`,
-		`/js/desktop/core/window-ai-context.js?v=' + assetV`,
-		`/js/desktop/core/menus-and-routing.js?v=' + assetV`,
-		`/js/desktop/core/shortcut-runtime.js?v=' + assetV`,
-		`/js/desktop/apps/settings-calculator.js?v=' + assetV`,
-		`/js/desktop/apps/planning-gallery-music.js?v=' + assetV`,
+		`/js/desktop/bundles/main.bundle.js`,
+		`loadBundle('main'`,
 	} {
 		if !strings.Contains(mainJS, want) {
-			t.Fatalf("desktop main loader missing cache-busting part version %q", want)
+			t.Fatalf("desktop main loader missing bundle marker %q", want)
+		}
+	}
+
+	moduleLoader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	for _, want := range []string{
+		`/js/desktop/apps/looper.js`,
+		`window.BUILD_VERSION || 'dev'`,
+		`versionedURL(url)`,
+	} {
+		if !strings.Contains(moduleLoader, want) {
+			t.Fatalf("desktop lazy loader missing cache-busted app marker %q", want)
 		}
 	}
 }

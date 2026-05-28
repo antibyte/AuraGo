@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:codemirror": "node scripts/build-codemirror.js"
+    "build:codemirror": "node scripts/build-codemirror.js",
+    "build:ui": "node scripts/build-ui-bundles.js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.6",

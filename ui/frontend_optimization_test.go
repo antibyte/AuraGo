@@ -1,0 +1,219 @@
+package ui
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestChatTemplateExposesBuildVersionForLazyAssets(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "index.html")
+	for _, want := range []string{
+		`const BUILD_VERSION = "{{.BuildVersion}}";`,
+		`window.BUILD_VERSION = BUILD_VERSION;`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("chat template missing build version marker %q", want)
+		}
+	}
+}
+
+func TestSharedLazyAssetsAPIIsEmbedded(t *testing.T) {
+	t.Parallel()
+
+	loader := readEmbeddedText(t, "js/shared/lazy-assets.js")
+	for _, want := range []string{
+		"window.AuraLazyAssets",
+		"loadScript(src)",
+		"loadStyle(href)",
+		"loadAll(assets)",
+		"window.BUILD_VERSION || 'dev'",
+	} {
+		if !strings.Contains(loader, want) {
+			t.Fatalf("lazy asset loader missing marker %q", want)
+		}
+	}
+
+	for _, page := range []string{"index.html", "desktop.html"} {
+		html := readEmbeddedText(t, page)
+		if !strings.Contains(html, `/js/shared/lazy-assets.js?v={{.BuildVersion}}`) {
+			t.Fatalf("%s must load shared lazy asset loader", page)
+		}
+	}
+}
+
+func TestChatInitialLoadDefersThemeEffectsAndThreeJS(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "index.html")
+	for _, forbidden := range []string{
+		`src="/js/vendor/three.min.js"`,
+		`src="/js/vendor/GLTFLoader.min.js`,
+		`src="/js/vendor/DRACOLoader.min.js`,
+		`src="/js/vendor/STLLoader.min.js"`,
+		`src="/js/vendor/OrbitControls.min.js"`,
+		`src="/js/chat/cyberwar-shader.js`,
+		`src="/js/chat/dark-sun-shader.js`,
+		`src="/js/chat/ocean-shader.js`,
+		`src="/js/chat/sandstorm-particles.js`,
+		`src="/js/chat/threedee-shader.js`,
+		`src="/js/chat/threedee-fold.js`,
+		`src="/js/chat/black-matrix-shader.js`,
+		`src="/js/crt-persistence-shader.js`,
+		`src="/js/crt-shader.js`,
+		`src="/js/chat/8bit-pixelate.js`,
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("chat page should lazy-load heavy asset instead of loading %q upfront", forbidden)
+		}
+	}
+
+	for _, want := range []string{
+		`/js/chat/theme-effects.js?v={{.BuildVersion}}`,
+		`/js/chat/stl-viewer.js?v={{.BuildVersion}}`,
+		`/css/chat-themes.css?v={{.BuildVersion}}`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("chat page missing optimized asset %q", want)
+		}
+	}
+}
+
+func TestChatThemeEffectsRegistryLoadsHeavyAssets(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/chat/theme-effects.js")
+	for _, want := range []string{
+		"window.AuraChatThemeEffects",
+		"ensure(theme)",
+		"'threedee'",
+		"/js/vendor/three.min.js",
+		"/js/vendor/GLTFLoader.min.js",
+		"/js/vendor/DRACOLoader.min.js",
+		"/js/chat/threedee-shader.js",
+		"/js/chat/threedee-fold.js",
+		"'sandstorm'",
+		"/js/chat/sandstorm-particles.js",
+		"'retro-crt'",
+		"/js/crt-shader.js",
+		"'8bit'",
+		"/js/chat/8bit-pixelate.js",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("chat theme effects registry missing marker %q", want)
+		}
+	}
+}
+
+func TestLegacyDuplicateChatModulesAreNotEmbedded(t *testing.T) {
+	t.Parallel()
+
+	for _, legacy := range []string{
+		"js/chat/drag-drop.js",
+		"js/chat/voice-recorder.js",
+	} {
+		if _, err := Content.ReadFile(legacy); err == nil {
+			t.Fatalf("legacy duplicate chat module %s should be removed", legacy)
+		}
+	}
+}
+
+func TestDesktopInitialLoadDefersAppAssets(t *testing.T) {
+	t.Parallel()
+
+	html := readEmbeddedText(t, "desktop.html")
+	for _, forbidden := range []string{
+		`src="/js/vendor/xterm.min.js"`,
+		`src="/js/vendor/xterm-addon-fit.min.js"`,
+		`src="/js/vendor/novnc.min.js"`,
+		`src="/js/vendor/pdf.min.js"`,
+		`src="/js/vendor/three.min.js"`,
+		`src="/js/vendor/STLLoader.min.js"`,
+		`src="/js/vendor/OrbitControls.min.js"`,
+		`src="/js/vendor/quill.js"`,
+		`src="/chart.min.js"`,
+		`src="/js/desktop/apps/code-studio.js`,
+		`src="/js/desktop/apps/writer.js`,
+		`src="/js/desktop/apps/sheets.js`,
+		`src="/js/desktop/file-manager.js`,
+		`src="/js/desktop/chat-renderer.js`,
+		`src="/js/desktop/apps/radio.js`,
+		`src="/js/desktop/apps/looper.js`,
+		`src="/js/desktop/apps/viewer.js`,
+		`href="/css/radio.css`,
+		`href="/css/camera.css`,
+		`href="/css/zipper.css`,
+		`href="/css/code-studio.css`,
+		`href="/css/stl-viewer.css`,
+		`href="/css/pixel.css`,
+		`href="/css/galaxa-deluxe.css`,
+		`href="/css/quill.snow.css`,
+		`href="/css/xterm.css`,
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("desktop page should lazy-load app asset instead of loading %q upfront", forbidden)
+		}
+	}
+}
+
+func TestDesktopModuleLoaderUsesBuiltBundlesWithoutEval(t *testing.T) {
+	t.Parallel()
+
+	loader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
+	for _, forbidden := range []string{
+		"(0, eval)",
+		"response.text()",
+		"Promise.all(parts.map(fetchScriptPart))",
+	} {
+		if strings.Contains(loader, forbidden) {
+			t.Fatalf("desktop module loader must not use eval bundle path marker %q", forbidden)
+		}
+	}
+	for _, want := range []string{
+		"DESKTOP_APP_ASSETS",
+		"loadAppScript(appId)",
+		"loadAppAssets(appId)",
+		"loadScript(src)",
+		"loadStyle(href)",
+		"loadBundle(label, src)",
+		"/js/desktop/bundles/main.bundle.js",
+		"/js/desktop/bundles/file-manager.bundle.js",
+		"/js/desktop/bundles/code-studio.bundle.js",
+	} {
+		if !strings.Contains(loader, want) {
+			t.Fatalf("desktop module loader missing no-eval marker %q", want)
+		}
+	}
+}
+
+func TestDesktopAppAssetsRegistryCoversHeavyApps(t *testing.T) {
+	t.Parallel()
+
+	loader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
+	for _, want := range []string{
+		"'agent-chat'",
+		"'files'",
+		"'code-studio'",
+		"'writer'",
+		"'sheets'",
+		"'radio'",
+		"'looper'",
+		"'viewer'",
+		"'camera'",
+		"'zipper'",
+		"'pixel'",
+		"'galaxa-deluxe'",
+		"'viewer-3d'",
+		"'system-info'",
+		"/js/vendor/xterm.min.js",
+		"/js/vendor/quill.js",
+		"/js/vendor/pdf.min.js",
+		"/js/vendor/three.min.js",
+		"/chart.min.js",
+	} {
+		if !strings.Contains(loader, want) {
+			t.Fatalf("desktop app asset registry missing marker %q", want)
+		}
+	}
+}

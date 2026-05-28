@@ -10,6 +10,23 @@ rm -f "$DIR/data/aurago.lock" "$DIR/data/maintenance.lock" 2>/dev/null || true
 echo "Building AuraGo..."
 mkdir -p bin
 
+if command -v node >/dev/null 2>&1; then
+    echo "Building UI bundles..."
+    if command -v npm >/dev/null 2>&1; then
+        if ! npm run build:ui; then
+            echo "Build of UI bundles failed!"
+            exit 1
+        fi
+    else
+        if ! node scripts/build-ui-bundles.js; then
+            echo "Build of UI bundles failed!"
+            exit 1
+        fi
+    fi
+else
+    echo "Node.js not found; using committed UI bundles."
+fi
+
 if ! go build -o bin/aurago ./cmd/aurago; then
     echo "Build of aurago failed!"
     exit 1

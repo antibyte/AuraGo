@@ -960,5 +960,10 @@
   "galaxa.easy": "LET",
   "galaxa.normal": "NORMAL",
   "galaxa.hard": "SVÆR",
-  "galaxa.restart": "GENSTART"
+  "galaxa.restart": "GENSTART",
+  "desktop.qc_reconnect": "Opret forbindelse igen",
+  "desktop.qc_new_terminal": "Ny terminal",
+  "desktop.settings_search_placeholder": "Søg i indstillinger...",
+  "desktop.recent_apps": "Seneste",
+  "desktop.widget_drawer_title": "Widgets"
 }

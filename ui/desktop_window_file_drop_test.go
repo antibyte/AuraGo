@@ -78,8 +78,8 @@ func TestDesktopWindowDropUpdatesTargetWindow(t *testing.T) {
 func TestDesktopMainLoadsWindowDropRuntime(t *testing.T) {
 	t.Parallel()
 
-	source := rawDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(source, "/js/desktop/core/desktop-window-file-drops.js?v=' + assetV") {
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	if !strings.Contains(source, "ui/js/desktop/core/desktop-window-file-drops.js") {
 		t.Fatal("desktop main bundle must load the central window file-drop runtime")
 	}
 }

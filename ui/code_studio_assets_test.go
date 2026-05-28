@@ -56,7 +56,10 @@ func TestJavaScriptLibraryAuditWiring(t *testing.T) {
 
 	desktopHTML := readEmbeddedText(t, "desktop.html")
 	if !strings.Contains(desktopHTML, "/js/shared/render-markdown.js") {
-		t.Fatal("desktop page does not load the shared Markdown renderer")
+		desktopLoader := readEmbeddedText(t, "js/desktop/core/module-loader.js")
+		if !strings.Contains(desktopLoader, "/js/shared/render-markdown.js") {
+			t.Fatal("desktop lazy asset registry does not load the shared Markdown renderer")
+		}
 	}
 
 	chatJS := readEmbeddedText(t, "js/chat/chat-messages.js")

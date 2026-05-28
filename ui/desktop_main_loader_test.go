@@ -9,22 +9,25 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
-	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	mainLoader := rawDesktopAssetText(t, "js/desktop/main.js")
+	mainBundle := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, part := range []string{
 		"/js/desktop/apps/settings-calculator.js",
 		"/js/desktop/apps/planning-gallery-music.js",
 		"/js/desktop/apps/quickconnect-launchpad-chat.js",
-		"/js/desktop/apps/agent-chat.js",
 	} {
 		if strings.Contains(html, `src="`+part) {
 			t.Fatalf("desktop.html must not load bundle fragment %s directly", part)
 		}
-		if !strings.Contains(main, `'`+part+`?v=' + assetV`) {
-			t.Fatalf("desktop main loader must load bundle fragment %s with cache busting", part)
+		if !strings.Contains(mainBundle, `/* ui`+part+` */`) {
+			t.Fatalf("desktop main bundle must include fragment %s", part)
 		}
 	}
-	if strings.Contains(main, "/js/desktop/apps/calendar.js") {
+	if strings.Contains(mainBundle, "/js/desktop/apps/calendar.js") {
 		t.Fatal("desktop main loader must not load calendar outside the desktop runtime closure")
+	}
+	if !strings.Contains(mainLoader, "loadBundle('main', '/js/desktop/bundles/main.bundle.js')") {
+		t.Fatal("desktop main loader must load the prebuilt main bundle")
 	}
 	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
@@ -34,9 +37,13 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 func TestDesktopMainLoaderBumpsCacheAfterWindowAIContext(t *testing.T) {
 	t.Parallel()
 
+	html := readDesktopAssetText(t, "desktop.html")
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(main, "var assetV = v + '-desktop-20260525-window-ai-context';") {
-		t.Fatal("desktop main loader asset version must be bumped after window AI context changes")
+	if !strings.Contains(html, "/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context") {
+		t.Fatal("desktop main loader script tag must retain the window AI context cache-busting suffix")
+	}
+	if !strings.Contains(main, "/js/desktop/bundles/main.bundle.js") {
+		t.Fatal("desktop main loader must point at the prebuilt main bundle")
 	}
 }
 
@@ -57,10 +64,10 @@ func TestDesktopCSSBumpsCacheAfterCalculatorLayoutFix(t *testing.T) {
 func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 	t.Parallel()
 
-	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	main := readDesktopAssetText(t, "js/desktop/main.js")
 	windowInteractions := rawDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
 	menuRuntime := strings.TrimLeft(rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js"), "\ufeff\r\n\t ")
-	if !strings.Contains(main, "'/js/desktop/core/window-interactions-runtime.js?v=' + assetV") {
+	if !strings.Contains(main, "/* ui/js/desktop/core/window-interactions-runtime.js */") {
 		t.Fatal("desktop main loader must load the window interaction runtime chunk")
 	}
 	for _, marker := range []string{
@@ -83,10 +90,10 @@ func TestDesktopMainBundleFragmentsKeepNormalizeZIndexBoundary(t *testing.T) {
 func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 	t.Parallel()
 
-	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	planningIndex := strings.Index(main, "'/js/desktop/apps/planning-gallery-music.js?v=' + assetV")
-	quickConnectIndex := strings.Index(main, "'/js/desktop/apps/quickconnect-launchpad-chat.js?v=' + assetV")
-	sdkIndex := strings.Index(main, "'/js/desktop/core/sdk-events-bootstrap.js?v=' + assetV")
+	main := readDesktopAssetText(t, "js/desktop/main.js")
+	planningIndex := strings.Index(main, "/* ui/js/desktop/apps/planning-gallery-music.js */")
+	quickConnectIndex := strings.Index(main, "/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */")
+	sdkIndex := strings.Index(main, "/* ui/js/desktop/core/sdk-events-bootstrap.js */")
 	for name, index := range map[string]int{
 		"planning-gallery-music":      planningIndex,
 		"quickconnect-launchpad-chat": quickConnectIndex,
@@ -115,19 +122,11 @@ func TestDesktopMainEmbedsCalendarInsideRuntimeClosure(t *testing.T) {
 func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
 	t.Parallel()
 
-	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	loader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
 	router := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	agentChat := rawDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
-	agentChatIndex := strings.Index(main, "'/js/desktop/apps/agent-chat.js?v=' + assetV")
-	routingIndex := strings.Index(main, "'/js/desktop/core/menus-and-routing.js?v=' + assetV")
-	if agentChatIndex < 0 {
-		t.Fatal("desktop main loader must load the agent chat app fragment")
-	}
-	if routingIndex < 0 {
-		t.Fatal("desktop main loader must load the menus/routing fragment")
-	}
-	if !(agentChatIndex < routingIndex) {
-		t.Fatalf("agent chat must load before menus/routing so its window registration executes inside the desktop runtime closure: agent=%d routing=%d", agentChatIndex, routingIndex)
+	if !strings.Contains(loader, "'/js/desktop/apps/agent-chat.js'") {
+		t.Fatal("desktop module loader must lazy-load the agent chat app fragment")
 	}
 	if strings.Contains(router, "return renderChat(") {
 		t.Fatal("desktop router must not call bare renderChat; split app modules should be referenced through stable window app registrations")
@@ -156,8 +155,11 @@ func TestDesktopModuleLoaderBypassesBrowserCacheForScriptParts(t *testing.T) {
 	t.Parallel()
 
 	loader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
-	if !strings.Contains(loader, "fetch(part, { credentials: 'same-origin', cache: 'no-store' })") {
-		t.Fatal("desktop module loader must fetch script parts with cache no-store to avoid mixed stale fragments")
+	if strings.Contains(loader, "(0, eval)") || strings.Contains(loader, "response.text()") {
+		t.Fatal("desktop module loader must use prebuilt script tags instead of fetch/eval script parts")
+	}
+	if !strings.Contains(loader, "versionedURL(url)") {
+		t.Fatal("desktop module loader must cache-bust lazy bundle URLs")
 	}
 	if !strings.Contains(loader, "modulePromises.delete(cacheKey);") {
 		t.Fatal("desktop module loader must drop failed script bundle promises so retries can recover")

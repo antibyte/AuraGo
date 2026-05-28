@@ -11,16 +11,28 @@ import (
 func TestDesktopOfficeAssetsAreEmbeddedAndRouted(t *testing.T) {
 	t.Parallel()
 
-	desktopHTML := readDesktopOfficeTestFile(t, "desktop.html")
-	requiredHTML := []string{
+	desktopHTML := readDesktopAssetText(t, "desktop.html")
+	for _, forbidden := range []string{
+		`href="/css/quill.snow.css`,
+		`src="/js/vendor/quill.js`,
+		`src="/js/desktop/apps/writer.js`,
+		`src="/js/desktop/apps/sheets.js`,
+	} {
+		if strings.Contains(desktopHTML, forbidden) {
+			t.Fatalf("desktop.html should lazy-load office asset %q", forbidden)
+		}
+	}
+
+	moduleLoader := readDesktopAssetText(t, filepath.Join("js", "desktop", "core", "module-loader.js"))
+	requiredLazyAssets := []string{
 		"/css/quill.snow.css",
 		"/js/vendor/quill.js",
 		"/js/desktop/apps/writer.js",
 		"/js/desktop/apps/sheets.js",
 	}
-	for _, marker := range requiredHTML {
-		if !strings.Contains(desktopHTML, marker) {
-			t.Fatalf("desktop.html missing %q", marker)
+	for _, marker := range requiredLazyAssets {
+		if !strings.Contains(moduleLoader, marker) {
+			t.Fatalf("desktop lazy asset registry missing %q", marker)
 		}
 	}
 

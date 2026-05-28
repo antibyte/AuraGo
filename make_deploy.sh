@@ -28,13 +28,18 @@ echo "━━━ AuraGo Deployment Builder ━━━"
 echo ""
 
 if command -v node >/dev/null 2>&1; then
-  echo "[0/5] Building CodeMirror bundle ..."
+  echo "[0/5] Building UI assets ..."
   if [ ! -d node_modules ] && command -v npm >/dev/null 2>&1; then
     npm install --no-audit --no-fund
   fi
   node scripts/build-codemirror.js
+  if command -v npm >/dev/null 2>&1; then
+    npm run build:ui
+  else
+    node scripts/build-ui-bundles.js
+  fi
 else
-  echo "[0/5] Node.js not found; skipping CodeMirror bundle build."
+  echo "[0/5] Node.js not found; using committed UI assets."
 fi
 
 # ── Clean generated release artifacts while preserving versioned deploy sources ──

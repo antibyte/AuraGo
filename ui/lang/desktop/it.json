@@ -960,5 +960,10 @@
   "galaxa.easy": "FACILE",
   "galaxa.normal": "NORMALE",
   "galaxa.hard": "DIFFICILE",
-  "galaxa.restart": "RIAVVIA"
+  "galaxa.restart": "RIAVVIA",
+  "desktop.qc_reconnect": "Riconnetti",
+  "desktop.qc_new_terminal": "Nuovo terminale",
+  "desktop.settings_search_placeholder": "Cerca impostazioni...",
+  "desktop.recent_apps": "Recenti",
+  "desktop.widget_drawer_title": "Widget"
 }

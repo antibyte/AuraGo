@@ -5,21 +5,31 @@ import (
 	"testing"
 )
 
-func TestDesktopModuleLoaderUsesAsyncOrderedFetch(t *testing.T) {
+func TestDesktopModuleLoaderUsesPrebuiltBundles(t *testing.T) {
 	t.Parallel()
 
 	loader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
-	if strings.Contains(loader, "xhr.open('GET', part, false)") {
-		t.Fatal("desktop module loader must not use synchronous XHR")
+	for _, forbidden := range []string{
+		"xhr.open('GET', part, false)",
+		"fetchScriptPart(part)",
+		"Promise.all(parts.map(fetchScriptPart))",
+		"(0, eval)",
+		"response.text()",
+	} {
+		if strings.Contains(loader, forbidden) {
+			t.Fatalf("desktop module loader must not use dynamic script assembly marker %q", forbidden)
+		}
 	}
 	for _, marker := range []string{
-		"function fetchScriptPart(part)",
-		"Promise.all(parts.map(fetchScriptPart))",
-		"sources.map(source => '\\n;' + source).join('')",
-		"auradesktop:module-loaded",
+		"function loadBundle(label, src)",
+		"assetLoader().loadScript(src)",
+		"aurago:module-loaded",
+		"/js/desktop/bundles/main.bundle.js",
+		"/js/desktop/bundles/file-manager.bundle.js",
+		"/js/desktop/bundles/code-studio.bundle.js",
 	} {
 		if !strings.Contains(loader, marker) {
-			t.Fatalf("desktop module loader missing async ordered fetch marker %q", marker)
+			t.Fatalf("desktop module loader missing prebuilt bundle marker %q", marker)
 		}
 	}
 

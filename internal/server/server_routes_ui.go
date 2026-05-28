@@ -690,13 +690,10 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 			if tmpl != nil {
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
-				data := map[string]interface{}{
-					"Lang":               lang,
-					"I18N":               getI18NJSON(lang),
-					"ShowToolResults":    s.Cfg.Agent.ShowToolResults,
-					"DebugMode":          agent.GetDebugMode(),
-					"PersonalityEnabled": s.Cfg.Personality.Engine,
-				}
+				data := uiTemplateData(lang)
+				data["ShowToolResults"] = s.Cfg.Agent.ShowToolResults
+				data["DebugMode"] = agent.GetDebugMode()
+				data["PersonalityEnabled"] = s.Cfg.Personality.Engine
 				if err := tmpl.Execute(w, data); err != nil {
 					s.Logger.Error("Failed to execute UI template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)

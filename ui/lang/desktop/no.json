@@ -960,5 +960,10 @@
   "galaxa.easy": "LETT",
   "galaxa.normal": "NORMAL",
   "galaxa.hard": "VANSKELIG",
-  "galaxa.restart": "OMSTART"
+  "galaxa.restart": "OMSTART",
+  "desktop.qc_reconnect": "Koble til igjen",
+  "desktop.qc_new_terminal": "Ny terminal",
+  "desktop.settings_search_placeholder": "Søk i innstillinger...",
+  "desktop.recent_apps": "Nylige",
+  "desktop.widget_drawer_title": "Widgeter"
 }

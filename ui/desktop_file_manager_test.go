@@ -263,7 +263,8 @@ func TestDesktopFilesCanBeAddedOrAskedInAgentChat(t *testing.T) {
 
 	mainSource := readDesktopAssetText(t, "js/desktop/main.js")
 	fileManagerSource := readDesktopAssetText(t, "js/desktop/file-manager.js")
-	combined := mainSource + "\n" + fileManagerSource
+	agentChatSource := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
+	combined := mainSource + "\n" + fileManagerSource + "\n" + agentChatSource
 	for _, marker := range []string{
 		"function chatFileContextFromEntry(entry)",
 		"function addFileContextToChat(file)",

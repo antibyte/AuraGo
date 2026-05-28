@@ -98,18 +98,27 @@ func TestCodeStudioScriptsUseBuildVersionCacheBusting(t *testing.T) {
 	if !strings.Contains(desktopHTML, "window.BUILD_VERSION = BUILD_VERSION;") {
 		t.Fatalf("desktop BUILD_VERSION must be exported for deferred module loaders")
 	}
-	if !strings.Contains(desktopHTML, `<script defer src="/js/desktop/apps/code-studio.js?v={{.BuildVersion}}"></script>`) {
-		t.Fatalf("Code Studio app script must be cache-busted with BuildVersion")
+	if strings.Contains(desktopHTML, `<script defer src="/js/desktop/apps/code-studio.js`) {
+		t.Fatalf("Code Studio app script must be lazy-loaded instead of upfront in desktop.html")
+	}
+
+	loader := rawDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	for _, marker := range []string{
+		"/js/desktop/bundles/code-studio.bundle.js",
+		"window.BUILD_VERSION || 'dev'",
+		"function versionedURL(url)",
+	} {
+		if !strings.Contains(loader, marker) {
+			t.Fatalf("Code Studio lazy loader missing cache-busting marker %q", marker)
+		}
 	}
 
 	source := rawDesktopAssetText(t, "js/desktop/apps/code-studio.js")
 	for _, marker := range []string{
-		"var v = window.BUILD_VERSION || 'dev';",
-		"'/js/desktop/apps/code-studio/core-shell-files.js?v=' + v",
-		"'/js/desktop/apps/code-studio/actions-agent-editor.js?v=' + v",
+		"loadBundle('code-studio', '/js/desktop/bundles/code-studio.bundle.js')",
 	} {
 		if !strings.Contains(source, marker) {
-			t.Fatalf("Code Studio loader missing cache-busting marker %q", marker)
+			t.Fatalf("Code Studio loader missing bundle marker %q", marker)
 		}
 	}
 	if strings.Contains(source, "?v=1") {

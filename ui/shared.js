@@ -391,6 +391,11 @@ function setChatTheme(theme) {
     localStorage.setItem('aurago-theme', theme);
     _updateHljsTheme(theme);
     _updateThemeColor(theme);
+    if (window.AuraChatThemeEffects && typeof window.AuraChatThemeEffects.ensure === 'function') {
+        window.AuraChatThemeEffects.ensure(theme).catch(err => {
+            console.warn('[AuraGo] Failed to load chat theme assets:', theme, err);
+        });
+    }
 
     // Notify other components (e.g. charts) that the theme changed
     try {

@@ -11,7 +11,7 @@ import (
 func TestThreeDeeThemeLoadsLocalDracoRobotAssets(t *testing.T) {
 	t.Parallel()
 
-	html := readDesktopAssetText(t, "index.html")
+	effects := readDesktopAssetText(t, "js/chat/theme-effects.js")
 	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
 
 	for _, marker := range []string{
@@ -19,14 +19,14 @@ func TestThreeDeeThemeLoadsLocalDracoRobotAssets(t *testing.T) {
 		`/js/vendor/DRACOLoader.min.js`,
 		`/js/vendor/three.min.js`,
 	} {
-		if !strings.Contains(html, marker) {
-			t.Fatalf("index.html must load local ThreeDee robot dependency %q", marker)
+		if !strings.Contains(effects, marker) {
+			t.Fatalf("theme effect loader must lazy-load local ThreeDee robot dependency %q", marker)
 		}
 	}
-	if strings.Index(html, `/js/vendor/three.min.js`) > strings.Index(html, `/js/vendor/GLTFLoader.min.js`) {
+	if strings.Index(effects, `/js/vendor/three.min.js`) > strings.Index(effects, `/js/vendor/GLTFLoader.min.js`) {
 		t.Fatal("GLTFLoader must load after three.min.js")
 	}
-	if strings.Index(html, `/js/vendor/GLTFLoader.min.js`) > strings.Index(html, `/js/vendor/DRACOLoader.min.js`) {
+	if strings.Index(effects, `/js/vendor/GLTFLoader.min.js`) > strings.Index(effects, `/js/vendor/DRACOLoader.min.js`) {
 		t.Fatal("DRACOLoader must load after GLTFLoader")
 	}
 	for _, asset := range []string{

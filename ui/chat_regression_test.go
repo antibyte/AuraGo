@@ -906,7 +906,7 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 	if !strings.Contains(indexHTML, `/css/chat-header-controls.css`) {
 		t.Fatal("index.html must load final chat header controls CSS after theme styles")
 	}
-	if strings.Index(indexHTML, `/css/chat-header-controls.css`) < strings.Index(indexHTML, `/css/chat-8bit.css`) {
+	if strings.Index(indexHTML, `/css/chat-header-controls.css`) < strings.Index(indexHTML, `/css/chat-themes.css`) {
 		t.Fatal("chat header controls CSS must load after all chat theme styles")
 	}
 
@@ -1176,13 +1176,12 @@ func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
 		}
 	}
 
-	for _, marker := range []string{
-		`/css/chat-lollipop.css?v=20260520a`,
-		`/js/chat/lollipop-petals.js?v=20260520a`,
-	} {
-		if !strings.Contains(indexHTML, marker) {
-			t.Fatalf("index.html missing lollipop cache marker %q", marker)
-		}
+	if !strings.Contains(indexHTML, `/css/chat-themes.css?v={{.BuildVersion}}`) {
+		t.Fatal("index.html must load consolidated chat theme CSS with BuildVersion cache busting")
+	}
+	themeEffects := readDesktopAssetText(t, "js/chat/theme-effects.js")
+	if !strings.Contains(themeEffects, `/js/chat/lollipop-petals.js`) {
+		t.Fatal("theme effect loader must lazy-load lollipop petals")
 	}
 }
 
@@ -1212,7 +1211,7 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 
 	indexHTML := string(indexContent)
 	for _, marker := range []string{
-		`/css/chat-8bit.css`,
+		`/css/chat-themes.css`,
 		`data-theme="8bit"`,
 		`data-chat-icon="theme-8bit"`,
 		`chat.theme_8bit`,
@@ -1344,10 +1343,6 @@ func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read 8bit-pixelate.js: %v", err)
 	}
-	indexContent, err := os.ReadFile("index.html")
-	if err != nil {
-		t.Fatalf("read index.html: %v", err)
-	}
 
 	pixelatorJS := string(pixelatorContent)
 	for _, marker := range []string{
@@ -1363,8 +1358,9 @@ func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(string(indexContent), `/js/chat/8bit-pixelate.js?v=20260502h`) {
-		t.Fatal("index.html must bump 8bit pixelator cache version after restore fix")
+	themeEffects := readDesktopAssetText(t, "js/chat/theme-effects.js")
+	if !strings.Contains(themeEffects, `/js/chat/8bit-pixelate.js`) {
+		t.Fatal("theme effect loader must lazy-load the 8bit pixelator")
 	}
 }
 

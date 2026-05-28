@@ -960,5 +960,10 @@
   "galaxa.easy": "简单",
   "galaxa.normal": "普通",
   "galaxa.hard": "困难",
-  "galaxa.restart": "重新开始"
+  "galaxa.restart": "重新开始",
+  "desktop.qc_reconnect": "重新连接",
+  "desktop.qc_new_terminal": "新建终端",
+  "desktop.settings_search_placeholder": "搜索设置...",
+  "desktop.recent_apps": "最近",
+  "desktop.widget_drawer_title": "小组件"
 }

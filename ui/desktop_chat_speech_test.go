@@ -9,14 +9,26 @@ func TestDesktopChatProvidesSpeechToTextInput(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "desktop.html")
+	for _, forbidden := range []string{
+		`href="/css/stt-overlay.css`,
+		`src="/js/chat/modules/speech-to-text.js`,
+		`src="/js/chat/modules/voice-recorder.js`,
+		`src="/js/chat/ui-icons.js`,
+	} {
+		if strings.Contains(html, forbidden) {
+			t.Fatalf("desktop.html should lazy-load speech-to-text asset %q", forbidden)
+		}
+	}
+
+	moduleLoader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
 	for _, marker := range []string{
 		`/css/stt-overlay.css`,
 		`/js/chat/modules/speech-to-text.js`,
 		`/js/chat/modules/voice-recorder.js`,
 		`/js/chat/ui-icons.js`,
 	} {
-		if !strings.Contains(html, marker) {
-			t.Fatalf("desktop.html missing speech-to-text asset %q", marker)
+		if !strings.Contains(moduleLoader, marker) {
+			t.Fatalf("desktop lazy asset registry missing speech-to-text asset %q", marker)
 		}
 	}
 

@@ -97,7 +97,7 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 func TestDesktopChatQuestionPromptAssets(t *testing.T) {
 	t.Parallel()
 
-	agentChat := readDesktopAssetText(t, "js/desktop/main.js")
+	agentChat := readDesktopAssetText(t, "js/desktop/apps/agent-chat.js")
 	cssText := readAllDesktopCSS(t)
 	for _, marker := range []string{
 		"event === 'question_user'",

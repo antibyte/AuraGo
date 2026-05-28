@@ -5,6 +5,7 @@
     let observer = null;
     let mutationObserver = null;
     let modal = null;
+    let stlAssetPromise = null;
 
     function t(key, fallback) {
         if (typeof window.t === 'function') {
@@ -29,6 +30,27 @@
         } catch (_err) {
             return raw.startsWith('/files/') && /\.stl(?:$|[?#])/i.test(raw) ? raw : '';
         }
+    }
+
+    function ensureSTLAssets() {
+        if (window.THREE && THREE.STLLoader) return Promise.resolve();
+        if (!window.AuraLazyAssets || typeof window.AuraLazyAssets.loadAll !== 'function') {
+            return Promise.reject(new Error('Lazy asset loader is unavailable'));
+        }
+        if (!stlAssetPromise) {
+            stlAssetPromise = window.AuraLazyAssets.loadAll({
+                styles: ['/css/stl-viewer.css'],
+                scripts: [
+                    '/js/vendor/three.min.js',
+                    '/js/vendor/STLLoader.min.js',
+                    '/js/vendor/OrbitControls.min.js'
+                ]
+            }).catch(err => {
+                stlAssetPromise = null;
+                throw err;
+            });
+        }
+        return stlAssetPromise;
     }
 
     function filenameFromPath(path) {
@@ -167,9 +189,16 @@
     async function initPreview(preview) {
         if (!preview || previews.has(preview)) return;
         const path = safePath(preview.dataset.stlPath);
-        if (!path || !window.THREE || !THREE.STLLoader) return;
+        if (!path) return;
         const canvas = preview.querySelector('canvas');
         const loading = preview.querySelector('.chat-stl-loading');
+        try {
+            await ensureSTLAssets();
+        } catch (err) {
+            if (loading) loading.textContent = err.message || t('viewer.error', 'Failed to load file');
+            return;
+        }
+        if (!window.THREE || !THREE.STLLoader) return;
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setClearColor(0x000000, 0);
@@ -261,9 +290,15 @@
         canvas.addEventListener('pointercancel', () => { instance.dragging = false; });
     }
 
-    function openSTLModal(path, title) {
+    async function openSTLModal(path, title) {
         path = safePath(path);
-        if (!path || !window.THREE || !THREE.STLLoader) return;
+        if (!path) return;
+        try {
+            await ensureSTLAssets();
+        } catch (_err) {
+            return;
+        }
+        if (!window.THREE || !THREE.STLLoader) return;
         closeSTLModal();
         modal = document.createElement('div');
         modal.className = 'stl-modal-backdrop';

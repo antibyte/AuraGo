@@ -964,6 +964,15 @@ function modalDialog(options) {
         clearDesktopFileWindowDropState(id);
         wireDesktopFileWindowDrop(id);
         try {
+        const modules = window.AuraDesktopModules;
+        if (modules && typeof modules.appAssetsReady === 'function' && !modules.appAssetsReady(appId)) {
+            const host = contentEl(id);
+            if (host) host.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
+            modules.loadAppAssets(appId)
+                .then(() => renderAppContent(id, appId, context))
+                .catch(err => renderAppError(id, appId, err));
+            return;
+        }
         if (appId === 'files') {
             const path = Object.prototype.hasOwnProperty.call(context || {}, 'path')
                 ? (context.path || '')

@@ -337,7 +337,36 @@ func readDesktopAssetText(t *testing.T, path string) string {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	text := string(data)
-	if strings.Contains(text, "loadScriptParts(") {
+	if strings.Contains(text, "loadBundle(") {
+		for _, line := range strings.Split(text, "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.Contains(line, "loadBundle(") || !strings.Contains(line, "/js/desktop/bundles/") {
+				continue
+			}
+			start := strings.Index(line, "'/js/desktop/bundles/")
+			quote := "'"
+			if start < 0 {
+				start = strings.Index(line, "\"/js/desktop/bundles/")
+				quote = "\""
+			}
+			if start < 0 {
+				continue
+			}
+			bundle := line[start+1:]
+			if end := strings.Index(bundle, quote); end >= 0 {
+				bundle = bundle[:end]
+			}
+			if idx := strings.Index(bundle, "?"); idx >= 0 {
+				bundle = bundle[:idx]
+			}
+			bundleData, err := Content.ReadFile(filepath.ToSlash(strings.TrimPrefix(bundle, "/")))
+			if err != nil {
+				t.Fatalf("read %s referenced by %s: %v", bundle, path, err)
+			}
+			return string(bundleData)
+		}
+	}
+	if filepath.ToSlash(path) != "js/desktop/core/module-loader.js" && strings.Contains(text, "loadScriptParts(") {
 		var combined strings.Builder
 		for _, line := range strings.Split(text, "\n") {
 			line = strings.TrimSpace(line)

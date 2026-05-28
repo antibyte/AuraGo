@@ -960,5 +960,10 @@
   "galaxa.easy": "イージー",
   "galaxa.normal": "ノーマル",
   "galaxa.hard": "ハード",
-  "galaxa.restart": "リスタート"
+  "galaxa.restart": "リスタート",
+  "desktop.qc_reconnect": "再接続",
+  "desktop.qc_new_terminal": "新しいターミナル",
+  "desktop.settings_search_placeholder": "設定を検索...",
+  "desktop.recent_apps": "最近",
+  "desktop.widget_drawer_title": "ウィジェット"
 }

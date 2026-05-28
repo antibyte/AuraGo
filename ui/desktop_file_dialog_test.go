@@ -11,9 +11,9 @@ import (
 func TestDesktopFileDialogRuntimeIsEmbeddedAndWired(t *testing.T) {
 	t.Parallel()
 
-	mainJS := readDesktopFileDialogAsset(t, "js/desktop/main.js")
-	if !strings.Contains(mainJS, "/js/desktop/core/file-dialog-runtime.js?v=' + assetV") {
-		t.Fatal("desktop main loader does not include file-dialog-runtime.js with cache busting")
+	mainJS := readDesktopAssetText(t, "js/desktop/main.js")
+	if !strings.Contains(mainJS, "ui/js/desktop/core/file-dialog-runtime.js") {
+		t.Fatal("desktop main bundle does not include file-dialog-runtime.js")
 	}
 
 	runtime := readDesktopFileDialogAsset(t, "js/desktop/core/file-dialog-runtime.js")

@@ -960,5 +960,10 @@
   "galaxa.easy": "आसान",
   "galaxa.normal": "सामान्य",
   "galaxa.hard": "कठिन",
-  "galaxa.restart": "रीस्टार्ट"
+  "galaxa.restart": "रीस्टार्ट",
+  "desktop.qc_reconnect": "फिर से कनेक्ट करें",
+  "desktop.qc_new_terminal": "नया टर्मिनल",
+  "desktop.settings_search_placeholder": "सेटिंग खोजें...",
+  "desktop.recent_apps": "हाल ही के",
+  "desktop.widget_drawer_title": "विजेट"
 }

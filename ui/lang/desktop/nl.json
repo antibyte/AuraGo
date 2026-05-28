@@ -960,5 +960,10 @@
   "galaxa.easy": "MAKKELIJK",
   "galaxa.normal": "NORMAL",
   "galaxa.hard": "MOEILIJK",
-  "galaxa.restart": "HERSTART"
+  "galaxa.restart": "HERSTART",
+  "desktop.qc_reconnect": "Opnieuw verbinden",
+  "desktop.qc_new_terminal": "Nieuwe terminal",
+  "desktop.settings_search_placeholder": "Instellingen zoeken...",
+  "desktop.recent_apps": "Recent",
+  "desktop.widget_drawer_title": "Widgets"
 }

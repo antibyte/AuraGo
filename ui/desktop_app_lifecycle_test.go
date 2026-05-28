@@ -76,13 +76,13 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 func TestDesktopMainBundleOrdersSplitShellFragmentsBeforeLifecycleHelpers(t *testing.T) {
 	t.Parallel()
 
-	main := rawDesktopAssetText(t, "js/desktop/main.js")
+	main := readDesktopAssetText(t, "js/desktop/main.js")
 	orderedParts := []string{
-		"/js/desktop/core/desktop-foundation.js",
-		"/js/desktop/core/window-shell-runtime.js",
-		"/js/desktop/core/lifecycle-cleanup.js",
-		"/js/desktop/core/widget-autosize-runtime.js",
-		"/js/desktop/core/menus-and-routing.js",
+		"ui/js/desktop/core/desktop-foundation.js",
+		"ui/js/desktop/core/window-shell-runtime.js",
+		"ui/js/desktop/core/lifecycle-cleanup.js",
+		"ui/js/desktop/core/widget-autosize-runtime.js",
+		"ui/js/desktop/core/menus-and-routing.js",
 	}
 	last := -1
 	for _, part := range orderedParts {
