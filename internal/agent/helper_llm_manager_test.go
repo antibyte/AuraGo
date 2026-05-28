@@ -198,6 +198,27 @@ func TestHelperLLMManagerAnalyzeConsolidationBatchesUsesSharedModel(t *testing.T
 	}
 }
 
+func TestHelperLLMManagerAnalyzeConsolidationBatchesRejectsMissingBatchIDs(t *testing.T) {
+	client := &mockChatClient{
+		response: `{"batches":[{"batch_id":"batch_1","facts":[{"concept":"Backup target","content":"The backup target is the NAS device."}]}]}`,
+	}
+	manager := &helperLLMManager{
+		client: client,
+		model:  "helper-model",
+	}
+
+	_, err := manager.AnalyzeConsolidationBatches(context.Background(), []helperConsolidationBatchInput{
+		{BatchID: "batch_1", Conversation: "[2026-04-01] user: The backup target is the NAS device."},
+		{BatchID: "batch_2", Conversation: "[2026-04-01] assistant: Acknowledged."},
+	})
+	if err == nil {
+		t.Fatal("expected missing batch ID to be rejected")
+	}
+	if !strings.Contains(err.Error(), "missing consolidation batch IDs") {
+		t.Fatalf("err = %v, want missing batch IDs error", err)
+	}
+}
+
 func TestParseHelperCompressionBatchResultStripsCodeFences(t *testing.T) {
 	raw := "```json\n{\"memories\":[{\"memory_id\":\"mem_1\",\"compressed\":\"Dense summary for memory one.\"},{\"memory_id\":\"mem_2\",\"compressed\":\"Dense summary for memory two.\"}]}\n```"
 

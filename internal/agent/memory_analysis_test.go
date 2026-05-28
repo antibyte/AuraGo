@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -226,6 +227,24 @@ func TestRerankWithRecencyUsesConfidenceSignals(t *testing.T) {
 	docIDs := []string{"doc-low", "doc-high"}
 
 	ranked := rerankWithRecency(memories, docIDs, stm, logger)
+	if len(ranked) != 2 {
+		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
+	}
+	if ranked[0].docID != "doc-high" {
+		t.Fatalf("top ranked docID = %q, want doc-high", ranked[0].docID)
+	}
+}
+
+func TestRankMemoryCandidatesUsesProvidedSimilarityScoresForRawResults(t *testing.T) {
+	now := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	memories := []string{
+		"raw low similarity memory",
+		"raw high similarity memory",
+	}
+	docIDs := []string{"doc-low", "doc-high"}
+	similarities := []float64{0.10, 0.95}
+
+	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, nil, nil, now)
 	if len(ranked) != 2 {
 		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
 	}

@@ -49,8 +49,16 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	kg.upsertSemanticNodeIndex(Node{ID: source, Label: source, Properties: nil})
-	kg.upsertSemanticNodeIndex(Node{ID: target, Label: target, Properties: nil})
+	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
+		kg.upsertSemanticNodeIndex(*sourceNode)
+	} else if err != nil && kg.logger != nil {
+		kg.logger.Warn("AddEdge: failed to reload source node for semantic index", "id", source, "error", err)
+	}
+	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
+		kg.upsertSemanticNodeIndex(*targetNode)
+	} else if err != nil && kg.logger != nil {
+		kg.logger.Warn("AddEdge: failed to reload target node for semantic index", "id", target, "error", err)
+	}
 	kg.upsertSemanticEdgeIndex(Edge{Source: source, Target: target, Relation: relation})
 	return nil
 }

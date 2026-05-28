@@ -112,6 +112,41 @@ func (kg *KnowledgeGraph) GetNode(nodeID string) (*Node, error) {
 	return &node, nil
 }
 
+// ListNodesByIDPrefix returns nodes whose IDs start with prefix.
+func (kg *KnowledgeGraph) ListNodesByIDPrefix(prefix string, limit int) ([]Node, error) {
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	rows, err := kg.db.Query(
+		`SELECT id, label, properties, protected FROM kg_nodes WHERE id LIKE ? ESCAPE '\' ORDER BY id ASC LIMIT ?`,
+		escapeLike(prefix)+"%",
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list nodes by id prefix %s: %w", prefix, err)
+	}
+	defer rows.Close()
+
+	var nodes []Node
+	for rows.Next() {
+		var node Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan node by id prefix %s: %w", prefix, err)
+		}
+		node.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "ListNodesByIDPrefix", node.ID, propsJSON, protected)
+		node.Protected = protected != 0
+		nodes = append(nodes, node)
+	}
+	return nodes, rows.Err()
+}
+
 func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]string) (*Node, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {

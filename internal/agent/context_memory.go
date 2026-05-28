@@ -175,7 +175,7 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 	return normalized
 }
 
-func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool) memorySearchBundle {
+func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool, explicitRange memory.TemporalQueryRange) memorySearchBundle {
 	bundle := memorySearchBundle{
 		Results:   make([]memorySourceResult, 0, 8),
 		Errors:    make([]string, 0, 4),
@@ -194,6 +194,10 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	}
 
 	bundle.NormalizedQuery = searchContent
+	if explicitRange.FromDate != "" || explicitRange.ToDate != "" {
+		bundle.TemporalRange = explicitRange
+		bundle.HasTemporalRange = true
+	}
 	if temporalRange, cleanedQuery, hasTemporalRange := memory.ParseTemporalQuery(searchContent); hasTemporalRange {
 		bundle.TemporalRange = temporalRange
 		bundle.NormalizedQuery = cleanedQuery
@@ -349,6 +353,7 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true},
 		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"},
 		true,
+		memory.TemporalQueryRange{},
 	)
 
 	if len(bundle.Results) == 0 && len(bundle.Errors) == 0 {
@@ -428,7 +433,7 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		})
 	}
 
-	if sourceMap["activity"] {
+	if sourceMap["activity"] && shortTermMem != nil {
 		if overview, err := shortTermMem.BuildRecentActivityOverview(7, true); err == nil && overview != nil {
 			addResult("activity", "overview", overview.OverviewSummary, "", "Recent multi-day activity summary", "", 0.99)
 			for _, entry := range overview.Entries {
@@ -455,6 +460,7 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true},
 		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "planner": "planner", "core": "core", "kg": "kg", "ltm": "ltm", "cheatsheets": "cheatsheets"},
 		false,
+		memory.TemporalQueryRange{FromDate: fromDate, ToDate: toDate, Label: tc.TimeRange},
 	)
 
 	for _, result := range bundle.Results {

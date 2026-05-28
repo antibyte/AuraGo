@@ -25,6 +25,13 @@ type ArchiveItem struct {
 	Domain  string `json:"domain,omitempty"` // Phase C: optional domain tag for cross-domain learning
 }
 
+// SearchResult preserves the semantic score alongside the text returned to callers.
+type SearchResult struct {
+	Text       string
+	DocID      string
+	Similarity float64
+}
+
 // VectorDB represents a generic vector database for long term storage
 type VectorDB interface {
 	StoreDocument(concept, content string) ([]string, error)
@@ -57,6 +64,13 @@ type VectorDB interface {
 	DeleteCheatsheet(id string) error
 	// RegisterCollections registers multiple collections.
 	RegisterCollections(collections []string)
+}
+
+// ScoredVectorDB is implemented by vector stores that can return raw similarity
+// scores without encoding them into user-visible memory text.
+type ScoredVectorDB interface {
+	SearchSimilarScored(query string, topK int, excludeCollections ...string) ([]SearchResult, error)
+	SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error)
 }
 
 // queryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
@@ -401,13 +415,17 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 }
 
 // storeDocumentLocked stores a document in aurago_memories.
-// The caller must hold the concept's striped mutex.
+// The caller must hold the concept's striped mutex. This method serializes the
+// actual collection mutation so concurrent writers cannot race chromem state.
 func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) ([]string, error) {
 	const maxContentBytes = 500 * 1024 // 500 KB per document
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
 		content = content[:maxContentBytes]
 	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -933,12 +951,20 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	return allIDs, nil
 }
 
-// SearchSimilar finds the topK most semantically similar documents across all relevant collections.
-// Results from all collections are merged, sorted by similarity, and trimmed to topK globally.
-// Uses a query embedding cache to avoid redundant embedding API calls.
 func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	results, err := cv.SearchSimilarScored(query, topK, excludeCollections...)
+	if err != nil {
+		return nil, nil, err
+	}
+	texts, ids := splitSearchResults(results)
+	return texts, ids, nil
+}
+
+// SearchSimilarScored finds the topK most semantically similar documents across
+// all relevant collections and preserves their decayed similarity scores.
+func (cv *ChromemVectorDB) SearchSimilarScored(query string, topK int, excludeCollections ...string) ([]SearchResult, error) {
 	if cv.disabled.Load() {
-		return nil, nil, nil // Graceful degradation: return empty results
+		return nil, nil // Graceful degradation: return empty results
 	}
 
 	cv.mu.RLock()
@@ -950,7 +976,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	// Compute query embedding once and reuse across all collections
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to compute query embedding: %w", err)
+		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
 	allCollections := []string{"aurago_memories", "tool_guides", "documentation"}
@@ -977,12 +1003,6 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 		}
 	} else {
 		collections = allCollections
-	}
-
-	type rankedResult struct {
-		text       string
-		docID      string
-		similarity float32
 	}
 
 	// Query all collections in parallel using pre-computed embedding.
@@ -1022,7 +1042,7 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 		}(col, searchK)
 	}
 
-	var allResults []rankedResult
+	var allResults []SearchResult
 	for range collections {
 		var cr colResult
 		select {
@@ -1068,10 +1088,10 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 					formattedText = domainHint + " " + result.Content
 				}
 
-				allResults = append(allResults, rankedResult{
-					text:       formattedText,
-					docID:      result.ID,
-					similarity: sim,
+				allResults = append(allResults, SearchResult{
+					Text:       formattedText,
+					DocID:      result.ID,
+					Similarity: float64(sim),
 				})
 			}
 		}
@@ -1084,20 +1104,13 @@ finalizeResults:
 
 	// Sort by similarity descending and enforce global topK limit
 	sort.Slice(allResults, func(i, j int) bool {
-		return allResults[i].similarity > allResults[j].similarity
+		return allResults[i].Similarity > allResults[j].Similarity
 	})
 	if len(allResults) > topK {
 		allResults = allResults[:topK]
 	}
 
-	var allMemories []string
-	var allDocIDs []string
-	for _, r := range allResults {
-		allMemories = append(allMemories, r.text)
-		allDocIDs = append(allDocIDs, r.docID)
-	}
-
-	return allMemories, allDocIDs, nil
+	return allResults, nil
 }
 
 // SearchMemoriesOnly searches only the aurago_memories collection. Much cheaper than
@@ -1105,8 +1118,18 @@ finalizeResults:
 // Intended for use cases like predictive pre-fetch where documentation hits add no value.
 // Uses the query embedding cache to avoid redundant API calls.
 func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
+	results, err := cv.SearchMemoriesOnlyScored(query, topK)
+	if err != nil {
+		return nil, nil, err
+	}
+	texts, ids := splitSearchResults(results)
+	return texts, ids, nil
+}
+
+// SearchMemoriesOnlyScored searches only aurago_memories and preserves scores.
+func (cv *ChromemVectorDB) SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error) {
 	if cv.disabled.Load() {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	cv.mu.RLock()
@@ -1117,7 +1140,7 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
 	if err != nil || col.Count() == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	searchK := topK
@@ -1127,16 +1150,15 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to compute query embedding: %w", err)
+		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
 	results, err := col.QueryEmbedding(ctx, queryEmbedding, searchK, nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var texts []string
-	var ids []string
+	var searchResults []SearchResult
 	for _, r := range results {
 		sim := r.Similarity
 		if tsStr, ok := r.Metadata["timestamp"]; ok {
@@ -1153,11 +1175,24 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 		}
 
 		if sim > 0.3 {
-			texts = append(texts, r.Content)
-			ids = append(ids, r.ID)
+			searchResults = append(searchResults, SearchResult{
+				Text:       r.Content,
+				DocID:      r.ID,
+				Similarity: float64(sim),
+			})
 		}
 	}
-	return texts, ids, nil
+	return searchResults, nil
+}
+
+func splitSearchResults(results []SearchResult) ([]string, []string) {
+	texts := make([]string, 0, len(results))
+	ids := make([]string, 0, len(results))
+	for _, result := range results {
+		texts = append(texts, result.Text)
+		ids = append(ids, result.DocID)
+	}
+	return texts, ids
 }
 
 // GetByID retrieves a document's full content by its ID.
@@ -1253,7 +1288,8 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 // document in the aurago_memories collection for the given concept, or 0 if no match.
 // It is used internally for dedup checks and does NOT format results with a prefix string,
 // unlike SearchSimilar/SearchMemoriesOnly. This method holds cv.mu.RLock for the duration
-// of its operation, so callers must not hold striped concept locks to avoid lock inversion.
+// of its operation. Callers may hold a concept lock, but must release this read lock before
+// taking the vector write lock for storage.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 	if cv.disabled.Load() {
 		return 0

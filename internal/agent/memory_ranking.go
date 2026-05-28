@@ -23,6 +23,10 @@ var memoryMetaCache = struct {
 // It combines semantic similarity, recency, confidence/provenance signals, and
 // session-local reuse penalties into one consistent score pipeline.
 func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) []rankedMemory {
+	return rankMemoryCandidatesWithScores(memories, docIDs, nil, stm, usedDocIDs, now)
+}
+
+func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similarities []float64, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) []rankedMemory {
 	metaMap := loadMemoryMetaMap(stm)
 	results := make([]rankedMemory, 0, len(memories))
 
@@ -31,7 +35,13 @@ func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLite
 			break
 		}
 		docID := docIDs[i]
-		sim := memory.ExtractSimilarityScore(mem)
+		sim := 0.0
+		if i < len(similarities) {
+			sim = similarities[i]
+		}
+		if sim <= 0 {
+			sim = memory.ExtractSimilarityScore(mem)
+		}
 		if sim == 0 {
 			sim = 0.5
 		}
@@ -49,6 +59,42 @@ func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLite
 	})
 
 	return results
+}
+
+func searchSimilarWithScores(vdb memory.VectorDB, query string, topK int, excludeCollections ...string) ([]string, []string, []float64, error) {
+	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
+		results, err := scored.SearchSimilarScored(query, topK, excludeCollections...)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return splitScoredMemoryResults(results)
+	}
+	memories, docIDs, err := vdb.SearchSimilar(query, topK, excludeCollections...)
+	return memories, docIDs, nil, err
+}
+
+func searchMemoriesOnlyWithScores(vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {
+	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
+		results, err := scored.SearchMemoriesOnlyScored(query, topK)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return splitScoredMemoryResults(results)
+	}
+	memories, docIDs, err := vdb.SearchMemoriesOnly(query, topK)
+	return memories, docIDs, nil, err
+}
+
+func splitScoredMemoryResults(results []memory.SearchResult) ([]string, []string, []float64, error) {
+	memories := make([]string, 0, len(results))
+	docIDs := make([]string, 0, len(results))
+	similarities := make([]float64, 0, len(results))
+	for _, result := range results {
+		memories = append(memories, result.Text)
+		docIDs = append(docIDs, result.DocID)
+		similarities = append(similarities, result.Similarity)
+	}
+	return memories, docIDs, similarities, nil
 }
 
 func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {

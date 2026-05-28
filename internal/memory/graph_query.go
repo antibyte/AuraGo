@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+type semanticEdgeIdentity struct {
+	source   string
+	target   string
+	relation string
+}
+
 func (kg *KnowledgeGraph) Search(query string) string {
 	if query == "" {
 		return "[]"
@@ -635,7 +641,6 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("query for optimization: %w", err)
 	}
-	defer rows.Close()
 
 	var toRemove []string
 	for rows.Next() {
@@ -647,6 +652,9 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 				toRemove = append(toRemove, id)
 			}
 		}
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close optimization rows: %w", err)
 	}
 
 	if len(toRemove) == 0 {
@@ -660,7 +668,9 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	defer tx.Rollback()
 
 	nodesDeleted := 0
+	var removedEdges []semanticEdgeIdentity
 	for _, id := range toRemove {
+		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)...)
 		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
 			kg.logger.Warn("OptimizeGraph: failed to delete edges for node", "id", id, "error", execErr)
 		}
@@ -674,6 +684,7 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
+	kg.removeSemanticIndexesForDeletedGraphData(toRemove, removedEdges)
 	return nodesDeleted, nil
 }
 
@@ -687,6 +698,13 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		return 0, 0, fmt.Errorf("begin cleanup graph: %w", err)
 	}
 	defer tx.Rollback()
+
+	staleEdges := kg.collectSemanticEdgeIdentities(tx, `
+		SELECT source, target, relation FROM kg_edges
+		WHERE relation = 'co_mentioned_with'
+		  AND json_extract(properties, '$.source') = 'pending'
+		  AND created_at <= datetime('now', '-' || ? || ' days')
+	`, thresholdDays)
 
 	edgeRes, err := tx.Exec(`
 		DELETE FROM kg_edges 
@@ -708,7 +726,6 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 	if err != nil {
 		return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
 	}
-	defer rows.Close()
 
 	var toRemove []string
 	for rows.Next() {
@@ -717,8 +734,13 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 			toRemove = append(toRemove, id)
 		}
 	}
+	if err := rows.Close(); err != nil {
+		return 0, 0, fmt.Errorf("close stale node rows: %w", err)
+	}
 
+	removedEdges := append([]semanticEdgeIdentity(nil), staleEdges...)
 	for _, id := range toRemove {
+		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)...)
 		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
 			kg.logger.Warn("CleanupStaleGraph: failed to delete edges for node", "id", id, "error", execErr)
 		}
@@ -731,7 +753,61 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 		return 0, 0, fmt.Errorf("commit cleanup graph: %w", err)
 	}
 
+	kg.removeSemanticIndexesForDeletedGraphData(toRemove, removedEdges)
 	return int(edgesDeleted), len(toRemove), nil
+}
+
+func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) []semanticEdgeIdentity {
+	if kg.semantic == nil {
+		return nil
+	}
+	rows, err := tx.Query(query, args...)
+	if err != nil {
+		if kg.logger != nil {
+			kg.logger.Warn("KnowledgeGraph: failed to collect semantic edge identities", "error", err)
+		}
+		return nil
+	}
+	defer rows.Close()
+
+	var edges []semanticEdgeIdentity
+	for rows.Next() {
+		var edge semanticEdgeIdentity
+		if err := rows.Scan(&edge.source, &edge.target, &edge.relation); err != nil {
+			if kg.logger != nil {
+				kg.logger.Warn("KnowledgeGraph: failed to scan semantic edge identity", "error", err)
+			}
+			continue
+		}
+		edges = append(edges, edge)
+	}
+	return edges
+}
+
+func (kg *KnowledgeGraph) removeSemanticIndexesForDeletedGraphData(nodeIDs []string, edges []semanticEdgeIdentity) {
+	if kg.semantic == nil {
+		return
+	}
+	seenEdges := make(map[semanticEdgeIdentity]struct{}, len(edges))
+	for _, edge := range edges {
+		if _, ok := seenEdges[edge]; ok {
+			continue
+		}
+		seenEdges[edge] = struct{}{}
+		if err := kg.removeSemanticEdgeIndex(edge.source, edge.target, edge.relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("KnowledgeGraph: failed to remove stale semantic edge index", "source", edge.source, "target", edge.target, "relation", edge.relation, "error", err)
+		}
+	}
+	seenNodes := make(map[string]struct{}, len(nodeIDs))
+	for _, nodeID := range nodeIDs {
+		if _, ok := seenNodes[nodeID]; ok {
+			continue
+		}
+		seenNodes[nodeID] = struct{}{}
+		if err := kg.removeSemanticNodeIndex(nodeID); err != nil && kg.logger != nil {
+			kg.logger.Warn("KnowledgeGraph: failed to remove stale semantic node index", "id", nodeID, "error", err)
+		}
+	}
 }
 
 func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {

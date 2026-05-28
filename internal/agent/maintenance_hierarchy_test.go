@@ -1,10 +1,13 @@
 package agent
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -16,6 +19,9 @@ type hierarchyVectorDB struct {
 func (v *hierarchyVectorDB) StoreDocument(concept, content string) ([]string, error) {
 	if v.stored == nil {
 		v.stored = map[string]string{}
+	}
+	if strings.HasPrefix(concept, "fail:") {
+		return nil, fmt.Errorf("store failed for %s", concept)
 	}
 	id := concept
 	v.stored[id] = content
@@ -50,9 +56,105 @@ func (v *hierarchyVectorDB) StoreDocumentInCollection(concept, content, collecti
 func (v *hierarchyVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
-func (v *hierarchyVectorDB) DeleteCheatsheet(id string) error               { return nil }
-func (v *hierarchyVectorDB) RegisterCollections(collections []string)       {}
+func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return nil
+}
+func (v *hierarchyVectorDB) DeleteCheatsheet(id string) error         { return nil }
+func (v *hierarchyVectorDB) RegisterCollections(collections []string) {}
+
+func TestConsolidateSTMtoLTMDoesNotClaimWhenNoLLMAvailable(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	for i, role := range []string{"user", "assistant", "user"} {
+		if _, err := stm.InsertMessage("s1", role, fmt.Sprintf("remember the NAS backup target %d", i), false, false); err != nil {
+			t.Fatalf("InsertMessage: %v", err)
+		}
+	}
+	if err := stm.DeleteOldMessages("s1", 1); err != nil {
+		t.Fatalf("DeleteOldMessages: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Consolidation.Enabled = true
+	cfg.Consolidation.MaxBatchMessages = 10
+
+	consolidateSTMtoLTM(cfg, logger, nil, stm, &hierarchyVectorDB{}, nil)
+
+	msgs, err := stm.GetConsolidationCandidates(10, 3)
+	if err != nil {
+		t.Fatalf("GetConsolidationCandidates: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatalf("len(candidates) = %d, want pending candidates", len(msgs))
+	}
+	for _, msg := range msgs {
+		if msg.ConsolidationStatus != "pending" {
+			t.Fatalf("status = %q, want pending", msg.ConsolidationStatus)
+		}
+	}
+}
+
+func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	stored, err := storeConsolidationFacts(logger, stm, &hierarchyVectorDB{}, []helperConsolidationFact{
+		{Concept: "ok:backup", Content: "The backup target is the NAS."},
+		{Concept: "fail:backup", Content: "This store should fail."},
+	})
+	if err == nil {
+		t.Fatal("expected store failure to be reported")
+	}
+	if stored != 1 {
+		t.Fatalf("stored = %d, want 1", stored)
+	}
+}
+
+func TestSyncCoreMemoryToKnowledgeGraphRemovesDeletedFacts(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	id, err := stm.AddCoreMemoryFact("User prefers quiet infrastructure dashboards.")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+	SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger)
+
+	nodeID := fmt.Sprintf("core_fact_%d", id)
+	if node, err := kg.GetNode(nodeID); err != nil || node == nil {
+		t.Fatalf("expected synced core fact node, node=%v err=%v", node, err)
+	}
+	if err := stm.DeleteCoreMemoryFact(id); err != nil {
+		t.Fatalf("DeleteCoreMemoryFact: %v", err)
+	}
+	SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger)
+
+	node, err := kg.GetNode(nodeID)
+	if err != nil {
+		t.Fatalf("GetNode after delete: %v", err)
+	}
+	if node != nil {
+		t.Fatalf("expected stale core fact node removed, got %#v", node)
+	}
+}
 
 func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

@@ -944,7 +944,10 @@ func (m *helperLLMManager) AnalyzeConsolidationBatches(ctx context.Context, batc
 	if parseErr != nil {
 		return helperConsolidationBatchResult{}, parseErr
 	}
-	validateHelperBatchIDs("consolidation", batches, result.Batches, func(b helperConsolidationBatchInput) string { return b.BatchID }, func(r helperConsolidationBatchFacts) string { return r.BatchID }, m)
+	missing := validateHelperBatchIDs("consolidation", batches, result.Batches, func(b helperConsolidationBatchInput) string { return b.BatchID }, func(r helperConsolidationBatchFacts) string { return r.BatchID }, m)
+	if len(missing) > 0 {
+		return helperConsolidationBatchResult{}, fmt.Errorf("missing consolidation batch IDs: %s", strings.Join(missing, ", "))
+	}
 	m.observeBatchEfficiency("consolidation_batches", len(batches), max(0, len(batches)-1))
 	return result, nil
 }

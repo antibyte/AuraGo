@@ -134,6 +134,66 @@ func TestKGSemanticNodeUpsertRefreshesCachedContent(t *testing.T) {
 	}
 }
 
+func TestKGAddEdgePreservesRichNodeSemanticIndex(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("app", "Application Server", map[string]string{"type": "service", "notes": "rich deployment details"}); err != nil {
+		t.Fatalf("AddNode app: %v", err)
+	}
+	if err := kg.AddNode("server", "Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode server: %v", err)
+	}
+	if err := kg.AddEdge("app", "server", "runs_on", map[string]string{"notes": "nightly workload"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	doc, err := kg.semantic.collection.GetByID(context.Background(), "app")
+	if err != nil {
+		t.Fatalf("GetByID app: %v", err)
+	}
+	if !strings.Contains(doc.Content, "rich deployment details") {
+		t.Fatalf("semantic content = %q, want original node properties preserved", doc.Content)
+	}
+}
+
+func TestKGOptimizeGraphRemovesSemanticIndexEntries(t *testing.T) {
+	kg := newTestKG(t)
+
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("temp", "Temporary Node", map[string]string{"notes": "short lived"}); err != nil {
+		t.Fatalf("AddNode temp: %v", err)
+	}
+	if _, err := kg.semantic.collection.GetByID(context.Background(), "temp"); err != nil {
+		t.Fatalf("expected semantic doc before optimize: %v", err)
+	}
+
+	removed, err := kg.OptimizeGraph(1)
+	if err != nil {
+		t.Fatalf("OptimizeGraph: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if _, err := kg.semantic.collection.GetByID(context.Background(), "temp"); err == nil {
+		t.Fatal("expected semantic doc removed after optimize")
+	}
+}
+
 func TestKGUpdateEdgeRefreshesSemanticIndex(t *testing.T) {
 	kg := newTestKG(t)
 

@@ -61,7 +61,7 @@ func (f *fakeVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content s
 func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return nil
 }
-func (f *fakeVectorDB) DeleteCheatsheet(id string) error { return nil }
+func (f *fakeVectorDB) DeleteCheatsheet(id string) error         { return nil }
 func (f *fakeVectorDB) RegisterCollections(collections []string) {}
 
 func TestDispatchExecQueryMemorySearchesKnowledgeFilesForVectorDB(t *testing.T) {
@@ -226,6 +226,14 @@ func TestDispatchExecContextMemoryReturnsCombinedResults(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("InsertJournalEntry: %v", err)
 	}
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{
+		EntryType: "milestone",
+		Title:     "Backup issue from last month",
+		Content:   "Old backup note outside the requested time range",
+		Date:      time.Now().AddDate(0, 0, -30).Format("2006-01-02"),
+	}); err != nil {
+		t.Fatalf("InsertJournalEntry old: %v", err)
+	}
 	if _, err := stm.InsertActivityTurn(memory.ActivityTurn{
 		Date:            time.Now().Format("2006-01-02"),
 		SessionID:       "default",
@@ -259,6 +267,9 @@ func TestDispatchExecContextMemoryReturnsCombinedResults(t *testing.T) {
 	}
 	if !strings.Contains(out, `"source":"journal"`) {
 		t.Fatalf("output = %q, want journal result", out)
+	}
+	if strings.Contains(out, "Backup issue from last month") {
+		t.Fatalf("output = %q, did not expect out-of-range journal result", out)
 	}
 }
 

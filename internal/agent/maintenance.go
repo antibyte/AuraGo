@@ -773,15 +773,19 @@ Conversation:
 	return extracted.Facts, nil
 }
 
-func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) int {
+func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (int, error) {
 	stored := 0
+	var failed []string
 	for _, fact := range facts {
-		if fact.Concept == "" || fact.Content == "" {
+		concept := strings.TrimSpace(fact.Concept)
+		content := strings.TrimSpace(fact.Content)
+		if concept == "" || content == "" {
 			continue
 		}
-		ids, err := ltm.StoreDocument(fact.Concept, fact.Content)
+		ids, err := ltm.StoreDocument(concept, content)
 		if err != nil {
-			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", fact.Concept, "error", err)
+			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", concept, "error", err)
+			failed = append(failed, concept)
 			continue
 		}
 		for _, id := range ids {
@@ -792,10 +796,13 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 				SourceReliability:    0.82,
 			})
 		}
-		detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, fact.Content)
+		detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, content)
 		stored++
 	}
-	return stored
+	if len(failed) > 0 {
+		return stored, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
+	}
+	return stored, nil
 }
 
 func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, factsCount, batchIndex, batchTotal int) {
@@ -823,6 +830,12 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
 // This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
 func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
+	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
+	if consolidationClient == nil || consolidationModel == "" {
+		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
+		return
+	}
+
 	// Atomically claim rows so concurrent runs cannot process the same messages.
 	archived, err := stm.ClaimConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
 	if err != nil {
@@ -858,11 +871,6 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 
 	totalStored := 0
 	var allConsolidatedIDs []int64
-	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
-	if consolidationClient == nil || consolidationModel == "" {
-		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
-		return
-	}
 	helperManager := newHelperLLMManager(cfg, logger)
 	workItems := make([]consolidationWorkItem, 0, len(batches))
 	for i, batch := range batches {
@@ -876,7 +884,13 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 			_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
 			return
 		}
-		totalStored += storeConsolidationFacts(logger, stm, ltm, facts)
+		stored, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+		totalStored += stored
+		if storeErr != nil {
+			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
+			_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+			return
+		}
 		recordConsolidationBatchEpisode(stm, item.messages, len(facts), batchIndex, len(workItems))
 		allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
 	}
@@ -921,7 +935,13 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 		}
 		for offset, item := range group {
 			facts := byID[item.batchID]
-			totalStored += storeConsolidationFacts(logger, stm, ltm, facts)
+			stored, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+			totalStored += stored
+			if storeErr != nil {
+				logger.Warn("[Consolidation] LTM storage failed for helper batch", "batch_id", item.batchID, "error", storeErr)
+				_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+				continue
+			}
 			recordConsolidationBatchEpisode(stm, item.messages, len(facts), i+offset+1, len(workItems))
 			allConsolidatedIDs = append(allConsolidatedIDs, item.messageIDs...)
 		}
@@ -1494,8 +1514,10 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		return
 	}
 
+	expected := make(map[string]struct{}, len(facts))
 	for _, fact := range facts {
 		nodeID := fmt.Sprintf("core_fact_%d", fact.ID)
+		expected[nodeID] = struct{}{}
 		label := fact.Fact
 		if len(label) > 50 {
 			label = label[:47] + "..."
@@ -1508,6 +1530,20 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		err := kg.AddNode(nodeID, label, props)
 		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
+		}
+	}
+
+	nodes, err := kg.ListNodesByIDPrefix("core_fact_", 10000)
+	if err != nil {
+		logger.Debug("[Maintenance] Failed to list core memory KG nodes", "error", err)
+		return
+	}
+	for _, node := range nodes {
+		if _, ok := expected[node.ID]; ok {
+			continue
+		}
+		if err := kg.DeleteNode(node.ID); err != nil {
+			logger.Debug("[Maintenance] Failed to delete stale core memory KG node", "nodeID", node.ID, "error", err)
 		}
 	}
 }
