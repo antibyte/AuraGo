@@ -1,10 +1,14 @@
 package webhooks
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
+
+	"aurago/internal/security"
 )
 
 var promptPlaceholderPattern = regexp.MustCompile(`\{\{\s*([^{}]+?)\s*\}\}`)
@@ -98,17 +102,35 @@ func resolvePromptToken(token string, data PromptData) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("invalid prompt template: unknown field placeholder %q", key)
 		}
-		return fmt.Sprint(value), nil
+		return security.IsolateExternalData(promptTemplateValueString(value)), nil
 	}
 	if strings.HasPrefix(token, "header.") {
 		key := strings.TrimSpace(strings.TrimPrefix(token, "header."))
 		if value, ok := data.Headers[key]; ok {
-			return value, nil
+			return security.IsolateExternalData(value), nil
 		}
 		if value, ok := data.Headers[http.CanonicalHeaderKey(key)]; ok {
-			return value, nil
+			return security.IsolateExternalData(value), nil
 		}
 		return "", fmt.Errorf("invalid prompt template: unknown header placeholder %q", key)
 	}
 	return "", fmt.Errorf("invalid prompt template: unsupported placeholder %q", token)
+}
+
+func promptTemplateValueString(value interface{}) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+	kind := reflect.TypeOf(value).Kind()
+	if kind == reflect.Map || kind == reflect.Slice || kind == reflect.Array {
+		if encoded, err := json.Marshal(value); err == nil {
+			return string(encoded)
+		}
+	}
+	return fmt.Sprint(value)
 }

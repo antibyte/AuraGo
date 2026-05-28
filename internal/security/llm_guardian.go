@@ -21,6 +21,13 @@ var (
 	reClassifyPattern = regexp.MustCompile(`(?i)RE-CLASSIFY:`)
 )
 
+const (
+	contentScanSnippetMaxBytes    = 6 * 1024
+	contentScanSnippetEdgeBytes   = 2 * 1024
+	contentScanSnippetMiddleBytes = 2 * 1024
+	contentScanOmittedMark        = "\n[... content omitted for guardian scan ...]\n"
+)
+
 // GuardianLevel defines the protection intensity.
 type GuardianLevel int
 
@@ -460,30 +467,17 @@ func buildGuardianPrompt(check GuardianCheck) string {
 	if len(check.Parameters) > 0 {
 		sb.WriteString("PARAMS: ")
 		for k, v := range check.Parameters {
-			// Truncate long parameter values
-			if len(v) > 200 {
-				v = v[:200] + "..."
-			}
-			// Escape newlines and "DECISION:" to prevent prompt injection via parameter values.
-			v = strings.ReplaceAll(v, "\r", " ")
-			v = strings.ReplaceAll(v, "\n", " ")
-			v = decisionPattern.ReplaceAllString(v, "DECISION_")
-			v = classifyPattern.ReplaceAllString(v, "CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
-			sb.WriteString(v)
+			sb.WriteString(sanitizeGuardianPromptValue(v, 200))
 			sb.WriteString(" ")
 		}
 		sb.WriteString("\n")
 	}
 
 	if check.Context != "" {
-		ctx := check.Context
-		if len(ctx) > 200 {
-			ctx = ctx[:200] + "..."
-		}
 		sb.WriteString("CONTEXT: ")
-		sb.WriteString(ctx)
+		sb.WriteString(sanitizeGuardianPromptValue(check.Context, 200))
 		sb.WriteString("\n")
 	}
 
@@ -615,6 +609,18 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
+func sanitizeGuardianPromptValue(value string, maxLen int) string {
+	if maxLen > 0 {
+		value = truncate(value, maxLen)
+	}
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = reClassifyPattern.ReplaceAllString(value, "RE-CLASSIFY_")
+	value = decisionPattern.ReplaceAllString(value, "DECISION_")
+	value = classifyPattern.ReplaceAllString(value, "CLASSIFY_")
+	return value
+}
+
 // ── Clarification System ────────────────────────────────────────────────────
 
 const clarificationSystemPrompt = `You are a security auditor for an AI agent. A tool call was previously BLOCKED. The agent is now explaining why it needs to perform this action. Re-evaluate with STRICTER criteria: only allow if the justification is specific, plausible, and clearly tied to a legitimate user request. Vague or generic justifications should remain blocked. Respond in EXACTLY this format:
@@ -684,50 +690,22 @@ func buildClarificationPrompt(check GuardianCheck) string {
 	if len(check.Parameters) > 0 {
 		sb.WriteString("PARAMS: ")
 		for k, v := range check.Parameters {
-			if len(v) > 200 {
-				v = v[:200] + "..."
-			}
-			// Escape newlines and delimiter keywords to prevent prompt injection via parameter values.
-			v = strings.ReplaceAll(v, "\r", " ")
-			v = strings.ReplaceAll(v, "\n", " ")
-			v = decisionPattern.ReplaceAllString(v, "DECISION_")
-			v = classifyPattern.ReplaceAllString(v, "CLASSIFY_")
-			v = reClassifyPattern.ReplaceAllString(v, "RE-CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
-			sb.WriteString(v)
+			sb.WriteString(sanitizeGuardianPromptValue(v, 200))
 			sb.WriteString(" ")
 		}
 		sb.WriteString("\n")
 	}
 
 	if check.Context != "" {
-		ctx := check.Context
-		if len(ctx) > 200 {
-			ctx = ctx[:200] + "..."
-		}
-		ctx = strings.ReplaceAll(ctx, "\r", " ")
-		ctx = strings.ReplaceAll(ctx, "\n", " ")
-		ctx = decisionPattern.ReplaceAllString(ctx, "DECISION_")
-		ctx = classifyPattern.ReplaceAllString(ctx, "CLASSIFY_")
-		ctx = reClassifyPattern.ReplaceAllString(ctx, "RE-CLASSIFY_")
 		sb.WriteString("CONTEXT: ")
-		sb.WriteString(ctx)
+		sb.WriteString(sanitizeGuardianPromptValue(check.Context, 200))
 		sb.WriteString("\n")
 	}
 
-	justification := check.Justification
-	if len(justification) > 500 {
-		justification = justification[:500] + "..."
-	}
-	// Escape newlines and delimiter keywords to prevent forged verdicts via justification.
-	justification = strings.ReplaceAll(justification, "\r", " ")
-	justification = strings.ReplaceAll(justification, "\n", " ")
-	justification = decisionPattern.ReplaceAllString(justification, "DECISION_")
-	justification = classifyPattern.ReplaceAllString(justification, "CLASSIFY_")
-	justification = reClassifyPattern.ReplaceAllString(justification, "RE-CLASSIFY_")
 	sb.WriteString("AGENT JUSTIFICATION: ")
-	sb.WriteString(justification)
+	sb.WriteString(sanitizeGuardianPromptValue(check.Justification, 500))
 	sb.WriteString("\n")
 	sb.WriteString("RE-CLASSIFY:")
 	return sb.String()
@@ -745,11 +723,7 @@ Example: dangerous 90 hidden prompt injection in body`
 func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, content string) GuardianResult {
 	start := time.Now()
 
-	// Truncate for cache key and prompt
-	snippet := content
-	if len(snippet) > 1000 {
-		snippet = snippet[:1000]
-	}
+	snippet := prepareContentScanSnippet(content)
 
 	// Check cache
 	cacheKey := GenerateCacheKey("content_scan:"+contentType, map[string]string{"content": snippet})
@@ -813,11 +787,55 @@ func buildContentScanPrompt(contentType string, content string) string {
 	sb.WriteString("CONTENT_TYPE: ")
 	sb.WriteString(contentType)
 	sb.WriteString("\nCONTENT:\n")
-	// Escape delimiter keywords to prevent injected content from forging a CLASSIFY verdict.
-	content = strings.ReplaceAll(content, "\r", " ")
-	content = classifyPattern.ReplaceAllString(content, "CLASSIFY_")
-	content = decisionPattern.ReplaceAllString(content, "DECISION_")
-	sb.WriteString(content)
+	sb.WriteString(sanitizeGuardianPromptValue(content, 0))
 	sb.WriteString("\nCLASSIFY:")
+	return sb.String()
+}
+
+func prepareContentScanSnippet(content string) string {
+	if len(content) <= contentScanSnippetMaxBytes {
+		return content
+	}
+
+	headLen := contentScanSnippetEdgeBytes
+	if headLen > len(content) {
+		headLen = len(content)
+	}
+	tailLen := contentScanSnippetEdgeBytes
+	if tailLen > len(content)-headLen {
+		tailLen = len(content) - headLen
+	}
+	middleLen := contentScanSnippetMiddleBytes
+	if middleLen > len(content)-headLen-tailLen {
+		middleLen = len(content) - headLen - tailLen
+	}
+	if middleLen < 0 {
+		middleLen = 0
+	}
+
+	middleStart := (len(content) - middleLen) / 2
+	middleEnd := middleStart + middleLen
+	if middleStart < headLen {
+		middleStart = headLen
+		middleEnd = middleStart + middleLen
+	}
+	tailStart := len(content) - tailLen
+	if middleEnd > tailStart {
+		middleEnd = tailStart
+		middleStart = middleEnd - middleLen
+		if middleStart < headLen {
+			middleStart = headLen
+		}
+	}
+
+	var sb strings.Builder
+	sb.Grow(headLen + middleLen + tailLen + len(contentScanOmittedMark)*2)
+	sb.WriteString(content[:headLen])
+	sb.WriteString(contentScanOmittedMark)
+	if middleLen > 0 {
+		sb.WriteString(content[middleStart:middleEnd])
+		sb.WriteString(contentScanOmittedMark)
+	}
+	sb.WriteString(content[tailStart:])
 	return sb.String()
 }

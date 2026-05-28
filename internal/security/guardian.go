@@ -133,13 +133,15 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 		return ScanResult{Level: ThreatNone}
 	}
 
-	scanText, truncated := prepareGuardianScanText(text, g.maxScanBytes, g.scanEdgeBytes)
-
-	analysis := g.protector.Analyze(scanText)
+	scanWindows, chunked := prepareGuardianScanTexts(text, g.maxScanBytes, g.scanEdgeBytes)
 	result := ScanResult{Level: ThreatNone}
+	var msgs []string
 
-	if !analysis.Safe || len(analysis.Threats) > 0 {
-		var msgs []string
+	for _, scanText := range scanWindows {
+		analysis := g.protector.Analyze(scanText)
+		if analysis.Safe && len(analysis.Threats) == 0 {
+			continue
+		}
 		for _, thr := range analysis.Threats {
 			// Find max ThreatLevel effectively
 			lvl := ThreatLow
@@ -155,24 +157,65 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 				result.Level = lvl
 			}
 
-			result.Patterns = append(result.Patterns, string(thr.Type))
-			msgs = append(msgs, thr.Message)
+			result.Patterns = appendUniqueString(result.Patterns, string(thr.Type))
+			msgs = appendUniqueString(msgs, thr.Message)
 		}
 
 		// If promptsec marks unsafe, ensure at least ThreatMedium
 		if !analysis.Safe && result.Level < ThreatMedium {
 			result.Level = ThreatMedium
 		}
+	}
 
+	if result.Level > ThreatNone {
 		result.Message = strings.Join(msgs, "; ")
-		if truncated {
-			result.Message += " [scan_window=truncated]"
+		if result.Message == "" {
+			result.Message = "Promptsec marked content unsafe"
 		}
-	} else if truncated {
-		result.Message = "No injection patterns detected in truncated scan window"
+		if chunked {
+			result.Message += " [scan_window=chunked]"
+		}
+	} else if chunked {
+		result.Message = "No injection patterns detected in chunked scan windows"
 	}
 
 	return result
+}
+
+func prepareGuardianScanTexts(text string, maxScanBytes, scanEdgeBytes int) ([]string, bool) {
+	if maxScanBytes <= 0 {
+		maxScanBytes = defaultGuardianMaxScanBytes
+	}
+	if scanEdgeBytes <= 0 {
+		scanEdgeBytes = defaultGuardianScanEdgeBytes
+	}
+	if len(text) <= maxScanBytes {
+		return []string{text}, false
+	}
+	if scanEdgeBytes >= maxScanBytes {
+		scanEdgeBytes = maxScanBytes / 4
+	}
+	if scanEdgeBytes < 0 {
+		scanEdgeBytes = 0
+	}
+	stride := maxScanBytes - scanEdgeBytes
+	if stride <= 0 {
+		stride = maxScanBytes
+	}
+
+	windows := make([]string, 0, (len(text)/stride)+1)
+	for start := 0; start < len(text); {
+		end := start + maxScanBytes
+		if end > len(text) {
+			end = len(text)
+		}
+		windows = append(windows, text[start:end])
+		if end == len(text) {
+			break
+		}
+		start += stride
+	}
+	return windows, true
 }
 
 func prepareGuardianScanText(text string, maxScanBytes, scanEdgeBytes int) (string, bool) {
@@ -194,6 +237,18 @@ func prepareGuardianScanText(text string, maxScanBytes, scanEdgeBytes int) (stri
 	head := text[:scanEdgeBytes]
 	tail := text[len(text)-scanEdgeBytes:]
 	return head + guardianScanOmittedMark + tail, true
+}
+
+func appendUniqueString(items []string, value string) []string {
+	if value == "" {
+		return items
+	}
+	for _, item := range items {
+		if item == value {
+			return items
+		}
+	}
+	return append(items, value)
 }
 
 // ── External Data Isolation ─────────────────────────────────────────────────
@@ -220,7 +275,7 @@ var roleMarkers = regexp.MustCompile(`(?im)^(system|user|assistant|human|ai)\s*:
 
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
-// External tools: execute_skill, api_request, execute_remote_shell, execute_shell, execute_python, run_tool, filesystem (read_file only).
+// Execution tools remain heuristic because their output can be local operator diagnostics.
 func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	if output == "" {
 		return output
@@ -240,10 +295,17 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		"remote_execution":     true,
 		// Communication — email and messaging content is external data
 		"email":         true,
+		"agentmail":     true,
 		"fetch_email":   true,
 		"check_email":   true,
 		"discord":       true,
 		"fetch_discord": true,
+		// File and memory reads can include attacker-controlled project or user content
+		"filesystem":           true,
+		"filesystem_op":        true,
+		"file_reader_advanced": true,
+		"smart_file_read":      true,
+		"file_search":          true,
 		// Network/web content
 		"web_scraper":       true,
 		"fetch_url":         true,
@@ -291,7 +353,6 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		"execute_shell":  true,
 		"execute_python": true,
 		"run_tool":       true,
-		"filesystem":     true,
 	}
 
 	if externalTools[toolName] {

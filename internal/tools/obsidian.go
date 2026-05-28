@@ -125,7 +125,7 @@ func wrapExternalContent(content string) string {
 		runes := []rune(content)
 		content = string(runes[:maxObsidianContentSize]) + "\n... (truncated)"
 	}
-	return "<external_data>" + content + "</external_data>"
+	return security.IsolateExternalData(content)
 }
 
 func obsidianReadBack(ctx context.Context, client *obsidian.Client, path, targetType, target string) (*obsidian.NoteJSON, error) {
