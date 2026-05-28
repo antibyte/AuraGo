@@ -53,10 +53,10 @@ func getMoodTrigger(messages []openai.ChatCompletionMessage, lastUserMsg string)
 
 // processBehavioralEvents handles V2 mood milestone checks and loneliness calculations
 func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCompletionMessage, sessionID string, meta memory.PersonalityMeta, logger *slog.Logger) {
-	// Loneliness Trait based on time elapsed since last user message.
+	// Loneliness Trait based on time elapsed since the previous user message.
 	// Incremental update: nudge toward the time-based target instead of hard-setting
 	// the absolute value, so that other dynamics (e.g. positive interactions) are preserved.
-	hours, err := stm.GetHoursSinceLastUserMessage(sessionID)
+	hours, err := stm.GetHoursSincePreviousUserMessage(sessionID)
 	if err == nil {
 		traits, _ := stm.GetTraits()
 		current := 0.0

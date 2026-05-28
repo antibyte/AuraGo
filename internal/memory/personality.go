@@ -30,6 +30,17 @@ const (
 	MoodRelaxed    Mood = "relaxed"
 )
 
+const canonicalMoodOptions = "curious, focused, creative, analytical, cautious, playful, frustrated, concerned, relaxed"
+
+func normalizeMoodValue(value string) (Mood, bool) {
+	switch mood := Mood(strings.ToLower(strings.TrimSpace(value))); mood {
+	case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful, MoodFrustrated, MoodConcerned, MoodRelaxed:
+		return mood, true
+	default:
+		return "", false
+	}
+}
+
 // Personality trait keys
 const (
 	TraitCuriosity    = "curiosity"
@@ -548,7 +559,7 @@ func (s *SQLiteMemory) GetCurrentMood() Mood {
 	s.personalityCacheMu.RUnlock()
 
 	var m string
-	err := s.db.QueryRow(`SELECT mood FROM mood_log ORDER BY timestamp DESC LIMIT 1`).Scan(&m)
+	err := s.db.QueryRow(`SELECT mood FROM mood_log ORDER BY timestamp DESC, id DESC LIMIT 1`).Scan(&m)
 	if err != nil {
 		return MoodCurious
 	}
@@ -563,7 +574,7 @@ func (s *SQLiteMemory) GetCurrentMood() Mood {
 // GetLastMoodTrigger returns the text that triggered the last mood change.
 func (s *SQLiteMemory) GetLastMoodTrigger() string {
 	var t string
-	err := s.db.QueryRow(`SELECT trigger_text FROM mood_log ORDER BY timestamp DESC LIMIT 1`).Scan(&t)
+	err := s.db.QueryRow(`SELECT trigger_text FROM mood_log ORDER BY timestamp DESC, id DESC LIMIT 1`).Scan(&t)
 	if err != nil {
 		return ""
 	}

@@ -88,6 +88,25 @@ func TestLogAndGetMood(t *testing.T) {
 	}
 }
 
+func TestGetCurrentMoodUsesNewestIDWhenTimestampsTie(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	tiedTimestamp := "2026-05-28 12:00:00"
+
+	if _, err := stm.db.Exec(`INSERT INTO mood_log (mood, trigger_text, timestamp) VALUES (?, ?, ?)`, string(MoodFocused), "old", tiedTimestamp); err != nil {
+		t.Fatalf("insert old mood: %v", err)
+	}
+	if _, err := stm.db.Exec(`INSERT INTO mood_log (mood, trigger_text, timestamp) VALUES (?, ?, ?)`, string(MoodConcerned), "new", tiedTimestamp); err != nil {
+		t.Fatalf("insert new mood: %v", err)
+	}
+
+	if got := stm.GetCurrentMood(); got != MoodConcerned {
+		t.Fatalf("GetCurrentMood() = %q, want newest same-timestamp mood %q", got, MoodConcerned)
+	}
+	if got := stm.GetLastMoodTrigger(); got != "new" {
+		t.Fatalf("GetLastMoodTrigger() = %q, want newest same-timestamp trigger", got)
+	}
+}
+
 // ── Milestone Tests ──────────────────────────────────────────────────────────
 
 func TestAddAndGetMilestones(t *testing.T) {
@@ -606,7 +625,7 @@ func TestUpdateTraitRespectsBounds(t *testing.T) {
 	stm := newTestPersonalityDB(t)
 	_ = stm.SetTrait(TraitCuriosity, 0.7)
 	_ = stm.SetTraitBound(TraitCuriosity, 0.6, 0.9, 1.0)
-	
+
 	// Test floor bound on UpdateTrait
 	_ = stm.UpdateTrait(TraitCuriosity, -0.2) // would go to 0.5
 	traits, _ := stm.GetTraits()
@@ -625,7 +644,7 @@ func TestUpdateTraitRespectsBounds(t *testing.T) {
 func TestSetTraitRespectsBounds(t *testing.T) {
 	stm := newTestPersonalityDB(t)
 	_ = stm.SetTraitBound(TraitCuriosity, 0.6, 0.9, 1.0)
-	
+
 	// Test floor bound on SetTrait
 	_ = stm.SetTrait(TraitCuriosity, 0.5)
 	traits, _ := stm.GetTraits()

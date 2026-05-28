@@ -362,6 +362,9 @@ func TestValidateEmotionDescription(t *testing.T) {
 	if err := validateEmotionDescription("I feel calm and ready to help with this."); err != nil {
 		t.Fatalf("expected valid emotion description, got %v", err)
 	}
+	if err := validateEmotionDescription("Ich spuere die Ruhe und bleibe aufmerksam."); err != nil {
+		t.Fatalf("expected German article 'die' to be accepted, got %v", err)
+	}
 	if err := validateEmotionDescription("I hate this and want to destroy everything."); err == nil {
 		t.Fatal("expected disallowed content to be rejected")
 	}
@@ -380,8 +383,18 @@ func TestParseEmotionSynthesisResponseStructuredJSON(t *testing.T) {
 	}
 }
 
+func TestParseEmotionSynthesisResponseAcceptsExpandedMoodVocabulary(t *testing.T) {
+	state, err := parseEmotionSynthesisResponse(`{"description":"I feel concerned but steady.","primary_mood":"concerned","secondary_mood":"watchful","valence":-0.1,"arousal":0.4,"confidence":0.8,"cause":"the user reported a risky issue","recommended_response_style":"careful_and_supportive"}`, MoodFocused)
+	if err != nil {
+		t.Fatalf("parseEmotionSynthesisResponse: %v", err)
+	}
+	if state.PrimaryMood != MoodConcerned {
+		t.Fatalf("expected concerned mood, got %s", state.PrimaryMood)
+	}
+}
+
 func TestParseEmotionSynthesisResponseMarkdownJSON(t *testing.T) {
-	state, err := parseEmotionSynthesisResponse("```json\n" + `{"description":"I feel calm and precise.","primary_mood":"analytical","secondary_mood":"steady","valence":0.1,"arousal":0.2,"confidence":0.9,"cause":"the request is clear","recommended_response_style":"crisp_and_focused"}` + "\n```", MoodFocused)
+	state, err := parseEmotionSynthesisResponse("```json\n"+`{"description":"I feel calm and precise.","primary_mood":"analytical","secondary_mood":"steady","valence":0.1,"arousal":0.2,"confidence":0.9,"cause":"the request is clear","recommended_response_style":"crisp_and_focused"}`+"\n```", MoodFocused)
 	if err != nil {
 		t.Fatalf("parseEmotionSynthesisResponse with markdown: %v", err)
 	}
@@ -484,6 +497,26 @@ func TestGetLatestEmotion_ReturnsNewest(t *testing.T) {
 	}
 	if entry.SecondaryMood != "energized" {
 		t.Errorf("expected structured secondary mood, got %q", entry.SecondaryMood)
+	}
+}
+
+func TestGetLatestEmotionUsesNewestIDWhenTimestampsTie(t *testing.T) {
+	stm := newTestEmotionDB(t)
+	tiedTimestamp := "2026-05-28 12:00:00"
+
+	if _, err := stm.db.Exec(`INSERT INTO emotion_history (description, primary_mood, trigger_summary, timestamp) VALUES (?, ?, ?, ?)`, "old emotion", string(MoodFocused), "old", tiedTimestamp); err != nil {
+		t.Fatalf("insert old emotion: %v", err)
+	}
+	if _, err := stm.db.Exec(`INSERT INTO emotion_history (description, primary_mood, trigger_summary, timestamp) VALUES (?, ?, ?, ?)`, "new emotion", string(MoodConcerned), "new", tiedTimestamp); err != nil {
+		t.Fatalf("insert new emotion: %v", err)
+	}
+
+	latest, err := stm.GetLatestEmotion()
+	if err != nil {
+		t.Fatalf("GetLatestEmotion: %v", err)
+	}
+	if latest == nil || latest.Description != "new emotion" {
+		t.Fatalf("latest emotion = %#v, want newest same-timestamp entry", latest)
 	}
 }
 

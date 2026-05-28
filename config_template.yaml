@@ -921,7 +921,10 @@ personality:
     user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
+        min_interval_seconds: 60       # minimum seconds between emotion synthesis runs
         max_history_entries: 100       # max emotion history entries to keep
+        trigger_on_mood_change: true   # synthesize when V2 detects a mood change (default: true)
+        trigger_always: false          # synthesize on every message (default: false)
     inner_voice:
         enabled: false                 # enable inner voice / subconscious nudge engine (requires emotion_synthesizer + engine_v2)
         min_interval_secs: 60          # minimum seconds between inner voice generations

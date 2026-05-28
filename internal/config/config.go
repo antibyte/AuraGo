@@ -888,6 +888,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.EmotionSynthesizer.MaxHistoryEntries <= 0 {
 		cfg.Personality.EmotionSynthesizer.MaxHistoryEntries = 100
 	}
+	if !yamlHasPath(data, "personality", "emotion_synthesizer", "trigger_on_mood_change") {
+		cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange = true
+	}
 	// Emotion Synthesizer requires Personality Engine V2
 	if cfg.Personality.EmotionSynthesizer.Enabled && !cfg.Personality.EngineV2 {
 		cfg.Personality.EngineV2 = true

@@ -15,7 +15,7 @@ func detectUserEmotionTrigger(lastUserMsg string, stm *memory.SQLiteMemory, sess
 
 	inactivityHours := 0.0
 	if stm != nil && strings.TrimSpace(sessionID) != "" {
-		if hours, err := stm.GetHoursSinceLastUserMessage(sessionID); err == nil {
+		if hours, err := stm.GetHoursSincePreviousUserMessage(sessionID); err == nil {
 			inactivityHours = hours
 		}
 	}

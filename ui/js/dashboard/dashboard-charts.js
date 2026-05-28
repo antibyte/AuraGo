@@ -197,8 +197,8 @@
         const MOOD_MAP = {
             excited: 5, curious: 4, creative: 4, playful: 4,
             focused: 3, analytical: 3,
-            neutral: 2, cautious: 2,
-            bored: 1, frustrated: 0
+            neutral: 2, cautious: 2, relaxed: 2,
+            bored: 1, concerned: 1, frustrated: 0
         };
         const MOOD_LABELS = [
             t('dashboard.personality_mood_frustrated'),
@@ -266,7 +266,9 @@
                                         excited: t('dashboard.personality_mood_excited'),
                                         neutral: t('dashboard.personality_mood_neutral'),
                                         bored: t('dashboard.personality_mood_bored'),
-                                        frustrated: t('dashboard.personality_mood_frustrated')
+                                        frustrated: t('dashboard.personality_mood_frustrated'),
+                                        concerned: t('dashboard.personality_mood_concerned'),
+                                        relaxed: t('dashboard.personality_mood_relaxed')
                                     };
                                     const m = moods[items[0].dataIndex] || '';
                                     return moodNameMap[m] || m;

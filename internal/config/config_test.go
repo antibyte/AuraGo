@@ -405,6 +405,53 @@ personality:
 	}
 }
 
+func TestLoadEmotionSynthesizerTriggersOnMoodChangeByDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+personality:
+  engine_v2: true
+  emotion_synthesizer:
+    enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange {
+		t.Fatal("trigger_on_mood_change should default to true when omitted")
+	}
+}
+
+func TestLoadEmotionSynthesizerKeepsExplicitMoodChangeTriggerFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+personality:
+  engine_v2: true
+  emotion_synthesizer:
+    enabled: true
+    trigger_on_mood_change: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange {
+		t.Fatal("explicit trigger_on_mood_change=false should be preserved")
+	}
+}
+
 func TestLoadInnerVoiceStillEnablesDependenciesWhenExplicit(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

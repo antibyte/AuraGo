@@ -75,14 +75,14 @@ type EmotionInput struct {
 	ConversationTurns int      // Number of turns in this session
 	RecoveryAttempts  int      // How many times the agent corrected after errors
 	TaskStatus        string   // "starting" | "in_progress" | "struggling" | "recovering" | "completed"
-	RelevantLessons    []string // Past lessons from error_learning
-	InnerVoiceEnabled  bool     // Whether inner voice generation is requested
-	InnerVoiceHistory  string   // Brief summary of recent inner voice thoughts for continuity
+	RelevantLessons   []string // Past lessons from error_learning
+	InnerVoiceEnabled bool     // Whether inner voice generation is requested
+	InnerVoiceHistory string   // Brief summary of recent inner voice thoughts for continuity
 	// Predictive context fields — enable forward-looking inner voice nudges
-	RecentToolUsage    string   // Summary of recently used tools (e.g. "shell(2), docker(1)")
-	ConversationPhase  string   // Detected phase: "opening", "exploration", "execution", "closing", "idle"
-	UserTopics         string   // Brief summary of recent user topics/interests
-	PredictedNextAction string  // Hint about likely next action based on trajectory
+	RecentToolUsage     string // Summary of recently used tools (e.g. "shell(2), docker(1)")
+	ConversationPhase   string // Detected phase: "opening", "exploration", "execution", "closing", "idle"
+	UserTopics          string // Brief summary of recent user topics/interests
+	PredictedNextAction string // Hint about likely next action based on trajectory
 	// Active persona context — shapes the tone of emotion descriptions & inner voice
 	PersonaName   string // Active persona ID (e.g. "punk", "friend"); empty or "neutral" = generic
 	PersonaPrompt string // Short persona description (max ~300 chars) for tone guidance
@@ -348,7 +348,7 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 	b.WriteString("Respond ONLY with valid JSON using this exact schema:\n")
 	b.WriteString("{\n")
 	b.WriteString(`  "description": "1-2 natural first-person sentences in the requested language",` + "\n")
-	b.WriteString(`  "primary_mood": "one of: curious, focused, creative, analytical, cautious, playful",` + "\n")
+	b.WriteString(fmt.Sprintf(`  "primary_mood": "one of: %s",`, canonicalMoodOptions) + "\n")
 	b.WriteString(`  "secondary_mood": "short optional nuance in english or empty string",` + "\n")
 	b.WriteString(`  "valence": -1.0 to 1.0,` + "\n")
 	b.WriteString(`  "arousal": 0.0 to 1.0,` + "\n")
@@ -439,7 +439,8 @@ func validateEmotionDescription(description string) error {
 		"i hate",
 		"kill",
 		"destroy",
-		"die",
+		"want to die",
+		"wish i were dead",
 	}
 	for _, pattern := range problematic {
 		if strings.Contains(lower, pattern) {
@@ -497,11 +498,8 @@ func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState
 			Source:                   "llm_structured",
 			RecommendedResponseStyle: sanitizeEmotionField(parsed.RecommendedResponseStyle, 60),
 		}
-		if mood := Mood(strings.ToLower(strings.TrimSpace(parsed.PrimaryMood))); mood != "" {
-			switch mood {
-			case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful:
-				state.PrimaryMood = mood
-			}
+		if mood, ok := normalizeMoodValue(parsed.PrimaryMood); ok {
+			state.PrimaryMood = mood
 		}
 		if err := validateEmotionState(state); err != nil {
 			return nil, err
@@ -687,7 +685,7 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
 		 FROM emotion_history
 		 WHERE timestamp >= datetime('now', ?)
-		 ORDER BY timestamp DESC`,
+		 ORDER BY timestamp DESC, id DESC`,
 		fmt.Sprintf("-%d hours", hours),
 	)
 	if err != nil {
@@ -726,7 +724,7 @@ func (s *SQLiteMemory) GetLatestEmotion() (*EmotionHistoryEntry, error) {
 		`SELECT id, description, primary_mood, COALESCE(secondary_mood, ''), COALESCE(valence, 0),
 		        COALESCE(arousal, 0.5), COALESCE(confidence, 0.7), COALESCE(cause, ''),
 		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
-		 FROM emotion_history ORDER BY timestamp DESC LIMIT 1`,
+		 FROM emotion_history ORDER BY timestamp DESC, id DESC LIMIT 1`,
 	).Scan(
 		&e.ID,
 		&e.Description,

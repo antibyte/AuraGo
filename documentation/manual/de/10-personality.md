@@ -53,7 +53,10 @@ personality:
   user_profiling_threshold: 2
   emotion_synthesizer:
     enabled: false
+    min_interval_seconds: 60
     max_history_entries: 100
+    trigger_on_mood_change: true
+    trigger_always: false
   inner_voice:
     enabled: false                   # erfordert emotion_synthesizer + engine_v2
     min_interval_secs: 60

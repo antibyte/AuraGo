@@ -180,6 +180,71 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	}
 }
 
+func TestApplyPersonalityV2AnalysisResultStoresInnerVoiceOnNewEmotionRow(t *testing.T) {
+	stm := newTestPersonalityRuntimeMemory(t)
+	if err := stm.InitInnerVoiceTables(); err != nil {
+		t.Fatalf("InitInnerVoiceTables: %v", err)
+	}
+	if err := stm.InsertEmotionHistory("I feel steady from the prior turn.", "focused", "previous"); err != nil {
+		t.Fatalf("InsertEmotionHistory: %v", err)
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.TriggerAlways = true
+	es := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
+
+	applyPersonalityV2AnalysisResult(
+		"default",
+		cfg,
+		logger,
+		stm,
+		es,
+		nil,
+		"user asked for a careful fix",
+		memory.EmotionTriggerConversation,
+		"",
+		0,
+		false,
+		0,
+		1,
+		personalityV2AnalysisResult{
+			Mood:            memory.MoodConcerned,
+			InnerThought:    "I feel ready to stay patient and verify this carefully.",
+			NudgeCategory:   "patience",
+			NudgeConfidence: 0.8,
+			SynthesizedEmotion: &memory.EmotionState{
+				Description:              "I feel concerned but steady.",
+				PrimaryMood:              memory.MoodConcerned,
+				SecondaryMood:            "watchful",
+				Valence:                  -0.1,
+				Arousal:                  0.4,
+				Confidence:               0.8,
+				Cause:                    "the task needs careful verification",
+				RecommendedResponseStyle: "careful_and_supportive",
+			},
+		},
+	)
+
+	latest, err := stm.GetLatestEmotion()
+	if err != nil {
+		t.Fatalf("GetLatestEmotion: %v", err)
+	}
+	voices, err := stm.GetRecentInnerVoices(3)
+	if err != nil {
+		t.Fatalf("GetRecentInnerVoices: %v", err)
+	}
+	if latest == nil || len(voices) == 0 {
+		t.Fatalf("latest=%#v voices=%#v, want persisted emotion and inner voice", latest, voices)
+	}
+	if voices[0].ID != int64(latest.ID) {
+		t.Fatalf("inner voice row id = %d, want latest emotion row id %d", voices[0].ID, latest.ID)
+	}
+	if voices[0].NudgeCategory != "patience" {
+		t.Fatalf("nudge category = %q, want patience", voices[0].NudgeCategory)
+	}
+}
+
 func TestApplyPersonalityV2AnalysisResultDampensAffinityNearCeiling(t *testing.T) {
 	stm := newTestPersonalityRuntimeMemory(t)
 	if err := stm.SetTrait(memory.TraitAffinity, 0.99); err != nil {

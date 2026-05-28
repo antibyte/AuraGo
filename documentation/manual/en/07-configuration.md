@@ -476,7 +476,8 @@ The `personality` section controls AuraGo's personality engine, mood analysis, a
 
 ```yaml
 personality:
-    engine: friend                     # active personality profile: friend, professional, punk, neutral, terminator
+    core_personality: friend           # active personality profile: friend, professional, punk, neutral, terminator
+    engine: true                       # enable personality engine
     engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
     user_profiling: false              # auto-detect user preferences from conversation
     user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
@@ -498,7 +499,8 @@ personality:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `engine` | `friend` | Base personality profile: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `core_personality` | `friend` | Base personality profile: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `engine` | `true` | Enable the personality engine |
 | `engine_v2` | `true` | Enable V2 LLM-based personality analysis |
 | `user_profiling` | `false` | Auto-detect user preferences from conversation history |
 | `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt |

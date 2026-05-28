@@ -736,14 +736,15 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		return helperTurnBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
 
-	userRequest = truncateActivityDigestInput(strings.TrimSpace(userRequest), 1600)
-	assistantReply = truncateActivityDigestInput(stripToolCallBlocks(strings.TrimSpace(assistantReply)), 1800)
+	userRequestBlock := helperExternalDataBlock("user_request", userRequest, 1600)
+	assistantReplyBlock := helperExternalDataBlock("assistant_reply", stripToolCallBlocks(strings.TrimSpace(assistantReply)), 1800)
+	toolSummaryBlock := helperExternalDataBlock("tool_summaries", strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n"), 2200)
 	userPrompt := fmt.Sprintf(
 		"User request:\n%s\n\nAssistant reply:\n%s\n\nTools used:\n%s\n\nTool summaries:\n%s",
-		userRequest,
-		assistantReply,
+		userRequestBlock,
+		assistantReplyBlock,
 		strings.Join(uniqueActivityStrings(toolNames, 12), ", "),
-		strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n"),
+		toolSummaryBlock,
 	)
 	if personalitySection := buildHelperTurnPersonalitySection(personalityInput); personalitySection != "" {
 		userPrompt += "\n\n=== PERSONALITY CONTEXT ===\n" + personalitySection
@@ -767,6 +768,16 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 	return result, nil
 }
 
+func helperExternalDataBlock(dataType, content string, maxLen int) string {
+	content = truncateActivityDigestInput(strings.TrimSpace(content), maxLen)
+	if content == "" {
+		return ""
+	}
+	content = strings.ReplaceAll(content, "</external_data>", "&lt;/external_data&gt;")
+	content = strings.ReplaceAll(content, "<external_data>", "&lt;external_data&gt;")
+	return fmt.Sprintf("<external_data type=%q sanitize=\"true\">\n%s\n</external_data>", dataType, content)
+}
+
 func parseHelperTurnBatchResult(raw string) (helperTurnBatchResult, error) {
 	raw = trimJSONResponse(raw)
 	var result helperTurnBatchResult
@@ -783,12 +794,12 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	}
 
 	var b strings.Builder
-	if recent := truncateActivityDigestInput(strings.TrimSpace(input.RecentHistory), 2600); recent != "" {
+	if recent := helperExternalDataBlock("recent_history", input.RecentHistory, 2600); recent != "" {
 		b.WriteString("Recent chat history:\n")
 		b.WriteString(recent)
 		b.WriteString("\n\n")
 	}
-	if userOnly := truncateActivityDigestInput(strings.TrimSpace(input.UserOnlyHistory), 1600); userOnly != "" {
+	if userOnly := helperExternalDataBlock("user_statements", input.UserOnlyHistory, 1600); userOnly != "" {
 		b.WriteString("User-only statements:\n")
 		b.WriteString(userOnly)
 		b.WriteString("\n\n")
@@ -806,13 +817,13 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		))
 	}
 	if input.PreviousEmotion != nil {
-		if previous := truncateActivityDigestInput(strings.TrimSpace(input.PreviousEmotion.Description), 180); previous != "" {
+		if previous := helperExternalDataBlock("previous_emotion", input.PreviousEmotion.Description, 180); previous != "" {
 			b.WriteString("Previous emotion:\n")
 			b.WriteString(previous)
 			b.WriteString("\n")
 		}
 	}
-	if trigger := truncateActivityDigestInput(strings.TrimSpace(input.TriggerInfo), 240); trigger != "" {
+	if trigger := helperExternalDataBlock("trigger_message", input.TriggerInfo, 240); trigger != "" {
 		b.WriteString("Trigger message:\n")
 		b.WriteString(trigger)
 		b.WriteString("\n")
@@ -822,8 +833,8 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		b.WriteString(string(input.TriggerType))
 		b.WriteString("\n")
 	}
-	if detail := truncateActivityDigestInput(strings.TrimSpace(input.TriggerDetail), 180); detail != "" {
-		b.WriteString("Trigger detail: ")
+	if detail := helperExternalDataBlock("trigger_detail", input.TriggerDetail, 180); detail != "" {
+		b.WriteString("Trigger detail:\n")
 		b.WriteString(detail)
 		b.WriteString("\n")
 	}
@@ -853,7 +864,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		b.WriteString("Match the conversation phase: opening=curiosity, execution=focus, struggling=patience, closing=satisfaction.\n")
 		if input.InnerVoiceHistory != "" {
 			b.WriteString("Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n")
-			b.WriteString(input.InnerVoiceHistory)
+			b.WriteString(helperExternalDataBlock("inner_voice_history", input.InnerVoiceHistory, 300))
 			b.WriteString("\n")
 		}
 	}

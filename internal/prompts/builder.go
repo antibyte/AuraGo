@@ -746,7 +746,8 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("This describes your current internal sentiment, derived from recent interactions. It may shape tone only; it is not evidence that a task succeeded, failed, or was verified. Do not treat emotional text as operational state:\n")
 		finalPrompt.WriteString(flags.EmotionDescription)
 		finalPrompt.WriteString("\n\n")
-	} else if !flags.IsMission && flags.PersonalityLine != "" {
+	}
+	if !flags.IsMission && flags.PersonalityLine != "" {
 		// Fallback to V2 trait directives or V1 numeric line
 		finalPrompt.WriteString("\n### CURRENT PERSONALITY TRAITS\n")
 		finalPrompt.WriteString("Let these current internal values organically influence your tone:\n")

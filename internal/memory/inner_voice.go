@@ -52,6 +52,26 @@ func (s *SQLiteMemory) StoreInnerVoice(thought, category string) error {
 	return err
 }
 
+// StoreInnerVoiceAfterEmotionID attaches an inner voice thought to the newest
+// emotion row created after previousEmotionID. If no newer row exists, it leaves
+// history unchanged so thoughts are not attached to a previous turn.
+func (s *SQLiteMemory) StoreInnerVoiceAfterEmotionID(thought, category string, previousEmotionID int) error {
+	if thought == "" {
+		return nil
+	}
+	_, err := s.db.Exec(
+		`UPDATE emotion_history SET inner_thought = ?, nudge_category = ?
+		 WHERE id = (
+			SELECT id FROM emotion_history
+			WHERE id > ?
+			ORDER BY id DESC
+			LIMIT 1
+		 )`,
+		thought, category, previousEmotionID,
+	)
+	return err
+}
+
 // GetRecentInnerVoices returns the N most recent inner voice entries (non-empty thoughts).
 func (s *SQLiteMemory) GetRecentInnerVoices(limit int) ([]InnerVoiceEntry, error) {
 	if limit <= 0 {

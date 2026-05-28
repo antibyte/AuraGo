@@ -206,6 +206,11 @@ func applyPersonalityV2AnalysisResult(
 		return
 	}
 
+	previousEmotionHistoryID := 0
+	if latest, err := stm.GetLatestEmotion(); err == nil && latest != nil {
+		previousEmotionHistoryID = latest.ID
+	}
+
 	_ = stm.LogMood(result.Mood, triggerInfo)
 
 	// Fetch current traits so we can dampen deltas near the extremes.
@@ -231,6 +236,19 @@ func applyPersonalityV2AnalysisResult(
 
 	logger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", result.Mood, "affinity_delta", result.AffinityDelta)
 
+	var pendingInnerVoice *struct {
+		thought  string
+		category string
+	}
+	storePendingInnerVoice := func() {
+		if pendingInnerVoice == nil {
+			return
+		}
+		if err := stm.StoreInnerVoiceAfterEmotionID(pendingInnerVoice.thought, pendingInnerVoice.category, previousEmotionHistoryID); err != nil {
+			logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
+		}
+	}
+
 	// Apply inner voice result if present
 	if result.InnerThought != "" && cfg.Personality.InnerVoice.Enabled {
 		thought, category, confidence, accepted, reason := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
@@ -244,9 +262,10 @@ func applyPersonalityV2AnalysisResult(
 			"thought", result.InnerThought)
 		if accepted {
 			applyInnerVoiceResult(sessionID, thought, category, confidence)
-			if err := stm.StoreInnerVoice(thought, category); err != nil {
-				logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
-			}
+			pendingInnerVoice = &struct {
+				thought  string
+				category string
+			}{thought: thought, category: category}
 			logger.Info("[InnerVoice] Inner voice generated",
 				"session_id", sessionID,
 				"category", category,
@@ -273,6 +292,7 @@ func applyPersonalityV2AnalysisResult(
 
 	if result.SynthesizedEmotion != nil {
 		if err := emotionSynthesizer.ApplyExternalState(stm, result.SynthesizedEmotion, triggerInfo); err == nil {
+			storePendingInnerVoice()
 			return
 		} else {
 			logger.Warn("[EmotionSynthesizer] Failed to apply batched helper emotion", "error", err)
@@ -296,7 +316,9 @@ func applyPersonalityV2AnalysisResult(
 		PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
 	}
 	esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput)
+	if state, err := emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput); err == nil && state != nil {
+		storePendingInnerVoice()
+	}
 	esCancel()
 }
 

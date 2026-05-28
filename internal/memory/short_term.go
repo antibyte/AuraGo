@@ -198,6 +198,59 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 	return hours, nil
 }
 
+// GetHoursSincePreviousUserMessage calculates the gap between the newest user
+// message and the user message before it. Agent-loop callers use this after the
+// current turn has already been inserted, so the latest row must be skipped.
+func (s *SQLiteMemory) GetHoursSincePreviousUserMessage(sessionID string) (float64, error) {
+	rows, err := s.db.Query(`
+	SELECT timestamp
+	FROM messages
+	WHERE session_id = ? AND role = 'user' AND is_internal = 0
+	ORDER BY timestamp DESC, id DESC
+	LIMIT 2;`, sessionID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query previous user messages: %w", err)
+	}
+	defer rows.Close()
+
+	timestamps := make([]time.Time, 0, 2)
+	for rows.Next() {
+		var timestampStr string
+		if err := rows.Scan(&timestampStr); err != nil {
+			return 0, fmt.Errorf("failed to scan previous user timestamp: %w", err)
+		}
+		parsed, err := parseSQLiteTimestamp(timestampStr)
+		if err != nil {
+			return 0, err
+		}
+		timestamps = append(timestamps, parsed.UTC())
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("previous user timestamp rows: %w", err)
+	}
+	if len(timestamps) < 2 {
+		return 0, nil
+	}
+
+	hours := timestamps[0].Sub(timestamps[1]).Hours()
+	if hours < 0 {
+		hours = 0
+	}
+	return hours, nil
+}
+
+func parseSQLiteTimestamp(timestampStr string) (time.Time, error) {
+	parsed, err := time.Parse("2006-01-02 15:04:05", timestampStr)
+	if err == nil {
+		return parsed, nil
+	}
+	parsed, err = time.Parse(time.RFC3339, timestampStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse timestamp '%s': %w", timestampStr, err)
+	}
+	return parsed, nil
+}
+
 // DeleteOldMessages archives messages to archived_messages before removing them.
 // Keeps only the most recent `keepN` messages for a given session.
 // Pinned messages (is_pinned = 1) are never archived or deleted.

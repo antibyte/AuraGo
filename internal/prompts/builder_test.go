@@ -753,6 +753,27 @@ func TestBuildSystemPromptSkipsChineseDriftGuardForChineseLanguage(t *testing.T)
 	}
 }
 
+func TestBuildSystemPromptIncludesPersonalityLineWithEmotionState(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		EmotionDescription: "I feel calm and ready to help.",
+		PersonalityLine:    "[Self: mood=focused | C:0.60 T:0.70 E:0.80]",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "CURRENT EMOTIONAL STATE") {
+		t.Fatalf("expected emotional state section in prompt")
+	}
+	if !strings.Contains(prompt, "CURRENT PERSONALITY TRAITS") {
+		t.Fatalf("expected personality traits section in prompt")
+	}
+	if !strings.Contains(prompt, flags.PersonalityLine) {
+		t.Fatalf("expected personality line to be preserved with emotion state")
+	}
+}
+
 func TestFallbackSystemPromptAddsChineseDriftGuardForNonChineseLanguage(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 

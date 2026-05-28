@@ -143,3 +143,35 @@ func TestAnalyzeMoodV2WithEmotionParsesCombinedJSON(t *testing.T) {
 		t.Fatalf("unexpected emotion description: %q", emotionState.Description)
 	}
 }
+
+func TestAnalyzeMoodV2WithEmotionAcceptsExpandedMoodVocabulary(t *testing.T) {
+	stm := newTestAnalysisDB(t)
+	mock := &mockPersonalityAnalysisClient{
+		response: `{"mood_analysis":{"user_sentiment":"worried","agent_appropriate_response_mood":"concerned","relationship_delta":0.01,"trait_deltas":{"empathy":0.03},"user_profile_updates":[]},"emotion_state":{"description":"I feel concerned but steady.","primary_mood":"concerned","secondary_mood":"watchful","valence":-0.1,"arousal":0.4,"confidence":0.8,"cause":"the user reported a risky issue","recommended_response_style":"careful_and_supportive"}}`,
+	}
+
+	mood, _, _, _, emotionState, _, _, _, err := stm.AnalyzeMoodV2WithEmotion(
+		context.Background(),
+		mock,
+		"test-model",
+		"history",
+		"user statements",
+		PersonalityMeta{Volatility: 1, EmpathyBias: 1},
+		true,
+		EmotionInput{
+			UserMessage: "This looks risky",
+			CurrentMood: MoodFocused,
+			TimeOfDay:   "morning",
+		},
+		"English",
+	)
+	if err != nil {
+		t.Fatalf("AnalyzeMoodV2WithEmotion: %v", err)
+	}
+	if mood != MoodConcerned {
+		t.Fatalf("mood = %s, want concerned", mood)
+	}
+	if emotionState == nil || emotionState.PrimaryMood != MoodConcerned {
+		t.Fatalf("emotion state = %#v, want concerned", emotionState)
+	}
+}

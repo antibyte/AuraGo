@@ -1269,11 +1269,13 @@ fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => {
 /* ── Mood Widget ── */
 const moodStateIconMap = {
     curious: 'mood-curious', focused: 'mood-focused', creative: 'mood-creative',
-    analytical: 'mood-analytical', cautious: 'mood-cautious', playful: 'mood-playful'
+    analytical: 'mood-analytical', cautious: 'mood-cautious', playful: 'mood-playful',
+    frustrated: 'mood-cautious', concerned: 'mood-cautious', relaxed: 'mood-brain'
 };
 const moodNameKeys = {
     curious: 'chat.mood_curious', focused: 'chat.mood_focused', creative: 'chat.mood_creative',
-    analytical: 'chat.mood_analytical', cautious: 'chat.mood_cautious', playful: 'chat.mood_playful'
+    analytical: 'chat.mood_analytical', cautious: 'chat.mood_cautious', playful: 'chat.mood_playful',
+    frustrated: 'chat.mood_frustrated', concerned: 'chat.mood_concerned', relaxed: 'chat.mood_relaxed'
 };
 const traitOrder = ['curiosity', 'thoroughness', 'creativity', 'empathy', 'confidence', 'affinity', 'loneliness'];
 

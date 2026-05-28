@@ -202,7 +202,7 @@ Determine the user's emotional state, how the agent should ideally respond, and 
 Respond ONLY with a valid JSON block containing:
 {
   "user_sentiment": "string (e.g., frustrated, happy, curious, impatient) - MUST BE IN ENGLISH",
-  "agent_appropriate_response_mood": "string (MUST be one of: curious, focused, creative, analytical, cautious, playful)",
+  "agent_appropriate_response_mood": "string (MUST be one of: ` + canonicalMoodOptions + `)",
   "relationship_delta": number (from -0.1 to 0.1, representing trust gained or lost),
   "trait_deltas": {
     "curiosity": number (-0.1 to +0.1),
@@ -306,12 +306,8 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 		return MoodFocused, 0, nil, nil, fmt.Errorf("validation of mood analysis result failed: %+v", result)
 	}
 
-	mood := Mood(strings.ToLower(result.AgentMood))
-	// Validate mood
-	switch mood {
-	case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful:
-		// valid
-	default:
+	mood, ok := normalizeMoodValue(result.AgentMood)
+	if !ok {
 		mood = MoodFocused // fallback
 	}
 
@@ -380,10 +376,9 @@ func validateMoodAnalysisResult(result *moodAnalysisResult) bool {
 	if result.UserSentiment == "" || len(result.UserSentiment) > maxMoodAnalysisSentimentLen {
 		return false
 	}
-	switch strings.ToLower(strings.TrimSpace(result.AgentMood)) {
-	case string(MoodCurious), string(MoodFocused), string(MoodCreative), string(MoodAnalytical), string(MoodCautious), string(MoodPlayful):
-		result.AgentMood = strings.ToLower(strings.TrimSpace(result.AgentMood))
-	default:
+	if mood, ok := normalizeMoodValue(result.AgentMood); ok {
+		result.AgentMood = string(mood)
+	} else {
 		// Unknown mood value — accept and let normalizeMoodAnalysisResult map it to "focused".
 		// Rejecting here would trigger an expensive fallback LLM call just for a vocabulary mismatch.
 		if strings.TrimSpace(result.AgentMood) == "" {
@@ -429,10 +424,8 @@ func normalizeMoodAnalysisResult(result *moodAnalysisResult, meta PersonalityMet
 		return MoodFocused, 0, nil, nil, false
 	}
 
-	mood := Mood(strings.ToLower(result.AgentMood))
-	switch mood {
-	case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful:
-	default:
+	mood, ok := normalizeMoodValue(result.AgentMood)
+	if !ok {
 		mood = MoodFocused
 	}
 
@@ -498,7 +491,7 @@ Return ONLY valid JSON in this exact shape:
 {
   "mood_analysis": {
     "user_sentiment": "short english label",
-    "agent_appropriate_response_mood": "one of: curious, focused, creative, analytical, cautious, playful",
+    "agent_appropriate_response_mood": "one of: ` + canonicalMoodOptions + `",
     "relationship_delta": 0.0,
     "trait_deltas": {
       "curiosity": 0.0,
@@ -515,7 +508,7 @@ Return ONLY valid JSON in this exact shape:
   },
   "emotion_state": {
     "description": "1-2 short first-person sentences",
-    "primary_mood": "one of: curious, focused, creative, analytical, cautious, playful",
+    "primary_mood": "one of: ` + canonicalMoodOptions + `",
     "secondary_mood": "short optional nuance or empty string",
     "valence": 0.0,
     "arousal": 0.0,

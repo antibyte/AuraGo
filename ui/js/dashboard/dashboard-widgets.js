@@ -1029,7 +1029,10 @@
                 creative: t('dashboard.personality_mood_creative'),
                 analytical: t('dashboard.personality_mood_analytical'),
                 cautious: t('dashboard.personality_mood_cautious'),
-                playful: t('dashboard.personality_mood_playful')
+                playful: t('dashboard.personality_mood_playful'),
+                frustrated: t('dashboard.personality_mood_frustrated'),
+                concerned: t('dashboard.personality_mood_concerned'),
+                relaxed: t('dashboard.personality_mood_relaxed')
             };
             const badge = document.getElementById('mood-badge');
             const trigger = document.getElementById('mood-trigger');

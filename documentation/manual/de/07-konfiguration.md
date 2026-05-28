@@ -319,12 +319,16 @@ Unter *Config → Personality* lässt sich das Verhalten und die Stimmung von Au
 
 ```yaml
 personality:
-  engine: friend
+  core_personality: friend
+  engine: true
   engine_v2: true
   user_profiling: false
   emotion_synthesizer:
     enabled: false
+    min_interval_seconds: 60
     max_history_entries: 100
+    trigger_on_mood_change: true
+    trigger_always: false
   inner_voice:
     enabled: false
     min_interval_secs: 60
@@ -333,7 +337,8 @@ personality:
 
 | Parameter | Standard | Beschreibung |
 |-----------|----------|--------------|
-| `engine` | `friend` | Basisprofil: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `core_personality` | `friend` | Basisprofil: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `engine` | `true` | Personality Engine aktivieren |
 | `engine_v2` | `true` | LLM-basierte Stimmungsanalyse |
 | `user_profiling` | `false` | Präferenzen aus Gesprächen lernen |
 | `emotion_synthesizer.enabled` | `false` | Emotionssynthese für Antworten |

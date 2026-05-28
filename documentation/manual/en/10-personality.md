@@ -54,7 +54,10 @@ personality:
   v2_timeout_secs: 30
   emotion_synthesizer:
     enabled: true
+    min_interval_seconds: 60
+    max_history_entries: 100
     trigger_on_mood_change: true
+    trigger_always: false
 ```
 
 ### Disabling Both Engines
