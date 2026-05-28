@@ -73,8 +73,8 @@ function wireWindow(win, id) {
                 if (drag !== activeDrag) return;
                 const maxLeft = window.innerWidth - 80;
                 const maxTop = window.innerHeight - 120;
-                const newLeft = Math.min(maxLeft, Math.max(8, activeDrag.left + activeDrag.clientX - activeDrag.x));
-                const newTop = Math.min(maxTop, Math.max(8, activeDrag.top + activeDrag.clientY - activeDrag.y));
+                const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
+                const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
                 updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
@@ -104,21 +104,19 @@ function wireWindow(win, id) {
         if (winAppId !== 'calculator') wireWindowResize(win, id);
     }
 
-    const SNAP_THRESHOLD = 18;
-    const SNAP_ZONES = ['left-half', 'right-half', 'top-half', 'top-left', 'top-right'];
+    const SNAP_EDGE = 4;
 
     function updateSnapZone(drag, left, top, width, height) {
         const workspace = $('vd-workspace') || document.body;
         const ww = workspace.clientWidth;
         const wh = workspace.clientHeight;
         const cx = left + width / 2;
-        const cy = top + height / 2;
         let zone = null;
-        if (left <= SNAP_THRESHOLD) zone = 'left-half';
-        else if (left + width >= ww - SNAP_THRESHOLD) zone = 'right-half';
-        else if (top <= SNAP_THRESHOLD && cx <= ww / 2) zone = 'top-left';
-        else if (top <= SNAP_THRESHOLD && cx > ww / 2) zone = 'top-right';
-        else if (top <= SNAP_THRESHOLD) zone = 'top-half';
+        if (left <= SNAP_EDGE) zone = 'left-half';
+        else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
+        else if (top <= SNAP_EDGE && cx <= ww / 2) zone = 'top-left';
+        else if (top <= SNAP_EDGE && cx > ww / 2) zone = 'top-right';
+        else if (top <= SNAP_EDGE) zone = 'top-half';
         drag.snapZone = zone;
         showSnapOverlay(zone, ww, wh);
     }

@@ -567,26 +567,33 @@
 
     function renderStartApps() {
         const query = state.startQuery.trim().toLowerCase();
+        const allApps = startMenuApps();
+        const apps = allApps.filter(app => !query || appName(app).toLowerCase().includes(query));
         const recentKey = 'aurago.desktop.recentApps.v1';
-        const recentApps = readJSONStorage(recentKey, []);
-        const maxRecent = 5;
-        const allAppsList = startMenuApps().filter(app => !query || appName(app).toLowerCase().includes(query));
-        const recentItems = recentApps.slice(0, maxRecent).map(appId => allAppsList.find(app => app.id === appId)).filter(Boolean).filter(app => !query || appName(app).toLowerCase().includes(query));
-        const otherItems = allAppsList.filter(app => !recentItems.includes(app));
-        const recentHtml = recentItems.length > 0 && !query ? `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>` + recentItems.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
-            ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
-            <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
-        </button>`).join('') : '';
-        $('vd-start-apps').innerHTML = recentHtml + otherItems.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
+        const recentIds = readJSONStorage(recentKey, []).slice(0, 5);
+        const recentApps = query ? [] : recentIds.map(id => allApps.find(app => app.id === id)).filter(Boolean);
+        const nonRecentApps = apps.filter(app => !recentApps.some(r => r.id === app.id));
+        
+        let html = '';
+        if (recentApps.length > 0) {
+            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps', 'Recent'))}</div>`;
+            html += recentApps.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
+                ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
+                <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
+            </button>`).join('');
+        }
+        html += nonRecentApps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
         </button>`).join('');
+        
+        $('vd-start-apps').innerHTML = html;
         $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 closeStartMenu();
                 const appId = btn.dataset.appId;
                 const recent = readJSONStorage(recentKey, []);
-                const updated = [appId, ...recent.filter(id => id !== appId)].slice(0, maxRecent);
+                const updated = [appId, ...recent.filter(id => id !== appId)].slice(0, 5);
                 writeJSONStorage(recentKey, updated);
                 openApp(appId);
             });
