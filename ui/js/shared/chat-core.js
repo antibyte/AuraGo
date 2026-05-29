@@ -77,6 +77,13 @@
         return { contentForRender, thinkingBlocks };
     }
 
+    function applyMarkdownLinkTargets(html) {
+        return String(html || '').replace(
+            /<a(\s+[^>]*)?\s+href="([^"]+)"/g,
+            '<a$1href="$2" target="_blank" rel="noopener noreferrer"'
+        );
+    }
+
     function normalizeTimestamp(timestamp) {
         const date = timestamp ? new Date(timestamp) : new Date();
         return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -108,6 +115,7 @@
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareMarkdownContent,
+        applyMarkdownLinkTargets,
         normalizeTimestamp,
         formatTimestamp,
         createMarkdownRenderer

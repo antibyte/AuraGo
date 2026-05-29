@@ -182,8 +182,9 @@ function appendMessage(role, text, timestamp) {
 
                 finalHTML = md.render(contentForRender);
 
-                // Add target="_blank" to all links (external and internal)
-                finalHTML = finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g, '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
+                finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.applyMarkdownLinkTargets === 'function')
+                    ? window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)
+                    : finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g, '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
 
                 // Replace placeholders with collapsible <details> elements
                 thinkingBlocks.forEach((innerText, idx) => {

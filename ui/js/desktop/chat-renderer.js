@@ -249,8 +249,10 @@
             const contentForRender = prepared.contentForRender;
             const thinkingBlocks = prepared.thinkingBlocks;
             let finalHTML = md.render(contentForRender);
-            finalHTML = finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g,
-                '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
+            finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.applyMarkdownLinkTargets === 'function')
+                ? window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)
+                : finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g,
+                    '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
             thinkingBlocks.forEach((innerText, idx) => {
                 const innerHtml = md.render(innerText);
                 const label = this.translate('chat.thinking_label', 'Reasoning');
