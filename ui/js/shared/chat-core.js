@@ -84,6 +84,19 @@
         );
     }
 
+    function replaceThinkingPlaceholders(html, thinkingBlocks, renderBlock) {
+        let output = String(html || '');
+        const blocks = Array.isArray(thinkingBlocks) ? thinkingBlocks : [];
+        blocks.forEach((innerText, idx) => {
+            const detailsHtml = typeof renderBlock === 'function'
+                ? renderBlock(innerText, idx)
+                : String(innerText || '');
+            output = output.replace(new RegExp(`<p>%%THINKING_BLOCK_${idx}%%</p>`, 'g'), detailsHtml);
+            output = output.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
+        });
+        return output;
+    }
+
     function normalizeTimestamp(timestamp) {
         const date = timestamp ? new Date(timestamp) : new Date();
         return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -116,6 +129,7 @@
         stripLeakedToolMarkup,
         prepareMarkdownContent,
         applyMarkdownLinkTargets,
+        replaceThinkingPlaceholders,
         normalizeTimestamp,
         formatTimestamp,
         createMarkdownRenderer

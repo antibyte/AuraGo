@@ -253,13 +253,18 @@
                 ? window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)
                 : finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g,
                     '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
-            thinkingBlocks.forEach((innerText, idx) => {
+            const renderThinkingBlock = (innerText) => {
                 const innerHtml = md.render(innerText);
                 const label = this.translate('chat.thinking_label', 'Reasoning');
-                const detailsHtml = '<details class="vd-thinking-block"><summary>' + label + '</summary><div class="vd-thinking-content">' + innerHtml + '</div></details>';
-                finalHTML = finalHTML.replace(new RegExp('<p>%%THINKING_BLOCK_' + idx + '%%</p>', 'g'), detailsHtml);
-                finalHTML = finalHTML.replace(new RegExp('%%THINKING_BLOCK_' + idx + '%%', 'g'), detailsHtml);
-            });
+                return '<details class="vd-thinking-block"><summary>' + label + '</summary><div class="vd-thinking-content">' + innerHtml + '</div></details>';
+            };
+            finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.replaceThinkingPlaceholders === 'function')
+                ? window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks, renderThinkingBlock)
+                : thinkingBlocks.reduce((html, innerText, idx) => {
+                    const detailsHtml = renderThinkingBlock(innerText, idx);
+                    html = html.replace(new RegExp('<p>%%THINKING_BLOCK_' + idx + '%%</p>', 'g'), detailsHtml);
+                    return html.replace(new RegExp('%%THINKING_BLOCK_' + idx + '%%', 'g'), detailsHtml);
+                }, finalHTML);
             finalHTML = this.sanitizeHTML(finalHTML);
             return finalHTML;
         },

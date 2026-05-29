@@ -186,16 +186,19 @@ function appendMessage(role, text, timestamp) {
                     ? window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)
                     : finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g, '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
 
-                // Replace placeholders with collapsible <details> elements
-                thinkingBlocks.forEach((innerText, idx) => {
+                const renderThinkingBlock = (innerText) => {
                     const innerHtml = md.render(innerText);
                     const label = (typeof t === 'function') ? t('chat.thinking_label') : 'Reasoning';
                     const icon = window.chatUiIconMarkup ? window.chatUiIconMarkup('mood-brain', 'thinking-block-icon') : '';
-                    const detailsHtml = `<details class="thinking-block"><summary>${icon} ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
-                    // Replace whether it is wrapped in paragraph or not
-                    finalHTML = finalHTML.replace(new RegExp(`<p>%%THINKING_BLOCK_${idx}%%</p>`, 'g'), detailsHtml);
-                    finalHTML = finalHTML.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
-                });
+                    return `<details class="thinking-block"><summary>${icon} ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
+                };
+                finalHTML = (window.AuraChatCore && typeof window.AuraChatCore.replaceThinkingPlaceholders === 'function')
+                    ? window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks, renderThinkingBlock)
+                    : thinkingBlocks.reduce((html, innerText, idx) => {
+                        const detailsHtml = renderThinkingBlock(innerText, idx);
+                        html = html.replace(new RegExp(`<p>%%THINKING_BLOCK_${idx}%%</p>`, 'g'), detailsHtml);
+                        return html.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
+                    }, finalHTML);
 
                 finalHTML = replaceRedactedMarkers(finalHTML);
                 finalHTML = sanitizeRenderedHTML(finalHTML);
