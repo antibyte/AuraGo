@@ -10,6 +10,12 @@
     min-height: 0;
     --vd-people-sidebar-w: 190px;
     --vd-people-detail-w: 320px;
+    box-sizing: border-box;
+}
+.vd-people *,
+.vd-people *::before,
+.vd-people *::after {
+    box-sizing: border-box;
 }
 
 /* ── Toolbar ── */
@@ -105,6 +111,7 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 
 /* ── Sidebar ── */
@@ -578,6 +585,11 @@
     border-color: var(--vd-accent);
 }
 .vd-people-modal-save:hover { opacity: 0.85; }
+.vd-people-modal-save.vd-people-modal-danger {
+    background: #e74c3c;
+    border-color: #e74c3c;
+}
+.vd-people-modal-save.vd-people-modal-danger:hover { background: #c0392b; border-color: #c0392b; }
 
 /* ── Empty State ── */
 .vd-people-empty {

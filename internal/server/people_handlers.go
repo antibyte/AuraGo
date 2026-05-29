@@ -29,9 +29,13 @@ func handlePeopleLookup(s *Server) http.HandlerFunc {
 		mode := strings.ToLower(r.URL.Query().Get("mode"))
 
 		var resultMap map[string]interface{}
-		if mode == "fts" && s.KG != nil {
-			exploreJSON := s.KG.Explore(query)
-			json.Unmarshal([]byte(exploreJSON), &resultMap)
+		if mode == "fts" {
+			searchJSON := s.KG.Search(query)
+			if strings.TrimSpace(searchJSON) == "[]" {
+				resultMap = map[string]interface{}{"nodes": []interface{}{}, "edges": []interface{}{}}
+			} else {
+				json.Unmarshal([]byte(searchJSON), &resultMap)
+			}
 		} else {
 			exploreJSON := s.KG.Explore(query)
 			json.Unmarshal([]byte(exploreJSON), &resultMap)

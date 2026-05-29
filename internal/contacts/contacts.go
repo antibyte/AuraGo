@@ -208,8 +208,6 @@ func UpcomingBirthdays(db *sql.DB, days int) ([]Contact, error) {
 		days = 30
 	}
 	today := time.Now()
-	todayStr := today.Format("2006-01-02")
-	endDate := today.AddDate(0, 0, days).Format("2006-01-02")
 	todayMD := today.Format("01-02")
 	endMD := today.AddDate(0, 0, days).Format("01-02")
 
@@ -243,8 +241,6 @@ func UpcomingBirthdays(db *sql.DB, days int) ([]Contact, error) {
 		if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.Birthday, &c.Reminder, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan upcoming birthday: %w", err)
 		}
-		_ = todayStr
-		_ = endDate
 		result = append(result, c)
 	}
 	if result == nil {

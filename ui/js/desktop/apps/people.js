@@ -128,8 +128,8 @@
                     renderContent(inst);
                 }
             }, DEBOUNCE_MS);
-            inst.cleanup.push(() => clearTimeout(inst.searchTimer));
         });
+        inst.cleanup.push(() => { if (inst.searchTimer) clearTimeout(inst.searchTimer); });
 
         semanticBtn.addEventListener('click', () => {
             inst.semanticMode = !inst.semanticMode;
@@ -361,10 +361,11 @@
         let kgSection = `<div class="vd-people-detail-kg-empty">${esc(t(inst.context, 'desktop.people_kg_no_data'))}</div>`;
         if (!contact._kg) {
             try {
-                const kgNode = await fetchList('/api/kg/nodes/contact_' + contact.id);
+                const kgResp = await fetchList('/api/knowledge-graph/node?id=' + encodeURIComponent('contact_' + contact.id));
+                const kgNode = kgResp && kgResp.node;
                 if (kgNode && kgNode.id) {
-                    const edges = kgNode.edges || [];
-                    const neighbors = kgNode.neighbors || [];
+                    const edges = kgResp.edges || [];
+                    const neighbors = kgResp.neighbors || [];
                     if (edges.length > 0 || neighbors.length > 0) {
                         kgSection = '<div class="vd-people-detail-kg-list">' +
                             edges.map(e => `<div class="vd-people-detail-kg-edge"><span class="vd-people-detail-kg-rel">${esc(e.relation || '')}</span> <span class="vd-people-detail-kg-target">${esc(e.target_label || e.target || '')}</span></div>`).join('') +
@@ -507,7 +508,8 @@
     async function deleteContact(inst, contact) {
         if (!contact || contact._kg) return;
         const name = contact.name || contact.id;
-        if (!confirm(t(inst.context, 'desktop.people_delete_confirm', { name: name }).replace('{{name}}', name))) return;
+        const confirmed = await showConfirmModal(inst, t(inst.context, 'desktop.people_delete'), t(inst.context, 'desktop.people_delete_confirm', { name }));
+        if (!confirmed) return;
         try {
             await fetchAPI('/api/contacts/' + contact.id, { method: 'DELETE' });
             closeDetail(inst);
@@ -517,6 +519,33 @@
                 inst.context.notify({ title: t(inst.context, 'desktop.notification'), message: err.message });
             }
         }
+    }
+
+    function showConfirmModal(inst, title, message) {
+        return new Promise(resolve => {
+            const backdrop = inst.host.querySelector('.vd-people-modal-backdrop');
+            const modal = inst.host.querySelector('.vd-people-modal');
+            if (!backdrop || !modal) { resolve(false); return; }
+            modal.innerHTML = `
+                <div class="vd-people-modal-form">
+                    <div class="vd-people-modal-title">${esc(title)}</div>
+                    <div style="font-size:13px;color:var(--vd-muted);margin-bottom:18px">${esc(message)}</div>
+                    <div class="vd-people-modal-actions">
+                        <button type="button" class="vd-people-modal-cancel">${esc(t(inst.context, 'desktop.cancel'))}</button>
+                        <button type="button" class="vd-people-modal-save vd-people-modal-danger">${esc(t(inst.context, 'desktop.people_delete'))}</button>
+                    </div>
+                </div>`;
+            backdrop.hidden = false;
+            inst.modalOpen = true;
+            const cancelBtn = modal.querySelector('.vd-people-modal-cancel');
+            const confirmBtn = modal.querySelector('.vd-people-modal-save');
+            const finish = value => { closeModal(inst); resolve(value); };
+            cancelBtn.addEventListener('click', () => finish(false));
+            confirmBtn.addEventListener('click', () => finish(true));
+            backdrop.addEventListener('click', function handler(event) {
+                if (event.target === backdrop) { backdrop.removeEventListener('click', handler); finish(false); }
+            });
+        });
     }
 
     function fetchList(url) {
