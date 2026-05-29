@@ -19,6 +19,7 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"camera: 'CameraApp'",
 			"function appGlobalFallbackName",
 			"'code-studio': 'CodeStudio'",
+			"'galaxa-deluxe': 'GalaxaDeluxe'",
 			"function callAppDispose",
 			"try {",
 			"console.warn('Desktop app dispose failed'",

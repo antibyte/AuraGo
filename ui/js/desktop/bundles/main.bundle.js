@@ -457,6 +457,7 @@
             camera: 'CameraApp',
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
+            'galaxa-deluxe': 'GalaxaDeluxe',
             people: 'PeopleApp'
         }[appId] || '';
     }
