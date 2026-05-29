@@ -92,3 +92,26 @@ func TestChatMediaLinkReplacementUsesReusableTemplatesAndFastPaths(t *testing.T)
 		}
 	}
 }
+
+func TestDesktopChatUsesSingleScrollScheduler(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/agent-chat.js")
+	for _, marker := range []string{
+		"let chatScrollFrame = 0",
+		"let pendingScrollTarget = null",
+		"function scheduleChatScroll(target, smooth = true)",
+		"window.requestAnimationFrame ||",
+		"pendingScrollTarget.scrollIntoView",
+		"scheduleChatScroll(statusEl",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop chat missing single scroll scheduler marker %q", marker)
+		}
+	}
+
+	keepStatus := sectionBetween(t, source, "function keepAgentStatusAtEnd()", "fetch('/api/desktop/chat/stream'")
+	if strings.Contains(keepStatus, "scrollIntoView({ block: 'end', behavior: 'smooth' })") {
+		t.Fatal("keepAgentStatusAtEnd must delegate smooth scrolling to scheduleChatScroll")
+	}
+}

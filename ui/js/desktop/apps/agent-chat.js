@@ -602,6 +602,9 @@
         let streamingContent = '';
         let streamTextFrame = 0;
         let finalized = false;
+        let chatScrollFrame = 0;
+        let pendingScrollTarget = null;
+        let pendingScrollSmooth = true;
 
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
@@ -610,6 +613,32 @@
 
             function clearAbortHandle() {
                 if (host._desktopChatAbort === abortChatStream) host._desktopChatAbort = null;
+            }
+
+            function cancelChatScroll() {
+                if (chatScrollFrame) {
+                    const cancelScroll = window.cancelAnimationFrame || window.clearTimeout;
+                    cancelScroll(chatScrollFrame);
+                    chatScrollFrame = 0;
+                }
+                pendingScrollTarget = null;
+            }
+
+            function scheduleChatScroll(target, smooth = true) {
+                if (!target) return;
+                pendingScrollTarget = target;
+                pendingScrollSmooth = smooth;
+                if (chatScrollFrame) return;
+                const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+                chatScrollFrame = schedule(() => {
+                    chatScrollFrame = 0;
+                    if (!pendingScrollTarget) return;
+                    pendingScrollTarget.scrollIntoView({
+                        block: 'end',
+                        behavior: pendingScrollSmooth ? 'smooth' : 'auto'
+                    });
+                    pendingScrollTarget = null;
+                });
             }
 
             function doFinalize() {
@@ -628,6 +657,9 @@
                             window.MermaidLoader.processBlocks(streamingBubble);
                         }
                     }
+                    scheduleChatScroll(streamingBubble, false);
+                } else {
+                    cancelChatScroll();
                 }
                 resolve();
             }
@@ -642,6 +674,7 @@
                     streamTextFrame = 0;
                 }
                 if (statusEl && statusEl.parentNode) statusEl.remove();
+                cancelChatScroll();
                 reject(err);
             }
 
@@ -663,7 +696,7 @@
                 if (chatLog.lastElementChild !== statusEl) {
                     chatLog.appendChild(statusEl);
                 }
-                statusEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                scheduleChatScroll(statusEl, true);
             }
 
             fetch('/api/desktop/chat/stream', {
