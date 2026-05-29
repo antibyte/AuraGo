@@ -83,7 +83,7 @@ func TestCodeStudioAgentPanelGetsVisibleColumn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Code Studio stylesheet missing from embedded UI: %v", err)
 	}
-	css := string(cssBytes)
+	css := strings.ReplaceAll(string(cssBytes), "\r\n", "\n")
 	for _, marker := range []string{
 		`grid-template-columns: 48px var(--cs-sidebar-width) minmax(0, 1fr) minmax(320px, 360px);`,
 		".code-studio-main {\n    position: relative;\n    z-index: 1;",

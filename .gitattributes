@@ -1,5 +1,6 @@
 # Normalize line endings: LF in repository, platform-native on checkout
 * text=auto
+.gitattributes text eol=lf
 
 # Force LF for all shell scripts regardless of OS
 *.sh    text eol=lf
@@ -14,6 +15,12 @@ docker-entrypoint.sh text eol=lf
 *.yaml  text eol=lf
 *.yml   text eol=lf
 *.json  text eol=lf
+
+# Generated frontend bundles are written with LF by scripts/build-ui-bundles.js.
+ui/css/*.bundle.css text eol=lf
+ui/js/chat/bundles/*.js text eol=lf
+ui/js/chat/main.js text eol=lf
+ui/js/desktop/bundles/*.js text eol=lf
 
 # Binaries — never convert
 *.exe   binary

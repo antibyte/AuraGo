@@ -130,7 +130,8 @@
         looper: 'looper',
         'system-info': 'monitor',
         pixel: 'image',
-        'galaxa-deluxe': 'run'
+        'galaxa-deluxe': 'run',
+        people: 'users'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -279,7 +280,8 @@
             'software-store': 'SS',
             looper: 'Lp',
             pixel: 'Px',
-            'galaxa-deluxe': 'Gx'
+            'galaxa-deluxe': 'Gx',
+            people: 'Pp'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -454,7 +456,8 @@
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
-            pixel: 'PixelApp'
+            pixel: 'PixelApp',
+            people: 'PeopleApp'
         }[appId] || '';
     }
 
@@ -725,6 +728,7 @@
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
+        if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);
@@ -2169,6 +2173,7 @@
 
     function windowTitle(appId) {
         if (appId === 'system-info') return t('desktop.system_info_title');
+        if (appId === 'people') return t('desktop.app_people');
         const app = allApps().find(item => item.id === appId);
         return app ? appName(app) : appId;
     }
@@ -2194,7 +2199,8 @@
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
-            'galaxa-deluxe': { width: 600, height: 800 }
+            'galaxa-deluxe': { width: 600, height: 800 },
+            people: { width: 1020, height: 700 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
@@ -5174,6 +5180,13 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'people') {
+            if (!window.PeopleApp) {
+                window.AuraDesktopModules.loadAppScript('people').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }

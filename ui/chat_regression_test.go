@@ -19,7 +19,11 @@ func readChatThemesCSS(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("read chat-themes.css: %v", err)
 	}
-	return string(content)
+	return normalizeAssetText(content)
+}
+
+func normalizeAssetText(content []byte) string {
+	return strings.ReplaceAll(string(content), "\r\n", "\n")
 }
 
 func readChatThemeSectionCSS(t *testing.T, legacyName string) string {
@@ -359,7 +363,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		t.Fatalf("read chat main JS: %v", err)
 	}
 
-	sharedCSS := string(sharedContent)
+	sharedCSS := normalizeAssetText(sharedContent)
 	for _, marker := range []string{
 		".app-header::before,\n.app-header::after,\n.cfg-header::before,\n.cfg-header::after",
 		"pointer-events: none;",
@@ -375,7 +379,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		}
 	}
 
-	sharedJS := string(sharedJSContent)
+	sharedJS := normalizeAssetText(sharedJSContent)
 	for _, marker := range []string{
 		"function initHeaderTouchActivation()",
 		".app-header button, .app-header a, .cfg-header button, .cfg-header a",
@@ -398,7 +402,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		}
 	}
 
-	mainJS := string(mainContent)
+	mainJS := normalizeAssetText(mainContent)
 	for _, marker := range []string{
 		"function bindHeaderActivation(el, handler)",
 		"el.dataset.headerTouchBound = 'true';",
@@ -433,7 +437,7 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 		t.Fatalf("read css/knowledge.css: %v", err)
 	}
 
-	sharedCSS := string(sharedContent)
+	sharedCSS := normalizeAssetText(sharedContent)
 	for _, marker := range []string{
 		"align-items: flex-end;",
 		"width: max-content;",
@@ -445,7 +449,7 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 		}
 	}
 
-	knowledgeCSS := string(knowledgeContent)
+	knowledgeCSS := normalizeAssetText(knowledgeContent)
 	for _, marker := range []string{
 		"width: calc(100% + 24px);",
 		"overflow-y: hidden;",
@@ -469,7 +473,7 @@ func TestRadialMenuButtonsKeepSurfaceBackground(t *testing.T) {
 		t.Fatalf("read shared-components.css: %v", err)
 	}
 
-	sharedCSS := string(sharedContent)
+	sharedCSS := normalizeAssetText(sharedContent)
 	for _, marker := range []string{
 		"--radial-item-surface: var(--modal-surface, #1e293b);",
 		"--radial-item-border: var(--border-subtle, rgba(148, 163, 184, 0.16));",
@@ -492,7 +496,7 @@ func TestChatFrontend_LongBubbleTextWrapsWithinBubble(t *testing.T) {
 		t.Fatalf("read css/chat.css: %v", err)
 	}
 
-	chatCSS := string(chatContent)
+	chatCSS := normalizeAssetText(chatContent)
 	for _, marker := range []string{
 		"#chat-content {\n            max-width: var(--chat-lane-max-width);\n            width: 100%;",
 		".msg-row {\n            display: flex;",
@@ -2239,7 +2243,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		t.Fatalf("%s still contains the old emoji tool icon map", streamingPath)
 	}
 
-	css := string(cssContent)
+	css := normalizeAssetText(cssContent)
 	for _, marker := range []string{
 		".tool-icon-sprite",
 		"background-image: url('/img/tool-icons-sprite.png",
@@ -2674,7 +2678,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 		t.Fatalf("read config.css: %v", err)
 	}
 
-	enhancementsCSS := string(enhancementsContent)
+	enhancementsCSS := normalizeAssetText(enhancementsContent)
 	for _, staleRule := range []string{
 		"padding-top: var(--safe-area-top);",
 		"padding-bottom: var(--safe-area-bottom);",
@@ -2693,7 +2697,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 		}
 	}
 
-	sharedCSS := string(sharedContent)
+	sharedCSS := normalizeAssetText(sharedContent)
 	for _, marker := range []string{
 		"--safe-area-header-padding-top: 0.75rem;",
 		"--safe-area-header-padding-top: 0.7rem;",
@@ -2704,7 +2708,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 		}
 	}
 
-	chatCSS := string(chatContent)
+	chatCSS := normalizeAssetText(chatContent)
 	for _, marker := range []string{
 		"--safe-area-footer-padding-bottom: 0.35rem;",
 		"--safe-area-footer-padding-bottom: 0.34rem;",
@@ -2714,7 +2718,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 		}
 	}
 
-	configCSS := string(configContent)
+	configCSS := normalizeAssetText(configContent)
 	for _, marker := range []string{
 		"--safe-area-footer-padding-bottom: 0.7rem;",
 		"--safe-area-footer-padding-bottom: 0.6rem;",
