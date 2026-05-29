@@ -459,6 +459,9 @@ function parseYouTubeTimeValue(raw) {
 }
 
 function parseYouTubeVideoLink(raw) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.parseYouTubeVideoLink === 'function') {
+        return window.AuraChatCore.parseYouTubeVideoLink(raw);
+    }
     if (!raw || typeof raw !== 'string') return null;
     let href = raw.trim();
     if (!href) return null;
@@ -505,6 +508,9 @@ function youtubePlayerDedupKey(data) {
 }
 
 function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.safeYouTubeEmbedURL === 'function') {
+        return window.AuraChatCore.safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds);
+    }
     if (!raw || !expectedVideoID) return '';
     try {
         const parsed = new URL(String(raw), window.location.origin);

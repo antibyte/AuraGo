@@ -55,7 +55,9 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"filenameFromPath(path, fallback = '')",
 		"videoMimeTypeForPath(path)",
 		"parseYouTubeTimeValue(raw)",
+		"parseYouTubeVideoLink(raw)",
 		"youtubePlayerDedupKey(data)",
+		"safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds)",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
 		"prepareDisplayContent(text, isUser)",
@@ -246,7 +248,9 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"window.AuraChatCore.filenameFromPath(path)",
 		"window.AuraChatCore.videoMimeTypeForPath(path)",
 		"window.AuraChatCore.parseYouTubeTimeValue(raw)",
+		"window.AuraChatCore.parseYouTubeVideoLink(raw)",
 		"window.AuraChatCore.youtubePlayerDedupKey(data)",
+		"window.AuraChatCore.safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds)",
 		"window.AuraChatCore.createMarkdownRenderer({",
 	} {
 		if !strings.Contains(chatJS, want) {

@@ -70,12 +70,64 @@
             + (parseInt(match[3] || '0', 10) || 0);
     }
 
+    function parseYouTubeVideoLink(raw) {
+        if (!raw || typeof raw !== 'string') return null;
+        let href = raw.trim();
+        if (!href) return null;
+        if (!href.includes('://') && (href.includes('youtube.') || href.includes('youtu.be'))) {
+            href = `https://${href}`;
+        }
+        try {
+            const parsed = new URL(href, window.location.origin);
+            const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+            const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
+                try { return decodeURIComponent(part); } catch (_err) { return part; }
+            });
+            let videoID = '';
+            if (host === 'youtu.be') {
+                videoID = segments[0] || '';
+            } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+                if (segments.length === 0 || segments[0] === 'watch') {
+                    videoID = parsed.searchParams.get('v') || '';
+                } else if (['shorts', 'embed', 'live'].includes(segments[0])) {
+                    videoID = segments[1] || '';
+                }
+            } else if (host === 'youtube-nocookie.com' && segments[0] === 'embed') {
+                videoID = segments[1] || '';
+            }
+            if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
+            const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+            const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
+            const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
+            return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
+        } catch (_err) {
+            return null;
+        }
+    }
+
     function youtubePlayerDedupKey(data) {
         const id = data && data.video_id ? String(data.video_id) : '';
         const rawStart = Number((data && data.start_seconds) || 0);
         const start = Number.isFinite(rawStart) && rawStart > 0 ? Math.floor(rawStart) : 0;
         const url = data && (data.url || data.embed_url || data.path) ? String(data.url || data.embed_url || data.path) : '';
         return id ? `${id}:${start}` : `${url}:${start}`;
+    }
+
+    function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
+        if (!raw || !expectedVideoID) return '';
+        try {
+            const parsed = new URL(String(raw), window.location.origin);
+            const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+            const parts = parsed.pathname.split('/').filter(Boolean).map((part) => {
+                try { return decodeURIComponent(part); } catch (_err) { return part; }
+            });
+            if (host !== 'youtube-nocookie.com' || parts[0] !== 'embed' || parts[1] !== expectedVideoID) return '';
+            const start = parseYouTubeTimeValue(parsed.searchParams.get('start'));
+            if (start !== (Number(expectedStartSeconds) || 0)) return '';
+            return `https://www.youtube-nocookie.com/embed/${expectedVideoID}${start > 0 ? `?start=${start}` : ''}`;
+        } catch (_err) {
+            return '';
+        }
     }
 
     function containsLeakedToolMarkup(text) {
@@ -211,7 +263,9 @@
         filenameFromPath,
         videoMimeTypeForPath,
         parseYouTubeTimeValue,
+        parseYouTubeVideoLink,
         youtubePlayerDedupKey,
+        safeYouTubeEmbedURL,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareDisplayContent,
