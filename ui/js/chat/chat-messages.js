@@ -288,6 +288,9 @@ function appendToolOutput(text, label) {
 }
 
 function isDebugOnlyHistoryMessage(msg) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.isDebugOnlyHistoryMessage === 'function') {
+        return window.AuraChatCore.isDebugOnlyHistoryMessage(msg);
+    }
     if (!msg || typeof msg.content !== 'string') return false;
     const text = msg.content.trim();
     if (!text) return false;

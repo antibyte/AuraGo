@@ -224,6 +224,38 @@
             });
     }
 
+    function isDebugOnlyHistoryMessage(msg) {
+        if (!msg || typeof msg.content !== 'string') return false;
+        const text = msg.content.trim();
+        if (!text) return false;
+
+        if (msg.role === 'user') {
+            if (/^ERROR:\s+/i.test(text)) return true;
+            if (/invalid function arguments json|raw JSON object ONLY|markdown fences|tool call/i.test(text)) return true;
+            return false;
+        }
+
+        if (msg.role !== 'assistant' && msg.role !== 'system') return false;
+        if (text === '[TOOL_CALL]') return true;
+        if (/^\[TOOL_CALL\]/i.test(text)) return true;
+        if (containsLeakedToolMarkup(text)) return true;
+        if (/^\{[\s\S]*"(action|tool|tool_call|tool_name)"\s*:/i.test(text)) return true;
+        if (/^(Tool Output:|\[Tool Output\])/i.test(text)) return true;
+
+        // Legacy leaked orchestration/progress messages from pre-tool assistant turns.
+        const lower = text.toLowerCase();
+        const operationalHints = [
+            'container', 'build', 'deploy', 'install', 'npm ', 'docker', 'script ',
+            'command', 'logs', 'warte', 'wait', 'läuft', 'running', 'fertig',
+            'copied', 'kopiert', 'ansatz', 'approach'
+        ];
+        if (text.length <= 240 && /[:：]\s*$/.test(text) && operationalHints.some(h => lower.includes(h))) {
+            return true;
+        }
+
+        return false;
+    }
+
     function prepareDisplayContent(text, isUser) {
         const raw = String(text || '');
         if (isUser) {
@@ -323,6 +355,7 @@
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         replaceRedactedMarkers,
+        isDebugOnlyHistoryMessage,
         prepareDisplayContent,
         prepareMarkdownContent,
         applyMarkdownLinkTargets,
