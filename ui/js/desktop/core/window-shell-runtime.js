@@ -620,34 +620,63 @@
         renderStandardTaskbar();
     }
 
-    function renderStandardTaskbar() {
+    function taskbarButtonHTML(win) {
+        const app = appById(win.appId);
+        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-task-icon', 16);
+        return `${icon}<span class="vd-task-label">${esc(win.title)}</span>`;
+    }
+
+    function updateTaskbarButton(btn, win, index) {
+        btn.className = 'vd-task-button';
+        btn.classList.toggle('active', win.id === state.activeWindowId);
+        btn.dataset.windowId = win.id;
+        btn.style.setProperty('--dock-index', index);
+        const nextHTML = taskbarButtonHTML(win);
+        if (btn.dataset.renderedHtml !== nextHTML) {
+            btn.innerHTML = nextHTML;
+            btn.dataset.renderedHtml = nextHTML;
+        }
+    }
+
+    function bindTaskbarButton(btn) {
+        if (btn.getAttribute('data-taskbar-bound') === 'true') return;
+        btn.setAttribute('data-taskbar-bound', 'true');
+        btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
+        btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
+        wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+    }
+
+    function reconcileStandardTaskbar() {
         const host = $('vd-taskbar-apps');
-        host.innerHTML = [...state.windows.values()].map((win, index) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-task-icon', 16);
-            return `<button type="button" class="vd-task-button ${win.id === state.activeWindowId ? 'active' : ''}" data-window-id="${esc(win.id)}" style="--dock-index:${index}">${icon}<span class="vd-task-label">${esc(win.title)}</span></button>`;
-        }).join('');
+        if (!host) return;
+        if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
+        const seenWindowIds = new Set();
+        [...state.windows.values()].forEach((win, index) => {
+            seenWindowIds.add(win.id);
+            let btn = host.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                host.insertBefore(btn, host.children[index] || null);
+                bindTaskbarButton(btn);
+            } else if (btn !== host.children[index]) {
+                host.insertBefore(btn, host.children[index] || null);
+            }
+            updateTaskbarButton(btn, win, index);
+        });
         host.querySelectorAll('[data-window-id]').forEach(btn => {
-            btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
-            btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
-            wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+            if (!seenWindowIds.has(btn.dataset.windowId)) btn.remove();
         });
     }
 
-    function renderFruityDock() {
-        const host = $('vd-taskbar-apps');
-        const runningWindows = [...state.windows.values()];
-        const dockItems = dockApps().map((app, index) => {
-            const running = runningWindows.some(win => win.appId === app.id);
-            const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
-            const broken = appIsBroken(app);
-            const stateClasses = [running ? 'running' : '', active ? 'active' : '', broken ? 'broken' : ''].filter(Boolean).join(' ');
-            const title = broken ? `${appName(app)} - ${t('desktop.app_missing_entry')}` : appName(app);
-            return `<button type="button" class="vd-dock-button ${esc(stateClasses)}" data-app-id="${esc(app.id)}" title="${esc(title)}" style="--dock-index:${index}">
-                ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
-                <span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>
-            </button>`;
-        }).join('');
+    function renderStandardTaskbar() {
+        reconcileStandardTaskbar();
+    }
+
+    function ensureFruityDockShell(host) {
+        let track = host && host.querySelector('[data-fruity-dock-track]');
+        if (track) return track;
+        host.replaceChildren();
         host.innerHTML = `<button type="button" class="vd-dock-orb" data-fruity-dock-orb title="${esc(t('desktop.start_menu'))}">
             ${iconMarkup('home', 'A', 'vd-dock-orb-icon', 34)}
         </button>
@@ -655,7 +684,7 @@
             ${iconMarkup('arrow-left', '<', 'vd-dock-scroll-icon', 18)}
         </button>
         <div class="vd-dock-scroll" data-fruity-dock-scroll-region>
-            <div class="vd-dock-track" data-fruity-dock-track>${dockItems}</div>
+            <div class="vd-dock-track" data-fruity-dock-track></div>
         </div>
         <button type="button" class="vd-dock-scroll-button vd-dock-scroll-button-right" data-fruity-dock-scroll-button="right" aria-label="${esc(t('desktop.dock_scroll_right'))}">
             ${iconMarkup('arrow-right', '>', 'vd-dock-scroll-icon', 18)}
@@ -667,16 +696,72 @@
                 toggleStartMenu();
             });
         }
-        host.querySelectorAll('[data-app-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
-                if (existing) focusWindow(existing.id);
-                else openApp(btn.dataset.appId);
-            });
-            btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
-            wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
-        });
         wireFruityDockScroll(host);
+        return host.querySelector('[data-fruity-dock-track]');
+    }
+
+    function dockButtonHTML(app) {
+        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
+                <span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>`;
+    }
+
+    function updateDockButton(btn, app, index, runningWindows) {
+        const running = runningWindows.some(win => win.appId === app.id);
+        const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
+        const broken = appIsBroken(app);
+        btn.type = 'button';
+        btn.className = 'vd-dock-button';
+        btn.classList.toggle('running', running);
+        btn.classList.toggle('active', active);
+        btn.classList.toggle('broken', broken);
+        btn.dataset.appId = app.id;
+        btn.title = broken ? `${appName(app)} - ${t('desktop.app_missing_entry')}` : appName(app);
+        btn.style.setProperty('--dock-index', index);
+        const nextHTML = dockButtonHTML(app);
+        if (btn.dataset.renderedHtml !== nextHTML) {
+            btn.innerHTML = nextHTML;
+            btn.dataset.renderedHtml = nextHTML;
+        }
+    }
+
+    function bindDockButton(btn) {
+        if (btn.getAttribute('data-dock-bound') === 'true') return;
+        btn.setAttribute('data-dock-bound', 'true');
+        btn.addEventListener('click', () => {
+            const existing = [...state.windows.values()].find(win => win.appId === btn.dataset.appId);
+            if (existing) focusWindow(existing.id);
+            else openApp(btn.dataset.appId);
+        });
+        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+        wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
+    }
+
+    function reconcileFruityDock() {
+        const host = $('vd-taskbar-apps');
+        const runningWindows = [...state.windows.values()];
+        const track = ensureFruityDockShell(host);
+        if (!track) return;
+        const seenDockAppIds = new Set();
+        dockApps().forEach((app, index) => {
+            seenDockAppIds.add(app.id);
+            let btn = track.querySelector(`[data-app-id="${cssSel(app.id)}"]`);
+            if (!btn) {
+                btn = document.createElement('button');
+                track.insertBefore(btn, track.children[index] || null);
+                bindDockButton(btn);
+            } else if (btn !== track.children[index]) {
+                track.insertBefore(btn, track.children[index] || null);
+            }
+            updateDockButton(btn, app, index, runningWindows);
+        });
+        track.querySelectorAll('[data-app-id]').forEach(btn => {
+            if (!seenDockAppIds.has(btn.dataset.appId)) btn.remove();
+        });
+        updateFruityDockScrollControls(host);
+    }
+
+    function renderFruityDock() {
+        reconcileFruityDock();
     }
 
     function scheduleFruityDockOcclusionCheck() {

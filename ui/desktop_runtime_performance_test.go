@@ -41,3 +41,25 @@ func TestDesktopWidgetsBlankIframesBeforeRebuild(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTaskbarAndDockUseReconciliation(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/core/window-shell-runtime.js")
+	for _, marker := range []string{
+		"function reconcileStandardTaskbar()",
+		"const seenWindowIds = new Set()",
+		"data-taskbar-bound",
+		"function updateTaskbarButton(btn, win, index)",
+		"function reconcileFruityDock()",
+		"const seenDockAppIds = new Set()",
+		"data-dock-bound",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop taskbar reconciliation missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "function renderStandardTaskbar() {\n        const host = $('vd-taskbar-apps');\n        host.innerHTML =") {
+		t.Fatal("standard taskbar must not fully rebuild via host.innerHTML")
+	}
+}
