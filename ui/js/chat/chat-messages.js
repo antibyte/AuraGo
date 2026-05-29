@@ -333,6 +333,9 @@ function escapeHtml(str) {
 
 function replaceRedactedMarkers(html) {
     const label = (typeof t === 'function') ? t('chat.redacted_label') : '[removed]';
+    if (window.AuraChatCore && typeof window.AuraChatCore.replaceRedactedMarkers === 'function') {
+        return window.AuraChatCore.replaceRedactedMarkers(html, label);
+    }
     return html
         .replace(/\[redacted\]([^<]*)/gi, (match, reason) => {
             const reasonText = reason.trim();

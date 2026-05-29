@@ -62,6 +62,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds)",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
+		"replaceRedactedMarkers(html, label = '[removed]')",
 		"prepareDisplayContent(text, isUser)",
 		"prepareMarkdownContent(text)",
 		"applyMarkdownLinkTargets(html)",
@@ -237,6 +238,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
+		"window.AuraChatCore.replaceRedactedMarkers(html, label)",
 		"window.AuraChatCore.prepareDisplayContent(text, isUser)",
 		"window.AuraChatCore.prepareMarkdownContent(displayContent)",
 		"window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)",

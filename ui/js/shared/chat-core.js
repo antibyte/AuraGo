@@ -205,6 +205,25 @@
             .trim();
     }
 
+    function replaceRedactedMarkers(html, label = '[removed]') {
+        const displayLabel = String(label || '[removed]');
+        return String(html || '')
+            .replace(/\[redacted\]([^<]*)/gi, (_match, reason) => {
+                const reasonText = reason.trim();
+                if (reasonText) {
+                    return `<span class="redacted-badge" title="${escapeAttr(reasonText)}">${displayLabel}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
+                }
+                return `<span class="redacted-badge">${displayLabel}</span>`;
+            })
+            .replace(/\[sanitized\]([^<]*)/gi, (_match, reason) => {
+                const reasonText = reason.trim();
+                if (reasonText) {
+                    return `<span class="sanitized-badge" title="${escapeAttr(reasonText)}">${displayLabel}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
+                }
+                return `<span class="sanitized-badge">${displayLabel}</span>`;
+            });
+    }
+
     function prepareDisplayContent(text, isUser) {
         const raw = String(text || '');
         if (isUser) {
@@ -303,6 +322,7 @@
         safeYouTubeEmbedURL,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
+        replaceRedactedMarkers,
         prepareDisplayContent,
         prepareMarkdownContent,
         applyMarkdownLinkTargets,
