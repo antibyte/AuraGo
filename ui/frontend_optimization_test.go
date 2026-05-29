@@ -543,6 +543,23 @@ func TestDesktopInitialLoadUsesShellCSSBundleOnly(t *testing.T) {
 	}
 }
 
+func TestDesktopShellBundleSizesGeneratedAndStoreAppFrames(t *testing.T) {
+	t.Parallel()
+
+	shellBundle := readEmbeddedText(t, "css/desktop-shell.bundle.css")
+	for _, want := range []string{
+		".vd-generated-frame",
+		".vd-store-app-frame",
+		"width: 100%;",
+		"height: 100%;",
+		"border: 0;",
+	} {
+		if !strings.Contains(shellBundle, want) {
+			t.Fatalf("desktop shell CSS bundle must size generated/store app frames, missing %q", want)
+		}
+	}
+}
+
 func TestDesktopModuleLoaderUsesBuiltBundlesWithoutEval(t *testing.T) {
 	t.Parallel()
 
