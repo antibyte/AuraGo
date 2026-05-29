@@ -740,9 +740,27 @@ function appendYouTubeMessage(youtubeData) {
     return true;
 }
 
+const chatVideoLinkTemplate = typeof document !== 'undefined' ? document.createElement('template') : null;
+const chatYouTubeLinkTemplate = typeof document !== 'undefined' ? document.createElement('template') : null;
+const chatVideoLinkCandidatePattern = /(?:(?:https?:\/\/|\/|\.\/|files\/)[^\s<>()"']+\.(?:mp4|m4v|mov|webm|ogv|ogg))/i;
+const chatYouTubeLinkCandidatePattern = /(?:youtube\.com|youtu\.be|youtube-nocookie\.com)/i;
+
+function hasVideoLinkCandidate(html) {
+    return !!html && chatVideoLinkCandidatePattern.test(String(html));
+}
+
+function hasYouTubeLinkCandidate(html) {
+    return !!html && chatYouTubeLinkCandidatePattern.test(String(html));
+}
+
 function renderVideoLinksAsPlayers(html) {
-    const template = document.createElement('template');
-    template.innerHTML = html;
+    if (!hasVideoLinkCandidate(html)) return html;
+    const template = chatVideoLinkTemplate || document.createElement('template');
+    if (chatVideoLinkTemplate) {
+        chatVideoLinkTemplate.innerHTML = html;
+    } else {
+        template.innerHTML = html;
+    }
     template.content.querySelectorAll('a[href]').forEach((anchor) => {
         const href = anchor.getAttribute('href') || '';
         if (!isVideoHref(href)) return;
@@ -791,12 +809,19 @@ function renderVideoLinksAsPlayers(html) {
         }
         textNode.parentNode.replaceChild(fragment, textNode);
     });
-    return template.innerHTML;
+    const output = template.innerHTML;
+    template.innerHTML = '';
+    return output;
 }
 
 function renderYouTubeLinksAsPlayers(html) {
-    const template = document.createElement('template');
-    template.innerHTML = html;
+    if (!hasYouTubeLinkCandidate(html)) return html;
+    const template = chatYouTubeLinkTemplate || document.createElement('template');
+    if (chatYouTubeLinkTemplate) {
+        chatYouTubeLinkTemplate.innerHTML = html;
+    } else {
+        template.innerHTML = html;
+    }
     template.content.querySelectorAll('a[href]').forEach((anchor) => {
         const href = anchor.getAttribute('href') || '';
         const parsed = parseYouTubeVideoLink(href);
@@ -812,7 +837,9 @@ function renderYouTubeLinksAsPlayers(html) {
         });
         if (element) anchor.replaceWith(element);
     });
-    return template.innerHTML;
+    const output = template.innerHTML;
+    template.innerHTML = '';
+    return output;
 }
 
 const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;

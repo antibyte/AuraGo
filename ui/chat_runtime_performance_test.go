@@ -72,3 +72,23 @@ func TestSmartScrollerDebouncesMutationObserver(t *testing.T) {
 		t.Fatal("smart scroller observer must not call onScroll synchronously")
 	}
 }
+
+func TestChatMediaLinkReplacementUsesReusableTemplatesAndFastPaths(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/chat/chat-messages.js")
+	for _, marker := range []string{
+		"const chatVideoLinkTemplate =",
+		"const chatYouTubeLinkTemplate =",
+		"function hasVideoLinkCandidate(html)",
+		"function hasYouTubeLinkCandidate(html)",
+		"if (!hasVideoLinkCandidate(html)) return html;",
+		"if (!hasYouTubeLinkCandidate(html)) return html;",
+		"chatVideoLinkTemplate.innerHTML = html;",
+		"chatYouTubeLinkTemplate.innerHTML = html;",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("chat media link replacement missing fast-path marker %q", marker)
+		}
+	}
+}
