@@ -399,6 +399,9 @@ function sanitizeRenderedHTML(html) {
 }
 
 function isVideoHref(url) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.isVideoHref === 'function') {
+        return window.AuraChatCore.isVideoHref(url);
+    }
     if (!url || typeof url !== 'string') return false;
     const trimmed = url.trim();
     if (!trimmed || !isSafeHref(trimmed, true)) return false;

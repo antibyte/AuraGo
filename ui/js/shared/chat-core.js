@@ -33,6 +33,21 @@
         }
     }
 
+    function isVideoHref(url) {
+        if (!url || typeof url !== 'string') return false;
+        const trimmed = url.trim();
+        if (!trimmed || !isSafeHref(trimmed, true)) return false;
+        try {
+            const parsed = new URL(trimmed, window.location.origin);
+            if (parsed.origin !== window.location.origin) return false;
+            const path = parsed.pathname.toLowerCase();
+            return path.startsWith('/files/generated_videos/') ||
+                /\.(mp4|m4v|mov|webm|ogv|ogg)$/i.test(path);
+        } catch (_err) {
+            return false;
+        }
+    }
+
     function filenameFromPath(path, fallback = '') {
         const fallbackName = String(fallback || '');
         try {
@@ -260,6 +275,7 @@
         escapeHtml,
         escapeAttr,
         isSafeHref,
+        isVideoHref,
         filenameFromPath,
         videoMimeTypeForPath,
         parseYouTubeTimeValue,
