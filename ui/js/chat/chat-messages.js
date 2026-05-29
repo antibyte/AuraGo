@@ -61,6 +61,9 @@ function stripLeakedToolMarkup(text) {
 }
 
 function personaAvatarMarkup(role) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.personaAvatarMarkup === 'function') {
+        return window.AuraChatCore.personaAvatarMarkup(role);
+    }
     if (role === 'user') {
         return `<img class="persona-avatar-img" src="${personaIconUrl('user')}" alt="" width="32" height="32" decoding="async">`;
     }

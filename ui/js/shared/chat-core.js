@@ -11,6 +11,14 @@
         return `/img/persona-icons/${key}.png?v=${version}`;
     }
 
+    function personaAvatarMarkup(role) {
+        if (role === 'user') {
+            return `<img class="persona-avatar-img" src="${personaIconUrl('user')}" alt="" width="32" height="32" decoding="async">`;
+        }
+        const key = window._activePersonaIconKey || 'custom';
+        return `<img class="persona-avatar-img" data-persona-icon="${key}" src="${personaIconUrl(key)}" alt="" width="32" height="32" decoding="async">`;
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, '&amp;')
@@ -410,6 +418,7 @@
 
     window.AuraChatCore = {
         personaIconUrl,
+        personaAvatarMarkup,
         escapeHtml,
         escapeAttr,
         isSafeHref,
