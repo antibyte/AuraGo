@@ -159,6 +159,61 @@ func TestSharedMonolithIsSplitForChatAndDesktop(t *testing.T) {
 	}
 }
 
+func TestAllTemplatesUseSplitSharedAssets(t *testing.T) {
+	t.Parallel()
+
+	pages := []string{
+		"cheatsheets.html",
+		"config.html",
+		"containers.html",
+		"dashboard.html",
+		"gallery.html",
+		"index.html",
+		"invasion_control.html",
+		"knowledge.html",
+		"login.html",
+		"media.html",
+		"missions_v2.html",
+		"plans.html",
+		"setup.html",
+		"skills.html",
+		"truenas.html",
+	}
+
+	for _, page := range pages {
+		page := page
+		t.Run(page, func(t *testing.T) {
+			t.Parallel()
+			html := readEmbeddedText(t, page)
+			if strings.Contains(html, `/shared.js`) {
+				t.Fatalf("%s must load split shared assets instead of shared.js", page)
+			}
+			if !strings.Contains(html, `/js/shared/shared-core.js?v={{.BuildVersion}}`) {
+				t.Fatalf("%s must load shared core with BuildVersion cache busting", page)
+			}
+			if strings.Contains(html, `id="theme-toggle"`) || strings.Contains(html, `id="chat-theme-picker"`) {
+				if !strings.Contains(html, `/js/shared/shared-chat.js?v={{.BuildVersion}}`) {
+					t.Fatalf("%s must load shared chat/theme extension for theme controls", page)
+				}
+				if strings.Index(html, `/js/shared/shared-core.js`) > strings.Index(html, `/js/shared/shared-chat.js`) {
+					t.Fatalf("%s must load shared core before shared chat/theme extension", page)
+				}
+			}
+		})
+	}
+
+	desktopHTML := readEmbeddedText(t, "desktop.html")
+	if strings.Contains(desktopHTML, `/shared.js`) {
+		t.Fatal("desktop.html must load split shared assets instead of shared.js")
+	}
+	if !strings.Contains(desktopHTML, `/js/shared/shared-core.js?v={{.BuildVersion}}`) {
+		t.Fatal("desktop.html must load shared core with BuildVersion cache busting")
+	}
+	if strings.Contains(desktopHTML, `/js/shared/shared-chat.js`) {
+		t.Fatal("desktop.html must not load the chat/theme shared extension")
+	}
+}
+
 func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	t.Parallel()
 

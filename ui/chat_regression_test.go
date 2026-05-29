@@ -3057,7 +3057,7 @@ func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		`<script src="/shared.js`,
+		`<script src="/js/shared/shared-core.js`,
 		`<script src="/js/gallery/main.js"></script>`,
 	} {
 		if !strings.Contains(string(mediaHTML), marker) {
