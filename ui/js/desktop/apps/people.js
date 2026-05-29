@@ -214,10 +214,11 @@
     async function searchContacts(inst) {
         if (inst.semanticMode) {
             try {
-                const data = await fetchList('/api/people/lookup?q=' + encodeURIComponent(inst.searchQuery) + '&mode=semantic');
+                const data = await fetchList('/api/people/lookup?q=' + encodeURIComponent(inst.searchQuery) + '&mode=fts');
                 inst.filtered = (data.nodes || []).map(n => ({
                     id: n.id, name: n.label || n.id,
                     email: n.properties && n.properties.email || '',
+                    phone: n.properties && n.properties.phone || '',
                     relationship: n.properties && n.properties.relationship || '',
                     birthday: n.properties && n.properties.birthday || '',
                     _kg: true
