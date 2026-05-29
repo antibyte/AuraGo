@@ -162,7 +162,10 @@
                 }
                 if (el.tagName.toLowerCase() === 'a') {
                     const href = el.getAttribute('href') || '';
-                    if (href && !href.startsWith('/') && !href.startsWith('./')) {
+                    const safeHref = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
+                        ? window.AuraChatCore.isSafeHref(href, true)
+                        : false;
+                    if (href && !safeHref && !href.startsWith('/') && !href.startsWith('./')) {
                         try {
                             const parsed = new URL(href, window.location.origin);
                             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -181,12 +184,10 @@
                 if (el.tagName.toLowerCase() === 'iframe') {
                     const src = el.getAttribute('src') || '';
                     if (src) {
-                        try {
-                            const parsed = new URL(src, window.location.origin);
-                            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-                                el.removeAttribute('src');
-                            }
-                        } catch (_) {
+                        const safeSrc = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
+                            ? window.AuraChatCore.isSafeHref(src, true)
+                            : false;
+                        if (!safeSrc) {
                             el.removeAttribute('src');
                         }
                     }
@@ -197,9 +198,12 @@
                 if (el.tagName.toLowerCase() === 'video' || el.tagName.toLowerCase() === 'audio') {
                     const src = el.getAttribute('src') || '';
                     if (src) {
+                        const safeSrc = window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function'
+                            ? window.AuraChatCore.isSafeHref(src, true)
+                            : false;
                         try {
                             const parsed = new URL(src, window.location.origin);
-                            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && !parsed.protocol.startsWith('blob:')) {
+                            if (!safeSrc && !parsed.protocol.startsWith('blob:')) {
                                 el.removeAttribute('src');
                             }
                         } catch (_) {

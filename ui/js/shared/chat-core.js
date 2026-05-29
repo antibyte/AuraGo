@@ -18,6 +18,21 @@
             .replace(/>/g, '&gt;');
     }
 
+    function isSafeHref(url, allowRelative = true) {
+        if (!url || typeof url !== 'string') return false;
+        const trimmed = url.trim();
+        if (!trimmed) return false;
+        if (allowRelative && (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../'))) {
+            return true;
+        }
+        try {
+            const parsed = new URL(trimmed, window.location.origin);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch (_err) {
+            return false;
+        }
+    }
+
     function containsLeakedToolMarkup(text) {
         if (!text || typeof text !== 'string') return false;
         return [
@@ -147,6 +162,7 @@
     window.AuraChatCore = {
         escapeHtml,
         escapeAttr,
+        isSafeHref,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareDisplayContent,

@@ -363,6 +363,9 @@ function escapeAttr(s) {
 }
 
 function isSafeHref(url, allowRelative = true) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.isSafeHref === 'function') {
+        return window.AuraChatCore.isSafeHref(url, allowRelative);
+    }
     if (!url || typeof url !== 'string') return false;
     const trimmed = url.trim();
     if (!trimmed) return false;

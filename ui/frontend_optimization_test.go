@@ -51,6 +51,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"window.AuraChatCore",
 		"escapeHtml(value)",
 		"escapeAttr(value)",
+		"isSafeHref(url, allowRelative = true)",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
 		"prepareDisplayContent(text, isUser)",
@@ -237,6 +238,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"window.AuraChatCore.formatTimestamp(timestamp)",
 		"window.AuraChatCore.escapeHtml(str)",
 		"window.AuraChatCore.escapeAttr(s)",
+		"window.AuraChatCore.isSafeHref(url, allowRelative)",
 		"window.AuraChatCore.createMarkdownRenderer({",
 	} {
 		if !strings.Contains(chatJS, want) {
@@ -258,6 +260,8 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",
 		"window.AuraChatCore.formatTimestamp(timestamp)",
 		"window.AuraChatCore.createMarkdownRenderer()",
+		"window.AuraChatCore.isSafeHref(href, true)",
+		"window.AuraChatCore.isSafeHref(src, true)",
 	} {
 		if !strings.Contains(desktopChatJS, want) {
 			t.Fatalf("desktop chat renderer must delegate to AuraChatCore marker %q", want)
