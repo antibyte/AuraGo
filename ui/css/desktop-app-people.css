@@ -511,9 +511,6 @@
 .vd-people-modal-backdrop.active {
     display: flex;
 }
-.vd-people-modal-backdrop.active {
-    display: flex;
-}
 .vd-people-modal {
     background: var(--vd-surface);
     border: 1px solid var(--vd-border);
