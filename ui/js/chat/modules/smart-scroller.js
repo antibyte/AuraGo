@@ -11,8 +11,10 @@
         scrollButton: null,
         isUserScrolledUp: false,
         scrollThreshold: 150,
+        mutationScrollDelay: 50,
         newMessagesCount: 0,
         isInitialized: false,
+        _mutationScrollTimer: null,
 
         init(container) {
             if (this.isInitialized || !container) return;
@@ -42,6 +44,14 @@
             document.body.appendChild(this.scrollButton);
         },
 
+        scheduleObservedScrollCheck() {
+            clearTimeout(this._mutationScrollTimer);
+            this._mutationScrollTimer = setTimeout(() => {
+                this._mutationScrollTimer = null;
+                this.onScroll();
+            }, this.mutationScrollDelay);
+        },
+
         bindEvents() {
             let scrollTimeout;
             this.container.addEventListener('scroll', () => {
@@ -57,7 +67,7 @@
             window.addEventListener('resize', this._resizeHandler);
 
             const content = this.container.querySelector('#chat-content') || this.container;
-            this._mutationObserver = new MutationObserver(() => this.onScroll());
+            this._mutationObserver = new MutationObserver(() => this.scheduleObservedScrollCheck());
             this._mutationObserver.observe(content, { childList: true, subtree: true });
 
             requestAnimationFrame(() => this.onScroll());
@@ -144,6 +154,8 @@
         },
 
         destroy() {
+            clearTimeout(this._mutationScrollTimer);
+            this._mutationScrollTimer = null;
             if (this._mutationObserver) {
                 this._mutationObserver.disconnect();
                 this._mutationObserver = null;

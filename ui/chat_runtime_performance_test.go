@@ -52,3 +52,23 @@ func TestChatStreamingBatchesDOMWritesAndResetsSSEDedup(t *testing.T) {
 		t.Fatal("chat state must expose resetSSEDedupSets for SSE and HTTP completion paths")
 	}
 }
+
+func TestSmartScrollerDebouncesMutationObserver(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/chat/modules/smart-scroller.js")
+	for _, marker := range []string{
+		"mutationScrollDelay: 50",
+		"scheduleObservedScrollCheck()",
+		"this._mutationScrollTimer",
+		"clearTimeout(this._mutationScrollTimer)",
+		"this._mutationObserver = new MutationObserver(() => this.scheduleObservedScrollCheck())",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("smart scroller missing observer debounce marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "new MutationObserver(() => this.onScroll())") {
+		t.Fatal("smart scroller observer must not call onScroll synchronously")
+	}
+}
