@@ -31,13 +31,20 @@ func TestDesktopIconsSupportClickAndDragMultiSelection(t *testing.T) {
 		}
 	}
 
-	renderIconsBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function renderIcons()")
+	updateIconBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function updateDesktopIconButton")
+	bindIconBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function bindDesktopIconButton")
 	for _, want := range []string{
-		"aria-selected=\"${state.selectedIconIds.has(item.id) ? 'true' : 'false'}\"",
+		"btn.setAttribute('aria-selected', state.selectedIconIds.has(item.id) ? 'true' : 'false')",
+	} {
+		if !strings.Contains(updateIconBody, want) {
+			t.Fatalf("desktop icon rendering missing multi-select marker %q", want)
+		}
+	}
+	for _, want := range []string{
 		"selectDesktopIcon(btn, { extend: event.ctrlKey || event.metaKey, toggle: event.ctrlKey || event.metaKey })",
 		"wireDraggableIcon(btn)",
 	} {
-		if !strings.Contains(renderIconsBody, want) {
+		if !strings.Contains(bindIconBody, want) {
 			t.Fatalf("desktop icon rendering missing multi-select marker %q", want)
 		}
 	}

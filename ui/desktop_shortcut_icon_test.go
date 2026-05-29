@@ -9,8 +9,8 @@ func TestDesktopShortcutsPreferCurrentAppLogosAndKeepPersistedThemeIcons(t *test
 	t.Parallel()
 
 	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
-	renderIconsBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function renderIcons()")
-	if !strings.Contains(renderIconsBody, "item.icon || (item.type === 'file'") {
+	updateIconBody := jsFunctionBodyInWindowMenuTest(t, foundation, "function updateDesktopIconButton")
+	if !strings.Contains(updateIconBody, "item.icon || (item.type === 'file'") {
 		t.Fatal("desktop icon rendering does not prefer persisted shortcut icon keys")
 	}
 

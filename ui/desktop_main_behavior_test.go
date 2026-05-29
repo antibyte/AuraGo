@@ -13,7 +13,7 @@ func TestDesktopMainRendersDesktopDirectoryEntries(t *testing.T) {
 		"state.desktopFiles = await loadDesktopFiles()",
 		"/api/desktop/files?path=Desktop",
 		"desktop-entry-' + file.path",
-		"data-desktop-entry",
+		"btn.dataset.desktopEntry",
 		"btn.dataset.kind === 'file'",
 		"method: 'PUT'",
 	} {

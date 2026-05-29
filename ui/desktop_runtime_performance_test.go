@@ -63,3 +63,23 @@ func TestDesktopTaskbarAndDockUseReconciliation(t *testing.T) {
 		t.Fatal("standard taskbar must not fully rebuild via host.innerHTML")
 	}
 }
+
+func TestDesktopIconsUseReconciliation(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/core/desktop-foundation.js")
+	for _, marker := range []string{
+		"function reconcileDesktopIcons(items, positions)",
+		"function updateDesktopIconButton(btn, item, pos)",
+		"function bindDesktopIconButton(btn)",
+		"data-vd-icon-bound",
+		"const seenIconIds = new Set()",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop icon reconciliation missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "icons.innerHTML = items.map(item =>") {
+		t.Fatal("desktop icons must not fully rebuild via icons.innerHTML")
+	}
+}

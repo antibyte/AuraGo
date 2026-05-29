@@ -860,38 +860,80 @@
     function closeStartMenu() { const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing'; runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; }); }
 
     function renderIcons() {
-        const icons = $('vd-icons');
         const items = desktopShortcutItems();
         const positions = iconPositions();
-        icons.innerHTML = items.map(item => {
-            const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
-            const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
-            const pos = positions[item.id] || defaultIconPosition(items.indexOf(item));
-            return `<button class="vd-icon ${state.selectedIconIds.has(item.id) ? 'selected' : ''}" type="button" role="button" aria-label="${esc(item.name)}" aria-selected="${state.selectedIconIds.has(item.id) ? 'true' : 'false'}" data-kind="${esc(item.type)}" data-id="${esc(item.id)}" data-app-id="${esc(item.app ? item.app.id : '')}" data-path="${esc(item.path || '')}" data-web-path="${esc(item.file ? item.file.web_path || '' : '')}" data-media-kind="${esc(item.file ? item.file.media_kind || '' : '')}" data-mime-type="${esc(item.file ? item.file.mime_type || '' : '')}" data-desktop-entry="${item.desktopEntry ? 'true' : 'false'}" style="left:${Number(pos.x) || 18}px;top:${Number(pos.y) || 18}px">
-                ${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}
-                <span class="vd-icon-label">${esc(item.name)}</span>
-            </button>`;
-        }).join('');
+        reconcileDesktopIcons(items, positions);
         syncDesktopIconSelection();
-        icons.querySelectorAll('.vd-icon').forEach(btn => {
-            btn.addEventListener('dblclick', () => activateDesktopItem(btn));
-            btn.addEventListener('click', event => {
-                if (btn.__vdSuppressNextClick) {
-                    btn.__vdSuppressNextClick = false;
-                    event.preventDefault();
-                    return;
-                }
-                if (shouldOpenOnTap(event)) {
-                    event.preventDefault();
-                    activateDesktopItem(btn);
-                    return;
-                }
-                selectDesktopIcon(btn, { extend: event.ctrlKey || event.metaKey, toggle: event.ctrlKey || event.metaKey });
-            });
-            btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
-            wireLongPress(btn, event => showIconContextMenu(event, btn));
-            wireDraggableIcon(btn);
-            if (typeof wireDesktopFileIconDrag === 'function') wireDesktopFileIconDrag(btn);
+    }
+
+    function updateDesktopIconButton(btn, item, pos) {
+        const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
+        const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
+        btn.className = 'vd-icon';
+        btn.classList.toggle('selected', state.selectedIconIds.has(item.id));
+        btn.type = 'button';
+        btn.setAttribute('role', 'button');
+        btn.setAttribute('aria-label', item.name);
+        btn.setAttribute('aria-selected', state.selectedIconIds.has(item.id) ? 'true' : 'false');
+        btn.dataset.kind = item.type;
+        btn.dataset.id = item.id;
+        btn.dataset.appId = item.app ? item.app.id : '';
+        btn.dataset.path = item.path || '';
+        btn.dataset.webPath = item.file ? item.file.web_path || '' : '';
+        btn.dataset.mediaKind = item.file ? item.file.media_kind || '' : '';
+        btn.dataset.mimeType = item.file ? item.file.mime_type || '' : '';
+        btn.dataset.desktopEntry = item.desktopEntry ? 'true' : 'false';
+        btn.style.left = (Number(pos.x) || 18) + 'px';
+        btn.style.top = (Number(pos.y) || 18) + 'px';
+        const renderedHTML = `${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}<span class="vd-icon-label">${esc(item.name)}</span>`;
+        if (btn.dataset.renderedHtml !== renderedHTML) {
+            btn.innerHTML = renderedHTML;
+            btn.dataset.renderedHtml = renderedHTML;
+        }
+    }
+
+    function bindDesktopIconButton(btn) {
+        if (btn.getAttribute('data-vd-icon-bound') === 'true') return;
+        btn.setAttribute('data-vd-icon-bound', 'true');
+        btn.addEventListener('dblclick', () => activateDesktopItem(btn));
+        btn.addEventListener('click', event => {
+            if (btn.__vdSuppressNextClick) {
+                btn.__vdSuppressNextClick = false;
+                event.preventDefault();
+                return;
+            }
+            if (shouldOpenOnTap(event)) {
+                event.preventDefault();
+                activateDesktopItem(btn);
+                return;
+            }
+            selectDesktopIcon(btn, { extend: event.ctrlKey || event.metaKey, toggle: event.ctrlKey || event.metaKey });
+        });
+        btn.addEventListener('contextmenu', event => showIconContextMenu(event, btn));
+        wireLongPress(btn, event => showIconContextMenu(event, btn));
+        wireDraggableIcon(btn);
+        if (typeof wireDesktopFileIconDrag === 'function') wireDesktopFileIconDrag(btn);
+    }
+
+    function reconcileDesktopIcons(items, positions) {
+        const icons = $('vd-icons');
+        const seenIconIds = new Set();
+        items.forEach((item, index) => {
+            seenIconIds.add(item.id);
+            const pos = positions[item.id] || defaultIconPosition(index);
+            let btn = icons.querySelector(`.vd-icon[data-id="${cssSel(item.id)}"]`);
+            if (!btn) {
+                btn = document.createElement('button');
+                icons.insertBefore(btn, icons.children[index] || null);
+                updateDesktopIconButton(btn, item, pos);
+                bindDesktopIconButton(btn);
+            } else {
+                if (btn !== icons.children[index]) icons.insertBefore(btn, icons.children[index] || null);
+                updateDesktopIconButton(btn, item, pos);
+            }
+        });
+        icons.querySelectorAll('.vd-icon[data-id]').forEach(btn => {
+            if (!seenIconIds.has(btn.dataset.id)) btn.remove();
         });
     }
 
