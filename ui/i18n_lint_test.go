@@ -163,6 +163,7 @@ func TestFrontend_JS_NoNewLiteralTranslationFallbacks(t *testing.T) {
 		"js/knowledge/main.js":              1,
 		"js/knowledge/todos.js":             2,
 		"js/setup/main.js":                  8,
+		"js/shared/shared-core.js":          13,
 		"js/skills/main.js":                 140,
 	}
 	scanRoots := []string{"js", "cfg"}

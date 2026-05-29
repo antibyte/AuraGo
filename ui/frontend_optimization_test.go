@@ -87,6 +87,78 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 	}
 }
 
+func TestSharedMonolithIsSplitForChatAndDesktop(t *testing.T) {
+	t.Parallel()
+
+	core := readEmbeddedText(t, "js/shared/shared-core.js")
+	chat := readEmbeddedText(t, "js/shared/shared-chat.js")
+
+	for _, want := range []string{
+		"function t(k, p)",
+		"function showModal(title, message, isConfirm = false, options = {})",
+		"window.AuraAuth = window.AuraAuth || {};",
+		"window.AuraSSE = (function ()",
+		"function initShared()",
+		"if (typeof initTheme === 'function')",
+		"if (typeof ensure8BitChatThemeOption === 'function')",
+		"if (typeof initThemeToggle === 'function')",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("shared core missing marker %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"const CHAT_THEME_DEFINITIONS",
+		"window.AuraChatThemes",
+		"function setChatTheme(theme)",
+		"function ensure8BitChatThemeOption()",
+	} {
+		if strings.Contains(core, forbidden) {
+			t.Fatalf("shared core must not contain chat-only marker %q", forbidden)
+		}
+	}
+	for _, want := range []string{
+		"const CHAT_THEME_DEFINITIONS",
+		"window.AuraChatThemes = CHAT_THEME_DEFINITIONS",
+		"function setChatTheme(theme)",
+		"function ensure8BitChatThemeOption()",
+		"function initThemeToggle()",
+	} {
+		if !strings.Contains(chat, want) {
+			t.Fatalf("shared chat extension missing marker %q", want)
+		}
+	}
+
+	chatHTML := readEmbeddedText(t, "index.html")
+	for _, want := range []string{
+		`/js/shared/shared-core.js?v={{.BuildVersion}}`,
+		`/js/shared/shared-chat.js?v={{.BuildVersion}}`,
+	} {
+		if !strings.Contains(chatHTML, want) {
+			t.Fatalf("chat page missing split shared asset %q", want)
+		}
+	}
+	if strings.Contains(chatHTML, `/shared.js`) {
+		t.Fatal("chat page must not load the shared.js monolith after the split")
+	}
+	if strings.Index(chatHTML, `/js/shared/shared-core.js`) > strings.Index(chatHTML, `/js/shared/shared-chat.js`) {
+		t.Fatal("chat page must load shared core before shared chat extension")
+	}
+
+	desktopHTML := readEmbeddedText(t, "desktop.html")
+	if !strings.Contains(desktopHTML, `/js/shared/shared-core.js?v={{.BuildVersion}}`) {
+		t.Fatal("desktop page must load shared core")
+	}
+	for _, forbidden := range []string{
+		`/shared.js`,
+		`/js/shared/shared-chat.js`,
+	} {
+		if strings.Contains(desktopHTML, forbidden) {
+			t.Fatalf("desktop page must not load chat-heavy shared asset %q", forbidden)
+		}
+	}
+}
+
 func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	t.Parallel()
 
