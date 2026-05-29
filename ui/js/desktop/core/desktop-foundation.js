@@ -977,7 +977,9 @@
             }
             drag = null;
         }
-        btn.addEventListener('dragstart', event => event.preventDefault());
+        btn.addEventListener('dragstart', event => {
+            if (btn.dataset.desktopEntry !== 'true') event.preventDefault();
+        });
         btn.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             const touchDrag = isTouchLikePointer(event);

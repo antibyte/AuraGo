@@ -22,6 +22,30 @@ func TestDesktopFileOpsExposeWindowDropHelpers(t *testing.T) {
 	}
 }
 
+func TestDesktopFileEntriesKeepNativeDragForWindowDrops(t *testing.T) {
+	t.Parallel()
+
+	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	fileDrops := rawDesktopAssetText(t, "js/desktop/core/desktop-file-drops.js")
+	for _, marker := range []string{
+		"wireDraggableIcon(btn);",
+		"wireDesktopFileIconDrag(btn)",
+		"if (btn.dataset.desktopEntry !== 'true') event.preventDefault();",
+	} {
+		if !strings.Contains(foundation, marker) {
+			t.Fatalf("desktop icon runtime must preserve native drag for desktop file entries; missing %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"btn.draggable = true;",
+		"event.dataTransfer.setData(DESKTOP_FILE_DRAG_TYPE",
+	} {
+		if !strings.Contains(fileDrops, marker) {
+			t.Fatalf("desktop file drag runtime missing native drag payload marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopWindowDropCapabilityMapIsCentralized(t *testing.T) {
 	t.Parallel()
 

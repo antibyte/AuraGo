@@ -41,7 +41,7 @@ func TestDesktopStoreAppLogosNormalizeSizeAndDisableNativeDrag(t *testing.T) {
 		`draggable="false"`,
 		`data-vd-logo-img="true"`,
 		`ondragstart="return false"`,
-		`btn.addEventListener('dragstart', event => event.preventDefault());`,
+		`if (btn.dataset.desktopEntry !== 'true') event.preventDefault();`,
 	} {
 		if !strings.Contains(foundation, want) {
 			t.Fatalf("desktop store app logo drag safety missing marker %q", want)
