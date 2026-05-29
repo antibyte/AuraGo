@@ -3,6 +3,9 @@
 window.PERSONA_ASSET_VERSION = '20260502-persona-refresh';
 
 function personaIconUrl(key) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.personaIconUrl === 'function') {
+        return window.AuraChatCore.personaIconUrl(key);
+    }
     if (key === 'user') {
         return `/img/persona-icons/user.png?v=${window.PERSONA_ASSET_VERSION}`;
     }

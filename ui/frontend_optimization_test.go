@@ -49,6 +49,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 	core := readEmbeddedText(t, "js/shared/chat-core.js")
 	for _, want := range []string{
 		"window.AuraChatCore",
+		"personaIconUrl(key)",
 		"escapeHtml(value)",
 		"escapeAttr(value)",
 		"isSafeHref(url, allowRelative = true)",
@@ -239,6 +240,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 
 	chatJS := readEmbeddedText(t, "js/chat/chat-messages.js")
 	for _, want := range []string{
+		"window.AuraChatCore.personaIconUrl(key)",
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
 		"window.AuraChatCore.replaceRedactedMarkers(html, label)",

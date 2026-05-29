@@ -3,6 +3,14 @@
 
     const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;
 
+    function personaIconUrl(key) {
+        const version = window.PERSONA_ASSET_VERSION || '20260502-persona-refresh';
+        if (key === 'user') {
+            return `/img/persona-icons/user.png?v=${version}`;
+        }
+        return `/img/persona-icons/${key}.png?v=${version}`;
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, '&amp;')
@@ -401,6 +409,7 @@
     }
 
     window.AuraChatCore = {
+        personaIconUrl,
         escapeHtml,
         escapeAttr,
         isSafeHref,
