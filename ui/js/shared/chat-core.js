@@ -60,6 +60,23 @@
             .trim();
     }
 
+    function prepareMarkdownContent(text) {
+        const contentStripped = String(text || '').replace(
+            /<external_data>([\s\S]*?)<\/external_data>/gi,
+            (_match, inner) => inner.trim()
+        );
+        const thinkingBlocks = [];
+        const contentForRender = contentStripped.replace(
+            /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
+            (_match, _tag, inner) => {
+                const idx = thinkingBlocks.length;
+                thinkingBlocks.push(inner.trim());
+                return `\n\n%%THINKING_BLOCK_${idx}%%\n\n`;
+            }
+        );
+        return { contentForRender, thinkingBlocks };
+    }
+
     function normalizeTimestamp(timestamp) {
         const date = timestamp ? new Date(timestamp) : new Date();
         return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -90,6 +107,7 @@
         escapeAttr,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
+        prepareMarkdownContent,
         normalizeTimestamp,
         formatTimestamp,
         createMarkdownRenderer

@@ -53,6 +53,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"escapeAttr(value)",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
+		"prepareMarkdownContent(text)",
 		"normalizeTimestamp(timestamp)",
 		"formatTimestamp(timestamp)",
 		"createMarkdownRenderer(options)",
@@ -223,6 +224,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
+		"window.AuraChatCore.prepareMarkdownContent(displayContent)",
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",
 		"window.AuraChatCore.formatTimestamp(timestamp)",
 		"window.AuraChatCore.escapeHtml(str)",
@@ -238,6 +240,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
+		"window.AuraChatCore.prepareMarkdownContent(displayContent)",
 		"window.AuraChatCore.escapeHtml(str)",
 		"window.AuraChatCore.escapeAttr(s)",
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",

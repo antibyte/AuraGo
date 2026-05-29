@@ -159,24 +159,26 @@ function appendMessage(role, text, timestamp) {
                         : window.markdownit({ html: false, breaks: true, linkify: true }));
                 if (!md) throw new Error('Markdown renderer unavailable');
 
-                // Strip <external_data> wrapper tags — keep their inner content.
-                // These are security wrappers the LLM occasionally mixes into its own output.
-                const contentStripped = displayContent.replace(
-                    /<external_data>([\s\S]*?)<\/external_data>/gi,
-                    (match, inner) => inner.trim()
-                );
-
-                // Extract <thinking>/<think> blocks and replace with block-level placeholders
-                // so markdown-it doesn't wrap them in <p> tags.
-                const thinkingBlocks = [];
-                const contentForRender = contentStripped.replace(
-                    /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
-                    (match, _tag, inner) => {
-                        const idx = thinkingBlocks.length;
-                        thinkingBlocks.push(inner.trim());
-                        return `\n\n%%THINKING_BLOCK_${idx}%%\n\n`;
-                    }
-                );
+                const prepared = (window.AuraChatCore && typeof window.AuraChatCore.prepareMarkdownContent === 'function')
+                    ? window.AuraChatCore.prepareMarkdownContent(displayContent)
+                    : (function () {
+                        const contentStripped = displayContent.replace(
+                            /<external_data>([\s\S]*?)<\/external_data>/gi,
+                            (_match, inner) => inner.trim()
+                        );
+                        const thinkingBlocks = [];
+                        const contentForRender = contentStripped.replace(
+                            /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
+                            (_match, _tag, inner) => {
+                                const idx = thinkingBlocks.length;
+                                thinkingBlocks.push(inner.trim());
+                                return `\n\n%%THINKING_BLOCK_${idx}%%\n\n`;
+                            }
+                        );
+                        return { contentForRender, thinkingBlocks };
+                    })();
+                const contentForRender = prepared.contentForRender;
+                const thinkingBlocks = prepared.thinkingBlocks;
 
                 finalHTML = md.render(contentForRender);
 
