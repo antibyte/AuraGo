@@ -855,6 +855,9 @@ window.decorateEmojiGlyphs = decorateEmojiGlyphs;
 
 /** Returns image icon markup for common document formats. */
 function docFormatIcon(fmt) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.docFormatIcon === 'function') {
+        return window.AuraChatCore.docFormatIcon(fmt);
+    }
     const markup = window.chatUiIconMarkup || (() => '');
     switch ((fmt || '').toLowerCase()) {
         case 'pdf': return markup('pdf');

@@ -86,6 +86,24 @@
         return 'video/mp4';
     }
 
+    function docFormatIcon(fmt) {
+        const markup = window.chatUiIconMarkup || (() => '');
+        switch ((fmt || '').toLowerCase()) {
+            case 'pdf': return markup('pdf');
+            case 'docx': case 'doc': return markup('edit-document');
+            case 'xlsx': case 'xls': return markup('spreadsheet');
+            case 'pptx': case 'ppt': return markup('presentation');
+            case 'csv': return markup('csv');
+            case 'md': return markup('markdown');
+            case 'txt': return markup('text-file');
+            case 'json': return markup('json');
+            case 'xml': return markup('xml');
+            case 'html': case 'htm': return markup('web');
+            case 'stl': return markup('theme-threedee') || markup('attach');
+            default: return markup('attach');
+        }
+    }
+
     function parseYouTubeTimeValue(raw) {
         const value = String(raw || '').trim().toLowerCase();
         if (!value) return 0;
@@ -348,6 +366,7 @@
         isVideoHref,
         filenameFromPath,
         videoMimeTypeForPath,
+        docFormatIcon,
         parseYouTubeTimeValue,
         parseYouTubeVideoLink,
         youtubePlayerDedupKey,
