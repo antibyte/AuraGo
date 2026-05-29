@@ -133,9 +133,11 @@ function appendMessage(role, text, timestamp) {
 
     // Remove markdown images already shown live via SSE 'image' event
     if (!isTechnical && seenSSEImages.size > 0) {
-        displayContent = displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
-            seenSSEImages.has(url) ? '' : match
-        ).trim();
+        displayContent = (window.AuraChatCore && typeof window.AuraChatCore.removeSeenMarkdownImages === 'function')
+            ? window.AuraChatCore.removeSeenMarkdownImages(displayContent, seenSSEImages)
+            : displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
+                seenSSEImages.has(url) ? '' : match
+            ).trim();
         if (!displayContent) return; // nothing left to show
     }
 

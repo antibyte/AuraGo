@@ -97,6 +97,15 @@
         return output;
     }
 
+    function removeSeenMarkdownImages(text, seenImages) {
+        if (!seenImages || typeof seenImages.has !== 'function' || !seenImages.size) {
+            return String(text || '');
+        }
+        return String(text || '').replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
+            seenImages.has(url) ? '' : match
+        ).trim();
+    }
+
     function normalizeTimestamp(timestamp) {
         const date = timestamp ? new Date(timestamp) : new Date();
         return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -130,6 +139,7 @@
         prepareMarkdownContent,
         applyMarkdownLinkTargets,
         replaceThinkingPlaceholders,
+        removeSeenMarkdownImages,
         normalizeTimestamp,
         formatTimestamp,
         createMarkdownRenderer

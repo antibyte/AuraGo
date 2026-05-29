@@ -223,9 +223,11 @@
             displayContent = strippedContent.trim();
             if (!displayContent) return '';
             if (this.seenSSEImages.size > 0) {
-                displayContent = displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
-                    this.seenSSEImages.has(url) ? '' : match
-                ).trim();
+                displayContent = (window.AuraChatCore && typeof window.AuraChatCore.removeSeenMarkdownImages === 'function')
+                    ? window.AuraChatCore.removeSeenMarkdownImages(displayContent, this.seenSSEImages)
+                    : displayContent.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) =>
+                        this.seenSSEImages.has(url) ? '' : match
+                    ).trim();
                 if (!displayContent) return '';
             }
             const prepared = (window.AuraChatCore && typeof window.AuraChatCore.prepareMarkdownContent === 'function')
