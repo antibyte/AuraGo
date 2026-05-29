@@ -33,6 +33,24 @@
         }
     }
 
+    function sanitizeRenderedHTML(html) {
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        template.content.querySelectorAll('*').forEach((node) => {
+            Array.from(node.attributes).forEach((attr) => {
+                const name = attr.name.toLowerCase();
+                if (name.startsWith('on')) {
+                    node.removeAttribute(attr.name);
+                    return;
+                }
+                if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
+                    node.removeAttribute(attr.name);
+                }
+            });
+        });
+        return template.innerHTML;
+    }
+
     function isVideoHref(url) {
         if (!url || typeof url !== 'string') return false;
         const trimmed = url.trim();
@@ -275,6 +293,7 @@
         escapeHtml,
         escapeAttr,
         isSafeHref,
+        sanitizeRenderedHTML,
         isVideoHref,
         filenameFromPath,
         videoMimeTypeForPath,

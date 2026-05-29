@@ -381,6 +381,9 @@ function isSafeHref(url, allowRelative = true) {
 }
 
 function sanitizeRenderedHTML(html) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.sanitizeRenderedHTML === 'function') {
+        return window.AuraChatCore.sanitizeRenderedHTML(html);
+    }
     const template = document.createElement('template');
     template.innerHTML = html;
     template.content.querySelectorAll('*').forEach((node) => {
