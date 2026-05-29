@@ -462,6 +462,20 @@ let seenSSEDocuments = new Set();
 let seenSSESTLs = new Set();
 let currentPlanState = null;
 
+function resetSSEDedupSets() {
+    [
+        seenSSEImages,
+        seenSSEAudios,
+        seenSSEVideos,
+        seenSSELiveStreams,
+        seenSSEYouTubeVideos,
+        seenSSEDocuments,
+        seenSSESTLs
+    ].forEach(set => {
+        if (set && typeof set.clear === 'function') set.clear();
+    });
+}
+
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
 const _storedDebug = localStorage.getItem('aurago-debug');
@@ -1169,12 +1183,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
 
         appendMessage('assistant', assistantMessage.content);
         _httpResponseRendered = true;
-        seenSSEImages.clear(); // reset after final response is rendered
-        seenSSEAudios.clear();
-        seenSSEVideos.clear();
-        seenSSEYouTubeVideos.clear();
-        seenSSEDocuments.clear();
-        seenSSESTLs.clear();
+        resetSSEDedupSets(); // reset after final response is rendered
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth
         if (conversation.length > 200) { conversation = conversation.slice(-200); }

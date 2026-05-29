@@ -4136,6 +4136,20 @@ let seenSSEDocuments = new Set();
 let seenSSESTLs = new Set();
 let currentPlanState = null;
 
+function resetSSEDedupSets() {
+    [
+        seenSSEImages,
+        seenSSEAudios,
+        seenSSEVideos,
+        seenSSELiveStreams,
+        seenSSEYouTubeVideos,
+        seenSSEDocuments,
+        seenSSESTLs
+    ].forEach(set => {
+        if (set && typeof set.clear === 'function') set.clear();
+    });
+}
+
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
 const _storedDebug = localStorage.getItem('aurago-debug');
@@ -4843,12 +4857,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
 
         appendMessage('assistant', assistantMessage.content);
         _httpResponseRendered = true;
-        seenSSEImages.clear(); // reset after final response is rendered
-        seenSSEAudios.clear();
-        seenSSEVideos.clear();
-        seenSSEYouTubeVideos.clear();
-        seenSSEDocuments.clear();
-        seenSSESTLs.clear();
+        resetSSEDedupSets(); // reset after final response is rendered
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth
         if (conversation.length > 200) { conversation = conversation.slice(-200); }
@@ -7417,6 +7426,46 @@ function connectSSE() {
     let _thinkingContent = '';
     let _thinkingDiv = null;
     let _inThinkingBlock = false;
+    let _streamingFlushFrame = 0;
+    let _streamingNeedsFinalDecoration = false;
+
+    function streamingBubble() {
+        return _streamingRow ? _streamingRow.querySelector('.bubble') : null;
+    }
+
+    function renderStreamingBubble() {
+        const bubble = streamingBubble();
+        if (!bubble || _inThinkingBlock) return;
+        if (_thinkingContent) {
+            const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
+            const detailsHtml = '\u003cdetails class="thinking-block"\u003e\u003csummary\u003e\ud83e\udde0 ' + label + '\u003c/summary\u003e\u003cdiv class="thinking-content"\u003e' + escapeHtml(_thinkingContent) + '\u003c/div\u003e\u003c/details\u003e';
+            bubble.innerHTML = detailsHtml + '\n\n' + escapeHtml(_streamingContent);
+        } else {
+            bubble.textContent = _streamingContent;
+        }
+    }
+
+    function flushStreamingBubble() {
+        _streamingFlushFrame = 0;
+        renderStreamingBubble();
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function queueStreamingBubbleFlush() {
+        if (_streamingFlushFrame) return;
+        const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+        _streamingFlushFrame = schedule(flushStreamingBubble);
+    }
+
+    function flushStreamingBubbleNow() {
+        if (_streamingFlushFrame) {
+            const cancel = window.cancelAnimationFrame || window.clearTimeout;
+            cancel(_streamingFlushFrame);
+            _streamingFlushFrame = 0;
+        }
+        flushStreamingBubble();
+    }
+
     window.AuraSSE.on('llm_stream_delta', function (payload) {
         if (!isCurrentSession(payload)) return;
         if (!payload || !payload.content) return;
@@ -7442,28 +7491,23 @@ function connectSSE() {
             if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(_streamingRow, 'bot');
         }
         _streamingContent += payload.content;
-        const bubble = _streamingRow.querySelector('.bubble');
-        if (!bubble) return;
-        if (_inThinkingBlock) {
-        } else if (_thinkingContent) {
-            const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
-            const detailsHtml = '\u003cdetails class="thinking-block"\u003e\u003csummary\u003e\ud83e\udde0 ' + label + '\u003c/summary\u003e\u003cdiv class="thinking-content"\u003e' + escapeHtml(_thinkingContent) + '\u003c/div\u003e\u003c/details\u003e';
-            bubble.innerHTML = detailsHtml + '\n\n' + escapeHtml(_streamingContent);
-        } else {
-            bubble.textContent = _streamingContent;
-        }
-        if (window.decorateEmojiGlyphs) {
-            window.decorateEmojiGlyphs(bubble);
-        }
-        chatBox.scrollTop = chatBox.scrollHeight;
+        _streamingNeedsFinalDecoration = true;
+        queueStreamingBubbleFlush();
     });
     window.AuraSSE.on('llm_stream_done', function (payload) {
         if (!isCurrentSession(payload)) return;
+        flushStreamingBubbleNow();
+        const bubble = streamingBubble();
+        if (_streamingNeedsFinalDecoration && bubble && window.decorateEmojiGlyphs) {
+            window.decorateEmojiGlyphs(bubble);
+        }
+        resetSSEDedupSets();
         _streamingRow = null;
         _streamingContent = '';
         _thinkingContent = '';
         _thinkingDiv = null;
         _inThinkingBlock = false;
+        _streamingNeedsFinalDecoration = false;
     });
     window.AuraSSE.on('thinking_block', function (payload) {
         if (!isCurrentSession(payload)) return;
@@ -7479,6 +7523,7 @@ function connectSSE() {
         const bubble = _streamingRow.querySelector('.bubble');
         if (!bubble) return;
         if (payload.state === 'start') {
+            flushStreamingBubbleNow();
             _inThinkingBlock = true;
             _thinkingContent = '';
             const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
@@ -7746,6 +7791,7 @@ function handleSSEMessage(e) {
             setStatusToolIcon(null);
             stopBtn.disabled = true;
             hideTodoPanel();
+            resetSSEDedupSets();
             if (!_httpResponseRendered) {
                 setTimeout(() => {
                     if (!_httpResponseRendered) {

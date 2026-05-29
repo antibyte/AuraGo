@@ -89,12 +89,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
 
         appendMessage('assistant', assistantMessage.content);
         _httpResponseRendered = true;
-        seenSSEImages.clear(); // reset after final response is rendered
-        seenSSEAudios.clear();
-        seenSSEVideos.clear();
-        seenSSEYouTubeVideos.clear();
-        seenSSEDocuments.clear();
-        seenSSESTLs.clear();
+        resetSSEDedupSets(); // reset after final response is rendered
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth
         if (conversation.length > 200) { conversation = conversation.slice(-200); }

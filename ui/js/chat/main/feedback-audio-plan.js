@@ -18,6 +18,20 @@ let seenSSEDocuments = new Set();
 let seenSSESTLs = new Set();
 let currentPlanState = null;
 
+function resetSSEDedupSets() {
+    [
+        seenSSEImages,
+        seenSSEAudios,
+        seenSSEVideos,
+        seenSSELiveStreams,
+        seenSSEYouTubeVideos,
+        seenSSEDocuments,
+        seenSSESTLs
+    ].forEach(set => {
+        if (set && typeof set.clear === 'function') set.clear();
+    });
+}
+
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
 const _storedDebug = localStorage.getItem('aurago-debug');
