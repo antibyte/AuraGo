@@ -669,9 +669,7 @@
         });
     }
 
-    function renderStandardTaskbar() {
-        reconcileStandardTaskbar();
-    }
+    function renderStandardTaskbar() { reconcileStandardTaskbar(); }
 
     function ensureFruityDockShell(host) {
         let track = host && host.querySelector('[data-fruity-dock-track]');
@@ -690,19 +688,13 @@
             ${iconMarkup('arrow-right', '>', 'vd-dock-scroll-icon', 18)}
         </button>`;
         const orb = host.querySelector('[data-fruity-dock-orb]');
-        if (orb) {
-            orb.addEventListener('click', event => {
-                event.stopPropagation();
-                toggleStartMenu();
-            });
-        }
+        if (orb) orb.addEventListener('click', event => { event.stopPropagation(); toggleStartMenu(); });
         wireFruityDockScroll(host);
         return host.querySelector('[data-fruity-dock-track]');
     }
 
     function dockButtonHTML(app) {
-        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}
-                <span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>`;
+        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}<span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>`;
     }
 
     function updateDockButton(btn, app, index, runningWindows) {
