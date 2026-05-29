@@ -8385,44 +8385,76 @@ rfb.addEventListener('credentialsrequired', () => {
     let wsReconnectAttempts = 0;
     let wsReconnectDelay = 2000;
     let wsReconnectTimer = null;
+    let wsGeneration = 0;
     const MAX_WS_RETRIES = 10;
     const WS_MAX_DELAY = 30000;
+
+    function cleanupDesktopWS() {
+        if (typeof state.wsCleanup === 'function') {
+            try { state.wsCleanup(); } catch (_) {}
+            state.wsCleanup = null;
+        }
+        if (state.ws) {
+            try { state.ws.close(); } catch (_) {}
+            state.ws = null;
+        }
+    }
 
     function connectWS() {
         if (wsReconnectTimer) {
             clearTimeout(wsReconnectTimer);
             wsReconnectTimer = null;
         }
-        if (state.ws) {
-            try { state.ws.close(); } catch (_) {}
-        }
+        cleanupDesktopWS();
+        const generation = ++wsGeneration;
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(proto + '//' + location.host + '/api/desktop/ws');
         state.ws = ws;
-        ws.addEventListener('open', () => {
+
+        function staleSocket() {
+            if (generation !== wsGeneration || ws !== state.ws) return true;
+            return false;
+        }
+
+        function onOpen() {
+            if (generation !== wsGeneration || ws !== state.ws) return;
             wsReconnectAttempts = 0;
             wsReconnectDelay = 2000;
             setWSState(true);
-        });
-        ws.addEventListener('close', () => {
+        }
+
+        function onClose() {
+            if (staleSocket()) return;
             if (wsReconnectAttempts >= MAX_WS_RETRIES) {
                 setWSState(false, true);
                 return;
             }
             setWSState(false);
             wsReconnectTimer = setTimeout(() => {
+                if (staleSocket()) return;
                 wsReconnectAttempts++;
                 wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_DELAY);
                 connectWS();
             }, wsReconnectDelay);
-        });
-        ws.addEventListener('message', (event) => {
+        }
+
+        function onMessage(event) {
+            if (staleSocket()) return;
             let msg;
             try { msg = JSON.parse(event.data); } catch (_) { return; }
             try {
                 handleDesktopEvent(msg.type === 'welcome' ? { type: 'welcome', payload: msg.payload } : msg);
             } catch (_) {}
-        });
+        }
+
+        ws.addEventListener('open', onOpen);
+        ws.addEventListener('close', onClose);
+        ws.addEventListener('message', onMessage);
+        state.wsCleanup = () => {
+            ws.removeEventListener('open', onOpen);
+            ws.removeEventListener('close', onClose);
+            ws.removeEventListener('message', onMessage);
+        };
     }
 
     function setWSState(online, failed) {
