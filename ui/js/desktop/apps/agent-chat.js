@@ -1,5 +1,72 @@
+    const state = { chatBusy: false };
+    let desktopRuntime = {};
+
+    function useDesktopChatRuntime(context) {
+        if (context && context.__desktopRuntime) desktopRuntime = context.__desktopRuntime;
+        return desktopRuntime || {};
+    }
+
+    function agentChatContentEl(id) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.contentEl === 'function') return runtime.contentEl(id);
+        const windowId = String(id || '');
+        const windows = document.querySelectorAll('.vd-window[data-window-id]');
+        for (const win of windows) {
+            if (win && win.dataset && win.dataset.windowId === windowId) {
+                return win.querySelector('[data-window-content]');
+            }
+        }
+        return null;
+    }
+
+    function esc(value) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.esc === 'function') return runtime.esc(value);
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    function desktopText(key, fallback) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.desktopText === 'function') return runtime.desktopText(key, fallback);
+        const translated = typeof t === 'function' ? t(key) : key;
+        return translated && translated !== key ? translated : fallback;
+    }
+
+    function iconMarkup(key, fallback, className, size) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.iconMarkup === 'function') return runtime.iconMarkup(key, fallback, className, size);
+        return `<span class="${esc(className || '')}" aria-hidden="true">${esc(fallback || '')}</span>`;
+    }
+
+    async function api(url, options) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.api === 'function') return runtime.api(url, options);
+        const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
+        const resp = await fetch(url, requestOptions);
+        const contentType = resp.headers.get('content-type') || '';
+        const body = contentType.includes('application/json') ? await resp.json() : {};
+        if (!resp.ok) throw new Error(body.error || body.message || ('HTTP ' + resp.status));
+        return body;
+    }
+
+    async function loadBootstrap() {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.loadBootstrap === 'function') return runtime.loadBootstrap();
+        return null;
+    }
+
+    function showDesktopNotification(payload) {
+        const runtime = useDesktopChatRuntime();
+        if (runtime && typeof runtime.showDesktopNotification === 'function') {
+            return runtime.showDesktopNotification(payload);
+        }
+        return null;
+    }
+
     function renderChat(id, context) {
-        const host = contentEl(id);
+        useDesktopChatRuntime(context || {});
+        const host = agentChatContentEl(id);
+        if (!host) throw new Error('Desktop chat window content is not available');
         host.innerHTML = `<div class="vd-chat">
             <div class="vd-chat-toolbar">
                 <button class="vd-chat-clear-history" type="button" data-chat-clear-history title="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}" aria-label="${esc(desktopText('desktop.chat_clear_history', 'Clear history'))}">
@@ -475,7 +542,7 @@
     }
 
     function applyChatLaunchContext(id, context) {
-        const host = contentEl(id);
+        const host = agentChatContentEl(id);
         if (!host) return;
         const existing = chatAttachedFiles(host);
         const incoming = normalizeChatLaunchFiles(context || {});

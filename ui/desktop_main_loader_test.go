@@ -134,7 +134,8 @@ func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
 	for _, want := range []string{
 		"window.AgentChatApp",
 		"typeof window.AgentChatApp.render === 'function'",
-		"window.AgentChatApp.render(id, context || {})",
+		"window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime:",
+		"contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification",
 	} {
 		if !strings.Contains(router, want) {
 			t.Fatalf("desktop router missing agent chat renderer marker %q", want)
@@ -148,6 +149,12 @@ func TestDesktopAgentChatUsesRegisteredRenderer(t *testing.T) {
 		if !strings.Contains(agentChat, want) {
 			t.Fatalf("agent chat module missing exported renderer marker %q", want)
 		}
+	}
+	if strings.Contains(agentChat, "const host = contentEl(id)") {
+		t.Fatal("agent chat module is lazy-loaded outside the desktop runtime closure and must not depend on contentEl")
+	}
+	if !strings.Contains(agentChat, "agentChatContentEl(id)") {
+		t.Fatal("agent chat module must resolve its window content host independently")
 	}
 }
 
