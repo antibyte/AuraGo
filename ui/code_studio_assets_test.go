@@ -68,8 +68,10 @@ func TestJavaScriptLibraryAuditWiring(t *testing.T) {
 		}
 	}
 
+	sharedCoreJS := readEmbeddedText(t, "js/shared/chat-core.js")
 	desktopChatJS := readEmbeddedText(t, "js/desktop/chat-renderer.js")
-	if !strings.Contains(desktopChatJS, "window.AuraMarkdown") {
+	if !strings.Contains(sharedCoreJS, "window.AuraMarkdown") ||
+		!strings.Contains(desktopChatJS, "window.AuraChatCore.createMarkdownRenderer()") {
 		t.Fatal("desktop chat renderer does not use the shared Markdown renderer")
 	}
 }
