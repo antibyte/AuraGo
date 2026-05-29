@@ -414,6 +414,9 @@ function isVideoHref(url) {
 }
 
 function videoMimeTypeForPath(path) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.videoMimeTypeForPath === 'function') {
+        return window.AuraChatCore.videoMimeTypeForPath(path);
+    }
     const lower = String(path || '').split('?')[0].toLowerCase();
     if (lower.endsWith('.webm')) return 'video/webm';
     if (lower.endsWith('.ogv') || lower.endsWith('.ogg')) return 'video/ogg';

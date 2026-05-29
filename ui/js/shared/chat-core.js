@@ -45,6 +45,14 @@
         }
     }
 
+    function videoMimeTypeForPath(path) {
+        const lower = String(path || '').split('?')[0].toLowerCase();
+        if (lower.endsWith('.webm')) return 'video/webm';
+        if (lower.endsWith('.ogv') || lower.endsWith('.ogg')) return 'video/ogg';
+        if (lower.endsWith('.mov')) return 'video/quicktime';
+        return 'video/mp4';
+    }
+
     function containsLeakedToolMarkup(text) {
         if (!text || typeof text !== 'string') return false;
         return [
@@ -176,6 +184,7 @@
         escapeAttr,
         isSafeHref,
         filenameFromPath,
+        videoMimeTypeForPath,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareDisplayContent,

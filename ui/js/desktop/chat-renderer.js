@@ -372,11 +372,16 @@
             this.seenSSEVideos.add(videoData.path);
             const bubble = this.createBubble('agent', '');
             const video = document.createElement('video');
-            video.src = videoData.path;
             video.controls = true;
             video.style.maxWidth = '100%';
             video.style.borderRadius = '8px';
             if (videoData.title) video.title = videoData.title;
+            const source = document.createElement('source');
+            source.src = videoData.path;
+            source.type = String(videoData.mime_type || ((window.AuraChatCore && typeof window.AuraChatCore.videoMimeTypeForPath === 'function')
+                ? window.AuraChatCore.videoMimeTypeForPath(videoData.path)
+                : 'video/mp4'));
+            video.appendChild(source);
             bubble.appendChild(video);
             chatLog.appendChild(bubble);
             const stamp = this.appendTimestamp(chatLog, 'agent');
