@@ -730,6 +730,62 @@ func TestServiceCreateMoveAndDeletePath(t *testing.T) {
 	}
 }
 
+func TestServiceMovePathCanReplaceDanglingSymlinkDestination(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFile(ctx, "Documents/The Last Lantern Keeper.md", "story", SourceUser); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	link := filepath.Join(svc.Config().WorkspaceDir, "Desktop", "The Last Lantern Keeper.md")
+	if err := os.Symlink(filepath.Join(svc.Config().WorkspaceDir, "Desktop", "missing.md"), link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := svc.MovePath(ctx, "Documents/The Last Lantern Keeper.md", "Desktop/The Last Lantern Keeper.md", SourceUser); err != nil {
+		t.Fatalf("MovePath should replace dangling destination symlink entry: %v", err)
+	}
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatalf("destination after move: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("destination should be the moved file, not the stale symlink")
+	}
+	data, _, err := svc.ReadFile(ctx, "Desktop/The Last Lantern Keeper.md")
+	if err != nil {
+		t.Fatalf("ReadFile moved file: %v", err)
+	}
+	if string(data) != "story" {
+		t.Fatalf("moved file content = %q, want story", string(data))
+	}
+}
+
+func TestServiceMovePathCanMoveDanglingSymlinkEntryItself(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	src := filepath.Join(svc.Config().WorkspaceDir, "Desktop", "Broken Link.md")
+	if err := os.Symlink(filepath.Join(svc.Config().WorkspaceDir, "Desktop", "missing.md"), src); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := svc.MovePath(ctx, "Desktop/Broken Link.md", "Documents/Broken Link.md", SourceUser); err != nil {
+		t.Fatalf("MovePath should move dangling symlink entries without following them: %v", err)
+	}
+	dst := filepath.Join(svc.Config().WorkspaceDir, "Documents", "Broken Link.md")
+	info, err := os.Lstat(dst)
+	if err != nil {
+		t.Fatalf("destination link after move: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("moved entry should remain a symlink")
+	}
+	if _, err := os.Lstat(src); !os.IsNotExist(err) {
+		t.Fatalf("source link still exists or unexpected error: %v", err)
+	}
+}
+
 func TestServiceRejectsDeletingWorkspaceRoot(t *testing.T) {
 	t.Parallel()
 

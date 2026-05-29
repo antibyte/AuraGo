@@ -595,6 +595,36 @@ func (s *Service) ResolvePath(rawPath string) (string, error) {
 	return candidateAbs, nil
 }
 
+func (s *Service) resolveRenamePath(rawPath string) (string, error) {
+	cfg := s.Config()
+	cleaned := cleanDesktopPath(rawPath)
+	var candidate string
+	if filepath.IsAbs(cleaned) {
+		candidate = filepath.Clean(cleaned)
+	} else {
+		candidate = filepath.Join(cfg.WorkspaceDir, cleaned)
+	}
+	candidateAbs, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve desktop path: %w", err)
+	}
+	rootAbs, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve desktop root: %w", err)
+	}
+	if !isWithinPath(rootAbs, candidateAbs) {
+		return "", fmt.Errorf("desktop path escapes workspace")
+	}
+	parentAbs := filepath.Dir(candidateAbs)
+	if candidateAbs == rootAbs {
+		parentAbs = rootAbs
+	}
+	if err := validatePathComponentsWithinRoot(rootAbs, parentAbs, "workspace"); err != nil {
+		return "", err
+	}
+	return candidateAbs, nil
+}
+
 func cleanDesktopPath(rawPath string) string {
 	p := strings.TrimSpace(rawPath)
 	if p == "" || p == "/" || p == `\` {

@@ -570,11 +570,11 @@ func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string)
 	} else if toOK {
 		return fmt.Errorf("desktop workspace paths cannot move into media mounts")
 	}
-	from, err := s.ResolvePath(oldPath)
+	from, err := s.resolveRenamePath(oldPath)
 	if err != nil {
 		return err
 	}
-	to, err := s.ResolvePath(newPath)
+	to, err := s.resolveRenamePath(newPath)
 	if err != nil {
 		return err
 	}
@@ -809,7 +809,7 @@ func (s *Service) SearchFiles(ctx context.Context, rawPath, query string) ([]Fil
 		if info.IsDir() {
 			itemType = "directory"
 		}
-		
+
 		result = append(result, FileEntry{
 			Name:      name,
 			Path:      s.relativePath(path),
@@ -821,7 +821,7 @@ func (s *Service) SearchFiles(ctx context.Context, rawPath, query string) ([]Fil
 			Mode:      info.Mode().String(),
 			Created:   getCreationTime(info),
 		})
-		
+
 		if len(result) >= 1000 {
 			return filepath.SkipDir
 		}
@@ -833,7 +833,6 @@ func (s *Service) SearchFiles(ctx context.Context, rawPath, query string) ([]Fil
 	sortFileEntries(result)
 	return result, nil
 }
-
 // CreateSymlink creates a symbolic link at linkPath pointing to targetPath.
 func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string) error {
 	if err := s.ensureReady(ctx); err != nil {
@@ -897,5 +896,3 @@ func (s *Service) GetDirectorySize(ctx context.Context, rawPath string) (int64, 
 	})
 	return totalSize, err
 }
-
-
