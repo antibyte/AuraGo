@@ -422,6 +422,9 @@ function videoMimeTypeForPath(path) {
 }
 
 function filenameFromPath(path) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.filenameFromPath === 'function') {
+        return window.AuraChatCore.filenameFromPath(path);
+    }
     try {
         const parsed = new URL(path, window.location.origin);
         const name = decodeURIComponent((parsed.pathname.split('/').pop() || '').trim());

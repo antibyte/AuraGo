@@ -33,6 +33,18 @@
         }
     }
 
+    function filenameFromPath(path, fallback = '') {
+        const fallbackName = String(fallback || '');
+        try {
+            const parsed = new URL(String(path || ''), window.location.origin);
+            const name = decodeURIComponent((parsed.pathname.split('/').pop() || '').trim());
+            return name || fallbackName;
+        } catch (_err) {
+            const clean = String(path || '').split('?')[0];
+            return clean.split('/').pop() || fallbackName;
+        }
+    }
+
     function containsLeakedToolMarkup(text) {
         if (!text || typeof text !== 'string') return false;
         return [
@@ -163,6 +175,7 @@
         escapeHtml,
         escapeAttr,
         isSafeHref,
+        filenameFromPath,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareDisplayContent,

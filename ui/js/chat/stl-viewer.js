@@ -54,6 +54,9 @@
     }
 
     function filenameFromPath(path) {
+        if (window.AuraChatCore && typeof window.AuraChatCore.filenameFromPath === 'function') {
+            return window.AuraChatCore.filenameFromPath(path, 'model.stl');
+        }
         try {
             const parsed = new URL(path, window.location.origin);
             return decodeURIComponent(parsed.pathname.split('/').pop() || '') || 'model.stl';

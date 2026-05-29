@@ -52,6 +52,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"escapeHtml(value)",
 		"escapeAttr(value)",
 		"isSafeHref(url, allowRelative = true)",
+		"filenameFromPath(path, fallback = '')",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
 		"prepareDisplayContent(text, isUser)",
@@ -239,6 +240,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"window.AuraChatCore.escapeHtml(str)",
 		"window.AuraChatCore.escapeAttr(s)",
 		"window.AuraChatCore.isSafeHref(url, allowRelative)",
+		"window.AuraChatCore.filenameFromPath(path)",
 		"window.AuraChatCore.createMarkdownRenderer({",
 	} {
 		if !strings.Contains(chatJS, want) {
@@ -265,6 +267,19 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	} {
 		if !strings.Contains(desktopChatJS, want) {
 			t.Fatalf("desktop chat renderer must delegate to AuraChatCore marker %q", want)
+		}
+	}
+}
+
+func TestChatMediaHelpersDelegateToSharedChatCore(t *testing.T) {
+	t.Parallel()
+
+	stlViewerJS := readEmbeddedText(t, "js/chat/stl-viewer.js")
+	for _, want := range []string{
+		"window.AuraChatCore.filenameFromPath(path, 'model.stl')",
+	} {
+		if !strings.Contains(stlViewerJS, want) {
+			t.Fatalf("stl viewer must delegate to AuraChatCore marker %q", want)
 		}
 	}
 }
