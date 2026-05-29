@@ -812,6 +812,9 @@ function renderYouTubeLinksAsPlayers(html) {
 const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;
 
 function decorateEmojiGlyphs(root) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.decorateEmojiGlyphs === 'function') {
+        return window.AuraChatCore.decorateEmojiGlyphs(root);
+    }
     if (!root || typeof document === 'undefined' || typeof document.createTreeWalker !== 'function') return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const textNodes = [];

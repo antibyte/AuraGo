@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    const emojiGlyphPattern = /(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)|[✓✔✕✖✗✘☑☒☐⚠⚡★☆]/gu;
+
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, '&amp;')
@@ -49,6 +51,46 @@
             });
         });
         return template.innerHTML;
+    }
+
+    function decorateEmojiGlyphs(root) {
+        if (!root || typeof document === 'undefined' || typeof document.createTreeWalker !== 'function') return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            const parent = node.parentElement;
+            if (!parent) continue;
+            if (parent.closest('code, pre, .hljs, .mermaid-raw, .tool-output-content')) continue;
+            emojiGlyphPattern.lastIndex = 0;
+            if (!emojiGlyphPattern.test(node.nodeValue || '')) continue;
+            textNodes.push(node);
+        }
+
+        textNodes.forEach((textNode) => {
+            const text = textNode.nodeValue || '';
+            emojiGlyphPattern.lastIndex = 0;
+            if (!emojiGlyphPattern.test(text)) return;
+            emojiGlyphPattern.lastIndex = 0;
+
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            let match;
+            while ((match = emojiGlyphPattern.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                }
+                const glyph = document.createElement('span');
+                glyph.className = 'chat-emoji-glyph';
+                glyph.textContent = match[0];
+                fragment.appendChild(glyph);
+                lastIndex = match.index + match[0].length;
+            }
+            if (lastIndex < text.length) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
+            textNode.parentNode.replaceChild(fragment, textNode);
+        });
     }
 
     function isVideoHref(url) {
@@ -364,6 +406,7 @@
         isSafeHref,
         sanitizeRenderedHTML,
         isVideoHref,
+        decorateEmojiGlyphs,
         filenameFromPath,
         videoMimeTypeForPath,
         docFormatIcon,
