@@ -2,8 +2,23 @@
     'use strict';
 
     const instances = new Map();
-    const MAX_HISTORY = 20;
+    const MAX_HISTORY = 5;
+    const canvasPool = [];
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'];
+
+    function acquireTempCanvas(width, height) {
+        const canvas = canvasPool.pop() || document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        return canvas;
+    }
+
+    function releaseTempCanvas(canvas) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (canvasPool.length < 4) canvasPool.push(canvas);
+    }
 
     function render(host, windowId, context) {
         if (!host) return;
@@ -325,14 +340,13 @@
 
         function applyAdjustmentsPreview() {
             if (!originalImage || !canvas.width) return;
-            const tmpCanvas = document.createElement('canvas');
-            tmpCanvas.width = imgWidth;
-            tmpCanvas.height = imgHeight;
+            const tmpCanvas = acquireTempCanvas(imgWidth, imgHeight);
             const tmpCtx = tmpCanvas.getContext('2d');
             tmpCtx.filter = buildFilterString();
             tmpCtx.drawImage(originalImage, 0, 0, imgWidth, imgHeight);
             cctx.clearRect(0, 0, canvas.width, canvas.height);
             cctx.drawImage(tmpCanvas, 0, 0);
+            releaseTempCanvas(tmpCanvas);
             applyCustomAdjustments(cctx);
         }
 
@@ -375,9 +389,7 @@
 
         function applyFilter(name) {
             if (!canvas.width) return;
-            const tmpCanvas = document.createElement('canvas');
-            tmpCanvas.width = imgWidth;
-            tmpCanvas.height = imgHeight;
+            const tmpCanvas = acquireTempCanvas(imgWidth, imgHeight);
             const tmpCtx = tmpCanvas.getContext('2d');
             const src = originalImage || canvas;
             switch (name) {
@@ -394,6 +406,7 @@
             tmpCtx.drawImage(src, 0, 0, imgWidth, imgHeight);
             cctx.clearRect(0, 0, canvas.width, canvas.height);
             cctx.drawImage(tmpCanvas, 0, 0);
+            releaseTempCanvas(tmpCanvas);
             if (name === 'vignette') applyVignette(cctx);
             if (name === 'emboss') applyEmboss(cctx);
             pushHistory();
@@ -438,10 +451,10 @@
 
         function rotateCanvas(deg) {
             if (!canvas.width) return;
-            const tmpCanvas = document.createElement('canvas');
+            const nextWidth = deg === 90 || deg === -90 ? canvas.height : canvas.width;
+            const nextHeight = deg === 90 || deg === -90 ? canvas.width : canvas.height;
+            const tmpCanvas = acquireTempCanvas(nextWidth, nextHeight);
             const tmpCtx = tmpCanvas.getContext('2d');
-            if (deg === 90 || deg === -90) { tmpCanvas.width = canvas.height; tmpCanvas.height = canvas.width; }
-            else { tmpCanvas.width = canvas.width; tmpCanvas.height = canvas.height; }
             tmpCtx.save();
             if (deg === 90) { tmpCtx.translate(tmpCanvas.width, 0); tmpCtx.rotate(Math.PI / 2); }
             else if (deg === -90) { tmpCtx.translate(0, tmpCanvas.height); tmpCtx.rotate(-Math.PI / 2); }
@@ -451,6 +464,7 @@
             canvas.width = tmpCanvas.width;
             canvas.height = tmpCanvas.height;
             cctx.drawImage(tmpCanvas, 0, 0);
+            releaseTempCanvas(tmpCanvas);
             imgWidth = canvas.width;
             imgHeight = canvas.height;
             originalImage = new Image();
@@ -461,9 +475,7 @@
 
         function flipCanvas(horizontal) {
             if (!canvas.width) return;
-            const tmpCanvas = document.createElement('canvas');
-            tmpCanvas.width = canvas.width;
-            tmpCanvas.height = canvas.height;
+            const tmpCanvas = acquireTempCanvas(canvas.width, canvas.height);
             const tmpCtx = tmpCanvas.getContext('2d');
             tmpCtx.save();
             if (horizontal) { tmpCtx.translate(canvas.width, 0); tmpCtx.scale(-1, 1); }
@@ -472,6 +484,7 @@
             tmpCtx.restore();
             cctx.clearRect(0, 0, canvas.width, canvas.height);
             cctx.drawImage(tmpCanvas, 0, 0);
+            releaseTempCanvas(tmpCanvas);
             pushHistory();
         }
 
@@ -548,13 +561,12 @@
                 const nw = parseInt(wInput.value) || imgWidth;
                 const nh = parseInt(hInput.value) || imgHeight;
                 if (nw < 1 || nh < 1) return;
-                const tmpCanvas = document.createElement('canvas');
-                tmpCanvas.width = nw;
-                tmpCanvas.height = nh;
+                const tmpCanvas = acquireTempCanvas(nw, nh);
                 tmpCanvas.getContext('2d').drawImage(canvas, 0, 0, nw, nh);
                 canvas.width = nw;
                 canvas.height = nh;
                 cctx.drawImage(tmpCanvas, 0, 0);
+                releaseTempCanvas(tmpCanvas);
                 imgWidth = nw;
                 imgHeight = nh;
                 pushHistory();

@@ -103,3 +103,23 @@ func TestGalaxaDeluxeCachesCanvasResources(t *testing.T) {
 		t.Fatal("galaxa deluxe must reuse the nebula canvas instead of allocating a new one per stage")
 	}
 }
+
+func TestPixelEditorUsesCanvasPoolAndBoundedHistory(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/pixel.js")
+	for _, marker := range []string{
+		"const MAX_HISTORY = 5",
+		"const canvasPool = []",
+		"function acquireTempCanvas(width, height)",
+		"function releaseTempCanvas(canvas)",
+		"releaseTempCanvas(tmpCanvas)",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("pixel editor runtime optimization missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "if (state.history.length > 20)") {
+		t.Fatal("pixel editor history must not keep 20 full ImageData snapshots")
+	}
+}
