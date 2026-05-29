@@ -814,6 +814,7 @@
   "desktop.fm.no_file_selected": "Ingen fil har valts",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "Öppna arkiv",
   "zipper.extract_here": "Extrahera här",
   "zipper.extract_to": "Extrahera till...",
   "zipper.add_files": "Lägg till filer",

@@ -1037,7 +1037,7 @@ if (appId === 'zipper') {
                 window.AuraDesktopModules.loadAppScript('zipper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.ZipperApp.render === 'function') return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
+            if (typeof window.ZipperApp.render === 'function') return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openFileDialog: options => openDesktopFileDialog(options || {}), openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
         }
 if (appId === 'pixel') {
             if (!window.PixelApp) {

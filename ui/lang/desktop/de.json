@@ -819,6 +819,7 @@
   "desktop.fm.no_file_selected": "Keine Datei ausgewählt",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "Archiv öffnen",
   "zipper.extract_here": "Hier extrahieren",
   "zipper.extract_to": "Extrahieren nach...",
   "zipper.add_files": "Dateien hinzufügen",

@@ -820,6 +820,7 @@
   "desktop.fm.no_file_selected": "No file selected",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "Open Archive",
   "zipper.extract_here": "Extract Here",
   "zipper.extract_to": "Extract To...",
   "zipper.add_files": "Add Files",

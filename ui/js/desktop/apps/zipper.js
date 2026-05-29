@@ -14,6 +14,7 @@
         const notify = ctx.notify || (() => {});
         const openApp = ctx.openApp || (() => {});
         const fileOps = ctx.fileOps || window.AuraDesktopFileOps || null;
+        const openFileDialog = ctx.openFileDialog || null;
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
 
         let zipPath = ctx.path || '';
@@ -26,6 +27,7 @@
 
         host.innerHTML = `<div class="zipper-app">
             <div class="vd-toolbar zipper-toolbar">
+                <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="open" title="${esc(t('zipper.open', 'Open Archive'))}">${iconMarkup('folder-open', 'Open', 'vd-tool-icon', 15)}</button>
                 <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-here" title="${esc(t('zipper.extract_here', 'Extract Here'))}">${iconMarkup('download', 'Extract', 'vd-tool-icon', 15)}</button>
                 <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="extract-to" title="${esc(t('zipper.extract_to', 'Extract To...'))}">${iconMarkup('folder', 'Extract To', 'vd-tool-icon', 15)}</button>
                 <button class="vd-tool-button vd-tool-button-icon" type="button" data-action="new-archive" title="${esc(t('zipper.new_archive', 'New Archive'))}">${iconMarkup('archive', 'New', 'vd-tool-icon', 15)}</button>
@@ -190,6 +192,14 @@
             setStatus((selected.size > 0 ? selected.size + ' selected  ·  ' : '') + msg);
         }
 
+        async function openFile() {
+            if (!openFileDialog) return;
+            const result = await openFileDialog({ filters: [{ name: 'ZIP Archives', extensions: ['zip'] }] });
+            if (result && !result.canceled && result.path) {
+                openZipPath(result.path);
+            }
+        }
+
         function openZipPath(newPath) {
             zipPath = newPath;
             currentDir = '';
@@ -287,6 +297,7 @@
             }
         }
 
+        host.querySelector('[data-action="open"]').addEventListener('click', () => openFile());
         host.querySelector('[data-action="extract-here"]').addEventListener('click', () => extractHere());
         host.querySelector('[data-action="extract-to"]').addEventListener('click', () => extractTo(''));
         host.querySelector('[data-action="new-archive"]').addEventListener('click', () => newArchive());
@@ -317,6 +328,7 @@
                     id: 'file',
                     labelKey: 'desktop.menu_file',
                     items: [
+                        { id: 'open', labelKey: 'zipper.open', icon: 'folder-open', shortcut: 'Ctrl+O', action: () => openFile() },
                         { id: 'extract-here', labelKey: 'zipper.extract_here', icon: 'download', action: () => extractHere() },
                         { id: 'extract-to', labelKey: 'zipper.extract_to', icon: 'folder', action: () => extractTo('') },
                         { type: 'separator' },
@@ -370,6 +382,14 @@
                 if (droppedZipPath) openZipPath(droppedZipPath);
             });
         }
+
+        function onKeyDown(e) {
+            if (e.target.closest('input, textarea, select')) return;
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'o') { e.preventDefault(); openFile(); }
+            }
+        }
+        host.addEventListener('keydown', onKeyDown);
     }
 
     function dispose(windowId) {

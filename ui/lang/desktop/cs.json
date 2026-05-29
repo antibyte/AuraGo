@@ -814,6 +814,7 @@
   "desktop.fm.no_file_selected": "Nebyly vybrány žádné soubory",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "Otevřít archiv",
   "zipper.extract_here": "Extrahovat zde",
   "zipper.extract_to": "Extrahovat do...",
   "zipper.add_files": "Přidat soubory",

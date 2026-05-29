@@ -814,6 +814,7 @@
   "desktop.fm.no_file_selected": "कोई फ़ाइल चुनी नहीं गई",
   "desktop.app_zipper": "ज़िपर",
   "zipper.title": "ज़िपर",
+  "zipper.open": "आर्काइव खोलें",
   "zipper.extract_here": "यहाँ निकालें",
   "zipper.extract_to": "इसमें निकालें...",
   "zipper.add_files": "फ़ाइलें जोड़ें",

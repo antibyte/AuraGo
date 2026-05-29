@@ -814,6 +814,7 @@
   "desktop.fm.no_file_selected": "未选择文件",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "打开压缩包",
   "zipper.extract_here": "解压到此处",
   "zipper.extract_to": "解压到...",
   "zipper.add_files": "添加文件",

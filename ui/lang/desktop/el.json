@@ -814,6 +814,7 @@
   "desktop.fm.no_file_selected": "Δεν έχει επιλεγεί αρχείο",
   "desktop.app_zipper": "Zipper",
   "zipper.title": "Zipper",
+  "zipper.open": "Άνοιγμα αρχείου",
   "zipper.extract_here": "Αποσυμπίεση εδώ",
   "zipper.extract_to": "Αποσυμπίεση σε...",
   "zipper.add_files": "Προσθήκη αρχείων",
