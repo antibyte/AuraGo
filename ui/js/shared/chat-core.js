@@ -53,6 +53,31 @@
         return 'video/mp4';
     }
 
+    function parseYouTubeTimeValue(raw) {
+        const value = String(raw || '').trim().toLowerCase();
+        if (!value) return 0;
+        if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
+        if (value.includes(':')) {
+            return value.split(':').reduce((total, part) => {
+                const n = parseInt(part, 10);
+                return Number.isFinite(n) ? (total * 60) + n : 0;
+            }, 0);
+        }
+        const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+        if (!match) return 0;
+        return ((parseInt(match[1] || '0', 10) || 0) * 3600)
+            + ((parseInt(match[2] || '0', 10) || 0) * 60)
+            + (parseInt(match[3] || '0', 10) || 0);
+    }
+
+    function youtubePlayerDedupKey(data) {
+        const id = data && data.video_id ? String(data.video_id) : '';
+        const rawStart = Number((data && data.start_seconds) || 0);
+        const start = Number.isFinite(rawStart) && rawStart > 0 ? Math.floor(rawStart) : 0;
+        const url = data && (data.url || data.embed_url || data.path) ? String(data.url || data.embed_url || data.path) : '';
+        return id ? `${id}:${start}` : `${url}:${start}`;
+    }
+
     function containsLeakedToolMarkup(text) {
         if (!text || typeof text !== 'string') return false;
         return [
@@ -185,6 +210,8 @@
         isSafeHref,
         filenameFromPath,
         videoMimeTypeForPath,
+        parseYouTubeTimeValue,
+        youtubePlayerDedupKey,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
         prepareDisplayContent,
