@@ -35,6 +35,7 @@ const chatMainParts = [
 const chatRuntimeParts = [
   'ui/js/shared/lazy-assets.js',
   'ui/js/shared/chat-core.js',
+  'ui/js/shared/chat-stream-parser.js',
   'ui/js/chat/theme-effects.js',
   'ui/js/chat/ui-icons.js',
   'ui/js/chat/audio-player.js',

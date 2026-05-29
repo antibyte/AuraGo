@@ -710,38 +710,6 @@
                         throw new Error(text || ('HTTP ' + response.status));
                     });
                 }
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                function processChunk() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            doFinalize();
-                            return;
-                        }
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.slice(6).trim();
-                                if (data === '[DONE]') {
-                                    doFinalize();
-                                    reader.cancel().catch(() => {});
-                                    return;
-                                }
-                                try {
-                                    handleStreamEvent(JSON.parse(data));
-                                } catch (_) {}
-                            }
-                        }
-                        processChunk();
-                    }).catch(err => {
-                        doReject(err);
-                    });
-                }
-
                 function handleStreamEvent(data) {
                     if (!data) return;
                     const event = data.event || data.type;
@@ -845,7 +813,11 @@
                     }
                 }
 
-                processChunk();
+                return window.AuraChatStreamParser.readFetchEventStream(response, {
+                    onEvent: eventData => handleStreamEvent(eventData),
+                    onDone: () => doFinalize(),
+                    onError: err => doReject(err)
+                });
             }).catch(err => {
                 doReject(err);
             });

@@ -115,3 +115,33 @@ func TestDesktopChatUsesSingleScrollScheduler(t *testing.T) {
 		t.Fatal("keepAgentStatusAtEnd must delegate smooth scrolling to scheduleChatScroll")
 	}
 }
+
+func TestSharedChatStreamParserIsUsedByDesktopChat(t *testing.T) {
+	t.Parallel()
+
+	parser := readEmbeddedText(t, "js/shared/chat-stream-parser.js")
+	for _, marker := range []string{
+		"window.AuraChatStreamParser",
+		"async function readFetchEventStream(response, handlers = {})",
+		"function normalizeStreamEvent(data)",
+		"handlers.onEvent(normalizeStreamEvent(parsed))",
+		"handlers.onDone()",
+	} {
+		if !strings.Contains(parser, marker) {
+			t.Fatalf("shared chat stream parser missing marker %q", marker)
+		}
+	}
+
+	desktopChat := readEmbeddedText(t, "js/desktop/apps/agent-chat.js")
+	for _, marker := range []string{
+		"window.AuraChatStreamParser.readFetchEventStream",
+		"handleStreamEvent(eventData)",
+	} {
+		if !strings.Contains(desktopChat, marker) {
+			t.Fatalf("desktop chat must use shared stream parser marker %q", marker)
+		}
+	}
+	if strings.Contains(desktopChat, "const lines = buffer.split('\\n')") {
+		t.Fatal("desktop chat must not keep manual SSE line parsing after parser extraction")
+	}
+}
