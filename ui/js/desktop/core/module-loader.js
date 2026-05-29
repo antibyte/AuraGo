@@ -127,6 +127,10 @@
         'software-store': {
             styles: appStyles('/css/desktop-app-software-store.css'),
             scripts: ['/js/desktop/apps/software-store.js']
+        },
+        'people': {
+            styles: appStyles('/css/desktop-app-people.css'),
+            scripts: ['/js/desktop/apps/people.js']
         }
     };
 

@@ -1387,7 +1387,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 	logger.Info("[Maintenance] Syncing Contacts to Knowledge Graph")
 
-	rows, err := contactsDB.QueryContext(ctx, "SELECT id, name, email, phone, mobile, relationship FROM contacts")
+	rows, err := contactsDB.QueryContext(ctx, "SELECT id, name, email, phone, mobile, relationship, birthday FROM contacts")
 	if err != nil {
 		logger.Error("[Maintenance] Failed to query contacts for KG sync", "error", err)
 		return
@@ -1396,8 +1396,8 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 	for rows.Next() {
 		var id, name string
-		var email, phone, mobile, relationship sql.NullString
-		if err := rows.Scan(&id, &name, &email, &phone, &mobile, &relationship); err != nil {
+		var email, phone, mobile, relationship, birthday sql.NullString
+		if err := rows.Scan(&id, &name, &email, &phone, &mobile, &relationship, &birthday); err != nil {
 			logger.Error("[Maintenance] Failed to scan contact", "error", err)
 			continue
 		}
@@ -1417,6 +1417,9 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 		}
 		if relationship.Valid && relationship.String != "" {
 			props["relationship"] = relationship.String
+		}
+		if birthday.Valid && birthday.String != "" {
+			props["birthday"] = birthday.String
 		}
 
 		err := kg.AddNode(nodeID, name, props)

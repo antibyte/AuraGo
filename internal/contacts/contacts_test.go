@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func testDB(t *testing.T) *testDBHandle {
@@ -212,5 +213,92 @@ func TestToJSON(t *testing.T) {
 	}
 	if len(j) < 10 {
 		t.Error("JSON too short")
+	}
+}
+
+func TestCreateWithBirthdayAndReminder(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := InitDB(filepath.Join(tmpDir, "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	c := Contact{
+		Name:     "Birthday Bob",
+		Birthday: "1990-06-15",
+		Reminder: "week",
+	}
+	id, err := Create(db, c)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	got, err := GetByID(db, id)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if got.Birthday != "1990-06-15" {
+		t.Errorf("Expected birthday '1990-06-15', got '%s'", got.Birthday)
+	}
+	if got.Reminder != "week" {
+		t.Errorf("Expected reminder 'week', got '%s'", got.Reminder)
+	}
+}
+
+func TestUpdateBirthday(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := InitDB(filepath.Join(tmpDir, "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	id, _ := Create(db, Contact{Name: "Carol", Birthday: "1985-01-10"})
+	err = Update(db, Contact{ID: id, Name: "Carol", Birthday: "1985-12-25", Reminder: "day"})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+	got, _ := GetByID(db, id)
+	if got.Birthday != "1985-12-25" {
+		t.Errorf("Expected updated birthday, got '%s'", got.Birthday)
+	}
+	if got.Reminder != "day" {
+		t.Errorf("Expected reminder 'day', got '%s'", got.Reminder)
+	}
+}
+
+func TestUpcomingBirthdays(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := InitDB(filepath.Join(tmpDir, "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	now := time.Now()
+	tomorrowMD := now.AddDate(0, 0, 1).Format("01-02")
+	farAwayMD := now.AddDate(0, 0, 100).Format("01-02")
+
+	Create(db, Contact{Name: "Near Birthday", Birthday: "1990-" + tomorrowMD})
+	Create(db, Contact{Name: "Far Birthday", Birthday: "1990-" + farAwayMD})
+	Create(db, Contact{Name: "No Birthday"})
+
+	result, err := UpcomingBirthdays(db, 30)
+	if err != nil {
+		t.Fatalf("UpcomingBirthdays failed: %v", err)
+	}
+	found := false
+	for _, c := range result {
+		if c.Name == "Near Birthday" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected 'Near Birthday' in upcoming list")
+	}
+	for _, c := range result {
+		if c.Name == "Far Birthday" {
+			t.Error("Did not expect 'Far Birthday' in 30-day window")
+		}
 	}
 }

@@ -327,6 +327,41 @@ func (kg *KnowledgeGraph) GetAllNodes(limit int) ([]Node, error) {
 	return nodes, nil
 }
 
+// GetNodesByType returns KG nodes filtered by their generated node_type column.
+func (kg *KnowledgeGraph) GetNodesByType(nodeType string, limit int) ([]Node, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	nodeType = strings.TrimSpace(strings.ToLower(nodeType))
+	if nodeType == "" {
+		return kg.GetAllNodes(limit)
+	}
+	rows, err := kg.db.Query(
+		"SELECT id, label, properties, protected FROM kg_nodes WHERE node_type = ? ORDER BY access_count DESC LIMIT ?",
+		nodeType, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get nodes by type %q: %w", nodeType, err)
+	}
+	defer rows.Close()
+
+	var nodes []Node
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesByType", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+	}
+	if nodes == nil {
+		nodes = []Node{}
+	}
+	return nodes, nil
+}
+
 func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]ImportantNode, error) {
 	if limit <= 0 {
 		limit = 20

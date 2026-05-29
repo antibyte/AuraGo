@@ -112,6 +112,11 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		mux.HandleFunc("/api/contacts", handleContacts(s))
 		mux.HandleFunc("/api/contacts/", handleContactByID(s))
 
+		// ── People (Desktop Address App) API ──
+		mux.HandleFunc("/api/people/lookup", handlePeopleLookup(s))
+		mux.HandleFunc("/api/people/kg-persons", handlePeopleKGPersons(s))
+		mux.HandleFunc("/api/people/upcoming", handlePeopleUpcoming(s))
+
 		// ── Planner (Appointments & Todos) API ──
 		mux.HandleFunc("/api/appointments", handleAppointments(s))
 		mux.HandleFunc("/api/appointments/", handleAppointmentByID(s))

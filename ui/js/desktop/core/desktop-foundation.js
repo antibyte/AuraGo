@@ -125,7 +125,8 @@
         looper: 'looper',
         'system-info': 'monitor',
         pixel: 'image',
-        'galaxa-deluxe': 'run'
+        'galaxa-deluxe': 'run',
+        people: 'users'
     };
     appIconKeys['code-studio'] = 'code-studio';
     const extensionIconKeys = {
@@ -274,7 +275,8 @@
             'software-store': 'SS',
             looper: 'Lp',
             pixel: 'Px',
-            'galaxa-deluxe': 'Gx'
+            'galaxa-deluxe': 'Gx',
+            people: 'Pp'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -449,7 +451,8 @@
             looper: 'LooperApp',
             camera: 'CameraApp',
             zipper: 'ZipperApp',
-            pixel: 'PixelApp'
+            pixel: 'PixelApp',
+            people: 'PeopleApp'
         }[appId] || '';
     }
 
@@ -720,6 +723,7 @@
         if (win.appId === 'music-player') disposeWebampMusic(win.id);
         if (win.appId === 'radio') callAppDispose(window.RadioApp, win.id);
         if (win.appId === 'system-info') callAppDispose(window.SystemInfoApp, win.id);
+        if (win.appId === 'people') callAppDispose(window.PeopleApp, win.id);
         const disposeName = appGlobalName(win.appId);
         const fallbackName = appGlobalFallbackName(win.appId);
         const disposed = callAppDispose(disposeName ? window[disposeName] : null, win.id);

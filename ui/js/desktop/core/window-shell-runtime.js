@@ -732,6 +732,7 @@
 
     function windowTitle(appId) {
         if (appId === 'system-info') return t('desktop.system_info_title');
+        if (appId === 'people') return t('desktop.app_people');
         const app = allApps().find(item => item.id === appId);
         return app ? appName(app) : appId;
     }
@@ -757,7 +758,8 @@
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
-            'galaxa-deluxe': { width: 600, height: 800 }
+            'galaxa-deluxe': { width: 600, height: 800 },
+            people: { width: 1020, height: 700 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();

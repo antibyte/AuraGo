@@ -1064,6 +1064,13 @@ if (appId === 'pixel') {
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'people') {
+            if (!window.PeopleApp) {
+                window.AuraDesktopModules.loadAppScript('people').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
         return renderGeneratedApp(id, appId);
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }

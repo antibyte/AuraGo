@@ -1,0 +1,614 @@
+/* desktop-app-people.css */
+/* ═══════════════════════════════════════════════════════════════
+   People — Address Book with Knowledge Graph Integration
+   ═══════════════════════════════════════════════════════════════ */
+
+.vd-people {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    --vd-people-sidebar-w: 190px;
+    --vd-people-detail-w: 320px;
+}
+
+/* ── Toolbar ── */
+.vd-people-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--vd-border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.vd-people-search-wrap {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+    align-items: center;
+}
+.vd-people-search {
+    flex: 1;
+    padding: 7px 12px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-surface);
+    color: var(--vd-text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.vd-people-search:focus { border-color: var(--vd-accent); }
+
+.vd-people-semantic-toggle {
+    padding: 5px 8px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-surface);
+    color: var(--vd-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.vd-people-semantic-toggle:hover { border-color: var(--vd-accent); color: var(--vd-accent); }
+.vd-people-semantic-toggle.active {
+    background: var(--vd-accent);
+    color: #fff;
+    border-color: var(--vd-accent);
+}
+
+.vd-people-toolbar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.vd-people-view-toggle {
+    display: flex;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.vd-people-view-btn {
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--vd-muted);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+.vd-people-view-btn:hover { color: var(--vd-text); }
+.vd-people-view-btn.active { background: var(--vd-accent); color: #fff; }
+
+.vd-people-add-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--vd-accent);
+    border-radius: 6px;
+    background: var(--vd-accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+.vd-people-add-btn:hover { opacity: 0.85; }
+
+/* ── Body Layout ── */
+.vd-people-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.vd-people-sidebar {
+    width: var(--vd-people-sidebar-w);
+    min-width: var(--vd-people-sidebar-w);
+    padding: 10px 8px;
+    border-right: 1px solid var(--vd-border);
+    overflow-y: auto;
+    flex-shrink: 0;
+    background: var(--vd-surface);
+}
+.vd-people-sidebar-section {
+    margin-bottom: 12px;
+}
+.vd-people-sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--vd-muted);
+    padding: 4px 8px 4px;
+    margin-bottom: 2px;
+}
+.vd-people-sidebar-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.12s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.vd-people-sidebar-item:hover { background: rgba(255,255,255,0.06); }
+.vd-people-sidebar-item.active {
+    background: var(--vd-accent);
+    color: #fff;
+}
+.vd-people-sidebar-empty {
+    font-size: 11px;
+    color: var(--vd-muted);
+    padding: 4px 8px;
+}
+
+/* ── Birthday sidebar items ── */
+.vd-people-birthday-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.vd-people-birthday-item:hover { background: rgba(255,255,255,0.06); }
+.vd-people-birthday-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.vd-people-birthday-days {
+    font-size: 10px;
+    color: var(--vd-accent);
+    font-weight: 600;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+
+/* ── Content Area ── */
+.vd-people-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    min-width: 0;
+}
+.vd-people-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--vd-muted);
+    font-size: 13px;
+}
+
+/* ── Grid View ── */
+.vd-people-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+.vd-people-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: var(--vd-surface);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+    position: relative;
+}
+.vd-people-card:hover {
+    border-color: var(--vd-accent);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+.vd-people-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+/* ── Avatar ── */
+.vd-people-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+.vd-people-avatar-sm {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    margin-right: 8px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.vd-people-avatar-lg {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 60%, #000));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 auto 8px;
+}
+
+/* ── Card Info ── */
+.vd-people-card-info { flex: 1; min-width: 0; }
+.vd-people-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vd-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.vd-people-card-email,
+.vd-people-card-phone {
+    font-size: 11px;
+    color: var(--vd-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Badges ── */
+.vd-people-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+}
+.vd-people-badge-birthday {
+    background: rgba(255,165,0,0.15);
+    color: #e8a020;
+}
+.vd-people-badge-rel {
+    background: rgba(100,149,237,0.12);
+    color: #6495ed;
+}
+.vd-people-badge-kg {
+    background: rgba(50,205,50,0.12);
+    color: #32cd32;
+}
+
+/* ── List View ── */
+.vd-people-list-header {
+    display: flex;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--vd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--vd-border);
+}
+.vd-people-list-row {
+    display: flex;
+    padding: 8px 12px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.vd-people-list-row:hover { background: rgba(255,255,255,0.06); }
+.vd-people-list-col {
+    flex: 1;
+    font-size: 12px;
+    color: var(--vd-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+.vd-people-list-name { flex: 2; }
+.vd-people-list-email { flex: 2; color: var(--vd-muted); }
+.vd-people-list-phone { flex: 1.5; color: var(--vd-muted); }
+.vd-people-list-birthday { flex: 1.5; gap: 6px; }
+
+/* ── Detail Panel ── */
+.vd-people-detail {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--vd-border);
+    background: var(--vd-surface);
+    transition: width 0.2s ease, min-width 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+}
+.vd-people-detail.open {
+    width: var(--vd-people-detail-w);
+    min-width: var(--vd-people-detail-w);
+    padding: 16px;
+    overflow-y: auto;
+}
+.vd-people-detail-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: var(--vd-muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    transition: background 0.12s;
+}
+.vd-people-detail-close:hover { background: rgba(255,255,255,0.15); color: var(--vd-text); }
+
+.vd-people-detail-header {
+    text-align: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--vd-border);
+    margin-bottom: 14px;
+}
+.vd-people-detail-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--vd-text);
+    margin-top: 6px;
+}
+.vd-people-detail-rel {
+    font-size: 12px;
+    color: var(--vd-muted);
+    margin-top: 2px;
+}
+
+.vd-people-detail-fields { margin-bottom: 16px; }
+.vd-people-detail-field {
+    margin-bottom: 10px;
+}
+.vd-people-detail-field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--vd-muted);
+    margin-bottom: 2px;
+}
+.vd-people-detail-field span {
+    font-size: 13px;
+    color: var(--vd-text);
+    word-break: break-word;
+}
+.vd-people-detail-notes span {
+    white-space: pre-wrap;
+    font-size: 12px;
+    color: var(--vd-muted);
+}
+
+/* ── Detail KG Section ── */
+.vd-people-detail-kg {
+    padding-top: 12px;
+    border-top: 1px solid var(--vd-border);
+    margin-bottom: 14px;
+}
+.vd-people-detail-kg-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--vd-muted);
+    margin-bottom: 8px;
+}
+.vd-people-detail-kg-empty {
+    font-size: 12px;
+    color: var(--vd-muted);
+}
+.vd-people-detail-kg-list { font-size: 12px; }
+.vd-people-detail-kg-edge {
+    padding: 4px 0;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.vd-people-detail-kg-rel {
+    font-size: 10px;
+    color: var(--vd-accent);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.vd-people-detail-kg-target { color: var(--vd-text); }
+.vd-people-detail-kg-neighbor {
+    padding: 2px 0;
+    color: var(--vd-muted);
+}
+
+/* ── Detail Actions ── */
+.vd-people-detail-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vd-border);
+}
+.vd-people-detail-edit,
+.vd-people-detail-delete {
+    flex: 1;
+    padding: 7px 0;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.vd-people-detail-edit:hover { border-color: var(--vd-accent); color: var(--vd-accent); }
+.vd-people-detail-delete:hover { border-color: #e74c3c; color: #e74c3c; }
+
+/* ── Modal ── */
+.vd-people-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+}
+.vd-people-modal {
+    background: var(--vd-surface);
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    min-width: 360px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.vd-people-modal-form { padding: 20px; }
+.vd-people-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--vd-text);
+    margin-bottom: 16px;
+}
+.vd-people-modal-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.vd-people-modal-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vd-muted);
+}
+.vd-people-modal-fields input,
+.vd-people-modal-fields select,
+.vd-people-modal-fields textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--vd-border);
+    border-radius: 6px;
+    background: var(--vd-bg, #1a1a2e);
+    color: var(--vd-text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.vd-people-modal-fields input:focus,
+.vd-people-modal-fields select:focus,
+.vd-people-modal-fields textarea:focus {
+    border-color: var(--vd-accent);
+}
+.vd-people-modal-notes textarea { min-height: 60px; resize: vertical; }
+
+.vd-people-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+.vd-people-modal-cancel,
+.vd-people-modal-save {
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--vd-border);
+    transition: all 0.12s;
+}
+.vd-people-modal-cancel {
+    background: transparent;
+    color: var(--vd-text);
+}
+.vd-people-modal-cancel:hover { background: rgba(255,255,255,0.06); }
+.vd-people-modal-save {
+    background: var(--vd-accent);
+    color: #fff;
+    border-color: var(--vd-accent);
+}
+.vd-people-modal-save:hover { opacity: 0.85; }
+
+/* ── Empty State ── */
+.vd-people-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+.vd-people-empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--vd-text);
+    margin-bottom: 6px;
+}
+.vd-people-empty-hint {
+    font-size: 13px;
+    color: var(--vd-muted);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .vd-people-sidebar {
+        display: none;
+    }
+    .vd-people-detail.open {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        min-width: 100%;
+        z-index: 50;
+    }
+}

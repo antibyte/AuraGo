@@ -23,6 +23,8 @@ type Contact struct {
 	Address      string `json:"address,omitempty"`
 	Relationship string `json:"relationship,omitempty"`
 	Notes        string `json:"notes,omitempty"`
+	Birthday     string `json:"birthday,omitempty"`
+	Reminder     string `json:"reminder,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 }
@@ -54,8 +56,17 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create contacts schema: %w", err)
 	}
 
+	for _, migration := range []string{
+		"ALTER TABLE contacts ADD COLUMN birthday TEXT",
+		"ALTER TABLE contacts ADD COLUMN reminder TEXT",
+	} {
+		if _, err := db.Exec(migration); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return nil, fmt.Errorf("migration %q: %w", migration, err)
+		}
+	}
+
 	// Set schema version
-	if err := dbutil.SetUserVersion(db, 1); err != nil {
+	if err := dbutil.SetUserVersion(db, 2); err != nil {
 		return nil, fmt.Errorf("set contacts schema version: %w", err)
 	}
 
@@ -73,9 +84,9 @@ func Create(db *sql.DB, c Contact) (string, error) {
 	c.UpdatedAt = now
 
 	_, err := db.Exec(
-		`INSERT INTO contacts (id, name, email, phone, mobile, address, relationship, notes, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ID, c.Name, c.Email, c.Phone, c.Mobile, c.Address, c.Relationship, c.Notes, c.CreatedAt, c.UpdatedAt,
+		`INSERT INTO contacts (id, name, email, phone, mobile, address, relationship, notes, birthday, reminder, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		c.ID, c.Name, c.Email, c.Phone, c.Mobile, c.Address, c.Relationship, c.Notes, c.Birthday, c.Reminder, c.CreatedAt, c.UpdatedAt,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to insert contact: %w", err)
@@ -91,9 +102,9 @@ func Update(db *sql.DB, c Contact) error {
 	c.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	res, err := db.Exec(
-		`UPDATE contacts SET name=?, email=?, phone=?, mobile=?, address=?, relationship=?, notes=?, updated_at=?
+		`UPDATE contacts SET name=?, email=?, phone=?, mobile=?, address=?, relationship=?, notes=?, birthday=?, reminder=?, updated_at=?
 		 WHERE id=?`,
-		c.Name, c.Email, c.Phone, c.Mobile, c.Address, c.Relationship, c.Notes, c.UpdatedAt, c.ID,
+		c.Name, c.Email, c.Phone, c.Mobile, c.Address, c.Relationship, c.Notes, c.Birthday, c.Reminder, c.UpdatedAt, c.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update contact: %w", err)
@@ -120,9 +131,9 @@ func Delete(db *sql.DB, id string) error {
 
 // GetByID returns a single contact.
 func GetByID(db *sql.DB, id string) (*Contact, error) {
-	row := db.QueryRow("SELECT id, name, email, phone, mobile, address, relationship, notes, created_at, updated_at FROM contacts WHERE id=?", id)
+	row := db.QueryRow("SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at FROM contacts WHERE id=?", id)
 	c := &Contact{}
-	if err := row.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.CreatedAt, &c.UpdatedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.Birthday, &c.Reminder, &c.CreatedAt, &c.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("contact not found: %s", id)
 		}
@@ -140,7 +151,7 @@ func List(db *sql.DB, query string) ([]Contact, error) {
 		escapedQuery := dbutil.EscapeLike(strings.ToLower(query))
 		like := "%" + escapedQuery + "%"
 		rows, err = db.Query(
-			`SELECT id, name, email, phone, mobile, address, relationship, notes, created_at, updated_at
+			`SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at
 			 FROM contacts
 			 WHERE lower(name) LIKE ? ESCAPE '\' OR lower(email) LIKE ? ESCAPE '\' OR lower(phone) LIKE ? ESCAPE '\' OR lower(mobile) LIKE ? ESCAPE '\' OR lower(relationship) LIKE ? ESCAPE '\'
 			 ORDER BY name ASC`,
@@ -148,7 +159,7 @@ func List(db *sql.DB, query string) ([]Contact, error) {
 		)
 	} else {
 		rows, err = db.Query(
-			`SELECT id, name, email, phone, mobile, address, relationship, notes, created_at, updated_at
+			`SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at
 			 FROM contacts ORDER BY name ASC`,
 		)
 	}
@@ -160,7 +171,7 @@ func List(db *sql.DB, query string) ([]Contact, error) {
 	var contacts []Contact
 	for rows.Next() {
 		var c Contact
-		if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.Birthday, &c.Reminder, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan contact: %w", err)
 		}
 		contacts = append(contacts, c)
@@ -189,4 +200,55 @@ func Close(db *sql.DB) error {
 		return db.Close()
 	}
 	return nil
+}
+
+// UpcomingBirthdays returns contacts with birthdays within the next N days.
+func UpcomingBirthdays(db *sql.DB, days int) ([]Contact, error) {
+	if days <= 0 {
+		days = 30
+	}
+	today := time.Now()
+	todayStr := today.Format("2006-01-02")
+	endDate := today.AddDate(0, 0, days).Format("2006-01-02")
+	todayMD := today.Format("01-02")
+	endMD := today.AddDate(0, 0, days).Format("01-02")
+
+	var rows *sql.Rows
+	var err error
+	if todayMD <= endMD {
+		rows, err = db.Query(
+			`SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at
+			 FROM contacts
+			 WHERE birthday != '' AND substr(birthday,6) BETWEEN ? AND ?
+			 ORDER BY substr(birthday,6) ASC`,
+			todayMD, endMD,
+		)
+	} else {
+		rows, err = db.Query(
+			`SELECT id, name, email, phone, mobile, address, relationship, notes, COALESCE(birthday,''), COALESCE(reminder,''), created_at, updated_at
+			 FROM contacts
+			 WHERE birthday != '' AND (substr(birthday,6) >= ? OR substr(birthday,6) <= ?)
+			 ORDER BY substr(birthday,6) ASC`,
+			todayMD, endMD,
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query upcoming birthdays: %w", err)
+	}
+	defer rows.Close()
+
+	var result []Contact
+	for rows.Next() {
+		var c Contact
+		if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Mobile, &c.Address, &c.Relationship, &c.Notes, &c.Birthday, &c.Reminder, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan upcoming birthday: %w", err)
+		}
+		_ = todayStr
+		_ = endDate
+		result = append(result, c)
+	}
+	if result == nil {
+		result = []Contact{}
+	}
+	return result, nil
 }
