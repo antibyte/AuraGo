@@ -12,6 +12,32 @@ import (
 	"testing"
 )
 
+func readChatThemesCSS(t *testing.T) string {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join("css", "chat-themes.css"))
+	if err != nil {
+		t.Fatalf("read chat-themes.css: %v", err)
+	}
+	return string(content)
+}
+
+func readChatThemeSectionCSS(t *testing.T, legacyName string) string {
+	t.Helper()
+
+	css := readChatThemesCSS(t)
+	marker := "/* === " + legacyName + " === */"
+	start := strings.Index(css, marker)
+	if start < 0 {
+		t.Fatalf("chat-themes.css missing section marker %q", marker)
+	}
+	section := css[start:]
+	if next := strings.Index(section[len(marker):], "\n/* === chat-"); next >= 0 {
+		section = section[:len(marker)+next]
+	}
+	return section
+}
+
 func TestChatFrontend_ToolLeakSanitizerPatternsRemainPresent(t *testing.T) {
 	t.Parallel()
 
@@ -662,12 +688,7 @@ func TestChatFrontend_PersonaPreviewHoverDoesNotResetSameImageSrc(t *testing.T) 
 func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	t.Parallel()
 
-	blackMatrixContent, err := os.ReadFile(filepath.Join("css", "chat-black-matrix.css"))
-	if err != nil {
-		t.Fatalf("read black matrix CSS: %v", err)
-	}
-
-	blackMatrixCSS := string(blackMatrixContent)
+	blackMatrixCSS := readChatThemeSectionCSS(t, "chat-black-matrix.css")
 	for _, marker := range []string{
 		`[data-theme="black-matrix"] .session-edge-tab:hover`,
 		`[data-theme="black-matrix"] .session-edge-tab:focus-visible`,
@@ -783,12 +804,7 @@ func TestChatFrontend_ThemedEdgeTabsStayAnchoredOnHover(t *testing.T) {
 func TestChatFrontend_DarkSunBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
 	t.Parallel()
 
-	darkSunContent, err := os.ReadFile(filepath.Join("css", "chat-dark-sun.css"))
-	if err != nil {
-		t.Fatalf("read dark sun CSS: %v", err)
-	}
-
-	darkSunCSS := string(darkSunContent)
+	darkSunCSS := readChatThemeSectionCSS(t, "chat-dark-sun.css")
 	blockFor := func(selector string) string {
 		start := strings.Index(darkSunCSS, selector+" {")
 		if start < 0 {
@@ -832,12 +848,7 @@ func TestChatFrontend_DarkSunBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
 func TestChatFrontend_ThreeDeeBubbleTailsStayAnchoredToAvatarSide(t *testing.T) {
 	t.Parallel()
 
-	threeDeeContent, err := os.ReadFile(filepath.Join("css", "chat-threedee.css"))
-	if err != nil {
-		t.Fatalf("read threedee CSS: %v", err)
-	}
-
-	threeDeeCSS := string(threeDeeContent)
+	threeDeeCSS := readChatThemeSectionCSS(t, "chat-threedee.css")
 	blockFor := func(selector string) string {
 		start := strings.Index(threeDeeCSS, selector+" {")
 		if start < 0 {
@@ -963,11 +974,7 @@ func TestChatFrontend_HeaderControlsRemainNormalizedAcrossThemes(t *testing.T) {
 func TestPapyrusHeaderTextControlsStayVerticallyCentered(t *testing.T) {
 	t.Parallel()
 
-	content, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
-	if err != nil {
-		t.Fatalf("read chat-papyrus.css: %v", err)
-	}
-	papyrusCSS := string(content)
+	papyrusCSS := readChatThemeSectionCSS(t, "chat-papyrus.css")
 
 	for _, marker := range []string{
 		`[data-theme="papyrus"] .app-header .header-actions :where(.pill, .select-personality, .btn-header, .btn-header-link, #logout-btn) {`,
@@ -993,10 +1000,6 @@ func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read threedee fold JS: %v", err)
 	}
-	cssContent, err := os.ReadFile(filepath.Join("css", "chat-threedee.css"))
-	if err != nil {
-		t.Fatalf("read threedee CSS: %v", err)
-	}
 
 	foldJS := string(foldContent)
 	for _, marker := range []string{
@@ -1013,7 +1016,7 @@ func TestChatFrontend_ThreeDeeFoldStaysReadable(t *testing.T) {
 		}
 	}
 
-	threedeeCSS := string(cssContent)
+	threedeeCSS := readChatThemeSectionCSS(t, "chat-threedee.css")
 	for _, marker := range []string{
 		`[data-theme="threedee"] .msg-row.folding .bubble`,
 		`transform: translateZ(1px) rotateX(0.001deg);`,
@@ -1067,10 +1070,6 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read fonts.css: %v", err)
 	}
-	lollipopContent, err := os.ReadFile(filepath.Join("css", "chat-lollipop.css"))
-	if err != nil {
-		t.Fatalf("read chat-lollipop.css: %v", err)
-	}
 	indexContent, err := os.ReadFile("index.html")
 	if err != nil {
 		t.Fatalf("read index.html: %v", err)
@@ -1091,7 +1090,7 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 		}
 	}
 
-	lollipopCSS := string(lollipopContent)
+	lollipopCSS := readChatThemeSectionCSS(t, "chat-lollipop.css")
 	for _, marker := range []string{
 		`--lollipop-font-chat: 'Schoolbell', 'Shadows Into Light Two', 'Inter', system-ui, sans-serif;`,
 		`[data-theme="lollipop"] .bubble {`,
@@ -1099,7 +1098,7 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 		`font-family: var(--lollipop-font-chat);`,
 	} {
 		if !strings.Contains(lollipopCSS, marker) {
-			t.Fatalf("css/chat-lollipop.css missing Schoolbell chat marker %q", marker)
+			t.Fatalf("css/chat-themes.css missing Schoolbell chat marker %q", marker)
 		}
 	}
 	if !strings.Contains(string(indexContent), `/fonts/fonts.css?v=20260502a`) {
@@ -1118,10 +1117,6 @@ func TestChatFrontend_LollipopUsesLocalSchoolbellForChatText(t *testing.T) {
 func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
 	t.Parallel()
 
-	lollipopContent, err := os.ReadFile(filepath.Join("css", "chat-lollipop.css"))
-	if err != nil {
-		t.Fatalf("read chat-lollipop.css: %v", err)
-	}
 	petalsContent, err := os.ReadFile(filepath.Join("js", "chat", "lollipop-petals.js"))
 	if err != nil {
 		t.Fatalf("read lollipop-petals.js: %v", err)
@@ -1131,7 +1126,7 @@ func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
 		t.Fatalf("read index.html: %v", err)
 	}
 
-	lollipopCSS := string(lollipopContent)
+	lollipopCSS := readChatThemeSectionCSS(t, "chat-lollipop.css")
 	petalsJS := string(petalsContent)
 	indexHTML := string(indexContent)
 
@@ -1160,7 +1155,7 @@ func TestChatFrontend_LollipopHeaderFooterAndPetalsStayPolished(t *testing.T) {
 		`0 -18px 36px rgba(151, 81, 124, 0.18)`,
 	} {
 		if !strings.Contains(lollipopCSS, marker) {
-			t.Fatalf("css/chat-lollipop.css missing polish marker %q", marker)
+			t.Fatalf("css/chat-themes.css missing polish marker %q", marker)
 		}
 	}
 
@@ -1258,16 +1253,12 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 			t.Fatalf("css/chat.css missing compact mobile header marker %q", marker)
 		}
 	}
-	papyrusContent, err := os.ReadFile(filepath.Join("css", "chat-papyrus.css"))
-	if err != nil {
-		t.Fatalf("read chat-papyrus.css: %v", err)
-	}
-	if !strings.Contains(string(papyrusContent), `max-height: min(calc(100dvh - 5rem), 34rem);`) {
-		t.Fatalf("css/chat-papyrus.css still caps the theme dropdown before viewport space is exhausted")
+	papyrusCSS := readChatThemeSectionCSS(t, "chat-papyrus.css")
+	if !strings.Contains(papyrusCSS, `max-height: min(calc(100dvh - 5rem), 34rem);`) {
+		t.Fatalf("css/chat-themes.css still caps the theme dropdown before viewport space is exhausted")
 	}
 
 	for _, assetPath := range []string{
-		filepath.Join("css", "chat-8bit.css"),
 		filepath.Join("fonts", "press-start-2p-latin-400-normal.woff2"),
 		filepath.Join("img", "chat-ui-icons", "theme-8bit.png"),
 	} {
@@ -1280,12 +1271,9 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 		}
 	}
 
-	bitCSS, err := os.ReadFile(filepath.Join("css", "chat-8bit.css"))
-	if err != nil {
-		t.Fatalf("read chat-8bit.css: %v", err)
-	}
-	bitCSSString := string(bitCSS)
+	bitCSSString := readChatThemeSectionCSS(t, "chat-8bit.css")
 	for _, marker := range []string{
+		`/* === chat-8bit.css === */`,
 		`--bg-logo-size: cover;`,
 		`[data-theme="8bit"] #chat-box::after`,
 		`background-size: var(--bg-logo-size);`,
@@ -1300,26 +1288,21 @@ func TestChatFrontend_8BitThemeRemainsWired(t *testing.T) {
 		`font-family: inherit !important;`,
 	} {
 		if !strings.Contains(bitCSSString, marker) {
-			t.Fatalf("css/chat-8bit.css missing 8Bit background pixelation marker %q", marker)
+			t.Fatalf("css/chat-themes.css missing 8Bit background pixelation marker %q", marker)
 		}
 	}
 	if strings.Contains(bitCSSString, "192px auto") {
-		t.Fatal("css/chat-8bit.css still shrinks the 8Bit background image to 192px")
+		t.Fatal("css/chat-themes.css still shrinks the 8Bit background image to 192px")
 	}
 	if strings.Contains(bitCSSString, "`n") {
-		t.Fatal("css/chat-8bit.css contains a stray PowerShell newline escape")
+		t.Fatal("css/chat-themes.css contains a stray PowerShell newline escape")
 	}
 }
 
 func TestChatFrontend_8BitBubbleListsKeepMarkersInsideBubble(t *testing.T) {
 	t.Parallel()
 
-	content, err := os.ReadFile(filepath.Join("css", "chat-8bit.css"))
-	if err != nil {
-		t.Fatalf("read chat-8bit.css: %v", err)
-	}
-
-	bitCSS := string(content)
+	bitCSS := readChatThemeSectionCSS(t, "chat-8bit.css")
 	for _, marker := range []string{
 		`[data-theme="8bit"] .bubble :where(ul, ol) {`,
 		"box-sizing: border-box;",
@@ -1367,12 +1350,8 @@ func TestChatEightBitPixelationRestoresOriginalImages(t *testing.T) {
 func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 	t.Parallel()
 
-	papyrusPath := filepath.Join("css", "chat-papyrus.css")
-	papyrusContent, err := os.ReadFile(papyrusPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", papyrusPath, err)
-	}
-	papyrusCSS := string(papyrusContent)
+	themePath := filepath.Join("css", "chat-themes.css")
+	papyrusCSS := readChatThemeSectionCSS(t, "chat-papyrus.css")
 	for _, marker := range []string{
 		`[data-theme="papyrus"] .session-drawer,`,
 		`[data-theme="papyrus"] .integrations-drawer,`,
@@ -1382,7 +1361,7 @@ func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 		`[data-theme="papyrus"] .integrations-drawer ::-webkit-scrollbar`,
 	} {
 		if !strings.Contains(papyrusCSS, marker) {
-			t.Fatalf("%s missing drawer selector marker %q", papyrusPath, marker)
+			t.Fatalf("%s missing drawer selector marker %q", themePath, marker)
 		}
 	}
 	for _, broken := range []string{
@@ -1391,16 +1370,11 @@ func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 		"[data-theme=\"papyrus\"] .session-drawer ::-webkit-scrollbar {\n[data-theme=\"papyrus\"] .integrations-drawer,",
 	} {
 		if strings.Contains(papyrusCSS, broken) {
-			t.Fatalf("%s still contains broken drawer selector fragment %q", papyrusPath, broken)
+			t.Fatalf("%s still contains broken drawer selector fragment %q", themePath, broken)
 		}
 	}
 
-	matrixPath := filepath.Join("css", "chat-black-matrix.css")
-	matrixContent, err := os.ReadFile(matrixPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", matrixPath, err)
-	}
-	matrixCSS := string(matrixContent)
+	matrixCSS := readChatThemeSectionCSS(t, "chat-black-matrix.css")
 	for _, marker := range []string{
 		`[data-theme="black-matrix"] .session-drawer,`,
 		`[data-theme="black-matrix"] .integrations-drawer,`,
@@ -1409,7 +1383,7 @@ func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 		`[data-theme="black-matrix"] .integrations-edge-tab:hover`,
 	} {
 		if !strings.Contains(matrixCSS, marker) {
-			t.Fatalf("%s missing drawer selector marker %q", matrixPath, marker)
+			t.Fatalf("%s missing drawer selector marker %q", themePath, marker)
 		}
 	}
 	for _, broken := range []string{
@@ -1418,7 +1392,7 @@ func TestChatThemeDrawerSelectorsRemainWired(t *testing.T) {
 		"[data-theme=\"black-matrix\"] .session-drawer ::-webkit-scrollbar {\n[data-theme=\"black-matrix\"] .integrations-drawer,",
 	} {
 		if strings.Contains(matrixCSS, broken) {
-			t.Fatalf("%s still contains broken drawer selector fragment %q", matrixPath, broken)
+			t.Fatalf("%s still contains broken drawer selector fragment %q", themePath, broken)
 		}
 	}
 }
@@ -2112,13 +2086,8 @@ func TestChatRobotMascotUsesRedSpriteForAggressivePersonas(t *testing.T) {
 func TestChatPapyrusThemeUsesRefinedManuscriptPalette(t *testing.T) {
 	t.Parallel()
 
-	papyrusPath := filepath.Join("css", "chat-papyrus.css")
-	papyrusContent, err := os.ReadFile(papyrusPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", papyrusPath, err)
-	}
-
-	papyrusCSS := string(papyrusContent)
+	papyrusPath := filepath.Join("css", "chat-themes.css")
+	papyrusCSS := readChatThemeSectionCSS(t, "chat-papyrus.css")
 	requiredMarkers := []string{
 		"--papyrus-ink-blue: #1e3f66;",
 		"--papyrus-verdigris: #2f7f73;",
@@ -2763,11 +2732,7 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 func TestCyberwarScrollActivityButtonStaysFixedOutOfFooterFlow(t *testing.T) {
 	t.Parallel()
 
-	content, err := os.ReadFile(filepath.Join("css", "chat-cyberwar.css"))
-	if err != nil {
-		t.Fatalf("read chat-cyberwar.css: %v", err)
-	}
-	cyberwarCSS := string(content)
+	cyberwarCSS := readChatThemeSectionCSS(t, "chat-cyberwar.css")
 
 	for _, forbidden := range []string{
 		"[data-theme=\"cyberwar\"] .modal-btn,\n[data-theme=\"cyberwar\"] .scroll-to-bottom-btn {\n    position: relative;",
@@ -2797,16 +2762,12 @@ func TestCyberwarScrollActivityButtonStaysFixedOutOfFooterFlow(t *testing.T) {
 func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 	t.Parallel()
 
-	cssContent, err := os.ReadFile(filepath.Join("css", "chat-cyberwar.css"))
-	if err != nil {
-		t.Fatalf("read chat-cyberwar.css: %v", err)
-	}
 	shaderContent, err := os.ReadFile(filepath.Join("js", "chat", "cyberwar-shader.js"))
 	if err != nil {
 		t.Fatalf("read cyberwar-shader.js: %v", err)
 	}
 
-	cyberwarCSS := string(cssContent)
+	cyberwarCSS := readChatThemeSectionCSS(t, "chat-cyberwar.css")
 	cyberwarShader := string(shaderContent)
 	cssBlockFor := func(selector string) string {
 		start := strings.Index(cyberwarCSS, selector+" {")

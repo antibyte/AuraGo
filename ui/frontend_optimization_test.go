@@ -387,6 +387,26 @@ func TestLegacyDuplicateChatModulesAreNotEmbedded(t *testing.T) {
 	}
 }
 
+func TestLegacyChatThemeStylesheetsAreNotEmbedded(t *testing.T) {
+	t.Parallel()
+
+	for _, legacy := range []string{
+		"css/chat-8bit.css",
+		"css/chat-black-matrix.css",
+		"css/chat-cyberwar.css",
+		"css/chat-dark-sun.css",
+		"css/chat-lollipop.css",
+		"css/chat-ocean.css",
+		"css/chat-papyrus.css",
+		"css/chat-sandstorm.css",
+		"css/chat-threedee.css",
+	} {
+		if _, err := Content.ReadFile(legacy); err == nil {
+			t.Fatalf("legacy chat theme stylesheet %s should be consolidated into chat-themes.css", legacy)
+		}
+	}
+}
+
 func TestDesktopInitialLoadDefersAppAssets(t *testing.T) {
 	t.Parallel()
 
