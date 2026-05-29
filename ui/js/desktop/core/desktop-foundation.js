@@ -745,6 +745,13 @@
         });
     }
 
+    function blankWidgetFrames(host) {
+        if (!host || typeof host.querySelectorAll !== 'function') return;
+        host.querySelectorAll('iframe').forEach(frame => {
+            try { frame.src = 'about:blank'; } catch (_) {}
+        });
+    }
+
     function widgetShouldAutoSize(widget) {
         if (!widget) return true;
         const configured = widget.auto_size !== undefined ? widget.auto_size : (widget.autoSize !== undefined ? widget.autoSize : widget.autosize);
@@ -1031,6 +1038,7 @@
 
     function renderWidgets() {
         const host = $('vd-widgets');
+        blankWidgetFrames(host);
         clearWidgetRuntime();
         const boot = state.bootstrap || {};
         const widgets = boot.widgets || [];
