@@ -99,6 +99,22 @@ func TestDesktopWindowDropUpdatesTargetWindow(t *testing.T) {
 	}
 }
 
+func TestDesktopWindowDropRunsBeforeAppDropSurfaces(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/desktop/core/desktop-window-file-drops.js")
+	for _, marker := range []string{
+		"const useCapture = win.appId !== 'files';",
+		"win.element.addEventListener('dragover', handleDesktopFileWindowDragOver, useCapture);",
+		"win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave, useCapture);",
+		"win.element.addEventListener('drop', handleDesktopFileWindowDrop, useCapture);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop window drops must capture before app drop surfaces while preserving file-manager item drops; missing %q", marker)
+		}
+	}
+}
+
 func TestDesktopMainLoadsWindowDropRuntime(t *testing.T) {
 	t.Parallel()
 

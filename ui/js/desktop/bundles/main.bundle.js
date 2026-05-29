@@ -4111,9 +4111,10 @@ function wireWindow(win, id) {
         const win = state.windows.get(windowId);
         if (!win || !win.element || win.element.dataset.fileWindowDropBound === 'true') return;
         win.element.dataset.fileWindowDropBound = 'true';
-        win.element.addEventListener('dragover', handleDesktopFileWindowDragOver);
-        win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave);
-        win.element.addEventListener('drop', handleDesktopFileWindowDrop);
+        const useCapture = win.appId !== 'files';
+        win.element.addEventListener('dragover', handleDesktopFileWindowDragOver, useCapture);
+        win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave, useCapture);
+        win.element.addEventListener('drop', handleDesktopFileWindowDrop, useCapture);
     }
 
 ;
@@ -5157,7 +5158,7 @@ if (appId === 'zipper') {
                 window.AuraDesktopModules.loadAppScript('zipper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.ZipperApp.render === 'function') return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
+            if (typeof window.ZipperApp.render === 'function') return window.ZipperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, promptDialog, openFileDialog: options => openDesktopFileDialog(options || {}), openApp, loadBootstrap, fileOps: window.AuraDesktopFileOps }));
         }
 if (appId === 'pixel') {
             if (!window.PixelApp) {

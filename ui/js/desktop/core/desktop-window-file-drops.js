@@ -164,7 +164,8 @@
         const win = state.windows.get(windowId);
         if (!win || !win.element || win.element.dataset.fileWindowDropBound === 'true') return;
         win.element.dataset.fileWindowDropBound = 'true';
-        win.element.addEventListener('dragover', handleDesktopFileWindowDragOver);
-        win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave);
-        win.element.addEventListener('drop', handleDesktopFileWindowDrop);
+        const useCapture = win.appId !== 'files';
+        win.element.addEventListener('dragover', handleDesktopFileWindowDragOver, useCapture);
+        win.element.addEventListener('dragleave', handleDesktopFileWindowDragLeave, useCapture);
+        win.element.addEventListener('drop', handleDesktopFileWindowDrop, useCapture);
     }
