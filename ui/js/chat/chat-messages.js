@@ -10,6 +10,9 @@ function personaIconUrl(key) {
 }
 
 function containsLeakedToolMarkup(text) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.containsLeakedToolMarkup === 'function') {
+        return window.AuraChatCore.containsLeakedToolMarkup(text);
+    }
     if (!text || typeof text !== 'string') return false;
     return [
         /<\/?tool_call[^>]*>/i,
@@ -27,6 +30,9 @@ function containsLeakedToolMarkup(text) {
 }
 
 function stripLeakedToolMarkup(text) {
+    if (window.AuraChatCore && typeof window.AuraChatCore.stripLeakedToolMarkup === 'function') {
+        return window.AuraChatCore.stripLeakedToolMarkup(text);
+    }
     if (!text || typeof text !== 'string') return '';
 
     return text

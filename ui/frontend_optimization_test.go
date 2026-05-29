@@ -51,6 +51,8 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"window.AuraChatCore",
 		"escapeHtml(value)",
 		"escapeAttr(value)",
+		"containsLeakedToolMarkup(text)",
+		"stripLeakedToolMarkup(text)",
 		"normalizeTimestamp(timestamp)",
 		"formatTimestamp(timestamp)",
 		"createMarkdownRenderer(options)",
@@ -219,6 +221,8 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 
 	chatJS := readEmbeddedText(t, "js/chat/chat-messages.js")
 	for _, want := range []string{
+		"window.AuraChatCore.containsLeakedToolMarkup(text)",
+		"window.AuraChatCore.stripLeakedToolMarkup(text)",
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",
 		"window.AuraChatCore.formatTimestamp(timestamp)",
 		"window.AuraChatCore.escapeHtml(str)",
@@ -232,6 +236,8 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 
 	desktopChatJS := readEmbeddedText(t, "js/desktop/chat-renderer.js")
 	for _, want := range []string{
+		"window.AuraChatCore.containsLeakedToolMarkup(text)",
+		"window.AuraChatCore.stripLeakedToolMarkup(text)",
 		"window.AuraChatCore.escapeHtml(str)",
 		"window.AuraChatCore.escapeAttr(s)",
 		"window.AuraChatCore.normalizeTimestamp(timestamp)",

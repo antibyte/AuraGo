@@ -96,6 +96,9 @@
         },
 
         stripLeakedToolMarkup(text) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.stripLeakedToolMarkup === 'function') {
+                return window.AuraChatCore.stripLeakedToolMarkup(text);
+            }
             if (!text || typeof text !== 'string') return '';
             return text
                 .replace(/<tool_call[\s\S]*?<\/tool_call>/gi, '')
@@ -109,6 +112,9 @@
         },
 
         containsLeakedToolMarkup(text) {
+            if (window.AuraChatCore && typeof window.AuraChatCore.containsLeakedToolMarkup === 'function') {
+                return window.AuraChatCore.containsLeakedToolMarkup(text);
+            }
             if (!text || typeof text !== 'string') return false;
             return [
                 /<\/?tool_call[^>]*>/i,

@@ -18,6 +18,48 @@
             .replace(/>/g, '&gt;');
     }
 
+    function containsLeakedToolMarkup(text) {
+        if (!text || typeof text !== 'string') return false;
+        return [
+            /<\/?tool_call[^>]*>/i,
+            /<\/?minimax:tool_call[^>]*>/i,
+            /(?:^|\n)\s*minimax:tool_call\s*(?:\n|$)/i,
+            /<invoke\b[^>]*>/i,
+            /<parameter\b[^>]*>/i,
+            /<\/?tts\b[^>]*>/i,
+            /^\[Tool Output\]/im,
+            /^Tool Output:/im,
+            /\[Suggested next step\]/i,
+            /"(action|tool|tool_call|tool_name)"\s*:/i,
+            /"parameters"\s*:\s*\{/i
+        ].some((pattern) => pattern.test(text));
+    }
+
+    function stripLeakedToolMarkup(text) {
+        if (!text || typeof text !== 'string') return '';
+
+        return text
+            .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+            .replace(/<\/?tool_call[^>]*>/gi, '')
+            .replace(/<minimax:tool_call\b[^>]*>[\s\S]*?<\/minimax:tool_call>/gi, '')
+            .replace(/<\/?minimax:tool_call[^>]*>/gi, '')
+            .replace(/(?:^|\n)\s*minimax:tool_call\s*(?=\n|$)/gi, '\n')
+            .replace(/<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi, '')
+            .replace(/<parameter\b[^>]*>[\s\S]*?<\/parameter>/gi, '')
+            .replace(/<\/?(invoke|parameter)\b[^>]*>/gi, '')
+            .replace(/<tts\b[^>]*>([\s\S]*?)<\/tts>/gi, (_, inner) => inner.trim())
+            .replace(/<\/?tts\b[^>]*>/gi, '')
+            .replace(/<done\s*\/?>/gi, '')
+            .replace(/```(?:json)?\s*\{\s*"(?:action|tool|tool_call|tool_name)"[\s\S]*?\}\s*```/gi, '')
+            .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gim, '')
+            .replace(/^\{\s*"(?:action|tool|tool_call|tool_name)"[\s\S]*?\}\s*$/gim, '')
+            .replace(/^\[Tool Output\]\s*$/gim, '')
+            .replace(/^Tool Output:.*$/gim, '')
+            .replace(/\n?\[Suggested next step\][\s\S]*$/i, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
     function normalizeTimestamp(timestamp) {
         const date = timestamp ? new Date(timestamp) : new Date();
         return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -46,6 +88,8 @@
     window.AuraChatCore = {
         escapeHtml,
         escapeAttr,
+        containsLeakedToolMarkup,
+        stripLeakedToolMarkup,
         normalizeTimestamp,
         formatTimestamp,
         createMarkdownRenderer
