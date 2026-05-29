@@ -214,13 +214,21 @@
         renderMarkdown(text) {
             const md = this.getMarkdown();
             if (!md) return this.escapeHtml(text);
-            let displayContent = text;
-            const strippedContent = this.stripLeakedToolMarkup(displayContent);
-            const isTechnical = !strippedContent && this.containsLeakedToolMarkup(text);
+            const preparedDisplay = (window.AuraChatCore && typeof window.AuraChatCore.prepareDisplayContent === 'function')
+                ? window.AuraChatCore.prepareDisplayContent(text, false)
+                : (function () {
+                    const strippedContent = this.stripLeakedToolMarkup(text);
+                    const isTechnical = !strippedContent && this.containsLeakedToolMarkup(text);
+                    return {
+                        displayContent: (isTechnical ? String(text || '') : strippedContent).trim(),
+                        isTechnical
+                    };
+                }).call(this);
+            let displayContent = preparedDisplay.displayContent;
+            const isTechnical = preparedDisplay.isTechnical;
             if (isTechnical) {
                 return '<pre>' + this.escapeHtml(displayContent) + '</pre>';
             }
-            displayContent = strippedContent.trim();
             if (!displayContent) return '';
             if (this.seenSSEImages.size > 0) {
                 displayContent = (window.AuraChatCore && typeof window.AuraChatCore.removeSeenMarkdownImages === 'function')

@@ -60,6 +60,19 @@
             .trim();
     }
 
+    function prepareDisplayContent(text, isUser) {
+        const raw = String(text || '');
+        if (isUser) {
+            return { displayContent: raw.trim(), isTechnical: false };
+        }
+
+        const strippedContent = stripLeakedToolMarkup(raw);
+        if (!strippedContent && containsLeakedToolMarkup(raw)) {
+            return { displayContent: raw.trim(), isTechnical: true };
+        }
+        return { displayContent: strippedContent.trim(), isTechnical: false };
+    }
+
     function prepareMarkdownContent(text) {
         const contentStripped = String(text || '').replace(
             /<external_data>([\s\S]*?)<\/external_data>/gi,
@@ -136,6 +149,7 @@
         escapeAttr,
         containsLeakedToolMarkup,
         stripLeakedToolMarkup,
+        prepareDisplayContent,
         prepareMarkdownContent,
         applyMarkdownLinkTargets,
         replaceThinkingPlaceholders,

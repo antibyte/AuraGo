@@ -112,23 +112,23 @@ function appendMessage(role, text, timestamp) {
     if (greet) greet.remove();
 
     const isUser = role === 'user';
-    let isTechnical = false;
-
-    let displayContent = text;
-    if (!isUser) {
-        // Pre-emptively strip to see if there's any conversational text left
-        const strippedContent = stripLeakedToolMarkup(displayContent);
-
-        if (!strippedContent && containsLeakedToolMarkup(text)) {
-            // Entire message was just a tool output or tool call with no other text
-            isTechnical = true;
-        } else {
-            // If there's conversational text, we show the stripped version
-            displayContent = strippedContent;
-        }
-    }
-
-    displayContent = displayContent.trim();
+    const preparedDisplay = (window.AuraChatCore && typeof window.AuraChatCore.prepareDisplayContent === 'function')
+        ? window.AuraChatCore.prepareDisplayContent(text, isUser)
+        : (function () {
+            let displayContent = text;
+            let isTechnical = false;
+            if (!isUser) {
+                const strippedContent = stripLeakedToolMarkup(displayContent);
+                if (!strippedContent && containsLeakedToolMarkup(text)) {
+                    isTechnical = true;
+                } else {
+                    displayContent = strippedContent;
+                }
+            }
+            return { displayContent: displayContent.trim(), isTechnical };
+        })();
+    let displayContent = preparedDisplay.displayContent;
+    const isTechnical = preparedDisplay.isTechnical;
     if (!displayContent) return;
 
     // Remove markdown images already shown live via SSE 'image' event

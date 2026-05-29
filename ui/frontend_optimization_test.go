@@ -53,6 +53,7 @@ func TestSharedChatCoreAPIIsEmbedded(t *testing.T) {
 		"escapeAttr(value)",
 		"containsLeakedToolMarkup(text)",
 		"stripLeakedToolMarkup(text)",
+		"prepareDisplayContent(text, isUser)",
 		"prepareMarkdownContent(text)",
 		"applyMarkdownLinkTargets(html)",
 		"replaceThinkingPlaceholders(html, thinkingBlocks, renderBlock)",
@@ -227,6 +228,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
+		"window.AuraChatCore.prepareDisplayContent(text, isUser)",
 		"window.AuraChatCore.prepareMarkdownContent(displayContent)",
 		"window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)",
 		"window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks,",
@@ -246,6 +248,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraChatCore.containsLeakedToolMarkup(text)",
 		"window.AuraChatCore.stripLeakedToolMarkup(text)",
+		"window.AuraChatCore.prepareDisplayContent(text, false)",
 		"window.AuraChatCore.prepareMarkdownContent(displayContent)",
 		"window.AuraChatCore.applyMarkdownLinkTargets(finalHTML)",
 		"window.AuraChatCore.replaceThinkingPlaceholders(finalHTML, thinkingBlocks,",
