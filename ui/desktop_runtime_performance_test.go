@@ -83,3 +83,23 @@ func TestDesktopIconsUseReconciliation(t *testing.T) {
 		t.Fatal("desktop icons must not fully rebuild via icons.innerHTML")
 	}
 }
+
+func TestGalaxaDeluxeCachesCanvasResources(t *testing.T) {
+	t.Parallel()
+
+	source := readEmbeddedText(t, "js/desktop/apps/galaxa-deluxe.js")
+	for _, marker := range []string{
+		"function ensureNebulaCanvas()",
+		"nebulaCv.width = W",
+		"const radialGradientCache = new Map()",
+		"function cachedRadialGradient",
+		"function drawPixelSprite",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("galaxa deluxe canvas optimization missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "nebulaCv = document.createElement('canvas'); nebulaCv.width = W; nebulaCv.height = H;") {
+		t.Fatal("galaxa deluxe must reuse the nebula canvas instead of allocating a new one per stage")
+	}
+}

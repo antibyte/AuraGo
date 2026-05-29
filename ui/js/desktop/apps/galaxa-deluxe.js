@@ -271,6 +271,9 @@ themes: {
         for (let i = 0; i < 20; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 60 + Math.random() * 60, br: 0.5 + Math.random() * 0.5, sz: 2, layer: 2 });
         for (let i = 0; i < 10; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H, sp: 100 + Math.random() * 80, br: 0.7 + Math.random() * 0.3, sz: 2, layer: 3, twinkle: Math.random() * 6.28 });
         let nebulaCv = null, nebulaColors = [];
+        const radialGradientCache = new Map();
+        const spritePixelCache = new WeakMap();
+        const flashPixelColors = {};
         let bgPlanets = [], bgComets = [];
         function initBG() {
             bgPlanets = [];
@@ -295,14 +298,40 @@ themes: {
                 ['#1a2a1a', '#3a0a1a', '#0a0a3a']
             ];
             nebulaColors = cols[(G.stage - 1) % cols.length];
-            nebulaCv = document.createElement('canvas'); nebulaCv.width = W; nebulaCv.height = H;
+            nebulaCv = ensureNebulaCanvas();
             const nc = nebulaCv.getContext('2d');
+            nc.clearRect(0, 0, W, H);
             for (let i = 0; i < 3; i++) {
                 const cx = W * (0.2 + i * 0.3), cy = H * (0.3 + i * 0.15), r = 120 + i * 40;
                 const gr = nc.createRadialGradient(cx, cy, 0, cx, cy, r);
                 gr.addColorStop(0, nebulaColors[i]); gr.addColorStop(1, 'transparent');
                 nc.fillStyle = gr; nc.fillRect(0, 0, W, H);
             }
+        }
+
+        function ensureNebulaCanvas() {
+            if (!nebulaCv) {
+                nebulaCv = document.createElement('canvas');
+            }
+            if (nebulaCv.width !== W) nebulaCv.width = W;
+            if (nebulaCv.height !== H) nebulaCv.height = H;
+            return nebulaCv;
+        }
+
+        function cachedRadialGradient(ctx, key, x, y, innerR, outerR, stops) {
+            const cacheKey = [
+                key,
+                Math.round(x),
+                Math.round(y),
+                Math.round(innerR),
+                Math.round(outerR),
+                stops.map(stop => stop.join('@')).join('|')
+            ].join(':');
+            if (radialGradientCache.has(cacheKey)) return radialGradientCache.get(cacheKey);
+            const gradient = ctx.createRadialGradient(x, y, innerR, x, y, outerR);
+            stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
+            radialGradientCache.set(cacheKey, gradient);
+            return gradient;
         }
 
         function buildSprites() {
@@ -401,7 +430,37 @@ themes: {
             };
         }
 
+        function getPixelSprite(sp, cols, flash) {
+            const colorKey = flash ? flashPixelColors : cols;
+            if (!sp || !colorKey || typeof colorKey !== 'object') return null;
+            let byColor = spritePixelCache.get(sp);
+            if (!byColor) {
+                byColor = new WeakMap();
+                spritePixelCache.set(sp, byColor);
+            }
+            if (byColor.has(colorKey)) return byColor.get(colorKey);
+            const pixels = [];
+            for (let r = 0; r < sp.length; r++) for (let cl = 0; cl < sp[r].length; cl++) {
+                const v = sp[r][cl]; if (!v) continue;
+                pixels.push({ x: cl, y: r, color: flash ? '#fff' : (cols[v] || '#fff') });
+            }
+            byColor.set(colorKey, pixels);
+            return pixels;
+        }
+
+        function drawPixelSprite(ctx, pixels, x, y, scale = 1) {
+            pixels.forEach(pixel => {
+                ctx.fillStyle = pixel.color;
+                ctx.fillRect(Math.floor(x + pixel.x * scale), Math.floor(y + pixel.y * scale), Math.max(1, scale), Math.max(1, scale));
+            });
+        }
+
         function drawSp(cv, sp, cols, x, y, flash) {
+            const pixels = getPixelSprite(sp, cols, flash);
+            if (pixels) {
+                drawPixelSprite(cv, pixels, x, y);
+                return;
+            }
             for (let r = 0; r < sp.length; r++) for (let cl = 0; cl < sp[r].length; cl++) {
                 const v = sp[r][cl]; if (!v) continue;
                 cv.fillStyle = flash ? '#fff' : (cols[v] || '#fff');
@@ -1100,9 +1159,10 @@ G.p.alive = false; boom(G.p.x, G.p.y); SFX.pExplode(); G.shkT = 300; G.shkM = 4;
             }
             if (G.activePU && G.activePU.type !== 'shield' && G.p && G.p.alive) {
                 const egCol = PU_COL[G.activePU.type] || '#ffffff';
-                const egGrad = c.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
-                egGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                egGrad.addColorStop(1, egCol + '55');
+                const egGrad = cachedRadialGradient(c, 'powerup-edge:' + egCol, W / 2, H / 2, W * 0.25, W * 0.75, [
+                    [0, 'rgba(0,0,0,0)'],
+                    [1, egCol + '55']
+                ]);
                 c.globalAlpha = 0.5 + Math.sin(tick * 0.05) * 0.2;
                 c.fillStyle = egGrad; c.fillRect(0, 0, W, H);
                 c.globalAlpha = 1;
@@ -1631,7 +1691,7 @@ if (e.type === 'bee') { sp = SP.bee[e.fr]; cols = SP.bC; } else if (e.type === '
         state.dispose = function () {
             state.disposed = true; cancelAnimationFrame(rafId); MusicEngine.stop();
             document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKeyUp);
-            ro.disconnect(); if (actx) try { actx.close(); } catch (e) {}
+            ro.disconnect(); radialGradientCache.clear(); if (actx) try { actx.close(); } catch (e) {}
             setPUClass(null); wrapEl.classList.remove('galaxa-boss-warning');
             instances.delete(windowId);
         };
